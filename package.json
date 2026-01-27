@@ -177,6 +177,8 @@
   },
   "scripts": {
     "android": "react-native run-android",
+    "apply-16kb-pagesize-patch": "node ./scripts/android-16kb-pagesize/apply-patch.js ./scripts/android-16kb-pagesize/9325-full.diff --apply",
+    "revert-16kb-pagesize-patch": "node ./scripts/android-16kb-pagesize/revert-patch.js",
     "rn-bundle:android": "react-native bundle --platform android --dev false  --entry-file index.ts   --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/",
     "rn-bundle:ios": "react-native bundle --platform ios --dev false  --entry-file index.ts   --bundle-output ios/main.jsbundle --assets-dest ios/",
     "run-patch-pkg": "patch-package",
