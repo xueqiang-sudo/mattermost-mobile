@@ -123,6 +123,10 @@ libraries/**/**/.build
 # Android sounds
 android/app/src/main/res/raw/*
 .aider*
+android/app/src/main/res/drawable-*dpi/dist_assets_images_*
+android/app/src/main/res/drawable-*dpi/node_modules_rneui_base_node_modules_*
+android/app/src/main/res/drawable-*dpi/node_modules_reactnavigation_elements_lib_module_assets_*
+android/app/src/main/assets/index.android.bundle
 
 # Intune submodule (private repository - internal builds only)
 # Track submodule reference but ignore content

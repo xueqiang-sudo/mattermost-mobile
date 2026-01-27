@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState, useMemo, useRef} from 'react';
+import React, {useCallback, useState, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {
     Keyboard,
@@ -13,7 +13,6 @@ import {
     type ListRenderItemInfo,
     ScrollView,
 } from 'react-native';
-import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import Animated, {useAnimatedStyle, useDerivedValue} from 'react-native-reanimated';
 
 import SelectedChip from '@components/chips/selected_chip';
@@ -26,7 +25,7 @@ import {Screens} from '@constants';
 import {MAX_LIST_HEIGHT, MAX_LIST_TABLET_DIFF} from '@constants/autocomplete';
 import {useTheme} from '@context/theme';
 import {useAutocompleteDefaultAnimatedValues} from '@hooks/autocomplete';
-import {useAvoidKeyboard, useIsTablet} from '@hooks/device';
+import {useIsTablet} from '@hooks/device';
 import {goToScreen} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 
@@ -178,9 +177,6 @@ export default function Selection({
     const [searchBarHeight, setSearchBarHeight] = useState(0);
 
     const hasChannelsSelected = selectedChannels.length > 0;
-
-    const keyboardAwareRef = useRef<KeyboardAwareScrollView>(null);
-    useAvoidKeyboard(keyboardAwareRef);
 
     const onLayoutSelectionTeamBar = useCallback((e: LayoutChangeEvent) => {
         setTeamBarHeight(e.nativeEvent.layout.height);
@@ -376,10 +372,7 @@ export default function Selection({
                 onLayoutContainer={onLayoutSelectionTeamBar}
                 onClose={onClose}
             />
-            <KeyboardAwareScrollView
-                ref={keyboardAwareRef}
-                style={styles.contentContainer}
-            >
+            <View style={styles.contentContainer}>
                 <SelectionSearchBar
                     term={term}
                     onSearchChange={onSearchChange}
@@ -435,8 +428,7 @@ export default function Selection({
                             )}
                             {allowGuestMagicLink && (
                                 <OptionItem
-                                    label={intl.formatMessage({id: 'invite.guest_magic_link', defaultMessage: 'Use magic link'})}
-                                    description={intl.formatMessage({id: 'invite.guest_magic_link_description', defaultMessage: 'Newly created guests will join and log in without a password, using a magic link sent to their email address'})}
+                                    label={intl.formatMessage({id: 'invite.guest_magic_link', defaultMessage: 'Allow newly created guests to login without password'})}
                                     type='toggle'
                                     selected={guestMagicLink}
                                     action={handlePasswordlessInvitesChange}
@@ -446,7 +438,7 @@ export default function Selection({
                         </>
                     )}
                 </View>
-            </KeyboardAwareScrollView>
+            </View>
             <Animated.View style={searchListContainerStyle}>
                 <FlatList
                     data={searchResults}
