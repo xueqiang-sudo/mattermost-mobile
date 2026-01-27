@@ -11,6 +11,16 @@ const defaultConfig = getDefaultConfig(__dirname);
  *
  * @type {import('metro-config').MetroConfig}
  */
-const config = {};
+const config = {
+    resolver: {
+        extraNodeModules: {
+
+            // 将 Node.js 核心模块映射到对应的 npm 包
+            events: require.resolve('events'),
+
+            // 其他可能需要的核心模块...
+        },
+    },
+};
 
 module.exports = mergeConfig(defaultConfig, config);
