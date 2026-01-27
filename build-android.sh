@@ -26,12 +26,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# 步骤 1: 使用指定的 Node.js 版本
-echo "步骤 1: 使用 Node.js 18.20.0 版本"
-nvm use 18.20.0
-if [ $? -ne 0 ]; then
-    echo "错误: nvm use 18.20.0 失败"
+# 步骤 1: 检查 Node.js 版本是否为 18.20.0
+echo "步骤 1: 检查 Node.js 版本"
+NODE_VERSION=$(node -v)
+EXPECTED_VERSION="v18.20.0"
+
+if [ "$NODE_VERSION" != "$EXPECTED_VERSION" ]; then
+    echo "错误: 当前 Node.js 版本为 $NODE_VERSION，需要 $EXPECTED_VERSION"
+    echo "请确保使用正确的 Node.js 版本"
     exit 1
+else
+    echo "Node.js 版本检查通过: $NODE_VERSION"
 fi
 
 # 步骤 2: 执行 rn-bundle:android（可忽略）
