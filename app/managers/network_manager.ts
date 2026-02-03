@@ -90,6 +90,14 @@ class NetworkManagerSingleton {
         delete this.clients[serverUrl];
     };
 
+    public getAndCreateClient = async (serverUrl: string, bearerToken?: string, preauthSecret?: string) => {
+        if (this.clients[serverUrl]) {
+            return this.clients[serverUrl];
+        }
+
+        return this.createClient(serverUrl, bearerToken, preauthSecret);
+    };
+
     public getClient = (serverUrl: string) => {
         const client = this.clients[serverUrl];
         if (!client) {
@@ -179,4 +187,9 @@ class NetworkManagerSingleton {
 }
 
 const NetworkManager = new NetworkManagerSingleton();
+
+export const getAutoClient = (serverUrl: string, bearerToken?: string, preauthSecret?: string) => {
+    return NetworkManager.getAndCreateClient(serverUrl, bearerToken, preauthSecret);
+};
+
 export default NetworkManager;

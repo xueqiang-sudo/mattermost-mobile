@@ -117,8 +117,19 @@ export const fetchSessions = async (serverUrl: string, currentUserId: string) =>
     return undefined;
 };
 
-export const login = async (serverUrl: string, {ldapOnly = false, loginId, mfaToken, password, config, serverDisplayName}: LoginArgs): Promise<LoginActionResponse> => {
-    let deviceToken;
+export const userPwdLoginAPI = async (serverUrl: string, {ldapOnly = false, loginId, mfaToken, password}: Pick<LoginArgs, 'ldapOnly' | 'loginId' | 'mfaToken' | 'password'>): Promise<UserProfile> => {
+    const client = NetworkManager.getClient(serverUrl);
+    const deviceToken = await getDeviceToken();
+    return client.login(
+        loginId,
+        password,
+        mfaToken,
+        deviceToken,
+        ldapOnly,
+    );
+};
+
+export const login = async (serverUrl: string, {ldapOnly = false, loginId, mfaToken, password, config, serverDisplayName, loginedUser}: LoginArgs): Promise<LoginActionResponse> => {
     let user: UserProfile;
 
     const appDatabase = DatabaseManager.appDatabase?.database;
@@ -128,14 +139,11 @@ export const login = async (serverUrl: string, {ldapOnly = false, loginId, mfaTo
 
     try {
         const client = NetworkManager.getClient(serverUrl);
-        deviceToken = await getDeviceToken();
-        user = await client.login(
-            loginId,
-            password,
-            mfaToken,
-            deviceToken,
-            ldapOnly,
-        );
+        if (loginedUser) {
+            user = loginedUser;
+        } else {
+            user = await userPwdLoginAPI(serverUrl, {ldapOnly, loginId, mfaToken, password});
+        }
 
         const server = await DatabaseManager.createServerDatabase({
             config: {
@@ -249,7 +257,6 @@ export const scheduleSessionNotification = async (serverUrl: string) => {
 
         if (sessions) {
             const session = await findSession(serverUrl, sessions);
-
             if (session) {
                 const sessionId = session.id;
                 const notificationId = scheduleExpiredNotification(serverUrl, session, serverName, user?.locale);

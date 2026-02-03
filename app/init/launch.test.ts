@@ -17,7 +17,7 @@ import {getAllServers} from '@queries/app/servers';
 import {queryPostsByType} from '@queries/servers/post';
 import {getCurrentUserId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
-import {resetToHome, resetToSelectServer, resetToOnboarding} from '@screens/navigation';
+import {resetToHome, resetToLogin, resetToOnboarding} from '@screens/navigation';
 import {getLaunchPropsFromDeepLink} from '@utils/deep_link';
 
 import {initialLaunch, launchToHome, cleanupEphemeralPosts, getLaunchPropsFromNotification} from './launch';
@@ -61,7 +61,7 @@ jest.mock('@queries/servers/system');
 jest.mock('@queries/servers/team');
 jest.mock('@screens/navigation', () => ({
     resetToHome: jest.fn().mockResolvedValue(''),
-    resetToSelectServer: jest.fn().mockResolvedValue(''),
+    resetToLogin: jest.fn().mockResolvedValue(''),
     resetToTeams: jest.fn().mockResolvedValue(''),
     resetToOnboarding: jest.fn().mockResolvedValue(''),
 }));
@@ -97,27 +97,27 @@ describe('Launch', () => {
 
             jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(deepLinkUrl);
             jest.mocked(getLaunchPropsFromDeepLink).mockReturnValue(launchProps);
-            jest.mocked(resetToSelectServer).mockResolvedValue('');
+            jest.mocked(resetToLogin).mockResolvedValue('');
 
             await initialLaunch();
 
             expect(Linking.getInitialURL).toHaveBeenCalled();
             expect(getLaunchPropsFromDeepLink).toHaveBeenCalledWith(deepLinkUrl, true);
-            expect(resetToSelectServer).toHaveBeenCalledWith(launchProps);
+            expect(resetToLogin).toHaveBeenCalledWith(launchProps);
         });
 
         it('should handle notification launch', async () => {
             const payload = {type: PushNotification.NOTIFICATION_TYPE.SESSION, ack_id: 'ack1'};
 
             jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(null);
-            jest.mocked(resetToSelectServer).mockResolvedValue('');
+            jest.mocked(resetToLogin).mockResolvedValue('');
 
             jest.mocked(Notifications.getInitialNotification).mockResolvedValueOnce({payload} as any);
 
             await initialLaunch();
 
             expect(Linking.getInitialURL).toHaveBeenCalled();
-            expect(resetToSelectServer).toHaveBeenCalledWith(expect.objectContaining({launchType: Launch.Notification}));
+            expect(resetToLogin).toHaveBeenCalledWith(expect.objectContaining({launchType: Launch.Notification}));
         });
 
         it('should handle normal launch with active server', async () => {

@@ -120,8 +120,8 @@ const LoginForm = ({
     const managedConfig = useManagedConfig<ManagedConfig>();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | undefined>();
-    const [loginId, setLoginId] = useState<string>('');
-    const [password, setPassword] = useState<string>('');
+    const [loginId, setLoginId] = useState<string>('qiushaocloud');
+    const [password, setPassword] = useState<string>('qiushaocloud@3344');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isDeactivated, setIsDeactivated] = useState(false);
     const emailEnabled = config.EnableSignInWithEmail === 'true';

@@ -474,6 +474,12 @@
   "login.signIn": "登录",
   "login.signingIn": "登录中",
   "login.username": "用户名",
+  "login.sendingCode": "发送中...",
+  "login.phoneNumber": "手机号",
+  "login.verificationCode": "验证码",
+  "login.getCode": "获取验证码",
+  "login.enterNickname": "输入昵称",
+  "login.nicknamePlaceholder": "请输入您的昵称",
   "login_mfa.enterToken": "完成此签名流程，请从您移动设备上的认证应用上输入代码。",
   "login_mfa.token": "输入MFA令牌",
   "login_mfa.tokenReq": "请输入多重验证令牌",
@@ -1455,5 +1461,12 @@
   "video.failed_description": "当播放此视频发生错误。",
   "video.normal": "正常",
   "video.playback_speed": "播放速度",
-  "your.servers": "您的服务器"
+  "your.servers": "您的服务器",
+  "phoneInput.selectCountry": "选择国家/地区",
+  "phoneInput.enterPhoneNumber": "请输入手机号",
+  "phoneInput.close": "关闭",
+  "phoneInput.countryChina": "中国",
+  "phoneInput.validPhone": "请输入正确的手机号",
+  "common_modal.confirm": "确认",
+  "common_modal.cancel": "取消"
 }

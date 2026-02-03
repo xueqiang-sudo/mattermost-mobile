@@ -1,7 +1,7 @@
 {
     "AuthUrlScheme": "mmauth://",
     "AuthUrlSchemeDev": "mmauthbeta://",
-    "DefaultServerUrl": "",
+    "DefaultServerUrl": "http://175.25.51.228:8065",
     "DefaultServerName": "",
     "TestServerUrl": "http://localhost:8065",
     "AutoSelectServerUrl": false,

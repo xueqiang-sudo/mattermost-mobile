@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {CONNECT_URL} from '@env';
 import Emm from '@mattermost/react-native-emm';
 import {Alert, AppState, DeviceEventEmitter, Linking, Platform} from 'react-native';
 import {Notifications} from 'react-native-notifications';
@@ -8,12 +9,14 @@ import {Notifications} from 'react-native-notifications';
 import {removePost} from '@actions/local/post';
 import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
+import {logout} from '@actions/remote/session';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import LocalConfig from '@assets/config.json';
 import {DeepLink, Events, Launch, PushNotification} from '@constants';
 import {PostTypes} from '@constants/post';
 import DatabaseManager from '@database/manager';
 import {getActiveServerUrl, getServerCredentials, removeServerCredentials} from '@init/credentials';
+import {getAutoClient} from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {getLastViewedChannelIdAndServer, getOnboardingViewed, getLastViewedThreadIdAndServer} from '@queries/app/global';
 import {getAllServers} from '@queries/app/servers';
@@ -21,7 +24,7 @@ import {queryPostsByType} from '@queries/servers/post';
 import {getThemeForCurrentTeam} from '@queries/servers/preference';
 import {getCurrentUserId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
-import {resetToHome, resetToSelectServer, resetToTeams, resetToOnboarding} from '@screens/navigation';
+import {resetToHome, resetToLogin, resetToTeams, resetToOnboarding} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
 import {logInfo} from '@utils/log';
@@ -115,7 +118,9 @@ export const launchApp = async (props: LaunchProps) => {
             break;
         }
         default:
-            serverUrl = await getActiveServerUrl();
+            // serverUrl = await getActiveServerUrl()
+            // qgs: 写死服务器地址
+            serverUrl = CONNECT_URL || LocalConfig.DefaultServerUrl;
             break;
     }
 
@@ -126,8 +131,16 @@ export const launchApp = async (props: LaunchProps) => {
     cleanupEphemeralPosts();
 
     if (serverUrl) {
-        const credentials = await getServerCredentials(serverUrl);
-        if (credentials) {
+        let hasCredentials = Boolean(await getServerCredentials(serverUrl));
+        const myUser = await (await getAutoClient(serverUrl)).getMe().catch(() => null);
+        if (!(myUser && myUser.nickname)) {
+            hasCredentials = false;
+            logInfo('not exist user launchToLogin', Boolean(myUser));
+            await logout(serverUrl, undefined, {skipServerLogout: true, skipEvents: true}).then(() => logInfo('logout success')).catch((errTmp) => logInfo('logout error', errTmp));
+        }
+        logInfo('exist user launchToHome', myUser && myUser.nickname);
+
+        if (hasCredentials) {
             const database = DatabaseManager.serverDatabases[serverUrl]?.database;
             let hasCurrentUser = false;
             if (database) {
@@ -172,7 +185,7 @@ export const launchApp = async (props: LaunchProps) => {
         return resetToOnboarding(props);
     }
 
-    return resetToSelectServer(props);
+    return resetToLogin({...props, serverUrl});
 };
 
 export const launchToHome = async (props: LaunchProps) => {

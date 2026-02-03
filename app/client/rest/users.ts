@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {General} from '@constants';
+import {formatPhone} from '@utils/form-rule';
 import {buildQueryString} from '@utils/helpers';
 
 import {PER_PAGE_DEFAULT} from './constants';
@@ -9,6 +10,7 @@ import {PER_PAGE_DEFAULT} from './constants';
 import type ClientBase from './base';
 
 export interface ClientUsersMix {
+    autoRegisterPhoneUser: (phoneNumber: string, password: string) => Promise<UserProfile>;
     createUser: (user: UserProfile, token: string, inviteId: string) => Promise<UserProfile>;
     patchMe: (userPatch: Partial<UserProfile>, groupLabel?: RequestGroupLabel) => Promise<UserProfile>;
     patchUser: (userPatch: Partial<UserProfile> & {id: string}) => Promise<UserProfile>;
@@ -53,6 +55,20 @@ export interface ClientUsersMix {
 }
 
 const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
+    autoRegisterPhoneUser = (phoneNumber: string, password: string) => {
+        return this.doFetch(
+            this.getUsersRoute(),
+            {
+                method: 'post',
+                body: {
+                    email: `${formatPhone(phoneNumber)}@auto.register`,
+                    username: formatPhone(phoneNumber),
+                    password,
+                },
+            },
+        );
+    };
+
     createUser = async (user: UserProfile, token: string, inviteId: string) => {
         const queryParams: any = {};
 

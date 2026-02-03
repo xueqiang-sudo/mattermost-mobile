@@ -518,7 +518,7 @@ jest.mock('react-native-share', () => ({
 jest.mock('@screens/navigation', () => ({
     ...jest.requireActual('@screens/navigation'),
     resetToChannel: jest.fn(),
-    resetToSelectServer: jest.fn(),
+    resetToLogin: jest.fn(),
     resetToTeams: jest.fn(),
     goToScreen: jest.fn(),
     popTopScreen: jest.fn(),

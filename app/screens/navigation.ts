@@ -379,14 +379,14 @@ export function resetToHome(passProps: LaunchProps = {launchType: Launch.Normal}
     });
 }
 
-export function resetToSelectServer(passProps: LaunchProps) {
+export function resetToLogin(passProps: LaunchProps) {
     const theme = getDefaultThemeByAppearance();
-    const edgeToEdge = edgeToEdgeHack(Screens.SERVER, theme);
+    const edgeToEdge = edgeToEdgeHack(Screens.LOGIN, theme);
 
     const children = [{
         component: {
-            id: Screens.SERVER,
-            name: Screens.SERVER,
+            id: Screens.LOGIN,
+            name: Screens.LOGIN,
             passProps: {
                 ...passProps,
                 theme,

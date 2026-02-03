@@ -512,6 +512,12 @@
   "login.signIn": "Log In",
   "login.signingIn": "Logging In",
   "login.username": "Username",
+  "login.sendingCode": "Sending...",
+  "login.phoneNumber": "Phone Number",
+  "login.verificationCode": "Verification Code",
+  "login.getCode": "Get Code",
+  "login.enterNickname": "Enter Nickname",
+  "login.nicknamePlaceholder": "Please enter your nickname",
   "logout.fail.cancel": "Cancel",
   "logout.fail.continue_anyway": "Continue Anyway",
   "logout.fail.message": "You’re not fully logged out. Some data may continue to be accessible to this device once the device goes back online. What do you want to do?",
@@ -1524,5 +1530,12 @@
   "video.failed_description": "An error occurred while trying to play the video.",
   "video.normal": "Normal",
   "video.playback_speed": "Playback Speed",
-  "your.servers": "Your servers"
+  "your.servers": "Your servers",
+  "phoneInput.selectCountry": "Select country/region",
+  "phoneInput.enterPhoneNumber": "Please enter phone number",
+  "phoneInput.close": "Close",
+  "phoneInput.countryChina": "China",
+  "phoneInput.validPhone": "Please enter a valid phone number",
+  "common_modal.confirm": "Confirm",
+  "common_modal.cancel": "Cancel"
 }
