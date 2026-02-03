@@ -335,7 +335,7 @@ const PhoneLoginForm = ({
             setError(getFullErrorMessage(loginError));
             setIsLoading(false);
         }
-    }, [goToHome, phoneNumber, serverUrl, showNicknameInput, verificationCode]);
+    }, [goToHome, intl, phoneNumber, serverUrl, showNicknameInput, verificationCode]);
 
     const preSignIn = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
