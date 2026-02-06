@@ -1468,5 +1468,20 @@
   "phoneInput.countryChina": "中国",
   "phoneInput.validPhone": "请输入正确的手机号",
   "common_modal.confirm": "确认",
-  "common_modal.cancel": "取消"
+  "common_modal.cancel": "取消",
+  "enterprise_selection.title": "选择企业操作",
+  "enterprise_selection.description": "请选择以下操作之一以开始使用企业功能",
+  "enterprise_selection.join.title": "企业已在使用",
+  "enterprise_selection.join.action": "加入企业 ›",
+  "enterprise_selection.create.title": "企业未在使用",
+  "enterprise_selection.create.action": "创建企业 ›",
+  "create_team.title": "创建企业",
+  "create_team.enterprise_name": "企业名称",
+  "create_team.create": "创建",
+  "create_team.cancel": "取消",
+  "join_team_qr.title": "加入企业",
+  "join_team_qr.subtitle": "通过同事扫码确认身份加入",
+  "join_team_qr.user_info": "{nickname} 请求加入企业",
+  "join_team_qr.hint": "同事扫码确认后，您可加入企业",
+  "join_team_qr.share": "分享二维码"
 }

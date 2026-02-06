@@ -1537,5 +1537,20 @@
   "phoneInput.countryChina": "China",
   "phoneInput.validPhone": "Please enter a valid phone number",
   "common_modal.confirm": "Confirm",
-  "common_modal.cancel": "Cancel"
+  "common_modal.cancel": "Cancel",
+  "enterprise_selection.title": "Select Enterprise Action",
+  "enterprise_selection.description": "Please select one of the following actions to start using enterprise features",
+  "enterprise_selection.join.title": "Enterprise is already using",
+  "enterprise_selection.join.action": "Join Enterprise ›",
+  "enterprise_selection.create.title": "Enterprise is not using",
+  "enterprise_selection.create.action": "Create Enterprise ›",
+  "create_team.title": "Create Enterprise",
+  "create_team.enterprise_name": "Enterprise Name",
+  "create_team.create": "Create",
+  "create_team.cancel": "Cancel",
+  "join_team_qr.title": "Join Enterprise",
+  "join_team_qr.subtitle": "Join by colleague's scan to confirm identity",
+  "join_team_qr.user_info": "{nickname} requests to join the enterprise",
+  "join_team_qr.hint": "After colleague scans and confirms, you can join the enterprise",
+  "join_team_qr.download": "Share QR Code"
 }

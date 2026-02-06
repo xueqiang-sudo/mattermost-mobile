@@ -670,6 +670,7 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
             animate: true,
             visible: true,
             backButton: {
+                visible: true,
                 color: theme.sidebarHeaderTextColor,
                 title: '',
             },
