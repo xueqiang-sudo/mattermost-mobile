@@ -652,7 +652,6 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
     if (!isScreenRegistered(name) || NavigationStore.getVisibleModal() === name) {
         return;
     }
-
     const theme = getThemeFromState();
     const edgeToEdge = edgeToEdgeHack(name, theme);
     const modalPresentationStyle: OptionsModalPresentationStyle = Platform.OS === 'ios' ? OptionsModalPresentationStyle.pageSheet : OptionsModalPresentationStyle.none;
@@ -670,7 +669,6 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
             animate: true,
             visible: true,
             backButton: {
-                visible: true,
                 color: theme.sidebarHeaderTextColor,
                 title: '',
             },
@@ -702,6 +700,20 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
             }],
         },
     });
+}
+
+export function showModalWithBackButton(name: AvailableScreens, title: string, closeButtonId: string, passProps = {}, options: Options = {}) {
+    const closeButton = CompassIcon.getImageSourceSync('close', 24, getThemeFromState().sidebarHeaderTextColor);
+    const mergeOptions = merge({
+        topBar: {
+            leftButtons: [{
+                id: closeButtonId,
+                icon: closeButton,
+                testID: `${closeButtonId.replace('close-', 'close.').replace(/-/g, '_')}.button`,
+            }],
+        },
+    }, options);
+    showModal(name, title, {...passProps, closeButtonId}, mergeOptions);
 }
 
 export function showModalOverCurrentContext(name: AvailableScreens, passProps = {}, options: Options = {}) {

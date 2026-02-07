@@ -51,6 +51,7 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
             switchMap(([openServer, addUser]) => of$(openServer && addUser)),
             distinctUntilChanged(),
         ),
+        currentUser,
         displayName: team.pipe(
             switchMap((t) => of$(t?.displayName)),
             distinctUntilChanged(),

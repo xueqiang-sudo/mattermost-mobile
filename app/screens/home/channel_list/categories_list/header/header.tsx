@@ -26,12 +26,15 @@ import LoadingUnreads from './loading_unreads';
 import PlusMenu from './plus_menu';
 import {SEPARATOR_HEIGHT} from './plus_menu/separator';
 
+import type UserModel from '@typings/database/models/servers/user';
+
 const PLUS_BUTTON_SIZE = 28;
 
 type Props = {
     canCreateChannels: boolean;
     canJoinChannels: boolean;
     canInvitePeople: boolean;
+    currentUser?: UserModel;
     displayName?: string;
     iconPad?: boolean;
     onHeaderPress?: () => void;
@@ -105,6 +108,7 @@ const ChannelListHeader = ({
     canCreateChannels,
     canJoinChannels,
     canInvitePeople,
+    currentUser,
     displayName,
     iconPad,
     onHeaderPress,
@@ -130,12 +134,13 @@ const ChannelListHeader = ({
                     canCreateChannels={canCreateChannels}
                     canJoinChannels={canJoinChannels}
                     canInvitePeople={canInvitePeople}
+                    currentUser={currentUser}
                 />
             );
         };
 
         const closeButtonId = 'close-plus-menu';
-        let items = 1;
+        let items = 1; // 私信
         let separators = 0;
 
         if (canCreateChannels) {
@@ -151,6 +156,10 @@ const ChannelListHeader = ({
             separators += 1;
         }
 
+        // 新增：扫一扫 + 创建企业 + 加入企业
+        items += 3;
+        separators += 1;
+
         bottomSheet({
             closeButtonId,
             renderContent,
@@ -158,7 +167,7 @@ const ChannelListHeader = ({
             theme,
             title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Options'}),
         });
-    }, [intl, theme, canCreateChannels, canInvitePeople, canJoinChannels]));
+    }, [intl, theme, canCreateChannels, canInvitePeople, canJoinChannels, currentUser]));
 
     const onPushAlertPress = useCallback(() => {
         if (pushProxyStatus === PUSH_PROXY_STATUS_NOT_AVAILABLE) {

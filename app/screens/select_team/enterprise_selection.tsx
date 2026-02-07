@@ -1,14 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React from 'react';
+import React, {useCallback} from 'react';
+import {useIntl} from 'react-intl';
 import {Text, TouchableOpacity, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
-import {showModal} from '@screens/navigation';
+import {showModalWithBackButton} from '@screens/navigation';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -92,26 +93,23 @@ interface EnterpriseSelectionProps {
 }
 
 const EnterpriseSelection: React.FC<EnterpriseSelectionProps> = ({serverUrl, currentUser}) => {
+    const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
 
-    const handleJoinEnterprise = () => {
-        showModal(Screens.JOIN_TEAM_QR, 'Join Enterprise', {
+    const handleJoinEnterprise = useCallback(() => {
+        showModalWithBackButton(Screens.JOIN_TEAM_QR, intl.formatMessage({id: 'join_team_qr.select_title', defaultMessage: 'Join Enterprise'}), 'close-select-join-team-qr', {
             serverUrl,
             nickname: currentUser?.nickname || '',
             userId: currentUser?.id || '',
-        }, {
-            topBar: {visible: false},
         });
-    };
+    }, [intl, serverUrl, currentUser?.nickname, currentUser?.id]);
 
     const handleCreateEnterprise = () => {
-        showModal(Screens.CREATE_TEAM, 'Create Enterprise', {
+        showModalWithBackButton(Screens.CREATE_TEAM, intl.formatMessage({id: 'create_team.select_title', defaultMessage: 'Create Enterprise'}), 'close-select-create-team', {
             serverUrl,
             nickname: currentUser?.nickname || '',
             userId: currentUser?.id || '',
-        }, {
-            topBar: {visible: false},
         });
     };
 

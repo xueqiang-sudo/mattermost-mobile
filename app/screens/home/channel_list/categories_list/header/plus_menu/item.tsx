@@ -7,7 +7,7 @@ import {useIntl} from 'react-intl';
 import SlideUpPanelItem from '@components/slide_up_panel_item';
 
 type PlusMenuItemProps = {
-    pickerAction: 'browseChannels' | 'createNewChannel' | 'openDirectMessage' | 'invitePeopleToTeam';
+    pickerAction: 'browseChannels' | 'createNewChannel' | 'openDirectMessage' | 'invitePeopleToTeam' | 'scanQRCode' | 'createEnterprise' | 'joinEnterprise';
     onPress: () => void;
 };
 
@@ -36,6 +36,21 @@ const PlusMenuItem = ({pickerAction, onPress}: PlusMenuItemProps) => {
             leftIcon: 'account-plus-outline',
             text: intl.formatMessage({id: 'plus_menu.invite_people_to_team.title', defaultMessage: 'Invite people to the team'}),
             testID: 'plus_menu_item.invite_people_to_team',
+        },
+        scanQRCode: {
+            leftIcon: 'camera-outline',
+            text: intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'}),
+            testID: 'plus_menu_item.scan_qr_code',
+        },
+        createEnterprise: {
+            leftIcon: 'plus-box-outline',
+            text: intl.formatMessage({id: 'plus_menu.create_enterprise.title', defaultMessage: 'Create Enterprise'}),
+            testID: 'plus_menu_item.create_enterprise',
+        },
+        joinEnterprise: {
+            leftIcon: 'account-multiple-plus-outline',
+            text: intl.formatMessage({id: 'plus_menu.join_enterprise.title', defaultMessage: 'Join Enterprise'}),
+            testID: 'plus_menu_item.join_enterprise',
         },
     };
 

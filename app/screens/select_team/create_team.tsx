@@ -6,8 +6,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import Animated, {FadeIn, useAnimatedStyle} from 'react-native-reanimated';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import Animated, {FadeIn} from 'react-native-reanimated';
 
 import {createTeamByName} from '@actions/remote/team';
 import Button from '@components/button';
@@ -15,7 +14,10 @@ import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
+import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
+import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
+import SecurityManager from '@managers/security_manager';
 import {dismissModal} from '@screens/navigation';
 import {logError} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -23,31 +25,12 @@ import {typography} from '@utils/typography';
 import {cleanUpUrlable} from '@utils/url';
 
 import type ClientError from '@client/rest/error';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
-    },
-    customHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingTop: 5,
-        paddingBottom: 5,
-        paddingHorizontal: 15,
-        backgroundColor: theme.sidebarBg,
-    },
-    backButton: {
-        padding: 8,
-        marginLeft: -8,
-    },
-    headerTitle: {
-        color: theme.sidebarHeaderTextColor,
-        ...typography('Heading', 600),
-        flex: 1,
-        textAlign: 'center',
-        marginLeft: 30,
     },
     scrollContent: {
         flexGrow: 1,
@@ -271,24 +254,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const safeAreaEdges = ['left' as const, 'right' as const];
-const safeAreaStyle = {flex: 1};
-
 /**
  * CreateTeam Component
  *
  * 用于创建企业的界面，用户可以输入企业名称并提交创建请求
  */
 interface CreateTeamProps {
+    componentId: AvailableScreens;
+    closeButtonId: string;
     serverUrl: string;
     nickname: string;
 }
 
-const CreateTeam: React.FC<CreateTeamProps> = ({serverUrl, nickname}: CreateTeamProps) => {
+const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serverUrl, nickname}: CreateTeamProps) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const intl = useIntl();
-    const insets = useSafeAreaInsets();
 
     // State
     const [step, setStep] = useState<1 | 2>(1);
@@ -300,10 +281,6 @@ const CreateTeam: React.FC<CreateTeamProps> = ({serverUrl, nickname}: CreateTeam
     const [nameFocused, setNameFocused] = useState(false);
     const [urlFocused, setUrlFocused] = useState(false);
     const [showCopySuccess, setShowCopySuccess] = useState(false);
-
-    const top = useAnimatedStyle(() => {
-        return {height: insets.top, backgroundColor: theme.sidebarBg};
-    });
 
     // Extract domain from serverUrl
     const serverDomain = useMemo(() => {
@@ -409,10 +386,12 @@ const CreateTeam: React.FC<CreateTeamProps> = ({serverUrl, nickname}: CreateTeam
         setStep(2);
     });
 
-    // Handle close modal
-    const handleClose = useCallback(() => {
-        dismissModal({componentId: Screens.CREATE_TEAM});
-    }, []);
+    const onClosePressed = useCallback(() => {
+        return dismissModal({componentId});
+    }, [componentId]);
+
+    useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);
+    useAndroidHardwareBackHandler(componentId, onClosePressed);
 
     // Handle back to previous step
     const handleBackStep = useCallback(() => {
@@ -481,349 +460,324 @@ const CreateTeam: React.FC<CreateTeamProps> = ({serverUrl, nickname}: CreateTeam
     }, [fullUrl]);
 
     return (
-        <SafeAreaView
-            mode='margin'
-            edges={safeAreaEdges}
-            style={safeAreaStyle}
-            nativeID='select_team_create_team'
+        <View
+            nativeID={SecurityManager.getShieldScreenId(componentId)}
+            style={styles.container}
         >
-            <Animated.View style={top}/>
-            <View style={styles.container}>
-                {/* Custom Header */}
-                <View style={styles.customHeader}>
-                    <FormattedText
-                        style={styles.headerTitle}
-                        id='create_team.title'
-                        defaultMessage='Create Enterprise'
-                    />
-                    <TouchableOpacity
-                        onPress={handleClose}
-                        style={styles.backButton}
-                        testID='create_team.close_button'
-                    >
-                        <CompassIcon
-                            name='close'
-                            size={24}
-                            color={theme.sidebarHeaderTextColor}
+            {/* Content Area */}
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps='handled'
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.content}>
+                    {/* Progress Indicator */}
+                    <View style={styles.progressContainer}>
+                        <View style={[styles.progressDot, step === 1 && styles.progressDotActive]}/>
+                        <View style={[styles.progressDot, step === 2 && styles.progressDotActive]}/>
+                        <FormattedText
+                            style={styles.progressText}
+                            id='create_team.step_progress'
+                            defaultMessage='Step {current} of {total}'
+                            values={{current: step, total: 2}}
                         />
-                    </TouchableOpacity>
-                </View>
+                    </View>
 
-                {/* Content Area */}
-                <ScrollView
-                    style={styles.container}
-                    contentContainerStyle={styles.scrollContent}
-                    keyboardShouldPersistTaps='handled'
-                    showsVerticalScrollIndicator={false}
-                >
-                    <View style={styles.content}>
-                        {/* Progress Indicator */}
-                        <View style={styles.progressContainer}>
-                            <View style={[styles.progressDot, step === 1 && styles.progressDotActive]}/>
-                            <View style={[styles.progressDot, step === 2 && styles.progressDotActive]}/>
-                            <FormattedText
-                                style={styles.progressText}
-                                id='create_team.step_progress'
-                                defaultMessage='Step {current} of {total}'
-                                values={{current: step, total: 2}}
-                            />
-                        </View>
+                    {/* Step 1: Enterprise Name */}
+                    {step === 1 && (
+                        <Animated.View
+                            entering={FadeIn.duration(300)}
+                        >
+                            <View style={styles.stepTipContainer}>
+                                <FormattedText
+                                    style={styles.stepTipText}
+                                    id='create_team.step1_tip'
+                                    defaultMessage='Please name your enterprise'
+                                />
+                            </View>
 
-                        {/* Step 1: Enterprise Name */}
-                        {step === 1 && (
-                            <Animated.View
-                                entering={FadeIn.duration(300)}
-                            >
-                                <View style={styles.stepTipContainer}>
+                            {/* Creator Info Card */}
+                            <View style={styles.creatorCard}>
+                                <CompassIcon
+                                    name='account-outline'
+                                    size={20}
+                                    color={changeOpacity(theme.centerChannelColor, 0.72)}
+                                    style={styles.creatorIcon}
+                                />
+                                <Text style={styles.creatorText}>
                                     <FormattedText
-                                        style={styles.stepTipText}
-                                        id='create_team.step1_tip'
-                                        defaultMessage='Please name your enterprise'
+                                        id='create_team.created_by'
+                                        defaultMessage='Created by @{nickname}'
+                                        values={{nickname}}
                                     />
-                                </View>
+                                </Text>
+                            </View>
 
-                                {/* Creator Info Card */}
-                                <View style={styles.creatorCard}>
-                                    <CompassIcon
-                                        name='account-outline'
-                                        size={20}
-                                        color={changeOpacity(theme.centerChannelColor, 0.72)}
-                                        style={styles.creatorIcon}
+                            {/* Enterprise Name Input */}
+                            <View style={styles.formContainer}>
+                                <View style={styles.inputContainer}>
+                                    <FormattedText
+                                        style={styles.inputLabel}
+                                        id='create_team.enterprise_name'
+                                        defaultMessage='Enterprise Name'
                                     />
-                                    <Text style={styles.creatorText}>
-                                        <FormattedText
-                                            id='create_team.created_by'
-                                            defaultMessage='Created by @{nickname}'
-                                            values={{nickname}}
-                                        />
-                                    </Text>
+                                    <TextInput
+                                        style={[
+                                            styles.input,
+                                            nameFocused && styles.inputFocused,
+                                            nameError && styles.inputError,
+                                        ]}
+                                        value={enterpriseName}
+                                        onChangeText={handleNameChange}
+                                        onFocus={() => setNameFocused(true)}
+                                        onBlur={() => setNameFocused(false)}
+                                        placeholder={intl.formatMessage({
+                                            id: 'create_team.enterprise_name_placeholder',
+                                            defaultMessage: 'Enter your enterprise name',
+                                        })}
+                                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
+                                        autoCapitalize='words'
+                                        returnKeyType='next'
+                                        testID='create_team.enterprise_name.input'
+                                    />
+                                    {nameError && (
+                                        <View style={styles.feedbackContainer}>
+                                            <CompassIcon
+                                                name='alert-circle-outline'
+                                                size={16}
+                                                color={theme.errorTextColor}
+                                                style={styles.feedbackIcon}
+                                            />
+                                            <Text style={[styles.feedbackText, styles.feedbackError]}>
+                                                {nameError}
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
+                            </View>
+                        </Animated.View>
+                    )}
 
-                                {/* Enterprise Name Input */}
-                                <View style={styles.formContainer}>
-                                    <View style={styles.inputContainer}>
-                                        <FormattedText
-                                            style={styles.inputLabel}
-                                            id='create_team.enterprise_name'
-                                            defaultMessage='Enterprise Name'
-                                        />
+                    {/* Step 2: Enterprise URL */}
+                    {step === 2 && (
+                        <Animated.View
+                            entering={FadeIn.duration(300)}
+                        >
+                            <View style={styles.stepTipContainer}>
+                                <FormattedText
+                                    style={styles.stepTipText}
+                                    id='create_team.step2_tip'
+                                    defaultMessage='Please set the URL for your enterprise'
+                                />
+                            </View>
+
+                            {/* URL Input */}
+                            <View style={styles.formContainer}>
+                                <View style={styles.inputContainer}>
+                                    <FormattedText
+                                        style={styles.inputLabel}
+                                        id='create_team.url_prefix_label'
+                                        defaultMessage='Enterprise URL'
+                                    />
+                                    <View
+                                        style={[
+                                            styles.urlInputContainer,
+                                            urlFocused && styles.urlInputContainerFocused,
+                                            urlError && styles.urlInputContainerError,
+                                        ]}
+                                    >
+                                        <View style={styles.urlPrefix}>
+                                            <Text style={styles.urlPrefixText}>
+                                                {`${serverDomain}/`}
+                                            </Text>
+                                        </View>
                                         <TextInput
-                                            style={[
-                                                styles.input,
-                                                nameFocused && styles.inputFocused,
-                                                nameError && styles.inputError,
-                                            ]}
-                                            value={enterpriseName}
-                                            onChangeText={handleNameChange}
-                                            onFocus={() => setNameFocused(true)}
-                                            onBlur={() => setNameFocused(false)}
+                                            style={styles.urlInput}
+                                            value={enterpriseUrl}
+                                            onChangeText={handleUrlChange}
+                                            onFocus={() => setUrlFocused(true)}
+                                            onBlur={() => setUrlFocused(false)}
                                             placeholder={intl.formatMessage({
-                                                id: 'create_team.enterprise_name_placeholder',
-                                                defaultMessage: 'Enter your enterprise name',
+                                                id: 'create_team.url_placeholder',
+                                                defaultMessage: 'Enter your enterprise url',
                                             })}
                                             placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                                            autoCapitalize='words'
-                                            returnKeyType='next'
-                                            testID='create_team.enterprise_name.input'
+                                            autoCapitalize='none'
+                                            autoCorrect={false}
+                                            returnKeyType='done'
+                                            testID='create_team.enterprise_url.input'
                                         />
-                                        {nameError && (
-                                            <View style={styles.feedbackContainer}>
-                                                <CompassIcon
-                                                    name='alert-circle-outline'
-                                                    size={16}
-                                                    color={theme.errorTextColor}
-                                                    style={styles.feedbackIcon}
-                                                />
-                                                <Text style={[styles.feedbackText, styles.feedbackError]}>
-                                                    {nameError}
-                                                </Text>
-                                            </View>
-                                        )}
                                     </View>
-                                </View>
-                            </Animated.View>
-                        )}
 
-                        {/* Step 2: Enterprise URL */}
-                        {step === 2 && (
-                            <Animated.View
-                                entering={FadeIn.duration(300)}
-                            >
-                                <View style={styles.stepTipContainer}>
-                                    <FormattedText
-                                        style={styles.stepTipText}
-                                        id='create_team.step2_tip'
-                                        defaultMessage='Please set the URL for your enterprise'
-                                    />
-                                </View>
-
-                                {/* URL Input */}
-                                <View style={styles.formContainer}>
-                                    <View style={styles.inputContainer}>
-                                        <FormattedText
-                                            style={styles.inputLabel}
-                                            id='create_team.url_prefix_label'
-                                            defaultMessage='Enterprise URL'
-                                        />
-                                        <View
-                                            style={[
-                                                styles.urlInputContainer,
-                                                urlFocused && styles.urlInputContainerFocused,
-                                                urlError && styles.urlInputContainerError,
-                                            ]}
-                                        >
-                                            <View style={styles.urlPrefix}>
-                                                <Text style={styles.urlPrefixText}>
-                                                    {`${serverDomain}/`}
-                                                </Text>
-                                            </View>
-                                            <TextInput
-                                                style={styles.urlInput}
-                                                value={enterpriseUrl}
-                                                onChangeText={handleUrlChange}
-                                                onFocus={() => setUrlFocused(true)}
-                                                onBlur={() => setUrlFocused(false)}
-                                                placeholder={intl.formatMessage({
-                                                    id: 'create_team.url_placeholder',
-                                                    defaultMessage: 'Enter your enterprise url',
-                                                })}
-                                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                                                autoCapitalize='none'
-                                                autoCorrect={false}
-                                                returnKeyType='done'
-                                                testID='create_team.enterprise_url.input'
+                                    {/* Validation Feedback */}
+                                    {enterpriseUrl.length > 0 && isUrlValid && (
+                                        <View style={styles.feedbackContainer}>
+                                            <CompassIcon
+                                                name='check-circle'
+                                                size={16}
+                                                color={theme.onlineIndicator}
+                                                style={styles.feedbackIcon}
+                                            />
+                                            <FormattedText
+                                                style={[styles.feedbackText, styles.feedbackSuccess]}
+                                                id='create_team.url_available'
+                                                defaultMessage='This URL is available'
                                             />
                                         </View>
+                                    )}
+                                    {enterpriseUrl.length > 0 && urlError && (
+                                        <View style={styles.feedbackContainer}>
+                                            <CompassIcon
+                                                name='alert-circle-outline'
+                                                size={16}
+                                                color={theme.errorTextColor}
+                                                style={styles.feedbackIcon}
+                                            />
+                                            <Text style={[styles.feedbackText, styles.feedbackError]}>
+                                                {urlError}
+                                            </Text>
+                                        </View>
+                                    )}
 
-                                        {/* Validation Feedback */}
-                                        {enterpriseUrl.length > 0 && isUrlValid && (
-                                            <View style={styles.feedbackContainer}>
-                                                <CompassIcon
-                                                    name='check-circle'
-                                                    size={16}
-                                                    color={theme.onlineIndicator}
-                                                    style={styles.feedbackIcon}
-                                                />
+                                    {/* URL Preview */}
+                                    {fullUrl && (
+                                        <View style={styles.urlPreview}>
+                                            <View style={styles.urlPreviewHeader}>
                                                 <FormattedText
-                                                    style={[styles.feedbackText, styles.feedbackSuccess]}
-                                                    id='create_team.url_available'
-                                                    defaultMessage='This URL is available'
+                                                    style={styles.urlPreviewText}
+                                                    id='create_team.url_preview'
+                                                    defaultMessage='Full URL: {url}'
+                                                    values={{url: ''}}
                                                 />
-                                            </View>
-                                        )}
-                                        {enterpriseUrl.length > 0 && urlError && (
-                                            <View style={styles.feedbackContainer}>
-                                                <CompassIcon
-                                                    name='alert-circle-outline'
-                                                    size={16}
-                                                    color={theme.errorTextColor}
-                                                    style={styles.feedbackIcon}
-                                                />
-                                                <Text style={[styles.feedbackText, styles.feedbackError]}>
-                                                    {urlError}
-                                                </Text>
-                                            </View>
-                                        )}
-
-                                        {/* URL Preview */}
-                                        {fullUrl && (
-                                            <View style={styles.urlPreview}>
-                                                <View style={styles.urlPreviewHeader}>
-                                                    <FormattedText
-                                                        style={styles.urlPreviewText}
-                                                        id='create_team.url_preview'
-                                                        defaultMessage='Full URL: {url}'
-                                                        values={{url: ''}}
+                                                <TouchableOpacity
+                                                    style={styles.copyIconButton}
+                                                    onPress={handleCopyUrl}
+                                                    activeOpacity={0.6}
+                                                    testID='create_team.copy_url_button'
+                                                >
+                                                    <CompassIcon
+                                                        name='content-copy'
+                                                        size={18}
+                                                        color={theme.linkColor}
                                                     />
-                                                    <TouchableOpacity
-                                                        style={styles.copyIconButton}
-                                                        onPress={handleCopyUrl}
-                                                        activeOpacity={0.6}
-                                                        testID='create_team.copy_url_button'
-                                                    >
-                                                        <CompassIcon
-                                                            name='content-copy'
-                                                            size={18}
-                                                            color={theme.linkColor}
-                                                        />
-                                                    </TouchableOpacity>
-                                                </View>
-                                                <Text style={styles.urlPreviewUrl}>{fullUrl}</Text>
-                                                {showCopySuccess && (
-                                                    <View style={styles.copySuccessMessage}>
-                                                        <CompassIcon
-                                                            name='check-circle'
-                                                            size={14}
-                                                            color='#FFFFFF'
-                                                        />
-                                                        <FormattedText
-                                                            style={styles.copySuccessText}
-                                                            id='create_team.url_copied'
-                                                            defaultMessage='URL Copied'
-                                                        />
-                                                    </View>
-                                                )}
+                                                </TouchableOpacity>
                                             </View>
-                                        )}
-                                    </View>
+                                            <Text style={styles.urlPreviewUrl}>{fullUrl}</Text>
+                                            {showCopySuccess && (
+                                                <View style={styles.copySuccessMessage}>
+                                                    <CompassIcon
+                                                        name='check-circle'
+                                                        size={14}
+                                                        color='#FFFFFF'
+                                                    />
+                                                    <FormattedText
+                                                        style={styles.copySuccessText}
+                                                        id='create_team.url_copied'
+                                                        defaultMessage='URL Copied'
+                                                    />
+                                                </View>
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
 
-                                    {/* Hints */}
-                                    <View style={styles.hintContainer}>
-                                        <View style={styles.hintItem}>
-                                            <CompassIcon
-                                                name='information-outline'
-                                                size={16}
-                                                color={changeOpacity(theme.centerChannelColor, 0.56)}
-                                                style={styles.hintIcon}
+                                {/* Hints */}
+                                <View style={styles.hintContainer}>
+                                    <View style={styles.hintItem}>
+                                        <CompassIcon
+                                            name='information-outline'
+                                            size={16}
+                                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                                            style={styles.hintIcon}
+                                        />
+                                        <Text style={styles.hintText}>
+                                            <FormattedText
+                                                id='create_team.url_hint_1'
+                                                defaultMessage='Keep it short and memorable'
                                             />
-                                            <Text style={styles.hintText}>
-                                                <FormattedText
-                                                    id='create_team.url_hint_1'
-                                                    defaultMessage='Keep it short and memorable'
-                                                />
-                                            </Text>
-                                        </View>
-                                        <View style={styles.hintItem}>
-                                            <CompassIcon
-                                                name='information-outline'
-                                                size={16}
-                                                color={changeOpacity(theme.centerChannelColor, 0.56)}
-                                                style={styles.hintIcon}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.hintItem}>
+                                        <CompassIcon
+                                            name='information-outline'
+                                            size={16}
+                                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                                            style={styles.hintIcon}
+                                        />
+                                        <Text style={styles.hintText}>
+                                            <FormattedText
+                                                id='create_team.url_hint_2'
+                                                defaultMessage='Use lowercase letters, numbers, and hyphens'
                                             />
-                                            <Text style={styles.hintText}>
-                                                <FormattedText
-                                                    id='create_team.url_hint_2'
-                                                    defaultMessage='Use lowercase letters, numbers, and hyphens'
-                                                />
-                                            </Text>
-                                        </View>
-                                        <View style={styles.hintItem}>
-                                            <CompassIcon
-                                                name='information-outline'
-                                                size={16}
-                                                color={changeOpacity(theme.centerChannelColor, 0.56)}
-                                                style={styles.hintIcon}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.hintItem}>
+                                        <CompassIcon
+                                            name='information-outline'
+                                            size={16}
+                                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                                            style={styles.hintIcon}
+                                        />
+                                        <Text style={styles.hintText}>
+                                            <FormattedText
+                                                id='create_team.url_hint_3'
+                                                defaultMessage='Must start with a letter and cannot end with a hyphen'
                                             />
-                                            <Text style={styles.hintText}>
-                                                <FormattedText
-                                                    id='create_team.url_hint_3'
-                                                    defaultMessage='Must start with a letter and cannot end with a hyphen'
-                                                />
-                                            </Text>
-                                        </View>
+                                        </Text>
                                     </View>
                                 </View>
-                            </Animated.View>
-                        )}
+                            </View>
+                        </Animated.View>
+                    )}
 
-                        {/* Action Buttons */}
-                        <View>
-                            {step === 1 ? (
+                    {/* Action Buttons */}
+                    <View>
+                        {step === 1 ? (
+                            <Button
+                                onPress={handleNext}
+                                text={intl.formatMessage({
+                                    id: 'create_team.next',
+                                    defaultMessage: 'Next',
+                                })}
+                                theme={theme}
+                                size='lg'
+                                disabled={!enterpriseName.trim()}
+                                testID='create_team.next_button'
+                            />
+                        ) : (
+                            <>
                                 <Button
-                                    onPress={handleNext}
+                                    onPress={handleCreate}
                                     text={intl.formatMessage({
-                                        id: 'create_team.next',
-                                        defaultMessage: 'Next',
+                                        id: 'create_team.create',
+                                        defaultMessage: 'Create',
                                     })}
                                     theme={theme}
                                     size='lg'
-                                    disabled={!enterpriseName.trim()}
-                                    testID='create_team.next_button'
+                                    showLoader={loading}
+                                    disabled={!isUrlValid || loading}
+                                    testID='create_team.create_button'
                                 />
-                            ) : (
-                                <>
-                                    <Button
-                                        onPress={handleCreate}
-                                        text={intl.formatMessage({
-                                            id: 'create_team.create',
-                                            defaultMessage: 'Create',
-                                        })}
-                                        theme={theme}
-                                        size='lg'
-                                        showLoader={loading}
-                                        disabled={!isUrlValid || loading}
-                                        testID='create_team.create_button'
-                                    />
-                                    <TouchableOpacity
-                                        style={styles.backStepButton}
-                                        onPress={handleBackStep}
-                                        disabled={loading}
-                                        testID='create_team.back_step_button'
-                                    >
-                                        <Text style={styles.backStepButtonText}>
-                                            <FormattedText
-                                                id='create_team.back'
-                                                defaultMessage='Back'
-                                            />
-                                        </Text>
-                                    </TouchableOpacity>
-                                </>
-                            )}
-                        </View>
+                                <TouchableOpacity
+                                    style={styles.backStepButton}
+                                    onPress={handleBackStep}
+                                    disabled={loading}
+                                    testID='create_team.back_step_button'
+                                >
+                                    <Text style={styles.backStepButtonText}>
+                                        <FormattedText
+                                            id='create_team.back'
+                                            defaultMessage='Back'
+                                        />
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
                     </View>
-                </ScrollView>
-            </View>
-        </SafeAreaView>
+                </View>
+            </ScrollView>
+        </View>
     );
 };
 

@@ -1546,6 +1546,7 @@
   "enterprise_selection.create.title": "Enterprise is not using",
   "enterprise_selection.create.action": "Create Enterprise ›",
   "create_team.title": "Create Enterprise",
+  "create_team.select_title": "Quick Create Enterprise",
   "create_team.step1_tip": "Please name your enterprise",
   "create_team.subtitle": "Build a dedicated collaboration space for your team",
   "create_team.enterprise_name": "Enterprise Name",
@@ -1577,8 +1578,14 @@
   "create_team.error_url_exists": "An enterprise with this URL already exists",
   "create_team.error_create_team_failed": "Failed to create enterprise",
   "join_team_qr.title": "Join Enterprise",
+  "join_team_qr.select_title": "Quick Join Enterprise",
   "join_team_qr.subtitle": "Join by colleague's scan to confirm identity",
   "join_team_qr.user_info": "{nickname} requests to join the enterprise",
   "join_team_qr.hint": "After colleague scans and confirms, you can join the enterprise",
-  "join_team_qr.download": "Share QR Code"
+  "join_team_qr.download": "Share QR Code",
+  "plus_menu.scan_qr_code.title": "Scan QR Code",
+  "plus_menu.create_enterprise.title": "Create Enterprise",
+  "plus_menu.join_enterprise.title": "Join Enterprise",
+  "scan_qr_code.title": "Scan QR Code",
+  "scan_qr_code.coming_soon": "This feature is under development"
 }

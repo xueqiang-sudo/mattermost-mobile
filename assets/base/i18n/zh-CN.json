@@ -1477,6 +1477,7 @@
   "enterprise_selection.create.title": "企业未在使用",
   "enterprise_selection.create.action": "创建企业 ›",
   "create_team.title": "创建企业",
+  "create_team.select_title": "快速创建企业",
   "create_team.step1_tip": "请为您的企业命名",
   "create_team.enterprise_name": "企业名称",
   "create_team.enterprise_name_placeholder": "请输入企业名称",
@@ -1507,8 +1508,14 @@
   "create_team.error_url_exists": "使用此 URL 的企业已存在",
   "create_team.error_create_team_failed": "创建企业失败",
   "join_team_qr.title": "加入企业",
+  "join_team_qr.select_title": "快速加入企业",
   "join_team_qr.subtitle": "请让同事扫描二维码确认身份，邀请您加入其所在企业",
   "join_team_qr.user_info": "用户({nickname}) 申请加入企业",
   "join_team_qr.hint": "同事扫码确认后，您可加入企业",
-  "join_team_qr.share": "分享二维码"
+  "join_team_qr.share": "分享二维码",
+  "plus_menu.scan_qr_code.title": "扫一扫",
+  "plus_menu.create_enterprise.title": "创建企业",
+  "plus_menu.join_enterprise.title": "加入企业",
+  "scan_qr_code.title": "扫一扫",
+  "scan_qr_code.coming_soon": "此功能正在开发中"
 }
