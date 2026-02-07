@@ -45,6 +45,7 @@ const SelectTeam = ({
     currentUser,
 }: Props) => {
     const theme = useTheme();
+    const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
     const insets = useSafeAreaInsets();
     const top = useAnimatedStyle(() => {
@@ -59,11 +60,11 @@ const SelectTeam = ({
 
         if ((nTeams > 0) && firstTeamId) {
             resettingToHome.current = true;
-            handleTeamChange(useServerUrl(), firstTeamId).then(() => {
+            handleTeamChange(serverUrl, firstTeamId).then(() => {
                 resetToHome();
             });
         }
-    }, [(nTeams > 0) && firstTeamId]);
+    }, [(nTeams > 0) && firstTeamId, serverUrl]);
 
     return (
         <SafeAreaView
@@ -77,7 +78,7 @@ const SelectTeam = ({
                 <Header/>
                 {/* <IconGallery/> */}
                 <EnterpriseSelection
-                    serverUrl={useServerUrl()}
+                    serverUrl={serverUrl}
                     currentUser={currentUser}
                 />
             </View>

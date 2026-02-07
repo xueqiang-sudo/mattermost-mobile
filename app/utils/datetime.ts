@@ -67,3 +67,14 @@ export function formatTime(seconds: number) {
 
     return `${hh}${mm}:${ss}`;
 }
+
+export function formatDate(date?: Date, isNumeric?: boolean) {
+    // eslint-disable-next-line no-unused-expressions, no-param-reassign
+    !date && (date = new Date());
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')} ${formatTime(date.getTime() / 1000)}`;
+    return isNumeric ? dateStr.replace(/(-|:| )/g, '') : dateStr;
+}

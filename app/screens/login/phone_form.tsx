@@ -235,8 +235,8 @@ const PhoneLoginForm = ({
 
         try {
             // 调用获取验证码 API
-            const data = await sendSmsCode(serverUrl, phoneNumber);
-            setVerificationCode((data as unknown as {data: {code: string}}).data.code || ''); // TOSO qgs: 这里服务器还没支持验证码发送，先这么测试
+            const res = await sendSmsCode(serverUrl, phoneNumber);
+            setVerificationCode(res.code || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
 
             // 模拟成功响应
             setCountdown(60); // 60秒倒计时
@@ -254,12 +254,19 @@ const PhoneLoginForm = ({
             }, 1000);
 
         } catch (loginError) {
-            logError('error on getVerificationCode', getFullErrorMessage(loginError));
-            setError(getFullErrorMessage(loginError));
+            if ((loginError as ClientError).server_error_id === 'com.mattermost.sms-gateway' && (loginError as ClientError).message === 'Too many requests') {
+                setError(intl.formatMessage({
+                    id: 'login.error_too_many_requests',
+                    defaultMessage: 'Too many requests, please try again later',
+                }));
+            } else {
+                logError('error on getVerificationCode', getFullErrorMessage(loginError));
+                setError(getFullErrorMessage(loginError));
+            }
         } finally {
             setIsGettingCode(false);
         }
-    }, [phoneNumber, serverUrl]);
+    }, [intl, phoneNumber, serverUrl]);
 
     // 手机验证码登录
     const signInWithPhone = useCallback(async () => {
@@ -269,7 +276,7 @@ const PhoneLoginForm = ({
         try {
             // 1. 验证验证码
             const verifyData = await verifySmsCode(serverUrl, phoneNumber, verificationCode);
-            const token = (verifyData as unknown as {data: {token: string}}).data.token;
+            const token = verifyData.token;
             if (!token) {
                 throw new Error('No token received');
             }

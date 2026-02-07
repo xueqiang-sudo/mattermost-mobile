@@ -3,6 +3,8 @@
 
 import React from 'react';
 import {View, Text, TouchableOpacity, Alert} from 'react-native';
+import Animated, {useAnimatedStyle} from 'react-native-reanimated';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import Share from 'react-native-share';
 import ViewShot from 'react-native-view-shot';
 
@@ -12,7 +14,9 @@ import QRCodeGenerator from '@components/qr_code_generator';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {dismissModal} from '@screens/navigation';
+import {formatDate} from '@utils/datetime';
 import {logInfo} from '@utils/log';
+import {customBase64Encode} from '@utils/security';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -24,92 +28,99 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     customHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 40,
-        paddingBottom: 16,
-        paddingHorizontal: 16,
+        justifyContent: 'space-between',
+        paddingTop: 5,
+        paddingBottom: 5,
+        paddingHorizontal: 15,
         backgroundColor: theme.sidebarBg,
     },
     backButton: {
-        position: 'absolute',
-        left: 16,
-        top: 40,
         padding: 8,
+        marginLeft: -8,
     },
     headerTitle: {
         color: theme.sidebarHeaderTextColor,
         ...typography('Heading', 600),
+        flex: 1,
+        textAlign: 'center',
+        marginLeft: 30,
     },
     content: {
         flex: 1,
-        paddingHorizontal: 32,
         alignItems: 'center',
-        paddingTop: 16,
+        justifyContent: 'center',
+        paddingHorizontal: 20,
     },
     subtitle: {
         color: theme.centerChannelColor,
         textAlign: 'center',
-        marginBottom: 16,
-        ...typography('Body', 100),
-        maxWidth: '80%',
-    },
-    userInfoContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 48,
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        backgroundColor: theme.centerChannelBg,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: theme.centerChannelColor,
-        opacity: 0.8,
+        marginBottom: 24,
+        ...typography('Body', 100, 'Regular'),
+        lineHeight: 22,
+        maxWidth: '90%',
+        fontSize: 14,
+        letterSpacing: 0.3,
+        opacity: 0.9,
     },
     userInfoText: {
         color: theme.centerChannelColor,
-        ...typography('Body', 100),
+        ...typography('Body', 100, 'SemiBold'),
+        marginBottom: 24,
     },
     qrContainer: {
         alignItems: 'center',
-        marginBottom: 40,
-        padding: 24,
+        padding: 32,
         backgroundColor: theme.centerChannelBg,
-        borderRadius: 16,
+        borderRadius: 24,
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
-            height: 2,
+            height: 8,
         },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        elevation: 8,
+        maxWidth: '90%',
     },
     qrWrapper: {
-        marginBottom: 24,
+        marginBottom: 28,
     },
     hintText: {
-        color: theme.centerChannelColor,
+        color: theme.centerChannelColor + 'CC',
         textAlign: 'center',
-        marginBottom: 24,
-        ...typography('Body', 100),
+        marginBottom: 32,
+        ...typography('Body', 75),
+        lineHeight: 20,
     },
     shareButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 32,
+        paddingVertical: 16,
+        paddingHorizontal: 40,
         backgroundColor: theme.buttonBg,
-        borderRadius: 8,
-        minWidth: 200,
+        borderRadius: 12,
+        minWidth: 220,
+        shadowColor: theme.buttonBg,
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 6,
     },
     shareButtonText: {
         color: theme.buttonColor,
-        marginLeft: 8,
+        marginLeft: 10,
         ...typography('Body', 100, 'SemiBold'),
+        letterSpacing: 0.3,
     },
 
 }));
+
+const safeAreaEdges = ['left' as const, 'right' as const];
+const safeAreaStyle = {flex: 1};
 
 /**
  * JoinTeamQR Component
@@ -127,6 +138,11 @@ const JoinTeamQR: React.FC<JoinTeamQRProps> = ({serverUrl, nickname, userId}: Jo
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const viewShotRef = React.useRef<ViewShot>(null);
+    const insets = useSafeAreaInsets();
+    const top = useAnimatedStyle(() => {
+        return {height: insets.top, backgroundColor: theme.sidebarBg};
+    });
+    const fileName = `${nickname}_join_team_qr`;
 
     /**
      * 生成二维码数据
@@ -139,7 +155,8 @@ const JoinTeamQR: React.FC<JoinTeamQRProps> = ({serverUrl, nickname, userId}: Jo
             userId,
             timestamp: Date.now(),
         };
-        return JSON.stringify(data);
+        const encodedData = customBase64Encode(encodeURIComponent(JSON.stringify(data)));
+        return `${serverUrl}${serverUrl.endsWith('/') ? '' : '/'}join_team_by_qr?qrtype=join_team&data=${encodedData}`;
     };
 
     /**
@@ -158,14 +175,13 @@ const JoinTeamQR: React.FC<JoinTeamQRProps> = ({serverUrl, nickname, userId}: Jo
                 const uri = await viewShotRef.current.capture();
 
                 // 分享图片
-                const shareOptions = {
+                await Share.open({
                     title: 'Join Enterprise QR Code',
                     message: 'Scan this QR code to join the enterprise',
                     url: uri,
                     saveToFiles: true,
-                };
-
-                await Share.open(shareOptions);
+                    filename: `${nickname}_join_team_qr_${formatDate(undefined, true)}.png`,
+                });
             } else {
                 Alert.alert('Error', 'No support share QR code');
             }
@@ -175,86 +191,92 @@ const JoinTeamQR: React.FC<JoinTeamQRProps> = ({serverUrl, nickname, userId}: Jo
     };
 
     return (
-        <View style={styles.container}>
-            {/* 自定义头部 */}
-            <View style={styles.customHeader}>
-                <TouchableOpacity
-                    onPress={handleBack}
-                    style={styles.backButton}
-                >
-                    <CompassIcon
-                        name='arrow-left'
-                        size={24}
-                        color={theme.sidebarHeaderTextColor}
-                    />
-                </TouchableOpacity>
-                <FormattedText
-                    style={styles.headerTitle}
-                    id='join_team_qr.title'
-                    defaultMessage='Join Enterprise'
-                />
-            </View>
-
-            {/* 内容区域 */}
-            <View style={styles.content}>
-                {/* 副标题 */}
-                <Text style={styles.subtitle}>
+        <SafeAreaView
+            mode='margin'
+            edges={safeAreaEdges}
+            style={safeAreaStyle}
+            nativeID='select_team_join_team_qr'
+        >
+            <Animated.View style={top}/>
+            <View style={styles.container}>
+                {/* 自定义头部 */}
+                <View style={styles.customHeader}>
                     <FormattedText
-                        id='join_team_qr.subtitle'
-                        defaultMessage='通过同事扫码确认身份加入'
+                        style={styles.headerTitle}
+                        id='join_team_qr.title'
+                        defaultMessage='Join Enterprise'
                     />
-                </Text>
-
-                {/* 用户信息显示 */}
-                <View style={styles.userInfoContainer}>
-                    <Text style={styles.userInfoText}>
-                        <FormattedText
-                            id='join_team_qr.user_info'
-                            defaultMessage='{nickname} 请求加入企业'
-                            values={{nickname}}
-                        />
-                    </Text>
-                </View>
-
-                {/* 二维码 */}
-                <View style={styles.qrContainer}>
-                    <ViewShot ref={viewShotRef}>
-                        <QRCodeGenerator
-                            data={generateQRCodeData()}
-                            size={220}
-                            showBorder={true}
-                            style={styles.qrWrapper}
-                        />
-                    </ViewShot>
-
-                    {/* 提示文本 */}
-                    <Text style={styles.hintText}>
-                        <FormattedText
-                            id='join_team_qr.hint'
-                            defaultMessage='同事扫码确认后，您可加入企业'
-                        />
-                    </Text>
-
-                    {/* 分享按钮 */}
                     <TouchableOpacity
-                        style={styles.shareButton}
-                        onPress={handleShareQRCode}
+                        onPress={handleBack}
+                        style={styles.backButton}
                     >
                         <CompassIcon
-                            name='share-variant-outline'
-                            size={20}
-                            color={theme.buttonColor}
+                            name='close'
+                            size={24}
+                            color={theme.sidebarHeaderTextColor}
                         />
-                        <Text style={styles.shareButtonText}>
-                            <FormattedText
-                                id='join_team_qr.share'
-                                defaultMessage='分享二维码'
-                            />
-                        </Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* 内容区域 */}
+                <View style={styles.content}>
+                    {/* 副标题 */}
+                    <Text style={styles.subtitle}>
+                        <FormattedText
+                            id='join_team_qr.subtitle'
+                            defaultMessage='Have your colleague scan the QR code to verify your identity and join the enterprise they belong to.'
+                        />
+                    </Text>
+
+                    {/* 二维码 */}
+                    <View style={styles.qrContainer}>
+                        <FormattedText
+                            style={styles.userInfoText}
+                            id='join_team_qr.user_info'
+                            defaultMessage='User({nickname}) requests to join the enterprise'
+                            values={{nickname}}
+                        />
+                        <ViewShot
+                            ref={viewShotRef}
+                            options={{fileName, width: 200, height: 200}}
+                        >
+                            <QRCodeGenerator
+                                data={generateQRCodeData()}
+                                size={220}
+                                showBorder={true}
+                                style={styles.qrWrapper}
+                            />
+                        </ViewShot>
+
+                        {/* 提示文本 */}
+                        <Text style={styles.hintText}>
+                            <FormattedText
+                                id='join_team_qr.hint'
+                                defaultMessage='After colleague scans and confirms, you can join the enterprise'
+                            />
+                        </Text>
+
+                        {/* 分享按钮 */}
+                        <TouchableOpacity
+                            style={styles.shareButton}
+                            onPress={handleShareQRCode}
+                        >
+                            <CompassIcon
+                                name='share-variant-outline'
+                                size={20}
+                                color={theme.buttonColor}
+                            />
+                            <Text style={styles.shareButtonText}>
+                                <FormattedText
+                                    id='join_team_qr.share'
+                                    defaultMessage='Share QR Code'
+                                />
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 };
 

@@ -83,7 +83,7 @@ export const cancelSessionNotification = async (serverUrl: string) => {
     try {
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const expiredSession = await getExpiredSession(database);
-        const rechable = (await NetInfo.fetch()).isInternetReachable;
+        const rechable = (await NetInfo.fetch()).isConnected; // .isInternetReachable
 
         if (expiredSession?.notificationId && rechable) {
             PushNotifications.cancelScheduleNotification(parseInt(expiredSession.notificationId, 10));

@@ -223,6 +223,4 @@ export const SCREENS_AS_BOTTOM_SHEET = new Set<string>([
 
 export const SCREENS_WITH_EXTRA_KEYBOARD = new Set<string>([CHANNEL, THREAD]);
 
-export const NOT_READY = [
-    CREATE_TEAM,
-];
+export const NOT_READY: string[] = [];

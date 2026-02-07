@@ -9,60 +9,79 @@ import FormattedText from '@components/formatted_text';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {showModal} from '@screens/navigation';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type UserModel from '@typings/database/models/servers/user';
 
-const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
+const getStyleSheet = makeStyleSheetFromTheme(() => ({
     container: {
         flex: 1,
         paddingHorizontal: 24,
-        paddingTop: 40,
+        paddingTop: 80,
+        paddingBottom: 40,
+        backgroundColor: '#F5F5F5',
     },
     title: {
-        color: theme.sidebarHeaderTextColor,
+        color: '#2E7D32',
         textAlign: 'center',
         marginBottom: 12,
         ...typography('Heading', 600),
     },
     description: {
-        color: theme.centerChannelColor,
+        color: '#666666',
         textAlign: 'center',
         marginBottom: 40,
         ...typography('Body', 100),
     },
     cardContainer: {
         marginBottom: 20,
-        borderRadius: 8,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        overflow: 'hidden',
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
     },
     cardButton: {
-        padding: 24,
+        padding: 32,
         alignItems: 'center',
     },
     iconContainer: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
     },
     joinIconContainer: {
-        backgroundColor: changeOpacity('#4CAF50', 0.16),
+        backgroundColor: '#FF9800',
     },
     createIconContainer: {
-        backgroundColor: changeOpacity('#2196F3', 0.16),
+        backgroundColor: '#2196F3',
     },
     cardTitle: {
-        color: theme.sidebarHeaderTextColor,
+        color: '#333333',
         marginBottom: 8,
         ...typography('Body', 200, 'SemiBold'),
     },
     cardAction: {
-        color: theme.linkColor,
+        color: '#2196F3',
         ...typography('Body', 100, 'SemiBold'),
     },
 }));
@@ -77,8 +96,7 @@ const EnterpriseSelection: React.FC<EnterpriseSelectionProps> = ({serverUrl, cur
     const styles = getStyleSheet(theme);
 
     const handleJoinEnterprise = () => {
-        // Navigate to join team QR code screen
-        showModal(Screens.JOIN_TEAM_QR, '加入企业', {
+        showModal(Screens.JOIN_TEAM_QR, 'Join Enterprise', {
             serverUrl,
             nickname: currentUser?.nickname || '',
             userId: currentUser?.id || '',
@@ -88,24 +106,27 @@ const EnterpriseSelection: React.FC<EnterpriseSelectionProps> = ({serverUrl, cur
     };
 
     const handleCreateEnterprise = () => {
-        // Navigate to create team screen
-        showModal(Screens.CREATE_TEAM, '创建企业');
+        showModal(Screens.CREATE_TEAM, 'Create Enterprise', {
+            serverUrl,
+            nickname: currentUser?.nickname || '',
+            userId: currentUser?.id || '',
+        }, {
+            topBar: {visible: false},
+        });
     };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>
-                <FormattedText
-                    id='enterprise_selection.title'
-                    defaultMessage='Select Enterprise Action'
-                />
-            </Text>
-            <Text style={styles.description}>
-                <FormattedText
-                    id='enterprise_selection.description'
-                    defaultMessage='Please select one of the following actions to start using enterprise features'
-                />
-            </Text>
+            <FormattedText
+                style={styles.title}
+                id='enterprise_selection.title'
+                defaultMessage='Enterprise Services'
+            />
+            <FormattedText
+                style={styles.description}
+                id='enterprise_selection.description'
+                defaultMessage='Please select an option below to start using enterprise features'
+            />
 
             <TouchableOpacity
                 style={styles.cardContainer}
@@ -116,7 +137,7 @@ const EnterpriseSelection: React.FC<EnterpriseSelectionProps> = ({serverUrl, cur
                         <CompassIcon
                             name='plus'
                             size={32}
-                            color='#4CAF50'
+                            color='#FFFFFF'
                         />
                     </View>
                     <Text style={styles.cardTitle}>
@@ -143,7 +164,7 @@ const EnterpriseSelection: React.FC<EnterpriseSelectionProps> = ({serverUrl, cur
                         <CompassIcon
                             name='creation-outline'
                             size={32}
-                            color='#2196F3'
+                            color='#FFFFFF'
                         />
                     </View>
                     <Text style={styles.cardTitle}>

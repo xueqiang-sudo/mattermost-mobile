@@ -138,9 +138,9 @@ export const launchApp = async (props: LaunchProps) => {
             logInfo('not exist user launchToLogin', Boolean(myUser));
             await logout(serverUrl, undefined, {skipServerLogout: true, skipEvents: true}).then(() => logInfo('logout success')).catch((errTmp) => logInfo('logout error', errTmp));
         }
-        logInfo('exist user launchToHome', myUser && myUser.nickname);
 
         if (hasCredentials) {
+            logInfo('exist user launchToHome', myUser && myUser.nickname);
             const database = DatabaseManager.serverDatabases[serverUrl]?.database;
             let hasCurrentUser = false;
             if (database) {

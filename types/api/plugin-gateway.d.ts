@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 type VerifyCodeGen = {
-    code: string;
+    code?: string;
     expires_in: number;
     phone_number: string;
 }

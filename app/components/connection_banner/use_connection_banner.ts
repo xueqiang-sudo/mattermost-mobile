@@ -74,14 +74,15 @@ export const useConnectionBanner = ({
     }, [websocketState, openCallback, intl]);
 
     const handleInternetUnreachableState = useCallback((): boolean => {
-        if (netInfo.isInternetReachable === false) {
+        // if (netInfo.isInternetReachable === false) {
+        if (netInfo.isConnected === false) {
             setBannerText(intl.formatMessage({id: 'connection_banner.not_reachable', defaultMessage: 'The server is not reachable'}));
             openCallback();
             closeTimeout.current = setTimeout(closeCallback, CLOSE_TIMEOUT_DURATION_MS);
             return true;
         }
         return false;
-    }, [netInfo.isInternetReachable, intl, openCallback, closeCallback]);
+    }, [netInfo.isConnected, intl, openCallback, closeCallback]);
 
     const handleSlowNetworkState = useCallback((): boolean => {
         if (networkPerformanceState === 'slow' && !hasShownSlowBanner.current) {
