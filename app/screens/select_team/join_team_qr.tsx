@@ -126,14 +126,9 @@ const JoinTeamQR: React.FC<JoinTeamQRProps> = ({componentId, closeButtonId, serv
      * @returns 包含服务器URL和用户信息的JSON字符串
      */
     const generateQRCodeData = () => {
-        const data = {
-            serverUrl,
-            nickname,
-            userId,
-            timestamp: Date.now(),
-        };
+        const data = {nickname, userId, timestamp: Date.now()};
         const encodedData = customBase64Encode(encodeURIComponent(JSON.stringify(data)));
-        return `${serverUrl}${serverUrl.endsWith('/') ? '' : '/'}join_team_by_qr?qrtype=join_team&data=${encodedData}`;
+        return `${serverUrl}${serverUrl.endsWith('/') ? '' : '/'}join_team_by_qr?qrtype=join_team&qrdata=${encodedData}`;
     };
 
     const onClosePressed = useCallback(() => {
