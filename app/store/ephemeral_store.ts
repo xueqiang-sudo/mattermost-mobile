@@ -5,6 +5,7 @@ import {DeviceEventEmitter} from 'react-native';
 import {BehaviorSubject} from 'rxjs';
 
 import {Events} from '@constants';
+import {DEFAULT_LOCALE} from '@i18n';
 import {toMilliseconds} from '@utils/datetime';
 
 const TIME_TO_CLEAR_WEBSOCKET_ACTIONS = toMilliseconds({seconds: 30});
@@ -13,6 +14,7 @@ class EphemeralStoreSingleton {
     theme: Theme | undefined;
     creatingChannel = false;
     creatingDMorGMTeammates: string[] = [];
+    currentLocale: string = DEFAULT_LOCALE;
 
     noticeShown = new Set<string>();
 
@@ -302,6 +304,14 @@ class EphemeralStoreSingleton {
 
     clearChannelPlaybooksSynced = (serverUrl: string) => {
         delete this.channelPlaybooksSynced[serverUrl];
+    };
+
+    setCurrentLocale = (locale: string) => {
+        this.currentLocale = locale || DEFAULT_LOCALE;
+    };
+
+    getCurrentLocale = () => {
+        return this.currentLocale || DEFAULT_LOCALE;
     };
 }
 

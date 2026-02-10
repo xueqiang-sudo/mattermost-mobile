@@ -2261,6 +2261,12 @@ PODS:
   - SwiftyJSON (5.0.2)
   - TurboLogIOSNative (0.1.0):
     - CocoaLumberjack (~> 3.8.5)
+  - VisionCamera (4.7.3):
+    - VisionCamera/Core (= 4.7.3)
+    - VisionCamera/React (= 4.7.3)
+  - VisionCamera/Core (4.7.3)
+  - VisionCamera/React (4.7.3):
+    - React-Core
   - WatermelonDB (0.28.0):
     - React
     - simdjson
@@ -2388,6 +2394,7 @@ DEPENDENCIES:
   - Sentry/HybridSDK (= 8.48.0)
   - "simdjson (from `../node_modules/@nozbe/simdjson`)"
   - TurboLogIOSNative (from `https://github.com/larkox/react-native-turbo-log-ios-native.git`)
+  - VisionCamera (from `../node_modules/react-native-vision-camera`)
   - "WatermelonDB (from `../node_modules/@nozbe/watermelondb`)"
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2647,6 +2654,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@nozbe/simdjson"
   TurboLogIOSNative:
     :git: https://github.com/larkox/react-native-turbo-log-ios-native.git
+  VisionCamera:
+    :path: "../node_modules/react-native-vision-camera"
   WatermelonDB:
     :path: "../node_modules/@nozbe/watermelondb"
   Yoga:
@@ -2793,6 +2802,7 @@ SPEC CHECKSUMS:
   SwiftJWT: 88c412708f58c169d431d344c87bc79a87c830ae
   SwiftyJSON: f5b1bf1cd8dd53cd25887ac0eabcfd92301c6a5a
   TurboLogIOSNative: 45f6d20ba17ee39f8106e718e93baf43b2d76b7b
+  VisionCamera: 7187b3dac1ff3071234ead959ce311875748e14f
   WatermelonDB: 75e467adbaf2cb2809780fb3eda7ce4964e11778
   Yoga: 1259c7a8cbaccf7b4c3ddf8ee36ca11be9dee407
 

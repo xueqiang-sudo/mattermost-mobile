@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert} from 'react-native';
+import {OptionsModalPresentationStyle} from 'react-native-navigation';
 
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
@@ -68,11 +68,28 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople, curr
     const scanQRCode = useCallback(async () => {
         await dismissBottomSheet();
 
-        Alert.alert(
-            intl.formatMessage({id: 'scan_qr_code.title', defaultMessage: 'Scan QR Code'}),
-            intl.formatMessage({id: 'scan_qr_code.coming_soon', defaultMessage: 'This feature is under development'}),
-            [{text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}],
-        );
+        const title = intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'});
+        showModal(Screens.QR_SCANNER, title, {}, {
+            modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
+            layout: {
+                componentBackgroundColor: '#000000',
+            },
+            statusBar: {
+                visible: true,
+                drawBehind: true,
+                backgroundColor: 'transparent',
+                style: 'light',
+            },
+            topBar: {
+                visible: false,
+            },
+            modal: {
+                swipeToDismiss: false,
+            },
+            hardwareBackButton: {
+                dismissModalOnPress: false,
+            },
+        });
     }, [intl]);
 
     const createEnterprise = useCallback(async () => {

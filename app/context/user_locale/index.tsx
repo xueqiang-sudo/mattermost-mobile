@@ -2,13 +2,14 @@
 // See LICENSE.txt for license information.
 
 import {withObservables} from '@nozbe/watermelondb/react';
-import React, {type ComponentType, createContext} from 'react';
+import React, {type ComponentType, createContext, useEffect} from 'react';
 import {IntlProvider} from 'react-intl';
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {DEFAULT_LOCALE, getTranslations} from '@i18n';
 import {observeCurrentUser} from '@queries/servers/user';
+import EphemeralStore from '@store/ephemeral_store';
 
 import type Database from '@nozbe/watermelondb/Database';
 
@@ -25,6 +26,11 @@ export const UserLocaleContext = createContext(DEFAULT_LOCALE);
 const {Consumer, Provider} = UserLocaleContext;
 
 const UserLocaleProvider = ({locale, children}: Props) => {
+    // 更新全局 locale 状态
+    useEffect(() => {
+        EphemeralStore.setCurrentLocale(locale);
+    }, [locale]);
+
     return (
         <Provider value={locale}>
             <IntlProvider

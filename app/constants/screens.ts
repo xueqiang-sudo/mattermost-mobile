@@ -57,6 +57,7 @@ export const PERMALINK = 'Permalink';
 export const PINNED_MESSAGES = 'PinnedMessages';
 export const POST_OPTIONS = 'PostOptions';
 export const POST_PRIORITY_PICKER = 'PostPriorityPicker';
+export const QR_SCANNER = 'QRScanner';
 export const REACTIONS = 'Reactions';
 export const REPORT_PROBLEM = 'ReportProblem';
 export const RESCHEDULE_DRAFT = 'RescheduleDraft';
@@ -145,6 +146,7 @@ export default {
     PINNED_MESSAGES,
     POST_OPTIONS,
     POST_PRIORITY_PICKER,
+    QR_SCANNER,
     REACTIONS,
     REPORT_PROBLEM,
     RESCHEDULE_DRAFT,

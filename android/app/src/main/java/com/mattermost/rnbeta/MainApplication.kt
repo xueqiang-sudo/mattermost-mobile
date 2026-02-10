@@ -46,6 +46,7 @@ class MainApplication : NavigationApplication(), INotificationsApplication {
                         // add(MyReactNativePackage())
                         add(RNNotificationsPackage(this@MainApplication))
                         add(WatermelonDBJSIPackage())
+                        add(QRCodeScannerPackage())
                     }
 
                 override fun getJSMainModuleName(): String = "index"

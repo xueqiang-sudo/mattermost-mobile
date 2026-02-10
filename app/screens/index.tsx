@@ -11,8 +11,9 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 import {Screens} from '@constants';
 import {withServerDatabase} from '@database/components';
-import {DEFAULT_LOCALE, getTranslations} from '@i18n';
+import {getTranslations} from '@i18n';
 import {loadPlaybooksScreen} from '@playbooks/screens';
+import EphemeralStore from '@store/ephemeral_store';
 import {logDebug} from '@utils/log';
 
 const withGestures = (Screen: React.ComponentType) => {
@@ -27,10 +28,14 @@ const withGestures = (Screen: React.ComponentType) => {
 
 const withIntl = (Screen: React.ComponentType) => {
     return function IntlEnabledComponent(props: any) {
+        // 从全局 EphemeralStore 获取当前语言
+        const locale = EphemeralStore.getCurrentLocale();
+        logDebug('[withIntl] 使用语言:', locale);
+
         return (
             <IntlProvider
-                locale={DEFAULT_LOCALE}
-                messages={getTranslations(DEFAULT_LOCALE)}
+                locale={locale}
+                messages={getTranslations(locale)}
             >
                 <Screen {...props}/>
             </IntlProvider>
@@ -202,6 +207,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.POST_PRIORITY_PICKER:
             screen = withServerDatabase(require('@screens/post_priority_picker').default);
+            break;
+        case Screens.QR_SCANNER:
+            screen = withIntl(require('@screens/qr_scanner').default);
             break;
         case Screens.REACTIONS:
             screen = withServerDatabase(require('@screens/reactions').default);
