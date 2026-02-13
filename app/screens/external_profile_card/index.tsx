@@ -187,7 +187,7 @@ const ExternalProfileCardScreen = ({
     useAndroidHardwareBackHandler(componentId, onClosePressed);
 
     const rightButtons = useMemo(() => {
-        const editIcon = CompassIcon.getImageSourceSync('pencil-outline', 24, theme.sidebarHeaderTextColor);
+        // const editIcon = CompassIcon.getImageSourceSync('pencil-outline', 24, theme.sidebarHeaderTextColor);
         const moreIcon = CompassIcon.getImageSourceSync(
             Platform.select({android: 'dots-vertical', default: 'dots-horizontal'}),
             24,
@@ -211,13 +211,13 @@ const ExternalProfileCardScreen = ({
         setButtons(componentId, {rightButtons});
     }, [componentId, rightButtons]);
 
-    const onEditPressed = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
-            Screens.EXTERNAL_PROFILE_CARD_EDIT,
-            intl.formatMessage({id: 'external_profile_card.edit_title', defaultMessage: 'Edit'}),
-            'close-external-profile-card-edit',
-        );
-    }, [intl]));
+    // const onEditPressed = usePreventDoubleTap(useCallback(() => {
+    //     showModalWithBackButton(
+    //         Screens.EXTERNAL_PROFILE_CARD_EDIT,
+    //         intl.formatMessage({id: 'external_profile_card.edit_title', defaultMessage: 'Edit'}),
+    //         'close-external-profile-card-edit',
+    //     );
+    // }, [intl]));
 
     const onMorePressed = usePreventDoubleTap(useCallback(() => {
         setMoreMenuVisible(true);
@@ -241,7 +241,7 @@ const ExternalProfileCardScreen = ({
         setQrTimestamp(Date.now());
     }, []));
 
-    useNavButtonPressed(EDIT_BUTTON_ID, componentId, onEditPressed, []);
+    // useNavButtonPressed(EDIT_BUTTON_ID, componentId, onEditPressed, []);
     useNavButtonPressed(MORE_BUTTON_ID, componentId, onMorePressed, []);
 
     const handleShare = usePreventDoubleTap(useCallback(async () => {
@@ -324,7 +324,7 @@ const ExternalProfileCardScreen = ({
                 <View style={styles.centerBlock}>
                     <ViewShot
                         ref={viewShotRef}
-                        options={{fileName: 'external_profile_card', width: 320, height: 480, format: 'png'}}
+                        options={{fileName: 'external_profile_card', format: 'png'}}
                         style={{alignItems: 'center', width: '100%'}}
                     >
                         <View style={styles.cardWrapper}>
@@ -365,6 +365,7 @@ const ExternalProfileCardScreen = ({
                             <QRCodeGenerator
                                 data={qrData}
                                 size={200}
+                                ecl='L'
                                 showBorder={false}
                                 logo={require('@assets/images/icon.png')}
                                 logoSize={0.2}

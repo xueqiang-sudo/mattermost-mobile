@@ -65,8 +65,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         maxHeight: 56,
     },
     getCodeButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        height: 50,
+        marginTop: -4,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: theme.buttonBg,
@@ -236,7 +236,7 @@ const PhoneLoginForm = ({
         try {
             // 调用获取验证码 API
             const res = await sendSmsCode(serverUrl, phoneNumber);
-            setVerificationCode(res.code || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
+            setVerificationCode(res.test_code || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
 
             // 模拟成功响应
             setCountdown(60); // 60秒倒计时
@@ -338,7 +338,7 @@ const PhoneLoginForm = ({
             setIsLoading(false);
             goToHome();
         } catch (loginError) {
-            logError('error on signInWithPhone', getFullErrorMessage(loginError));
+            logInfo('error on signInWithPhone', getFullErrorMessage(loginError));
             setError(getFullErrorMessage(loginError));
             setIsLoading(false);
         }

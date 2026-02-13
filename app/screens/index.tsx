@@ -135,9 +135,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EXTERNAL_PROFILE_CARD:
             screen = withServerDatabase(require('@screens/external_profile_card').default);
             break;
-        case Screens.EXTERNAL_PROFILE_CARD_EDIT:
-            screen = withServerDatabase(require('@screens/external_profile_card/edit').default);
-            break;
+        // case Screens.EXTERNAL_PROFILE_CARD_EDIT:
+        //     screen = withServerDatabase(require('@screens/external_profile_card/edit').default);
+        //     break;
         case Screens.EXTERNAL_PROFILE_CARD_EXTERNAL_INFO:
             screen = withServerDatabase(require('@screens/external_profile_card/external_info').default);
             break;

@@ -34,7 +34,7 @@ export const EDIT_PROFILE = 'EditProfile';
 export const EDIT_SERVER = 'EditServer';
 export const EMOJI_PICKER = 'EmojiPicker';
 export const EXTERNAL_PROFILE_CARD = 'ExternalProfileCard';
-export const EXTERNAL_PROFILE_CARD_EDIT = 'ExternalProfileCardEdit';
+// export const EXTERNAL_PROFILE_CARD_EDIT = 'ExternalProfileCardEdit';
 export const EXTERNAL_PROFILE_CARD_EXTERNAL_INFO = 'ExternalProfileCardExternalInfo';
 export const EXTERNAL_PROFILE_CARD_STYLE = 'ExternalProfileCardStyle';
 export const FIND_CHANNELS = 'FindChannels';
@@ -127,7 +127,7 @@ export default {
     EDIT_SERVER,
     EMOJI_PICKER,
     EXTERNAL_PROFILE_CARD,
-    EXTERNAL_PROFILE_CARD_EDIT,
+    // EXTERNAL_PROFILE_CARD_EDIT,
     EXTERNAL_PROFILE_CARD_EXTERNAL_INFO,
     EXTERNAL_PROFILE_CARD_STYLE,
     FIND_CHANNELS,

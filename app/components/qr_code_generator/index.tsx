@@ -59,6 +59,13 @@ interface QRCodeGeneratorProps {
      * The style of the container view
      */
     style?: any;
+
+    /**
+     * Error correction level: L (low) = less dense, M (medium), Q, H (high) = more redundant
+     * Use 'L' for simpler pattern when data is short or size is limited.
+     * @default 'M'
+     */
+    ecl?: 'L' | 'M' | 'Q' | 'H';
 }
 
 /**
@@ -75,6 +82,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     logoSize = 0.2,
     logoBackgroundColor,
     style,
+    ecl = 'M',
 }) => {
     const theme = useTheme();
     const logoPx = logo != null ? Math.round(size * logoSize) : undefined;
@@ -99,6 +107,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
                 logo={logo}
                 logoSize={logoPx}
                 logoBackgroundColor={logoBackgroundColor ?? backgroundColor}
+                ecl={ecl}
             />
         </View>
     );
