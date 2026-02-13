@@ -15,8 +15,9 @@ import {Camera, useCameraDevices, useCameraPermission, useCodeScanner, type Code
 
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
+import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
-import {dismissModal} from '@screens/navigation';
+import {dismissModal, showModalWithBackButton} from '@screens/navigation';
 import {logInfo} from '@utils/log';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {tryOpenURL} from '@utils/url';
@@ -98,8 +99,9 @@ const getStyleSheet = makeStyleSheetFromTheme(() => {
         },
         torchButton: {
             position: 'absolute',
-            top: Platform.select({ios: 60, android: 40}),
-            right: 20,
+            top: '72%',
+            left: '50%',
+            marginLeft: -20,
             width: 40,
             height: 40,
             borderRadius: 20,
@@ -573,6 +575,14 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
         setTimeout(openImageLibrary, 100);
     }, [openImageLibrary]);
 
+    const handleOpenExternalProfileCard = useCallback(() => {
+        showModalWithBackButton(
+            Screens.EXTERNAL_PROFILE_CARD,
+            intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'}),
+            'close-external-profile-card',
+        );
+    }, [intl]);
+
     if (!hasPermission) {
         return (
             <View style={styles.container}>
@@ -692,21 +702,19 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
             <View style={styles.bottomActions}>
                 <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => {
-                        // 当前就是扫描二维码模式，不需要额外操作
-                    }}
+                    onPress={handleOpenExternalProfileCard}
                 >
                     <View style={styles.actionIcon}>
                         <CompassIcon
-                            name='camera-outline'
+                            name='account-outline'
                             size={32}
                             color='#FFFFFF'
                         />
                     </View>
                     <Text style={styles.actionText}>
                         {intl.formatMessage({
-                            id: 'mobile.qr_scanner.scan_qr',
-                            defaultMessage: 'Scan QR Code',
+                            id: 'external_profile_card.title',
+                            defaultMessage: 'External Profile Card',
                         })}
                     </Text>
                 </TouchableOpacity>

@@ -225,18 +225,18 @@ function loadChinesePolyfills() {
 }
 
 export function getLocaleFromLanguage(lang: string) {
-    // switch (lang) {
-    //     case 'zh-Hans-CN': {
-    //         // eslint-disable-next-line no-param-reassign
-    //         lang = 'zh-CN';
-    //         break;
-    //     }
-    //     case 'zh-Hant-TW': {
-    //         // eslint-disable-next-line no-param-reassign
-    //         lang = 'zh-TW';
-    //         break;
-    //     }
-    // }
+    switch (lang) {
+        case 'zh-Hans-CN': {
+            // eslint-disable-next-line no-param-reassign
+            lang = 'zh-CN';
+            break;
+        }
+        case 'zh-Hant-TW': {
+            // eslint-disable-next-line no-param-reassign
+            lang = 'zh-TW';
+            break;
+        }
+    }
     const languageCode = lang.split('-')[0];
     const locale = availableLanguages[lang] || availableLanguages[languageCode] || PRIMARY_LOCALE;
     return locale;

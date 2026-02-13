@@ -39,6 +39,23 @@ interface QRCodeGeneratorProps {
     showBorder?: boolean;
 
     /**
+     * Optional logo image source to display in the center of the QR code (e.g. require('path/to/icon.png'))
+     */
+    logo?: number | {uri: string};
+
+    /**
+     * Size of the logo as percentage of QR code size (e.g. 0.2 = 20%)
+     * @default 0.2
+     */
+    logoSize?: number;
+
+    /**
+     * Background color behind the logo
+     * @default same as backgroundColor
+     */
+    logoBackgroundColor?: string;
+
+    /**
      * The style of the container view
      */
     style?: any;
@@ -54,9 +71,13 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     color = '#000000',
     backgroundColor = '#FFFFFF',
     showBorder = true,
+    logo,
+    logoSize = 0.2,
+    logoBackgroundColor,
     style,
 }) => {
     const theme = useTheme();
+    const logoPx = logo != null ? Math.round(size * logoSize) : undefined;
 
     return (
         <View
@@ -75,6 +96,9 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
                 size={size}
                 color={color}
                 backgroundColor={backgroundColor}
+                logo={logo}
+                logoSize={logoPx}
+                logoBackgroundColor={logoBackgroundColor ?? backgroundColor}
             />
         </View>
     );

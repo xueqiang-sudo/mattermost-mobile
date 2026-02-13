@@ -7,7 +7,7 @@ import {Platform} from 'react-native';
 import {removePushDisabledInServerAcknowledged} from '@actions/app/global';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
-import {resetMomentLocale} from '@i18n';
+import {DEFAULT_LOCALE, resetMomentLocale} from '@i18n';
 import {getAllServerCredentials, removeServerCredentials} from '@init/credentials';
 import PushNotifications from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
@@ -15,6 +15,7 @@ import WebsocketManager from '@managers/websocket_manager';
 import {getDeviceToken} from '@queries/app/global';
 import {getExpiredSession} from '@queries/servers/system';
 import {getCurrentUser} from '@queries/servers/user';
+import EphemeralStore from '@store/ephemeral_store';
 import {deleteFileCache, deleteFileCacheByDir} from '@utils/file';
 import {logError, logWarning} from '@utils/log';
 import {clearCookiesForServer, getCSRFFromCookie, urlSafeBase64Encode} from '@utils/security';
@@ -25,6 +26,7 @@ const resetLocale = async () => {
         const user = await getCurrentUser(serverDatabase!);
         resetMomentLocale(user?.locale);
     } else {
+        EphemeralStore.setCurrentLocale(DEFAULT_LOCALE);
         resetMomentLocale();
     }
 };

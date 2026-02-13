@@ -132,6 +132,18 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EMOJI_PICKER:
             screen = withServerDatabase(require('@screens/emoji_picker').default);
             break;
+        case Screens.EXTERNAL_PROFILE_CARD:
+            screen = withServerDatabase(require('@screens/external_profile_card').default);
+            break;
+        case Screens.EXTERNAL_PROFILE_CARD_EDIT:
+            screen = withServerDatabase(require('@screens/external_profile_card/edit').default);
+            break;
+        case Screens.EXTERNAL_PROFILE_CARD_EXTERNAL_INFO:
+            screen = withServerDatabase(require('@screens/external_profile_card/external_info').default);
+            break;
+        case Screens.EXTERNAL_PROFILE_CARD_STYLE:
+            screen = withServerDatabase(require('@screens/external_profile_card/style').default);
+            break;
         case Screens.FIND_CHANNELS:
             screen = withServerDatabase(require('@screens/find_channels').default);
             break;

@@ -7,6 +7,7 @@ import {View} from 'react-native';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import CustomStatus from './custom_status';
+import ExternalProfileCardOption from './external_profile_card_option';
 import Logout from './logout';
 import Settings from './settings';
 import UserPresence from './user_presence';
@@ -65,6 +66,7 @@ const AccountOptions = ({user, enableCustomUserStatuses, isTablet, theme}: Accou
             <View style={styles.divider}/>
             <View style={styles.group}>
                 <YourProfile isTablet={isTablet}/>
+                <ExternalProfileCardOption isTablet={isTablet}/>
                 <Settings/>
             </View>
             <View style={styles.divider}/>
