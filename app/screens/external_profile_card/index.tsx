@@ -25,6 +25,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/user';
 import {dismissModal, setButtons, showModal, showModalWithBackButton} from '@screens/navigation';
+import {formatFullName} from '@utils/display_name';
 import {formatDate} from '@utils/datetime';
 import {hasWriteStoragePermission} from '@utils/file';
 import {logError, logInfo} from '@utils/log';
@@ -32,7 +33,6 @@ import {customBase64Encode} from '@utils/security';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getFullName} from '@utils/user';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
@@ -175,9 +175,13 @@ const ExternalProfileCardScreen = ({
     const [moreMenuVisible, setMoreMenuVisible] = useState(false);
     const [qrTimestamp, setQrTimestamp] = useState(() => Date.now());
 
-    const primaryName = currentUser? displayUsername(currentUser, currentUser.locale, teammateNameDisplay, false) || getFullName(currentUser) || currentUser.username: '';
-    // eslint-disable-next-line no-nested-ternary
-    const secondaryName = currentUser? (currentUser.nickname ? `@${currentUser.username}` : currentUser.username): '';
+    const locale = currentUser?.locale ?? '';
+    const fullName = currentUser ? formatFullName(locale, currentUser.lastName ?? '', currentUser.firstName ?? '') : '';
+    const hasName = fullName.length > 0;
+    const nickname = (currentUser?.nickname ?? '').trim();
+    const displayName = currentUser
+        ? (hasName ? (nickname ? `${fullName} (${nickname})` : fullName) : (nickname || currentUser.username))
+        : '';
 
     const onClosePressed = useCallback(() => {
         dismissModal({componentId});
@@ -250,7 +254,7 @@ const ExternalProfileCardScreen = ({
                 const uri = await viewShotRef.current.capture();
                 await Share.open({
                     title: intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'}),
-                    message: primaryName ? `${primaryName} - ${intl.formatMessage({id: 'external_profile_card.share_message', defaultMessage: 'Profile card'})}` : '',
+                    message: displayName ? `${displayName} - ${intl.formatMessage({id: 'external_profile_card.share_message', defaultMessage: 'Profile card'})}` : '',
                     url: uri,
                     saveToFiles: true,
                     filename: `profile_card_${formatDate(undefined, true)}.png`,
@@ -266,7 +270,7 @@ const ExternalProfileCardScreen = ({
                 logError('[ExternalProfileCard.handleShare]', e);
             }
         }
-    }, [intl, primaryName]));
+    }, [intl, displayName]));
 
     const handleSaveToAlbum = usePreventDoubleTap(useCallback(async () => {
         try {
@@ -349,16 +353,8 @@ const ExternalProfileCardScreen = ({
                                     style={styles.primaryName}
                                     numberOfLines={1}
                                 >
-                                    {primaryName || getFullName(currentUser) || currentUser.username}
+                                    {displayName}
                                 </Text>
-                                {(secondaryName || currentUser.nickname) ? (
-                                    <Text
-                                        style={styles.secondaryName}
-                                        numberOfLines={1}
-                                    >
-                                        {currentUser.nickname || secondaryName}
-                                    </Text>
-                                ) : null}
                             </View>
                         </View>
                         <View style={[styles.qrMargin, styles.qrContainer]}>

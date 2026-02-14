@@ -12,6 +12,7 @@
   "account.logout": "Log out",
   "account.logout_from": "Log out of {serverName}",
   "account.settings": "Settings",
+  "account.modal_title": "Account",
   "account.your_profile": "Your Profile",
   "agents.citations.title": "Sources ({count})",
   "agents.controls.regenerate": "Regenerate",

@@ -12,6 +12,7 @@
   "account.logout": "注销",
   "account.logout_from": "从{serverName}注销",
   "account.settings": "设定",
+  "account.modal_title": "账户",
   "account.your_profile": "您的资料",
   "alert.channel_deleted.description": "频道{displayName}已存档。",
   "alert.channel_deleted.title": "已归档的频道",

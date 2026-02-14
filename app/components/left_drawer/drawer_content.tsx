@@ -61,7 +61,7 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
     const openAccountModal = usePreventDoubleTap(useCallback(() => {
         showModalWithBackButton(
             Screens.ACCOUNT_MODAL,
-            intl.formatMessage({id: 'account.your_profile', defaultMessage: 'Your Profile'}),
+            intl.formatMessage({id: 'account.modal_title', defaultMessage: 'Account'}),
             CLOSE_ACCOUNT_MODAL,
         );
     }, [intl]));
