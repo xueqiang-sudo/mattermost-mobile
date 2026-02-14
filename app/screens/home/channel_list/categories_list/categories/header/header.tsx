@@ -18,8 +18,8 @@ import type CategoryModel from '@typings/database/models/servers/category';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        paddingVertical: 8,
-        marginTop: 12,
+        paddingVertical: 6,
+        marginTop: 8,
         paddingLeft: 2,
         marginLeft: 16,
         flexDirection: 'row',

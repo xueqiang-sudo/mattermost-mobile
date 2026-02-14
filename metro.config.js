@@ -12,13 +12,15 @@ const defaultConfig = getDefaultConfig(__dirname);
  * @type {import('metro-config').MetroConfig}
  */
 const config = {
+    transformer: {
+        babelTransformerPath: require.resolve('react-native-svg-transformer/react-native'),
+    },
     resolver: {
+        ...defaultConfig.resolver,
+        assetExts: defaultConfig.resolver.assetExts.filter((ext) => ext !== 'svg'),
+        sourceExts: [...defaultConfig.resolver.sourceExts, 'svg'],
         extraNodeModules: {
-
-            // 将 Node.js 核心模块映射到对应的 npm 包
             events: require.resolve('events'),
-
-            // 其他可能需要的核心模块...
         },
     },
 };

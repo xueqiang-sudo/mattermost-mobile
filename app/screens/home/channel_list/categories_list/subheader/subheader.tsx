@@ -17,6 +17,7 @@ type Props = {
 const style = StyleSheet.create({
     container: {
         flexDirection: 'row',
+        alignItems: 'center',
         ...HOME_PADDING,
     },
 });

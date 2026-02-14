@@ -5,6 +5,7 @@ import PLAYBOOKS_SCREENS from '@playbooks/constants/screens';
 
 export const ABOUT = 'About';
 export const ACCOUNT = 'Account';
+export const ACCOUNT_MODAL = 'AccountModal';
 export const APPS_FORM = 'AppForm';
 export const BOTTOM_SHEET = 'BottomSheet';
 export const BROWSE_CHANNELS = 'BrowseChannels';
@@ -99,6 +100,7 @@ export const USER_PROFILE = 'UserProfile';
 export default {
     ABOUT,
     ACCOUNT,
+    ACCOUNT_MODAL,
     APPS_FORM,
     BOTTOM_SHEET,
     BROWSE_CHANNELS,

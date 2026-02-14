@@ -34,8 +34,8 @@ export const BOOKMARKS_BAR_HEIGHT = 48;
 export const CHANNEL_BANNER_HEIGHT = 32;
 
 export const HOME_PADDING = {
-    paddingLeft: 18,
-    paddingRight: 20,
+    paddingLeft: 12,
+    paddingRight: 12,
 };
 
 export default {

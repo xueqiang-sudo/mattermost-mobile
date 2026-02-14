@@ -171,6 +171,7 @@
     "nock": "14.0.3",
     "patch-package": "8.0.0",
     "react-devtools-core": "6.1.1",
+    "react-native-svg-transformer": "1.5.3",
     "react-test-renderer": "18.3.1",
     "timezones.json": "1.7.1",
     "tough-cookie": "5.1.2",

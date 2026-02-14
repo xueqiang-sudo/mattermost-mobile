@@ -13,7 +13,6 @@ import {refetchCurrentUser} from '@actions/remote/user';
 import FloatingCallContainer from '@calls/components/floating_call_container';
 import AnnouncementBanner from '@components/announcement_banner';
 import ConnectionBanner from '@components/connection_banner';
-import TeamSidebar from '@components/team_sidebar';
 import {Navigation as NavigationConstants, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -193,12 +192,8 @@ const ChannelListScreen = (props: ChannelProps) => {
                     <Animated.View
                         style={[styles.content, animated]}
                     >
-                        <TeamSidebar
-                            iconPad={canAddOtherServers}
-                            hasMoreThanOneTeam={props.hasMoreThanOneTeam}
-                        />
                         <CategoriesList
-                            iconPad={canAddOtherServers && !props.hasMoreThanOneTeam}
+                            iconPad={canAddOtherServers}
                             isCRTEnabled={props.isCRTEnabled}
                             moreThanOneTeam={props.hasMoreThanOneTeam}
                             hasChannels={props.hasChannels}

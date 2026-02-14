@@ -27,6 +27,8 @@ type ProfilePictureProps = {
     testID?: string;
     source?: ImageSource | string;
     url?: string;
+    /** When set, avatar is a rounded square. Omit for circular. */
+    borderRadius?: number;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -67,6 +69,7 @@ const ProfilePicture = ({
     testID,
     source,
     url,
+    borderRadius,
 }: ProfilePictureProps) => {
     const theme = useTheme();
     let serverUrl = useServerUrl();
@@ -98,6 +101,7 @@ const ProfilePicture = ({
                 size={size}
                 source={source}
                 url={serverUrl}
+                borderRadius={borderRadius}
             />
             {showStatus && !isBot &&
             <Status

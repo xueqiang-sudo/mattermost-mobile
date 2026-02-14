@@ -21,7 +21,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderRadius: 8,
         height: 40,
         justifyContent: 'center',
-        marginVertical: 20,
+        marginVertical: 10,
         width: 40,
     },
     filtered: {

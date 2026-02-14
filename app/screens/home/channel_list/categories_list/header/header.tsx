@@ -8,10 +8,12 @@ import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-nati
 
 import {logout} from '@actions/remote/session';
 import CompassIcon from '@components/compass_icon';
+import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import {HOME_PADDING} from '@constants/view';
+import {useLeftDrawer} from '@context/left_drawer';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -44,11 +46,14 @@ type Props = {
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     headingStyles: {
         color: theme.sidebarText,
-        ...typography('Heading', 700),
+        ...typography('Heading', 300, 'SemiBold'),
+        lineHeight: 20,
     },
     subHeadingStyles: {
-        color: changeOpacity(theme.sidebarText, 0.64),
-        ...typography('Heading', 50),
+        color: changeOpacity(theme.sidebarText, 0.56),
+        ...typography('Body', 75),
+        lineHeight: 16,
+        marginTop: 1,
     },
     headerRow: {
         flexDirection: 'row',
@@ -67,7 +72,6 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         height: PLUS_BUTTON_SIZE,
         width: PLUS_BUTTON_SIZE,
         borderRadius: PLUS_BUTTON_SIZE / 2,
-        marginTop: PLUS_BUTTON_SIZE / 4,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -81,7 +85,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     subHeadingView: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingRight: 60,
+        paddingRight: 48,
     },
     noTeamHeadingStyles: {
         color: changeOpacity(theme.sidebarText, 0.64),
@@ -95,10 +99,24 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     outsideBox: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
+        minHeight: 44,
+        paddingVertical: 4,
     },
     firstBox: {
-        width: '85%', // ratio derived from the design
+        flex: 1,
+        justifyContent: 'center',
+        minWidth: 0,
+        marginHorizontal: 2,
+        paddingVertical: 0,
+    },
+    menuButton: {
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: -6,
     },
 }));
 
@@ -116,6 +134,7 @@ const ChannelListHeader = ({
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const {openDrawer} = useLeftDrawer();
     const serverDisplayName = useServerDisplayName();
     const marginLeft = useSharedValue(iconPad ? 50 : 0);
     const styles = getStyles(theme);
@@ -185,6 +204,17 @@ const ChannelListHeader = ({
     if (displayName) {
         header = (
             <View style={styles.outsideBox}>
+                <TouchableWithFeedback
+                    onPress={openDrawer}
+                    style={styles.menuButton}
+                    testID='channel_list_header.menu.button'
+                    type='opacity'
+                >
+                    <OpenDrawerIcon
+                        width={26}
+                        height={26}
+                    />
+                </TouchableWithFeedback>
                 <View style={styles.firstBox}>
                     <View style={styles.headerRow}>
                         <TouchableWithoutFeedback
@@ -192,7 +222,7 @@ const ChannelListHeader = ({
                         >
                             <View style={styles.headerRow}>
                                 <Text
-                                    numberOfLines={2}
+                                    numberOfLines={1}
                                     ellipsizeMode='tail'
                                     style={styles.headingStyles}
                                     testID='channel_list_header.team_display_name'
@@ -237,7 +267,7 @@ const ChannelListHeader = ({
                 >
                     <CompassIcon
                         style={styles.plusIcon}
-                        name={'plus'}
+                        name='plus'
                     />
                 </TouchableWithFeedback>
             </View>

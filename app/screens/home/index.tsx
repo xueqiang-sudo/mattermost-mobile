@@ -10,8 +10,10 @@ import {DeviceEventEmitter, Platform, StyleSheet, View} from 'react-native';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 
 import {autoUpdateTimezone} from '@actions/remote/user';
+import LeftDrawer from '@components/left_drawer';
 import ServerVersion from '@components/server_version';
 import {Events, Launch, Screens} from '@constants';
+import {LeftDrawerProvider} from '@context/left_drawer';
 import {useTheme} from '@context/theme';
 import {useAppState} from '@hooks/device';
 import SecurityManager from '@managers/security_manager';
@@ -152,59 +154,62 @@ export function HomeScreen(props: HomeProps) {
             style={styles.flex}
             nativeID={SecurityManager.getShieldScreenId(Screens.HOME, true)}
         >
-            <NavigationContainer
-                theme={{
-                    ...DefaultTheme,
-                    dark: false,
-                    colors: {
-                        ...DefaultTheme.colors,
-                        primary: theme.centerChannelColor,
-                        background: 'transparent',
-                        card: theme.centerChannelBg,
-                        text: theme.centerChannelColor,
-                        border: 'white',
-                        notification: theme.mentionHighlightBg,
-                    },
-                }}
-            >
-                <Tab.Navigator
-                    screenOptions={{headerShown: false, freezeOnBlur: false, lazy: true}}
-                    backBehavior='none'
-                    tabBar={(tabProps: BottomTabBarProps) => (
-                        <TabBar
-                            {...tabProps}
-                            theme={theme}
-                        />)}
+            <LeftDrawerProvider>
+                <NavigationContainer
+                    theme={{
+                        ...DefaultTheme,
+                        dark: false,
+                        colors: {
+                            ...DefaultTheme.colors,
+                            primary: theme.centerChannelColor,
+                            background: 'transparent',
+                            card: theme.centerChannelBg,
+                            text: theme.centerChannelColor,
+                            border: 'white',
+                            notification: theme.mentionHighlightBg,
+                        },
+                    }}
                 >
-                    <Tab.Screen
-                        name={Screens.HOME}
-                        options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
+                    <Tab.Navigator
+                        screenOptions={{headerShown: false, freezeOnBlur: false, lazy: true}}
+                        backBehavior='none'
+                        tabBar={(tabProps: BottomTabBarProps) => (
+                            <TabBar
+                                {...tabProps}
+                                theme={theme}
+                            />)}
                     >
-                        {() => <ChannelList {...props}/>}
-                    </Tab.Screen>
-                    <Tab.Screen
-                        name={Screens.SEARCH}
-                        component={Search}
-                        options={{tabBarButtonTestID: 'tab_bar.search.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                    <Tab.Screen
-                        name={Screens.MENTIONS}
-                        component={RecentMentions}
-                        options={{tabBarButtonTestID: 'tab_bar.mentions.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                    <Tab.Screen
-                        name={Screens.SAVED_MESSAGES}
-                        component={SavedMessages}
-                        options={{tabBarButtonTestID: 'tab_bar.saved_messages.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                    <Tab.Screen
-                        name={Screens.ACCOUNT}
-                        component={Account}
-                        options={{tabBarButtonTestID: 'tab_bar.account.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                </Tab.Navigator>
-            </NavigationContainer>
-            <ServerVersion/>
+                        <Tab.Screen
+                            name={Screens.HOME}
+                            options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
+                        >
+                            {() => <ChannelList {...props}/>}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.SEARCH}
+                            component={Search}
+                            options={{tabBarButtonTestID: 'tab_bar.search.tab', freezeOnBlur: true, lazy: true}}
+                        />
+                        <Tab.Screen
+                            name={Screens.MENTIONS}
+                            component={RecentMentions}
+                            options={{tabBarButtonTestID: 'tab_bar.mentions.tab', freezeOnBlur: true, lazy: true}}
+                        />
+                        <Tab.Screen
+                            name={Screens.SAVED_MESSAGES}
+                            component={SavedMessages}
+                            options={{tabBarButtonTestID: 'tab_bar.saved_messages.tab', freezeOnBlur: true, lazy: true}}
+                        />
+                        <Tab.Screen
+                            name={Screens.ACCOUNT}
+                            component={Account}
+                            options={{tabBarButtonTestID: 'tab_bar.account.tab', freezeOnBlur: true, lazy: true}}
+                        />
+                    </Tab.Navigator>
+                </NavigationContainer>
+                <LeftDrawer/>
+                <ServerVersion/>
+            </LeftDrawerProvider>
         </View>
     );
 }
