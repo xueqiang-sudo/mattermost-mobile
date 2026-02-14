@@ -26,24 +26,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
             backgroundColor: theme.centerChannelBg,
-            height: '100%',
-            borderTopRightRadius: 12,
-            borderTopLeftRadius: 12,
-            paddingTop: 12,
-            shadowColor: 'rgba(0, 0, 0, 0.12)',
-            shadowOffset: {width: 0, height: -2},
-            shadowOpacity: 1,
-            shadowRadius: 6,
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 16,
         },
         divider: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
             height: 1,
-            width: '90%',
-            alignSelf: 'center',
             marginVertical: 8,
+            marginHorizontal: 0,
         },
         group: {
-            paddingLeft: 16,
+            paddingVertical: 8,
         },
     };
 });

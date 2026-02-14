@@ -49,7 +49,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             borderLeftWidth: 1,
             borderLeftColor: changeOpacity(theme.centerChannelColor, 0.16),
         },
-        totalHeight: {height: '100%'},
+        scrollContent: {
+            flexGrow: 1,
+            paddingBottom: 24,
+        },
     };
 });
 
@@ -94,7 +97,8 @@ const AccountScreen = ({currentUser, enableCustomUserStatuses, showFullName}: Ac
         <ScrollView
             alwaysBounceVertical={false}
             style={tabletSidebarStyle}
-            contentContainerStyle={styles.totalHeight}
+            contentContainerStyle={[styles.scrollContent, {paddingBottom: insets.bottom + 24}]}
+            showsVerticalScrollIndicator={false}
         >
             <AccountUserInfo
                 user={currentUser}
