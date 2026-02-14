@@ -380,7 +380,7 @@ const EditProfile = ({
                     enabled={canSave}
                     onPress={submitUser}
                     testID='edit_profile'
-                    title={intl.formatMessage({id: 'mobile.screen.your_profile', defaultMessage: 'Your Profile'})}
+                    title={intl.formatMessage({id: 'account.your_profile', defaultMessage: 'Your Profile'})}
                 />
             }
             <SafeAreaView

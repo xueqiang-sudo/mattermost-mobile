@@ -248,6 +248,9 @@ export const logout = async (
 
 export const scheduleSessionNotification = async (serverUrl: string) => {
     try {
+        if (!DatabaseManager.serverDatabases[serverUrl]) {
+            return {};
+        }
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const sessions = await fetchSessions(serverUrl, 'me');
         const user = await getCurrentUser(database);
@@ -275,7 +278,7 @@ export const scheduleSessionNotification = async (serverUrl: string) => {
         }
         return {};
     } catch (e) {
-        logError('scheduleExpiredNotification', e);
+        logError('scheduleSessionNotification', e);
         await forceLogoutIfNecessary(serverUrl, e);
         return {error: e};
     }

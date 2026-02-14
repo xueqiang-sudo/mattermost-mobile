@@ -9,7 +9,6 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import CustomStatus from './custom_status';
 import ExternalProfileCard from './external_profile_card';
 import Logout from './logout';
-import Settings from './settings';
 import UserPresence from './user_presence';
 import YourProfile from './your_profile';
 
@@ -61,7 +60,6 @@ const AccountOptions = ({user, enableCustomUserStatuses, isTablet, theme}: Accou
             <View style={styles.group}>
                 <YourProfile isTablet={isTablet}/>
                 <ExternalProfileCard/>
-                <Settings/>
             </View>
             <View style={styles.divider}/>
             <View style={styles.group}>

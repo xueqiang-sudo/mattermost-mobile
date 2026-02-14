@@ -195,7 +195,12 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                                             style={styles.userDisplayName}
                                             testID='left_drawer.user_block.display_name'
                                         />
-                                        <Text style={styles.userNameChevron}>{'>'}</Text>
+                                        <CompassIcon
+                                            name='chevron-right'
+                                            size={20}
+                                            color={changeOpacity(theme.sidebarText, 0.7)}
+                                            style={styles.userNameChevron}
+                                        />
                                     </View>
                                     <Text
                                         numberOfLines={1}
@@ -206,15 +211,22 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                                     </Text>
                                 </>
                             ) : (
-                                <View style={styles.userNameRow}>
-                                    <Text
-                                        numberOfLines={1}
-                                        style={styles.userDisplayName}
-                                        testID='left_drawer.user_block.nickname'
-                                    >
-                                        {nicknameDisplay}
-                                    </Text>
-                                    <Text style={styles.userNameChevron}>{'>'}</Text>
+                                <View style={styles.userNameRowOnly}>
+                                    <View style={styles.userNameRow}>
+                                        <Text
+                                            numberOfLines={1}
+                                            style={styles.userDisplayName}
+                                            testID='left_drawer.user_block.nickname'
+                                        >
+                                            {nicknameDisplay}
+                                        </Text>
+                                        <CompassIcon
+                                            name='chevron-right'
+                                            size={20}
+                                            color={changeOpacity(theme.sidebarText, 0.7)}
+                                            style={styles.userNameChevron}
+                                        />
+                                    </View>
                                 </View>
                             )}
                         </View>
@@ -431,10 +443,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         minWidth: 0,
     },
+    userNameRowOnly: {
+        minHeight: 48,
+        justifyContent: 'center',
+    },
     userNameChevron: {
-        color: changeOpacity(theme.sidebarText, 0.8),
-        ...typography('Heading', 400, 'SemiBold'),
-        marginLeft: 4,
+        marginLeft: 6,
     },
     userDisplayName: {
         color: theme.sidebarText,
