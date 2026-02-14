@@ -7,11 +7,12 @@ import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, View} from 'react-native';
-import {Navigation} from 'react-native-navigation';
+import {Navigation, OptionsModalPresentationStyle} from 'react-native-navigation';
 
 import {logout} from '@actions/remote/session';
 import {handleTeamChange} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
+import FormattedName from '@components/formatted_name';
 import ProfilePicture from '@components/profile_picture';
 import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
@@ -19,6 +20,7 @@ import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Preferences, Screens} from '@constants';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {useUserLocale} from '@context/user_locale';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {queryJoinedTeams, queryMyTeams, observeTeam} from '@queries/servers/team';
@@ -26,6 +28,7 @@ import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
 import {showModal, showModalWithBackButton, bottomSheet, dismissBottomSheet} from '@screens/navigation';
 
+import {formatFullName} from '@utils/display_name';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {alertServerLogout} from '@utils/server';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -45,10 +48,10 @@ type DrawerContentProps = {
 const CLOSE_EXTERNAL_PROFILE = 'close-left-drawer-external-profile';
 const CLOSE_CREATE_TEAM = 'close-left-drawer-create-team';
 const CLOSE_JOIN_TEAM_QR = 'close-left-drawer-join-team-qr';
-
 function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerContentProps) {
     const theme = useTheme();
     const intl = useIntl();
+    const locale = useUserLocale();
     const serverUrl = useServerUrl();
     const serverDisplayName = useServerDisplayName();
     const styles = getStyleSheet(theme);
@@ -113,6 +116,31 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
         });
     }, [intl, serverUrl, currentUser, theme]));
 
+    const openScanQRCode = usePreventDoubleTap(useCallback(() => {
+        const title = intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'});
+        showModal(Screens.QR_SCANNER, title, {}, {
+            modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
+            layout: {
+                componentBackgroundColor: '#000000',
+            },
+            statusBar: {
+                visible: true,
+                drawBehind: true,
+                backgroundColor: 'transparent',
+                style: 'light',
+            },
+            topBar: {
+                visible: false,
+            },
+            modal: {
+                swipeToDismiss: false,
+            },
+            hardwareBackButton: {
+                dismissModalOnPress: false,
+            },
+        });
+    }, [intl]));
+
     const openSettings = usePreventDoubleTap(useCallback(() => {
         showModal(
             Screens.SETTINGS,
@@ -129,7 +157,7 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
         return null;
     }
 
-    const fullName = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ').trim();
+    const fullName = formatFullName(locale, currentUser.lastName ?? '', currentUser.firstName ?? '');
     const nicknameDisplay = (currentUser.nickname && currentUser.nickname.trim()) || currentUser.username;
 
     return (
@@ -162,13 +190,14 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                             {fullName ? (
                                 <>
                                     <View style={styles.userNameRow}>
-                                        <Text
+                                        <FormattedName
+                                            locale={locale}
+                                            surname={currentUser.lastName ?? ''}
+                                            givenName={currentUser.firstName ?? ''}
                                             numberOfLines={1}
                                             style={styles.userDisplayName}
                                             testID='left_drawer.user_block.display_name'
-                                        >
-                                            {fullName}
-                                        </Text>
+                                        />
                                         <Text style={styles.userNameChevron}>{'>'}</Text>
                                     </View>
                                     <Text
@@ -241,6 +270,21 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                     />
                     <Text style={styles.menuLabel}>
                         {intl.formatMessage({id: 'left_drawer.create_join_enterprise.title', defaultMessage: 'Create / Join Enterprise'})}
+                    </Text>
+                </TouchableWithFeedback>
+                <TouchableWithFeedback
+                    onPress={openScanQRCode}
+                    type='opacity'
+                    style={styles.menuRow}
+                    testID='left_drawer.scan_qr_code'
+                >
+                    <CompassIcon
+                        name='camera-outline'
+                        size={24}
+                        color={theme.sidebarText}
+                    />
+                    <Text style={styles.menuLabel}>
+                        {intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'})}
                     </Text>
                 </TouchableWithFeedback>
                 <TouchableWithFeedback
@@ -368,7 +412,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingBottom: 16,
     },
     bottomSection: {
-        paddingBottom: 24,
+        paddingBottom: 16,
     },
     userBlock: {
         flexDirection: 'row',
@@ -453,13 +497,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     divider: {
         height: 1,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.12),
-        marginVertical: 12,
+        marginVertical: 6,
         marginHorizontal: 20,
     },
     menuRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 14,
+        paddingVertical: 10,
         paddingHorizontal: 20,
     },
     menuLabel: {

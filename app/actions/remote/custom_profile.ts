@@ -6,7 +6,7 @@ import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {customProfileAttributeId} from '@utils/custom_profile_attribute';
 import {getFullErrorMessage} from '@utils/errors';
-import {logError} from '@utils/log';
+import {logInfo, logError} from '@utils/log';
 import {convertValueForServer} from '@utils/user';
 
 import type Model from '@nozbe/watermelondb/Model';
@@ -35,7 +35,13 @@ export const fetchCustomProfileAttributes = async (serverUrl: string, userId: st
             ]);
 
         } catch (err) {
-            logError('error on fetchCustomProfileAttributes get fields and attr values', getFullErrorMessage(err));
+            const msg = getFullErrorMessage(err);
+            const isLicenseLimit = /license|授权|not support|不支持|custom profile attribute/i.test(msg);
+            if (isLicenseLimit) {
+                logInfo('[fetchCustomProfileAttributes] License does not support custom profile attributes:', msg);
+            } else {
+                logError('error on fetchCustomProfileAttributes get fields and attr values', msg);
+            }
             return {attributes, error: err};
         }
 

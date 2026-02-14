@@ -5,6 +5,8 @@ import React from 'react';
 import {Text, View} from 'react-native';
 
 import ProfilePicture from '@components/profile_picture';
+import {useUserLocale} from '@context/user_locale';
+import {formatFullName} from '@utils/display_name';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
 import type UserModel from '@typings/database/models/servers/user';
@@ -48,9 +50,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 });
 
 const AccountUserInfo = ({user, showFullName, theme}: Props) => {
+    const locale = useUserLocale();
     const styles = getStyleSheet(theme);
     const nickName = user.nickname ? ` (${user.nickname})` : '';
-    const title = `${user.firstName} ${user.lastName}${nickName}`;
+    const fullName = formatFullName(locale, user.lastName ?? '', user.firstName ?? '');
+    const title = `${fullName}${nickName}`;
     const userName = `@${user.username}`;
     const accountUserInfoTestId = `account.user_info.${user.id}`;
 
