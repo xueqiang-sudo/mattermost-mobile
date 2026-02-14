@@ -212,6 +212,7 @@ const ChannelListHeader = ({
                     <OpenDrawerIcon
                         width={26}
                         height={26}
+                        color={theme.sidebarText}
                     />
                 </TouchableWithFeedback>
                 <View style={styles.firstBox}>

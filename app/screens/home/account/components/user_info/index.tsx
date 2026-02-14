@@ -52,8 +52,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 const AccountUserInfo = ({user, showFullName, theme}: Props) => {
     const locale = useUserLocale();
     const styles = getStyleSheet(theme);
-    const nickName = user.nickname ? ` (${user.nickname})` : '';
     const fullName = formatFullName(locale, user.lastName ?? '', user.firstName ?? '');
+    const nickName = user.nickname && fullName ? ` (${user.nickname})` : (user.nickname || '');
     const title = `${fullName}${nickName}`;
     const userName = `@${user.username}`;
     const accountUserInfoTestId = `account.user_info.${user.id}`;

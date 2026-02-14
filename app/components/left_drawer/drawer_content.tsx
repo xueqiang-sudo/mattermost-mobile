@@ -232,7 +232,7 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                             <QrcodeSvg
                                 width={22}
                                 height={22}
-                                fill={theme.sidebarText}
+                                color={theme.sidebarText}
                             />
                         </View>
                     </TouchableWithFeedback>
