@@ -90,10 +90,10 @@ const EditProfile = ({
     const leftButton = useMemo(() => {
         return isTablet ? null : {
             id: CLOSE_BUTTON_ID,
-            icon: CompassIcon.getImageSourceSync('close', 24, theme.centerChannelColor),
+            icon: CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor),
             testID: 'close.edit_profile.button',
         };
-    }, [isTablet, theme.centerChannelColor]);
+    }, [isTablet, theme.sidebarHeaderTextColor]);
 
     useEffect(() => {
         if (!isTablet) {

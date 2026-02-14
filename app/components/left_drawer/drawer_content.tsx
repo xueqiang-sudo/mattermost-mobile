@@ -56,13 +56,10 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
     const serverDisplayName = useServerDisplayName();
     const styles = getStyleSheet(theme);
 
-    const CLOSE_ACCOUNT_MODAL = 'close-left-drawer-account-modal';
-
     const openAccountModal = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
+        showModal(
             Screens.ACCOUNT_MODAL,
             intl.formatMessage({id: 'account.modal_title', defaultMessage: 'Account'}),
-            CLOSE_ACCOUNT_MODAL,
         );
     }, [intl]));
 

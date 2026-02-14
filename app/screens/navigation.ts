@@ -172,7 +172,7 @@ export const loginAnimationOptions = () => {
 
 export const bottomSheetModalOptions = (theme: Theme, closeButtonId?: string): Options => {
     if (closeButtonId) {
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.centerChannelColor);
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
         const closeButtonTestId = `${closeButtonId.replace('close-', 'close.').replace(/-/g, '_')}.button`;
         return {
             modalPresentationStyle: OptionsModalPresentationStyle.formSheet,

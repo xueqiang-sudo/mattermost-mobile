@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo} from 'react';
+import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {Platform} from 'react-native';
 
@@ -38,24 +38,20 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
     const serverDisplayName = useServerDisplayName();
 
     const serverName = siteName || serverDisplayName;
-
-    const closeButton = useMemo(() => {
-        return {
-            id: CLOSE_BUTTON_ID,
-            icon: CompassIcon.getImageSourceSync('close', 24, theme.centerChannelColor),
-            testID: 'close.settings.button',
-        };
-    }, [theme.centerChannelColor]);
-
+   
     const close = useCallback(() => {
         dismissModal({componentId});
     }, [componentId]);
 
     useEffect(() => {
         setButtons(componentId, {
-            leftButtons: [closeButton],
+            leftButtons: [{
+                id: CLOSE_BUTTON_ID,
+                icon: CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor),
+                testID: 'close.settings.button',
+            }],
         });
-    }, []);
+    }, [componentId, theme.sidebarHeaderTextColor]);
 
     useAndroidHardwareBackHandler(componentId, close);
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, []);
