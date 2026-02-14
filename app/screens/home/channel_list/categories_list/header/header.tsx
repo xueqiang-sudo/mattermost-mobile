@@ -153,7 +153,6 @@ const ChannelListHeader = ({
                     canCreateChannels={canCreateChannels}
                     canJoinChannels={canJoinChannels}
                     canInvitePeople={canInvitePeople}
-                    currentUser={currentUser}
                 />
             );
         };
@@ -175,8 +174,8 @@ const ChannelListHeader = ({
             separators += 1;
         }
 
-        // 新增：扫一扫 + 创建企业 + 加入企业
-        items += 3;
+        // 扫一扫
+        items += 1;
         separators += 1;
 
         bottomSheet({
@@ -186,7 +185,7 @@ const ChannelListHeader = ({
             theme,
             title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Options'}),
         });
-    }, [intl, theme, canCreateChannels, canInvitePeople, canJoinChannels, currentUser]));
+    }, [intl, theme, canCreateChannels, canInvitePeople, canJoinChannels]));
 
     const onPushAlertPress = useCallback(() => {
         if (pushProxyStatus === PUSH_PROXY_STATUS_NOT_AVAILABLE) {
