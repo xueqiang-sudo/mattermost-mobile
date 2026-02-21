@@ -539,6 +539,7 @@
   "markdown.render_error": "An error occurred while rendering this text",
   "mentions.empty.paragraph": "You'll see messages here when someone mentions you or uses terms you're monitoring.",
   "mentions.empty.title": "No Mentions yet",
+  "mobile.app.display_name": "Company Mattermost",
   "mobile.about.appVersion": "App Version: {version} (Build {number})",
   "mobile.account.settings.save": "Save",
   "mobile.acknowledgements.header": "Acknowledgements",

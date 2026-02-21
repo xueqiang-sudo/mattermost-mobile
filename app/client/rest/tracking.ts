@@ -386,6 +386,7 @@ export default class ClientTracking {
 
         const performanceRequestId = NetworkPerformanceManager.startRequestTracking(this.apiClient.baseUrl, url);
 
+        console.error('qgstest request111 url', method, url);
         let response: ClientResponse;
         try {
             response = await request!(url, this.buildRequestOptions(options));

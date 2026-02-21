@@ -446,6 +446,7 @@
   "markdown.max_nodes.error": "此訊息過長，因此無法在行動裝置上完整顯示。請使用桌面版來檢視，或聯絡管理員來提高限制。",
   "mentions.empty.paragraph": "當他人提及您或您監控中的詞語時，就會在此處看到訊息。",
   "mentions.empty.title": "尚無提及",
+  "mobile.app.display_name": "企業協作",
   "mobile.about.appVersion": "應用程式版本：{version}（組建 {number}）",
   "mobile.account.settings.save": "儲存",
   "mobile.acknowledgements.header": "致謝",

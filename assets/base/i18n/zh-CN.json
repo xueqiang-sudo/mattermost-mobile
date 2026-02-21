@@ -501,6 +501,7 @@
   "markdown.render_error": "渲染此文本时遇到错误",
   "mentions.empty.paragraph": "当有人提及您或者使用了您真正关注的术语时您将看到相关消息。",
   "mentions.empty.title": "目前没有提及",
+  "mobile.app.display_name": "企业协作",
   "mobile.about.appVersion": "应用版本：{version} (Build {number})",
   "mobile.account.settings.save": "保存",
   "mobile.acknowledgements.header": "感谢",
