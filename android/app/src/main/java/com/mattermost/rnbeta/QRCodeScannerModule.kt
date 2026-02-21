@@ -3,7 +3,17 @@
 
 package com.mattermost.rnbeta
 
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import java.io.FileInputStream
 import com.facebook.react.bridge.*
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -55,6 +65,132 @@ class QRCodeScannerModule(reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             promise.reject("SCAN_ERROR", e.message, e)
         }
+    }
+
+    @ReactMethod
+    fun getImageBrightness(imagePath: String, promise: Promise) {
+        try {
+            val uri = Uri.parse(imagePath)
+            val inputStream = if (uri.scheme == null) {
+                FileInputStream(imagePath)
+            } else {
+                reactApplicationContext.contentResolver.openInputStream(uri)
+            }
+            if (inputStream == null) {
+                promise.resolve(null)
+                return
+            }
+
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                inSampleSize = 8
+            }
+
+            val bitmap = inputStream.use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
+
+            if (bitmap == null) {
+                promise.resolve(null)
+                return
+            }
+
+            val width = bitmap.width
+            val height = bitmap.height
+            if (width <= 0 || height <= 0) {
+                bitmap.recycle()
+                promise.resolve(null)
+                return
+            }
+
+            val startX = (width * 0.2).toInt().coerceIn(0, width - 1)
+            val endX = (width * 0.8).toInt().coerceIn(startX + 1, width)
+            val startY = (height * 0.2).toInt().coerceIn(0, height - 1)
+            val endY = (height * 0.8).toInt().coerceIn(startY + 1, height)
+
+            var lumaSum = 0.0
+            var count = 0
+            val step = 2
+
+            var y = startY
+            while (y < endY) {
+                var x = startX
+                while (x < endX) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val r = Color.red(pixel)
+                    val g = Color.green(pixel)
+                    val b = Color.blue(pixel)
+                    lumaSum += (0.299 * r) + (0.587 * g) + (0.114 * b)
+                    count += 1
+                    x += step
+                }
+                y += step
+            }
+
+            bitmap.recycle()
+            if (count == 0) {
+                promise.resolve(null)
+                return
+            }
+
+            promise.resolve(lumaSum / count)
+        } catch (e: Exception) {
+            promise.resolve(null)
+        }
+    }
+
+    @ReactMethod
+    fun getAmbientLightLevel(promise: Promise) {
+        val sensorManager = reactApplicationContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        if (sensorManager == null) {
+            promise.resolve(null)
+            return
+        }
+
+        val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+        if (lightSensor == null) {
+            promise.resolve(null)
+            return
+        }
+
+        val mainHandler = Handler(Looper.getMainLooper())
+        var resolved = false
+
+        lateinit var listener: SensorEventListener
+        val timeoutRunnable = Runnable {
+            if (resolved) {
+                return@Runnable
+            }
+
+            resolved = true
+            sensorManager.unregisterListener(listener)
+            promise.resolve(null)
+        }
+
+        listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (resolved) {
+                    return
+                }
+
+                resolved = true
+                sensorManager.unregisterListener(this)
+                mainHandler.removeCallbacks(timeoutRunnable)
+
+                val lux = event?.values?.firstOrNull()
+                promise.resolve(lux?.toDouble())
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+        }
+
+        val registered = sensorManager.registerListener(listener, lightSensor, SensorManager.SENSOR_DELAY_NORMAL)
+        if (!registered) {
+            promise.resolve(null)
+            return
+        }
+
+        mainHandler.postDelayed(timeoutRunnable, 600)
     }
 
     private fun getBarcodeTypeName(format: Int): String {

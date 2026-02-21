@@ -9,4 +9,8 @@ RCT_EXTERN_METHOD(scanImageAtPath:(NSString *)imagePath
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(getImageBrightness:(NSString *)imagePath
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 @end

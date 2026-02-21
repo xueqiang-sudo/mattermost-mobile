@@ -8,7 +8,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 
 // @ts-ignore
-import {Alert, BackHandler, Linking, NativeModules, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, AppState, BackHandler, Linking, NativeModules, Platform, StyleSheet, Text, TouchableOpacity, View, type AppStateStatus} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import {Navigation} from 'react-native-navigation';
 import {Camera, useCameraDevices, useCameraPermission, useCodeScanner, type Code} from 'react-native-vision-camera';
@@ -24,7 +24,18 @@ import {tryOpenURL} from '@utils/url';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const {QRCodeScanner} = NativeModules;
+const AMBIENT_LOW_LIGHT_SHOW_THRESHOLD = 90;
+const AMBIENT_LOW_LIGHT_HIDE_THRESHOLD = 120;
+const AMBIENT_LOW_LIGHT_CONSECUTIVE_SAMPLES_TO_SHOW = 1;
+const AMBIENT_BRIGHT_CONSECUTIVE_SAMPLES_TO_HIDE = 3;
+const AMBIENT_LIGHT_POLL_INTERVAL_MS = 1500;
+
+type QRCodeScannerNativeModule = {
+    scanImageAtPath?: (imagePath: string) => Promise<Array<{value?: string; type?: string}>>;
+    getAmbientLightLevel?: () => Promise<number | null>;
+};
+
+const {QRCodeScanner} = NativeModules as {QRCodeScanner?: QRCodeScannerNativeModule};
 
 type Props = {
     componentId: AvailableScreens;
@@ -197,13 +208,24 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
         return devices[0];
     }, [devices]);
 
-    const [isActive, setIsActive] = useState(true);
+    const [isScreenVisible, setIsScreenVisible] = useState(true);
+    const [isAppActive, setIsAppActive] = useState(() => AppState.currentState === 'active');
+    const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
     const [lastScannedCode, setLastScannedCode] = useState<string>('');
     const [scanningEnabled, setScanningEnabled] = useState(true); // 控制是否处理扫描结果
     const [torchOn, setTorchOn] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
     const [cameraRestricted, setCameraRestricted] = useState(false);
+    const [showTorchByAmbientLight, setShowTorchByAmbientLight] = useState(false);
     const isMountedRef = useRef(true);
+    const ambientTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const ambientPollingTokenRef = useRef(0);
+    const showTorchByAmbientLightRef = useRef(false);
+    const consecutiveAmbientLowLightRef = useRef(0);
+    const consecutiveAmbientBrightRef = useRef(0);
+    const ambientLightLuxRef = useRef<number | null>(null);
+    const appStateRef = useRef(AppState.currentState);
+    const isActive = isScreenVisible && isAppActive && !isImagePickerOpen;
 
     useEffect(() => {
         if (!hasPermission) {
@@ -214,6 +236,32 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
     useEffect(() => {
         return () => {
             isMountedRef.current = false;
+            ambientPollingTokenRef.current += 1;
+            if (ambientTimerRef.current) {
+                clearInterval(ambientTimerRef.current);
+                ambientTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+            const wasActive = appStateRef.current === 'active';
+            const nowActive = nextAppState === 'active';
+            appStateRef.current = nextAppState;
+
+            if (wasActive && !nowActive) {
+                logInfo('[QRScanner] 应用进入后台，暂停相机并关闭手电筒');
+                setIsAppActive(false);
+                setTorchOn(false);
+            } else if (!wasActive && nowActive) {
+                logInfo('[QRScanner] 应用回到前台，恢复相机');
+                setIsAppActive(true);
+            }
+        });
+
+        return () => {
+            appStateSubscription.remove();
         };
     }, []);
 
@@ -222,7 +270,7 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
 
     const stopCameraAndDismiss = useCallback(() => {
         logInfo('[QRScanner.handleClose] 停止相机');
-        setIsActive(false);
+        setIsScreenVisible(false);
 
         // 再延迟一点确保相机完全停止后关闭 modal
         const dismissTimer = setTimeout(() => {
@@ -274,6 +322,10 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
                     logInfo('[QRScanner] modalAttemptedToDismiss - 用户开始滑动关闭，关闭手电筒');
                     setTorchOn(false);
                 },
+                componentDidAppear: () => {
+                    logInfo('[QRScanner] componentDidAppear - 页面显示，恢复页面可见状态');
+                    setIsScreenVisible(true);
+                },
                 componentDidDisappear: () => {
                     logInfo('[QRScanner] componentDidDisappear - 页面已消失，关闭手电筒');
                     setTorchOn(false);
@@ -294,7 +346,7 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
         if (error?.code === 'system/camera-is-restricted') {
             setCameraRestricted(true);
             setTorchOn(false);
-            setIsActive(false);
+            setIsScreenVisible(false);
 
             // 只显示一次提示
             if (!cameraRestricted) {
@@ -438,6 +490,75 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
         logInfo('[QRScanner] 手电筒状态变化:', torchOn ? '开启' : '关闭');
     }, [torchOn]);
 
+    useEffect(() => {
+        showTorchByAmbientLightRef.current = showTorchByAmbientLight;
+    }, [showTorchByAmbientLight]);
+
+    useEffect(() => {
+        ambientPollingTokenRef.current += 1;
+        const token = ambientPollingTokenRef.current;
+        if (ambientTimerRef.current) {
+            clearInterval(ambientTimerRef.current);
+            ambientTimerRef.current = null;
+        }
+
+        if (Platform.OS !== 'android' || !supportsTorch || !isActive || !QRCodeScanner?.getAmbientLightLevel) {
+            ambientLightLuxRef.current = null;
+            return;
+        }
+
+        const updateAmbientLight = () => {
+            QRCodeScanner.getAmbientLightLevel?.().then((lux) => {
+                if (token !== ambientPollingTokenRef.current) {
+                    return;
+                }
+                if (typeof lux === 'number' && Number.isFinite(lux)) {
+                    ambientLightLuxRef.current = lux;
+                    logInfo('[QRScanner] 环境光(lux):', lux);
+
+                    let nextVisibility = showTorchByAmbientLightRef.current;
+                    if (lux <= AMBIENT_LOW_LIGHT_SHOW_THRESHOLD) {
+                        consecutiveAmbientLowLightRef.current += 1;
+                        consecutiveAmbientBrightRef.current = 0;
+                        if (!nextVisibility && consecutiveAmbientLowLightRef.current >= AMBIENT_LOW_LIGHT_CONSECUTIVE_SAMPLES_TO_SHOW) {
+                            nextVisibility = true;
+                        }
+                    } else if (lux >= AMBIENT_LOW_LIGHT_HIDE_THRESHOLD) {
+                        consecutiveAmbientLowLightRef.current = 0;
+                        consecutiveAmbientBrightRef.current += 1;
+                        if (nextVisibility && consecutiveAmbientBrightRef.current >= AMBIENT_BRIGHT_CONSECUTIVE_SAMPLES_TO_HIDE) {
+                            nextVisibility = false;
+                        }
+                    }
+
+                    if (nextVisibility !== showTorchByAmbientLightRef.current) {
+                        showTorchByAmbientLightRef.current = nextVisibility;
+                        setShowTorchByAmbientLight(nextVisibility);
+                    }
+                } else {
+                    ambientLightLuxRef.current = null;
+                }
+            }).catch(() => {
+                ambientLightLuxRef.current = null;
+            });
+        };
+
+        updateAmbientLight();
+        ambientTimerRef.current = setInterval(updateAmbientLight, AMBIENT_LIGHT_POLL_INTERVAL_MS);
+    }, [isActive, supportsTorch]);
+
+    useEffect(() => {
+        if (!isActive) {
+            consecutiveAmbientLowLightRef.current = 0;
+            consecutiveAmbientBrightRef.current = 0;
+            ambientLightLuxRef.current = null;
+            showTorchByAmbientLightRef.current = false;
+            setShowTorchByAmbientLight(false);
+        }
+    }, [isActive]);
+
+    const showTorchButton = !cameraRestricted && supportsTorch && (Platform.OS !== 'android' || torchOn || showTorchByAmbientLight);
+
     const processScannedImage = useCallback(async (imageUri: string) => {
         // 检查原生模块是否可用
         if (!QRCodeScanner || !QRCodeScanner.scanImageAtPath) {
@@ -551,7 +672,9 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
         logInfo('[QRScanner.handlePickImage] 相册选择完成，恢复相机');
 
         // 恢复相机（但不恢复手电筒）
-        setIsActive(true);
+        if (isMountedRef.current) {
+            setIsImagePickerOpen(false);
+        }
 
         // 处理响应
         handleImagePickerResponse(response);
@@ -559,7 +682,7 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
 
     const openImageLibrary = useCallback(() => {
         logInfo('[QRScanner.handlePickImage] 暂停相机，打开图片选择器');
-        setIsActive(false);
+        setIsImagePickerOpen(true);
 
         launchImageLibrary({
             mediaType: 'photo',
@@ -685,7 +808,7 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
             </TouchableOpacity>
 
             {/* 手电筒按钮 - 仅在相机正常工作且设备支持时显示 */}
-            {!cameraRestricted && supportsTorch && (
+            {showTorchButton && (
                 <TouchableOpacity
                     style={styles.torchButton}
                     onPress={toggleTorch}

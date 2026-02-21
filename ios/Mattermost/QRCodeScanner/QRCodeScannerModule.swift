@@ -4,6 +4,7 @@
 import Foundation
 import Vision
 import UIKit
+import CoreImage
 
 @objc(QRCodeScannerModule)
 class QRCodeScannerModule: NSObject {
@@ -73,6 +74,61 @@ class QRCodeScannerModule: NSObject {
         } catch {
             reject("SCAN_ERROR", error.localizedDescription, error)
         }
+    }
+
+    @objc
+    func getImageBrightness(_ imagePath: String,
+                            resolver resolve: @escaping RCTPromiseResolveBlock,
+                            rejecter reject: @escaping RCTPromiseRejectBlock) {
+        var imageURL: URL?
+        if imagePath.hasPrefix("file://") {
+            imageURL = URL(string: imagePath)
+        } else {
+            imageURL = URL(fileURLWithPath: imagePath)
+        }
+
+        guard let url = imageURL,
+              let ciImage = CIImage(contentsOf: url) else {
+            resolve(NSNull())
+            return
+        }
+
+        let extent = ciImage.extent
+        let cropRect = CGRect(
+            x: extent.origin.x + (extent.size.width * 0.2),
+            y: extent.origin.y + (extent.size.height * 0.2),
+            width: extent.size.width * 0.6,
+            height: extent.size.height * 0.6
+        )
+        let extentVector = CIVector(x: cropRect.origin.x,
+                                    y: cropRect.origin.y,
+                                    z: cropRect.size.width,
+                                    w: cropRect.size.height)
+        guard let filter = CIFilter(name: "CIAreaAverage",
+                                    parameters: [kCIInputImageKey: ciImage, kCIInputExtentKey: extentVector]) else {
+            resolve(NSNull())
+            return
+        }
+
+        guard let outputImage = filter.outputImage else {
+            resolve(NSNull())
+            return
+        }
+
+        var bitmap = [UInt8](repeating: 0, count: 4)
+        let context = CIContext(options: nil)
+        context.render(outputImage,
+                       toBitmap: &bitmap,
+                       rowBytes: 4,
+                       bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+                       format: .RGBA8,
+                       colorSpace: CGColorSpaceCreateDeviceRGB())
+
+        let r = Double(bitmap[0])
+        let g = Double(bitmap[1])
+        let b = Double(bitmap[2])
+        let brightness = (0.299 * r) + (0.587 * g) + (0.114 * b)
+        resolve(brightness)
     }
     
     private func getBarcodeTypeName(_ symbology: VNBarcodeSymbology) -> String {
