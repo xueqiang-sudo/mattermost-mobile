@@ -42,6 +42,7 @@ const loginFlowScreens = new Set<AvailableScreens>([
     Screens.SERVER,
     Screens.LOGIN,
     Screens.SSO,
+    Screens.STARTUP_LOADING,
     Screens.MFA,
     Screens.FORGOT_PASSWORD,
 ]);
@@ -420,6 +421,49 @@ export function resetToLogin(passProps: LaunchProps) {
         root: {
             stack: {
                 children,
+            },
+        },
+    });
+}
+
+export function resetToStartupLoading() {
+    const theme = getDefaultThemeByAppearance();
+    const edgeToEdge = edgeToEdgeHack(Screens.STARTUP_LOADING, theme);
+
+    return Navigation.setRoot({
+        root: {
+            stack: {
+                children: [{
+                    component: {
+                        id: Screens.STARTUP_LOADING,
+                        name: Screens.STARTUP_LOADING,
+                        passProps: {
+                            theme,
+                        },
+                        options: {
+                            layout: {
+                                backgroundColor: theme.centerChannelBg,
+                                componentBackgroundColor: theme.centerChannelBg,
+                            },
+                            statusBar: {
+                                visible: true,
+                                backgroundColor: theme.sidebarBg,
+                                ...edgeToEdge,
+                            },
+                            topBar: {
+                                visible: false,
+                                height: 0,
+                                background: {
+                                    color: theme.sidebarBg,
+                                },
+                                backButton: {
+                                    visible: false,
+                                    color: theme.sidebarHeaderTextColor,
+                                },
+                            },
+                        },
+                    },
+                }],
             },
         },
     });

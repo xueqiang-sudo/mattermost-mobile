@@ -13,7 +13,7 @@ import SecurityManager from '@managers/security_manager';
 import SessionManager from '@managers/session_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {registerScreens} from '@screens/index';
-import {registerNavigationListeners} from '@screens/navigation';
+import {registerNavigationListeners, resetToStartupLoading} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 
@@ -60,12 +60,13 @@ export async function start() {
     EphemeralStore.setCurrentThreadId('');
     EphemeralStore.setProcessingNotification('');
 
+    registerNavigationListeners();
+    registerScreens();
+    await resetToStartupLoading();
+
     await initialize();
 
     PushNotifications.init(serverCredentials.length > 0);
-
-    registerNavigationListeners();
-    registerScreens();
 
     await WebsocketManager.init(serverCredentials);
 

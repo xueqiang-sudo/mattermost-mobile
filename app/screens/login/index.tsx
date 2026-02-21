@@ -15,6 +15,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useScreenTransitionAnimation} from '@hooks/screen_transition_animation';
 import Background from '@screens/background';
 import {dismissModal, popTopScreen} from '@screens/navigation';
+import {logInfo} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -72,6 +73,10 @@ const LoginOptions = ({
 }: LoginOptionsProps) => {
     const styles = getStyles(theme);
     const keyboardAwareRef = useRef<KeyboardAwareScrollView>(null);
+
+    useEffect(() => {
+        logInfo('[Login.startup] Login screen mounted', {componentId, launchType, defaultServerUrl});
+    }, [componentId, launchType, defaultServerUrl]);
 
     const description = (
         <FormattedText

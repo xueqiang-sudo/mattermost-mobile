@@ -138,6 +138,7 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EXTERNAL_PROFILE_CARD:
             screen = withServerDatabase(require('@screens/external_profile_card').default);
             break;
+
         // case Screens.EXTERNAL_PROFILE_CARD_EDIT:
         //     screen = withServerDatabase(require('@screens/external_profile_card/edit').default);
         //     break;
@@ -296,6 +297,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SSO:
             screen = withIntl(require('@screens/sso').default);
             break;
+        case Screens.STARTUP_LOADING:
+            screen = withIntl(require('@screens/startup_loading').default);
+            break;
         case Screens.TABLE:
             screen = withServerDatabase(require('@screens/table').default);
             break;
@@ -348,9 +352,11 @@ Navigation.setLazyComponentRegistrator((screenName) => {
 
 export function registerScreens() {
     const homeScreen = require('@screens/home').default;
-    const serverScreen = require('@screens/server').default;
+
+    // const serverScreen = require('@screens/server').default;
     const onboardingScreen = require('@screens/onboarding').default;
     Navigation.registerComponent(Screens.ONBOARDING, () => withGestures(withIntl(withManagedConfig(onboardingScreen))));
-    Navigation.registerComponent(Screens.SERVER, () => withSafeAreaInsets(withGestures(withIntl(withManagedConfig(serverScreen)))));
+
+    // Navigation.registerComponent(Screens.SERVER, () => withSafeAreaInsets(withGestures(withIntl(withManagedConfig(serverScreen)))));
     Navigation.registerComponent(Screens.HOME, () => withGestures(withSafeAreaInsets(withServerDatabase(withManagedConfig(homeScreen)))));
 }

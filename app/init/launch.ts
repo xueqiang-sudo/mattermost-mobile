@@ -36,8 +36,10 @@ import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 const initialNotificationTypes = [PushNotification.NOTIFICATION_TYPE.MESSAGE, PushNotification.NOTIFICATION_TYPE.SESSION];
 
 export const initialLaunch = async () => {
+    logInfo('[Launch.startup] initialLaunch started');
     const deepLinkUrl = await Linking.getInitialURL();
     if (deepLinkUrl) {
+        logInfo('[Launch.startup] Launch from deeplink', {deepLinkUrl});
         return launchAppFromDeepLink(deepLinkUrl, true);
     }
 
@@ -53,12 +55,14 @@ export const initialLaunch = async () => {
         tapped = delivered.find((d) => (d as unknown as NotificationData).ack_id === notification?.payload.ack_id) == null;
     }
     if (initialNotificationTypes.includes(notification?.payload?.type) && tapped) {
+        logInfo('[Launch.startup] Launch from notification', {type: notification?.payload?.type});
         const notificationData = convertToNotificationData(notification!);
         EphemeralStore.setProcessingNotification(notificationData.identifier);
         return launchAppFromNotification(notificationData, true);
     }
 
     const coldStart = notification ? (tapped || AppState.currentState === 'active') : true;
+    logInfo('[Launch.startup] Launch as normal flow', {coldStart});
     return launchApp({launchType: Launch.Normal, coldStart});
 };
 
@@ -80,6 +84,12 @@ const launchAppFromNotification = async (notification: NotificationWithData, col
  * @returns a redirection to a screen, either onboarding, add_server, login or home depending on the scenario
  */
 export const launchApp = async (props: LaunchProps) => {
+    logInfo('[Launch.startup] launchApp entered', {
+        launchType: props?.launchType,
+        hasExtra: Boolean(props?.extra),
+        launchError: Boolean(props?.launchError),
+        hasServerUrlInProps: Boolean(props?.serverUrl),
+    });
     let serverUrl: string | undefined;
     switch (props?.launchType) {
         case Launch.DeepLink:
@@ -121,6 +131,7 @@ export const launchApp = async (props: LaunchProps) => {
             // serverUrl = await getActiveServerUrl()
             // qgs: 写死服务器地址
             serverUrl = CONNECT_URL || LocalConfig.DefaultServerUrl;
+            logInfo('[Launch.startup] Using configured startup server url', {serverUrl});
             break;
     }
 
@@ -128,9 +139,11 @@ export const launchApp = async (props: LaunchProps) => {
         serverUrl = await getActiveServerUrl();
     }
 
+    logInfo('[Launch.startup] Scheduling ephemeral post cleanup');
     cleanupEphemeralPosts();
 
     if (serverUrl) {
+        logInfo('[Launch.startup] Validating startup credentials', {serverUrl});
         let hasCredentials = Boolean(await getServerCredentials(serverUrl));
         const myUser = await (await getAutoClient(serverUrl)).getMe().catch(() => null);
         if (!(myUser && myUser.nickname)) {
@@ -178,13 +191,16 @@ export const launchApp = async (props: LaunchProps) => {
         }
     }
 
+    logInfo('[Launch.startup] Checking onboarding viewed state', LocalConfig.ShowOnboarding);
     const onboardingViewed = LocalConfig.ShowOnboarding && await getOnboardingViewed();
 
     // if the config value is set and the onboarding has not been seeing yet, show the onboarding
     if (LocalConfig.ShowOnboarding && !onboardingViewed) {
+        logInfo('[Launch.startup] Routing to onboarding');
         return resetToOnboarding(props);
     }
 
+    logInfo('[Launch.startup] Routing to login', {serverUrl});
     return resetToLogin({...props, serverUrl});
 };
 
