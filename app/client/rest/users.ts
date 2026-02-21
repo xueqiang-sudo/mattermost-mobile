@@ -257,7 +257,6 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
     };
 
     getProfilesInTeam = async (teamId: string, page = 0, perPage = PER_PAGE_DEFAULT, sort = '', options = {}) => {
-        console.error('qgstest getProfilesInTeam', teamId, page, perPage, sort, options);
         return this.doFetch(
             `${this.getUsersRoute()}${buildQueryString({...options, in_team: teamId, page, per_page: perPage, sort})}`,
             {method: 'get'},
@@ -265,7 +264,6 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
     };
 
     getProfilesNotInTeam = async (teamId: string, groupConstrained: boolean, page = 0, perPage = PER_PAGE_DEFAULT) => {
-        console.error('qgstest getProfilesNotInTeam', teamId, groupConstrained, page, perPage);
         const queryStringObj: any = {not_in_team: teamId, page, per_page: perPage};
         if (groupConstrained) {
             queryStringObj.group_constrained = true;
@@ -300,8 +298,7 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
     };
 
     getProfilesNotInChannel = async (teamId: string, channelId: string, groupConstrained: boolean, page = 0, perPage = PER_PAGE_DEFAULT) => {
-        console.error('qgstest getProfilesNotInChannel', teamId, channelId, groupConstrained, page, perPage);
-        const queryStringObj: any = {page, per_page: perPage};
+        const queryStringObj: any = {in_team: teamId, not_in_channel: channelId, page, per_page: perPage};
         if (groupConstrained) {
             queryStringObj.group_constrained = true;
         }
