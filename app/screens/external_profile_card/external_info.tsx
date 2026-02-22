@@ -19,9 +19,9 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername, getFullName} from '@utils/user';
 
-import type {AvailableScreens} from '@typings/screens/navigation';
-import type UserModel from '@typings/database/models/servers/user';
 import type {WithDatabaseArgs} from '@typings/database/database';
+import type UserModel from '@typings/database/models/servers/user';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
@@ -97,9 +97,7 @@ const ExternalProfileCardExternalInfoScreen = ({
     const [showAddress, setShowAddress] = useState(false);
     const [showVideoAccount, setShowVideoAccount] = useState(false);
 
-    const primaryName = currentUser
-        ? displayUsername(currentUser, currentUser.locale, teammateNameDisplay, false) || getFullName(currentUser) || currentUser.username
-        : '';
+    const primaryName = currentUser? displayUsername(currentUser, currentUser.locale, teammateNameDisplay, false) || getFullName(currentUser) || currentUser.username: '';
     const companyAbbr = currentUser?.nickname || primaryName;
 
     const onClosePressed = useCallback(() => {
@@ -160,7 +158,10 @@ const ExternalProfileCardExternalInfoScreen = ({
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                <TouchableOpacity onPress={onPreviewPress} style={{alignSelf: 'flex-start', marginBottom: 8}}>
+                <TouchableOpacity
+                    onPress={onPreviewPress}
+                    style={{alignSelf: 'flex-start', marginBottom: 8}}
+                >
                     <Text style={[styles.cardRowLabel, {color: theme.buttonBg}]}>
                         {intl.formatMessage({id: 'external_profile_card.preview', defaultMessage: 'Preview'})}
                     </Text>
@@ -173,30 +174,56 @@ const ExternalProfileCardExternalInfoScreen = ({
                 </Text>
 
                 <View style={styles.card}>
-                    <TouchableOpacity style={styles.cardRow} activeOpacity={0.7}>
+                    <TouchableOpacity
+                        style={styles.cardRow}
+                        activeOpacity={0.7}
+                    >
                         <Text style={styles.cardRowLabel}>
                             {intl.formatMessage({id: 'external_profile_card.avatar', defaultMessage: 'Avatar'})}
                         </Text>
-                        <ProfilePicture author={currentUser} size={32} iconSize={16} showStatus={false}/>
-                        <CompassIcon name="chevron-right" size={24} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
+                        <ProfilePicture
+                            author={currentUser}
+                            size={32}
+                            iconSize={16}
+                            showStatus={false}
+                        />
+                        <CompassIcon
+                            name='chevron-right'
+                            size={24}
+                            color={changeOpacity(theme.centerChannelColor, 0.32)}
+                        />
                     </TouchableOpacity>
                     <View style={[styles.cardRow]}>
                         <Text style={styles.cardRowLabel}>
                             {intl.formatMessage({id: 'external_profile_card.company_abbr', defaultMessage: 'Company Abbreviation'})}
                         </Text>
-                        <Text style={[styles.cardRowLabel, {color: changeOpacity(theme.centerChannelColor, 0.72)}]} numberOfLines={1}>
+                        <Text
+                            style={[styles.cardRowLabel, {color: changeOpacity(theme.centerChannelColor, 0.72)}]}
+                            numberOfLines={1}
+                        >
                             {companyAbbr}
                         </Text>
-                        <CompassIcon name="chevron-right" size={24} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
+                        <CompassIcon
+                            name='chevron-right'
+                            size={24}
+                            color={changeOpacity(theme.centerChannelColor, 0.32)}
+                        />
                     </View>
                     <View style={[styles.cardRow]}>
                         <Text style={styles.cardRowLabel}>
                             {intl.formatMessage({id: 'external_profile_card.name_display', defaultMessage: 'Name Display'})}
                         </Text>
-                        <Text style={[styles.cardRowLabel, {color: changeOpacity(theme.centerChannelColor, 0.72)}]} numberOfLines={1}>
+                        <Text
+                            style={[styles.cardRowLabel, {color: changeOpacity(theme.centerChannelColor, 0.72)}]}
+                            numberOfLines={1}
+                        >
                             {primaryName || getFullName(currentUser) || currentUser.username}
                         </Text>
-                        <CompassIcon name="chevron-right" size={24} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
+                        <CompassIcon
+                            name='chevron-right'
+                            size={24}
+                            color={changeOpacity(theme.centerChannelColor, 0.32)}
+                        />
                     </View>
                     {toggleRow('external_profile_card.external_position', showPosition, setShowPosition, 'external_info.position_switch', true)}
                 </View>
@@ -213,10 +240,17 @@ const ExternalProfileCardExternalInfoScreen = ({
                         <Text style={styles.cardRowLabel}>
                             {intl.formatMessage({id: 'external_profile_card.enterprise_card', defaultMessage: 'Enterprise Business Card'})}
                         </Text>
-                        <Text style={[styles.cardRowLabel, {color: changeOpacity(theme.centerChannelColor, 0.72)}]} numberOfLines={1}>
+                        <Text
+                            style={[styles.cardRowLabel, {color: changeOpacity(theme.centerChannelColor, 0.72)}]}
+                            numberOfLines={1}
+                        >
                             {companyAbbr}
                         </Text>
-                        <CompassIcon name="chevron-right" size={24} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
+                        <CompassIcon
+                            name='chevron-right'
+                            size={24}
+                            color={changeOpacity(theme.centerChannelColor, 0.32)}
+                        />
                     </View>
                     <Text style={styles.cardHint}>
                         {intl.formatMessage({id: 'external_profile_card.enterprise_card_hint', defaultMessage: 'Improve the enterprise business card to more formally introduce the enterprise and display rich information'})}

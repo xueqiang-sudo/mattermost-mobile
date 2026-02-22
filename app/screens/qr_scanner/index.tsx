@@ -369,11 +369,15 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
 
         // 先尝试外部处理
         if (onScanResult) {
-            const handled = onScanResult(value);
-            if (handled) {
-                logInfo('[QRScanner.processScanResult] 外部已处理，关闭扫描页');
-                handleClose();
-                return;
+            try {
+                const handled = onScanResult(value);
+                if (handled) {
+                    logInfo('[QRScanner.processScanResult] 外部已处理，关闭扫描页');
+                    handleClose();
+                    return;
+                }
+            } catch (error) {
+                logInfo('[QRScanner.processScanResult] onScanResult catch error:', error);
             }
         }
 

@@ -3,12 +3,12 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {OptionsModalPresentationStyle} from 'react-native-navigation';
 
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
+import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import PlusMenuItem from './item';
 import PlusMenuSeparator from './separator';
@@ -62,29 +62,7 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
 
     const scanQRCode = useCallback(async () => {
         await dismissBottomSheet();
-
-        const title = intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'});
-        showModal(Screens.QR_SCANNER, title, {}, {
-            modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
-            layout: {
-                componentBackgroundColor: '#000000',
-            },
-            statusBar: {
-                visible: true,
-                drawBehind: true,
-                backgroundColor: 'transparent',
-                style: 'light',
-            },
-            topBar: {
-                visible: false,
-            },
-            modal: {
-                swipeToDismiss: false,
-            },
-            hardwareBackButton: {
-                dismissModalOnPress: false,
-            },
-        });
+        showQrScannerModal(intl);
     }, [intl]);
 
     return (

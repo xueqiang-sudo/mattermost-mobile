@@ -25,6 +25,7 @@ export const CREATE_DIRECT_MESSAGE = 'CreateDirectMessage';
 export const CREATE_OR_EDIT_CHANNEL = 'CreateOrEditChannel';
 export const CREATE_TEAM = 'CreateTeam';
 export const JOIN_TEAM_QR = 'JoinTeamQR';
+export const INVITE_USER_JOIN_TEAM = 'InviteUserJoinTeam';
 export const COMPONENT_LIBRARY = 'ComponentLibrary';
 export const CUSTOM_STATUS = 'CustomStatus';
 export const CUSTOM_STATUS_CLEAR_AFTER = 'CustomStatusClearAfter';
@@ -35,6 +36,8 @@ export const EDIT_PROFILE = 'EditProfile';
 export const EDIT_SERVER = 'EditServer';
 export const EMOJI_PICKER = 'EmojiPicker';
 export const EXTERNAL_PROFILE_CARD = 'ExternalProfileCard';
+export const ADD_USER_TO_FRIENDS = 'AddUserToFriends';
+
 // export const EXTERNAL_PROFILE_CARD_EDIT = 'ExternalProfileCardEdit';
 export const EXTERNAL_PROFILE_CARD_EXTERNAL_INFO = 'ExternalProfileCardExternalInfo';
 export const EXTERNAL_PROFILE_CARD_STYLE = 'ExternalProfileCardStyle';
@@ -122,6 +125,7 @@ export default {
     CREATE_OR_EDIT_CHANNEL,
     CREATE_TEAM,
     JOIN_TEAM_QR,
+    INVITE_USER_JOIN_TEAM,
     CUSTOM_STATUS,
     CUSTOM_STATUS_CLEAR_AFTER,
     DRAFT_SCHEDULED_POST_OPTIONS,
@@ -130,6 +134,8 @@ export default {
     EDIT_SERVER,
     EMOJI_PICKER,
     EXTERNAL_PROFILE_CARD,
+    ADD_USER_TO_FRIENDS,
+
     // EXTERNAL_PROFILE_CARD_EDIT,
     EXTERNAL_PROFILE_CARD_EXTERNAL_INFO,
     EXTERNAL_PROFILE_CARD_STYLE,

@@ -7,7 +7,6 @@ import {LinearGradient, type LinearGradientProps} from 'expo-linear-gradient';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, Modal, Platform, ScrollView, Text, TouchableOpacity, View, StyleSheet} from 'react-native';
-import {OptionsModalPresentationStyle} from 'react-native-navigation';
 import Share from 'react-native-share';
 import ViewShot from 'react-native-view-shot';
 
@@ -15,7 +14,6 @@ import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import ProfilePicture from '@components/profile_picture';
 import QRCodeGenerator from '@components/qr_code_generator';
-import {Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -23,10 +21,11 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
-import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/user';
-import {dismissModal, setButtons, showModal, showModalWithBackButton} from '@screens/navigation';
-import {formatFullName} from '@utils/display_name';
+import {observeCurrentUser} from '@queries/servers/user';
+import {dismissModal, setButtons} from '@screens/navigation';
+import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {formatDate} from '@utils/datetime';
+import {formatFullName} from '@utils/display_name';
 import {hasWriteStoragePermission} from '@utils/file';
 import {logError, logInfo} from '@utils/log';
 import {customBase64Encode} from '@utils/security';
@@ -151,21 +150,19 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const EDIT_BUTTON_ID = 'external-profile-card-edit';
+// const EDIT_BUTTON_ID = 'external-profile-card-edit';
 const MORE_BUTTON_ID = 'external-profile-card-more';
 
 type ExternalProfileCardProps = {
     componentId: AvailableScreens;
     closeButtonId: string;
     currentUser?: UserModel;
-    teammateNameDisplay: string;
 };
 
 const ExternalProfileCardScreen = ({
     componentId,
     closeButtonId,
     currentUser,
-    teammateNameDisplay,
 }: ExternalProfileCardProps) => {
     const intl = useIntl();
     const theme = useTheme();
@@ -179,9 +176,8 @@ const ExternalProfileCardScreen = ({
     const fullName = currentUser ? formatFullName(locale, currentUser.lastName ?? '', currentUser.firstName ?? '') : '';
     const hasName = fullName.length > 0;
     const nickname = (currentUser?.nickname ?? '').trim();
-    const displayName = currentUser
-        ? (hasName ? (nickname ? `${fullName} (${nickname})` : fullName) : (nickname || currentUser.username))
-        : '';
+    // eslint-disable-next-line no-nested-ternary
+    const displayName = currentUser? (hasName ? (nickname ? `${fullName} (${nickname})` : fullName) : (nickname || currentUser.username)): '';
 
     const onClosePressed = useCallback(() => {
         dismissModal({componentId});
@@ -203,6 +199,7 @@ const ExternalProfileCardScreen = ({
                 icon: moreIcon,
                 testID: 'external_profile_card.more.button',
             },
+
             // {
             //     id: EDIT_BUTTON_ID,
             //     icon: editIcon,
@@ -231,13 +228,7 @@ const ExternalProfileCardScreen = ({
 
     const onScanPress = usePreventDoubleTap(useCallback(() => {
         setMoreMenuVisible(false);
-        const title = intl.formatMessage({id: 'external_profile_card.scan', defaultMessage: 'Scan'});
-        showModal(Screens.QR_SCANNER, title, {}, {
-            modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
-            layout: {componentBackgroundColor: '#000000'},
-            statusBar: {visible: true, drawBehind: true, backgroundColor: 'transparent', style: 'light'},
-            topBar: {visible: false},
-        });
+        showQrScannerModal(intl);
     }, [intl]));
 
     const onResetQRPress = usePreventDoubleTap(useCallback(() => {
@@ -311,9 +302,9 @@ const ExternalProfileCardScreen = ({
 
     const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
     const qrData = (() => {
-        const data = {userId: currentUser.id, serverUrl, timestamp: qrTimestamp};
+        const data = {uid: currentUser.id, ts: qrTimestamp};
         const encoded = customBase64Encode(encodeURIComponent(JSON.stringify(data)));
-        return `${baseUrl}/profile_card?data=${encoded}`;
+        return `${baseUrl}/profile_card_by_qr?qrdata=${encoded}`;
     })();
 
     return (
@@ -458,7 +449,6 @@ const ExternalProfileCardScreen = ({
 
 const enhanced = withObservables([], ({database}: WithDatabaseArgs) => ({
     currentUser: observeCurrentUser(database),
-    teammateNameDisplay: observeTeammateNameDisplay(database),
 }));
 
 export default withDatabase(enhanced(ExternalProfileCardScreen));

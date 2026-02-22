@@ -2,19 +2,19 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import {of as of$, combineLatest} from 'rxjs';
-import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, View} from 'react-native';
-import {Navigation, OptionsModalPresentationStyle} from 'react-native-navigation';
+import {Navigation} from 'react-native-navigation';
+import {of as of$, combineLatest} from 'rxjs';
+import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 
 import {logout} from '@actions/remote/session';
 import {handleTeamChange} from '@actions/remote/team';
+import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
 import CompassIcon from '@components/compass_icon';
 import FormattedName from '@components/formatted_name';
 import ProfilePicture from '@components/profile_picture';
-import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Preferences, Screens} from '@constants';
@@ -23,11 +23,11 @@ import {useTheme} from '@context/theme';
 import {useUserLocale} from '@context/user_locale';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
-import {queryJoinedTeams, queryMyTeams, observeTeam} from '@queries/servers/team';
 import {observeCurrentTeamId} from '@queries/servers/system';
+import {queryJoinedTeams, queryMyTeams, observeTeam} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
 import {showModal, showModalWithBackButton, bottomSheet, dismissBottomSheet} from '@screens/navigation';
-
+import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {formatFullName} from '@utils/display_name';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {alertServerLogout} from '@utils/server';
@@ -114,28 +114,7 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
     }, [intl, serverUrl, currentUser, theme]));
 
     const openScanQRCode = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'});
-        showModal(Screens.QR_SCANNER, title, {}, {
-            modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
-            layout: {
-                componentBackgroundColor: '#000000',
-            },
-            statusBar: {
-                visible: true,
-                drawBehind: true,
-                backgroundColor: 'transparent',
-                style: 'light',
-            },
-            topBar: {
-                visible: false,
-            },
-            modal: {
-                swipeToDismiss: false,
-            },
-            hardwareBackButton: {
-                dismissModalOnPress: false,
-            },
-        });
+        showQrScannerModal(intl);
     }, [intl]));
 
     const openSettings = usePreventDoubleTap(useCallback(() => {

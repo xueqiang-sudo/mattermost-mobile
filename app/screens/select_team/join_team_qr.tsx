@@ -134,7 +134,7 @@ const JoinTeamQR: React.FC<JoinTeamQRProps> = ({componentId, closeButtonId, serv
     const generateQRCodeData = () => {
         const data = {uid: userId, ts: Date.now()};
         const encodedData = customBase64Encode(encodeURIComponent(JSON.stringify(data)));
-        return `${serverUrl}${serverUrl.endsWith('/') ? '' : '/'}join_team_by_qr?qrtype=join_team&qrdata=${encodedData}`;
+        return `${serverUrl}${serverUrl.endsWith('/') ? '' : '/'}invite_team_by_qr?qrdata=${encodedData}`;
     };
 
     const onClosePressed = useCallback(() => {
