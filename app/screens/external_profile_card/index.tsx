@@ -300,12 +300,12 @@ const ExternalProfileCardScreen = ({
         return null;
     }
 
-    const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
-    const qrData = (() => {
+    const qrData = useMemo(() => {
         const data = {uid: currentUser.id, ts: qrTimestamp};
         const encoded = customBase64Encode(encodeURIComponent(JSON.stringify(data)));
+        const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
         return `${baseUrl}/profile_card_by_qr?qrdata=${encoded}`;
-    })();
+    }, [currentUser.id, qrTimestamp, serverUrl]);
 
     return (
         <View
