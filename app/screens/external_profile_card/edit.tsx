@@ -19,9 +19,9 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername, getFullName} from '@utils/user';
 
-import type {AvailableScreens} from '@typings/screens/navigation';
-import type UserModel from '@typings/database/models/servers/user';
 import type {WithDatabaseArgs} from '@typings/database/database';
+import type UserModel from '@typings/database/models/servers/user';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CARD_BG_LIGHT_GRAY = '#B0B0B0';
 
@@ -104,9 +104,7 @@ const ExternalProfileCardEditScreen = ({
     const theme = useTheme();
     const styles = getStyleSheet(theme);
 
-    const primaryName = currentUser
-        ? displayUsername(currentUser, currentUser.locale, teammateNameDisplay, false) || getFullName(currentUser) || currentUser.username
-        : '';
+    const primaryName = currentUser? displayUsername(currentUser, currentUser.locale, teammateNameDisplay, false) || getFullName(currentUser) || currentUser.username: '';
     const secondaryName = currentUser?.nickname || (currentUser ? `@${currentUser.username}` : '');
 
     const onClosePressed = useCallback(() => {
@@ -156,30 +154,40 @@ const ExternalProfileCardEditScreen = ({
                             showStatus={false}
                         />
                     </View>
-                    <Text style={styles.primaryName} numberOfLines={1}>
+                    <Text
+                        style={styles.primaryName}
+                        numberOfLines={1}
+                    >
                         {primaryName || getFullName(currentUser) || currentUser.username}
                     </Text>
                     {(secondaryName || currentUser.nickname) ? (
-                        <Text style={styles.secondaryName} numberOfLines={1}>
+                        <Text
+                            style={styles.secondaryName}
+                            numberOfLines={1}
+                        >
                             {currentUser.nickname || secondaryName}
                         </Text>
                     ) : null}
                 </View>
                 <View style={styles.optionsWrapper}>
                     <OptionItem
-                        icon="palette-outline"
+                        icon='palette-outline'
                         label={intl.formatMessage({id: 'external_profile_card.style', defaultMessage: 'Style'})}
-                        testID="external_profile_card_edit.style.option"
-                        type="arrow"
-                        action={() => { onStylePress(); }}
+                        testID='external_profile_card_edit.style.option'
+                        type='arrow'
+                        action={() => {
+                            onStylePress();
+                        }}
                     />
                     <OptionItem
-                        icon="account-outline"
+                        icon='account-outline'
                         label={intl.formatMessage({id: 'external_profile_card.external_info', defaultMessage: 'External Info'})}
                         info={intl.formatMessage({id: 'external_profile_card.real_name', defaultMessage: 'Real Name'})}
-                        testID="external_profile_card_edit.external_info.option"
-                        type="arrow"
-                        action={() => { onExternalInfoPress(); }}
+                        testID='external_profile_card_edit.external_info.option'
+                        type='arrow'
+                        action={() => {
+                            onExternalInfoPress();
+                        }}
                     />
                 </View>
             </View>
@@ -187,7 +195,7 @@ const ExternalProfileCardEditScreen = ({
                 <TouchableOpacity
                     style={styles.footerButton}
                     onPress={onCancel}
-                    testID="external_profile_card_edit.cancel"
+                    testID='external_profile_card_edit.cancel'
                 >
                     <Text style={styles.footerCancelText}>
                         {intl.formatMessage({id: 'mobile.general.cancel', defaultMessage: 'Cancel'})}
@@ -197,7 +205,7 @@ const ExternalProfileCardEditScreen = ({
                 <TouchableOpacity
                     style={styles.footerButton}
                     onPress={onConfirm}
-                    testID="external_profile_card_edit.confirm"
+                    testID='external_profile_card_edit.confirm'
                 >
                     <Text style={styles.footerConfirmText}>
                         {intl.formatMessage({id: 'mobile.general.confirm', defaultMessage: 'Confirm'})}

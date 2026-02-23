@@ -18,7 +18,7 @@ export const showQrScannerModal = (intl: IntlShape) => {
             if (isUrl) {
                 const qrdata = getUrlQueryParam(value, 'qrdata');
                 if (!qrdata) {
-                    logInfo('onScanResult qrdata is empty');
+                    logInfo('onScanResult qrdata is empty, url:', value);
                     return false;
                 }
 
@@ -43,19 +43,27 @@ export const showQrScannerModal = (intl: IntlShape) => {
                 }
                 if (value.includes('/invite_team_by_qr?qrdata=')) { // 加入团队二维码扫描结果处理，使用 app modal 处理
                     const title = intl.formatMessage({
-                        id: 'qr_scanner.invite_user_join_team.title',
+                        id: 'invite_user_join_team.title',
                         defaultMessage: 'Invite User to Join Enterprise',
                     });
-                    showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', data); // data: {uid, ts}
+                    showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', data, {
+                        statusBar: {
+                            drawBehind: true,
+                        },
+                    }); // data: {uid, ts}
                     return true;
                 }
 
                 if (value.includes('/profile_card_by_qr?qrdata=')) { // 个人名片二维码扫描结果处理，使用 app modal 处理
                     const title = intl.formatMessage({
-                        id: 'qr_scanner.add_user_to_friends.title',
+                        id: 'add_user_to_friends.title',
                         defaultMessage: 'Add User as Friend',
                     });
-                    showModalWithBackButton(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', data); // data: {uid, ts}
+                    showModalWithBackButton(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', data, {
+                        statusBar: {
+                            drawBehind: true,
+                        },
+                    }); // data: {uid, ts}
                     return true;
                 }
             }
@@ -65,13 +73,13 @@ export const showQrScannerModal = (intl: IntlShape) => {
     }, {
         modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
         layout: {
-            componentBackgroundColor: '#000000',
+            backgroundColor: 'transparent',
+            componentBackgroundColor: 'transparent',
         },
         statusBar: {
             visible: true,
             drawBehind: true,
             backgroundColor: 'transparent',
-            style: 'light',
         },
         topBar: {
             visible: false,
