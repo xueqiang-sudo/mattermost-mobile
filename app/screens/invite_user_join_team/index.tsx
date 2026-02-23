@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useDatabase} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
@@ -16,6 +17,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
+import {getCurrentUserId} from '@queries/servers/system';
 import {dismissModal} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -157,10 +159,12 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid}: InviteUserJoinTea
     const styles = getStyleSheet(theme);
     const intl = useIntl();
     const serverUrl = useServerUrl();
+    const database = useDatabase();
 
     const [loading, setLoading] = useState(true);
     const [targetUser, setTargetUser] = useState<UserProfile | undefined>();
     const [teams, setTeams] = useState<TeamItem[]>([]);
+    const [isSelf, setIsSelf] = useState(false);
 
     const userDisplayName = useMemo(() => {
         if (!targetUser) {
@@ -192,6 +196,17 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid}: InviteUserJoinTea
             }
 
             setLoading(true);
+            const currentUserId = await getCurrentUserId(database);
+            if (uid === currentUserId) {
+                if (mounted) {
+                    setIsSelf(true);
+                    setTargetUser(undefined);
+                    setTeams([]);
+                    setLoading(false);
+                }
+                return;
+            }
+
             const [{users, existingUsers}, {teams: myTeams}] = await Promise.all([
                 fetchUsersByIds(serverUrl, [uid], false),
                 fetchMyTeams(serverUrl, true),
@@ -218,6 +233,7 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid}: InviteUserJoinTea
             }));
 
             if (mounted) {
+                setIsSelf(false);
                 setTargetUser(resolvedUser);
                 setTeams(joinedResults);
                 setLoading(false);
@@ -229,7 +245,7 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid}: InviteUserJoinTea
         return () => {
             mounted = false;
         };
-    }, [serverUrl, uid]);
+    }, [database, serverUrl, uid]);
 
     const inviteToTeam = usePreventDoubleTap(useCallback(async (teamId: string, teamName: string) => {
         if (!uid) {
@@ -283,6 +299,36 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid}: InviteUserJoinTea
                     {intl.formatMessage({
                         id: 'invite_user_join_team.loading',
                         defaultMessage: 'Loading...',
+                    })}
+                </Text>
+            </View>
+        );
+    }
+
+    if (isSelf) {
+        return (
+            <View
+                style={styles.centerContainer}
+                nativeID={SecurityManager.getShieldScreenId(componentId)}
+                testID='invite_user_join_team.cannot_invite_self'
+            >
+                <View style={styles.emptyStateIcon}>
+                    <CompassIcon
+                        name='account-outline'
+                        size={64}
+                        color={changeOpacity(theme.centerChannelColor, 0.4)}
+                    />
+                </View>
+                <Text style={styles.emptyStateTitle}>
+                    {intl.formatMessage({
+                        id: 'invite_user_join_team.cannot_invite_self',
+                        defaultMessage: 'You cannot invite yourself',
+                    })}
+                </Text>
+                <Text style={styles.emptyStateParagraph}>
+                    {intl.formatMessage({
+                        id: 'invite_user_join_team.cannot_invite_self_hint',
+                        defaultMessage: 'Please scan another user\'s QR code to invite them to join your enterprise.',
                     })}
                 </Text>
             </View>
