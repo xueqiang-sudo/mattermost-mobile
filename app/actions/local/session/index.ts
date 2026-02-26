@@ -17,7 +17,7 @@ import {getExpiredSession} from '@queries/servers/system';
 import {getCurrentUser} from '@queries/servers/user';
 import EphemeralStore from '@store/ephemeral_store';
 import {deleteFileCache, deleteFileCacheByDir} from '@utils/file';
-import {logError, logWarning} from '@utils/log';
+import {logError, logInfo, logWarning} from '@utils/log';
 import {clearCookiesForServer, getCSRFFromCookie, urlSafeBase64Encode} from '@utils/security';
 
 const resetLocale = async () => {
@@ -100,7 +100,11 @@ export const cancelSessionNotification = async (serverUrl: string) => {
 
         return {};
     } catch (e) {
-        logError('cancelSessionNotification', e);
+        if (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string' && e.message.includes('database not found')) {
+            logInfo('cancelSessionNotification database not found, err:', e);
+        } else {
+            logError('cancelSessionNotification', e);
+        }
         return {error: e};
     }
 };

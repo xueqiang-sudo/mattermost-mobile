@@ -7,6 +7,7 @@ import {Alert, AppState, DeviceEventEmitter, Linking, Platform} from 'react-nati
 import {Notifications} from 'react-native-notifications';
 
 import {removePost} from '@actions/local/post';
+import {terminateSession} from '@actions/local/session';
 import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
 import {logout} from '@actions/remote/session';
@@ -150,6 +151,7 @@ export const launchApp = async (props: LaunchProps) => {
             hasCredentials = false;
             logInfo('not exist user launchToLogin', Boolean(myUser));
             await logout(serverUrl, undefined, {skipServerLogout: true, skipEvents: true}).then(() => logInfo('logout success')).catch((errTmp) => logInfo('logout error', errTmp));
+            await terminateSession(serverUrl, false).catch((errTmp) => logInfo('terminateSession error', errTmp));
         }
 
         if (hasCredentials) {
