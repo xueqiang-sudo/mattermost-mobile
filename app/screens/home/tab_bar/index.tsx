@@ -2,7 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useEffect, useState} from 'react';
-import {DeviceEventEmitter, View, TouchableOpacity} from 'react-native';
+import {useIntl} from 'react-intl';
+import {DeviceEventEmitter, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Shadow} from 'react-native-shadow-2';
@@ -32,6 +33,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         flex: 1,
         justifyContent: 'center',
+    },
+    label: {
+        fontSize: 11,
+        marginTop: 2,
     },
     separator: {
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
@@ -67,7 +72,16 @@ const TabComponents: Record<string, any> = {
     Search,
 };
 
+const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
+    [Screens.ACCOUNT]: {id: 'tab_bar.account.label', defaultMessage: 'Account'},
+    [Screens.HOME]: {id: 'tab_bar.home.label', defaultMessage: 'Home'},
+    [Screens.MENTIONS]: {id: 'tab_bar.mentions.label', defaultMessage: 'Mentions'},
+    [Screens.SAVED_MESSAGES]: {id: 'tab_bar.saved_messages.label', defaultMessage: 'Saved'},
+    [Screens.SEARCH]: {id: 'tab_bar.search.label', defaultMessage: 'Search'},
+};
+
 function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {theme: Theme}) {
+    const intl = useIntl();
     const [visible, setVisible] = useState<boolean|undefined>();
     const {width} = useWindowDimensions();
     const tabWidth = width / state.routes.length;
@@ -128,7 +142,7 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
             return {transform: [{translateY: -safeareaInsets.bottom}]};
         }
 
-        const height = visible ? withTiming(-safeareaInsets.bottom, {duration: 200}) : withTiming(52 + safeareaInsets.bottom, {duration: 150});
+        const height = visible ? withTiming(-safeareaInsets.bottom, {duration: 200}) : withTiming(ViewConstants.BOTTOM_TAB_HEIGHT + safeareaInsets.bottom, {duration: 150});
         return {
             transform: [{translateY: height}],
         };
@@ -195,6 +209,9 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
                     return null;
                 };
 
+                const tabLabel = TAB_LABELS[route.name];
+                const labelColor = isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.48);
+
                 return (
                     <TouchableOpacity
                         key={route.name}
@@ -206,7 +223,17 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
                         onLongPress={onLongPress}
                         style={style.item}
                     >
-                        {renderOption()}
+                        <View style={{alignItems: 'center'}}>
+                            {renderOption()}
+                            {tabLabel ? (
+                                <Text
+                                    style={[style.label, {color: labelColor}]}
+                                    numberOfLines={1}
+                                >
+                                    {intl.formatMessage(tabLabel)}
+                                </Text>
+                            ) : null}
+                        </View>
                     </TouchableOpacity>
                 );
             })}
