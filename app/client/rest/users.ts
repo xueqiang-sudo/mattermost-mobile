@@ -37,6 +37,8 @@ export interface ClientUsersMix {
     getUser: (userId: string) => Promise<UserProfile>;
     getUserByUsername: (username: string) => Promise<UserProfile>;
     getUserByEmail: (email: string) => Promise<UserProfile>;
+    getUsernameByEmail: (email: string) => Promise<string>;
+    getUsernameByPhone: (phone: string) => Promise<string>;
     getProfilePictureUrl: (userId: string, lastPictureUpdate: number) => string;
     getDefaultProfilePictureUrl: (userId: string) => string;
     autocompleteUsers: (name: string, teamId: string, channelId?: string, options?: Record<string, any>) => Promise<{users: UserProfile[]; out_of_channel?: UserProfile[]}>;
@@ -342,6 +344,16 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
             `${this.getUsersRoute()}/email/${email}`,
             {method: 'get'},
         );
+    };
+
+    getUsernameByEmail = async (email: string) => {
+        // TODO qgstest code ...
+        return Promise.resolve(email);
+    };
+
+    getUsernameByPhone = async (phoneNumber: string) => {
+        // TODO qgstest code ...
+        return Promise.resolve(formatPhone(phoneNumber));
     };
 
     getProfilePictureUrl = (userId: string, lastPictureUpdate: number) => {

@@ -8,6 +8,8 @@ import type ClientBase from './base';
 export interface ClientGatewayMix {
     sendSmsVerificationCode: (phoneNumber: string) => Promise<VerifyCodeGen>;
     verifySmsCode: (phoneNumber: string, code: string) => Promise<VerifyCodeCheck>;
+    sendEmailVerificationCode: (email: string) => Promise<VerifyCodeGen>;
+    verifyEmailCode: (email: string, code: string) => Promise<VerifyCodeCheck>;
 }
 
 const ClientGateway = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
@@ -30,6 +32,31 @@ const ClientGateway = <TBase extends Constructor<ClientBase>>(superclass: TBase)
                 method: 'post',
                 body: {
                     phone_number: formatPhone(phoneNumber),
+                    code,
+                },
+            },
+        );
+    };
+
+    sendEmailVerificationCode = async (email: string) => {
+        return this.doFetch(
+            this.getSendCodeRoute(),
+            {
+                method: 'post',
+                body: {
+                    email,
+                },
+            },
+        );
+    };
+
+    verifyEmailCode = async (email: string, code: string) => {
+        return this.doFetch(
+            this.getVerifyCodeRoute(),
+            {
+                method: 'post',
+                body: {
+                    email,
                     code,
                 },
             },

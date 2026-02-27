@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useRef, useState} from 'react';
-import {defineMessages, useIntl} from 'react-intl';
+import {defineMessages, useIntl, type IntlShape} from 'react-intl';
 import {Modal, Text, TextInput, TouchableOpacity, View, FlatList} from 'react-native';
 
 import {checkPhoneRule, splitPhone} from '@utils/form-rule';
@@ -21,10 +21,6 @@ const messages = defineMessages({
         id: 'phoneInput.close',
         defaultMessage: 'Close',
     },
-    countryChina: {
-        id: 'phoneInput.countryChina',
-        defaultMessage: 'China',
-    },
     validPhone: {
         id: 'phoneInput.validPhone',
         defaultMessage: 'Please enter a valid phone number',
@@ -33,8 +29,38 @@ const messages = defineMessages({
 
 // 国家列表数据
 export const COUNTRY_CODES = [
-    {nameKey: 'countryChina', code: '+86'},
+    {label: 'China', code: '+86'},
+    {label: 'HongKong', code: '+852'},
+    {label: 'Macao', code: '+853'},
+    {label: 'Taiwan', code: '+886'},
+    {label: 'UnitedStates', code: '+1'},
+    {label: 'Russia', code: '+7'},
+    {label: 'UnitedKingdom', code: '+44'},
+    {label: 'France', code: '+33'},
+    {label: 'Germany', code: '+49'},
+    {label: 'Japan', code: '+81'},
+    {label: 'SouthKorea', code: '+82'},
+    {label: 'Singapore', code: '+65'},
+    {label: 'Malaysia', code: '+60'},
+    {label: 'Thailand', code: '+66'},
+    {label: 'Philippines', code: '+63'},
+    {label: 'Indonesia', code: '+62'},
+    {label: 'Australia', code: '+61'},
+    {label: 'NewZealand', code: '+64'},
+    {label: 'Italy', code: '+39'},
+    {label: 'Switzerland', code: '+41'},
+    {label: 'Spain', code: '+34'},
 ];
+
+const getAreaIntlMessage = (intl: IntlShape, label: string): string => {
+    // label 大写之间添加空格
+    const formattedLabel = label.replace(/([A-Z])/g, ' $1').trim();
+
+    // 将 label 转换为 intl message 的 key，首字母变成小写，其它大写字母不变
+    const intlKey = label.charAt(0).toLowerCase() + label.slice(1);
+
+    return intl.formatMessage({id: `phoneInput.countryArea.${intlKey}`, defaultMessage: formattedLabel});
+};
 
 interface PhoneInputProps {
     defaultValue?: string;
@@ -192,7 +218,7 @@ const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}
                     ref={countryCodeRef}
                     style={[
                         styles.countryCodeInput,
-                        styles.countryCodeInputDisabled,
+                        // styles.countryCodeInputDisabled,
                         error && {borderColor: theme.errorTextColor},
                     ]}
                     value={countryCode}
@@ -200,7 +226,7 @@ const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}
                     onFocus={onCountryCodePress}
                     keyboardType='phone-pad'
                     testID='login_form.country.code.input'
-                    editable={false}
+                    editable={true}
                 />
                 {/* 手机号输入 */}
                 <View style={styles.phoneNumberInput}>
@@ -239,13 +265,13 @@ const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}
                         <Text style={styles.modalTitle}>{intl.formatMessage(messages.selectCountry)}</Text>
                         <FlatList
                             data={COUNTRY_CODES}
-                            keyExtractor={(item) => `${item.nameKey}-${item.code}`}
+                            keyExtractor={(item: { label: string; code: string }) => `${item.label}-${item.code}`}
                             renderItem={({item}) => (
                                 <TouchableOpacity
                                     style={styles.countryItem}
                                     onPress={() => onCountrySelect(item.code)}
                                 >
-                                    <Text style={styles.countryName}>{intl.formatMessage(messages[item.nameKey as keyof typeof messages])}</Text>
+                                    <Text style={styles.countryName}>{getAreaIntlMessage(intl, item.label)}</Text>
                                     <Text style={styles.countryCode}>{item.code}</Text>
                                 </TouchableOpacity>
                             )}
