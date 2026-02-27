@@ -13,7 +13,7 @@ import {useWindowDimensions} from '@hooks/device';
 import NavigationStore from '@store/navigation_store';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import Account from './account';
+import Contacts from './contacts';
 import Home from './home';
 import Mentions from './mentions';
 import SavedMessages from './saved_messages';
@@ -65,7 +65,7 @@ const shadowSides = {top: true, bottom: false, end: false, start: false};
 const shadowOffset: [x: number | string, y: number | string] = [0, -0.5];
 
 const TabComponents: Record<string, any> = {
-    Account,
+    Contacts,
     Home,
     Mentions,
     SavedMessages,
@@ -73,7 +73,7 @@ const TabComponents: Record<string, any> = {
 };
 
 const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
-    [Screens.ACCOUNT]: {id: 'tab_bar.account.label', defaultMessage: 'Account'},
+    [Screens.CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
     [Screens.HOME]: {id: 'tab_bar.home.label', defaultMessage: 'Home'},
     [Screens.MENTIONS]: {id: 'tab_bar.mentions.label', defaultMessage: 'Mentions'},
     [Screens.SAVED_MESSAGES]: {id: 'tab_bar.saved_messages.label', defaultMessage: 'Saved'},

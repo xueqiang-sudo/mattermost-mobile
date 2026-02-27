@@ -25,8 +25,8 @@ import {logError} from '@utils/log';
 import {alertChannelArchived, alertChannelRemove, alertTeamRemove} from '@utils/navigation';
 import {notificationError} from '@utils/notification';
 
-import Account from './account';
 import ChannelList from './channel_list';
+import Contacts from './contacts';
 import RecentMentions from './recent_mentions';
 import SavedMessages from './saved_messages';
 import Search from './search';
@@ -201,9 +201,9 @@ export function HomeScreen(props: HomeProps) {
                             options={{tabBarButtonTestID: 'tab_bar.saved_messages.tab', freezeOnBlur: true, lazy: true}}
                         />
                         <Tab.Screen
-                            name={Screens.ACCOUNT}
-                            component={Account}
-                            options={{tabBarButtonTestID: 'tab_bar.account.tab', freezeOnBlur: true, lazy: true}}
+                            name={Screens.CONTACTS}
+                            component={Contacts}
+                            options={{tabBarButtonTestID: 'tab_bar.contacts.tab', freezeOnBlur: true, lazy: true}}
                         />
                     </Tab.Navigator>
                 </NavigationContainer>

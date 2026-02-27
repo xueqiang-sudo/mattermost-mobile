@@ -27,6 +27,7 @@ export const CREATE_TEAM = 'CreateTeam';
 export const JOIN_TEAM_QR = 'JoinTeamQR';
 export const INVITE_USER_JOIN_TEAM = 'InviteUserJoinTeam';
 export const COMPONENT_LIBRARY = 'ComponentLibrary';
+export const CONTACTS = 'Contacts';
 export const CUSTOM_STATUS = 'CustomStatus';
 export const CUSTOM_STATUS_CLEAR_AFTER = 'CustomStatusClearAfter';
 export const DRAFT = 'Draft';
@@ -121,6 +122,7 @@ export default {
     CODE,
     CONVERT_GM_TO_CHANNEL,
     COMPONENT_LIBRARY,
+    CONTACTS,
     CREATE_DIRECT_MESSAGE,
     CREATE_OR_EDIT_CHANNEL,
     CREATE_TEAM,
