@@ -18,9 +18,9 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername, getFullName} from '@utils/user';
 
-import type {AvailableScreens} from '@typings/screens/navigation';
-import type UserModel from '@typings/database/models/servers/user';
 import type {WithDatabaseArgs} from '@typings/database/database';
+import type UserModel from '@typings/database/models/servers/user';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CARD_BG_LIGHT_GRAY = '#B0B0B0';
 const CONFIRM_BUTTON_ID = 'external-profile-card-style-confirm';
@@ -161,11 +161,17 @@ const ExternalProfileCardStyleScreen = ({
                             showStatus={false}
                         />
                     </View>
-                    <Text style={styles.primaryName} numberOfLines={1}>
+                    <Text
+                        style={styles.primaryName}
+                        numberOfLines={1}
+                    >
                         {primaryName || getFullName(currentUser) || currentUser.username}
                     </Text>
                     {(secondaryName || currentUser.nickname) ? (
-                        <Text style={styles.secondaryName} numberOfLines={1}>
+                        <Text
+                            style={styles.secondaryName}
+                            numberOfLines={1}
+                        >
                             {currentUser.nickname || secondaryName}
                         </Text>
                     ) : null}
@@ -195,11 +201,11 @@ const ExternalProfileCardStyleScreen = ({
                 <TouchableOpacity
                     style={styles.imageOption}
                     onPress={() => {}}
-                    testID="external_profile_card_style.select_image.option"
+                    testID='external_profile_card_style.select_image.option'
                 >
                     <View style={styles.imageOptionIcon}>
                         <CompassIcon
-                            name="image-outline"
+                            name='image-outline'
                             size={24}
                             color={theme.centerChannelColor}
                         />

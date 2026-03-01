@@ -1,11 +1,12 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {defineMessages, useIntl, type IntlShape} from 'react-intl';
 import {Modal, Text, TextInput, TouchableOpacity, View, FlatList} from 'react-native';
 
 import {checkPhoneRule, splitPhone} from '@utils/form-rule';
+import {isEmail} from '@utils/helpers';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 
 const messages = defineMessages({
@@ -17,6 +18,14 @@ const messages = defineMessages({
         id: 'phoneInput.enterPhoneNumber',
         defaultMessage: 'Please enter phone number',
     },
+    enterEmail: {
+        id: 'phoneInput.enterEmail',
+        defaultMessage: 'Please enter email',
+    },
+    enterPhoneOrEmail: {
+        id: 'login.phoneOrEmail',
+        defaultMessage: 'Phone Number or Email',
+    },
     close: {
         id: 'phoneInput.close',
         defaultMessage: 'Close',
@@ -25,7 +34,14 @@ const messages = defineMessages({
         id: 'phoneInput.validPhone',
         defaultMessage: 'Please enter a valid phone number',
     },
+    validEmail: {
+        id: 'phoneInput.validEmail',
+        defaultMessage: 'Please enter a valid email',
+    },
 });
+
+const COUNTRY_CODE_INPUT_FOCUS_DELAY = 260;
+const COUNTRY_CODE_FIELD_HEIGHT = 56;
 
 // 国家列表数据
 export const COUNTRY_CODES = [
@@ -62,9 +78,15 @@ const getAreaIntlMessage = (intl: IntlShape, label: string): string => {
     return intl.formatMessage({id: `phoneInput.countryArea.${intlKey}`, defaultMessage: formattedLabel});
 };
 
+type CountryCodeItem = {
+    label: string;
+    code: string;
+};
+
 interface PhoneInputProps {
     defaultValue?: string;
     onChangeText: (text: string) => void;
+    onInputTypeChange?: (isPhoneInput: boolean) => void;
     theme: Theme;
     error?: string;
     placeholder?: string;
@@ -82,12 +104,34 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     countryCodeInput: {
         width: 80,
+        height: COUNTRY_CODE_FIELD_HEIGHT,
         borderWidth: 1,
         borderColor: changeOpacity(theme.centerChannelColor, 0.3),
         borderRadius: 8,
+        backgroundColor: theme.centerChannelBg,
         paddingHorizontal: 12,
-        paddingVertical: 12,
+        paddingVertical: 0,
         fontSize: 16,
+        lineHeight: 20,
+        color: theme.centerChannelColor,
+        textAlign: 'center',
+        textAlignVertical: 'center',
+    },
+    countryCodeTrigger: {
+        width: 80,
+        height: COUNTRY_CODE_FIELD_HEIGHT,
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.3),
+        borderRadius: 8,
+        backgroundColor: theme.centerChannelBg,
+        paddingHorizontal: 12,
+        paddingVertical: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    countryCodeTriggerText: {
+        fontSize: 16,
+        lineHeight: 20,
         color: theme.centerChannelColor,
         textAlign: 'center',
     },
@@ -126,13 +170,24 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderBottomWidth: 1,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
+    countryItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+    },
     countryName: {
         fontSize: 16,
         color: theme.centerChannelColor,
     },
+    countryNameSelected: {
+        color: theme.buttonBg,
+        fontFamily: 'OpenSans-SemiBold',
+    },
     countryCode: {
         fontSize: 16,
-        color: changeOpacity(theme.centerChannelColor, 0.6),
+        color: theme.buttonBg,
+        fontFamily: 'OpenSans-SemiBold',
+    },
+    countryCodeSelected: {
+        color: theme.buttonBg,
     },
     closeButton: {
         paddingHorizontal: 16,
@@ -162,7 +217,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
  * PhoneInput 组件 - 封装区号+手机号输入功能
  * 支持手动输入区号和从列表选择国家/地区
  */
-const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}: PhoneInputProps) => {
+const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, error, placeholder}: PhoneInputProps) => {
     const styles = getStyleSheet(theme);
     const phoneRef = useRef<TextInput>(null);
     const countryCodeRef = useRef<TextInput>(null);
@@ -170,64 +225,167 @@ const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}
 
     // 状态管理
     const [phoneAreaCodeTmp, phoneTmp] = splitPhone(defaultValue || '');
+    const trimmedDefaultValue = defaultValue.trim();
+    const defaultIsPhoneInput = Boolean(trimmedDefaultValue) && (/^\d+$/.test(trimmedDefaultValue) || Boolean(phoneTmp));
+    const [isPhoneInput, setIsPhoneInput] = useState<boolean>(defaultIsPhoneInput);
     const [countryCode, setCountryCode] = useState<string>(phoneAreaCodeTmp || '+86');
-    const [phoneNumber, setPhoneNumber] = useState<string>(phoneTmp);
+    const [inputValue, setInputValue] = useState<string>(defaultIsPhoneInput ? (phoneTmp || trimmedDefaultValue) : trimmedDefaultValue);
     const [showCountryCodeModal, setShowCountryCodeModal] = useState<boolean>(false);
+    const [showCountryCodeInput, setShowCountryCodeInput] = useState<boolean>(false);
     const [validationError, setValidationError] = useState<string | undefined>();
 
-    // 手机号失去焦点时验证
-    const onPhoneBlur = useCallback(() => {
-        // eslint-disable-next-line no-negated-condition
-        const errorMsg = !phoneNumber ? undefined : checkPhoneRule(countryCode, phoneNumber);
-        setValidationError(errorMsg ? intl.formatMessage(messages.validPhone) : undefined);
-    }, [countryCode, phoneNumber, intl]);
+    useEffect(() => {
+        onInputTypeChange?.(isPhoneInput);
+    }, [isPhoneInput, onInputTypeChange]);
+
+    // 输入框失去焦点时校验
+    const onInputBlur = useCallback(() => {
+        if (!inputValue) {
+            setValidationError(undefined);
+            return;
+        }
+
+        if (isPhoneInput) {
+            const errorMsg = checkPhoneRule(countryCode, inputValue);
+            setValidationError(errorMsg ? intl.formatMessage(messages.validPhone) : undefined);
+            return;
+        }
+
+        setValidationError(isEmail(inputValue.trim()) ? undefined : intl.formatMessage(messages.validEmail));
+    }, [countryCode, inputValue, intl, isPhoneInput]);
 
     // 区号输入变化处理
     const onCountryCodeChange = useCallback((text: string) => {
         setCountryCode(text);
-        setPhoneNumber('');
-        onChangeText('');
-    }, [onChangeText]);
+        if (isPhoneInput) {
+            onChangeText(inputValue ? `${text} ${inputValue}` : '');
+        }
+    }, [isPhoneInput, inputValue, onChangeText]);
 
-    // 手机号输入变化处理
-    const onPhoneNumberChange = useCallback((text: string) => {
-        const numericText = text.replace(/[^0-9]/g, '');
-        setPhoneNumber(numericText);
-        onChangeText(`${countryCode} ${numericText}`);
-    }, [countryCode, onChangeText]);
+    // 账号输入变化处理（纯数字=手机号，其他=邮箱）
+    const onIdentifierChange = useCallback((text: string) => {
+        const trimmedText = text.trim();
+        const onlyDigits = /^\d+$/.test(trimmedText);
 
-    // 点击区号输入框，弹出国家列表
-    const onCountryCodePress = useCallback(() => setShowCountryCodeModal(true), []);
+        if (!trimmedText) {
+            if (isPhoneInput) {
+                setIsPhoneInput(false);
+            }
+            setInputValue('');
+            onChangeText('');
+            setValidationError(undefined);
+            return;
+        }
+
+        if (onlyDigits) {
+            if (!isPhoneInput) {
+                setIsPhoneInput(true);
+            }
+            setInputValue(trimmedText);
+            onChangeText(trimmedText ? `${countryCode} ${trimmedText}` : '');
+        } else {
+            if (isPhoneInput) {
+                setIsPhoneInput(false);
+            }
+            setInputValue(text);
+            onChangeText(trimmedText);
+        }
+
+        setValidationError(undefined);
+    }, [countryCode, isPhoneInput, onChangeText]);
+
+    // 点击区号展示框，先弹出国家列表
+    const onCountryCodePress = useCallback(() => {
+        setShowCountryCodeModal(true);
+    }, []);
+
+    const closeModalAndFocusCountryInput = useCallback(() => {
+        setShowCountryCodeModal(false);
+        setShowCountryCodeInput(true);
+        setTimeout(() => {
+            countryCodeRef.current?.blur();
+            countryCodeRef.current?.focus();
+        }, COUNTRY_CODE_INPUT_FOCUS_DELAY);
+    }, []);
 
     // 选择国家/地区
     const onCountrySelect = useCallback((code: string) => {
         setCountryCode(code);
-        setPhoneNumber('');
-        onChangeText('');
+        if (inputValue) {
+            onChangeText(`${code} ${inputValue}`);
+        }
         setShowCountryCodeModal(false);
-    }, [onChangeText]);
+        setShowCountryCodeInput(false);
+    }, [inputValue, onChangeText]);
 
     // 关闭模态框
-    const onCloseModal = useCallback(() => setShowCountryCodeModal(false), []);
+    const onCloseModal = useCallback(() => {
+        closeModalAndFocusCountryInput();
+    }, [closeModalAndFocusCountryInput]);
+
+    const renderCountryItem = useCallback((data: {item: CountryCodeItem}) => {
+        const isSelected = data.item.code === countryCode;
+        return (
+            <TouchableOpacity
+                style={[styles.countryItem, isSelected && styles.countryItemSelected]}
+                onPress={() => onCountrySelect(data.item.code)}
+            >
+                <Text style={[styles.countryName, isSelected && styles.countryNameSelected]}>{getAreaIntlMessage(intl, data.item.label)}</Text>
+                <Text style={[styles.countryCode, isSelected && styles.countryCodeSelected]}>{data.item.code}</Text>
+            </TouchableOpacity>
+        );
+    }, [
+        countryCode,
+        intl,
+        onCountrySelect,
+        styles.countryCode,
+        styles.countryCodeSelected,
+        styles.countryItem,
+        styles.countryItemSelected,
+        styles.countryName,
+        styles.countryNameSelected,
+    ]);
+
+    let inputPlaceholder = placeholder || intl.formatMessage(messages.enterPhoneOrEmail);
+    if (inputValue) {
+        inputPlaceholder = intl.formatMessage(isPhoneInput ? messages.enterPhoneNumber : messages.enterEmail);
+    }
 
     return (
         <View style={styles.container}>
             <View style={styles.phoneNumberContainer}>
-                {/* 区号输入 */}
-                <TextInput
-                    ref={countryCodeRef}
-                    style={[
-                        styles.countryCodeInput,
-                        // styles.countryCodeInputDisabled,
-                        error && {borderColor: theme.errorTextColor},
-                    ]}
-                    value={countryCode}
-                    onChangeText={onCountryCodeChange}
-                    onFocus={onCountryCodePress}
-                    keyboardType='phone-pad'
-                    testID='login_form.country.code.input'
-                    editable={true}
-                />
+                {isPhoneInput && (
+                    showCountryCodeInput ? (
+                        <TextInput
+                            ref={countryCodeRef}
+                            style={[
+                                styles.countryCodeInput,
+                                styles.countryCodeInputDisabled,
+                                error && {borderColor: theme.errorTextColor},
+                            ]}
+                            value={countryCode}
+                            onChangeText={onCountryCodeChange}
+                            onBlur={() => setShowCountryCodeInput(false)}
+                            keyboardType='phone-pad'
+                            testID='login_form.country.code.input'
+                            editable={false}
+                        />
+                    ) : (
+                        <TouchableOpacity
+                            style={[
+                                styles.countryCodeTrigger,
+                                styles.countryCodeInputDisabled,
+                                error && {borderColor: theme.errorTextColor},
+                            ]}
+                            activeOpacity={1}
+                            disabled={true}
+                            onPress={onCountryCodePress}
+                            testID='login_form.country.code.selector'
+                        >
+                            <Text style={styles.countryCodeTriggerText}>{countryCode}</Text>
+                        </TouchableOpacity>
+                    )
+                )}
                 {/* 手机号输入 */}
                 <View style={styles.phoneNumberInput}>
                     <TextInput
@@ -237,13 +395,15 @@ const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}
                             {width: '100%', textAlign: 'left'},
                             error && {borderColor: theme.errorTextColor},
                         ]}
-                        value={phoneNumber}
-                        onChangeText={onPhoneNumberChange}
-                        onBlur={onPhoneBlur}
-                        keyboardType='phone-pad'
-                        placeholder={placeholder || intl.formatMessage(messages.enterPhoneNumber)}
+                        value={inputValue}
+                        onChangeText={onIdentifierChange}
+                        onBlur={onInputBlur}
+                        keyboardType={isPhoneInput ? 'phone-pad' : 'email-address'}
+                        placeholder={inputPlaceholder}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
                         testID='login_form.phone.input'
+                        autoCapitalize='none'
+                        autoCorrect={false}
                     />
                 </View>
             </View>
@@ -255,7 +415,7 @@ const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}
 
             {/* 国家列表选择模态框 */}
             <Modal
-                visible={showCountryCodeModal}
+                visible={showCountryCodeModal && isPhoneInput}
                 animationType='slide'
                 transparent={true}
                 onRequestClose={onCloseModal}
@@ -263,18 +423,10 @@ const PhoneInput = ({defaultValue = '', onChangeText, theme, error, placeholder}
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>{intl.formatMessage(messages.selectCountry)}</Text>
-                        <FlatList
+                        <FlatList<CountryCodeItem>
                             data={COUNTRY_CODES}
                             keyExtractor={(item: { label: string; code: string }) => `${item.label}-${item.code}`}
-                            renderItem={({item}) => (
-                                <TouchableOpacity
-                                    style={styles.countryItem}
-                                    onPress={() => onCountrySelect(item.code)}
-                                >
-                                    <Text style={styles.countryName}>{getAreaIntlMessage(intl, item.label)}</Text>
-                                    <Text style={styles.countryCode}>{item.code}</Text>
-                                </TouchableOpacity>
-                            )}
+                            renderItem={renderCountryItem}
                         />
                         <TouchableOpacity
                             style={styles.closeButton}

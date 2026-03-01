@@ -6,7 +6,7 @@ import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {doPing} from '@actions/remote/general';
-import {sendSmsCode, verifySmsCode} from '@actions/remote/plugin_gateway';
+import {sendAccountCode, verifyAccountCode} from '@actions/remote/plugin_gateway';
 import {login, userPwdLoginAPI} from '@actions/remote/session';
 import {fetchConfigAndLicense} from '@actions/remote/systems';
 import Button from '@components/button';
@@ -17,7 +17,8 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {getAutoClient} from '@managers/network_manager';
 import {resetToHome} from '@screens/navigation';
 import {getFullErrorMessage} from '@utils/errors';
-import {formatPhone, isPhoneNumber} from '@utils/form-rule';
+import {formatEmail, formatPhone, isPhoneNumber} from '@utils/form-rule';
+import {isEmail} from '@utils/helpers';
 import {logError, logInfo} from '@utils/log';
 import {canReceiveNotifications} from '@utils/push_proxy';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -53,13 +54,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         position: 'relative',
         width: '100%',
     },
-    verifySmsCodeContainer: {
+    verifyAccountCodeContainer: {
         flexDirection: 'row',
         gap: 12,
         alignItems: 'center',
         width: '100%',
     },
-    verifySmsCodeInput: {
+    verifyAccountCodeInput: {
         flex: 1,
         minHeight: 56,
         maxHeight: 56,
@@ -138,10 +139,6 @@ const messages = defineMessages({
         id: 'login.signingIn',
         defaultMessage: 'Logging In',
     },
-    phoneNumber: {
-        id: 'login.phoneNumber',
-        defaultMessage: 'Phone Number',
-    },
     verificationCode: {
         id: 'login.verificationCode',
         defaultMessage: 'Verification Code',
@@ -184,7 +181,8 @@ const PhoneLoginForm = ({
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isGettingCode, setIsGettingCode] = useState<boolean>(false);
     const [error, setError] = useState<string | undefined>();
-    const [phoneNumber, setPhoneNumber] = useState<string>('');
+    const [loginId, setLoginId] = useState<string>('');
+    const [isPhoneInput, setIsPhoneInput] = useState<boolean>(true);
     const [verificationCode, setVerificationCode] = useState<string>('');
     const [countdown, setCountdown] = useState<number>(0);
 
@@ -230,12 +228,15 @@ const PhoneLoginForm = ({
 
     // 获取验证码
     const getVerificationCode = useCallback(async () => {
+        const normalizedLoginId = isPhoneInput ? loginId : loginId.trim();
         setIsGettingCode(true);
         setError(undefined);
 
+        logInfo(`getVerificationCode ${isPhoneInput ? 'phone' : 'email'} normalizedLoginId: ${normalizedLoginId}`);
         try {
             // 调用获取验证码 API
-            const res = await sendSmsCode(serverUrl, phoneNumber);
+            logInfo('getVerificationCode sendAccountCode:', normalizedLoginId);
+            const res = await sendAccountCode(serverUrl, normalizedLoginId);
             setVerificationCode(res.test_code || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
 
             // 模拟成功响应
@@ -266,16 +267,19 @@ const PhoneLoginForm = ({
         } finally {
             setIsGettingCode(false);
         }
-    }, [intl, phoneNumber, serverUrl]);
+    }, [intl, isPhoneInput, loginId, serverUrl]);
 
-    // 手机验证码登录
-    const signInWithPhone = useCallback(async () => {
+    // 邮箱/手机号验证码登录
+    const signInWithCode = useCallback(async () => {
+        const isPhoneInputTmp = isPhoneInput;
+        const normalizedLoginId = isPhoneInputTmp ? loginId : loginId.trim();
+        logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} normalizedLoginId: ${normalizedLoginId}`);
         setIsLoading(true);
         setError(undefined);
 
         try {
             // 1. 验证验证码
-            const verifyData = await verifySmsCode(serverUrl, phoneNumber, verificationCode);
+            const verifyData = await verifyAccountCode(serverUrl, normalizedLoginId, verificationCode);
             const token = verifyData.token;
             if (!token) {
                 throw new Error('No token received');
@@ -292,28 +296,42 @@ const PhoneLoginForm = ({
                 throw cfgLicenseData.error;
             }
 
-            // 3. 调用创建用户接口尝试创建新用户
-            try {
-                const apiClient = await getAutoClient(serverUrl);
-                await apiClient.autoRegisterPhoneUser(formatPhone(phoneNumber), token);
+            // 3. 登录前先获取 username
+            let isNeedTryReg = true;
+            const apiClient = await getAutoClient(serverUrl);
+            let username = isPhoneInputTmp ? formatPhone(normalizedLoginId) : formatEmail(normalizedLoginId);
+            const usernameTmp = await (isPhoneInputTmp ? apiClient.getUsernameByPhone(normalizedLoginId) : apiClient.getUsernameByEmail(normalizedLoginId));
+            if (usernameTmp) { // 已经有用户了，则不需要进行注册
+                logInfo(`${isPhoneInputTmp ? 'phone' : 'email'} username already exists, username: ${usernameTmp}`);
+                username = usernameTmp;
+                isNeedTryReg = false;
+            }
+            logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} username: ${username}`);
 
-                // 成功创建用户
-                logInfo('user created successfully, user: ', phoneNumber);
-            } catch (createUserError) {
-                if (!((createUserError as ClientError).server_error_id === 'app.user.save.username_exists.app_error')) {
-                    throw createUserError;
+            // 4. 尝试自动创建用户
+            if (isNeedTryReg) {
+                try {
+                    logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} try to auto register user, user: ${normalizedLoginId}`);
+                    await apiClient.autoRegisterUser(normalizedLoginId, token);
+
+                    // 成功创建用户
+                    logInfo('user created successfully, user: ', normalizedLoginId);
+                } catch (createUserError) {
+                    if (!((createUserError as ClientError).server_error_id === 'app.user.save.username_exists.app_error')) {
+                        throw createUserError;
+                    }
+
+                    // 已经创建用户，忽略错误
+                    logInfo('user already exists, ignore error, user: ', normalizedLoginId);
                 }
-
-                // 已经创建用户，忽略错误
-                logInfo('user already exists, ignore error, user: ', phoneNumber);
             }
 
-            // 4. 调用登录接口
-            // 4.1 调用 userPwdLoginAPI 进行登陆，获取 nickname，如果未获取到，需要让用户输入显示的昵称
-            const loginedUser = await userPwdLoginAPI(serverUrl, {ldapOnly: false, loginId: formatPhone(phoneNumber), password: token});
+            // 5. 调用登录接口
+            // 5.1 调用 userPwdLoginAPI 进行登陆，获取 nickname，如果未获取到，需要让用户输入显示的昵称
+            const loginedUser = await userPwdLoginAPI(serverUrl, {ldapOnly: false, loginId: username, password: token});
             let userNickname = loginedUser?.nickname;
 
-            // 4.2 如果未获取到昵称，显示昵称输入对话框
+            // 5.2 如果未获取到昵称，显示昵称输入对话框
             if (!userNickname) {
                 // 显示昵称输入对话框并等待用户输入
                 const inputNickname = await showNicknameInput();
@@ -322,13 +340,12 @@ const PhoneLoginForm = ({
                 }
 
                 // 如果用户输入了昵称，更新用户信息
-                const apiClient = await getAutoClient(serverUrl);
                 const updateResult = await apiClient.patchMe({nickname: inputNickname});
                 userNickname = updateResult.nickname || inputNickname;
             }
 
-            // 4.3 调用 login 接口进行登录，注意需要传递 loginedUser 参数
-            const loginResult = await login(serverUrl, {serverDisplayName: userNickname, loginId: formatPhone(phoneNumber), password: token, config: cfgLicenseData.config!, license: cfgLicenseData.license!, loginedUser});
+            // 5.3 调用 login 接口进行登录，注意需要传递 loginedUser 参数
+            const loginResult = await login(serverUrl, {serverDisplayName: userNickname || username, loginId: username, password: token, config: cfgLicenseData.config!, license: cfgLicenseData.license!, loginedUser});
             if (loginResult.error) {
                 throw loginResult.error;
             }
@@ -338,24 +355,29 @@ const PhoneLoginForm = ({
             setIsLoading(false);
             goToHome();
         } catch (loginError) {
-            logInfo('error on signInWithPhone', getFullErrorMessage(loginError));
-            setError(getFullErrorMessage(loginError));
+            logInfo('error on signInWithCode', getFullErrorMessage(loginError));
+            setError(getFullErrorMessage(loginError, intl));
             setIsLoading(false);
         }
-    }, [goToHome, intl, phoneNumber, serverUrl, showNicknameInput, verificationCode]);
+    }, [goToHome, intl, isPhoneInput, loginId, serverUrl, showNicknameInput, verificationCode]);
 
     const preSignIn = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
-        signInWithPhone();
-    }, [signInWithPhone]));
+        signInWithCode();
+    }, [signInWithCode]));
 
     const preGetCode = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
         getVerificationCode();
     }, [getVerificationCode]));
 
-    const onPhoneChange = useCallback((text: string) => {
-        setPhoneNumber(text);
+    const onLoginIdChange = useCallback((text: string) => {
+        setLoginId(text);
+        setError(undefined);
+    }, []);
+
+    const onInputTypeChange = useCallback((isPhone: boolean) => {
+        setIsPhoneInput(isPhone);
         setError(undefined);
     }, []);
 
@@ -379,10 +401,14 @@ const PhoneLoginForm = ({
         return intl.formatMessage(messages.getCode);
     }, [isGettingCode, countdown, intl]);
 
-    // 检查手机号是否有效
-    const isPhoneValid = useCallback(() => isPhoneNumber(phoneNumber), [phoneNumber]);
+    const isLoginIdValid = useCallback(() => {
+        if (isPhoneInput) {
+            return isPhoneNumber(loginId);
+        }
+        return isEmail(loginId.trim());
+    }, [isPhoneInput, loginId]);
 
-    const buttonDisabled = !phoneNumber || !isPhoneValid() || !verificationCode || isLoading;
+    const buttonDisabled = !loginId || !isLoginIdValid() || !verificationCode || isLoading;
 
     // 昵称输入对话框
     const nicknameModal = (
@@ -418,15 +444,16 @@ const PhoneLoginForm = ({
             {/* 手机号输入 */}
             <View style={styles.phoneInputContainer}>
                 <PhoneInput
-                    defaultValue={phoneNumber}
-                    onChangeText={onPhoneChange}
+                    defaultValue={loginId}
+                    onChangeText={onLoginIdChange}
+                    onInputTypeChange={onInputTypeChange}
                     theme={theme}
                 />
             </View>
 
             {/* 验证码输入和获取验证码按钮 */}
-            <View style={styles.verifySmsCodeContainer}>
-                <View style={styles.verifySmsCodeInput}>
+            <View style={styles.verifyAccountCodeContainer}>
+                <View style={styles.verifyAccountCodeInput}>
                     <FloatingTextInput
                         rawInput={true}
                         blurOnSubmit={false}
@@ -450,17 +477,17 @@ const PhoneLoginForm = ({
                 <TouchableOpacity
                     style={[
                         styles.getCodeButton,
-                        (!phoneNumber || !isPhoneValid() || countdown > 0 || isGettingCode) && styles.getCodeButtonDisabled,
+                        (!loginId || !isLoginIdValid() || countdown > 0 || isGettingCode) && styles.getCodeButtonDisabled,
                     ]}
                     onPress={preGetCode}
-                    disabled={!phoneNumber || !isPhoneValid() || countdown > 0 || isGettingCode}
+                    disabled={!loginId || !isLoginIdValid() || countdown > 0 || isGettingCode}
                     hitSlop={hitSlop}
                     testID='login_form.get.code.button'
                 >
                     <Text
                         style={[
                             styles.getCodeButtonText,
-                            (!phoneNumber || !isPhoneValid() || countdown > 0 || isGettingCode) && styles.getCodeButtonTextDisabled,
+                            (!loginId || !isLoginIdValid() || countdown > 0 || isGettingCode) && styles.getCodeButtonTextDisabled,
                         ]}
                     >
                         {getCodeButtonText()}

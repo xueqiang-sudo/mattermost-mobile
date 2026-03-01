@@ -435,6 +435,8 @@ export default class ClientTracking {
             return returnDataOnly ? (response.data || {}) : response;
         }
 
+        logInfo('request is failed, url:', url, ' ,options:', options, ' ,status_code:', response.code, ' ,data:', response.data);
+
         throw new ClientError(this.apiClient.baseUrl, {
             message: response.data?.message as string || `Response with status code ${response.code}`,
             server_error_id: response.data?.id as string,

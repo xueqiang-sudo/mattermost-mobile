@@ -3,9 +3,9 @@
 
 import {useIsFocused, useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {Freeze} from 'react-freeze';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -17,8 +17,8 @@ import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {bottomSheet, showModal} from '@screens/navigation';
 import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
+import {bottomSheet, showModal} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -278,11 +278,21 @@ const ContactsScreen = ({
         const renderContent = () => (
             <View style={styles.bottomSheetList}>
                 {MOCK_CUSTOMERS.map((item) => (
-                    <View key={item.id} style={styles.bottomSheetItem}>
+                    <View
+                        key={item.id}
+                        style={styles.bottomSheetItem}
+                    >
                         <View style={styles.listItemAvatar}>
-                            <ProfilePicture author={item} size={40} showStatus={false}/>
+                            <ProfilePicture
+                                author={item}
+                                size={40}
+                                showStatus={false}
+                            />
                         </View>
-                        <Text style={styles.listItemName} numberOfLines={1}>
+                        <Text
+                            style={styles.listItemName}
+                            numberOfLines={1}
+                        >
                             {displayUsername(item, intl.locale, teammateDisplayNameSetting)}
                         </Text>
                     </View>
@@ -319,11 +329,21 @@ const ContactsScreen = ({
         const renderContent = () => (
             <View style={styles.bottomSheetList}>
                 {MOCK_SUPPLIERS.map((item) => (
-                    <View key={item.id} style={styles.bottomSheetItem}>
+                    <View
+                        key={item.id}
+                        style={styles.bottomSheetItem}
+                    >
                         <View style={styles.listItemAvatar}>
-                            <ProfilePicture author={item} size={40} showStatus={false}/>
+                            <ProfilePicture
+                                author={item}
+                                size={40}
+                                showStatus={false}
+                            />
                         </View>
-                        <Text style={styles.listItemName} numberOfLines={1}>
+                        <Text
+                            style={styles.listItemName}
+                            numberOfLines={1}
+                        >
                             {displayUsername(item, intl.locale, teammateDisplayNameSetting)}
                         </Text>
                     </View>
@@ -391,7 +411,10 @@ const ContactsScreen = ({
     }, [serverUrl, currentTeamId]);
 
     const renderContactItem = useCallback((user: UserProfile) => (
-        <View key={user.id} style={styles.listItem}>
+        <View
+            key={user.id}
+            style={styles.listItem}
+        >
             <View style={styles.listItemAvatar}>
                 <ProfilePicture
                     author={user}
@@ -399,7 +422,10 @@ const ContactsScreen = ({
                     showStatus={false}
                 />
             </View>
-            <Text style={styles.listItemName} numberOfLines={1}>
+            <Text
+                style={styles.listItemName}
+                numberOfLines={1}
+            >
                 {displayUsername(user, intl.locale, teammateDisplayNameSetting)}
             </Text>
         </View>
@@ -423,7 +449,10 @@ const ContactsScreen = ({
                     activeOpacity={0.7}
                     testID='contacts.header.account'
                 >
-                    <Text style={styles.headerTitle} numberOfLines={1}>
+                    <Text
+                        style={styles.headerTitle}
+                        numberOfLines={1}
+                    >
                         {currentUser
                             ? ((currentUser.nickname?.trim()) || currentUser.username || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'}))
                             : intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
@@ -436,7 +465,11 @@ const ContactsScreen = ({
                         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                         testID='contacts.header.search'
                     >
-                        <CompassIcon name='magnify' size={24} color={theme.sidebarText}/>
+                        <CompassIcon
+                            name='magnify'
+                            size={24}
+                            color={theme.sidebarText}
+                        />
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.headerIconButton}
@@ -444,7 +477,11 @@ const ContactsScreen = ({
                         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                         testID='contacts.header.manage'
                     >
-                        <CompassIcon name='format-list-bulleted' size={24} color={theme.sidebarText}/>
+                        <CompassIcon
+                            name='format-list-bulleted'
+                            size={24}
+                            color={theme.sidebarText}
+                        />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -460,7 +497,11 @@ const ContactsScreen = ({
                     testID='contacts.my_customers.row'
                 >
                     <View style={[styles.iconBox, styles.iconBoxCustomer]}>
-                        <CompassIcon name='account-multiple-outline' size={22} color='#34C759'/>
+                        <CompassIcon
+                            name='account-multiple-outline'
+                            size={22}
+                            color='#34C759'
+                        />
                     </View>
                     <Text style={styles.sectionRowText}>
                         {intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'})}
@@ -471,7 +512,11 @@ const ContactsScreen = ({
                         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                         testID='contacts.add_customer'
                     >
-                        <CompassIcon name='plus' size={18} color='#34C759'/>
+                        <CompassIcon
+                            name='plus'
+                            size={18}
+                            color='#34C759'
+                        />
                     </TouchableOpacity>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -481,7 +526,11 @@ const ContactsScreen = ({
                     testID='contacts.my_suppliers.row'
                 >
                     <View style={[styles.iconBox, styles.iconBoxSupplier]}>
-                        <CompassIcon name='account-multiple-outline' size={22} color='#007AFF'/>
+                        <CompassIcon
+                            name='account-multiple-outline'
+                            size={22}
+                            color='#007AFF'
+                        />
                     </View>
                     <Text style={styles.sectionRowText}>
                         {intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'})}
@@ -492,7 +541,11 @@ const ContactsScreen = ({
                         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                         testID='contacts.add_supplier'
                     >
-                        <CompassIcon name='plus' size={18} color='#007AFF'/>
+                        <CompassIcon
+                            name='plus'
+                            size={18}
+                            color='#007AFF'
+                        />
                     </TouchableOpacity>
                 </TouchableOpacity>
             </View>
@@ -513,7 +566,10 @@ const ContactsScreen = ({
                 </View>
                 {loading ? (
                     <View style={[styles.listItem, {justifyContent: 'center', paddingVertical: 24}]}>
-                        <Loading color={theme.centerChannelColor} size='small'/>
+                        <Loading
+                            color={theme.centerChannelColor}
+                            size='small'
+                        />
                         <Text style={[styles.memberCount, {marginTop: 8}]}>
                             {intl.formatMessage({id: 'contacts.loading', defaultMessage: 'Loading...'})}
                         </Text>

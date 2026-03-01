@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {General} from '@constants';
-import {formatPhone} from '@utils/form-rule';
+import {formatEmail, formatPhone, isPhoneNumber} from '@utils/form-rule';
 import {buildQueryString} from '@utils/helpers';
 
 import {PER_PAGE_DEFAULT} from './constants';
@@ -10,7 +10,7 @@ import {PER_PAGE_DEFAULT} from './constants';
 import type ClientBase from './base';
 
 export interface ClientUsersMix {
-    autoRegisterPhoneUser: (phoneNumber: string, password: string) => Promise<UserProfile>;
+    autoRegisterUser: (phoneOrEmail: string, password: string) => Promise<UserProfile>;
     createUser: (user: UserProfile, token: string, inviteId: string) => Promise<UserProfile>;
     patchMe: (userPatch: Partial<UserProfile>, groupLabel?: RequestGroupLabel) => Promise<UserProfile>;
     patchUser: (userPatch: Partial<UserProfile> & {id: string}) => Promise<UserProfile>;
@@ -57,16 +57,16 @@ export interface ClientUsersMix {
 }
 
 const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
-    autoRegisterPhoneUser = (phoneNumber: string, password: string) => {
+    autoRegisterUser = (phoneOrEmail: string, password: string) => {
+        const isPhone = isPhoneNumber(phoneOrEmail);
+        const email = isPhone ? `${formatPhone(phoneOrEmail)}@auto.register` : phoneOrEmail;
+        const username = isPhone ? formatPhone(phoneOrEmail) : formatEmail(phoneOrEmail);
+        const phone = isPhone ? phoneOrEmail : undefined;
         return this.doFetch(
             this.getUsersRoute(),
             {
                 method: 'post',
-                body: {
-                    email: `${formatPhone(phoneNumber)}@auto.register`,
-                    username: formatPhone(phoneNumber),
-                    password,
-                },
+                body: {email, phone, username, password},
             },
         );
     };
@@ -348,12 +348,12 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
 
     getUsernameByEmail = async (email: string) => {
         // TODO qgstest code ...
-        return Promise.resolve(email);
+        return Promise.resolve(null);
     };
 
     getUsernameByPhone = async (phoneNumber: string) => {
         // TODO qgstest code ...
-        return Promise.resolve(formatPhone(phoneNumber));
+        return Promise.resolve(null);
     };
 
     getProfilePictureUrl = (userId: string, lastPictureUpdate: number) => {

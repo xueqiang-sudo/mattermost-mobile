@@ -7,8 +7,8 @@ import {type Insets, Text, TouchableWithoutFeedback, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {logout} from '@actions/remote/session';
-import CompassIcon from '@components/compass_icon';
 import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
+import CompassIcon from '@components/compass_icon';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';

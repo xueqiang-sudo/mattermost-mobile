@@ -27,6 +27,7 @@ type ProfilePictureProps = {
     testID?: string;
     source?: ImageSource | string;
     url?: string;
+
     /** When set, avatar is a rounded square. Omit for circular. */
     borderRadius?: number;
 };

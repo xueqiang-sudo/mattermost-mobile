@@ -38,7 +38,7 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
     const serverDisplayName = useServerDisplayName();
 
     const serverName = siteName || serverDisplayName;
-   
+
     const close = useCallback(() => {
         dismissModal({componentId});
     }, [componentId]);

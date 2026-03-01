@@ -1,64 +1,34 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {formatPhone} from '@utils/form-rule';
+import {formatEmail, formatPhone, isPhoneNumber} from '@utils/form-rule';
 
 import type ClientBase from './base';
 
 export interface ClientGatewayMix {
-    sendSmsVerificationCode: (phoneNumber: string) => Promise<VerifyCodeGen>;
-    verifySmsCode: (phoneNumber: string, code: string) => Promise<VerifyCodeCheck>;
-    sendEmailVerificationCode: (email: string) => Promise<VerifyCodeGen>;
-    verifyEmailCode: (email: string, code: string) => Promise<VerifyCodeCheck>;
+    sendAccountVerifyCode: (phoneOrEmail: string) => Promise<VerifyCodeGen>;
+    verifyAccountCode: (phoneOrEmail: string, code: string) => Promise<VerifyCodeCheck>;
 }
 
 const ClientGateway = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
-    sendSmsVerificationCode = async (phoneNumber: string) => {
+    sendAccountVerifyCode = async (phoneOrEmail: string) => {
+        const fmAccount = isPhoneNumber(phoneOrEmail) ? formatPhone(phoneOrEmail) : formatEmail(phoneOrEmail);
         return this.doFetch(
-            this.getSendCodeRoute(),
+            this.getAccountSendCodeRoute(),
             {
                 method: 'post',
-                body: {
-                    phone_number: formatPhone(phoneNumber),
-                },
+                body: {account: fmAccount},
             },
         );
     };
 
-    verifySmsCode = async (phoneNumber: string, code: string) => {
+    verifyAccountCode = async (phoneOrEmail: string, code: string) => {
+        const fmAccount = isPhoneNumber(phoneOrEmail) ? formatPhone(phoneOrEmail) : formatEmail(phoneOrEmail);
         return this.doFetch(
-            this.getVerifyCodeRoute(),
+            this.getAccountVerifyCodeRoute(),
             {
                 method: 'post',
-                body: {
-                    phone_number: formatPhone(phoneNumber),
-                    code,
-                },
-            },
-        );
-    };
-
-    sendEmailVerificationCode = async (email: string) => {
-        return this.doFetch(
-            this.getSendCodeRoute(),
-            {
-                method: 'post',
-                body: {
-                    email,
-                },
-            },
-        );
-    };
-
-    verifyEmailCode = async (email: string, code: string) => {
-        return this.doFetch(
-            this.getVerifyCodeRoute(),
-            {
-                method: 'post',
-                body: {
-                    email,
-                    code,
-                },
+                body: {account: fmAccount, code},
             },
         );
     };

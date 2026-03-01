@@ -7,10 +7,13 @@ import {Text, type TextProps} from 'react-native';
 import {formatFullName} from '@utils/display_name';
 
 type FormattedNameProps = Omit<TextProps, 'children'> & {
+
     /** 语言环境，如 zh-CN、en */
     locale: string;
+
     /** 姓 */
     surname: string;
+
     /** 名 */
     givenName: string;
 };

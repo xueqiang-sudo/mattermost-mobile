@@ -82,6 +82,10 @@ export const getErrorMessage = (error: unknown, intl?: IntlShape) => {
     }
 
     if (isErrorWithMessage(error)) {
+        const serverErrId = (error as {server_error_id?: string}).server_error_id;
+        if (intl && serverErrId && typeof serverErrId === 'string' && intl.messages && intl.messages[`request_error.${serverErrId}`]) {
+            return intl.messages[`request_error.${serverErrId}`];
+        }
         return error.message;
     }
 

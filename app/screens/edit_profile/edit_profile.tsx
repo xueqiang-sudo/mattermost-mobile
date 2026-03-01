@@ -14,8 +14,8 @@ import CompassIcon from '@components/compass_icon';
 import TabletTitle from '@components/tablet_title';
 import {Events} from '@constants';
 import {useServerUrl} from '@context/server';
-import DatabaseManager from '@database/manager';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -220,6 +220,7 @@ const EditProfile = ({
                     resetScreenForProfileError(reqError);
                     return;
                 }
+
                 // Keep app server display name in sync when nickname changes (used in UI and server context)
                 if (newUserInfo.nickname !== undefined) {
                     await DatabaseManager.updateServerDisplayName(serverUrl, newUserInfo.nickname);

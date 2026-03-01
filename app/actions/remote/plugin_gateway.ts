@@ -3,12 +3,12 @@
 
 import NetworkManager from '@managers/network_manager';
 
-export const sendSmsCode = async (serverUrl: string, phoneNumber: string) => {
+export const sendAccountCode = async (serverUrl: string, phoneOrEmail: string) => {
     const client = await NetworkManager.getAndCreateClient(serverUrl);
-    return client.sendSmsVerificationCode(phoneNumber);
+    return client.sendAccountVerifyCode(phoneOrEmail);
 };
 
-export const verifySmsCode = async (serverUrl: string, phoneNumber: string, code: string) => {
+export const verifyAccountCode = async (serverUrl: string, phoneOrEmail: string, code: string) => {
     const client = await NetworkManager.getAndCreateClient(serverUrl);
-    return client.verifySmsCode(phoneNumber, code);
+    return client.verifyAccountCode(phoneOrEmail, code);
 };

@@ -23,6 +23,7 @@ type Props = {
     size: number;
     source?: ImageSource | string;
     url?: string;
+
     /** When set, uses this instead of size/2 for a rounded-square shape. Omit for circular. */
     borderRadius?: number;
 };

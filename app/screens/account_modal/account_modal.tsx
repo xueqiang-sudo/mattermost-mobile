@@ -5,6 +5,7 @@ import React, {useCallback, useEffect} from 'react';
 import {ScrollView} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
@@ -15,7 +16,6 @@ import {makeStyleSheetFromTheme} from '@utils/theme';
 
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
-import CompassIcon from '@components/compass_icon';
 
 type AccountModalProps = {
     componentId: AvailableScreens;

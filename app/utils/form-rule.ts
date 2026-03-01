@@ -40,6 +40,7 @@ export const splitPhone = (phone: string): [areaCode: string, number: string] =>
 };
 
 export const formatPhone = (phone: string, keepSpace = false): string => phone.replace('+86 ', '').replace(' ', keepSpace ? ' ' : '');
+export const formatEmail = (email: string): string => email.trim().replace('@', '_AT_');
 
 export const checkPhoneRule = (areaCode: string, phoneValue: string): string | undefined => {
     // eslint-disable-next-line no-unused-expressions, no-param-reassign
