@@ -135,10 +135,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         textAlign: 'center',
     },
-    countryCodeInputDisabled: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
-        color: changeOpacity(theme.centerChannelColor, 0.6),
-    },
     phoneNumberInput: {
         flex: 1,
     },
@@ -360,7 +356,6 @@ const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, 
                             ref={countryCodeRef}
                             style={[
                                 styles.countryCodeInput,
-                                styles.countryCodeInputDisabled,
                                 error && {borderColor: theme.errorTextColor},
                             ]}
                             value={countryCode}
@@ -368,17 +363,14 @@ const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, 
                             onBlur={() => setShowCountryCodeInput(false)}
                             keyboardType='phone-pad'
                             testID='login_form.country.code.input'
-                            editable={false}
                         />
                     ) : (
                         <TouchableOpacity
                             style={[
                                 styles.countryCodeTrigger,
-                                styles.countryCodeInputDisabled,
                                 error && {borderColor: theme.errorTextColor},
                             ]}
                             activeOpacity={1}
-                            disabled={true}
                             onPress={onCountryCodePress}
                             testID='login_form.country.code.selector'
                         >

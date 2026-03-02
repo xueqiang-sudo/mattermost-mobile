@@ -17,7 +17,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {getAutoClient} from '@managers/network_manager';
 import {resetToHome} from '@screens/navigation';
 import {getFullErrorMessage} from '@utils/errors';
-import {formatEmail, formatPhone, isPhoneNumber} from '@utils/form-rule';
+import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
 import {logError, logInfo} from '@utils/log';
 import {canReceiveNotifications} from '@utils/push_proxy';
@@ -299,7 +299,7 @@ const PhoneLoginForm = ({
             // 3. 登录前先获取 username
             let isNeedTryReg = true;
             const apiClient = await getAutoClient(serverUrl);
-            let username = isPhoneInputTmp ? formatPhone(normalizedLoginId) : formatEmail(normalizedLoginId);
+            let username = isPhoneInputTmp ? formatPhone(normalizedLoginId, true) : emailFormatUsername(normalizedLoginId);
             const usernameTmp = await (isPhoneInputTmp ? apiClient.getUsernameByPhone(normalizedLoginId) : apiClient.getUsernameByEmail(normalizedLoginId));
             if (usernameTmp) { // 已经有用户了，则不需要进行注册
                 logInfo(`${isPhoneInputTmp ? 'phone' : 'email'} username already exists, username: ${usernameTmp}`);
@@ -402,8 +402,15 @@ const PhoneLoginForm = ({
     }, [isGettingCode, countdown, intl]);
 
     const isLoginIdValid = useCallback(() => {
+        if (!loginId) {
+            return false;
+        }
         if (isPhoneInput) {
-            return isPhoneNumber(loginId);
+            if (!isPhoneNumber(loginId)) {
+                return false;
+            }
+            const [phoneAreaCodeTmp, phoneTmp] = splitPhone(loginId);
+            return !checkPhoneRule(phoneAreaCodeTmp, phoneTmp);
         }
         return isEmail(loginId.trim());
     }, [isPhoneInput, loginId]);

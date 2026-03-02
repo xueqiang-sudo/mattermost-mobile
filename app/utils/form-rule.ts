@@ -39,8 +39,14 @@ export const splitPhone = (phone: string): [areaCode: string, number: string] =>
     return ['', phone];
 };
 
-export const formatPhone = (phone: string, keepSpace = false): string => phone.replace('+86 ', '').replace(' ', keepSpace ? ' ' : '');
-export const formatEmail = (email: string): string => email.trim().replace('@', '_AT_');
+export const formatPhone = (phone: string, isUsername = false): string => {
+    let phoneTmp = phone.replace('+86 ', '');
+    if (isUsername) {
+        phoneTmp = phoneTmp.replace(' ', '');
+    }
+    return phoneTmp;
+};
+export const emailFormatUsername = (email: string): string => email.trim().replace('@', '_AT_');
 
 export const checkPhoneRule = (areaCode: string, phoneValue: string): string | undefined => {
     // eslint-disable-next-line no-unused-expressions, no-param-reassign
@@ -75,5 +81,3 @@ export const checkPhoneRule = (areaCode: string, phoneValue: string): string | u
     }
     return undefined;
 };
-
-export const phoneToUsername = (phone: string): string => `Phone_${formatPhone(phone)}`;

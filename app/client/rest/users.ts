@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {General} from '@constants';
-import {formatEmail, formatPhone, isPhoneNumber} from '@utils/form-rule';
+import {emailFormatUsername, formatPhone, isPhoneNumber} from '@utils/form-rule';
 import {buildQueryString} from '@utils/helpers';
 
 import {PER_PAGE_DEFAULT} from './constants';
@@ -59,9 +59,9 @@ export interface ClientUsersMix {
 const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
     autoRegisterUser = (phoneOrEmail: string, password: string) => {
         const isPhone = isPhoneNumber(phoneOrEmail);
-        const email = isPhone ? `${formatPhone(phoneOrEmail)}@auto.register` : phoneOrEmail;
-        const username = isPhone ? formatPhone(phoneOrEmail) : formatEmail(phoneOrEmail);
-        const phone = isPhone ? phoneOrEmail : undefined;
+        const email = isPhone ? `${formatPhone(phoneOrEmail, true)}@auto.register` : phoneOrEmail;
+        const username = isPhone ? formatPhone(phoneOrEmail, true) : emailFormatUsername(phoneOrEmail);
+        const phone = isPhone ? formatPhone(phoneOrEmail) : undefined;
         return this.doFetch(
             this.getUsersRoute(),
             {
@@ -347,13 +347,17 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
     };
 
     getUsernameByEmail = async (email: string) => {
-        // TODO qgstest code ...
-        return Promise.resolve(null);
+        return this.doFetch(
+            `${this.getSmsEmailGatewayRoute()}/get-username-by-email?account=${email}`,
+            {method: 'get'},
+        ).then((res: {username: string}) => res.username || '').catch(() => '');
     };
 
     getUsernameByPhone = async (phoneNumber: string) => {
-        // TODO qgstest code ...
-        return Promise.resolve(null);
+        return this.doFetch(
+            `${this.getSmsEmailGatewayRoute()}/get-username-by-phone?account=${formatPhone(phoneNumber, true)}`,
+            {method: 'get'},
+        ).then((res: {username: string}) => res.username || '').catch(() => '');
     };
 
     getProfilePictureUrl = (userId: string, lastPictureUpdate: number) => {

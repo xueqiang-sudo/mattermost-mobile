@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {formatEmail, formatPhone, isPhoneNumber} from '@utils/form-rule';
+import {emailFormatUsername, formatPhone, isPhoneNumber} from '@utils/form-rule';
 
 import type ClientBase from './base';
 
@@ -12,7 +12,7 @@ export interface ClientGatewayMix {
 
 const ClientGateway = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
     sendAccountVerifyCode = async (phoneOrEmail: string) => {
-        const fmAccount = isPhoneNumber(phoneOrEmail) ? formatPhone(phoneOrEmail) : formatEmail(phoneOrEmail);
+        const fmAccount = isPhoneNumber(phoneOrEmail) ? formatPhone(phoneOrEmail) : emailFormatUsername(phoneOrEmail);
         return this.doFetch(
             this.getAccountSendCodeRoute(),
             {
@@ -23,7 +23,7 @@ const ClientGateway = <TBase extends Constructor<ClientBase>>(superclass: TBase)
     };
 
     verifyAccountCode = async (phoneOrEmail: string, code: string) => {
-        const fmAccount = isPhoneNumber(phoneOrEmail) ? formatPhone(phoneOrEmail) : formatEmail(phoneOrEmail);
+        const fmAccount = isPhoneNumber(phoneOrEmail) ? formatPhone(phoneOrEmail) : emailFormatUsername(phoneOrEmail);
         return this.doFetch(
             this.getAccountVerifyCodeRoute(),
             {
