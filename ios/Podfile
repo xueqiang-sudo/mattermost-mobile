@@ -32,6 +32,19 @@ if intune_enabled
   puts "🔐 Intune MAM features enabled"
 end
 
+# JitsiWebRTC: net-cache-resources 有则用本地，没有则从 CocoaPods trunk 拉取
+net_cache = File.expand_path('..', __dir__) + '/net-cache-resources'
+local_webrtc_zip = File.join(net_cache, 'WebRTC.xcframework.zip')
+local_sdwebimage = File.join(net_cache, 'SDWebImage', 'SDWebImage.podspec')
+use_local_webrtc = File.exist?(local_webrtc_zip)
+use_local_sdwebimage = File.exist?(local_sdwebimage)
+if use_local_webrtc
+  puts "📦 JitsiWebRTC: 使用本地 net-cache-resources/WebRTC.xcframework.zip"
+else
+  puts "📦 JitsiWebRTC: 使用远程源 (CocoaPods trunk)"
+end
+if use_local_sdwebimage then puts "📦 Using local SDWebImage from net-cache-resources" end
+
 config = use_native_modules!
 
 target 'Mattermost' do
@@ -45,6 +58,12 @@ target 'Mattermost' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  if use_local_webrtc
+    pod 'JitsiWebRTC', :podspec => './JitsiWebRTC-Local.podspec'
+  end
+  if use_local_sdwebimage
+    pod 'SDWebImage', :path => '../net-cache-resources/SDWebImage'
+  end
   pod 'React-jsi', :path => '../node_modules/react-native/ReactCommon/jsi', :modular_headers => true
   pod 'React-jsc', :path => '../node_modules/react-native/ReactCommon/jsc', :modular_headers => true
   pod 'simdjson', path: '../node_modules/@nozbe/simdjson', :modular_headers => true

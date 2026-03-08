@@ -37,6 +37,7 @@ DerivedData
 *.xcuserstate
 project.xcworkspace
 ios/Pods
+net-cache-resources
 .podinstall
 ios/.xcode.env.local
 

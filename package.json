@@ -180,6 +180,7 @@
     "uuid": "11.1.0"
   },
   "scripts": {
+    "install-pkg": "npm install --loglevel verbose",
     "android": "react-native run-android",
     "apply-16kb-pagesize-patch": "node ./scripts/android-16kb-pagesize/apply-patch.js ./scripts/android-16kb-pagesize/9325-full.diff --apply",
     "revert-16kb-pagesize-patch": "node ./scripts/android-16kb-pagesize/revert-patch.js",
@@ -210,8 +211,8 @@
     "intune:status": "./scripts/intune-status.sh",
     "lint": "eslint --ignore-pattern .gitignore --ignore-pattern node_modules --quiet .",
     "mmjstool": "mmjstool",
-    "pod-install": "cd ios && RCT_NEW_ARCH_ENABLED=0 pod install",
-    "pod-install-m1": "cd ios && RCT_NEW_ARCH_ENABLED=0 arch -x86_64 pod install",
+    "pod-install": "cd ios && RCT_NEW_ARCH_ENABLED=0 pod install --verbose",
+    "pod-install-m1": "cd ios && RCT_NEW_ARCH_ENABLED=0 arch -x86_64 pod install --verbose",
     "postinstall": "patch-package && ./scripts/postinstall.sh",
     "prepare": "husky",
     "preinstall": "./scripts/preinstall.sh && npx solidarity",
