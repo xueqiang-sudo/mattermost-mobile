@@ -28,6 +28,10 @@ export const JOIN_TEAM_QR = 'JoinTeamQR';
 export const INVITE_USER_JOIN_TEAM = 'InviteUserJoinTeam';
 export const COMPONENT_LIBRARY = 'ComponentLibrary';
 export const CONTACTS = 'Contacts';
+export const CONTACTS_EMPLOYEE_LIST = 'ContactsEmployeeList';
+export const CONTACTS_DEPARTMENT_DETAIL = 'ContactsDepartmentDetail';
+export const CONTACTS_EMPLOYEE_PROFILE = 'ContactsEmployeeProfile';
+export const TMP_DEV_TEST = 'TmpDevTest';
 export const CUSTOM_STATUS = 'CustomStatus';
 export const CUSTOM_STATUS_CLEAR_AFTER = 'CustomStatusClearAfter';
 export const DRAFT = 'Draft';
@@ -123,6 +127,10 @@ export default {
     CONVERT_GM_TO_CHANNEL,
     COMPONENT_LIBRARY,
     CONTACTS,
+    CONTACTS_EMPLOYEE_LIST,
+    CONTACTS_DEPARTMENT_DETAIL,
+    CONTACTS_EMPLOYEE_PROFILE,
+    TMP_DEV_TEST,
     CREATE_DIRECT_MESSAGE,
     CREATE_OR_EDIT_CHANNEL,
     CREATE_TEAM,

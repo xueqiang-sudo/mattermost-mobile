@@ -692,8 +692,13 @@ export async function dismissAllModalsAndPopToScreen(screenId: AvailableScreens,
     }
 }
 
-export function showModal(name: AvailableScreens, title: string, passProps = {}, options: Options = {}) {
-    if (!isScreenRegistered(name) || NavigationStore.getVisibleModal() === name) {
+export function showModal(name: AvailableScreens, title: string, passProps = {}, options: Options & {componentId?: string} = {}) {
+    const {componentId: customComponentId, ...restOptions} = options;
+    if (!isScreenRegistered(name)) {
+        return;
+    }
+    const componentId = customComponentId ?? name;
+    if (NavigationStore.getVisibleModal() === componentId) {
         return;
     }
     const theme = getThemeFromState();
@@ -733,13 +738,13 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
         stack: {
             children: [{
                 component: {
-                    id: name,
+                    id: componentId,
                     name,
                     passProps: {
                         ...passProps,
                         isModal: true,
                     },
-                    options: merge(defaultOptions, options),
+                    options: merge(defaultOptions, restOptions),
                 },
             }],
         },
@@ -757,7 +762,15 @@ export function showModalWithBackButton(name: AvailableScreens, title: string, c
             }],
         },
     }, options);
-    showModal(name, title, {...passProps, closeButtonId}, mergeOptions);
+
+    const listener = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
+        if (buttonId === closeButtonId) {
+            listener.remove();
+            dismissModal({componentId: closeButtonId as AvailableScreens});
+        }
+    });
+
+    showModal(name, title, {...passProps, closeButtonId}, {...mergeOptions, componentId: closeButtonId});
 }
 
 export function showModalOverCurrentContext(name: AvailableScreens, passProps = {}, options: Options = {}) {
@@ -832,6 +845,23 @@ export async function dismissModal(options?: Options & { componentId: AvailableS
             // RNN returns a promise rejection if there is no modal to
             // dismiss. We'll do nothing in this case.
         }
+    }
+}
+
+/** 依次关闭最顶层 count 个 modal，用于 breadcrumb 点击回退 */
+export async function dismissModals(count: number) {
+    if (count <= 0 || !NavigationStore.hasModalsOpened()) {
+        return;
+    }
+
+    try {
+        const modals = [...NavigationStore.getModalsInStack()];
+        const toDismiss = modals.slice(0, count);
+        for await (const modal of toDismiss) {
+            await Navigation.dismissModal(modal, {animations: {dismissModal: {enabled: false}}});
+        }
+    } catch (error) {
+        // RNN returns a promise rejection if there is no modal to dismiss.
     }
 }
 

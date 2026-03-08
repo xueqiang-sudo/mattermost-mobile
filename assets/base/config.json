@@ -1,7 +1,7 @@
 {
     "AuthUrlScheme": "mmauth://",
     "AuthUrlSchemeDev": "mmauthbeta://",
-    "DefaultServerUrl": "http://175.25.51.228:8065",
+    "DefaultServerUrl": "http://118.195.136.154:8065",
     "DefaultServerName": "",
     "TestServerUrl": "http://localhost:8065",
     "AutoSelectServerUrl": false,
@@ -28,6 +28,8 @@
     "ShowOnboarding": false,
 
     "ExperimentalNormalizeMarkdownLinks": false,
+    "ContactServiceUrl": "http://118.195.136.154:8088",
+    "ContactServiceApiKey": "b3cz8fsbrfd4ukmfmssf864pqr",
     "CustomRequestHeaders": {},
     "CollectNetworkMetrics": false
 }

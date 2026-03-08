@@ -2,9 +2,10 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
+import {of as of$} from 'rxjs';
 
-import {observeCurrentTeamId} from '@queries/servers/system';
-import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/user';
+// import {observeCurrentTeamId} from '@queries/servers/system';
+import {observeCurrentUser} from '@queries/servers/user';
 
 import ContactsScreen from './contacts';
 
@@ -12,8 +13,7 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 
 const enhance = withObservables([], ({database}: WithDatabaseArgs) => ({
     currentUser: observeCurrentUser(database),
-    currentTeamId: observeCurrentTeamId(database),
-    teammateDisplayNameSetting: observeTeammateNameDisplay(database),
+    currentTeamId: of$('tmpteam1001'), //observeCurrentTeamId(database),
 }));
 
 export default withDatabase(enhance(ContactsScreen));

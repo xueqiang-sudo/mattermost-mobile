@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {General} from '@constants';
-import {emailFormatUsername, formatPhone, isPhoneNumber} from '@utils/form-rule';
+import {emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {buildQueryString} from '@utils/helpers';
 
 import {PER_PAGE_DEFAULT} from './constants';
@@ -61,12 +61,16 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         const isPhone = isPhoneNumber(phoneOrEmail);
         const email = isPhone ? `${formatPhone(phoneOrEmail, true)}@auto.register` : phoneOrEmail;
         const username = isPhone ? formatPhone(phoneOrEmail, true) : emailFormatUsername(phoneOrEmail);
-        const phone = isPhone ? formatPhone(phoneOrEmail) : undefined;
+        const bodyData = {email, username, password};
+        if (isPhone) {
+            const [countryCode, phone] = splitPhone(phoneOrEmail, {isDelSymbol: true});
+            Object.assign(bodyData, {phone, country_code: countryCode});
+        }
         return this.doFetch(
             this.getUsersRoute(),
             {
                 method: 'post',
-                body: {email, phone, username, password},
+                body: bodyData,
             },
         );
     };
@@ -354,8 +358,9 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
     };
 
     getUsernameByPhone = async (phoneNumber: string) => {
+        const [countryCode, phone] = splitPhone(phoneNumber, {isDelSymbol: true});
         return this.doFetch(
-            `${this.getSmsEmailGatewayRoute()}/get-username-by-phone?account=${formatPhone(phoneNumber, true)}`,
+            `${this.getSmsEmailGatewayRoute()}/get-username-by-phone?account=${phone}&country_code=${countryCode}`,
             {method: 'get'},
         ).then((res: {username: string}) => res.username || '').catch(() => '');
     };

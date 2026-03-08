@@ -9,36 +9,71 @@ import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {
-    ensureTeamContactCompany,
-    fetchCompanyDepartments,
-    fetchCompanyEmployeeCount,
-    fetchDefaultDepartmentEmployees,
-    getCompanyById,
-} from '@actions/remote/contact';
-import {DEFAULT_DEPARTMENT_NAME, type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+import {fetchProfilesInTeam} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
-import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
-import {Screens} from '@constants';
+import ProfilePicture from '@components/profile_picture';
+import {General, Screens} from '@constants';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {getTeamById} from '@queries/servers/team';
-import {showModal, showModalWithBackButton} from '@screens/navigation';
+import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
+import {bottomSheet, showModal} from '@screens/navigation';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import type {Database} from '@nozbe/watermelondb';
+
 import type UserModel from '@typings/database/models/servers/user';
 
-
 const edges: Edge[] = ['left', 'right'];
-const CLOSE_CUSTOMERS = 'close-contacts-customers';
-const CLOSE_SUPPLIERS = 'close-contacts-suppliers';
+const LIST_ITEM_HEIGHT = 56;
+
+const createMockUser = (id: string, username: string, firstName: string, lastName: string): UserProfile => ({
+    id,
+    create_at: 0,
+    update_at: 0,
+    delete_at: 0,
+    username,
+    auth_service: '',
+    email: `${username}@example.com`,
+    first_name: firstName,
+    last_name: lastName,
+    nickname: '',
+    position: '',
+    roles: 'system_user',
+    locale: '',
+    notify_props: {
+        channel: 'true',
+        comments: 'never',
+        desktop: 'default',
+        desktop_sound: 'true',
+        desktop_notification_sound: 'default',
+        email: 'true',
+        first_name: 'true',
+        mention_keys: '',
+        highlight_keys: '',
+        push: 'default',
+        push_status: 'away',
+        calls_desktop_sound: 'true',
+        calls_notification_sound: 'default',
+        calls_mobile_sound: 'true',
+        calls_mobile_notification_sound: 'default',
+    },
+    props: {},
+});
+
+const MOCK_CUSTOMERS: UserProfile[] = [
+    createMockUser('mock-customer-1', 'customer1', '张', '客户'),
+    createMockUser('mock-customer-2', 'customer2', '李', '客户'),
+];
+
+const MOCK_SUPPLIERS: UserProfile[] = [
+    createMockUser('mock-supplier-1', 'supplier1', '王', '供应商'),
+];
 
 type Props = {
     currentUser?: UserModel;
     currentTeamId?: string;
-    database?: Database;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -160,16 +195,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.64),
     },
-    memberCountFooter: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-    },
     listItem: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 10,
         paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
     },
     listItemAvatar: {
         marginRight: 14,
@@ -183,67 +215,34 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexGrow: 1,
         paddingBottom: 32,
     },
-    emptyMessage: {
-        ...typography('Body', 100),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        paddingVertical: 24,
-        paddingHorizontal: 20,
-        textAlign: 'center',
-    },
-    serviceError: {
-        ...typography('Body', 100),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        paddingVertical: 24,
-        paddingHorizontal: 20,
-        textAlign: 'center',
-    },
-    departmentRow: {
+    bottomSheetItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        minHeight: LIST_ITEM_HEIGHT,
     },
-    insetDivider: {
-        height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        marginLeft: 56,
-        marginRight: 16,
+    bottomSheetList: {
+        paddingBottom: 24,
     },
-    departmentFolderIcon: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 14,
-    },
-    departmentRowName: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-        flex: 1,
-    },
-    subSection: {},
 }));
 
-const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
+const ContactsScreen = ({
+    currentUser,
+    currentTeamId,
+}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const navigation = useNavigation();
+    const serverUrl = useServerUrl();
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();
     const mounted = useRef(false);
 
-    const [departments, setDepartments] = useState<ContactDepartment[]>([]);
-    const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<ContactEmployee[]>([]);
-    const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
-    const [loading, setLoading] = useState(true);
-    const [serviceError, setServiceError] = useState(false);
+    const [enterpriseMembers, setEnterpriseMembers] = useState<UserProfile[]>([]);
+    const [loading, setLoading] = useState(false);
 
     const styles = getStyleSheet(theme);
-
-    const departmentsList: ContactDepartment[] = Array.isArray(departments) ? departments : [];
-    const topLevelDepartments = departmentsList.filter(
-        (d) => d && !d.parent_id && d.name !== DEFAULT_DEPARTMENT_NAME,
-    );
 
     const openAccount = usePreventDoubleTap(useCallback(() => {
         showModal(
@@ -257,10 +256,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     }, [navigation]));
 
     const handleManageContacts = usePreventDoubleTap(useCallback(() => {
-        Alert.alert(
-            intl.formatMessage({id: 'contacts.manage_contacts', defaultMessage: 'Manage Contacts'}),
-            intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}),
-        );
+        Alert.alert(intl.formatMessage({id: 'contacts.manage_contacts', defaultMessage: 'Manage Contacts'}), intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}));
     }, [intl]));
 
     const handleAddCustomer = usePreventDoubleTap(useCallback(() => {
@@ -276,215 +272,166 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     }, [intl]));
 
     const handleOpenCustomersList = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_CUSTOMERS, {type: 'customer', closeButtonId: CLOSE_CUSTOMERS});
-    }, [intl]));
+        const renderContent = () => (
+            <View style={styles.bottomSheetList}>
+                {MOCK_CUSTOMERS.map((item) => (
+                    <View
+                        key={item.id}
+                        style={styles.bottomSheetItem}
+                    >
+                        <View style={styles.listItemAvatar}>
+                            <ProfilePicture
+                                author={item}
+                                size={40}
+                                showStatus={false}
+                            />
+                        </View>
+                        <Text
+                            style={styles.listItemName}
+                            numberOfLines={1}
+                        >
+                            {item.nickname}
+                        </Text>
+                    </View>
+                ))}
+                <Text style={[styles.memberCount, {paddingHorizontal: 20, paddingTop: 12}]}>
+                    {intl.formatMessage(
+                        {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
+                        {count: MOCK_CUSTOMERS.length},
+                    )}
+                </Text>
+            </View>
+        );
+
+        const count = MOCK_CUSTOMERS.length;
+        const snapPoints: Array<string | number> = [
+            1,
+            Math.min(bottomSheetSnapPoint(count, LIST_ITEM_HEIGHT) + TITLE_HEIGHT + 80, 420),
+        ];
+        if (count > 4) {
+            snapPoints.push('70%');
+        }
+
+        bottomSheet({
+            closeButtonId: 'close-customers-list',
+            renderContent,
+            snapPoints,
+            title: intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'}),
+            theme,
+            scrollable: true,
+        });
+    }, [intl, theme, styles.bottomSheetList, styles.memberCount, styles.bottomSheetItem, styles.listItemAvatar, styles.listItemName]));
 
     const handleOpenSuppliersList = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_SUPPLIERS, {type: 'supplier', closeButtonId: CLOSE_SUPPLIERS});
-    }, [intl]));
+        const renderContent = () => (
+            <View style={styles.bottomSheetList}>
+                {MOCK_SUPPLIERS.map((item) => (
+                    <View
+                        key={item.id}
+                        style={styles.bottomSheetItem}
+                    >
+                        <View style={styles.listItemAvatar}>
+                            <ProfilePicture
+                                author={item}
+                                size={40}
+                                showStatus={false}
+                            />
+                        </View>
+                        <Text
+                            style={styles.listItemName}
+                            numberOfLines={1}
+                        >
+                            {item.nickname}
+                        </Text>
+                    </View>
+                ))}
+                <Text style={[styles.memberCount, {paddingHorizontal: 20, paddingTop: 12}]}>
+                    {intl.formatMessage(
+                        {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
+                        {count: MOCK_SUPPLIERS.length},
+                    )}
+                </Text>
+            </View>
+        );
+
+        const count = MOCK_SUPPLIERS.length;
+        const snapPoints: Array<string | number> = [
+            1,
+            Math.min(bottomSheetSnapPoint(count, LIST_ITEM_HEIGHT) + TITLE_HEIGHT + 80, 420),
+        ];
+        if (count > 4) {
+            snapPoints.push('70%');
+        }
+
+        bottomSheet({
+            closeButtonId: 'close-suppliers-list',
+            renderContent,
+            snapPoints,
+            title: intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'}),
+            theme,
+            scrollable: true,
+        });
+    }, [intl, styles.bottomSheetItem, styles.bottomSheetList, styles.listItemAvatar, styles.listItemName, styles.memberCount, theme]));
 
     useEffect(() => {
+        if (!currentTeamId || !serverUrl) {
+            setLoading(false);
+            return;
+        }
+
         mounted.current = true;
         setLoading(true);
-        setServiceError(false);
 
-        const fetchEnterprise = async () => {
-            if (!currentTeamId) {
+        const fetchMembers = async () => {
+            const result = await fetchProfilesInTeam(
+                serverUrl,
+                currentTeamId,
+                0,
+                General.PROFILE_CHUNK_SIZE,
+                '',
+                {active: true},
+            );
+
+            if (mounted.current && result.users) {
+                setEnterpriseMembers(result.users);
+            }
+            if (mounted.current) {
                 setLoading(false);
-                return;
             }
-
-            const getRes = await getCompanyById(currentTeamId);
-            if (getRes.error && mounted.current && database) {
-                const team = await getTeamById(database, currentTeamId);
-                const teamName = team?.displayName?.trim();
-                if (teamName) {
-                    const ensureRes = await ensureTeamContactCompany(currentTeamId, teamName);
-                    if (ensureRes.error && mounted.current) {
-                        setServiceError(true);
-                        setLoading(false);
-                        return;
-                    }
-                } else {
-                    setLoading(false);
-                    return;
-                }
-            }
-
-            const deptRes = await fetchCompanyDepartments(currentTeamId);
-            if (!mounted.current) {
-                return;
-            }
-            if (deptRes.error) {
-                setServiceError(true);
-                setLoading(false);
-                return;
-            }
-            const deptData = deptRes.data;
-            setDepartments(Array.isArray(deptData) ? deptData : []);
-
-            const [defaultEmpRes, countRes] = await Promise.all([
-                fetchDefaultDepartmentEmployees(currentTeamId),
-                fetchCompanyEmployeeCount(currentTeamId),
-            ]);
-
-            if (!mounted.current) {
-                return;
-            }
-            if (defaultEmpRes.error) {
-                setServiceError(true);
-            } else {
-                setDefaultDepartmentEmployees(defaultEmpRes.data ?? []);
-            }
-            if (!countRes.error && countRes.data !== undefined) {
-                setCompanyEmployeeCount(countRes.data);
-            }
-            setLoading(false);
         };
 
-        fetchEnterprise();
+        fetchMembers();
 
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, database]);
+    }, [serverUrl, currentTeamId]);
 
-    const handleDepartmentPress = usePreventDoubleTap(useCallback((department: ContactDepartment) => {
-        const title = department.name;
-        const breadcrumb = [
-            intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
-            department.name,
-        ];
-        showModalWithBackButton(
-            Screens.CONTACTS_DEPARTMENT_DETAIL,
-            title,
-            `close-department-${department.id}`,
-            {
-                departmentId: department.id,
-                departmentName: department.name,
-                breadcrumb,
-                companyId: currentTeamId ?? '',
-                closeButtonId: `close-department-${department.id}`,
-            },
-        );
-    }, [intl, currentTeamId]));
-
-    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee, deptName?: string) => {
-        const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
-        showModalWithBackButton(
-            Screens.CONTACTS_EMPLOYEE_PROFILE,
-            title,
-            `close-employee-${employee.id}`,
-            {
-                employee,
-                departmentName: deptName,
-                companyName: undefined,
-                closeButtonId: `close-employee-${employee.id}`,
-            },
-        );
-    }, [intl]));
+    const renderContactItem = useCallback((user: UserProfile) => (
+        <View
+            key={user.id}
+            style={styles.listItem}
+        >
+            <View style={styles.listItemAvatar}>
+                <ProfilePicture
+                    author={user}
+                    size={40}
+                    showStatus={false}
+                />
+            </View>
+            <Text
+                style={styles.listItemName}
+                numberOfLines={1}
+            >
+                {user.nickname}
+            </Text>
+        </View>
+    ), [styles]);
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
         transform: [{translateX: withTiming(0, {duration: 150})}],
     }), []);
-
-    const renderEnterpriseContent = () => {
-        if (serviceError) {
-            return (
-                <Text style={styles.serviceError}>
-                    {intl.formatMessage({id: 'contacts.service_unavailable', defaultMessage: 'Contact service is not available'})}
-                </Text>
-            );
-        }
-        if (loading) {
-            return (
-                <View style={[styles.listItem, {justifyContent: 'center', paddingVertical: 24}]}>
-                    <Loading
-                        color={theme.centerChannelColor}
-                        size='small'
-                    />
-                    <Text style={[styles.memberCount, {marginTop: 8}]}>
-                        {intl.formatMessage({id: 'contacts.loading', defaultMessage: 'Loading...'})}
-                    </Text>
-                </View>
-            );
-        }
-        if (topLevelDepartments.length === 0) {
-            return (
-                <Text style={styles.emptyMessage}>
-                    {intl.formatMessage({id: 'contacts.no_enterprise_contacts', defaultMessage: 'No enterprise contacts'})}
-                </Text>
-            );
-        }
-        return (
-            <View style={styles.subSection}>
-                {topLevelDepartments.map((dept, deptIdx) => (
-                    <React.Fragment key={dept.id}>
-                        <TouchableOpacity
-                            style={styles.departmentRow}
-                            onPress={() => handleDepartmentPress(dept)}
-                            activeOpacity={0.7}
-                            testID={`contacts.department.${dept.id}`}
-                        >
-                            <View style={styles.departmentFolderIcon}>
-                                <CompassIcon
-                                    name='folder-outline'
-                                    size={24}
-                                    color={theme.linkColor}
-                                />
-                            </View>
-                            <Text
-                                style={styles.departmentRowName}
-                                numberOfLines={1}
-                            >
-                                {dept.name}
-                            </Text>
-                        </TouchableOpacity>
-                        {deptIdx < topLevelDepartments.length - 1 || defaultDepartmentEmployees.length > 0 ? (
-                            <View style={styles.insetDivider}/>
-                        ) : null}
-                    </React.Fragment>
-                ))}
-                {defaultDepartmentEmployees.map((emp, empIdx) => (
-                    <React.Fragment key={emp.id}>
-                        <TouchableOpacity
-                            style={styles.listItem}
-                            onPress={() => handleEmployeePress(emp, intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'}))}
-                            activeOpacity={0.7}
-                            testID={`contacts.employee.${emp.id}`}
-                        >
-                            <View style={styles.listItemAvatar}>
-                                <ContactAvatar
-                                    employee={emp}
-                                    size={40}
-                                />
-                            </View>
-                            <Text
-                                style={styles.listItemName}
-                                numberOfLines={1}
-                            >
-                                {emp.name}
-                            </Text>
-                        </TouchableOpacity>
-                        {empIdx < defaultDepartmentEmployees.length - 1 ? (
-                            <View style={styles.insetDivider}/>
-                        ) : null}
-                    </React.Fragment>
-                ))}
-                <View style={styles.memberCountFooter}>
-                    <Text style={styles.memberCount}>
-                        {intl.formatMessage(
-                            {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
-                            {count: companyEmployeeCount},
-                        )}
-                    </Text>
-                </View>
-            </View>
-        );
-    };
 
     const content = (
         <ScrollView
@@ -503,7 +450,9 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                         style={styles.headerTitle}
                         numberOfLines={1}
                     >
-                        {currentUser? ((currentUser.nickname?.trim()) || currentUser.username || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})): intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
+                        {currentUser
+                            ? ((currentUser.nickname?.trim()) || currentUser.username || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'}))
+                            : intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.headerActions}>
@@ -605,8 +554,26 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                     <Text style={styles.enterpriseTitle}>
                         {intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'})}
                     </Text>
+                    <Text style={styles.memberCount}>
+                        {intl.formatMessage(
+                            {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
+                            {count: enterpriseMembers.length},
+                        )}
+                    </Text>
                 </View>
-                {renderEnterpriseContent()}
+                {loading ? (
+                    <View style={[styles.listItem, {justifyContent: 'center', paddingVertical: 24}]}>
+                        <Loading
+                            color={theme.centerChannelColor}
+                            size='small'
+                        />
+                        <Text style={[styles.memberCount, {marginTop: 8}]}>
+                            {intl.formatMessage({id: 'contacts.loading', defaultMessage: 'Loading...'})}
+                        </Text>
+                    </View>
+                ) : (
+                    enterpriseMembers.map(renderContactItem)
+                )}
             </View>
         </ScrollView>
     );

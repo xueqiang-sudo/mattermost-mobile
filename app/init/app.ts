@@ -1,7 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';
+import {ContactService} from '@client/rest';
 import DatabaseManager from '@database/manager';
 import {getAllServerCredentials} from '@init/credentials';
 import {initialLaunch} from '@init/launch';
@@ -40,6 +42,9 @@ Promise.allSettled = Promise.allSettled || (<T>(promises: Array<Promise<T>>) => 
 export async function initialize() {
     if (!baseAppInitialized) {
         baseAppInitialized = true;
+
+        await ContactService.init(LocalConfig.ContactServiceUrl, LocalConfig.ContactServiceApiKey);
+
         serverCredentials = await getAllServerCredentials();
         const serverUrls = serverCredentials.map((credential) => credential.serverUrl);
 

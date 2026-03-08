@@ -102,6 +102,15 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CONVERT_GM_TO_CHANNEL:
             screen = withServerDatabase(require('@screens/convert_gm_to_channel').default);
             break;
+        case Screens.CONTACTS_EMPLOYEE_LIST:
+            screen = withServerDatabase(require('@screens/home/contacts/employee_list').default);
+            break;
+        case Screens.CONTACTS_DEPARTMENT_DETAIL:
+            screen = withServerDatabase(require('@screens/home/contacts/department_detail').default);
+            break;
+        case Screens.CONTACTS_EMPLOYEE_PROFILE:
+            screen = withServerDatabase(require('@screens/home/contacts/employee_profile').default);
+            break;
         case Screens.CREATE_OR_EDIT_CHANNEL:
             screen = withServerDatabase(require('@screens/create_or_edit_channel').default);
             break;
@@ -340,6 +349,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.SCHEDULED_POST_OPTIONS:
             screen = withServerDatabase(require('@screens/scheduled_post_options').default);
+            break;
+        case Screens.TMP_DEV_TEST:
+            screen = withIntl(require('@screens/tmp_dev_test').default);
             break;
     }
 

@@ -9,36 +9,27 @@ import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {
-    ensureTeamContactCompany,
-    fetchCompanyDepartments,
-    fetchCompanyEmployeeCount,
-    fetchDefaultDepartmentEmployees,
-    getCompanyById,
-} from '@actions/remote/contact';
-import {DEFAULT_DEPARTMENT_NAME, type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+import {fetchEmployeesByCompanyType} from '@actions/remote/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {getTeamById} from '@queries/servers/team';
-import {showModal, showModalWithBackButton} from '@screens/navigation';
+import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
+import {bottomSheet, showModal} from '@screens/navigation';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import type {Database} from '@nozbe/watermelondb';
+
+import type {ContactEmployee} from '@client/rest/contact';
 import type UserModel from '@typings/database/models/servers/user';
 
-
 const edges: Edge[] = ['left', 'right'];
-const CLOSE_CUSTOMERS = 'close-contacts-customers';
-const CLOSE_SUPPLIERS = 'close-contacts-suppliers';
+const LIST_ITEM_HEIGHT = 56;
 
 type Props = {
     currentUser?: UserModel;
-    currentTeamId?: string;
-    database?: Database;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -160,16 +151,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.64),
     },
-    memberCountFooter: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-    },
     listItem: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 10,
         paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
     },
     listItemAvatar: {
         marginRight: 14,
@@ -182,6 +170,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     scrollContent: {
         flexGrow: 1,
         paddingBottom: 32,
+    },
+    bottomSheetItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        minHeight: LIST_ITEM_HEIGHT,
+    },
+    bottomSheetList: {
+        paddingBottom: 24,
     },
     emptyMessage: {
         ...typography('Body', 100),
@@ -197,34 +195,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 20,
         textAlign: 'center',
     },
-    departmentRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-    },
-    insetDivider: {
-        height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        marginLeft: 56,
-        marginRight: 16,
-    },
-    departmentFolderIcon: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 14,
-    },
-    departmentRowName: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-        flex: 1,
-    },
-    subSection: {},
 }));
 
-const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
+const ContactsScreen = ({currentUser}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const navigation = useNavigation();
@@ -232,18 +205,13 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     const isFocused = useIsFocused();
     const mounted = useRef(false);
 
-    const [departments, setDepartments] = useState<ContactDepartment[]>([]);
-    const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<ContactEmployee[]>([]);
-    const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
+    const [customerEmployees, setCustomerEmployees] = useState<ContactEmployee[]>([]);
+    const [supplierEmployees, setSupplierEmployees] = useState<ContactEmployee[]>([]);
+    const [enterpriseEmployees, setEnterpriseEmployees] = useState<ContactEmployee[]>([]);
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
 
     const styles = getStyleSheet(theme);
-
-    const departmentsList: ContactDepartment[] = Array.isArray(departments) ? departments : [];
-    const topLevelDepartments = departmentsList.filter(
-        (d) => d && !d.parent_id && d.name !== DEFAULT_DEPARTMENT_NAME,
-    );
 
     const openAccount = usePreventDoubleTap(useCallback(() => {
         showModal(
@@ -275,116 +243,149 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
         );
     }, [intl]));
 
+    const renderEmployeeList = useCallback((
+        employees: ContactEmployee[],
+        emptyMessageId: string,
+        emptyMessageDefault: string,
+    ) => (
+        <View style={styles.bottomSheetList}>
+            {employees.length > 0 ? employees.map((item) => (
+                <View
+                    key={item.id}
+                    style={styles.bottomSheetItem}
+                >
+                    <View style={styles.listItemAvatar}>
+                        <ContactAvatar
+                            employee={item}
+                            size={40}
+                        />
+                    </View>
+                    <Text
+                        style={styles.listItemName}
+                        numberOfLines={1}
+                    >
+                        {item.name}
+                    </Text>
+                </View>
+            )) : (
+                <Text style={[styles.memberCount, {paddingHorizontal: 20, paddingTop: 12}]}>
+                    {intl.formatMessage({id: emptyMessageId, defaultMessage: emptyMessageDefault})}
+                </Text>
+            )}
+            <Text style={[styles.memberCount, {paddingHorizontal: 20, paddingTop: 12}]}>
+                {intl.formatMessage(
+                    {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
+                    {count: employees.length},
+                )}
+            </Text>
+        </View>
+    ), [intl, styles.bottomSheetList, styles.bottomSheetItem, styles.listItemAvatar, styles.listItemName, styles.memberCount]);
+
     const handleOpenCustomersList = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_CUSTOMERS, {type: 'customer', closeButtonId: CLOSE_CUSTOMERS});
-    }, [intl]));
+        const renderContent = () => renderEmployeeList(
+            customerEmployees,
+            'contacts.no_customers',
+            'No customers',
+        );
+
+        const count = Math.max(customerEmployees.length, 1);
+        const snapPoints: Array<string | number> = [
+            1,
+            Math.min(bottomSheetSnapPoint(count, LIST_ITEM_HEIGHT) + TITLE_HEIGHT + 80, 420),
+        ];
+        if (count > 4) {
+            snapPoints.push('70%');
+        }
+
+        bottomSheet({
+            closeButtonId: 'close-customers-list',
+            renderContent,
+            snapPoints,
+            title: intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'}),
+            theme,
+            scrollable: true,
+        });
+    }, [intl, theme, customerEmployees, renderEmployeeList]));
 
     const handleOpenSuppliersList = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_SUPPLIERS, {type: 'supplier', closeButtonId: CLOSE_SUPPLIERS});
-    }, [intl]));
+        const renderContent = () => renderEmployeeList(
+            supplierEmployees,
+            'contacts.no_suppliers',
+            'No suppliers',
+        );
+
+        const count = Math.max(supplierEmployees.length, 1);
+        const snapPoints: Array<string | number> = [
+            1,
+            Math.min(bottomSheetSnapPoint(count, LIST_ITEM_HEIGHT) + TITLE_HEIGHT + 80, 420),
+        ];
+        if (count > 4) {
+            snapPoints.push('70%');
+        }
+
+        bottomSheet({
+            closeButtonId: 'close-suppliers-list',
+            renderContent,
+            snapPoints,
+            title: intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'}),
+            theme,
+            scrollable: true,
+        });
+    }, [intl, theme, supplierEmployees, renderEmployeeList]));
 
     useEffect(() => {
         mounted.current = true;
         setLoading(true);
         setServiceError(false);
 
-        const fetchEnterprise = async () => {
-            if (!currentTeamId) {
-                setLoading(false);
-                return;
-            }
-
-            const getRes = await getCompanyById(currentTeamId);
-            if (getRes.error && mounted.current && database) {
-                const team = await getTeamById(database, currentTeamId);
-                const teamName = team?.displayName?.trim();
-                if (teamName) {
-                    const ensureRes = await ensureTeamContactCompany(currentTeamId, teamName);
-                    if (ensureRes.error && mounted.current) {
-                        setServiceError(true);
-                        setLoading(false);
-                        return;
-                    }
-                } else {
-                    setLoading(false);
-                    return;
-                }
-            }
-
-            const deptRes = await fetchCompanyDepartments(currentTeamId);
-            if (!mounted.current) {
-                return;
-            }
-            if (deptRes.error) {
-                setServiceError(true);
-                setLoading(false);
-                return;
-            }
-            const deptData = deptRes.data;
-            setDepartments(Array.isArray(deptData) ? deptData : []);
-
-            const [defaultEmpRes, countRes] = await Promise.all([
-                fetchDefaultDepartmentEmployees(currentTeamId),
-                fetchCompanyEmployeeCount(currentTeamId),
+        const fetchAll = async () => {
+            const [customersRes, suppliersRes, enterpriseRes] = await Promise.all([
+                fetchEmployeesByCompanyType('customer'),
+                fetchEmployeesByCompanyType('supplier'),
+                fetchEmployeesByCompanyType('team'),
             ]);
 
             if (!mounted.current) {
                 return;
             }
-            if (defaultEmpRes.error) {
+
+            const hasError = customersRes.error || suppliersRes.error || enterpriseRes.error;
+            if (hasError) {
                 setServiceError(true);
             } else {
-                setDefaultDepartmentEmployees(defaultEmpRes.data ?? []);
-            }
-            if (!countRes.error && countRes.data !== undefined) {
-                setCompanyEmployeeCount(countRes.data);
+                setCustomerEmployees(customersRes.data ?? []);
+                setSupplierEmployees(suppliersRes.data ?? []);
+                setEnterpriseEmployees(enterpriseRes.data ?? []);
             }
             setLoading(false);
         };
 
-        fetchEnterprise();
+        fetchAll();
 
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, database]);
+    }, []);
 
-    const handleDepartmentPress = usePreventDoubleTap(useCallback((department: ContactDepartment) => {
-        const title = department.name;
-        const breadcrumb = [
-            intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
-            department.name,
-        ];
-        showModalWithBackButton(
-            Screens.CONTACTS_DEPARTMENT_DETAIL,
-            title,
-            `close-department-${department.id}`,
-            {
-                departmentId: department.id,
-                departmentName: department.name,
-                breadcrumb,
-                companyId: currentTeamId ?? '',
-                closeButtonId: `close-department-${department.id}`,
-            },
-        );
-    }, [intl, currentTeamId]));
-
-    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee, deptName?: string) => {
-        const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
-        showModalWithBackButton(
-            Screens.CONTACTS_EMPLOYEE_PROFILE,
-            title,
-            `close-employee-${employee.id}`,
-            {
-                employee,
-                departmentName: deptName,
-                companyName: undefined,
-                closeButtonId: `close-employee-${employee.id}`,
-            },
-        );
-    }, [intl]));
+    const renderEmployeeItem = useCallback((employee: ContactEmployee) => (
+        <View
+            key={employee.id}
+            style={styles.listItem}
+        >
+            <View style={styles.listItemAvatar}>
+                <ContactAvatar
+                    employee={employee}
+                    size={40}
+                />
+            </View>
+            <Text
+                style={styles.listItemName}
+                numberOfLines={1}
+            >
+                {employee.name}
+            </Text>
+        </View>
+    ), [styles.listItem, styles.listItemAvatar, styles.listItemName]);
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
@@ -412,78 +413,14 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 </View>
             );
         }
-        if (topLevelDepartments.length === 0) {
+        if (enterpriseEmployees.length === 0) {
             return (
                 <Text style={styles.emptyMessage}>
                     {intl.formatMessage({id: 'contacts.no_enterprise_contacts', defaultMessage: 'No enterprise contacts'})}
                 </Text>
             );
         }
-        return (
-            <View style={styles.subSection}>
-                {topLevelDepartments.map((dept, deptIdx) => (
-                    <React.Fragment key={dept.id}>
-                        <TouchableOpacity
-                            style={styles.departmentRow}
-                            onPress={() => handleDepartmentPress(dept)}
-                            activeOpacity={0.7}
-                            testID={`contacts.department.${dept.id}`}
-                        >
-                            <View style={styles.departmentFolderIcon}>
-                                <CompassIcon
-                                    name='folder-outline'
-                                    size={24}
-                                    color={theme.linkColor}
-                                />
-                            </View>
-                            <Text
-                                style={styles.departmentRowName}
-                                numberOfLines={1}
-                            >
-                                {dept.name}
-                            </Text>
-                        </TouchableOpacity>
-                        {deptIdx < topLevelDepartments.length - 1 || defaultDepartmentEmployees.length > 0 ? (
-                            <View style={styles.insetDivider}/>
-                        ) : null}
-                    </React.Fragment>
-                ))}
-                {defaultDepartmentEmployees.map((emp, empIdx) => (
-                    <React.Fragment key={emp.id}>
-                        <TouchableOpacity
-                            style={styles.listItem}
-                            onPress={() => handleEmployeePress(emp, intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'}))}
-                            activeOpacity={0.7}
-                            testID={`contacts.employee.${emp.id}`}
-                        >
-                            <View style={styles.listItemAvatar}>
-                                <ContactAvatar
-                                    employee={emp}
-                                    size={40}
-                                />
-                            </View>
-                            <Text
-                                style={styles.listItemName}
-                                numberOfLines={1}
-                            >
-                                {emp.name}
-                            </Text>
-                        </TouchableOpacity>
-                        {empIdx < defaultDepartmentEmployees.length - 1 ? (
-                            <View style={styles.insetDivider}/>
-                        ) : null}
-                    </React.Fragment>
-                ))}
-                <View style={styles.memberCountFooter}>
-                    <Text style={styles.memberCount}>
-                        {intl.formatMessage(
-                            {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
-                            {count: companyEmployeeCount},
-                        )}
-                    </Text>
-                </View>
-            </View>
-        );
+        return enterpriseEmployees.map(renderEmployeeItem);
     };
 
     const content = (
@@ -503,7 +440,9 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                         style={styles.headerTitle}
                         numberOfLines={1}
                     >
-                        {currentUser? ((currentUser.nickname?.trim()) || currentUser.username || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})): intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
+                        {currentUser
+                            ? ((currentUser.nickname?.trim()) || currentUser.username || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'}))
+                            : intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.headerActions}>
@@ -604,6 +543,12 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 <View style={styles.enterpriseHeader}>
                     <Text style={styles.enterpriseTitle}>
                         {intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'})}
+                    </Text>
+                    <Text style={styles.memberCount}>
+                        {intl.formatMessage(
+                            {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
+                            {count: enterpriseEmployees.length},
+                        )}
                     </Text>
                 </View>
                 {renderEnterpriseContent()}

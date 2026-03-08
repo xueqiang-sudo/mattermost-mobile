@@ -25,7 +25,7 @@ export const isPhoneNumber = (str: string) => {
     return new RegExp('^1[3-9]\\d{9}$').test(str);
 };
 
-export const splitPhone = (phone: string): [areaCode: string, number: string] => {
+export const splitPhone = (phone: string, opts?: {isDelSymbol?: boolean}): [areaCode: string, number: string] => {
     if (!phone || !isPhoneNumber(phone)) {
         return ['', ''];
     }
@@ -34,9 +34,10 @@ export const splitPhone = (phone: string): [areaCode: string, number: string] =>
         if (index === -1) {
             return ['', phone];
         }
-        return [phone.slice(0, index), phone.slice(index + 1)];
+        const areaTmp = phone.slice(0, index);
+        return [opts?.isDelSymbol ? areaTmp.replace('+', '') : areaTmp, phone.slice(index + 1)];
     }
-    return ['', phone];
+    return [opts?.isDelSymbol ? '86' : '+86', phone];
 };
 
 export const formatPhone = (phone: string, isUsername = false): string => {
