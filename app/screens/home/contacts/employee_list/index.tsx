@@ -6,7 +6,7 @@ import {useIntl} from 'react-intl';
 import {ScrollView, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchEmployeesByCompanyType} from '@actions/remote/contact';
+import {fetchEmployeesOfCompaniesByType} from '@actions/remote/contact';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
@@ -91,7 +91,7 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
         setServiceError(false);
 
         const fetchData = async () => {
-            const res = await fetchEmployeesByCompanyType(type);
+            const res = await fetchEmployeesOfCompaniesByType(type);
             if (!mounted.current) {
                 return;
             }

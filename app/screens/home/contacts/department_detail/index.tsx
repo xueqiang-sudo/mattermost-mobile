@@ -7,7 +7,7 @@ import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {Navigation} from 'react-native-navigation';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchDepartmentDetail} from '@actions/remote/contact';
+import {fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
@@ -125,6 +125,7 @@ const ContactsDepartmentDetail = ({
 
     const [subDepartments, setSubDepartments] = useState<ContactDepartment[]>([]);
     const [employees, setEmployees] = useState<ContactEmployee[]>([]);
+    const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
     const baseBreadcrumb = breadcrumb.length > 0 ? breadcrumb : [
@@ -198,15 +199,21 @@ const ContactsDepartmentDetail = ({
         setLoading(true);
 
         const fetchData = async () => {
-            const res = await fetchDepartmentDetail(departmentId, companyId);
+            const [detailRes, countRes] = await Promise.all([
+                fetchDepartmentDetail(departmentId, companyId),
+                fetchEmployeeCountOfDepartment(departmentId),
+            ]);
 
             if (!mounted.current) {
                 return;
             }
 
-            if (!res.error && res.data) {
-                setSubDepartments(res.data.subDepartments);
-                setEmployees(res.data.employees);
+            if (!detailRes.error && detailRes.data) {
+                setSubDepartments(detailRes.data.subDepartments);
+                setEmployees(detailRes.data.employees);
+            }
+            if (!countRes.error && countRes.data !== undefined) {
+                setMemberCount(countRes.data);
             }
 
             setLoading(false);
@@ -243,8 +250,6 @@ const ContactsDepartmentDetail = ({
                 </Text>
             );
         }
-
-        const memberCount = employees.length;
 
         return (
             <>

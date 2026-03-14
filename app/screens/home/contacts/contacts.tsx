@@ -10,11 +10,11 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {
-    ensureTeamContactCompany,
-    fetchCompanyDepartments,
-    fetchCompanyEmployeeCount,
-    fetchDefaultDepartmentEmployees,
-    getCompanyById,
+    ensureTeamCompany,
+    fetchDepartmentsOfCompany,
+    fetchEmployeeCountOfCompany,
+    fetchEmployeesOfDefaultDepartment,
+    fetchCompany,
 } from '@actions/remote/contact';
 import {DEFAULT_DEPARTMENT_NAME, type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
@@ -296,12 +296,12 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 return;
             }
 
-            const getRes = await getCompanyById(currentTeamId);
+            const getRes = await fetchCompany(currentTeamId);
             if (getRes.error && mounted.current && database) {
                 const team = await getTeamById(database, currentTeamId);
                 const teamName = team?.displayName?.trim();
                 if (teamName) {
-                    const ensureRes = await ensureTeamContactCompany(currentTeamId, teamName);
+                    const ensureRes = await ensureTeamCompany(currentTeamId, teamName);
                     if (ensureRes.error && mounted.current) {
                         setServiceError(true);
                         setLoading(false);
@@ -313,7 +313,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 }
             }
 
-            const deptRes = await fetchCompanyDepartments(currentTeamId);
+            const deptRes = await fetchDepartmentsOfCompany(currentTeamId);
             if (!mounted.current) {
                 return;
             }
@@ -326,8 +326,8 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
             setDepartments(Array.isArray(deptData) ? deptData : []);
 
             const [defaultEmpRes, countRes] = await Promise.all([
-                fetchDefaultDepartmentEmployees(currentTeamId),
-                fetchCompanyEmployeeCount(currentTeamId),
+                fetchEmployeesOfDefaultDepartment(currentTeamId),
+                fetchEmployeeCountOfCompany(currentTeamId),
             ]);
 
             if (!mounted.current) {
@@ -534,7 +534,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 </View>
             </View>
 
-            <View style={styles.section}>
+            {/* <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
                     {intl.formatMessage({id: 'contacts.business_contacts', defaultMessage: 'Business Contacts'})}
                 </Text>
@@ -598,7 +598,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.sectionDivider}/>
+            <View style={styles.sectionDivider}/> */}
 
             <View style={styles.enterpriseSection}>
                 <View style={styles.enterpriseHeader}>
