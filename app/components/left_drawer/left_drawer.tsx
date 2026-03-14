@@ -96,7 +96,7 @@ export default function LeftDrawer() {
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     backdrop: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.5),
+        backgroundColor: changeOpacity('#000000', 0.4),
         zIndex: 1000,
     },
     panel: {

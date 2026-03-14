@@ -43,7 +43,7 @@ const CARD_GRADIENT_END = '#C0C0C0';
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: theme.centerChannelBg,
     },
     content: {
         flexGrow: 1,
@@ -128,7 +128,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     moreMenuCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: theme.centerChannelBg,
         borderRadius: 12,
         paddingVertical: 8,
         minWidth: 240,
