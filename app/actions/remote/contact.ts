@@ -7,6 +7,7 @@ import ContactService, {
     type ContactCompany,
     type ContactDepartment,
     type ContactEmployee,
+    type ContactEmployeeDetails,
 } from '@client/rest/contact';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
@@ -57,6 +58,11 @@ export type FetchDepartmentDetailResult = {
     error?: unknown;
 };
 
+export type FetchEmployeeDetailsResult = {
+    data?: ContactEmployeeDetails;
+    error?: unknown;
+};
+
 export type FetchEmployeeCountOfDepartmentResult = {
     data?: number;
     error?: unknown;
@@ -100,7 +106,6 @@ export const ensureTeamCompany = async (teamId: string, teamName: string): Promi
         return {error};
     }
 };
-
 
 /** 获取公司下所有部门 */
 export const fetchDepartmentsOfCompany = async (companyId: string, opts?: {parentDepartmentId?: number}): Promise<FetchDepartmentsOfCompanyResult> => {
@@ -150,6 +155,20 @@ export const fetchEmployeeCountOfCompany = async (companyId: string): Promise<Fe
         return {data: count};
     } catch (error) {
         logDebug('[ContactService.fetchEmployeeCountOfCompany]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 获取员工详情（含公司、部门列表） */
+export const fetchEmployeeDetails = async (employeeId: string): Promise<FetchEmployeeDetailsResult> => {
+    if (!employeeId) {
+        return {error: new Error('employeeId is required')};
+    }
+    try {
+        const details = await ContactService.getEmployeeDetails(employeeId);
+        return {data: details as ContactEmployeeDetails};
+    } catch (error) {
+        logDebug('[ContactService.fetchEmployeeDetails]', getFullErrorMessage(error));
         return {error};
     }
 };

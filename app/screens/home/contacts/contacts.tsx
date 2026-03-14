@@ -235,6 +235,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     const [topLevelDepartments, setTopLevelDepartments] = useState<ContactDepartment[]>([]);
     const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<ContactEmployee[]>([]);
     const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
+    const [companyName, setCompanyName] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
 
@@ -302,10 +303,15 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                         setLoading(false);
                         return;
                     }
+                    if (mounted.current) {
+                        setCompanyName(teamName);
+                    }
                 } else {
                     setLoading(false);
                     return;
                 }
+            } else if (getRes.data?.name && mounted.current) {
+                setCompanyName(getRes.data.name);
             }
 
             const deptRes = await fetchDepartmentsOfCompany(currentTeamId, {parentDepartmentId: -1});
@@ -360,10 +366,11 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 departmentName: department.name,
                 breadcrumb,
                 companyId: currentTeamId ?? '',
+                companyName,
                 closeButtonId: `close-department-${department.id}`,
             },
         );
-    }, [intl, currentTeamId]));
+    }, [companyName, intl, currentTeamId]));
 
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee, deptName?: string) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
@@ -374,11 +381,11 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
             {
                 employee,
                 departmentName: deptName,
-                companyName: undefined,
+                companyName,
                 closeButtonId: `close-employee-${employee.id}`,
             },
         );
-    }, [intl]));
+    }, [companyName, intl]));
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),

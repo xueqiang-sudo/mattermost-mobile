@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useMemo} from 'react';
-import {Text, View} from 'react-native';
+import {Platform, Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
@@ -60,7 +60,11 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
 
     const textStyle = useMemo(() => [
         styles.initials,
-        {fontSize: size * 0.4},
+        {
+            fontSize: size * 0.4,
+            lineHeight: size * 0.48,
+            ...(Platform.OS === 'android' && {includeFontPadding: false}),
+        },
     ], [styles.initials, size]);
 
     if (initials) {

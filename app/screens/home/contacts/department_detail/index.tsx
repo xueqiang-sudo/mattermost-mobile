@@ -32,6 +32,7 @@ type Props = {
     departmentName: string;
     breadcrumb?: string[];
     companyId: string;
+    companyName?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -117,6 +118,7 @@ const ContactsDepartmentDetail = ({
     departmentName,
     breadcrumb = [],
     companyId,
+    companyName,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -165,10 +167,11 @@ const ContactsDepartmentDetail = ({
                 departmentName: dept.name,
                 breadcrumb: newBreadcrumb,
                 companyId,
+                companyName,
                 closeButtonId: `close-department-${dept.id}`,
             },
         );
-    }, [baseBreadcrumb, companyId, intl]));
+    }, [baseBreadcrumb, companyId, companyName, intl]));
 
     const depth = baseBreadcrumb.length - 1;
 
@@ -181,6 +184,9 @@ const ContactsDepartmentDetail = ({
 
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
+        const departmentParentPath = baseBreadcrumb.length > 1
+            ? baseBreadcrumb.slice(0, -1).join('/')
+            : undefined;
         showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
@@ -188,11 +194,12 @@ const ContactsDepartmentDetail = ({
             {
                 employee,
                 departmentName,
-                companyName: undefined,
+                departmentParentPath,
+                companyName,
                 closeButtonId: `close-employee-${employee.id}`,
             },
         );
-    }, [departmentName, intl]));
+    }, [baseBreadcrumb, departmentName, companyName, intl]));
 
     useEffect(() => {
         mounted.current = true;

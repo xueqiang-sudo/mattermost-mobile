@@ -9,7 +9,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {makeDirectChannel} from '@actions/remote/channel';
 import Button from '@components/button';
 import ContactAvatar from '@components/contact_avatar';
-import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -30,6 +29,7 @@ type Props = {
     closeButtonId?: string;
     employee: ContactEmployee;
     departmentName?: string;
+    departmentParentPath?: string;
     companyName?: string;
 };
 
@@ -71,6 +71,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         flex: 1,
     },
+    cardValueColumn: {
+        flex: 1,
+        flexDirection: 'column',
+    },
+    cardValueSecondary: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        flex: 1,
+        marginTop: 2,
+    },
     sendButton: {
         marginTop: 16,
     },
@@ -81,6 +91,7 @@ const ContactsEmployeeProfile = ({
     closeButtonId,
     employee,
     departmentName,
+    departmentParentPath,
     companyName,
 }: Props) => {
     const theme = useTheme();
@@ -186,23 +197,65 @@ const ContactsEmployeeProfile = ({
                             </Text>
                         </View>
                     ) : null}
-                    {departmentName ? (
+                    {employee.phone ? (
                         <View style={styles.cardRow}>
                             <Text style={styles.cardLabel}>
-                                {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
+                                {intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'})}
                             </Text>
                             <Text
                                 style={styles.cardValue}
                                 numberOfLines={1}
                             >
-                                {departmentName}
+                                {employee.phone}
                             </Text>
+                        </View>
+                    ) : null}
+                    {employee.position ? (
+                        <View style={styles.cardRow}>
+                            <Text style={styles.cardLabel}>
+                                {intl.formatMessage({id: 'contacts.position', defaultMessage: 'Position'})}
+                            </Text>
+                            <Text
+                                style={styles.cardValue}
+                                numberOfLines={1}
+                            >
+                                {employee.position}
+                            </Text>
+                        </View>
+                    ) : null}
+                    {(departmentName || departmentParentPath) ? (
+                        <View style={styles.cardRow}>
+                            <Text style={styles.cardLabel}>
+                                {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
+                            </Text>
+                            {departmentParentPath ? (
+                                <View style={styles.cardValueColumn}>
+                                    {departmentName ? (
+                                        <Text
+                                            style={[styles.cardValue, {flex: undefined}]}
+                                            numberOfLines={1}
+                                        >
+                                            {departmentName}
+                                        </Text>
+                                    ) : null}
+                                    <Text
+                                        style={styles.cardValueSecondary}
+                                        numberOfLines={2}
+                                    >
+                                        {departmentParentPath}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <Text style={styles.cardValue} numberOfLines={1}>
+                                    {departmentName}
+                                </Text>
+                            )}
                         </View>
                     ) : null}
                     {companyName ? (
                         <View style={styles.cardRow}>
                             <Text style={styles.cardLabel}>
-                                {intl.formatMessage({id: 'contacts.company', defaultMessage: 'Company'})}
+                                {intl.formatMessage({id: 'contacts.enterprise_name', defaultMessage: 'Enterprise'})}
                             </Text>
                             <Text
                                 style={styles.cardValue}
@@ -216,15 +269,15 @@ const ContactsEmployeeProfile = ({
 
                 {canSendMessage && (
                     <Button
+                        theme={theme}
                         onPress={handleSendMessage}
                         type='primary'
                         size='lg'
                         disabled={sending}
                         style={styles.sendButton}
                         testID='contacts.employee_profile.send_message'
-                    >
-                        {intl.formatMessage({id: 'contacts.send_message', defaultMessage: 'Send Message'})}
-                    </Button>
+                        text={intl.formatMessage({id: 'contacts.send_message', defaultMessage: 'Send Message'})}
+                    />
                 )}
             </ScrollView>
         </SafeAreaView>
