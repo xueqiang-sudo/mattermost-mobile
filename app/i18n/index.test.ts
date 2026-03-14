@@ -94,29 +94,33 @@ describe('i18n', () => {
 
         it('sets moment locale correctly for various languages', () => {
             resetMomentLocale('es-ES');
-            expect(spy).toHaveBeenCalledWith('es');
+            expect(spy).toHaveBeenCalledWith('es-es');
 
             resetMomentLocale('en');
             expect(spy).toHaveBeenCalledWith('en');
 
             resetMomentLocale('zh-TW');
-            expect(spy).toHaveBeenCalledWith('zh');
+            expect(spy).toHaveBeenCalledWith('zh-tw');
 
             resetMomentLocale('pt-BR');
-            expect(spy).toHaveBeenCalledWith('pt');
+            expect(spy).toHaveBeenCalledWith('pt-br');
         });
 
         it('uses default locale when no locale provided', () => {
             resetMomentLocale();
-            expect(spy).toHaveBeenCalledWith(DEFAULT_LOCALE.split('-')[0]);
+            expect(spy).toHaveBeenCalledWith(
+                DEFAULT_LOCALE.toLowerCase().replace('_', '-'),
+            );
         });
 
         it('handles invalid locales gracefully', () => {
             resetMomentLocale('invalid-locale');
-            expect(spy).toHaveBeenCalledWith('invalid');
+            expect(spy).toHaveBeenCalledWith('invalid-locale');
 
             resetMomentLocale('');
-            expect(spy).toHaveBeenCalledWith(DEFAULT_LOCALE.split('-')[0]);
+            expect(spy).toHaveBeenCalledWith(
+                DEFAULT_LOCALE.toLowerCase().replace('_', '-'),
+            );
         });
     });
 

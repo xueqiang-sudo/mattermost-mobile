@@ -243,7 +243,8 @@ export function getLocaleFromLanguage(lang: string) {
 }
 
 export function resetMomentLocale(locale?: string) {
-    moment.locale(locale?.split('-')[0] || DEFAULT_LOCALE.split('-')[0]);
+    const momentLocale = (locale || DEFAULT_LOCALE).toLowerCase().replace('_', '-');
+    moment.locale(momentLocale);
 }
 
 export function getTranslations(lang: string) {
