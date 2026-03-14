@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {defineMessages} from 'react-intl';
+import {defineMessages, useIntl} from 'react-intl';
 import {Text} from 'react-native';
 
 import FormattedText from '@components/formatted_text';
@@ -48,6 +48,7 @@ type TitleProps = {
 }
 const Title = ({config, license}: TitleProps) => {
     const theme = useTheme();
+    const intl = useIntl();
     const style = getStyleSheet(theme);
 
     let message = messages.teamEditiont0;
@@ -60,13 +61,15 @@ const Title = ({config, license}: TitleProps) => {
         }
     }
 
+    const appName = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName;
+
     return (
         <>
             <Text
                 style={[style.title, style.spacerTop]}
                 testID='about.site_name'
             >
-                {`${config.SiteName} `}
+                {`${appName} `}
             </Text>
             <FormattedText
                 {...message}

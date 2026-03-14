@@ -28,7 +28,7 @@ jest.mock('expo-application', () => {
     return {
         nativeApplicationVersion: '0.0.0',
         nativeBuildVersion: '0',
-        applicationName: 'Mattermost',
+        applicationName: 'Optibot',
         applicationId: 'com.mattermost.rnbeta',
     };
 });

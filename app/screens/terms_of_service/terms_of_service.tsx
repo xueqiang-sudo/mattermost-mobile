@@ -94,7 +94,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
 });
 
 const TermsOfService = ({
-    siteName = 'Mattermost',
+    siteName = 'Optibot',
     showToS,
     componentId,
 }: Props) => {

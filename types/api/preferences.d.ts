@@ -1,9 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-type LegacyThemeKey = 'default' | 'organization' | 'mattermostDark' | 'windows10';
+type LegacyThemeKey = 'default' | 'organization' | 'optibotDark' | 'windows10';
 
-type LegacyThemeType = 'Mattermost' | 'Organization' | 'Mattermost Dark' | 'Windows Dark';
+type LegacyThemeType = 'Optibot' | 'Organization' | 'Optibot Dark' | 'Windows Dark';
 
 type ThemeKey = 'denim' | 'sapphire' | 'quartz' | 'indigo' | 'onyx' | 'custom';
 

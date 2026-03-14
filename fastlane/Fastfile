@@ -251,7 +251,7 @@ lane :upload_file_to_s3 do |options|
     else
       version_number = os_type == "android" ?
         android_get_version_name(gradle_file: './android/app/build.gradle') :
-        get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+        get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
       build_number = os_type == "android" ?
         android_get_version_code(gradle_file: './android/app/build.gradle') :
         get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
@@ -661,7 +661,7 @@ platform :ios do
   end
 
   error do |lane, exception|
-    version = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+    version = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
     build_number = get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
     send_message_to_mattermost({
                                    :version_number => version,
@@ -682,7 +682,7 @@ platform :ios do
     )
 
     ENV['MATCH_APP_IDENTIFIER'].split(',').each do |id|
-      target = 'Mattermost'
+      target = 'Optibot'
       if id.include? 'NotificationService'
         target = 'NotificationService'
       elsif id.include? 'MattermostShare'
@@ -715,7 +715,7 @@ platform :ios do
 
     gym(
         clean: true,
-        scheme: 'Mattermost',
+        scheme: 'Optibot',
         configuration: config_mode,
         workspace: './ios/Mattermost.xcworkspace',
         export_method: method,
@@ -1078,7 +1078,7 @@ def submit_to_testflight(ipa_path)
   end
 
   filename = File.basename(ipa)
-  version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+  version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
   build_number = get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
   s3_folder = "#{ENV['AWS_FOLDER_NAME']}/#{version_number}/#{build_number}"
   public_link = "https://#{ENV['AWS_BUCKET_NAME']}/#{s3_folder}/#{filename}"

@@ -253,7 +253,7 @@ export const showDeviceNotTrustedAlert = async (server: string, siteName: string
 
     const translations = getTranslations(locale || DEFAULT_LOCALE);
     const buttons = await buildSecurityAlertOptions(server, translations);
-    const securedBy = siteName || serverSiteName || 'Mattermost';
+    const securedBy = siteName || serverSiteName || 'Optibot';
 
     Alert.alert(
         translations[messages.blocked_by.id].replace('{vendor}', securedBy),
@@ -278,7 +278,7 @@ export const showNotSecuredAlert = async (server: string, siteName: string | und
     }
 
     const translations = getTranslations(locale || DEFAULT_LOCALE);
-    const securedBy = siteName || serverSiteName || 'Mattermost';
+    const securedBy = siteName || serverSiteName || 'Optibot';
 
     if (Platform.OS === 'android') {
         buttons.push({
@@ -328,7 +328,7 @@ export const showBiometricFailureAlert = async (server: string, blurOnAuthentica
             Emm.removeBlurEffect();
         }
     }, retryCallback);
-    const securedBy = siteName || serverSiteName || 'Mattermost';
+    const securedBy = siteName || serverSiteName || 'Optibot';
 
     Alert.alert(
         translations[messages.blocked_by.id].replace('{vendor}', securedBy),

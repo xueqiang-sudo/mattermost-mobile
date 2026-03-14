@@ -324,11 +324,11 @@ const About = ({componentId, config, license}: AboutProps) => {
                 />
                 {!MATTERMOST_BUNDLE_IDS.includes(applicationId || '') &&
                     <FormattedText
-                        defaultMessage='{site} is powered by Mattermost'
+                        defaultMessage='{appName} is powered by Mattermost'
                         id={'settings.about.powered_by'}
                         style={styles.footerText}
                         testID='about.powered_by'
-                        values={{site: config.SiteName}}
+                        values={{appName: intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName, site: intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName}}
                     />
                 }
                 <View
@@ -351,9 +351,10 @@ const About = ({componentId, config, license}: AboutProps) => {
                 <View style={styles.noticeContainer}>
                     <FormattedText
                         id={'settings.notice_text'}
-                        defaultMessage='Mattermost is made possible by the open source software used in our {platform} and {mobile}.'
+                        defaultMessage='{appName} is made possible by the open source software used in our {platform} and {mobile}.'
                         style={styles.footerText}
                         values={{
+                            appName: intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName,
                             platform: (
                                 <FormattedText
                                     defaultMessage='server'

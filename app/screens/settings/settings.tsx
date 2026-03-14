@@ -37,7 +37,7 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
     const serverUrl = useServerUrl();
     const serverDisplayName = useServerDisplayName();
 
-    const serverName = siteName || serverDisplayName;
+    const appTitle = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || siteName || serverDisplayName;
 
     const close = useCallback(() => {
         dismissModal({componentId});
@@ -72,10 +72,10 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
 
     const goToAbout = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.ABOUT;
-        const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About {appTitle}'}, {appTitle: serverName});
+        const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About {appTitle}'}, {appTitle});
 
         goToScreen(screen, title);
-    }, [intl, serverName]));
+    }, [intl, appTitle]));
 
     const goToAdvancedSettings = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.SETTINGS_ADVANCED;
@@ -109,7 +109,7 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
             />
             <SettingItem
                 icon='information-outline'
-                label={intl.formatMessage({id: 'settings.about', defaultMessage: 'About {appTitle}'}, {appTitle: serverName})}
+                label={intl.formatMessage({id: 'settings.about', defaultMessage: 'About {appTitle}'}, {appTitle})}
                 onPress={goToAbout}
                 optionName='about'
                 testID='settings.about.option'
