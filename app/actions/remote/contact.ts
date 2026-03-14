@@ -100,6 +100,14 @@ export const ensureTeamCompany = async (teamId: string, teamName: string): Promi
             name: teamName,
             type: ContactCompanyTypes.Team,
         });
+        try {
+            await ContactService.createDepartment({
+                company_id: teamId,
+                name: DEFAULT_DEPARTMENT_NAME,
+            });
+        } catch (deptError) {
+            logDebug('[ContactService.ensureTeamCompany] createDepartment failed:', getFullErrorMessage(deptError));
+        }
         return {data: company, isNewCreate: true};
     } catch (error) {
         logDebug('[ContactService.ensureTeamCompany]', getFullErrorMessage(error));

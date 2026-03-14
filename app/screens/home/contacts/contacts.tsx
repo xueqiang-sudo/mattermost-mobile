@@ -273,12 +273,12 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
 
     const handleOpenCustomersList = usePreventDoubleTap(useCallback(() => {
         const title = intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_CUSTOMERS, {type: 'customer', closeButtonId: CLOSE_CUSTOMERS});
+        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_CUSTOMERS, {type: 'customer', closeButtonId: CLOSE_CUSTOMERS}, {useBackIcon: true});
     }, [intl]));
 
     const handleOpenSuppliersList = usePreventDoubleTap(useCallback(() => {
         const title = intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_SUPPLIERS, {type: 'supplier', closeButtonId: CLOSE_SUPPLIERS});
+        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_SUPPLIERS, {type: 'supplier', closeButtonId: CLOSE_SUPPLIERS}, {useBackIcon: true});
     }, [intl]));
 
     useEffect(() => {
@@ -369,6 +369,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 companyName,
                 closeButtonId: `close-department-${department.id}`,
             },
+            {useBackIcon: true},
         );
     }, [companyName, intl, currentTeamId]));
 
@@ -384,6 +385,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 companyName,
                 closeButtonId: `close-employee-${employee.id}`,
             },
+            {useBackIcon: true},
         );
     }, [companyName, intl]));
 

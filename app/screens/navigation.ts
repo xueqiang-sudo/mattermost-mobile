@@ -751,17 +751,21 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
     });
 }
 
-export function showModalWithBackButton(name: AvailableScreens, title: string, closeButtonId: string, passProps = {}, options: Options = {}) {
-    const closeButton = CompassIcon.getImageSourceSync('close', 24, getThemeFromState().sidebarHeaderTextColor);
+type ShowModalWithBackButtonOptions = Options & {useBackIcon?: boolean};
+
+export function showModalWithBackButton(name: AvailableScreens, title: string, closeButtonId: string, passProps = {}, options: ShowModalWithBackButtonOptions = {}) {
+    const {useBackIcon, ...navOptions} = options;
+    const iconName = useBackIcon ? Platform.select({android: 'arrow-left', ios: 'arrow-back-ios', default: 'arrow-left'}) : 'close';
+    const closeButtonIcon = CompassIcon.getImageSourceSync(iconName, 24, getThemeFromState().sidebarHeaderTextColor);
     const mergeOptions = merge({
         topBar: {
             leftButtons: [{
                 id: closeButtonId,
-                icon: closeButton,
+                icon: closeButtonIcon,
                 testID: `${closeButtonId.replace('close-', 'close.').replace(/-/g, '_')}.button`,
             }],
         },
-    }, options);
+    }, navOptions);
 
     const listener = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
         if (buttonId === closeButtonId) {

@@ -170,6 +170,7 @@ const ContactsDepartmentDetail = ({
                 companyName,
                 closeButtonId: `close-department-${dept.id}`,
             },
+            {useBackIcon: true},
         );
     }, [baseBreadcrumb, companyId, companyName, intl]));
 
@@ -198,6 +199,7 @@ const ContactsDepartmentDetail = ({
                 companyName,
                 closeButtonId: `close-employee-${employee.id}`,
             },
+            {useBackIcon: true},
         );
     }, [baseBreadcrumb, departmentName, companyName, intl]));
 
