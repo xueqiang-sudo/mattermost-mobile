@@ -140,7 +140,7 @@ export interface ClientContactMix {
     deleteCompany: (companyId: string) => Promise<Record<string, never>>;
 
     /** GET /api/v1/companies/:id/departments - 6. 获取公司及其部门 */
-    getCompanyWithDepartments: (companyId: string) => Promise<ContactDepartment[]>;
+    getCompanyWithDepartments: (companyId: string, opts?: {parentDepartmentId?: number}) => Promise<ContactCompany & {departments?: ContactDepartment[]}>;
 
     /** GET /api/v1/companies/:id/employees - 7. 获取公司及其员工 */
     getCompanyWithEmployees: (companyId: string) => Promise<ContactEmployee[]>;
@@ -429,8 +429,15 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     deleteCompany = (companyId: string) =>
         this.doRequest<Record<string, never>>(contactRoutes.company(companyId), 'delete');
 
-    getCompanyWithDepartments = (companyId: string) =>
-        this.doRequest<ContactDepartment[]>(contactRoutes.companyWithDepartments(companyId), 'get');
+    // TODO qgs 暂时先模拟 parentDepartmentId 的实现
+    getCompanyWithDepartments = async (companyId: string, opts?: {parentDepartmentId?: number}) => {
+        const parentDepartmentId = opts?.parentDepartmentId;
+        const res = await this.doRequest<ContactCompany & {departments?: ContactDepartment[]}>(`${contactRoutes.companyWithDepartments(companyId)}${ typeof parentDepartmentId === 'number' ? `?parent_department_id=${parentDepartmentId}` : ''}`, 'get');
+        if (typeof parentDepartmentId === 'number') {
+            res.departments = (res.departments || []).filter((item) => (parentDepartmentId < 0 ? (item.parent_id === null || item.parent_id === undefined) : item.parent_id === parentDepartmentId));
+        }
+        return res;
+    };
 
     getCompanyWithEmployees = (companyId: string) =>
         this.doRequest<ContactEmployee[]>(contactRoutes.companyWithEmployees(companyId), 'get');
@@ -473,7 +480,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
                 if (departmentsMap[department.id] !== undefined) {
                     continue;
                 }
-                // eslint-disable-next-line no-await-in-loop
+
                 // departmentsMap[department.id] = (await this.getEmployeesOfDepartment(department.id)).map((item) => item.id);
                 // eslint-disable-next-line no-await-in-loop
                 await getFullDepartments(department.id);

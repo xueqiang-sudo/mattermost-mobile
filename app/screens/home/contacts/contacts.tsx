@@ -232,18 +232,13 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     const isFocused = useIsFocused();
     const mounted = useRef(false);
 
-    const [departments, setDepartments] = useState<ContactDepartment[]>([]);
+    const [topLevelDepartments, setTopLevelDepartments] = useState<ContactDepartment[]>([]);
     const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<ContactEmployee[]>([]);
     const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
 
     const styles = getStyleSheet(theme);
-
-    const departmentsList: ContactDepartment[] = Array.isArray(departments) ? departments : [];
-    const topLevelDepartments = departmentsList.filter(
-        (d) => d && !d.parent_id && d.name !== DEFAULT_DEPARTMENT_NAME,
-    );
 
     const openAccount = usePreventDoubleTap(useCallback(() => {
         showModal(
@@ -313,7 +308,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 }
             }
 
-            const deptRes = await fetchDepartmentsOfCompany(currentTeamId);
+            const deptRes = await fetchDepartmentsOfCompany(currentTeamId, {parentDepartmentId: -1});
             if (!mounted.current) {
                 return;
             }
@@ -322,8 +317,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 setLoading(false);
                 return;
             }
-            const deptData = deptRes.data;
-            setDepartments(Array.isArray(deptData) ? deptData : []);
+            setTopLevelDepartments((deptRes.data || []).filter((d) => d.name !== DEFAULT_DEPARTMENT_NAME));
 
             const [defaultEmpRes, countRes] = await Promise.all([
                 fetchEmployeesOfDefaultDepartment(currentTeamId),

@@ -101,31 +101,15 @@ export const ensureTeamCompany = async (teamId: string, teamName: string): Promi
     }
 };
 
-/** 规范化部门列表：API 可能返回数组或 {departments: [...]} */
-function normalizeDepartments(raw: unknown): ContactDepartment[] {
-    if (Array.isArray(raw)) {
-        return raw;
-    }
-    if (raw && typeof raw === 'object') {
-        const obj = raw as Record<string, unknown>;
-        if (Array.isArray(obj.departments)) {
-            return obj.departments as ContactDepartment[];
-        }
-        if (Array.isArray(obj.data)) {
-            return obj.data as ContactDepartment[];
-        }
-    }
-    return [];
-}
 
 /** 获取公司下所有部门 */
-export const fetchDepartmentsOfCompany = async (companyId: string): Promise<FetchDepartmentsOfCompanyResult> => {
+export const fetchDepartmentsOfCompany = async (companyId: string, opts?: {parentDepartmentId?: number}): Promise<FetchDepartmentsOfCompanyResult> => {
     if (!companyId) {
         return {error: new Error('companyId is required')};
     }
     try {
-        const raw = await ContactService.getCompanyWithDepartments(companyId);
-        return {data: normalizeDepartments(raw)};
+        const res = await ContactService.getCompanyWithDepartments(companyId, opts);
+        return {data: res.departments || []};
     } catch (error) {
         logDebug('[ContactService.fetchDepartmentsOfCompany]', getFullErrorMessage(error));
         return {error};
