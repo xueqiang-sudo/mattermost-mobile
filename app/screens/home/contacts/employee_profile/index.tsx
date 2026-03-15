@@ -16,6 +16,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal} from '@screens/navigation';
+import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -242,7 +243,12 @@ const ContactsEmployeeProfile = ({
                                         style={styles.cardValueSecondary}
                                         numberOfLines={2}
                                     >
-                                        {departmentParentPath}
+                                        {formatPathForDisplay(
+                                            departmentParentPath.split('/').filter(Boolean),
+                                            DEPARTMENT_PATH_DISPLAY_MAX_LENGTH,
+                                            '/',
+                                            intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
+                                        )}
                                     </Text>
                                 </View>
                             ) : (

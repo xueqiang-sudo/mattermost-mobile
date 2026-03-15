@@ -180,6 +180,29 @@ export const fetchDepartmentsOfCompany = async (companyId: string, opts?: {paren
     }
 };
 
+export type FetchDefaultDepartmentIdResult = {
+    data?: number;
+    error?: unknown;
+};
+
+/** 获取公司默认部门 ID（根目录对应部门，用于「移至根目录」） */
+export const fetchDefaultDepartmentId = async (companyId: string): Promise<FetchDefaultDepartmentIdResult> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
+    try {
+        const res = await fetchDepartmentsOfCompany(companyId, {parentDepartmentId: -1});
+        if (res.error) {
+            return {error: res.error};
+        }
+        const defaultDept = (res.data || []).find((d) => d.name === DEFAULT_DEPARTMENT_NAME);
+        return defaultDept ? {data: defaultDept.id} : {};
+    } catch (error) {
+        logDebug('[fetchDefaultDepartmentId]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
 /** 获取默认部门下所有员工（按 DEFAULT_DEPARTMENT_NAME 识别默认部门） */
 export const fetchEmployeesOfDefaultDepartment = async (companyId: string): Promise<FetchEmployeesResult> => {
     if (!companyId) {
@@ -369,6 +392,29 @@ export const updateContactCompany = async (
         return {data: company};
     } catch (error) {
         logDebug('[updateContactCompany]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type UpdateContactEmployeeResult = {
+    data?: ContactEmployee;
+    error?: unknown;
+};
+
+/** 更新员工信息（姓名、邮箱、职位、手机等） */
+export const updateContactEmployee = async (
+    employeeId: string,
+    updates: Partial<Pick<ContactEmployee, 'name' | 'email' | 'position' | 'phone'>>,
+): Promise<UpdateContactEmployeeResult> => {
+    if (!employeeId) {
+        return {error: new Error('employeeId is required')};
+    }
+    try {
+        const current = await ContactService.getEmployee(employeeId);
+        const updated = await ContactService.updateEmployee(employeeId, {...current, ...updates});
+        return {data: updated};
+    } catch (error) {
+        logDebug('[updateContactEmployee]', getFullErrorMessage(error));
         return {error};
     }
 };

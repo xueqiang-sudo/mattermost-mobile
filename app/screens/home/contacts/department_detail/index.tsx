@@ -11,12 +11,15 @@ import {fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/re
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
+import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissAllModalsAndPopToScreen, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
+import {bottomSheet, dismissAllModalsAndPopToScreen, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
+import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -96,7 +99,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
@@ -105,7 +108,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexWrap: 'wrap',
         alignItems: 'center',
         flex: 1,
-        gap: 4,
+        gap: 8,
     },
     breadcrumbText: {
         ...typography('Body', 75),
@@ -118,6 +121,34 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     breadcrumbLink: {
         paddingVertical: 2,
         paddingHorizontal: 2,
+    },
+    breadcrumbEllipsis: {
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        marginHorizontal: -4,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    breadcrumbEllipsisText: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.linkColor,
+        marginTop: -5,
+    },
+    pathSheetRow: {
+        height: ITEM_HEIGHT,
+        marginHorizontal: -20,
+        paddingHorizontal: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    pathSheetIcon: {
+        height: ITEM_HEIGHT,
+        justifyContent: 'center',
+        marginRight: 10,
+    },
+    pathSheetText: {
+        flex: 1,
+        ...typography('Body', 200, 'Regular'),
     },
     memberCountFooter: {
         ...typography('Body', 75),
@@ -283,6 +314,69 @@ const ContactsDepartmentDetail = ({
     }, [baseBreadcrumb, companyId, companyName, intl, isStackScreen, onNavigateToDepartment]));
 
     const depth = baseBreadcrumb.length - 1;
+
+    const pathView = React.useMemo(
+        () => getNavigationalPathView(baseBreadcrumb, NAV_PATH_MAX_VISIBLE),
+        [baseBreadcrumb],
+    );
+
+    const handleEllipsisPress = useCallback(() => {
+        if (pathView.middleSegments.length === 0) {
+            return;
+        }
+        const fullSegments = pathView.fullSegments;
+        bottomSheet({
+            closeButtonId: 'close-contacts-department-path-middle',
+            renderContent: () => (
+                <>
+                    {fullSegments.map((label, i) => {
+                        const isCurrent = i === depth;
+                        if (isCurrent) {
+                            return (
+                                <View
+                                    key={i}
+                                    style={[
+                                        styles.pathSheetRow,
+                                        {opacity: 0.6},
+                                    ]}
+                                    testID={`contacts.department_detail.path_middle.${i}.disabled`}
+                                >
+                                    <View style={styles.pathSheetIcon}>
+                                        <CompassIcon
+                                            name='folder-outline'
+                                            size={24}
+                                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                                        />
+                                    </View>
+                                    <Text
+                                        style={[styles.pathSheetText, {color: changeOpacity(theme.centerChannelColor, 0.64)}]}
+                                        numberOfLines={1}
+                                    >
+                                        {label}
+                                    </Text>
+                                </View>
+                            );
+                        }
+                        return (
+                            <SlideUpPanelItem
+                                key={i}
+                                leftIcon='folder-outline'
+                                text={label}
+                                onPress={() => {
+                                    dismissBottomSheet();
+                                    handleBreadcrumbPress(i);
+                                }}
+                                testID={`contacts.department_detail.path_middle.${i}`}
+                            />
+                        );
+                    })}
+                </>
+            ),
+            snapPoints: [1, bottomSheetSnapPoint(fullSegments.length, ITEM_HEIGHT)],
+            theme,
+            title: intl.formatMessage({id: 'contacts.department_path_middle', defaultMessage: 'Department path'}),
+        });
+    }, [pathView, handleBreadcrumbPress, depth, theme, intl]);
 
     const handleBreadcrumbPress = usePreventDoubleTap(useCallback((index: number) => {
         const toDismiss = depth - index;
@@ -552,30 +646,43 @@ const ContactsDepartmentDetail = ({
             ) : null}
             <View style={styles.headerRow}>
                 <View style={styles.breadcrumb}>
-                    {baseBreadcrumb.map((item, idx) => (
+                    {pathView.items.map((pathItem, idx) => (
                         <React.Fragment key={idx}>
                             {idx > 0 && (
                                 <Text style={styles.breadcrumbSeparator}>
                                     {intl.formatMessage({id: 'contacts.breadcrumb_separator', defaultMessage: '>'})}
                                 </Text>
                             )}
-                            <TouchableOpacity
-                                style={styles.breadcrumbLink}
-                                onPress={() => handleBreadcrumbPress(idx)}
-                                activeOpacity={0.7}
-                                disabled={idx === depth}
-                                testID={`contacts.department_detail.breadcrumb.${idx}`}
-                            >
-                                <Text
-                                    style={[
-                                        styles.breadcrumbText,
-                                        idx === depth && {color: theme.linkColor},
-                                    ]}
-                                    numberOfLines={1}
+                            {pathItem.type === 'segment' ? (
+                                <TouchableOpacity
+                                    style={styles.breadcrumbLink}
+                                    onPress={() => handleBreadcrumbPress(pathItem.originalIndex)}
+                                    activeOpacity={0.7}
+                                    disabled={pathItem.originalIndex === depth}
+                                    testID={`contacts.department_detail.breadcrumb.${pathItem.originalIndex}`}
                                 >
-                                    {item}
-                                </Text>
-                            </TouchableOpacity>
+                                    <Text
+                                        style={[
+                                            styles.breadcrumbText,
+                                            pathItem.originalIndex === depth && {color: theme.linkColor},
+                                        ]}
+                                        numberOfLines={1}
+                                    >
+                                        {pathItem.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.breadcrumbEllipsis}
+                                    onPress={handleEllipsisPress}
+                                    activeOpacity={0.7}
+                                    testID='contacts.department_detail.breadcrumb.ellipsis'
+                                >
+                                    <Text style={styles.breadcrumbEllipsisText} numberOfLines={1}>
+                                        {pathItem.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </React.Fragment>
                     ))}
                 </View>

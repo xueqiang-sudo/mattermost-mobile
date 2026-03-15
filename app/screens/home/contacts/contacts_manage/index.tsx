@@ -10,6 +10,7 @@ import {
     createSubDepartment,
     fetchContactDepartment,
     fetchContactDirectoryContent,
+    fetchDefaultDepartmentId,
     updateContactCompany,
     updateContactDepartment,
 } from '@actions/remote/contact';
@@ -440,34 +441,39 @@ const ContactsManage = ({
                     testID='contacts.manage.more.modify_name'
                 />
                 <SlideUpPanelItem
-                    leftIcon='crown-outline'
-                    text={intl.formatMessage({id: 'contacts.set_department_head', defaultMessage: 'Set department head'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        if (currentDepartmentId == null) {
-                            enterSubFirst();
-                        } else {
-                            Alert.alert(
-                                intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
-                                intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}),
-                            );
-                        }
-                    }}
-                    testID='contacts.manage.more.set_head'
-                />
-                <SlideUpPanelItem
                     leftIcon='account-multiple-outline'
                     text={intl.formatMessage({id: 'contacts.batch_move_members', defaultMessage: 'Batch move members'})}
                     onPress={async () => {
                         await dismissBottomSheet();
+                        let sourceId: number;
+                        let sourceName: string;
                         if (currentDepartmentId == null) {
-                            enterSubFirst();
+                            const defaultRes = await fetchDefaultDepartmentId(companyId);
+                            if (defaultRes.error || defaultRes.data == null) {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                                    intl.formatMessage({id: 'contacts.default_department_not_found', defaultMessage: 'Default department not found'}),
+                                );
+                                return;
+                            }
+                            sourceId = defaultRes.data;
+                            sourceName = intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'});
                         } else {
-                            Alert.alert(
-                                intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
-                                intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}),
-                            );
+                            sourceId = currentDepartmentId;
+                            sourceName = currentDepartmentName ?? '';
                         }
+                        showModalWithBackButton(
+                            Screens.CONTACTS_BATCH_MOVE_MEMBERS,
+                            intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
+                            'close-contacts-batch-move',
+                            {
+                                companyId,
+                                sourceDepartmentId: sourceId,
+                                sourceDepartmentName: sourceName,
+                                onSuccess: refetch,
+                            },
+                            {useBackIcon: true, topBar: {visible: false}},
+                        );
                     }}
                     testID='contacts.manage.more.batch_move'
                 />
@@ -479,9 +485,18 @@ const ContactsManage = ({
                         if (currentDepartmentId == null) {
                             enterSubFirst();
                         } else {
-                            Alert.alert(
-                                intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
-                                intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}),
+                            showModalWithBackButton(
+                                Screens.CONTACTS_BATCH_SET_MEMBER_INFO,
+                                intl.formatMessage({id: 'contacts.batch_set_member_info', defaultMessage: 'Batch set member info'}),
+                                'close-contacts-batch-set-info',
+                                {
+                                    companyId,
+                                    departmentId: currentDepartmentId,
+                                    departmentName: currentDepartmentName ?? '',
+                                    initialEmployees: employees,
+                                    onSuccess: refetch,
+                                },
+                                {useBackIcon: true, topBar: {visible: false}},
                             );
                         }
                     }}
@@ -500,11 +515,11 @@ const ContactsManage = ({
         bottomSheet({
             closeButtonId: 'close-contacts-manage-more',
             renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(5, ITEM_HEIGHT)],
+            snapPoints: [1, bottomSheetSnapPoint(4, ITEM_HEIGHT)],
             theme,
             title: intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
         });
-    }, [currentDepartmentId, intl, theme, handleModifyDepartmentName, handleModifyEnterpriseName]));
+    }, [companyId, currentDepartmentId, currentDepartmentName, employees, intl, refetch, theme, handleModifyDepartmentName, handleModifyEnterpriseName]));
 
     return (
         <SafeAreaView

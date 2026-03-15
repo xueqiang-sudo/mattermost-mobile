@@ -1301,6 +1301,7 @@
   "contacts.enterprise_name": "企业",
   "contacts.company": "公司",
   "contacts.breadcrumb_separator": ">",
+  "contacts.department_path_middle": "部门路径",
   "scheduled_post_no_select_time": "请选择时间",
   "scheduled_post_options.confirm_button.processing.text": "计划发布中",
   "scheduled_post_options.confirm_button.text": "计划草稿发布",
