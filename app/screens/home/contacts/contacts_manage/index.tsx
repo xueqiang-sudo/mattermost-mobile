@@ -24,7 +24,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheet, dismissBottomSheet, dismissModals, showModal, showModalWithBackButton} from '@screens/navigation';
-import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
+import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -300,7 +300,7 @@ const ContactsManage = ({
                     text={intl.formatMessage({id: 'contacts.add_member_scan_qr', defaultMessage: 'Scan QR code'})}
                     onPress={async () => {
                         await dismissBottomSheet();
-                        showQrScannerModal(intl);
+                        showQrScannerModal(intl, {scanContext: QR_SCAN_CONTEXT_JOIN_ENTERPRISE});
                     }}
                     testID='contacts.manage.add_member.scan_qr'
                 />

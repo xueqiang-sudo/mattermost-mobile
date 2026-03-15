@@ -39,7 +39,8 @@ const {QRCodeScanner} = NativeModules as {QRCodeScanner?: QRCodeScannerNativeMod
 
 type Props = {
     componentId: AvailableScreens;
-    onScanResult?: (data: string) => boolean; // 返回 true 表示外部处理了，false 表示使用默认处理
+    onScanResult?: (data: string, scanContext?: string) => boolean; // 返回 true 表示外部处理了，false 表示使用默认处理
+    scanContext?: string;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme(() => {
@@ -180,7 +181,7 @@ const getStyleSheet = makeStyleSheetFromTheme(() => {
     };
 });
 
-const QRScanner = ({componentId, onScanResult}: Props) => {
+const QRScanner = ({componentId, onScanResult, scanContext}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -370,7 +371,7 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
         // 先尝试外部处理
         if (onScanResult) {
             try {
-                const handled = onScanResult(value);
+                const handled = onScanResult(value, scanContext);
                 if (handled) {
                     logInfo('[QRScanner.processScanResult] 外部已处理，关闭扫描页');
                     handleClose();
@@ -435,7 +436,7 @@ const QRScanner = ({componentId, onScanResult}: Props) => {
 
         logInfo('[QRScanner.processScanResult] 执行关闭扫描界面');
         handleClose();
-    }, [onScanResult, handleClose, intl]);
+    }, [onScanResult, scanContext, handleClose, intl]);
 
     const handleCodeScanned = useCallback((codes: Code[]) => {
         if (codes.length > 0 && scanningEnabled) {

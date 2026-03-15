@@ -40,8 +40,16 @@ type Props = {
     scrollable?: boolean;
 }
 
-const PADDING_TOP_MOBILE = 20;
+/** 内容区顶部留白（仅影响内容与 sheet 顶部的间距） */
+const PADDING_TOP_MOBILE = 12;
 const PADDING_TOP_TABLET = 8;
+
+/** 内容区底部留白（仅影响内容与 sheet 底部的间距）。底部还有一块来自 safe area 的间距，由 bottomInset 控制。 */
+const PADDING_BOTTOM_MOBILE = 8;
+const PADDING_BOTTOM_TABLET = 16;
+
+/** 内容区上下 padding 之和，用于在组件内统一把数值型 snap point 撑高，使所有底部弹窗都露出底部留白 */
+const CONTENT_VERTICAL_PADDING = PADDING_TOP_MOBILE + PADDING_BOTTOM_MOBILE;
 
 export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
@@ -66,9 +74,11 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 1,
             paddingHorizontal: 20,
             paddingTop: PADDING_TOP_MOBILE,
+            paddingBottom: PADDING_BOTTOM_MOBILE,
         },
         contentTablet: {
             paddingTop: PADDING_TOP_TABLET,
+            paddingBottom: PADDING_BOTTOM_TABLET,
         },
         separator: {
             height: 1,
@@ -117,6 +127,18 @@ const BottomSheet = ({
         ...animatedConfig,
         reduceMotion: reducedMotion ? ReduceMotion.Always : ReduceMotion.Never,
     }), [reducedMotion]);
+
+    const adjustedSnapPoints = useMemo(() => {
+        if (isTablet) {
+            return snapPoints;
+        }
+        return snapPoints.map((point) => {
+            if (typeof point === 'number' && point > 10) {
+                return point + CONTENT_VERTICAL_PADDING;
+            }
+            return point;
+        });
+    }, [isTablet, snapPoints]);
 
     useEffect(() => {
         interaction.current = InteractionManager.createInteractionHandle();
@@ -256,7 +278,7 @@ const BottomSheet = ({
         <BottomSheetM
             ref={sheetRef}
             index={initialSnapIndex}
-            snapPoints={snapPoints}
+            snapPoints={adjustedSnapPoints}
             animateOnMount={true}
             backdropComponent={renderBackdrop}
             onAnimate={handleAnimationStart}

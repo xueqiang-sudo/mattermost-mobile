@@ -10,10 +10,14 @@ import {getUrlQueryParam} from '@utils/url';
 
 import type {IntlShape} from 'react-intl';
 
+/** 扫描上下文：通讯录「添加成员」扫个人信息码时走邀请加入企业流程 */
+export const QR_SCAN_CONTEXT_JOIN_ENTERPRISE = 'join_enterprise' as const;
+
 // See LICENSE.txt for license information.
-export const showQrScannerModal = (intl: IntlShape) => {
+export const showQrScannerModal = (intl: IntlShape, options?: { scanContext?: string }) => {
+    const scanContext = options?.scanContext;
     showModal(Screens.QR_SCANNER, '', {
-        onScanResult: (value: string) => {
+        onScanResult: (value: string, context?: string) => {
             const isUrl = value.startsWith('http://') || value.startsWith('https://');
             if (isUrl) {
                 const qrdata = getUrlQueryParam(value, 'qrdata');
@@ -54,7 +58,19 @@ export const showQrScannerModal = (intl: IntlShape) => {
                     return true;
                 }
 
-                if (value.includes('/profile_card_by_qr?qrdata=')) { // 个人名片二维码扫描结果处理，使用 app modal 处理
+                if (value.includes('/profile_card_by_qr?qrdata=')) { // 个人名片二维码：根据 scanContext 决定走邀请加入企业或添加好友
+                    if (context === QR_SCAN_CONTEXT_JOIN_ENTERPRISE) {
+                        const title = intl.formatMessage({
+                            id: 'invite_user_join_team.title',
+                            defaultMessage: 'Invite User to Join Enterprise',
+                        });
+                        showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', data, {
+                            statusBar: {
+                                drawBehind: true,
+                            },
+                        });
+                        return true;
+                    }
                     const title = intl.formatMessage({
                         id: 'add_user_to_friends.title',
                         defaultMessage: 'Add User as Friend',
@@ -70,6 +86,7 @@ export const showQrScannerModal = (intl: IntlShape) => {
 
             return false;
         },
+        scanContext,
     }, {
         modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
         layout: {
