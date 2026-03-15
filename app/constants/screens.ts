@@ -31,6 +31,7 @@ export const CONTACTS = 'Contacts';
 export const CONTACTS_EMPLOYEE_LIST = 'ContactsEmployeeList';
 export const CONTACTS_DEPARTMENT_DETAIL = 'ContactsDepartmentDetail';
 export const CONTACTS_EMPLOYEE_PROFILE = 'ContactsEmployeeProfile';
+export const CONTACTS_MANAGE = 'ContactsManage';
 export const TMP_DEV_TEST = 'TmpDevTest';
 export const CUSTOM_STATUS = 'CustomStatus';
 export const CUSTOM_STATUS_CLEAR_AFTER = 'CustomStatusClearAfter';
@@ -130,6 +131,7 @@ export default {
     CONTACTS_EMPLOYEE_LIST,
     CONTACTS_DEPARTMENT_DETAIL,
     CONTACTS_EMPLOYEE_PROFILE,
+    CONTACTS_MANAGE,
     TMP_DEV_TEST,
     CREATE_DIRECT_MESSAGE,
     CREATE_OR_EDIT_CHANNEL,

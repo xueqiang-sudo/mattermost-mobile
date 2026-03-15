@@ -215,6 +215,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 14,
+        backgroundColor: changeOpacity(theme.linkColor, 0.12),
+        borderRadius: 6,
     },
     departmentRowName: {
         ...typography('Body', 200),
@@ -253,11 +255,20 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     }, [navigation]));
 
     const handleManageContacts = usePreventDoubleTap(useCallback(() => {
-        Alert.alert(
-            intl.formatMessage({id: 'contacts.manage_contacts', defaultMessage: 'Manage Contacts'}),
-            intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}),
+        const closeButtonId = 'close-contacts-manage';
+        const displayName = currentUser ? ((currentUser.nickname?.trim()) || currentUser.username) : undefined;
+        showModal(
+            Screens.CONTACTS_MANAGE,
+            '',
+            {
+                companyId: currentTeamId ?? '',
+                companyName,
+                displayName,
+                closeButtonId,
+            },
+            {topBar: {visible: false}, componentId: closeButtonId},
         );
-    }, [intl]));
+    }, [companyName, currentTeamId, currentUser]));
 
     const handleAddCustomer = usePreventDoubleTap(useCallback(() => {
         Alert.alert(

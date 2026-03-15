@@ -16,7 +16,7 @@ import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import {dismissModal, dismissModals, showModalWithBackButton} from '@screens/navigation';
+import {dismissModal, dismissModals, showModal, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -37,13 +37,25 @@ type Props = {
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {flex: 1},
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
     breadcrumb: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        flex: 1,
         gap: 4,
+    },
+    headerManageButton: {
+        padding: 4,
+        marginLeft: 8,
     },
     breadcrumbText: {
         ...typography('Body', 75),
@@ -87,6 +99,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 14,
+        backgroundColor: changeOpacity(theme.linkColor, 0.12),
+        borderRadius: 10,
     },
     listItemAvatar: {
         marginRight: 14,
@@ -202,6 +216,23 @@ const ContactsDepartmentDetail = ({
             {useBackIcon: true},
         );
     }, [baseBreadcrumb, departmentName, companyName, intl]));
+
+    const handleOpenManage = usePreventDoubleTap(useCallback(() => {
+        const closeButtonId = `close-contacts-manage-dept-${departmentId}`;
+        showModal(
+            Screens.CONTACTS_MANAGE,
+            '',
+            {
+                companyId,
+                companyName,
+                departmentId,
+                departmentName,
+                breadcrumb: baseBreadcrumb,
+                closeButtonId,
+            },
+            {topBar: {visible: false}, componentId: closeButtonId},
+        );
+    }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName]));
 
     useEffect(() => {
         mounted.current = true;
@@ -333,33 +364,47 @@ const ContactsDepartmentDetail = ({
             style={styles.flex}
             testID='contacts.department_detail.screen'
         >
-            <View style={styles.breadcrumb}>
-                {baseBreadcrumb.map((item, idx) => (
-                    <React.Fragment key={idx}>
-                        {idx > 0 && (
-                            <Text style={styles.breadcrumbSeparator}>
-                                {intl.formatMessage({id: 'contacts.breadcrumb_separator', defaultMessage: '>'})}
-                            </Text>
-                        )}
-                        <TouchableOpacity
-                            style={styles.breadcrumbLink}
-                            onPress={() => handleBreadcrumbPress(idx)}
-                            activeOpacity={0.7}
-                            disabled={idx === depth}
-                            testID={`contacts.department_detail.breadcrumb.${idx}`}
-                        >
-                            <Text
-                                style={[
-                                    styles.breadcrumbText,
-                                    idx === depth && {color: theme.linkColor},
-                                ]}
-                                numberOfLines={1}
+            <View style={styles.headerRow}>
+                <View style={styles.breadcrumb}>
+                    {baseBreadcrumb.map((item, idx) => (
+                        <React.Fragment key={idx}>
+                            {idx > 0 && (
+                                <Text style={styles.breadcrumbSeparator}>
+                                    {intl.formatMessage({id: 'contacts.breadcrumb_separator', defaultMessage: '>'})}
+                                </Text>
+                            )}
+                            <TouchableOpacity
+                                style={styles.breadcrumbLink}
+                                onPress={() => handleBreadcrumbPress(idx)}
+                                activeOpacity={0.7}
+                                disabled={idx === depth}
+                                testID={`contacts.department_detail.breadcrumb.${idx}`}
                             >
-                                {item}
-                            </Text>
-                        </TouchableOpacity>
-                    </React.Fragment>
-                ))}
+                                <Text
+                                    style={[
+                                        styles.breadcrumbText,
+                                        idx === depth && {color: theme.linkColor},
+                                    ]}
+                                    numberOfLines={1}
+                                >
+                                    {item}
+                                </Text>
+                            </TouchableOpacity>
+                        </React.Fragment>
+                    ))}
+                </View>
+                <TouchableOpacity
+                    style={styles.headerManageButton}
+                    onPress={handleOpenManage}
+                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                    testID='contacts.department_detail.manage'
+                >
+                    <CompassIcon
+                        name='format-list-bulleted'
+                        size={24}
+                        color={theme.sidebarText}
+                    />
+                </TouchableOpacity>
             </View>
             <ScrollView
                 style={styles.flex}

@@ -68,6 +68,57 @@ export type FetchEmployeeCountOfDepartmentResult = {
     error?: unknown;
 };
 
+export type ContactDirectoryContent = {
+    departments: ContactDepartment[];
+    employees: ContactEmployee[];
+    memberCount: number;
+};
+
+export type FetchContactDirectoryContentResult = {
+    data?: ContactDirectoryContent;
+    error?: unknown;
+};
+
+/** 统一获取通讯录目录内容：根目录或子目录返回相同结构，调用层不区分层级 */
+export const fetchContactDirectoryContent = async (
+    companyId: string,
+    departmentId?: number,
+): Promise<FetchContactDirectoryContentResult> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
+    try {
+        if (departmentId === undefined) {
+            const [deptRes, empRes, countRes] = await Promise.all([
+                fetchDepartmentsOfCompany(companyId, {parentDepartmentId: -1}),
+                fetchEmployeesOfDefaultDepartment(companyId),
+                fetchEmployeeCountOfCompany(companyId),
+            ]);
+            if (deptRes.error) {
+                return {error: deptRes.error};
+            }
+            const departments = (deptRes.data || []).filter((d) => d.name !== DEFAULT_DEPARTMENT_NAME);
+            const employees = empRes.data ?? [];
+            const memberCount = countRes.error ? 0 : (countRes.data ?? 0);
+            return {data: {departments, employees, memberCount}};
+        }
+        const [detailRes, countRes] = await Promise.all([
+            fetchDepartmentDetail(departmentId, companyId),
+            fetchEmployeeCountOfDepartment(departmentId),
+        ]);
+        if (detailRes.error) {
+            return {error: detailRes.error};
+        }
+        const departments = detailRes.data?.subDepartments ?? [];
+        const employees = detailRes.data?.employees ?? [];
+        const memberCount = countRes.error ? 0 : (countRes.data ?? 0);
+        return {data: {departments, employees, memberCount}};
+    } catch (error) {
+        logDebug('[fetchContactDirectoryContent]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
 /** 根据 id 获取单个通讯录公司 */
 export const fetchCompany = async (companyId: string): Promise<FetchCompanyResult> => {
     if (!companyId) {

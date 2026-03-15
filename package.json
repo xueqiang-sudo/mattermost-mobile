@@ -197,6 +197,7 @@
     "check": "npm run lint && npm run tsc",
     "check-test": "npm run lint && npm run tsc && npm run test",
     "clean": "./scripts/clean.sh",
+    "clean-all": "./scripts/clean.sh --clear-all",
     "e2e:android": "cd detox && npm run e2e:android-build && npm run e2e:android-test && cd ..",
     "e2e:ios": "cd detox && npm run e2e:ios-test && cd ..",
     "fix": "npm run lint -- --fix",
