@@ -187,6 +187,7 @@
     "rn-bundle:android": "npm run gen-assets && react-native bundle --platform android --dev false  --entry-file index.ts   --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/",
     "rn-bundle:ios": "npm run gen-assets && react-native bundle --platform ios --dev false  --entry-file index.ts   --bundle-output ios/main.jsbundle --assets-dest ios/",
     "gen-assets": "node scripts/generate-assets.js",
+    "log-android": "react-native log-android",
     "run-patch-pkg": "patch-package",
     "build:android": "./scripts/build.sh apk",
     "build:android-unsigned": "./scripts/build.sh apk unsigned",
