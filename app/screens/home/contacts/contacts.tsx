@@ -256,19 +256,17 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
 
     const handleManageContacts = usePreventDoubleTap(useCallback(() => {
         const closeButtonId = 'close-contacts-manage';
-        const displayName = currentUser ? ((currentUser.nickname?.trim()) || currentUser.username) : undefined;
         showModal(
             Screens.CONTACTS_MANAGE,
             '',
             {
                 companyId: currentTeamId ?? '',
                 companyName,
-                displayName,
                 closeButtonId,
             },
             {topBar: {visible: false}, componentId: closeButtonId},
         );
-    }, [companyName, currentTeamId, currentUser]));
+    }, [companyName, currentTeamId]));
 
     const handleAddCustomer = usePreventDoubleTap(useCallback(() => {
         Alert.alert(
@@ -363,26 +361,18 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     }, [currentTeamId, database]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: ContactDepartment) => {
-        const title = department.name;
         const breadcrumb = [
             intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
             department.name,
         ];
-        showModalWithBackButton(
-            Screens.CONTACTS_DEPARTMENT_DETAIL,
-            title,
-            `close-department-${department.id}`,
-            {
-                departmentId: department.id,
-                departmentName: department.name,
-                breadcrumb,
-                companyId: currentTeamId ?? '',
-                companyName,
-                closeButtonId: `close-department-${department.id}`,
-            },
-            {useBackIcon: true},
-        );
-    }, [companyName, intl, currentTeamId]));
+        navigation.navigate(Screens.CONTACTS_DEPARTMENT_DETAIL, {
+            departmentId: department.id,
+            departmentName: department.name,
+            breadcrumb,
+            companyId: currentTeamId ?? '',
+            companyName,
+        });
+    }, [companyName, intl, currentTeamId, navigation]));
 
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee, deptName?: string) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
@@ -517,7 +507,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                         style={styles.headerTitle}
                         numberOfLines={1}
                     >
-                        {currentUser? ((currentUser.nickname?.trim()) || currentUser.username || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})): intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
+                        {(companyName?.trim()) || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.headerActions}>

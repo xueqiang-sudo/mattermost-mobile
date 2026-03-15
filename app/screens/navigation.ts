@@ -651,6 +651,21 @@ export async function popToRoot() {
     }
 }
 
+/** 连续 pop 多屏（用于栈内层级返回，如通讯录子部门面包屑） */
+export async function popScreens(count: number) {
+    for (let i = 0; i < count; i++) {
+        const componentId = NavigationStore.getVisibleScreen();
+        if (!componentId) {
+            break;
+        }
+        try {
+            await Navigation.pop(componentId);
+        } catch {
+            break;
+        }
+    }
+}
+
 export async function dismissAllModalsAndPopToRoot() {
     await dismissAllModals();
     await dismissAllOverlays();

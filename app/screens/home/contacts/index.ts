@@ -7,7 +7,7 @@ import {of as of$} from 'rxjs';
 // import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
 
-import ContactsScreen from './contacts';
+import {ContactsStack} from './contacts_stack';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 
@@ -16,4 +16,4 @@ const enhance = withObservables([], ({database}: WithDatabaseArgs) => ({
     currentTeamId: of$('tmpteam1001'), //observeCurrentTeamId(database),
 }));
 
-export default withDatabase(enhance(ContactsScreen));
+export default withDatabase(enhance(ContactsStack));

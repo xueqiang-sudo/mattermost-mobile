@@ -13,10 +13,11 @@ import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
-import {usePreventDoubleTap} from '@hooks/utils';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import {dismissModal, dismissModals, showModal, showModalWithBackButton} from '@screens/navigation';
+import {usePreventDoubleTap} from '@hooks/utils';
+import {dismissAllModalsAndPopToScreen, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
+import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -24,6 +25,8 @@ import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-department-detail';
+const DEPT_SEARCH_BUTTON_ID = 'contacts-department-detail-search';
+const DEPT_MANAGE_BUTTON_ID = 'contacts-department-detail-manage';
 
 type Props = {
     componentId: AvailableScreens;
@@ -33,10 +36,61 @@ type Props = {
     breadcrumb?: string[];
     companyId: string;
     companyName?: string;
+    /** 从通讯录栈 push 进入时为 true，返回用 pop；否则为 modal，返回用 dismiss */
+    isStackScreen?: boolean;
+    /** React Navigation 栈内时由 wrapper 传入，替代 RNN 的返回/子部门/面包屑 */
+    onBack?: () => void;
+    onNavigateToDepartment?: (params: {
+        departmentId: number;
+        departmentName: string;
+        breadcrumb: string[];
+        companyId: string;
+        companyName?: string;
+    }) => void;
+    onBreadcrumbPress?: (toDismiss: number) => void;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {flex: 1},
+    stackHeaderBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: theme.sidebarBg,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    stackHeaderBack: {
+        padding: 4,
+        marginRight: 8,
+        zIndex: 1,
+    },
+    stackHeaderTitleWrap: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 48,
+    },
+    stackHeaderTitle: {
+        ...typography('Heading', 600, 'SemiBold'),
+        color: theme.sidebarHeaderTextColor,
+        textAlign: 'center',
+    },
+    stackHeaderSpacer: {
+        flex: 1,
+        minWidth: 8,
+    },
+    stackHeaderActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        zIndex: 1,
+    },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -52,10 +106,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         flex: 1,
         gap: 4,
-    },
-    headerManageButton: {
-        padding: 4,
-        marginLeft: 8,
     },
     breadcrumbText: {
         ...typography('Body', 75),
@@ -133,6 +183,10 @@ const ContactsDepartmentDetail = ({
     breadcrumb = [],
     companyId,
     companyName,
+    isStackScreen = false,
+    onBack,
+    onNavigateToDepartment,
+    onBreadcrumbPress,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -150,8 +204,16 @@ const ContactsDepartmentDetail = ({
     ];
 
     const handleClose = useCallback(() => {
-        dismissModal({componentId});
-    }, [componentId]);
+        if (onBack) {
+            onBack();
+            return;
+        }
+        if (isStackScreen) {
+            popTopScreen(componentId);
+        } else {
+            dismissModal({componentId});
+        }
+    }, [componentId, isStackScreen, onBack]);
 
     const effectiveCloseButtonId = closeButtonId ?? CLOSE_BUTTON_ID;
 
@@ -159,6 +221,9 @@ const ContactsDepartmentDetail = ({
     useAndroidHardwareBackHandler(componentId, handleClose);
 
     useEffect(() => {
+        if (isStackScreen) {
+            return;
+        }
         const listener = Navigation.events().registerNavigationButtonPressedListener(
             ({buttonId}: {buttonId: string}) => {
                 if (buttonId === effectiveCloseButtonId) {
@@ -167,35 +232,77 @@ const ContactsDepartmentDetail = ({
             },
         );
         return () => listener.remove();
-    }, [effectiveCloseButtonId, componentId]);
+    }, [effectiveCloseButtonId, componentId, isStackScreen]);
+
+    const handleSearch = useCallback(() => {
+        dismissAllModalsAndPopToScreen(Screens.SEARCH, '');
+    }, []);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: ContactDepartment) => {
-        const title = dept.name;
         const newBreadcrumb = [...baseBreadcrumb, dept.name];
-        showModalWithBackButton(
-            Screens.CONTACTS_DEPARTMENT_DETAIL,
-            title,
-            `close-department-${dept.id}`,
-            {
+        if (onNavigateToDepartment) {
+            onNavigateToDepartment({
                 departmentId: dept.id,
                 departmentName: dept.name,
                 breadcrumb: newBreadcrumb,
                 companyId,
                 companyName,
-                closeButtonId: `close-department-${dept.id}`,
-            },
-            {useBackIcon: true},
-        );
-    }, [baseBreadcrumb, companyId, companyName, intl]));
+            });
+            return;
+        }
+        const title = dept.name;
+        if (isStackScreen) {
+            goToScreen(
+                Screens.CONTACTS_DEPARTMENT_DETAIL,
+                title,
+                {
+                    departmentId: dept.id,
+                    departmentName: dept.name,
+                    breadcrumb: newBreadcrumb,
+                    companyId,
+                    companyName,
+                    isStackScreen: true,
+                },
+            );
+        } else {
+            showModalWithBackButton(
+                Screens.CONTACTS_DEPARTMENT_DETAIL,
+                title,
+                `close-department-${dept.id}`,
+                {
+                    departmentId: dept.id,
+                    departmentName: dept.name,
+                    breadcrumb: newBreadcrumb,
+                    companyId,
+                    companyName,
+                    closeButtonId: `close-department-${dept.id}`,
+                },
+                {useBackIcon: true},
+            );
+        }
+    }, [baseBreadcrumb, companyId, companyName, intl, isStackScreen, onNavigateToDepartment]));
 
     const depth = baseBreadcrumb.length - 1;
 
     const handleBreadcrumbPress = usePreventDoubleTap(useCallback((index: number) => {
         const toDismiss = depth - index;
-        if (toDismiss > 0) {
+        if (toDismiss <= 0) {
+            return;
+        }
+        if (onBreadcrumbPress) {
+            onBreadcrumbPress(toDismiss);
+            return;
+        }
+        if (isStackScreen) {
+            if (index === 0) {
+                popToRoot();
+            } else {
+                popScreens(toDismiss);
+            }
+        } else {
             dismissModals(toDismiss);
         }
-    }, [depth]));
+    }, [depth, isStackScreen, onBreadcrumbPress]));
 
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
@@ -218,7 +325,7 @@ const ContactsDepartmentDetail = ({
     }, [baseBreadcrumb, departmentName, companyName, intl]));
 
     const handleOpenManage = usePreventDoubleTap(useCallback(() => {
-        const closeButtonId = `close-contacts-manage-dept-${departmentId}`;
+        const manageCloseButtonId = `close-contacts-manage-dept-${departmentId}`;
         showModal(
             Screens.CONTACTS_MANAGE,
             '',
@@ -228,11 +335,38 @@ const ContactsDepartmentDetail = ({
                 departmentId,
                 departmentName,
                 breadcrumb: baseBreadcrumb,
-                closeButtonId,
+                closeButtonId: manageCloseButtonId,
             },
-            {topBar: {visible: false}, componentId: closeButtonId},
+            {topBar: {visible: false}, componentId: manageCloseButtonId},
         );
     }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName]));
+
+    useNavButtonPressed(DEPT_SEARCH_BUTTON_ID, effectiveCloseButtonId, handleSearch, [handleSearch]);
+    useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleOpenManage, [handleOpenManage]);
+
+    useEffect(() => {
+        if (onBack) {
+            return;
+        }
+        const searchIcon = CompassIcon.getImageSourceSync('magnify', 24, theme.sidebarHeaderTextColor);
+        const manageIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
+        mergeNavigationOptions(effectiveCloseButtonId, {
+            topBar: {
+                rightButtons: [
+                    {
+                        id: DEPT_MANAGE_BUTTON_ID,
+                        icon: manageIcon,
+                        testID: 'contacts.department_detail.manage.button',
+                    },
+                    {
+                        id: DEPT_SEARCH_BUTTON_ID,
+                        icon: searchIcon,
+                        testID: 'contacts.department_detail.search.button',
+                    },
+                ],
+            },
+        });
+    }, [effectiveCloseButtonId, onBack, theme.sidebarHeaderTextColor]);
 
     useEffect(() => {
         mounted.current = true;
@@ -364,6 +498,58 @@ const ContactsDepartmentDetail = ({
             style={styles.flex}
             testID='contacts.department_detail.screen'
         >
+            {onBack ? (
+                <View style={styles.stackHeaderBar}>
+                    <TouchableOpacity
+                        onPress={handleClose}
+                        style={styles.stackHeaderBack}
+                        hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                        testID='contacts.department_detail.back'
+                    >
+                        <CompassIcon
+                            name='arrow-left'
+                            size={24}
+                            color={theme.sidebarHeaderTextColor}
+                        />
+                    </TouchableOpacity>
+                    <View
+                        style={styles.stackHeaderTitleWrap}
+                        pointerEvents='box-none'
+                    >
+                        <Text
+                            style={styles.stackHeaderTitle}
+                            numberOfLines={1}
+                        >
+                            {departmentName}
+                        </Text>
+                    </View>
+                    <View style={styles.stackHeaderSpacer}/>
+                    <View style={styles.stackHeaderActions}>
+                        <TouchableOpacity
+                            onPress={handleSearch}
+                            style={styles.stackHeaderBack}
+                            testID='contacts.department_detail.search.button'
+                        >
+                            <CompassIcon
+                                name='magnify'
+                                size={24}
+                                color={theme.sidebarHeaderTextColor}
+                            />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={handleOpenManage}
+                            style={styles.stackHeaderBack}
+                            testID='contacts.department_detail.manage.button'
+                        >
+                            <CompassIcon
+                                name='format-list-bulleted'
+                                size={24}
+                                color={theme.sidebarHeaderTextColor}
+                            />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ) : null}
             <View style={styles.headerRow}>
                 <View style={styles.breadcrumb}>
                     {baseBreadcrumb.map((item, idx) => (
@@ -393,18 +579,6 @@ const ContactsDepartmentDetail = ({
                         </React.Fragment>
                     ))}
                 </View>
-                <TouchableOpacity
-                    style={styles.headerManageButton}
-                    onPress={handleOpenManage}
-                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                    testID='contacts.department_detail.manage'
-                >
-                    <CompassIcon
-                        name='format-list-bulleted'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                </TouchableOpacity>
             </View>
             <ScrollView
                 style={styles.flex}

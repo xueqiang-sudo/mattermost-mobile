@@ -232,6 +232,17 @@ export const fetchEmployeeDetails = async (employeeId: string): Promise<FetchEmp
     }
 };
 
+/** 获取单个部门（含 parent_id，用于修改部门名称时提交） */
+export const fetchContactDepartment = async (departmentId: number): Promise<{data?: ContactDepartment; error?: unknown}> => {
+    try {
+        const department = await ContactService.getDepartment(departmentId);
+        return {data: department};
+    } catch (error) {
+        logDebug('[fetchContactDepartment]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
 /** 获取部门及子部门下员工总数（用于子部门人数展示） */
 export const fetchEmployeeCountOfDepartment = async (departmentId: number): Promise<FetchEmployeeCountOfDepartmentResult> => {
     try {
@@ -268,6 +279,119 @@ export const fetchDepartmentDetail = async (
         return {data: {subDepartments, employees}};
     } catch (error) {
         logDebug('[fetchDepartmentDetail]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type CreateSubDepartmentResult = {
+    data?: ContactDepartment;
+    error?: unknown;
+};
+
+export type UpdateContactDepartmentResult = {
+    data?: ContactDepartment;
+    error?: unknown;
+};
+
+/** 创建子部门（或根目录下一级部门） */
+export const createSubDepartment = async (
+    companyId: string,
+    name: string,
+    parentDepartmentId?: number,
+): Promise<CreateSubDepartmentResult> => {
+    if (!companyId || !name?.trim()) {
+        return {error: new Error('companyId and name are required')};
+    }
+    try {
+        const body: {company_id: string; name: string; parent_id?: number} = {
+            company_id: companyId,
+            name: name.trim(),
+        };
+        if (parentDepartmentId != null) {
+            body.parent_id = parentDepartmentId;
+        }
+        const department = await ContactService.createDepartment(body);
+        return {data: department};
+    } catch (error) {
+        logDebug('[createSubDepartment]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 更新部门名称等信息 */
+export const updateContactDepartment = async (
+    departmentId: number,
+    companyId: string,
+    name: string,
+    parentId?: number,
+): Promise<UpdateContactDepartmentResult> => {
+    if (!companyId || !name?.trim()) {
+        return {error: new Error('companyId and name are required')};
+    }
+    try {
+        const body: {company_id: string; name: string; parent_id?: number} = {
+            company_id: companyId,
+            name: name.trim(),
+        };
+        if (parentId != null) {
+            body.parent_id = parentId;
+        }
+        const department = await ContactService.updateDepartment(departmentId, body);
+        return {data: department};
+    } catch (error) {
+        logDebug('[updateContactDepartment]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type UpdateContactCompanyResult = {
+    data?: ContactCompany;
+    error?: unknown;
+};
+
+/** 更新企业名称等信息 */
+export const updateContactCompany = async (
+    companyId: string,
+    name: string,
+): Promise<UpdateContactCompanyResult> => {
+    if (!companyId || !name?.trim()) {
+        return {error: new Error('companyId and name are required')};
+    }
+    try {
+        const companyRes = await fetchCompany(companyId);
+        if (companyRes.error || !companyRes.data) {
+            return {error: companyRes.error ?? new Error('Company not found')};
+        }
+        const company = await ContactService.updateCompany(companyId, {
+            ...companyRes.data,
+            name: name.trim(),
+        });
+        return {data: company};
+    } catch (error) {
+        logDebug('[updateContactCompany]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 将员工从旧部门调动到新部门（一人只能属于一个部门，接口内部先删旧再加新） */
+export const moveContactEmployeeToDepartment = async (
+    employeeId: string,
+    companyId: string,
+    oldDepartmentId: number,
+    newDepartmentId: number,
+): Promise<{error?: unknown}> => {
+    if (!employeeId || !companyId) {
+        return {error: new Error('employeeId and companyId are required')};
+    }
+    try {
+        await ContactService.moveEmployeeToDepartment(employeeId, {
+            company_id: companyId,
+            old_department_id: oldDepartmentId,
+            department_id: newDepartmentId,
+        });
+        return {};
+    } catch (error) {
+        logDebug('[moveContactEmployeeToDepartment]', getFullErrorMessage(error));
         return {error};
     }
 };
