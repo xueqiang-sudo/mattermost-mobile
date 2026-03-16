@@ -3,19 +3,21 @@
 
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, ScrollView, Text, View} from 'react-native';
+import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
 import Button from '@components/button';
+import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
+import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {usePreventDoubleTap} from '@hooks/utils';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
+import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
-import {dismissModal} from '@screens/navigation';
+import {dismissModal, showModalWithBackButton} from '@screens/navigation';
 import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -32,6 +34,13 @@ type Props = {
     departmentName?: string;
     departmentParentPath?: string;
     companyName?: string;
+
+    /** 从管理界面进入时用于「设置部门」：每人只能属于一个部门 */
+    departmentId?: number;
+    companyId?: string;
+
+    /** 从管理界面进入时为 true，显示「设置部门」入口 */
+    fromManage?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -62,6 +71,19 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         paddingVertical: 6,
     },
+
+    /** 与根目录部门列表行一致：固定行高 + 内容垂直居中 */
+    cardRowDepartmentSingle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        minHeight: 44,
+    },
+    cardValueSingleLineWrap: {
+        flex: 1,
+        justifyContent: 'center',
+        alignSelf: 'stretch',
+    },
     cardLabel: {
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.64),
@@ -82,6 +104,38 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         marginTop: 2,
     },
+    departmentRowValue: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    departmentRowArrow: {
+        marginLeft: 8,
+    },
+
+    /** 部门行右侧：部门值 + 设置部门入口同一行 */
+    departmentValueWithAction: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minWidth: 0,
+    },
+    departmentValueWrap: {
+        flex: 1,
+        minWidth: 0,
+    },
+    changeDepartmentInline: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 12,
+        paddingVertical: 4,
+        paddingHorizontal: 4,
+    },
+    changeDepartmentText: {
+        ...typography('Body', 75),
+        color: theme.linkColor,
+        marginRight: 2,
+    },
     sendButton: {
         marginTop: 16,
     },
@@ -94,6 +148,9 @@ const ContactsEmployeeProfile = ({
     departmentName,
     departmentParentPath,
     companyName,
+    departmentId,
+    companyId: companyIdProp,
+    fromManage = false,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -157,6 +214,30 @@ const ContactsEmployeeProfile = ({
     }, [serverUrl, sending, resolveMattermostUserId, employee.name, intl, handleClose]));
 
     const canSendMessage = Boolean(employee.email || employee.id);
+
+    const canChangeDepartment = fromManage && Boolean(companyIdProp);
+
+    const handleChangeDepartment = usePreventDoubleTap(useCallback(() => {
+        if (!canChangeDepartment || !companyIdProp) {
+            return;
+        }
+        const sourceName = departmentName ??
+            intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'});
+        showModalWithBackButton(
+            Screens.CONTACTS_BATCH_MOVE_MEMBERS,
+            intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
+            'close-contacts-batch-move-single',
+            {
+                companyId: companyIdProp,
+                sourceDepartmentId: departmentId ?? null,
+                sourceDepartmentName: sourceName,
+                singleEmployeeId: employee.id,
+                singleEmployeeName: employee.name,
+                onSuccess: handleClose,
+            },
+            {useBackIcon: true, topBar: {visible: false}},
+        );
+    }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee.id, intl, handleClose]));
 
     return (
         <SafeAreaView
@@ -225,37 +306,63 @@ const ContactsEmployeeProfile = ({
                         </View>
                     ) : null}
                     {(departmentName || departmentParentPath) ? (
-                        <View style={styles.cardRow}>
+                        <View style={departmentParentPath && departmentParentPath.includes('/') ? styles.cardRow : styles.cardRowDepartmentSingle}>
                             <Text style={styles.cardLabel}>
                                 {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
                             </Text>
-                            {departmentParentPath ? (
-                                <View style={styles.cardValueColumn}>
-                                    {departmentName ? (
-                                        <Text
-                                            style={[styles.cardValue, {flex: undefined}]}
-                                            numberOfLines={1}
-                                        >
-                                            {departmentName}
-                                        </Text>
-                                    ) : null}
-                                    <Text
-                                        style={styles.cardValueSecondary}
-                                        numberOfLines={2}
-                                    >
-                                        {formatPathForDisplay(
-                                            departmentParentPath.split('/').filter(Boolean),
-                                            DEPARTMENT_PATH_DISPLAY_MAX_LENGTH,
-                                            '/',
-                                            intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
-                                        )}
-                                    </Text>
+                            <View style={styles.departmentValueWithAction}>
+                                <View style={styles.departmentValueWrap}>
+                                    {departmentParentPath && departmentParentPath.includes('/') ? (
+                                        <View style={styles.cardValueColumn}>
+                                            {departmentName ? (
+                                                <Text
+                                                    style={[styles.cardValue, {flex: undefined}]}
+                                                    numberOfLines={1}
+                                                >
+                                                    {departmentName}
+                                                </Text>
+                                            ) : null}
+                                            <Text
+                                                style={styles.cardValueSecondary}
+                                                numberOfLines={2}
+                                            >
+                                                {formatPathForDisplay(
+                                                    departmentParentPath.split('/').filter(Boolean),
+                                                    DEPARTMENT_PATH_DISPLAY_MAX_LENGTH,
+                                                    '/',
+                                                    intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
+                                                )}
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.cardValueSingleLineWrap}>
+                                            <Text
+                                                style={styles.cardValue}
+                                                numberOfLines={1}
+                                            >
+                                                {departmentName}
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
-                            ) : (
-                                <Text style={styles.cardValue} numberOfLines={1}>
-                                    {departmentName}
-                                </Text>
-                            )}
+                                {canChangeDepartment ? (
+                                    <TouchableOpacity
+                                        style={styles.changeDepartmentInline}
+                                        onPress={handleChangeDepartment}
+                                        activeOpacity={0.7}
+                                        testID='contacts.employee_profile.change_department'
+                                    >
+                                        <Text style={styles.changeDepartmentText}>
+                                            {intl.formatMessage({id: 'contacts.change_department', defaultMessage: 'Change department'})}
+                                        </Text>
+                                        <CompassIcon
+                                            name='chevron-right'
+                                            size={18}
+                                            color={theme.linkColor}
+                                        />
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
                         </View>
                     ) : null}
                     {companyName ? (

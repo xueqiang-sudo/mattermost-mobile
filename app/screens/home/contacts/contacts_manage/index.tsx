@@ -287,11 +287,14 @@ const ContactsManage = ({
                 employee,
                 departmentName: deptName,
                 companyName,
+                departmentId: currentDepartmentId ?? undefined,
+                companyId,
+                fromManage: true,
                 closeButtonId: `close-employee-${employee.id}`,
             },
             {useBackIcon: true},
         );
-    }, [companyName, currentDepartmentName, intl]));
+    }, [companyId, companyName, currentDepartmentId, currentDepartmentName, intl]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
         const renderContent = () => (

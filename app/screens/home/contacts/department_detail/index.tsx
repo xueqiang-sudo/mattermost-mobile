@@ -7,7 +7,7 @@ import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {Navigation} from 'react-native-navigation';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact';
+import {fetchContactDirectoryContent, fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
@@ -34,7 +34,8 @@ const DEPT_MANAGE_BUTTON_ID = 'contacts-department-detail-manage';
 type Props = {
     componentId: AvailableScreens;
     closeButtonId?: string;
-    departmentId: number;
+    /** null 表示根目录（企业通讯录） */
+    departmentId: number | null;
     departmentName: string;
     breadcrumb?: string[];
     companyId: string;
@@ -51,6 +52,8 @@ type Props = {
         companyName?: string;
     }) => void;
     onBreadcrumbPress?: (toDismiss: number) => void;
+    /** 从个人信息页部门浏览 Wrapper 内嵌时为 true：不渲染顶栏与搜索/管理按钮，由 Wrapper 提供返回/关闭 */
+    fromEmployeeProfile?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -218,6 +221,7 @@ const ContactsDepartmentDetail = ({
     onBack,
     onNavigateToDepartment,
     onBreadcrumbPress,
+    fromEmployeeProfile = false,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -412,11 +416,12 @@ const ContactsDepartmentDetail = ({
                 departmentName,
                 departmentParentPath,
                 companyName,
+                companyId,
                 closeButtonId: `close-employee-${employee.id}`,
             },
             {useBackIcon: true},
         );
-    }, [baseBreadcrumb, departmentName, companyName, intl]));
+    }, [baseBreadcrumb, companyId, departmentName, companyName, intl]));
 
     const handleOpenManage = usePreventDoubleTap(useCallback(() => {
         const manageCloseButtonId = `close-contacts-manage-dept-${departmentId}`;
@@ -439,7 +444,7 @@ const ContactsDepartmentDetail = ({
     useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleOpenManage, [handleOpenManage]);
 
     useEffect(() => {
-        if (onBack) {
+        if (onBack || fromEmployeeProfile) {
             return;
         }
         const searchIcon = CompassIcon.getImageSourceSync('magnify', 24, theme.sidebarHeaderTextColor);
@@ -460,28 +465,40 @@ const ContactsDepartmentDetail = ({
                 ],
             },
         });
-    }, [effectiveCloseButtonId, onBack, theme.sidebarHeaderTextColor]);
+    }, [effectiveCloseButtonId, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor]);
 
     useEffect(() => {
         mounted.current = true;
         setLoading(true);
 
         const fetchData = async () => {
-            const [detailRes, countRes] = await Promise.all([
-                fetchDepartmentDetail(departmentId, companyId),
-                fetchEmployeeCountOfDepartment(departmentId),
-            ]);
+            if (departmentId == null) {
+                const res = await fetchContactDirectoryContent(companyId, undefined);
+                if (!mounted.current) {
+                    return;
+                }
+                if (!res.error && res.data) {
+                    setSubDepartments(res.data.departments);
+                    setEmployees(res.data.employees);
+                    setMemberCount(res.data.memberCount ?? 0);
+                }
+            } else {
+                const [detailRes, countRes] = await Promise.all([
+                    fetchDepartmentDetail(departmentId, companyId),
+                    fetchEmployeeCountOfDepartment(departmentId),
+                ]);
 
-            if (!mounted.current) {
-                return;
-            }
+                if (!mounted.current) {
+                    return;
+                }
 
-            if (!detailRes.error && detailRes.data) {
-                setSubDepartments(detailRes.data.subDepartments);
-                setEmployees(detailRes.data.employees);
-            }
-            if (!countRes.error && countRes.data !== undefined) {
-                setMemberCount(countRes.data);
+                if (!detailRes.error && detailRes.data) {
+                    setSubDepartments(detailRes.data.subDepartments);
+                    setEmployees(detailRes.data.employees);
+                }
+                if (!countRes.error && countRes.data !== undefined) {
+                    setMemberCount(countRes.data);
+                }
             }
 
             setLoading(false);
@@ -592,7 +609,7 @@ const ContactsDepartmentDetail = ({
             style={styles.flex}
             testID='contacts.department_detail.screen'
         >
-            {onBack ? (
+            {onBack && !fromEmployeeProfile ? (
                 <View style={styles.stackHeaderBar}>
                     <TouchableOpacity
                         onPress={handleClose}

@@ -7,6 +7,7 @@ import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {
+    fetchCompany,
     fetchContactDirectoryContent,
     fetchDefaultDepartmentId,
     moveContactEmployeeToDepartment,
@@ -37,9 +38,15 @@ type Props = {
     componentId: AvailableScreens;
     closeButtonId?: string;
     companyId: string;
-    sourceDepartmentId: number;
+
+    /** 当前所在部门 ID，null 表示根目录/默认部门 */
+    sourceDepartmentId: number | null;
     sourceDepartmentName: string;
     onSuccess?: () => void;
+    /** 仅移动单人员时传入，跳过成员选择直接进入选择目标部门 */
+    singleEmployeeId?: string;
+    /** 单人员时传入，用于确认弹窗中展示姓名 */
+    singleEmployeeName?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -176,6 +183,8 @@ const ContactsBatchMoveMembers = ({
     sourceDepartmentId,
     sourceDepartmentName,
     onSuccess,
+    singleEmployeeId,
+    singleEmployeeName,
 }: Props) => {
     const effectiveCloseId = closeButtonId ?? CLOSE_BUTTON_ID;
     const theme = useTheme();
@@ -183,26 +192,45 @@ const ContactsBatchMoveMembers = ({
     const mounted = useRef(false);
     const styles = getStyleSheet(theme);
 
-    const [phase, setPhase] = useState<'members' | 'target'>('members');
+    const [phase, setPhase] = useState<'members' | 'target'>(singleEmployeeId ? 'target' : 'members');
     const [employees, setEmployees] = useState<ContactEmployee[]>([]);
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(
+        singleEmployeeId ? new Set([singleEmployeeId]) : new Set(),
+    );
     const [loading, setLoading] = useState(true);
-    const [targetStack, setTargetStack] = useState<TargetLevel[]>([{departmentId: null, departmentName: undefined}]);
+    /** 打开时若用户已在某部门下，则直接进入该部门层级（显示其子部门列表） */
+    const [targetStack, setTargetStack] = useState<TargetLevel[]>(() => {
+        if (singleEmployeeId && sourceDepartmentId != null) {
+            return [
+                {departmentId: null, departmentName: undefined},
+                {departmentId: sourceDepartmentId, departmentName: sourceDepartmentName || undefined},
+            ];
+        }
+        return [{departmentId: null, departmentName: undefined}];
+    });
     const [targetDepartments, setTargetDepartments] = useState<ContactDepartment[]>([]);
     const [targetLoading, setTargetLoading] = useState(false);
     const [defaultDepartmentId, setDefaultDepartmentId] = useState<number | null>(null);
     const [moving, setMoving] = useState(false);
+    const [enterpriseName, setEnterpriseName] = useState<string | null>(null);
 
     const currentTarget = targetStack[targetStack.length - 1];
     const targetDepartmentId = currentTarget?.departmentId ?? null;
     /** 根目录时使用默认部门 ID 作为目标 */
     const effectiveTargetDepartmentId = targetDepartmentId ?? defaultDepartmentId;
-    const canMoveToTarget = effectiveTargetDepartmentId != null && effectiveTargetDepartmentId !== sourceDepartmentId;
+
+    /** 当前部门 ID（源）；根目录用户时用 defaultDepartmentId */
+    const effectiveSourceDepartmentId = sourceDepartmentId ?? defaultDepartmentId;
+
+    /** 不能移动到同一部门：目标与当前部门相同时按钮不可点击 */
+    const canMoveToTarget = effectiveTargetDepartmentId != null &&
+        effectiveSourceDepartmentId != null &&
+        effectiveTargetDepartmentId !== effectiveSourceDepartmentId;
     const isAtRootLevel = targetDepartmentId === null;
 
     const loadEmployees = useCallback(async () => {
         setLoading(true);
-        const res = await fetchContactDirectoryContent(companyId, sourceDepartmentId);
+        const res = await fetchContactDirectoryContent(companyId, sourceDepartmentId ?? undefined);
         if (!mounted.current) return;
         if (res.data) {
             setEmployees(res.data.employees);
@@ -230,10 +258,10 @@ const ContactsBatchMoveMembers = ({
     }, []);
 
     useEffect(() => {
-        if (phase === 'members') {
+        if (phase === 'members' && !singleEmployeeId) {
             loadEmployees();
         }
-    }, [phase, loadEmployees]);
+    }, [phase, loadEmployees, singleEmployeeId]);
 
     useEffect(() => {
         if (phase === 'target') {
@@ -254,6 +282,19 @@ const ContactsBatchMoveMembers = ({
         return () => { cancelled = true; };
     }, [companyId, phase]);
 
+    useEffect(() => {
+        if (phase !== 'target') {
+            return;
+        }
+        let cancelled = false;
+        fetchCompany(companyId).then((res) => {
+            if (!cancelled && mounted.current && res.data?.name) {
+                setEnterpriseName(res.data.name);
+            }
+        });
+        return () => { cancelled = true; };
+    }, [companyId, phase]);
+
     const handleClose = useCallback(() => {
         dismissModal({componentId});
     }, [componentId]);
@@ -263,12 +304,12 @@ const ContactsBatchMoveMembers = ({
             setTargetStack((prev) => prev.slice(0, -1));
             return;
         }
-        if (phase === 'target') {
+        if (phase === 'target' && !singleEmployeeId) {
             setPhase('members');
             return;
         }
         handleClose();
-    }, [phase, targetStack.length, handleClose]);
+    }, [phase, singleEmployeeId, targetStack.length, handleClose]);
 
     const toggleMember = useCallback((id: string) => {
         setSelectedIds((prev) => {
@@ -289,18 +330,26 @@ const ContactsBatchMoveMembers = ({
     }, []);
 
     const handleMoveHere = usePreventDoubleTap(useCallback(async () => {
-        if (!canMoveToTarget || effectiveTargetDepartmentId == null || selectedIds.size === 0) return;
+        if (!canMoveToTarget || effectiveTargetDepartmentId == null || effectiveSourceDepartmentId == null || selectedIds.size === 0) return;
         const count = selectedIds.size;
         const targetName = isAtRootLevel
             ? intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'})
             : (currentTarget?.departmentName ?? '');
+        const memberNames = singleEmployeeId && singleEmployeeName
+            ? [singleEmployeeName]
+            : employees.filter((e) => selectedIds.has(e.id)).map((e) => e.name);
+        const confirmLine = intl.formatMessage(
+            {id: 'contacts.move_members_confirm', defaultMessage: 'Move {count} member(s) to {name}?'},
+            {count, name: targetName},
+        );
+        const membersListLabel = intl.formatMessage({id: 'contacts.members_to_move', defaultMessage: 'Members to move:'});
+        const message = memberNames.length > 0
+            ? `${confirmLine}\n\n${membersListLabel}\n${memberNames.join('\n')}`
+            : confirmLine;
         const ok = await new Promise<boolean>((resolve) => {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
-                intl.formatMessage(
-                    {id: 'contacts.move_members_confirm', defaultMessage: 'Move {count} member(s) to {name}?'},
-                    {count, name: targetName},
-                ),
+                message,
                 [
                     {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), onPress: () => resolve(false)},
                     {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
@@ -314,7 +363,7 @@ const ContactsBatchMoveMembers = ({
             const res = await moveContactEmployeeToDepartment(
                 employeeId,
                 companyId,
-                sourceDepartmentId,
+                effectiveSourceDepartmentId,
                 effectiveTargetDepartmentId,
             );
             if (res.error) failed += 1;
@@ -332,7 +381,7 @@ const ContactsBatchMoveMembers = ({
         }
         onSuccess?.();
         handleClose();
-    }, [canMoveToTarget, companyId, currentTarget?.departmentName, effectiveTargetDepartmentId, intl, isAtRootLevel, onSuccess, selectedIds, sourceDepartmentId, handleClose]));
+    }, [canMoveToTarget, companyId, currentTarget?.departmentName, effectiveSourceDepartmentId, effectiveTargetDepartmentId, employees, intl, isAtRootLevel, onSuccess, selectedIds, singleEmployeeId, singleEmployeeName, handleClose]));
 
     useNavButtonPressed(effectiveCloseId, componentId, handleClose, [handleClose]);
 
@@ -340,7 +389,10 @@ const ContactsBatchMoveMembers = ({
         handleBack();
     });
 
-    const subtitle = phase === 'members' ? sourceDepartmentName : (currentTarget?.departmentName ?? intl.formatMessage({id: 'contacts.enterprise_root', defaultMessage: 'Enterprise'}));
+    const rootSubtitle = enterpriseName ?? intl.formatMessage({id: 'contacts.enterprise_root', defaultMessage: 'Enterprise'});
+    const subtitle = phase === 'members'
+        ? sourceDepartmentName
+        : (currentTarget?.departmentName ?? rootSubtitle);
 
     if (phase === 'members') {
         return (
@@ -408,12 +460,19 @@ const ContactsBatchMoveMembers = ({
         );
     }
 
+    /** 根目录下不显示左上角箭头（仅退到上一级部门时显示） */
+    const showBackArrow = targetStack.length > 1;
+
     return (
         <SafeAreaView edges={['bottom']} style={styles.flex} testID='contacts.batch_move_members.screen'>
             <View style={styles.header}>
-                <TouchableOpacity style={styles.headerBackWrap} onPress={handleBack} testID='contacts.batch_move.back'>
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText} />
-                </TouchableOpacity>
+                {showBackArrow ? (
+                    <TouchableOpacity style={styles.headerBackWrap} onPress={handleBack} testID='contacts.batch_move.back'>
+                        <CompassIcon name='arrow-left' size={24} color={theme.sidebarText} />
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.headerBackWrap} />
+                )}
                 <View style={styles.headerCenter}>
                     <Text style={styles.headerTitle}>
                         {intl.formatMessage({id: 'contacts.select_target_department', defaultMessage: 'Select target department'})}
@@ -452,26 +511,27 @@ const ContactsBatchMoveMembers = ({
                             </Text>
                         )}
                     </ScrollView>
-                    {canMoveToTarget && (
-                        <View style={styles.bottomBar}>
-                            <TouchableOpacity
-                                style={[styles.bottomButton, moving && styles.bottomButtonDisabled]}
-                                onPress={handleMoveHere}
-                                disabled={moving}
-                                activeOpacity={0.8}
-                                testID='contacts.batch_move.move_here'
-                            >
-                                <Text style={styles.bottomButtonText}>
-                                    {isAtRootLevel
-                                        ? intl.formatMessage({id: 'contacts.move_to_root', defaultMessage: 'Move to root (default department)'})
-                                        : intl.formatMessage(
-                                            {id: 'contacts.move_here', defaultMessage: 'Move here ({name})'},
-                                            {name: currentTarget?.departmentName ?? ''},
-                                        )}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                    <View style={styles.bottomBar}>
+                        <TouchableOpacity
+                            style={[
+                                styles.bottomButton,
+                                (moving || !canMoveToTarget) && styles.bottomButtonDisabled,
+                            ]}
+                            onPress={handleMoveHere}
+                            disabled={moving || !canMoveToTarget}
+                            activeOpacity={0.8}
+                            testID='contacts.batch_move.move_here'
+                        >
+                            <Text style={styles.bottomButtonText}>
+                                {isAtRootLevel
+                                    ? intl.formatMessage({id: 'contacts.move_to_root', defaultMessage: 'Move to root (default department)'})
+                                    : intl.formatMessage(
+                                        {id: 'contacts.move_here', defaultMessage: 'Move here ({name})'},
+                                        {name: currentTarget?.departmentName ?? ''},
+                                    )}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </>
             )}
         </SafeAreaView>

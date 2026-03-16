@@ -108,6 +108,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CONTACTS_DEPARTMENT_DETAIL:
             screen = withServerDatabase(require('@screens/home/contacts/department_detail').default);
             break;
+        case Screens.CONTACTS_DEPARTMENT_BROWSE_FROM_PROFILE:
+            screen = withServerDatabase(require('@screens/home/contacts/department_browse_from_profile').default);
+            break;
         case Screens.CONTACTS_EMPLOYEE_PROFILE:
             screen = withServerDatabase(require('@screens/home/contacts/employee_profile').default);
             break;

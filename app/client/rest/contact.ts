@@ -508,8 +508,10 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     addEmployeeToCompany = (employeeId: string, body: CompanyEmployeeRequest) =>
         this.doRequest<Record<string, never>>(contactRoutes.employeeCompanies(employeeId), 'post', body);
 
-    removeEmployeeFromCompany = (employeeId: string, body: CompanyEmployeeRequest) =>
-        this.doRequest<Record<string, never>>(contactRoutes.employeeCompanies(employeeId), 'delete', body);
+    removeEmployeeFromCompany = (employeeId: string, body: CompanyEmployeeRequest) => {
+        const path = `${contactRoutes.employeeCompanies(employeeId)}?company_id=${encodeURIComponent(body.company_id)}`;
+        return this.doRequest<Record<string, never>>(path, 'delete');
+    };
 
     getEmployeeCompanies = (employeeId: string) =>
         this.doRequest<ContactCompany[]>(contactRoutes.employeeCompanies(employeeId), 'get');
@@ -523,8 +525,11 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     addEmployeeToDepartment = (employeeId: string, body: DepartmentEmployeeRequest) =>
         this.doRequest<Record<string, never>>(contactRoutes.employeeDepartments(employeeId), 'post', body);
 
-    removeEmployeeFromDepartment = (employeeId: string, body: DepartmentEmployeeRequest) =>
-        this.doRequest<Record<string, never>>(contactRoutes.employeeDepartments(employeeId), 'delete', body);
+    /** 后端可能不解析 DELETE body，故用 query 传 department_id 与 company_id */
+    removeEmployeeFromDepartment = (employeeId: string, body: DepartmentEmployeeRequest) => {
+        const path = `${contactRoutes.employeeDepartments(employeeId)}?department_id=${body.department_id}&company_id=${encodeURIComponent(body.company_id)}`;
+        return this.doRequest<Record<string, never>>(path, 'delete');
+    };
 
     /**
      * TODO qgstest 先用现有接口临时实现

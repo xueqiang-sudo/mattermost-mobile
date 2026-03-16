@@ -30,6 +30,7 @@ export const COMPONENT_LIBRARY = 'ComponentLibrary';
 export const CONTACTS = 'Contacts';
 export const CONTACTS_EMPLOYEE_LIST = 'ContactsEmployeeList';
 export const CONTACTS_DEPARTMENT_DETAIL = 'ContactsDepartmentDetail';
+export const CONTACTS_DEPARTMENT_BROWSE_FROM_PROFILE = 'ContactsDepartmentBrowseFromProfile';
 export const CONTACTS_EMPLOYEE_PROFILE = 'ContactsEmployeeProfile';
 export const CONTACTS_MANAGE = 'ContactsManage';
 export const CONTACTS_BATCH_MOVE_MEMBERS = 'ContactsBatchMoveMembers';
@@ -132,6 +133,7 @@ export default {
     CONTACTS,
     CONTACTS_EMPLOYEE_LIST,
     CONTACTS_DEPARTMENT_DETAIL,
+    CONTACTS_DEPARTMENT_BROWSE_FROM_PROFILE,
     CONTACTS_EMPLOYEE_PROFILE,
     CONTACTS_MANAGE,
     CONTACTS_BATCH_MOVE_MEMBERS,
