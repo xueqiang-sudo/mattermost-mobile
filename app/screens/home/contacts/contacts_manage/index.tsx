@@ -10,7 +10,6 @@ import {
     createSubDepartment,
     fetchContactDepartment,
     fetchContactDirectoryContent,
-    fetchDefaultDepartmentId,
     updateContactCompany,
     updateContactDepartment,
 } from '@actions/remote/contact';
@@ -448,18 +447,11 @@ const ContactsManage = ({
                     text={intl.formatMessage({id: 'contacts.batch_move_members', defaultMessage: 'Batch move members'})}
                     onPress={async () => {
                         await dismissBottomSheet();
-                        let sourceId: number;
+                        let sourceId: number | null;
                         let sourceName: string;
                         if (currentDepartmentId == null) {
-                            const defaultRes = await fetchDefaultDepartmentId(companyId);
-                            if (defaultRes.error || defaultRes.data == null) {
-                                Alert.alert(
-                                    intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
-                                    intl.formatMessage({id: 'contacts.default_department_not_found', defaultMessage: 'Default department not found'}),
-                                );
-                                return;
-                            }
-                            sourceId = defaultRes.data;
+                            // 根目录：浏览从根开始，源部门 ID 交由弹窗内部按默认部门处理
+                            sourceId = null;
                             sourceName = intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'});
                         } else {
                             sourceId = currentDepartmentId;

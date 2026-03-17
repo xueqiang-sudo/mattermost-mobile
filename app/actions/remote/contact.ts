@@ -341,23 +341,23 @@ export const createSubDepartment = async (
     }
 };
 
-/** 更新部门名称等信息 */
+/** 更新部门名称等信息；parentId 为 number 时设为父部门，null 时移到根（顶层），undefined 时不改 parent */
 export const updateContactDepartment = async (
     departmentId: number,
     companyId: string,
     name: string,
-    parentId?: number,
+    parentId?: number | null,
 ): Promise<UpdateContactDepartmentResult> => {
     if (!companyId || !name?.trim()) {
         return {error: new Error('companyId and name are required')};
     }
     try {
-        const body: {company_id: string; name: string; parent_id?: number} = {
+        const body: {company_id: string; name: string; parent_id?: number | null} = {
             company_id: companyId,
             name: name.trim(),
         };
-        if (parentId != null) {
-            body.parent_id = parentId;
+        if (parentId !== undefined) {
+            body.parent_id = parentId ?? null;
         }
         const department = await ContactService.updateDepartment(departmentId, body);
         return {data: department};

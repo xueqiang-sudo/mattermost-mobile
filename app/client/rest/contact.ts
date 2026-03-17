@@ -78,8 +78,15 @@ export type CreateDepartmentRequest = {
     name: string;
     description?: string;
     parent_id?: number;
-}
-export type UpdateDepartmentRequest = CreateDepartmentRequest;
+};
+
+/** 更新部门请求：parent_id 为 null 表示移到根（顶层） */
+export type UpdateDepartmentRequest = {
+    company_id: string;
+    name: string;
+    description?: string;
+    parent_id?: number | null;
+};
 
 /** 创建员工请求体：id/name 必填，id 需客户端生成 36 位字符串 */
 export type CreateEmployeeRequest = ContactEmployee;
@@ -209,7 +216,7 @@ export interface ClientContactMix {
     removeEmployeeFromDepartment: (employeeId: string, body: DepartmentEmployeeRequest) => Promise<Record<string, never>>;
 
     /** 员工部门调动：先从旧部门移除，再添加到新部门 */
-    moveEmployeeToDepartment: (employeeId: string, body: MoveEmployeeToDepartmentRequest) => Promise<Record<string, never>>;
+    moveEmployeeToDepartment: (employeeId: string, body: MoveEmployeeToDepartmentRequest) => Promise<void>;
 
     /** GET /api/v1/department-employees/:departmentId/employees - 5. 获取部门下所有员工 */
     getEmployeesOfDepartment: (departmentId: number) => Promise<ContactEmployee[]>;
@@ -538,6 +545,9 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
      * 若员工本不在旧部门（"not belong to" 错误），忽略移除失败，直接执行添加。
      */
     moveEmployeeToDepartment = async (employeeId: string, body: MoveEmployeeToDepartmentRequest) => {
+        if (body.old_department_id === body.department_id) {
+            return;
+        }
         try {
             await this.removeEmployeeFromDepartment(employeeId, {
                 department_id: body.old_department_id,
@@ -552,7 +562,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             // eslint-disable-next-line no-console
             console.log('employee not belong to department', employeeId, body.department_id, body.company_id);
         }
-        return this.addEmployeeToDepartment(employeeId, {
+        await this.addEmployeeToDepartment(employeeId, {
             department_id: body.department_id,
             company_id: body.company_id,
         });
