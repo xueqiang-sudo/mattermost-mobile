@@ -35,6 +35,7 @@ type Props = {
     departmentName?: string;
     departmentParentPath?: string;
     companyName?: string;
+    currentUserId?: string;
 
     /** 从管理界面进入时用于「设置部门」：每人只能属于一个部门 */
     departmentId?: number;
@@ -154,6 +155,7 @@ const ContactsEmployeeProfile = ({
     companyName,
     departmentId,
     companyId: companyIdProp,
+    currentUserId,
     fromManage = false,
 }: Props) => {
     const theme = useTheme();
@@ -220,6 +222,8 @@ const ContactsEmployeeProfile = ({
 
     const canSendMessage = Boolean(employee.email || employee.id);
 
+    const isSelf = Boolean(currentUserId && employee.id && currentUserId === employee.id);
+
     const canChangeDepartment = fromManage && Boolean(companyIdProp);
 
     const handleChangeDepartment = usePreventDoubleTap(useCallback(() => {
@@ -244,7 +248,7 @@ const ContactsEmployeeProfile = ({
         );
     }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee.id, intl, handleClose]));
 
-    const canDelete = Boolean(companyIdProp);
+    const canDelete = Boolean(companyIdProp) && !isSelf;
 
     const handleDeleteMember = usePreventDoubleTap(useCallback(async () => {
         if (!canDelete || deleting) {
@@ -252,9 +256,9 @@ const ContactsEmployeeProfile = ({
         }
         const ok = await new Promise<boolean>((resolve) => {
             Alert.alert(
-                intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete'}),
+                intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Remove from enterprise'}),
                 intl.formatMessage(
-                    {id: 'contacts.delete_member_confirm', defaultMessage: 'Remove {name} from the company and all departments? This cannot be undone.'},
+                    {id: 'contacts.delete_member_confirm', defaultMessage: 'Remove {name} from this enterprise and all associated departments? This action cannot be undone.'},
                     {name: employee.name},
                 ),
                 [
@@ -277,7 +281,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [canDelete, deleting, employee.id, employee.name, intl, handleClose]));
+    }, [canDelete, deleting, employee.id, employee.name, handleClose, intl]));
 
     return (
         <SafeAreaView

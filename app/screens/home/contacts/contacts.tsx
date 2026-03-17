@@ -385,11 +385,12 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 departmentName: deptName,
                 companyName,
                 companyId: currentTeamId ?? undefined,
+                currentUserId: currentUser?.id,
                 closeButtonId: `close-employee-${employee.id}`,
             },
             {useBackIcon: true},
         );
-    }, [companyName, currentTeamId, intl]));
+    }, [companyName, currentTeamId, currentUser?.id, intl]));
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
