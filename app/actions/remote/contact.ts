@@ -442,6 +442,31 @@ export const moveContactEmployeeToDepartment = async (
     }
 };
 
+/** 删除部门（级联删除关联） */
+export const deleteContactDepartment = async (departmentId: number): Promise<{error?: unknown}> => {
+    try {
+        await ContactService.deleteDepartment(departmentId);
+        return {};
+    } catch (error) {
+        logDebug('[deleteContactDepartment]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 删除员工（级联删除公司、部门关联） */
+export const deleteContactEmployee = async (employeeId: string): Promise<{error?: unknown}> => {
+    if (!employeeId) {
+        return {error: new Error('employeeId is required')};
+    }
+    try {
+        await ContactService.deleteEmployee(employeeId);
+        return {};
+    } catch (error) {
+        logDebug('[deleteContactEmployee]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
 /** 按公司类型获取员工（team/customer/supplier，去重） */
 export const fetchEmployeesOfCompaniesByType = async (
     type: ContactCompanyType,

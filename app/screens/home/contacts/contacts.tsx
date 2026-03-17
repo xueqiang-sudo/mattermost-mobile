@@ -512,6 +512,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.headerActions}>
+                    {/* 通讯录搜索按钮 - 暂不启用
                     <TouchableOpacity
                         style={styles.headerIconButton}
                         onPress={handleSearch}
@@ -524,6 +525,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                             color={theme.sidebarText}
                         />
                     </TouchableOpacity>
+                    */}
                     <TouchableOpacity
                         style={styles.headerIconButton}
                         onPress={handleManageContacts}

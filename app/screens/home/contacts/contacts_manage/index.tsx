@@ -8,8 +8,10 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     createSubDepartment,
+    deleteContactDepartment,
     fetchContactDepartment,
     fetchContactDirectoryContent,
+    fetchEmployeeCountOfDepartment,
     updateContactCompany,
     updateContactDepartment,
 } from '@actions/remote/contact';
@@ -421,12 +423,14 @@ const ContactsManage = ({
     }, [companyId, intl, modifyEnterpriseNameInput, refetch, enterpriseDisplayName, companyName, currentDepartmentId]);
 
     const handleMore = usePreventDoubleTap(useCallback(() => {
+        /* 批量设置成员信息暂不启用，enterSubFirst 仅该功能使用
         const enterSubFirst = () => {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
                 intl.formatMessage({id: 'contacts.enter_sub_department_first', defaultMessage: 'Please enter a sub-department first'}),
             );
         };
+        */
         const renderContent = () => (
             <>
                 <SlideUpPanelItem
@@ -472,6 +476,7 @@ const ContactsManage = ({
                     }}
                     testID='contacts.manage.more.batch_move'
                 />
+                {/* 批量设置成员信息 - 暂不启用
                 <SlideUpPanelItem
                     leftIcon='table-settings'
                     text={intl.formatMessage({id: 'contacts.batch_set_member_info', defaultMessage: 'Batch set member info'})}
@@ -497,6 +502,53 @@ const ContactsManage = ({
                     }}
                     testID='contacts.manage.more.batch_set'
                 />
+                */}
+                {currentDepartmentId != null && memberCount === 0 && (
+                    <SlideUpPanelItem
+                        leftIcon='trash-can-outline'
+                        text={intl.formatMessage({id: 'contacts.delete_department', defaultMessage: 'Delete department'})}
+                        onPress={async () => {
+                            await dismissBottomSheet();
+                            const deptId = currentDepartmentId;
+                            const deptName = currentDepartmentName ?? '';
+                            const ok = await new Promise<boolean>((resolve) => {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'contacts.delete_department', defaultMessage: 'Delete department'}),
+                                    intl.formatMessage(
+                                        {id: 'contacts.delete_department_confirm', defaultMessage: 'Delete department "{name}"? This cannot be undone.'},
+                                        {name: deptName},
+                                    ),
+                                    [
+                                        {text: intl.formatMessage({id: 'contacts.cancel', defaultMessage: 'Cancel'}), onPress: () => resolve(false)},
+                                        {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
+                                    ],
+                                );
+                            });
+                            if (!ok || deptId == null) {
+                                return;
+                            }
+                            const countRes = await fetchEmployeeCountOfDepartment(deptId);
+                            if (countRes.error || (countRes.data ?? 0) > 0) {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                                    intl.formatMessage({id: 'contacts.delete_department_has_members', defaultMessage: 'This department has members and cannot be deleted.'}),
+                                );
+                                return;
+                            }
+                            const delRes = await deleteContactDepartment(deptId);
+                            if (delRes.error) {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                                    intl.formatMessage({id: 'contacts.delete_department_failed', defaultMessage: 'Failed to delete department. Please try again.'}),
+                                );
+                                return;
+                            }
+                            refetch();
+                            handleBack();
+                        }}
+                        testID='contacts.manage.more.delete_department'
+                    />
+                )}
                 <SlideUpPanelItem
                     leftIcon='close'
                     text={intl.formatMessage({id: 'contacts.cancel', defaultMessage: 'Cancel'})}
@@ -507,14 +559,15 @@ const ContactsManage = ({
                 />
             </>
         );
+        const itemCount = 3 + (currentDepartmentId != null && memberCount === 0 ? 1 : 0);
         bottomSheet({
             closeButtonId: 'close-contacts-manage-more',
             renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(4, ITEM_HEIGHT)],
+            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
             theme,
             title: intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
         });
-    }, [companyId, currentDepartmentId, currentDepartmentName, employees, intl, refetch, theme, handleModifyDepartmentName, handleModifyEnterpriseName]));
+    }, [companyId, currentDepartmentId, currentDepartmentName, employees, intl, memberCount, refetch, theme, handleBack, handleModifyDepartmentName, handleModifyEnterpriseName]));
 
     return (
         <SafeAreaView

@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {deleteContactEmployee} from '@actions/remote/contact';
 import {makeDirectChannel} from '@actions/remote/channel';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
@@ -139,6 +140,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     sendButton: {
         marginTop: 16,
     },
+    deleteButton: {
+        marginTop: 16,
+    },
 }));
 
 const ContactsEmployeeProfile = ({
@@ -157,6 +161,7 @@ const ContactsEmployeeProfile = ({
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
     const [sending, setSending] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -238,6 +243,41 @@ const ContactsEmployeeProfile = ({
             {useBackIcon: true, topBar: {visible: false}},
         );
     }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee.id, intl, handleClose]));
+
+    const canDelete = Boolean(companyIdProp);
+
+    const handleDeleteMember = usePreventDoubleTap(useCallback(async () => {
+        if (!canDelete || deleting) {
+            return;
+        }
+        const ok = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete'}),
+                intl.formatMessage(
+                    {id: 'contacts.delete_member_confirm', defaultMessage: 'Remove {name} from the company and all departments? This cannot be undone.'},
+                    {name: employee.name},
+                ),
+                [
+                    {text: intl.formatMessage({id: 'contacts.cancel', defaultMessage: 'Cancel'}), style: 'cancel', onPress: () => resolve(false)},
+                    {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
+                ],
+            );
+        });
+        if (!ok) {
+            return;
+        }
+        setDeleting(true);
+        const result = await deleteContactEmployee(employee.id);
+        setDeleting(false);
+        if (result.error) {
+            Alert.alert(
+                '',
+                intl.formatMessage({id: 'contacts.delete_member_failed', defaultMessage: 'Failed to remove member. Please try again.'}),
+            );
+            return;
+        }
+        handleClose();
+    }, [canDelete, deleting, employee.id, employee.name, intl, handleClose]));
 
     return (
         <SafeAreaView
@@ -390,6 +430,18 @@ const ContactsEmployeeProfile = ({
                         style={styles.sendButton}
                         testID='contacts.employee_profile.send_message'
                         text={intl.formatMessage({id: 'contacts.send_message', defaultMessage: 'Send Message'})}
+                    />
+                )}
+                {canDelete && (
+                    <Button
+                        theme={theme}
+                        onPress={handleDeleteMember}
+                        size='lg'
+                        isDestructive={true}
+                        disabled={deleting}
+                        buttonContainerStyle={styles.deleteButton}
+                        testID='contacts.employee_profile.delete'
+                        text={intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete'})}
                     />
                 )}
             </ScrollView>
