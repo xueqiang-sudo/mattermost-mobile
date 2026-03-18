@@ -86,10 +86,7 @@ export type FetchContactDirectoryContentResult = {
 };
 
 /** 统一获取通讯录目录内容：根目录或子目录返回相同结构，调用层不区分层级 */
-export const fetchContactDirectoryContent = async (
-    companyId: string,
-    departmentId?: number,
-): Promise<FetchContactDirectoryContentResult> => {
+export const fetchContactDirectoryContent = async (companyId: string, departmentId?: number): Promise<FetchContactDirectoryContentResult> => {
     if (!companyId) {
         return {error: new Error('companyId is required')};
     }
@@ -109,8 +106,8 @@ export const fetchContactDirectoryContent = async (
             return {data: {departments, employees, memberCount}};
         }
         const [detailRes, countRes] = await Promise.all([
-            fetchDepartmentDetail(departmentId, companyId),
-            fetchEmployeeCountOfDepartment(departmentId),
+            fetchDepartmentDetail(companyId, departmentId),
+            fetchEmployeeCountOfDepartment(companyId, departmentId),
         ]);
         if (detailRes.error) {
             return {error: detailRes.error};
@@ -290,7 +287,7 @@ export const ensureTeamCompany = async (teamId: string, teamName: string): Promi
 };
 
 /** 获取公司下所有部门
- * @param opts.parentDepartmentId 指定获取
+ * @param [opts.parentDepartmentId]  指定父部门
  */
 export const fetchDepartmentsByCompany = async (companyId: string, opts?: {parentDepartmentId?: number}): Promise<FetchDepartmentsOfCompanyResult> => {
     if (!companyId) {
@@ -344,7 +341,7 @@ export const fetchEmployeesOfDefaultDepartment = async (companyId: string): Prom
             logDebug('[fetchEmployeesOfDefaultDepartment]', 'No default department found');
             return {data: []};
         }
-        const employees = await ContactService.getEmployeesOfDepartment(defaultDept.id);
+        const employees = await ContactService.getEmployeesOfDepartment(companyId, defaultDept.id);
         return {data: employees};
     } catch (error) {
         logDebug('[ContactService.fetchEmployeesOfDefaultDepartment]', getFullErrorMessage(error));
@@ -381,9 +378,15 @@ export const fetchEmployeeDetails = async (employeeId: string): Promise<FetchEmp
 };
 
 /** 获取单个部门（含 parent_id，用于修改部门名称时提交） */
-export const fetchContactDepartment = async (departmentId: number): Promise<{data?: ContactDepartment; error?: unknown}> => {
+export const fetchContactDepartment = async (
+    companyId: string,
+    departmentId: number,
+): Promise<{data?: ContactDepartment; error?: unknown}> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
     try {
-        const department = await ContactService.getDepartment(departmentId);
+        const department = await ContactService.getDepartment(companyId, departmentId);
         return {data: department};
     } catch (error) {
         logDebug('[fetchContactDepartment]', getFullErrorMessage(error));
@@ -392,9 +395,15 @@ export const fetchContactDepartment = async (departmentId: number): Promise<{dat
 };
 
 /** 获取部门及子部门下员工总数（用于子部门人数展示） */
-export const fetchEmployeeCountOfDepartment = async (departmentId: number): Promise<FetchEmployeeCountOfDepartmentResult> => {
+export const fetchEmployeeCountOfDepartment = async (
+    companyId: string,
+    departmentId: number,
+): Promise<FetchEmployeeCountOfDepartmentResult> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
     try {
-        const count = await ContactService.getEmployeeCountOfDepartment(departmentId);
+        const count = await ContactService.getEmployeeCountOfDepartment(companyId, departmentId);
         return {data: count};
     } catch (error) {
         logDebug('[ContactService.fetchEmployeeCountOfDepartment]', getFullErrorMessage(error));
@@ -403,17 +412,14 @@ export const fetchEmployeeCountOfDepartment = async (departmentId: number): Prom
 };
 
 /** 获取部门详情：子部门列表 + 部门下所有员工（含子部门），并行请求 */
-export const fetchDepartmentDetail = async (
-    departmentId: number,
-    companyId: string,
-): Promise<FetchDepartmentDetailResult> => {
+export const fetchDepartmentDetail = async (companyId: string, departmentId: number): Promise<FetchDepartmentDetailResult> => {
     if (!companyId) {
         return {error: new Error('companyId is required')};
     }
     try {
         const [deptRes, empRes] = await Promise.all([
             fetchDepartmentsByCompany(companyId),
-            ContactService.getEmployeesOfDepartment(departmentId),
+            ContactService.getEmployeesOfDepartment(companyId, departmentId),
         ]);
 
         if (deptRes.error) {
@@ -568,9 +574,15 @@ export const moveContactEmployeeToDepartment = async (
 };
 
 /** 删除部门（级联删除关联） */
-export const deleteContactDepartment = async (departmentId: number): Promise<{error?: unknown}> => {
+export const deleteContactDepartment = async (
+    companyId: string,
+    departmentId: number,
+): Promise<{error?: unknown}> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
     try {
-        await ContactService.deleteDepartment(departmentId);
+        await ContactService.deleteDepartment(companyId, departmentId);
         return {};
     } catch (error) {
         logDebug('[deleteContactDepartment]', getFullErrorMessage(error));

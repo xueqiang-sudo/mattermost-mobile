@@ -13,7 +13,6 @@ import {
     RetryTypes,
     type APIClientConfiguration,
     type APIClientInterface,
-    type ClientResponse,
 } from '@mattermost/react-native-network-client';
 import {nativeApplicationVersion, nativeBuildVersion} from 'expo-application';
 import {modelName, osName, osVersion} from 'expo-device';
@@ -24,6 +23,13 @@ import ClientTracking from '@client/rest/tracking';
 
 export const CONTACT_API_BASE_ROUTE = '/api/v1';
 export const API_KEY_HEADER = 'X-API-KEY';
+const CONTACT_VERSION_CACHE_TTL_MS = 5000;
+
+/**
+ * 是否启用通讯录「按公司」的版本号 + 响应体缓存（doRequestCompanyProxy）。
+ * 调试接口或排查缓存问题时改为 `false`，所有走代理的请求将每次直连，不再读/写缓存、也不再为 GET 额外请求版本接口。
+ */
+export const CONTACT_ENABLE_COMPANY_PROXY_CACHE = true;
 
 /** 用于识别默认部门的名称约定，与后端一致 */
 export const DEFAULT_DEPARTMENT_NAME = 'FORCE_DEFAULT_DEPARTMENT';
@@ -126,12 +132,6 @@ export type MoveEmployeeToDepartmentRequest = {
     to_department_id: number;
 }
 
-/** API 基本信息响应（GET /） */
-export type ContactApiInfo = {
-    name: string;
-    version: string;
-}
-
 /** 通讯录版本信息 */
 export type ContactVersionInfo = {
     company_id: string;
@@ -146,22 +146,11 @@ export type UpdateContactVersionResponse = {
     message?: string;
 }
 
-/** 健康检查响应（GET /health） */
-export type ContactHealth = {
-    status: string;
-}
-
 /**
  * 通讯录 API 客户端接口定义
  * 对应后端 Contact Management API v1，包含公司、部门、员工及其关联的 CRUD 操作
  */
 export interface ClientContactMix {
-
-    /** GET /health - 健康检查（无需 API Key） */
-    contactHealthCheck: () => Promise<ContactHealth>;
-
-    /** GET / - 获取 API 名称与版本（无需 API Key） */
-    getContactAPIInfo: () => Promise<ContactApiInfo>;
 
     /** POST /api/v1/companies - 创建公司 */
     createCompany: (company: CreateCompanyRequest) => Promise<ContactCompany>;
@@ -190,29 +179,29 @@ export interface ClientContactMix {
     /** POST /api/v1/departments - 创建部门 */
     createDepartment: (department: CreateDepartmentRequest) => Promise<ContactDepartment>;
 
-    /** GET /api/v1/departments/:id - 获取单个部门 */
-    getDepartment: (departmentId: number) => Promise<ContactDepartment>;
+    /** GET /api/v1/departments/:id - 获取单个部门（companyId 用于版本缓存） */
+    getDepartment: (companyId: string, departmentId: number) => Promise<ContactDepartment>;
 
     /** PUT /api/v1/departments/:id - 更新部门 */
     updateDepartment: (departmentId: number, department: UpdateDepartmentRequest) => Promise<ContactDepartment>;
 
     /** DELETE /api/v1/departments/:id - 删除部门（级联删除关联） */
-    deleteDepartment: (departmentId: number) => Promise<Record<string, never>>;
+    deleteDepartment: (companyId: string, departmentId: number) => Promise<Record<string, never>>;
 
     /** GET /api/v1/departments/:id/employees - 5. 获取部门及其员工 */
-    getDepartmentWithEmployees: (departmentId: number) => Promise<ContactEmployee[]>;
+    getDepartmentWithEmployees: (companyId: string, departmentId: number) => Promise<ContactEmployee[]>;
 
     /** GET /api/v1/departments/:id/sub-departments - 7. 获取子部门列表 */
-    getSubDepartments: (parentDepartmentId: number) => Promise<ContactDepartment[]>;
+    getSubDepartments: (companyId: string, parentDepartmentId: number) => Promise<ContactDepartment[]>;
 
     /** GET /api/v1/departments/:id/children - 获取部门及其子部门 */
-    getDepartmentWithChildren: (departmentId: number) => Promise<ContactDepartment[]>;
+    getDepartmentWithChildren: (companyId: string, departmentId: number) => Promise<ContactDepartment[]>;
 
     /** GET /api/v1/departments/:id/ancestors - 获取部门祖先链（含自身，从上到下） */
-    getDepartmentAncestors: (departmentId: number) => Promise<ContactDepartment[]>;
+    getDepartmentAncestors: (companyId: string, departmentId: number) => Promise<ContactDepartment[]>;
 
     /** 获取部门及其子部门下员工总数 */
-    getEmployeeCountOfDepartment: (departmentId: number) => Promise<number>;
+    getEmployeeCountOfDepartment: (companyId: string, departmentId: number) => Promise<number>;
 
     /** POST /api/v1/employees - 创建员工 */
     createEmployee: (employee: CreateEmployeeRequest) => Promise<ContactEmployee>;
@@ -257,7 +246,7 @@ export interface ClientContactMix {
     moveEmployeeToDepartment: (employeeId: string, body: MoveEmployeeToDepartmentRequest) => Promise<void>;
 
     /** GET /api/v1/department-employees/:departmentId/employees - 5. 获取部门下所有员工 */
-    getEmployeesOfDepartment: (departmentId: number) => Promise<ContactEmployee[]>;
+    getEmployeesOfDepartment: (companyId: string, departmentId: number) => Promise<ContactEmployee[]>;
 
     /** GET /api/v1/by_companies/:companyId/departments - 获取公司部门列表（带 parent_department_id 过滤） */
     getDepartmentsByCompany: (companyId: string, opts?: {parentDepartmentId?: number}) => Promise<ContactDepartment[]>;
@@ -276,16 +265,9 @@ export interface ClientContactMix {
 }
 
 /**
- * 通讯录 API 路径映射
- * 所有接口需 X-API-KEY 认证，/health 和 / 除外
+ * 通讯录 API 路径映射（均需 X-API-KEY）
  */
 export const contactRoutes = {
-
-    /** GET /health - 健康检查 */
-    health: () => '/health',
-
-    /** GET / - API 信息 */
-    apiInfo: () => '/',
 
     /** POST/GET /api/v1/companies */
     companies: () => `${CONTACT_API_BASE_ROUTE}/companies`,
@@ -398,6 +380,22 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     private baseUrl = '';
     private apiKey = '';
 
+    /**
+     * doRequestCompanyProxy（按公司维度的 GET 缓存）用到的三块状态：
+     *
+     * - versionByCompany：该公司通讯录「版本号」的短期缓存（含写入时间）。
+     *   在 TTL 内复用同一 version，避免每条业务 GET 都打版本接口；mutation 或非 GET 会整公司清空。
+     *
+     * - versionInflight：同一 companyId 并发拉版本时，只发一次版本请求，其余 await 同一条 Promise，
+     *   防止短时间内多个列表/详情同时过期时重复 GET contactVersion。
+     *
+     * - responseByCompany：按 companyId → (请求 path → {当时版本号, 响应体, 写入时间})。
+     *   业务 GET 若命中「当前 version 一致 + 仍在 TTL」则直接返回缓存 body，否则直连并写入。
+     */
+    private versionByCompany = new Map<string, {version: string; at: number}>();
+    private versionInflight = new Map<string, Promise<string>>();
+    private responseByCompany = new Map<string, Map<string, {version: string; data: unknown; at: number}>>();
+
     constructor() {
         super(createPlaceholderApiClient());
     }
@@ -461,8 +459,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         }
     }
 
-    /** 统一封装 GET/POST/PUT/DELETE 请求，自动附加 API Key 与 tracking */
-    private async doRequest<T>(path: string, method: string, body?: object): Promise<T> {
+    private async doRequestDirect<T>(path: string, method: string, body?: object): Promise<T> {
         this.ensureInitialized();
         const options: ClientOptions = {
             method: method.toUpperCase(),
@@ -471,131 +468,183 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         return this.doFetchWithTracking(path, options, true) as Promise<T>;
     }
 
-    contactHealthCheck = async (): Promise<ContactHealth> => {
-        this.ensureInitialized();
-        const headers = {...this.getRequestHeaders('get')};
-        delete headers[API_KEY_HEADER];
-        const response = await this.apiClient.get(contactRoutes.health(), {headers}) as ClientResponse;
-        if (!response.ok) {
-            throw new ClientError(this.baseUrl, {
-                message: (response.data as {error?: string})?.error ?? `Health check failed: ${response.code}`,
-                status_code: response.code,
-                url: contactRoutes.health(),
-            });
-        }
-        return (response.data ?? {}) as ContactHealth;
-    };
+    private invalidateCompanyCache(companyId: string) {
+        this.versionByCompany.delete(companyId);
+        this.responseByCompany.delete(companyId);
+        this.versionInflight.delete(companyId);
+    }
 
-    getContactAPIInfo = async (): Promise<ContactApiInfo> => {
-        this.ensureInitialized();
-        const headers = {...this.getRequestHeaders('get')};
-        delete headers[API_KEY_HEADER];
-        const response = await this.apiClient.get(contactRoutes.apiInfo(), {headers}) as ClientResponse;
-        if (!response.ok) {
-            throw new ClientError(this.baseUrl, {
-                message: (response.data as {error?: string})?.error ?? `API info failed: ${response.code}`,
-                status_code: response.code,
-                url: contactRoutes.apiInfo(),
-            });
+    /** 显式传入 companyId 的读写：GET 按版本做响应缓存；非 GET 先失效再请求。版本/更新版本接口勿用此方法。 */
+    private async doRequestCompanyProxy<T>(
+        companyIdOfVersion: string,
+        path: string,
+        method: string,
+        body?: object,
+    ): Promise<T> {
+        if (!CONTACT_ENABLE_COMPANY_PROXY_CACHE) {
+            return this.doRequestDirect<T>(path, method, body);
         }
-        return (response.data ?? {}) as ContactApiInfo;
-    };
+        const upper = method.toUpperCase();
+        if (upper !== 'GET') {
+            this.invalidateCompanyCache(companyIdOfVersion);
+            return this.doRequestDirect<T>(path, method, body);
+        }
+
+        const now = Date.now();
+        let version: string;
+        try {
+            const cachedV = this.versionByCompany.get(companyIdOfVersion);
+            if (cachedV && now - cachedV.at <= CONTACT_VERSION_CACHE_TTL_MS) {
+                version = cachedV.version;
+            } else {
+                const inflight = this.versionInflight.get(companyIdOfVersion);
+                if (inflight) {
+                    version = await inflight;
+                } else {
+                    const p = (async () => {
+                        const info = await this.doRequestDirect<ContactVersionInfo>(
+                            contactRoutes.contactVersion(companyIdOfVersion),
+                            'get',
+                        );
+                        const v = info.version;
+                        this.versionByCompany.set(companyIdOfVersion, {version: v, at: Date.now()});
+                        return v;
+                    })();
+                    this.versionInflight.set(companyIdOfVersion, p);
+                    try {
+                        version = await p;
+                    } finally {
+                        this.versionInflight.delete(companyIdOfVersion);
+                    }
+                }
+            }
+        } catch {
+            return this.doRequestDirect<T>(path, method, body);
+        }
+
+        let map = this.responseByCompany.get(companyIdOfVersion);
+        if (!map) {
+            map = new Map();
+            this.responseByCompany.set(companyIdOfVersion, map);
+        }
+        const hit = map.get(path);
+        if (hit && hit.version === version && now - hit.at <= CONTACT_VERSION_CACHE_TTL_MS) {
+            return hit.data as T;
+        }
+        const data = await this.doRequestDirect<T>(path, method, body);
+        map.set(path, {version, data, at: Date.now()});
+        return data;
+    }
 
     createCompany = (company: CreateCompanyRequest) =>
-        this.doRequest<ContactCompany>(contactRoutes.companies(), 'post', company);
+        this.doRequestDirect<ContactCompany>(contactRoutes.companies(), 'post', company);
 
     getCompanies = () =>
-        this.doRequest<ContactCompany[]>(contactRoutes.companies(), 'get');
+        this.doRequestDirect<ContactCompany[]>(contactRoutes.companies(), 'get');
 
     getCompany = (companyId: string) =>
-        this.doRequest<ContactCompany>(contactRoutes.company(companyId), 'get');
+        this.doRequestCompanyProxy<ContactCompany>(companyId, contactRoutes.company(companyId), 'get');
 
     updateCompany = (companyId: string, company: UpdateCompanyRequest) =>
-        this.doRequest<ContactCompany>(contactRoutes.company(companyId), 'put', company);
+        this.doRequestCompanyProxy<ContactCompany>(companyId, contactRoutes.company(companyId), 'put', company);
 
     deleteCompany = (companyId: string) =>
-        this.doRequest<Record<string, never>>(contactRoutes.company(companyId), 'delete');
+        this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.company(companyId), 'delete');
 
     getCompanyWithDepartments = async (companyId: string) =>
-        this.doRequest<ContactCompany & {departments?: ContactDepartment[]}>(contactRoutes.companyWithDepartments(companyId), 'get');
+        this.doRequestCompanyProxy<ContactCompany & {departments?: ContactDepartment[]}>(
+            companyId,
+            contactRoutes.companyWithDepartments(companyId),
+            'get',
+        );
 
     getCompanyWithEmployees = (companyId: string) =>
-        this.doRequest<ContactEmployee[]>(contactRoutes.companyWithEmployees(companyId), 'get');
+        this.doRequestCompanyProxy<ContactEmployee[]>(companyId, contactRoutes.companyWithEmployees(companyId), 'get');
 
     getCompanyEmployeeCount = (companyId: string) =>
-        this.doRequest<{total: number}>(contactRoutes.totalEmployeesOfCompany(companyId), 'get').then((res) => res.total);
+        this.doRequestCompanyProxy<{total: number}>(companyId, contactRoutes.totalEmployeesOfCompany(companyId), 'get').then((res) => res.total);
 
     createDepartment = (department: CreateDepartmentRequest) =>
-        this.doRequest<ContactDepartment>(contactRoutes.departments(), 'post', department);
+        this.doRequestCompanyProxy<ContactDepartment>(
+            department.company_id,
+            contactRoutes.departments(),
+            'post',
+            department,
+        );
 
-    getDepartment = (departmentId: number) =>
-        this.doRequest<ContactDepartment>(contactRoutes.department(departmentId), 'get');
+    getDepartment = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<ContactDepartment>(companyId, contactRoutes.department(departmentId), 'get');
 
     updateDepartment = (departmentId: number, department: UpdateDepartmentRequest) =>
-        this.doRequest<ContactDepartment>(contactRoutes.department(departmentId), 'put', department);
+        this.doRequestCompanyProxy<ContactDepartment>(
+            department.company_id,
+            contactRoutes.department(departmentId),
+            'put',
+            department,
+        );
 
-    deleteDepartment = (departmentId: number) =>
-        this.doRequest<Record<string, never>>(contactRoutes.department(departmentId), 'delete');
+    deleteDepartment = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.department(departmentId), 'delete');
 
-    getDepartmentWithEmployees = (departmentId: number) =>
-        this.doRequest<ContactEmployee[]>(contactRoutes.departmentWithEmployees(departmentId), 'get');
+    getDepartmentWithEmployees = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<ContactEmployee[]>(companyId, contactRoutes.departmentWithEmployees(departmentId), 'get');
 
-    getSubDepartments = (parentDepartmentId: number) =>
-        this.doRequest<ContactDepartment[]>(contactRoutes.subDepartments(parentDepartmentId), 'get');
+    getSubDepartments = (companyId: string, parentDepartmentId: number) =>
+        this.doRequestCompanyProxy<ContactDepartment[]>(companyId, contactRoutes.subDepartments(parentDepartmentId), 'get');
 
-    getDepartmentWithChildren = (departmentId: number) =>
-        this.doRequest<ContactDepartment[]>(contactRoutes.departmentWithChildren(departmentId), 'get');
+    getDepartmentWithChildren = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<ContactDepartment[]>(companyId, contactRoutes.departmentWithChildren(departmentId), 'get');
 
-    getDepartmentAncestors = (departmentId: number) =>
-        this.doRequest<ContactDepartment[]>(contactRoutes.departmentAncestors(departmentId), 'get');
+    getDepartmentAncestors = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<ContactDepartment[]>(companyId, contactRoutes.departmentAncestors(departmentId), 'get');
 
-    getEmployeeCountOfDepartment = (departmentId: number) =>
-        this.doRequest<{total: number}>(contactRoutes.totalEmployeesOfDepartment(departmentId), 'get').then((res) => res.total);
+    getEmployeeCountOfDepartment = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<{total: number}>(companyId, contactRoutes.totalEmployeesOfDepartment(departmentId), 'get').then((res) => res.total);
 
     createEmployee = (employee: CreateEmployeeRequest) =>
-        this.doRequest<ContactEmployee>(contactRoutes.employees(), 'post', employee);
+        this.doRequestDirect<ContactEmployee>(contactRoutes.employees(), 'post', employee);
 
     getEmployee = (employeeId: string) =>
-        this.doRequest<ContactEmployee>(contactRoutes.employee(employeeId), 'get');
+        this.doRequestDirect<ContactEmployee>(contactRoutes.employee(employeeId), 'get');
 
     updateEmployee = (employeeId: string, employee: UpdateEmployeeRequest) =>
-        this.doRequest<ContactEmployee>(contactRoutes.employee(employeeId), 'put', employee);
+        this.doRequestDirect<ContactEmployee>(contactRoutes.employee(employeeId), 'put', employee);
 
     deleteEmployee = (employeeId: string) =>
-        this.doRequest<Record<string, never>>(contactRoutes.employee(employeeId), 'delete');
+        this.doRequestDirect<Record<string, never>>(contactRoutes.employee(employeeId), 'delete');
 
     getEmployeeDetails = (employeeId: string) =>
-        this.doRequest<ContactEmployeeDetails>(contactRoutes.employeeDetails(employeeId), 'get');
+        this.doRequestDirect<ContactEmployeeDetails>(contactRoutes.employeeDetails(employeeId), 'get');
 
     getEmployeeCascadeDepartments = (employeeId: string, companyId: string) => {
         const path = `${contactRoutes.employeeCascadeDepartments(employeeId)}?company_id=${encodeURIComponent(companyId)}`;
-        return this.doRequest<ContactEmployeeCascadeDepartments>(path, 'get');
+        return this.doRequestCompanyProxy<ContactEmployeeCascadeDepartments>(companyId, path, 'get');
     };
 
     addEmployeeToCompany = (employeeId: string, body: CompanyEmployeeRequest) =>
-        this.doRequest<Record<string, never>>(contactRoutes.employeeCompanies(employeeId), 'post', body);
+        this.doRequestCompanyProxy<Record<string, never>>(body.company_id, contactRoutes.employeeCompanies(employeeId), 'post', body);
 
     removeEmployeeFromCompany = (employeeId: string, body: CompanyEmployeeRequest) => {
         const path = `${contactRoutes.employeeCompanies(employeeId)}?company_id=${encodeURIComponent(body.company_id)}`;
-        return this.doRequest<Record<string, never>>(path, 'delete');
+        return this.doRequestCompanyProxy<Record<string, never>>(body.company_id, path, 'delete');
     };
 
     getEmployeeCompanies = (employeeId: string) =>
-        this.doRequest<ContactCompany[]>(contactRoutes.employeeCompanies(employeeId), 'get');
+        this.doRequestDirect<ContactCompany[]>(contactRoutes.employeeCompanies(employeeId), 'get');
 
     getEmployeeCompanyDetails = (employeeId: string) =>
-        this.doRequest<ContactCompany[]>(contactRoutes.employeeCompanyDetails(employeeId), 'get');
+        this.doRequestDirect<ContactCompany[]>(contactRoutes.employeeCompanyDetails(employeeId), 'get');
 
     getEmployeesOfCompany = (companyId: string) =>
-        this.doRequest<ContactEmployee[]>(contactRoutes.employeesOfCompany(companyId), 'get');
+        this.doRequestCompanyProxy<ContactEmployee[]>(companyId, contactRoutes.employeesOfCompany(companyId), 'get');
 
     addEmployeeToDepartment = (employeeId: string, body: DepartmentEmployeeRequest) =>
-        this.doRequest<Record<string, never>>(contactRoutes.employeeDepartments(employeeId), 'post', body);
+        this.doRequestCompanyProxy<Record<string, never>>(body.company_id, contactRoutes.employeeDepartments(employeeId), 'post', body);
 
     /** 后端可能不解析 DELETE body，故用 query 传 department_id 与 company_id */
     removeEmployeeFromDepartment = (employeeId: string, body: DepartmentEmployeeRequest) => {
         const path = `${contactRoutes.employeeDepartments(employeeId)}?department_id=${body.department_id}&company_id=${encodeURIComponent(body.company_id)}`;
-        return this.doRequest<Record<string, never>>(path, 'delete');
+        return this.doRequestCompanyProxy<Record<string, never>>(body.company_id, path, 'delete');
     };
 
     moveEmployeeToDepartment = async (employeeId: string, body: MoveEmployeeToDepartmentRequest) => {
@@ -603,20 +652,21 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             return;
         }
 
-        await this.doRequest<Record<string, never>>(
+        await this.doRequestCompanyProxy<Record<string, never>>(
+            body.company_id,
             contactRoutes.moveEmployeeDepartment(employeeId),
             'put',
             body,
         );
     };
 
-    getEmployeesOfDepartment = (departmentId: number) =>
-        this.doRequest<ContactEmployee[]>(contactRoutes.employeesOfDepartment(departmentId), 'get');
+    getEmployeesOfDepartment = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<ContactEmployee[]>(companyId, contactRoutes.employeesOfDepartment(departmentId), 'get');
 
     getDepartmentsByCompany = (companyId: string, opts?: {parentDepartmentId?: number}) => {
         const parentDepartmentId = opts?.parentDepartmentId;
         const path = `${contactRoutes.departmentsByCompany(companyId)}${typeof parentDepartmentId === 'number' ? `?parent_department_id=${parentDepartmentId}` : ''}`;
-        return this.doRequest<ContactDepartment[]>(path, 'get');
+        return this.doRequestCompanyProxy<ContactDepartment[]>(companyId, path, 'get');
     };
 
     searchCompanyEmployees = (companyId: string, params: {keyword: string; departmentId?: number}) => {
@@ -624,7 +674,8 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             `keyword=${encodeURIComponent(params.keyword)}`,
             ...(typeof params.departmentId === 'number' ? [`department_id=${encodeURIComponent(String(params.departmentId))}`] : []),
         ];
-        return this.doRequest<ContactEmployeeSearchItem[]>(
+        return this.doRequestCompanyProxy<ContactEmployeeSearchItem[]>(
+            companyId,
             `${contactRoutes.searchEmployeesOfCompany(companyId)}?${queryParts.join('&')}`,
             'get',
         );
@@ -635,17 +686,18 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             `keyword=${encodeURIComponent(params.keyword)}`,
             `company_id=${encodeURIComponent(params.companyId)}`,
         ];
-        return this.doRequest<ContactEmployeeSearchItem[]>(
+        return this.doRequestCompanyProxy<ContactEmployeeSearchItem[]>(
+            params.companyId,
             `${contactRoutes.searchEmployeesOfDepartment(departmentId)}?${queryParts.join('&')}`,
             'get',
         );
     };
 
     getContactVersion = (companyId: string) =>
-        this.doRequest<ContactVersionInfo>(contactRoutes.contactVersion(companyId), 'get');
+        this.doRequestDirect<ContactVersionInfo>(contactRoutes.contactVersion(companyId), 'get');
 
     updateContactVersion = (companyId: string) =>
-        this.doRequest<UpdateContactVersionResponse>(contactRoutes.contactVersion(companyId), 'put');
+        this.doRequestDirect<UpdateContactVersionResponse>(contactRoutes.contactVersion(companyId), 'put');
 }
 
 const ContactService = new ContactServiceClass();

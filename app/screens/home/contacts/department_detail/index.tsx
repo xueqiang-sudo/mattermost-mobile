@@ -467,48 +467,64 @@ const ContactsDepartmentDetail = ({
         });
     }, [effectiveCloseButtonId, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor]);
 
-    useEffect(() => {
-        mounted.current = true;
+    const fetchData = useCallback(async () => {
+        if (!mounted.current) {
+            return;
+        }
+
         setLoading(true);
 
-        const fetchData = async () => {
-            if (departmentId == null) {
-                const res = await fetchContactDirectoryContent(companyId, undefined);
-                if (!mounted.current) {
-                    return;
-                }
-                if (!res.error && res.data) {
-                    setSubDepartments(res.data.departments);
-                    setEmployees(res.data.employees);
-                    setMemberCount(res.data.memberCount ?? 0);
-                }
-            } else {
-                const [detailRes, countRes] = await Promise.all([
-                    fetchDepartmentDetail(departmentId, companyId),
-                    fetchEmployeeCountOfDepartment(departmentId),
-                ]);
+        if (departmentId == null) {
+            const res = await fetchContactDirectoryContent(companyId, undefined);
+            if (!mounted.current) {
+                return;
+            }
+            if (!res.error && res.data) {
+                setSubDepartments(res.data.departments);
+                setEmployees(res.data.employees);
+                setMemberCount(res.data.memberCount ?? 0);
+            }
+        } else {
+            const [detailRes, countRes] = await Promise.all([
+                fetchDepartmentDetail(companyId, departmentId),
+                fetchEmployeeCountOfDepartment(companyId, departmentId),
+            ]);
 
-                if (!mounted.current) {
-                    return;
-                }
-
-                if (!detailRes.error && detailRes.data) {
-                    setSubDepartments(detailRes.data.subDepartments);
-                    setEmployees(detailRes.data.employees);
-                }
-                if (!countRes.error && countRes.data !== undefined) {
-                    setMemberCount(countRes.data);
-                }
+            if (!mounted.current) {
+                return;
             }
 
-            setLoading(false);
-        };
+            if (!detailRes.error && detailRes.data) {
+                setSubDepartments(detailRes.data.subDepartments);
+                setEmployees(detailRes.data.employees);
+            }
+            if (!countRes.error && countRes.data !== undefined) {
+                setMemberCount(countRes.data);
+            }
+        }
 
+        if (mounted.current) {
+            setLoading(false);
+        }
+    }, [companyId, departmentId]);
+
+    useEffect(() => {
+        mounted.current = true;
         fetchData();
         return () => {
             mounted.current = false;
         };
-    }, [companyId, departmentId]);
+    }, [fetchData]);
+
+    useEffect(() => {
+        const listener = Navigation.events().registerComponentWillAppearListener(({componentId: appearedId}) => {
+            if (appearedId === componentId) {
+                fetchData();
+            }
+        });
+
+        return () => listener.remove();
+    }, [componentId, fetchData]);
 
     const renderContent = () => {
         if (loading) {

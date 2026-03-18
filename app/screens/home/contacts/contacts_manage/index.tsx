@@ -5,6 +5,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {Navigation} from 'react-native-navigation';
 
 import {
     createSubDepartment,
@@ -239,6 +240,16 @@ const ContactsManage = ({
     }, []);
 
     useEffect(() => {
+        const listener = Navigation.events().registerComponentWillAppearListener(({componentId: appearedId}) => {
+            if (appearedId === componentId) {
+                refetch();
+            }
+        });
+
+        return () => listener.remove();
+    }, [componentId, refetch]);
+
+    useEffect(() => {
         const top = manageStack[manageStack.length - 1];
         if (!top) {
             return;
@@ -380,7 +391,7 @@ const ContactsManage = ({
         if (!name) {
             return;
         }
-        const deptRes = await fetchContactDepartment(currentDepartmentId);
+        const deptRes = await fetchContactDepartment(companyId, currentDepartmentId);
         if (deptRes.error || !deptRes.data) {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
@@ -536,7 +547,7 @@ const ContactsManage = ({
                             if (!ok || deptId == null) {
                                 return;
                             }
-                            const countRes = await fetchEmployeeCountOfDepartment(deptId);
+                            const countRes = await fetchEmployeeCountOfDepartment(companyId, deptId);
                             if (countRes.error || (countRes.data ?? 0) > 0) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
@@ -544,7 +555,7 @@ const ContactsManage = ({
                                 );
                                 return;
                             }
-                            const delRes = await deleteContactDepartment(deptId);
+                            const delRes = await deleteContactDepartment(companyId, deptId);
                             if (delRes.error) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
