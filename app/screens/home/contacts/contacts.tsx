@@ -11,10 +11,11 @@ import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area
 
 import {
     ensureTeamCompany,
-    fetchDepartmentsOfCompany,
+    fetchDepartmentsByCompany,
     fetchEmployeeCountOfCompany,
     fetchEmployeesOfDefaultDepartment,
     fetchCompany,
+    syncTeamMembersToCompany,
 } from '@actions/remote/contact';
 import {DEFAULT_DEPARTMENT_NAME, type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
@@ -22,6 +23,7 @@ import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
+import {useServerUrl} from '@context/server';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getTeamById} from '@queries/servers/team';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
@@ -29,6 +31,7 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import type {Database} from '@nozbe/watermelondb';
 import type UserModel from '@typings/database/models/servers/user';
+import { logInfo } from '@utils/log';
 
 
 const edges: Edge[] = ['left', 'right'];
@@ -229,6 +232,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const serverUrl = useServerUrl();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();
@@ -291,11 +295,15 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     }, [intl]));
 
     useEffect(() => {
-        mounted.current = true;
-        setLoading(true);
-        setServiceError(false);
-
         const fetchEnterprise = async () => {
+            if (!isFocused) {
+                return;
+            }
+
+            mounted.current = true;
+            setLoading(true);
+            setServiceError(false);
+
             if (!currentTeamId) {
                 setLoading(false);
                 return;
@@ -315,6 +323,12 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                     if (mounted.current) {
                         setCompanyName(teamName);
                     }
+
+                    // 新建企业时，将团队成员同步到通讯录默认部门
+                    if (ensureRes.isNewCreate && serverUrl) {
+                        logInfo('new create company need sync team members, currentTeamId:', currentTeamId);
+                        await syncTeamMembersToCompany(serverUrl, currentTeamId, currentTeamId);
+                    }
                 } else {
                     setLoading(false);
                     return;
@@ -323,7 +337,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 setCompanyName(getRes.data.name);
             }
 
-            const deptRes = await fetchDepartmentsOfCompany(currentTeamId, {parentDepartmentId: -1});
+            const deptRes = await fetchDepartmentsByCompany(currentTeamId, {parentDepartmentId: -1});
             if (!mounted.current) {
                 return;
             }
@@ -358,7 +372,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, database]);
+    }, [currentTeamId, database, isFocused, serverUrl]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: ContactDepartment) => {
         const breadcrumb = [
@@ -418,7 +432,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
                 </View>
             );
         }
-        if (topLevelDepartments.length === 0) {
+        if (topLevelDepartments.length === 0 && defaultDepartmentEmployees.length === 0) {
             return (
                 <Text style={styles.emptyMessage}>
                     {intl.formatMessage({id: 'contacts.no_enterprise_contacts', defaultMessage: 'No enterprise contacts'})}

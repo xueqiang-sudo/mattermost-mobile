@@ -98,6 +98,10 @@ const messages = defineMessages({
         defaultMessage: 'Timezone',
         id: 'mobile.display_settings.timezone',
     },
+    manage_enterprise: {
+        defaultMessage: 'Manage enterprises',
+        id: 'settings.manage_enterprise',
+    },
 });
 
 export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
@@ -118,6 +122,12 @@ export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
         i18nId: messages.advanced_settings.id,
         icon: 'tune',
         testID: messages.advanced_settings.id,
+    },
+    manage_enterprise: {
+        defaultMessage: messages.manage_enterprise.defaultMessage,
+        i18nId: messages.manage_enterprise.id,
+        icon: 'sitemap',
+        testID: messages.manage_enterprise.id,
     },
     about: {
         defaultMessage: messages.about.defaultMessage,

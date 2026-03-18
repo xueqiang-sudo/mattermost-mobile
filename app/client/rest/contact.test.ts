@@ -98,7 +98,7 @@ describe('ContactService', () => {
         );
     });
 
-    it('should call removeEmployeeFromDepartment with correct path, method, body and headers', async () => {
+    it('should call removeEmployeeFromDepartment with correct path and headers', async () => {
         const employeeId = 'emp_001';
         const body = {
             company_id: 'company_001',
@@ -108,9 +108,8 @@ describe('ContactService', () => {
         await ContactService.removeEmployeeFromDepartment(employeeId, body);
 
         expect(mockDelete).toHaveBeenCalledWith(
-            contactRoutes.employeeDepartments(employeeId),
+            `${contactRoutes.employeeDepartments(employeeId)}?department_id=${body.department_id}&company_id=${encodeURIComponent(body.company_id)}`,
             expect.objectContaining({
-                body,
                 headers: expect.objectContaining({'X-API-KEY': 'test-contact-api-key'}),
             }),
         );

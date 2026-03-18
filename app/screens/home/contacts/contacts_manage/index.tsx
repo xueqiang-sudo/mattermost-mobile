@@ -298,6 +298,7 @@ const ContactsManage = ({
     }, [companyId, companyName, currentDepartmentId, currentDepartmentName, intl]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
+        const targetDepartmentId: number | null = currentDepartmentId ?? null;
         const renderContent = () => (
             <>
                 <SlideUpPanelItem
@@ -305,7 +306,12 @@ const ContactsManage = ({
                     text={intl.formatMessage({id: 'contacts.add_member_scan_qr', defaultMessage: 'Scan QR code'})}
                     onPress={async () => {
                         await dismissBottomSheet();
-                        showQrScannerModal(intl, {scanContext: QR_SCAN_CONTEXT_JOIN_ENTERPRISE});
+                        showQrScannerModal(intl, {
+                            scanContext: QR_SCAN_CONTEXT_JOIN_ENTERPRISE,
+                            extra: {
+                                contactTargetDepartmentId: targetDepartmentId,
+                            },
+                        });
                     }}
                     testID='contacts.manage.add_member.scan_qr'
                 />
@@ -317,6 +323,9 @@ const ContactsManage = ({
                         showModal(
                             Screens.INVITE,
                             intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
+                            {
+                                contactTargetDepartmentId: targetDepartmentId,
+                            },
                         );
                     }}
                     testID='contacts.manage.add_member.invite'

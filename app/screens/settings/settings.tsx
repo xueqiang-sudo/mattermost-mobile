@@ -84,6 +84,13 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
         goToScreen(screen, title);
     }, [intl]));
 
+    const goToManageEnterprise = usePreventDoubleTap(useCallback(() => {
+        const screen = Screens.MANAGE_ENTERPRISE;
+        const title = intl.formatMessage({id: 'settings.manage_enterprise', defaultMessage: 'Manage enterprises'});
+
+        goToScreen(screen, title);
+    }, [intl]));
+
     const openHelp = usePreventDoubleTap(useCallback(() => {
         if (helpLink) {
             handleGotoLocation(serverUrl, intl, helpLink);
@@ -101,6 +108,11 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
                 onPress={goToDisplaySettings}
                 optionName='display'
                 testID='settings.display.option'
+            />
+            <SettingItem
+                onPress={goToManageEnterprise}
+                optionName='manage_enterprise'
+                testID='settings.manage_enterprise.option'
             />
             <SettingItem
                 onPress={goToAdvancedSettings}

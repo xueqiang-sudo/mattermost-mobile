@@ -22,6 +22,7 @@ import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 
 import {sendGuestInvites, sendMembersInvites} from './actions';
+import {ensureContactEmployeeForUser} from '@actions/remote/contact';
 import Selection from './selection';
 import Summary from './summary';
 
@@ -86,6 +87,8 @@ type InviteProps = {
     emailInvitationsEnabled: boolean;
     canInviteGuests: boolean;
     allowGuestMagicLink: boolean;
+    /** 从企业通讯录入口打开邀请时，传入目标部门 ID（null 表示默认部门） */
+    contactTargetDepartmentId?: number | null;
 }
 
 export default function Invite({
@@ -99,6 +102,7 @@ export default function Invite({
     emailInvitationsEnabled,
     canInviteGuests,
     allowGuestMagicLink,
+    contactTargetDepartmentId,
 }: InviteProps) {
     const intl = useIntl();
     const {formatMessage} = intl;
@@ -213,6 +217,23 @@ export default function Invite({
             const {sent, notSent} = await sendGuestInvites(serverUrl, teamId, selectedIds, sendOptions, formatMessage);
             setResult({sent, notSent});
             setStage(Stage.RESULT);
+
+            const targetDepartmentId = (typeof contactTargetDepartmentId === 'number') ? contactTargetDepartmentId : null;
+            for (const item of sent) {
+                if (!item.userId) {
+                    continue;
+                }
+                const selected = selectedIds[item.userId];
+                if (!selected || typeof selected === 'string') {
+                    continue;
+                }
+                await ensureContactEmployeeForUser(
+                    serverUrl,
+                    teamId,
+                    selected as unknown as UserProfile,
+                    targetDepartmentId,
+                );
+            }
             return;
         }
 
@@ -222,8 +243,25 @@ export default function Invite({
         } else {
             setResult({sent, notSent});
             setStage(Stage.RESULT);
+
+            const targetDepartmentId = (typeof contactTargetDepartmentId === 'number') ? contactTargetDepartmentId : null;
+            for (const item of sent) {
+                if (!item.userId) {
+                    continue;
+                }
+                const selected = selectedIds[item.userId];
+                if (!selected || typeof selected === 'string') {
+                    continue;
+                }
+                await ensureContactEmployeeForUser(
+                    serverUrl,
+                    teamId,
+                    selected as unknown as UserProfile,
+                    targetDepartmentId,
+                );
+            }
         }
-    }, [formatMessage, handleSendError, isAdmin, hasSelection, selectedIds, sendOptions, serverUrl, teamDisplayName, teamId]);
+    }, [contactTargetDepartmentId, formatMessage, handleSendError, isAdmin, hasSelection, selectedIds, sendOptions, serverUrl, teamDisplayName, teamId]);
 
     const handleRetry = useCallback(() => {
         setSendError('');

@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {fetchProfilesInTeam} from '@actions/remote/user';
 import ContactService, {
     ContactCompanyTypes,
     DEFAULT_DEPARTMENT_NAME,
@@ -8,9 +9,14 @@ import ContactService, {
     type ContactDepartment,
     type ContactEmployee,
     type ContactEmployeeDetails,
+    type CreateEmployeeRequest,
 } from '@client/rest/contact';
+import {General} from '@constants';
+import {getTeamById, queryMyTeams} from '@queries/servers/team';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
+
+import type {Database} from '@nozbe/watermelondb';
 
 export type ContactCompanyType = 'team' | 'customer' | 'supplier';
 
@@ -90,7 +96,7 @@ export const fetchContactDirectoryContent = async (
     try {
         if (departmentId === undefined) {
             const [deptRes, empRes, countRes] = await Promise.all([
-                fetchDepartmentsOfCompany(companyId, {parentDepartmentId: -1}),
+                fetchDepartmentsByCompany(companyId, {parentDepartmentId: -1}),
                 fetchEmployeesOfDefaultDepartment(companyId),
                 fetchEmployeeCountOfCompany(companyId),
             ]);
@@ -115,6 +121,123 @@ export const fetchContactDirectoryContent = async (
         return {data: {departments, employees, memberCount}};
     } catch (error) {
         logDebug('[fetchContactDirectoryContent]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/**
+ * 将 Mattermost 用户映射为通讯录员工创建请求体。
+ */
+export const mapUserToContactEmployeePayload = (user: UserProfile): CreateEmployeeRequest => {
+    const nameFromProfile = `${(user.first_name || '')}${(user.last_name || '')}`.trim();
+    const name = user.nickname || nameFromProfile || user.username;
+
+    return {
+        id: user.id,
+        name,
+        email: user.email,
+        position: user.position,
+        phone: undefined,
+    };
+};
+
+/**
+ * 获取公司默认部门 ID；如失败仅记录日志并返回 undefined。
+ */
+const getOrCreateDefaultDepartmentId = async (companyId: string): Promise<number | undefined> => {
+    const res = await fetchDefaultDepartmentId(companyId);
+    if (res.error) {
+        try {
+            logDebug('[getOrCreateDefaultDepartmentId] fetchDefaultDepartmentId not ok, try to create default department, companyId: ', companyId);
+            const defDepartment = await ContactService.createDepartment({
+                company_id: companyId,
+                name: DEFAULT_DEPARTMENT_NAME,
+            });
+            logDebug('[getOrCreateDefaultDepartmentId] create default department success, departmentId: ', defDepartment.id);
+            return defDepartment.id;
+        } catch (deptError) {
+            logDebug('[getOrCreateDefaultDepartmentId] createDepartment failed:', getFullErrorMessage(deptError));
+        }
+        logDebug('[getOrCreateDefaultDepartmentId] fetchDefaultDepartmentId failed:', getFullErrorMessage(res.error));
+        return undefined;
+    }
+    return res.data;
+};
+
+export type EnsureContactEmployeeForUserResult = {
+    error?: unknown;
+};
+
+/**
+ * 确保给定用户在通讯录中存在员工记录，并挂到指定公司与部门。
+ *
+ * - 如果员工不存在则创建；
+ * - 始终确保员工已关联到 company；
+ * - 根据 targetDepartmentId 决定挂载部门：
+ *   - number → 直接挂到该部门；
+ *   - null / undefined → 挂到默认部门（若存在）。
+ *
+ * 出错时只记录日志，不阻断主流程。
+ */
+export const ensureContactEmployeeForUser = async (
+    serverUrl: string,
+    companyId: string,
+    user: UserProfile,
+    targetDepartmentId?: number | null,
+): Promise<EnsureContactEmployeeForUserResult> => {
+    if (!serverUrl || !companyId || !user?.id) {
+        return {error: new Error('serverUrl, companyId and user are required')};
+    }
+
+    try {
+        let employee: ContactEmployee | undefined;
+
+        try {
+            employee = await ContactService.getEmployee(user.id);
+        } catch (err) {
+            // 若获取失败则尝试按映射创建
+            const payload = mapUserToContactEmployeePayload(user);
+            try {
+                employee = await ContactService.createEmployee(payload);
+            } catch (createErr) {
+                logDebug('[ensureContactEmployeeForUser.createEmployee]', getFullErrorMessage(createErr));
+                return {};
+            }
+        }
+
+        if (!employee) {
+            return {};
+        }
+
+        // 确保已关联到公司
+        try {
+            await ContactService.addEmployeeToCompany(employee.id, {company_id: companyId});
+        } catch (companyErr) {
+            logDebug('[ensureContactEmployeeForUser.addEmployeeToCompany]', getFullErrorMessage(companyErr));
+        }
+
+        // 处理部门挂载
+        let departmentIdToUse: number | undefined;
+        if (typeof targetDepartmentId === 'number') {
+            departmentIdToUse = targetDepartmentId;
+        } else {
+            departmentIdToUse = await getOrCreateDefaultDepartmentId(companyId);
+        }
+
+        if (departmentIdToUse !== undefined) {
+            try {
+                await ContactService.addEmployeeToDepartment(employee.id, {
+                    company_id: companyId,
+                    department_id: departmentIdToUse,
+                });
+            } catch (deptErr) {
+                logDebug('[ensureContactEmployeeForUser.addEmployeeToDepartment]', getFullErrorMessage(deptErr));
+            }
+        }
+
+        return {};
+    } catch (error) {
+        logDebug('[ensureContactEmployeeForUser]', getFullErrorMessage(error));
         return {error};
     }
 };
@@ -166,16 +289,18 @@ export const ensureTeamCompany = async (teamId: string, teamName: string): Promi
     }
 };
 
-/** 获取公司下所有部门 */
-export const fetchDepartmentsOfCompany = async (companyId: string, opts?: {parentDepartmentId?: number}): Promise<FetchDepartmentsOfCompanyResult> => {
+/** 获取公司下所有部门
+ * @param opts.parentDepartmentId 指定获取
+ */
+export const fetchDepartmentsByCompany = async (companyId: string, opts?: {parentDepartmentId?: number}): Promise<FetchDepartmentsOfCompanyResult> => {
     if (!companyId) {
         return {error: new Error('companyId is required')};
     }
     try {
-        const res = await ContactService.getCompanyWithDepartments(companyId, opts);
-        return {data: res.departments || []};
+        const res = await ContactService.getDepartmentsByCompany(companyId, opts);
+        return {data: res || []};
     } catch (error) {
-        logDebug('[ContactService.fetchDepartmentsOfCompany]', getFullErrorMessage(error));
+        logDebug('[ContactService.fetchDepartmentsByCompany]', getFullErrorMessage(error));
         return {error};
     }
 };
@@ -191,7 +316,7 @@ export const fetchDefaultDepartmentId = async (companyId: string): Promise<Fetch
         return {error: new Error('companyId is required')};
     }
     try {
-        const res = await fetchDepartmentsOfCompany(companyId, {parentDepartmentId: -1});
+        const res = await fetchDepartmentsByCompany(companyId, {parentDepartmentId: -1});
         if (res.error) {
             return {error: res.error};
         }
@@ -209,7 +334,7 @@ export const fetchEmployeesOfDefaultDepartment = async (companyId: string): Prom
         return {error: new Error('companyId is required')};
     }
     try {
-        const deptRes = await fetchDepartmentsOfCompany(companyId);
+        const deptRes = await fetchDepartmentsByCompany(companyId);
         if (deptRes.error) {
             return {error: deptRes.error};
         }
@@ -287,7 +412,7 @@ export const fetchDepartmentDetail = async (
     }
     try {
         const [deptRes, empRes] = await Promise.all([
-            fetchDepartmentsOfCompany(companyId),
+            fetchDepartmentsByCompany(companyId),
             ContactService.getEmployeesOfDepartment(departmentId),
         ]);
 
@@ -432,8 +557,8 @@ export const moveContactEmployeeToDepartment = async (
     try {
         await ContactService.moveEmployeeToDepartment(employeeId, {
             company_id: companyId,
-            old_department_id: oldDepartmentId,
-            department_id: newDepartmentId,
+            from_department_id: oldDepartmentId,
+            to_department_id: newDepartmentId,
         });
         return {};
     } catch (error) {
@@ -492,6 +617,345 @@ export const fetchEmployeesOfCompaniesByType = async (
         return {data: allEmployees};
     } catch (error) {
         logDebug('[ContactService.fetchEmployeesOfCompaniesByType]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type FetchMyCompaniesResult = {
+    data?: ContactCompany[];
+    error?: unknown;
+};
+
+/** 将接口返回规范为 ContactCompany[]（兼容 { companies/data/items } 等包装） */
+function normalizeContactCompanyList(raw: unknown): ContactCompany[] {
+    if (Array.isArray(raw)) {
+        return raw.filter(
+            (c): c is ContactCompany =>
+                Boolean(c) &&
+                typeof (c as ContactCompany).id === 'string' &&
+                typeof (c as ContactCompany).name === 'string',
+        );
+    }
+    if (raw && typeof raw === 'object') {
+        const o = raw as Record<string, unknown>;
+        const nested = o.companies ?? o.data ?? o.items ?? o.list;
+        if (nested !== undefined) {
+            return normalizeContactCompanyList(nested);
+        }
+    }
+    return [];
+}
+
+/** 获取当前员工所属企业：合并 GET companies、员工详情、companies/details，去重（部分后端仅某一接口有数据） */
+export const fetchMyCompanies = async (employeeId: string): Promise<FetchMyCompaniesResult> => {
+    if (!employeeId) {
+        return {error: new Error('employeeId is required')};
+    }
+    try {
+        const settled = await Promise.allSettled([
+            ContactService.getEmployeeCompanies(employeeId),
+            ContactService.getEmployeeDetails(employeeId),
+            ContactService.getEmployeeCompanyDetails(employeeId),
+        ]);
+
+        const merged: ContactCompany[] = [];
+        const pushAll = (list: ContactCompany[]) => {
+            for (const c of list) {
+                merged.push(c);
+            }
+        };
+
+        const errors: unknown[] = [];
+        for (let i = 0; i < settled.length; i++) {
+            const s = settled[i];
+            if (s.status === 'rejected') {
+                errors.push(s.reason);
+                logDebug('[fetchMyCompanies] source_failed', i, getFullErrorMessage(s.reason));
+                continue;
+            }
+            if (i === 1) {
+                pushAll(normalizeContactCompanyList((s.value as ContactEmployeeDetails).companies));
+            } else {
+                pushAll(normalizeContactCompanyList(s.value));
+            }
+        }
+
+        const seen = new Set<string>();
+        const deduped = merged.filter((c) => {
+            if (!c.id || seen.has(c.id)) {
+                return false;
+            }
+            seen.add(c.id);
+            return true;
+        });
+
+        if (deduped.length === 0 && errors.length === settled.length) {
+            return {error: errors[0]};
+        }
+        return {data: deduped};
+    } catch (error) {
+        logDebug('[ContactService.fetchMyCompanies]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 管理企业列表单项：合并「通讯录员工-企业」与「Mattermost 团队对应企业（id = team_id）」 */
+export type ManageEnterpriseEntry = {
+    id: string;
+    name: string;
+    type: ContactCompanyType;
+    description?: string;
+
+    /** 当前用户在该 Mattermost 团队中 */
+    isMattermostTeam: boolean;
+
+    /** 通讯录中已有以该 id 为键的公司（含团队映射企业） */
+    hasContactCompanyRecord: boolean;
+};
+
+export type FetchManageEnterpriseListResult = {
+    data?: ManageEnterpriseEntry[];
+    error?: unknown;
+};
+
+/**
+ * 合并两套企业来源：
+ * 1) 通讯录：当前用户在员工-企业关联中的企业（含自建/加入的独立企业）；
+ * 2) Mattermost：用户所在团队；团队与通讯录对齐时 company.id === team_id（见 ensureTeamCompany）。
+ * 若团队尚未在通讯录建企，仍列出团队（进入详情时可 ensureTeamCompany 同步）。
+ */
+export const fetchManageEnterpriseList = async (
+    database: Database,
+    employeeId: string,
+): Promise<FetchManageEnterpriseListResult> => {
+    if (!employeeId) {
+        return {error: new Error('employeeId is required')};
+    }
+
+    const byId = new Map<string, ManageEnterpriseEntry>();
+
+    const contactRes = await fetchMyCompanies(employeeId);
+    if (contactRes.data?.length) {
+        for (const c of contactRes.data) {
+            byId.set(c.id, {
+                id: c.id,
+                name: c.name,
+                type: c.type,
+                description: c.description,
+                isMattermostTeam: false,
+                hasContactCompanyRecord: true,
+            });
+        }
+    }
+
+    let myTeamRows: Array<{id: string}> = [];
+    try {
+        myTeamRows = await queryMyTeams(database).fetch();
+    } catch (e) {
+        logDebug('[fetchManageEnterpriseList.queryMyTeams]', getFullErrorMessage(e));
+    }
+
+    await Promise.all(
+        myTeamRows.map(async (mt) => {
+            const teamId = mt.id;
+            const team = await getTeamById(database, teamId);
+            const teamLabel = team?.displayName ?? team?.name ?? teamId;
+            const companyRes = await fetchCompany(teamId);
+            const prev = byId.get(teamId);
+
+            if (companyRes.data) {
+                byId.set(teamId, {
+                    id: teamId,
+                    name: companyRes.data.name || prev?.name || teamLabel,
+                    type: companyRes.data.type,
+                    description: companyRes.data.description ?? prev?.description,
+                    isMattermostTeam: true,
+                    hasContactCompanyRecord: true,
+                });
+                return;
+            }
+
+            if (prev) {
+                byId.set(teamId, {
+                    ...prev,
+                    isMattermostTeam: true,
+                    name: prev.name || teamLabel,
+                });
+                return;
+            }
+
+            byId.set(teamId, {
+                id: teamId,
+                name: teamLabel,
+                type: ContactCompanyTypes.Team,
+                isMattermostTeam: true,
+                hasContactCompanyRecord: false,
+            });
+        }),
+    );
+
+    const data = Array.from(byId.values()).sort((a, b) => {
+        if (a.isMattermostTeam !== b.isMattermostTeam) {
+            return a.isMattermostTeam ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
+    });
+
+    if (data.length === 0 && contactRes.error && myTeamRows.length === 0) {
+        return {error: contactRes.error};
+    }
+
+    return {data};
+};
+
+export type CreateEnterpriseForEmployeeParams = {
+    name: string;
+    type?: ContactCompanyType;
+    description?: string;
+};
+
+export type CreateEnterpriseForEmployeeResult = {
+    data?: ContactCompany;
+    error?: unknown;
+};
+
+/** 为当前员工创建企业并自动加入该企业 */
+export const createEnterpriseForEmployee = async (
+    employeeId: string,
+    params: CreateEnterpriseForEmployeeParams,
+): Promise<CreateEnterpriseForEmployeeResult> => {
+    const name = params.name?.trim();
+    if (!employeeId || !name) {
+        return {error: new Error('employeeId and name are required')};
+    }
+    try {
+        const company = await ContactService.createCompany({
+            id: '',
+            name,
+            type: params.type ?? ContactCompanyTypes.Team,
+            description: params.description,
+        });
+        try {
+            await ContactService.addEmployeeToCompany(employeeId, {company_id: company.id});
+        } catch (err) {
+            logDebug('[ContactService.createEnterpriseForEmployee.addEmployeeToCompany]', getFullErrorMessage(err));
+        }
+        return {data: company};
+    } catch (error) {
+        logDebug('[ContactService.createEnterpriseForEmployee]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type JoinEnterpriseResult = {
+    error?: unknown;
+};
+
+/** 通过企业 ID 加入企业 */
+export const joinEnterprise = async (employeeId: string, companyId: string): Promise<JoinEnterpriseResult> => {
+    if (!employeeId || !companyId) {
+        return {error: new Error('employeeId and companyId are required')};
+    }
+    try {
+        const companyRes = await fetchCompany(companyId);
+        if (companyRes.error || !companyRes.data) {
+            return {error: companyRes.error ?? new Error('Company not found')};
+        }
+        await ContactService.addEmployeeToCompany(employeeId, {company_id: companyId});
+        return {};
+    } catch (error) {
+        logDebug('[ContactService.joinEnterprise]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type QuitEnterpriseResult = {
+    error?: unknown;
+};
+
+/** 退出企业（从企业中移除当前员工关联） */
+export const quitEnterprise = async (employeeId: string, companyId: string): Promise<QuitEnterpriseResult> => {
+    if (!employeeId || !companyId) {
+        return {error: new Error('employeeId and companyId are required')};
+    }
+    try {
+        await ContactService.removeEmployeeFromCompany(employeeId, {company_id: companyId});
+        return {};
+    } catch (error) {
+        logDebug('[ContactService.quitEnterprise]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type DissolveEnterpriseResult = {
+    error?: unknown;
+};
+
+/** 解散企业（删除公司） */
+export const dissolveEnterprise = async (companyId: string): Promise<DissolveEnterpriseResult> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
+    try {
+        await ContactService.deleteCompany(companyId);
+        return {};
+    } catch (error) {
+        logDebug('[ContactService.dissolveEnterprise]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type SyncTeamMembersToCompanyResult = {
+    error?: unknown;
+};
+
+/**
+ * 将指定 Team 的所有成员同步到通讯录公司，并挂到默认部门。
+ * 仅用于 ensureTeamCompany 创建新企业后的首次初始化。
+ */
+export const syncTeamMembersToCompany = async (
+    serverUrl: string,
+    teamId: string,
+    companyId: string,
+): Promise<SyncTeamMembersToCompanyResult> => {
+    if (!serverUrl || !teamId || !companyId) {
+        return {error: new Error('serverUrl, teamId and companyId are required')};
+    }
+
+    try {
+        // 1. 拉取 Team 成员（分页）
+        const allMembers: UserProfile[] = [];
+        const perPage = General.PROFILE_CHUNK_SIZE;
+        let page = 0;
+
+        while (true) {
+            const {users, error} = await fetchProfilesInTeam(serverUrl, teamId, page, perPage, '', {}, true);
+            if (error) {
+                logDebug('[syncTeamMembersToCompany.fetchProfilesInTeam]', getFullErrorMessage(error));
+                break;
+            }
+            if (!users || !users.length) {
+                break;
+            }
+            allMembers.push(...users);
+            if (users.length < perPage) {
+                break;
+            }
+            page += 1;
+        }
+
+        if (!allMembers.length) {
+            return {};
+        }
+
+        // 2. 逐个创建/更新员工并挂到公司 + 默认部门
+        for (const user of allMembers) {
+            await ensureContactEmployeeForUser(serverUrl, companyId, user, null);
+        }
+
+        return {};
+    } catch (error) {
+        logDebug('[syncTeamMembersToCompany]', getFullErrorMessage(error));
         return {error};
     }
 };

@@ -13,8 +13,16 @@ import type {IntlShape} from 'react-intl';
 /** 扫描上下文：通讯录「添加成员」扫个人信息码时走邀请加入企业流程 */
 export const QR_SCAN_CONTEXT_JOIN_ENTERPRISE = 'join_enterprise' as const;
 
-// See LICENSE.txt for license information.
-export const showQrScannerModal = (intl: IntlShape, options?: { scanContext?: string }) => {
+type QrScannerOptions = {
+    scanContext?: string;
+    /**
+     * 业务方可通过 extra 传入附加上下文（例如企业 ID、目标部门 ID），
+     * 扫码结果在回调中会将该对象合并进解析出的 payload 一并传给后续页面。
+     */
+    extra?: Record<string, unknown>;
+};
+
+export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) => {
     const scanContext = options?.scanContext;
     showModal(Screens.QR_SCANNER, '', {
         onScanResult: (value: string, context?: string) => {
@@ -45,12 +53,17 @@ export const showQrScannerModal = (intl: IntlShape, options?: { scanContext?: st
                     logInfo('onScanResult qrdata decode error', eTmp01);
                     return false;
                 }
+                const mergedData: Record<string, unknown> = {
+                    ...(data || {}),
+                    ...(options?.extra || {}),
+                };
+
                 if (value.includes('/invite_team_by_qr?qrdata=')) { // 加入团队二维码扫描结果处理，使用 app modal 处理
                     const title = intl.formatMessage({
                         id: 'invite_user_join_team.title',
                         defaultMessage: 'Invite User to Join Enterprise',
                     });
-                    showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', data, {
+                    showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
                         statusBar: {
                             drawBehind: true,
                         },
@@ -64,7 +77,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: { scanContext?: st
                             id: 'invite_user_join_team.title',
                             defaultMessage: 'Invite User to Join Enterprise',
                         });
-                        showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', data, {
+                        showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
                             statusBar: {
                                 drawBehind: true,
                             },
@@ -75,7 +88,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: { scanContext?: st
                         id: 'add_user_to_friends.title',
                         defaultMessage: 'Add User as Friend',
                     });
-                    showModalWithBackButton(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', data, {
+                    showModalWithBackButton(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', mergedData, {
                         statusBar: {
                             drawBehind: true,
                         },

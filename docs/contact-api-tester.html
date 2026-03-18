@@ -190,7 +190,8 @@
 <body>
   <div class="container">
     <h1>Contact Management API 测试工具</h1>
-    <p style="color: var(--text-muted); margin-bottom: 24px;">通信录 / 供应商 / 客户列表 API</p>
+    <p style="color: var(--text-muted); margin-bottom: 8px;">通信录 / 供应商 / 客户列表 API</p>
+    <p class="config-hint" style="margin-bottom: 24px;">创建公司字段 <code style="color: var(--accent);">type</code> 枚举：<strong>team</strong>（团队）| <strong>supplier</strong>（供应商）| <strong>customer</strong>（客户）</p>
 
     <div class="config">
       <div class="config-row">
@@ -642,6 +643,152 @@
       </div>
     </div>
 
+    <div class="section">
+      <div class="section-header">扩展接口（统计 / 部门树 / 员工 / 搜索 / 版本）</div>
+      <div class="section-body">
+        <p class="status" style="margin-bottom: 12px;">对应文档「新增功能」：总人数、移动部门、按父部门过滤部门列表、员工级联部门、祖先链、搜索、通讯录版本。</p>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/company-employees/:companyId/total-employees</span>
+            </div>
+            <p class="status">公司总人数（去重）</p>
+            <div class="params"><input id="ext_total_emp_company_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/company-employees/'+encodeURIComponent(paramVal('ext_total_emp_company_id'))+'/total-employees',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/department-employees/:departmentId/total-employees</span>
+            </div>
+            <p class="status">部门总人数（含子部门，去重）</p>
+            <div class="params"><input id="ext_total_dept_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/department-employees/'+encodeURIComponent(paramVal('ext_total_dept_id'))+'/total-employees',null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/employees/:id/move-department</span>
+            </div>
+            <p class="status">移动员工部门：from_department_id、to_department_id、company_id</p>
+            <div class="params"><input id="ext_move_emp_id" placeholder="员工ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_move_department" rows="5">{
+  "from_department_id": 10,
+  "to_department_id": 15,
+  "company_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/employees/'+encodeURIComponent(paramVal('ext_move_emp_id'))+'/move-department',document.getElementById('body_move_department').value)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/by_companies/:companyId/departments</span>
+            </div>
+            <p class="status">公司部门列表；可选查询 parent_department_id：不传=全部，-1=仅顶级，≥0=某父部门子部门</p>
+            <div class="params">
+              <input id="ext_by_comp_company_id" placeholder="公司ID">
+              <input id="ext_parent_dept_filter" placeholder="parent_department_id（可选）" style="width:200px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathByCompaniesDepartments(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/:id/cascade-departments</span>
+            </div>
+            <p class="status">员工在指定公司的级联部门；必填查询参数 company_id</p>
+            <div class="params">
+              <input id="ext_cascade_emp_id" placeholder="员工ID">
+              <input id="ext_cascade_company_id" placeholder="company_id" style="width:200px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathCascadeDepartments(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/departments/:id/ancestors</span>
+            </div>
+            <p class="status">部门祖先链（含自身，自上而下）</p>
+            <div class="params"><input id="ext_ancestors_dept_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/departments/'+encodeURIComponent(paramVal('ext_ancestors_dept_id'))+'/ancestors',null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/company-employees/:companyId/search</span>
+            </div>
+            <p class="status">公司内搜索：keyword 必填；可选 department_id 限定部门及子部门</p>
+            <div class="params">
+              <input id="ext_search_company_id" placeholder="公司ID">
+              <input id="ext_search_keyword" placeholder="keyword" style="width:140px">
+              <input id="ext_search_dept_filter" placeholder="department_id（可选）" style="width:160px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathCompanyEmployeeSearch(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/department-employees/:departmentId/search</span>
+            </div>
+            <p class="status">部门范围内搜索：keyword、company_id 均为查询参数</p>
+            <div class="params">
+              <input id="ext_search_dept_id" placeholder="部门ID">
+              <input id="ext_search_dept_keyword" placeholder="keyword" style="width:120px">
+              <input id="ext_search_dept_company_id" placeholder="company_id" style="width:180px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathDepartmentEmployeeSearch(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/versions/companies/:companyId/contacts</span>
+            </div>
+            <p class="status">获取通讯录版本（客户端缓存）</p>
+            <div class="params"><input id="ext_version_company_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/versions/companies/'+encodeURIComponent(paramVal('ext_version_company_id'))+'/contacts',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/versions/companies/:companyId/contacts</span>
+            </div>
+            <p class="status">手动刷新通讯录版本</p>
+            <div class="params"><input id="ext_version_put_company_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/versions/companies/'+encodeURIComponent(paramVal('ext_version_put_company_id'))+'/contacts',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
     <div class="response-panel">
       <div class="response-header">
         <span>响应</span>
@@ -656,6 +803,57 @@
 
     function paramVal(domId) {
       return document.getElementById(domId).value.trim() || '_';
+    }
+
+    function pathByCompaniesDepartments() {
+      var cid = document.getElementById('ext_by_comp_company_id').value.trim() || '_';
+      var p = document.getElementById('ext_parent_dept_filter').value.trim();
+      var path = '/api/v1/by_companies/' + encodeURIComponent(cid) + '/departments';
+      if (p !== '') {
+        path += '?parent_department_id=' + encodeURIComponent(p);
+      }
+      return path;
+    }
+
+    function pathCascadeDepartments() {
+      var eid = document.getElementById('ext_cascade_emp_id').value.trim() || '_';
+      var comp = document.getElementById('ext_cascade_company_id').value.trim();
+      var q = new URLSearchParams();
+      if (comp) {
+        q.set('company_id', comp);
+      }
+      var qs = q.toString();
+      return '/api/v1/employees/' + encodeURIComponent(eid) + '/cascade-departments' + (qs ? '?' + qs : '');
+    }
+
+    function pathCompanyEmployeeSearch() {
+      var cid = document.getElementById('ext_search_company_id').value.trim() || '_';
+      var kw = document.getElementById('ext_search_keyword').value.trim();
+      var dept = document.getElementById('ext_search_dept_filter').value.trim();
+      var q = new URLSearchParams();
+      if (kw) {
+        q.set('keyword', kw);
+      }
+      if (dept !== '') {
+        q.set('department_id', dept);
+      }
+      var qs = q.toString();
+      return '/api/v1/company-employees/' + encodeURIComponent(cid) + '/search' + (qs ? '?' + qs : '');
+    }
+
+    function pathDepartmentEmployeeSearch() {
+      var did = document.getElementById('ext_search_dept_id').value.trim() || '_';
+      var kw = document.getElementById('ext_search_dept_keyword').value.trim();
+      var comp = document.getElementById('ext_search_dept_company_id').value.trim();
+      var q = new URLSearchParams();
+      if (kw) {
+        q.set('keyword', kw);
+      }
+      if (comp) {
+        q.set('company_id', comp);
+      }
+      var qs = q.toString();
+      return '/api/v1/department-employees/' + encodeURIComponent(did) + '/search' + (qs ? '?' + qs : '');
     }
 
     function getDefaults() {
@@ -685,25 +883,30 @@
       const eid = (document.getElementById('defaultEmpId')?.value || '').trim();
 
       // 路径参数：公司 ID
-      ['company_id','company_put_id','company_del_id','company_dept_id','company_emp_id','comp_emp_id'].forEach(fid => {
+      ['company_id','company_put_id','company_del_id','company_dept_id','company_emp_id','comp_emp_id','ext_total_emp_company_id','ext_by_comp_company_id','ext_search_company_id','ext_version_company_id','ext_version_put_company_id'].forEach(fid => {
         const el = document.getElementById(fid);
         if (el) el.value = cid;
       });
 
       // 路径参数：部门 ID
-      ['dept_id','dept_put_id','dept_del_id','dept_emp_id','dept_children_id','dept_sub_id','dept_emp_list_id'].forEach(fid => {
+      ['dept_id','dept_put_id','dept_del_id','dept_emp_id','dept_children_id','dept_sub_id','dept_emp_list_id','ext_total_dept_id','ext_ancestors_dept_id','ext_search_dept_id'].forEach(fid => {
         const el = document.getElementById(fid);
         if (el) el.value = did;
       });
 
       // 路径参数：员工 ID
-      ['emp_id','emp_put_id','emp_del_id','emp_details_id','emp_comp_emp_id','emp_comp_del_emp','emp_comp_get_id','emp_comp_details_id','emp_dept_emp_id','emp_dept_del_emp'].forEach(fid => {
+      ['emp_id','emp_put_id','emp_del_id','emp_details_id','emp_comp_emp_id','emp_comp_del_emp','emp_comp_get_id','emp_comp_details_id','emp_dept_emp_id','emp_dept_del_emp','ext_move_emp_id','ext_cascade_emp_id'].forEach(fid => {
         const el = document.getElementById(fid);
         if (el) el.value = eid;
       });
 
+      const elCascadeComp = document.getElementById('ext_cascade_company_id');
+      if (elCascadeComp && cid) elCascadeComp.value = cid;
+      const elSearchDeptComp = document.getElementById('ext_search_dept_company_id');
+      if (elSearchDeptComp && cid) elSearchDeptComp.value = cid;
+
       // JSON body：包含 company_id 的接口
-      ['body_emp_comp','body_emp_comp_del','body_dept_create','body_dept_put','body_emp_dept','body_emp_dept_del'].forEach(key => {
+      ['body_emp_comp','body_emp_comp_del','body_dept_create','body_dept_put','body_emp_dept','body_emp_dept_del','body_move_department'].forEach(key => {
         const el = document.getElementById(key);
         if (!el) return;
         try {
