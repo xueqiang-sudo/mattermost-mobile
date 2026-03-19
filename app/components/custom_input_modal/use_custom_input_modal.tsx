@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useCallback, useRef, useState} from 'react';
+import {useIntl} from 'react-intl';
 
 import {useTheme} from '@context/theme';
 
@@ -23,16 +24,20 @@ interface UseCustomInputModalReturn {
     handleCancel: () => void;
 }
 
+const DEFAULT_CONFIRM = {id: 'common.confirm', defaultMessage: 'Confirm'};
+const DEFAULT_CANCEL = {id: 'common.cancel', defaultMessage: 'Cancel'};
+
 export const useCustomInputModal = (): UseCustomInputModalReturn => {
     const theme = useTheme();
+    const intl = useIntl();
     const [visible, setVisible] = useState(false);
     const [options, setOptions] = useState<CustomInputModalOptions>({
         title: '',
         placeholder: '',
         defaultValue: '',
-        confirmContent: 'Confirm',
+        confirmContent: intl.formatMessage(DEFAULT_CONFIRM),
         showCancelButton: true,
-        cancelContent: 'Cancel',
+        cancelContent: intl.formatMessage(DEFAULT_CANCEL),
     });
     const resolveRef = useRef<((value: string | null) => void) | null>(null);
 
@@ -42,14 +47,14 @@ export const useCustomInputModal = (): UseCustomInputModalReturn => {
                 title: modalOptions.title,
                 placeholder: modalOptions.placeholder,
                 defaultValue: modalOptions.defaultValue || '',
-                confirmContent: modalOptions.confirmContent || 'Confirm',
+                confirmContent: modalOptions.confirmContent || intl.formatMessage(DEFAULT_CONFIRM),
                 showCancelButton: modalOptions.showCancelButton ?? true,
-                cancelContent: modalOptions.cancelContent || 'Cancel',
+                cancelContent: modalOptions.cancelContent || intl.formatMessage(DEFAULT_CANCEL),
             });
             resolveRef.current = resolvePromise;
             setVisible(true);
         });
-    }, []);
+    }, [intl]);
 
     const handleConfirm = useCallback((value: string) => {
         if (resolveRef.current) {

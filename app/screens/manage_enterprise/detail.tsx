@@ -281,7 +281,6 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
 
     const handleQuitOrDissolve = usePreventDoubleTap(useCallback(() => {
         const isDissolve = isCreator === true;
-        const useMattermostApi = isMattermostTeam && !hasContactCompanyRecord;
 
         const title = isDissolve ?
             intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :
@@ -296,25 +295,27 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             message,
             [
                 {
-                    text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                     style: 'cancel',
                 },
                 {
-                    text: intl.formatMessage({id: 'mobile.post.confirm', defaultMessage: 'Confirm'}),
+                    text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
                     style: 'destructive',
                     onPress: async () => {
                         if (isDissolve) {
-                            if (useMattermostApi && serverUrl) {
-                                const res = await deleteTeam(serverUrl, companyId);
-                                if (res.error) {
+                            // 解散：同时解散 Mattermost 团队与通讯录企业
+                            if (isMattermostTeam && serverUrl) {
+                                const mmRes = await deleteTeam(serverUrl, companyId);
+                                if (mmRes.error) {
                                     Alert.alert(
                                         intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
                                     );
                                     return;
                                 }
-                            } else {
-                                const res = await dissolveEnterprise(companyId);
-                                if (res.error) {
+                            }
+                            if (hasContactCompanyRecord) {
+                                const contactRes = await dissolveEnterprise(companyId);
+                                if (contactRes.error) {
                                     Alert.alert(
                                         intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
                                     );
@@ -325,20 +326,22 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                             return;
                         }
 
+                        // 退出：同时退出 Mattermost 团队与通讯录企业
                         if (!employeeId) {
                             return;
                         }
-                        if (useMattermostApi && serverUrl) {
-                            const res = await removeCurrentUserFromTeam(serverUrl, companyId);
-                            if (res.error) {
+                        if (isMattermostTeam && serverUrl) {
+                            const mmRes = await removeCurrentUserFromTeam(serverUrl, companyId);
+                            if (mmRes.error) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
                                 );
                                 return;
                             }
-                        } else {
-                            const res = await quitEnterprise(employeeId, companyId);
-                            if (res.error) {
+                        }
+                        if (hasContactCompanyRecord) {
+                            const contactRes = await quitEnterprise(employeeId, companyId);
+                            if (contactRes.error) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
                                 );

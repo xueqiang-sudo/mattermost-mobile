@@ -163,7 +163,7 @@ const Search = forwardRef<SearchRef, SearchProps>((props: SearchProps, ref) => {
         <SearchBar
             {...props}
             cancelButtonProps={props.cancelButtonProps || cancelButtonProps}
-            cancelButtonTitle={props.cancelButtonTitle || intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+            cancelButtonTitle={props.cancelButtonTitle || intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
             cancelIcon={cancelIcon}
             clearIcon={clearIcon}
             containerStyle={[styles.containerStyle, props.containerStyle]}

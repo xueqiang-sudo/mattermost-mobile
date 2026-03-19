@@ -628,7 +628,7 @@ const handleEndCall = async (serverUrl: string, channelId: string, currentUserId
         message,
         [
             {
-                text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
             },
             {
                 text: title,

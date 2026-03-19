@@ -151,7 +151,7 @@ function ChannelFiles({
                     <Search
                         testID={`${TEST_ID}.search_bar`}
                         placeholder={formatMessage({id: 'search_bar.search', defaultMessage: 'Search'})}
-                        cancelButtonTitle={formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                        cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                         onChangeText={onTextChange}
                         onCancel={clearSearch}

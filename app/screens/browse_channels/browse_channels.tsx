@@ -209,7 +209,7 @@ export default function BrowseChannels(props: Props) {
                     <Search
                         testID='browse_channels.search_bar'
                         placeholder={intl.formatMessage({id: 'search_bar.search', defaultMessage: 'Search'})}
-                        cancelButtonTitle={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                        cancelButtonTitle={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                         onChangeText={searchChannels}
                         onSubmitEditing={onSearch}

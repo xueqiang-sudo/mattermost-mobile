@@ -62,7 +62,7 @@ struct SearchBarView: View {
       if isEditing {
         Button(action: dismissKeyboard) {
           Text(
-            NSLocalizedString("mobile.post.cancel", value: "Cancel", comment: "")
+            NSLocalizedString("common.cancel", value: "Cancel", comment: "")
           )
           .foregroundColor(Color.theme.centerChannelColor)
           .font(Font.custom("OpenSans", size: 14))

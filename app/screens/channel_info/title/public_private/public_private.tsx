@@ -74,7 +74,7 @@ const PublicPrivate = ({displayName, purpose}: Props) => {
                                 dismissBottomSheet();
                             }}
                             testID={`${publicPrivateTestId}.bottom_sheet.cancel`}
-                            text={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                            text={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                         />
                     </View>
                 );

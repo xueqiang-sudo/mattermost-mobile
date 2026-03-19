@@ -531,7 +531,7 @@ const ContactsManage = ({
                                         {name: deptName},
                                     ),
                                     [
-                                        {text: intl.formatMessage({id: 'contacts.cancel', defaultMessage: 'Cancel'}), onPress: () => resolve(false)},
+                                        {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), onPress: () => resolve(false)},
                                         {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
                                     ],
                                 );
@@ -563,7 +563,7 @@ const ContactsManage = ({
                 )}
                 <SlideUpPanelItem
                     leftIcon='close'
-                    text={intl.formatMessage({id: 'contacts.cancel', defaultMessage: 'Cancel'})}
+                    text={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                     onPress={async () => {
                         await dismissBottomSheet();
                     }}

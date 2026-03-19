@@ -53,7 +53,7 @@ const messages = defineMessages({
         defaultMessage: 'Are you sure you want to leave the public channel {displayName}? You can always rejoin.',
     },
     cancel: {
-        id: 'mobile.post.cancel',
+        id: 'common.cancel',
         defaultMessage: 'Cancel',
     },
     close: {

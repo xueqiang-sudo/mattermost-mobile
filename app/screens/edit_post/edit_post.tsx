@@ -374,7 +374,7 @@ const EditPost = ({
                 defaultMessage: 'Are you sure you want to delete this Post?',
             }),
             [{
-                text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
                 onPress: () => {
                     setIsUpdating(false);

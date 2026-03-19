@@ -235,7 +235,7 @@ const PostUpdate = ({
                 message,
                 [
                     {
-                        text: intl.formatMessage({id: 'playbooks.post_update.confirm.cancel', defaultMessage: 'Cancel'}),
+                        text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                         style: 'cancel',
                     },
                     {

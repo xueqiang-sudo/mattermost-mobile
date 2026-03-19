@@ -38,7 +38,7 @@ const DeletePostOption = ({bottomSheetId, combinedPost, post}: Props) => {
                 defaultMessage: 'Are you sure you want to delete this post?',
             }),
             [{
-                text: formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                text: formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
             }, {
                 text: formatMessage({id: 'post_info.del', defaultMessage: 'Delete'}),

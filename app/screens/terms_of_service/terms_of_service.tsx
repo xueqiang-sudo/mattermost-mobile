@@ -137,7 +137,7 @@ const TermsOfService = ({
                 defaultMessage: 'Unable to complete the request. If this issue persists, contact your System Administrator.',
             }),
             [{
-                text: intl.formatMessage({id: 'terms_of_service.alert_cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
                 onPress: closeTermsAndLogout,
             }, {

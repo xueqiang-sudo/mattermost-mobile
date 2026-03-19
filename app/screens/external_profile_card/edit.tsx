@@ -198,7 +198,7 @@ const ExternalProfileCardEditScreen = ({
                     testID='external_profile_card_edit.cancel'
                 >
                     <Text style={styles.footerCancelText}>
-                        {intl.formatMessage({id: 'mobile.general.cancel', defaultMessage: 'Cancel'})}
+                        {intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.footerDivider}/>
@@ -208,7 +208,7 @@ const ExternalProfileCardEditScreen = ({
                     testID='external_profile_card_edit.confirm'
                 >
                     <Text style={styles.footerConfirmText}>
-                        {intl.formatMessage({id: 'mobile.general.confirm', defaultMessage: 'Confirm'})}
+                        {intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'})}
                     </Text>
                 </TouchableOpacity>
             </View>

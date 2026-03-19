@@ -327,7 +327,7 @@ export default function ManageChannelMembers({
             <View style={styles.searchBar}>
                 <Search
                     autoCapitalize='none'
-                    cancelButtonTitle={formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                    cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                     keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
                     onCancel={clearSearch}
                     onChangeText={onSearch}

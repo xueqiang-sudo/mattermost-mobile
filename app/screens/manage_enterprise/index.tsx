@@ -279,8 +279,8 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
         const inputValue = await createInputModal.showModal({
             title,
             placeholder,
-            confirmContent: intl.formatMessage({id: 'mobile.post.confirm', defaultMessage: 'Confirm'}),
-            cancelContent: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
         });
         if (!inputValue?.trim()) {
             return;
@@ -312,8 +312,8 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
         const companyId = await joinInputModal.showModal({
             title,
             placeholder,
-            confirmContent: intl.formatMessage({id: 'mobile.post.confirm', defaultMessage: 'Confirm'}),
-            cancelContent: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
         });
         if (!companyId?.trim()) {
             return;

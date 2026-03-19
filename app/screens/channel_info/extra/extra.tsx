@@ -160,7 +160,7 @@ const Extra = ({channelId, createdAt, createdBy, customStatus, header, isCustomS
                         }}
                         testID={`${headerTestId}.bottom_sheet.cancel`}
                         text={intl.formatMessage({
-                            id: 'mobile.post.cancel',
+                            id: 'common.cancel',
                             defaultMessage: 'Cancel',
                         })}
                     />

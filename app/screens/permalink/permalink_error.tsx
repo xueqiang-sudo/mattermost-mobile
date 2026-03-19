@@ -139,7 +139,7 @@ function PermalinkError({
                     size='lg'
                     emphasis='tertiary'
                     onPress={handleClose}
-                    text={intl.formatMessage({id: 'permalink.error.cancel', defaultMessage: 'Cancel'})}
+                    text={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                     theme={theme}
                 />
             </View>

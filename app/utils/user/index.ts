@@ -239,7 +239,7 @@ export function confirmOutOfOfficeDisabled(intl: IntlShape, status: string, upda
             defaultMessage: 'Would you like to switch your status to "{status}" and disable Automatic Replies?',
         }, {status: translatedStatus}),
         [{
-            text: intl.formatMessage({id: 'mobile.reset_status.alert_cancel', defaultMessage: 'Cancel'}),
+            text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
             style: 'cancel',
         }, {
             text: intl.formatMessage({id: 'mobile.reset_status.alert_ok', defaultMessage: 'OK'}),

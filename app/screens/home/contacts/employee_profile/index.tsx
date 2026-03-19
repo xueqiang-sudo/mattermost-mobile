@@ -262,7 +262,7 @@ const ContactsEmployeeProfile = ({
                     {name: employee.name},
                 ),
                 [
-                    {text: intl.formatMessage({id: 'contacts.cancel', defaultMessage: 'Cancel'}), style: 'cancel', onPress: () => resolve(false)},
+                    {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel', onPress: () => resolve(false)},
                     {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
                 ],
             );

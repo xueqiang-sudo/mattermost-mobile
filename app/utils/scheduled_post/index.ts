@@ -158,7 +158,7 @@ export async function canPostDraftInChannelOrThread({
                     defaultMessage: 'Someone delete the message on which you tried to post a comment.',
                 }),
                 [{
-                    text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                     style: 'cancel',
                 },
                 ], {cancelable: false},
@@ -175,7 +175,7 @@ export async function canPostDraftInChannelOrThread({
                 defaultMessage: 'You cannot post to an archived channel.',
             }),
             [{
-                text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
             },
             ], {cancelable: false},
@@ -191,7 +191,7 @@ export async function canPostDraftInChannelOrThread({
                 defaultMessage: 'You cannot post to a read-only channel.',
             }),
             [{
-                text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
             },
             ], {cancelable: false},
@@ -207,7 +207,7 @@ export async function canPostDraftInChannelOrThread({
                 defaultMessage: 'You cannot post to a deactivated channel.',
             }),
             [{
-                text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
             },
             ], {cancelable: false},
@@ -223,7 +223,7 @@ export async function canPostDraftInChannelOrThread({
                 defaultMessage: 'You do not have permission to post in this channel.',
             }),
             [{
-                text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
             },
             ], {cancelable: false},

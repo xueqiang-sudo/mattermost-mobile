@@ -3,6 +3,7 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
 import {Keyboard, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View} from 'react-native';
+import {useIntl} from 'react-intl';
 
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -102,13 +103,16 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
     title = 'Tip',
     placeholder,
     defaultValue = '',
-    confirmContent = 'Confirm',
+    confirmContent,
     showCancelButton = true,
-    cancelContent = 'Cancel',
+    cancelContent,
     theme,
     onConfirm,
     onCancel,
 }) => {
+    const intl = useIntl();
+    const defaultConfirm = intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'});
+    const defaultCancel = intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'});
     const styles = getStyleSheet(theme);
     const [inputValue, setInputValue] = useState(defaultValue);
 
@@ -164,7 +168,7 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
                                     activeOpacity={0.7}
                                     testID='custom_input_modal.cancel.button'
                                 >
-                                    <Text style={styles.cancelButtonText}>{cancelContent}</Text>
+                                    <Text style={styles.cancelButtonText}>{cancelContent ?? defaultCancel}</Text>
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity
@@ -174,7 +178,7 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
                                 disabled={isInputEmpty}
                                 testID='custom_input_modal.confirm.button'
                             >
-                                <Text style={styles.confirmButtonText}>{confirmContent}</Text>
+                                <Text style={styles.confirmButtonText}>{confirmContent ?? defaultConfirm}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

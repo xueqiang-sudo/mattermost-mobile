@@ -140,7 +140,7 @@ const ChannelBookmarkOptions = ({
                 isPreferred: true,
                 onPress: handleDelete,
             }, {
-                text: intl.formatMessage({id: 'channel_bookmark.add.file_cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
             }],
         );

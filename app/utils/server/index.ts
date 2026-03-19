@@ -144,7 +144,7 @@ export async function alertServerLogout(displayName: string, onPress: () => void
         }),
         [{
             style: 'cancel',
-            text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+            text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
         }, {
             style: 'destructive',
             text: intl.formatMessage({id: 'servers.logout', defaultMessage: 'Log out'}),
@@ -165,7 +165,7 @@ export async function alertServerRemove(displayName: string, onPress: () => void
         }),
         [{
             style: 'cancel',
-            text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+            text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
         }, {
             style: 'destructive',
             text: intl.formatMessage({id: 'servers.remove', defaultMessage: 'Remove'}),

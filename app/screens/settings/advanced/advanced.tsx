@@ -51,7 +51,7 @@ const AdvancedSettings = ({
                         defaultMessage: '\nThis will delete all files downloaded through the app for this server. Please confirm to proceed.\n',
                     }),
                     [
-                        {text: formatMessage({id: 'settings.advanced.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
+                        {text: formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
                         {
                             text: formatMessage({id: 'settings.advanced.delete', defaultMessage: 'Delete'}),
                             style: 'destructive',
