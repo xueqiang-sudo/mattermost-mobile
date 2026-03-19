@@ -9,9 +9,9 @@ import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area
 
 import {
     dissolveEnterprise,
+    fetchCanDissolveTeam,
     fetchCompany,
     fetchEmployeeCountOfCompany,
-    fetchTeamCreatorId,
     quitEnterprise,
     type FetchCompanyResult,
     type FetchEmployeeCountOfCompanyResult,
@@ -230,16 +230,19 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                 setCompany(companyRes.data);
             }
 
-            // 有通讯录企业则以通讯录为主，没有则使用 Mattermost 成员数
-            if (hasContactCompanyRecord && !countRes.error && typeof countRes.data === 'number') {
-                setMemberCount(countRes.data);
-            } else if (!hasContactCompanyRecord && isMattermostTeam && serverUrl) {
+            // 成员数：通讯录有且>0则用通讯录；若通讯录无/报错/为0 且为 MM 团队，则用 Mattermost 成员数
+            const contactCount = (!countRes.error && typeof countRes.data === 'number') ? countRes.data : undefined;
+            const shouldUseMattermost = isMattermostTeam && serverUrl && (!hasContactCompanyRecord || contactCount === undefined || contactCount === 0);
+
+            if (shouldUseMattermost) {
                 const mmCountRes = await fetchTeamMemberCount(serverUrl, companyId);
                 if (!mmCountRes.error && typeof mmCountRes.data === 'number') {
                     setMemberCount(mmCountRes.data);
+                } else if (contactCount !== undefined) {
+                    setMemberCount(contactCount);
                 }
-            } else if (!countRes.error && typeof countRes.data === 'number') {
-                setMemberCount(countRes.data);
+            } else if (contactCount !== undefined) {
+                setMemberCount(contactCount);
             }
             setLoading(false);
         };
@@ -247,27 +250,27 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
         load();
     }, [companyId, companyName, hasContactCompanyRecord, isMattermostTeam, serverUrl]);
 
-    // 判断是否显示「解散」：需求1/3 逻辑
-    // - 通讯录有且 owner_id 有效：以 owner_id 为准
-    // - 通讯录无 或 owner_id 为 null/undefined：若为 Mattermost 团队，以 Mattermost 创建者为准；否则为退出
+    // 判断是否显示「解散」：需求1/2/3 综合逻辑
+    // - 需求2: 通讯录有且 owner_id 有效 → 以 owner_id === employeeId 为准
+    // - 需求1: 通讯录无（仅 MM）→ 以 Mattermost 创建者或管理员为准
+    // - 需求3: 通讯录有但 owner_id 为空 → 以 Mattermost 创建者或管理员为准
     useEffect(() => {
         const checkCreator = async () => {
             if (!employeeId) {
                 setIsCreator(false);
                 return;
             }
-            const ownerId = company?.owner_id;
+            const ownerId = company?.owner_id ?? (company as {ownerId?: string})?.ownerId;
             if (ownerId != null && ownerId !== '') {
                 setIsCreator(ownerId === employeeId);
                 return;
             }
-            // 需求1: MM 有通讯录无；需求3: 通讯录有但 owner 为空 —— 均以 Mattermost 管理者为准
             if (!isMattermostTeam || !serverUrl) {
                 setIsCreator(false);
                 return;
             }
-            const creatorId = await fetchTeamCreatorId(serverUrl, companyId);
-            setIsCreator(creatorId === employeeId);
+            const canDissolve = await fetchCanDissolveTeam(serverUrl, companyId, employeeId);
+            setIsCreator(canDissolve);
         };
         checkCreator();
     }, [company, companyId, employeeId, isMattermostTeam, serverUrl]);

@@ -934,6 +934,34 @@ export const fetchTeamCreatorId = async (
     }
 };
 
+/**
+ * 判断当前用户是否有权限解散 Mattermost 团队。
+ * 条件：为团队创建者（creator_id）或团队管理员（scheme_admin）。
+ * 需求1/3：MM 有通讯录无、或通讯录有但 owner_id 为空时，以此判断显示「解散」或「退出」。
+ */
+export const fetchCanDissolveTeam = async (
+    serverUrl: string,
+    teamId: string,
+    userId: string,
+): Promise<boolean> => {
+    if (!serverUrl || !teamId || !userId) {
+        return false;
+    }
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const [team, member] = await Promise.all([
+            client.getTeam(teamId),
+            client.getTeamMember(teamId, userId),
+        ]);
+        const isCreator = team?.creator_id === userId;
+        const isAdmin = member?.scheme_admin === true;
+        return Boolean(isCreator || isAdmin);
+    } catch (error) {
+        logDebug('[fetchCanDissolveTeam]', getFullErrorMessage(error));
+        return false;
+    }
+};
+
 export type DissolveEnterpriseResult = {
     error?: unknown;
 };

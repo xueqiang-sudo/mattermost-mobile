@@ -42,7 +42,47 @@ const edges: Edge[] = ['left', 'right'];
  * 默认 false 不显示，方便正式环境保持界面简洁。
  * 设为 true 便于测试时快速区分企业来源。
  */
-const SHOW_ENTERPRISE_SOURCE_LABEL = true;
+const SHOW_ENTERPRISE_SOURCE_LABEL = false;
+
+const AVATAR_COLORS = [
+    '#5D7A8C', '#6B8E6B', '#8B7355', '#7B68A0', '#A0525D',
+    '#4682B4', '#2E8B57', '#CD853F', '#6A5ACD', '#DC143C',
+];
+
+function getEnterpriseAvatarStyle(displayName: string) {
+    const hash = (displayName || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const color = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    return {backgroundColor: changeOpacity(color, 0.92)};
+}
+
+function getSourceLabel(
+    entry: ManageEnterpriseEntry,
+    formatMessage: (descriptor: {id: string; defaultMessage: string}) => string,
+): string {
+    if (entry.isMattermostTeam && entry.hasContactCompanyRecord) {
+        return formatMessage({id: 'enterprise.manage.source.mm_and_contact', defaultMessage: 'Mattermost team · Contact directory'});
+    }
+    if (entry.isMattermostTeam) {
+        return formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost team only'});
+    }
+    return formatMessage({id: 'enterprise.manage.source.contact_only', defaultMessage: 'Contact directory'});
+}
+
+function getEnterpriseInitials(displayName: string): string {
+    const trimmed = (displayName || '').trim();
+    if (!trimmed) {
+        return '?';
+    }
+    const isCJK = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(trimmed);
+    if (isCJK) {
+        return trimmed.slice(0, 2);
+    }
+    const segments = trimmed.split(/\s+/);
+    if (segments.length >= 2) {
+        return (segments[0][0] + segments[1][0]).toUpperCase().slice(0, 2);
+    }
+    return trimmed.slice(0, 2).toUpperCase();
+}
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
@@ -116,6 +156,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
+    },
+    companyAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    companyAvatarText: {
+        color: '#FFFFFF',
+        ...typography('Heading', 300, 'SemiBold'),
     },
     companyNameBlock: {
         flex: 1,
@@ -330,12 +382,13 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                     onPress={() => handleCompanyPress(entry)}
                     testID={`enterprise.manage.company.${entry.id}`}
                 >
-                    <View style={{marginRight: 12}}>
-                        <CompassIcon
-                            name={entry.isMattermostTeam ? 'account-multiple-outline' : 'sitemap'}
-                            size={22}
-                            color={theme.linkColor}
-                        />
+                    <View style={[styles.companyAvatar, getEnterpriseAvatarStyle(entry.name)]}>
+                        <Text
+                            style={styles.companyAvatarText}
+                            numberOfLines={1}
+                        >
+                            {getEnterpriseInitials(entry.name)}
+                        </Text>
                     </View>
                     <View style={styles.companyNameBlock}>
                         <Text
@@ -349,11 +402,7 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                                 style={styles.companySource}
                                 numberOfLines={1}
                             >
-                                {entry.isMattermostTeam && entry.hasContactCompanyRecord
-                                    ? intl.formatMessage({id: 'enterprise.manage.source.mm_and_contact', defaultMessage: 'Mattermost team · Contact directory'})
-                                    : entry.isMattermostTeam
-                                        ? intl.formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost team only'})
-                                        : intl.formatMessage({id: 'enterprise.manage.source.contact_only', defaultMessage: 'Contact directory'})}
+                                {getSourceLabel(entry, intl.formatMessage)}
                             </Text>
                         )}
                     </View>
@@ -383,6 +432,55 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
             style={styles.flex}
             testID='enterprise.manage.screen'
         >
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>
+                    {intl.formatMessage({id: 'enterprise.manage.title', defaultMessage: 'Manage enterprises'})}
+                </Text>
+                <Text style={styles.headerSubtitle}>
+                    {intl.formatMessage({
+                        id: 'enterprise.manage.subtitle_merged',
+                        defaultMessage: 'Includes your Mattermost teams (mapped to contact companies) and enterprises in the contact directory. Create or join additional enterprises below.',
+                    })}
+                </Text>
+            </View>
+
+            <View style={styles.actionsRow}>
+                <TouchableOpacity
+                    style={styles.primaryAction}
+                    onPress={handleCreateEnterprise}
+                    activeOpacity={0.7}
+                    testID='enterprise.manage.create.button'
+                >
+                    <CompassIcon
+                        name='plus'
+                        size={18}
+                        color={theme.buttonColor}
+                    />
+                    <Text style={styles.primaryActionText}>
+                        {intl.formatMessage({id: 'enterprise.manage.create', defaultMessage: 'Create enterprise'})}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.secondaryAction}
+                    onPress={handleJoinEnterprise}
+                    activeOpacity={0.7}
+                    testID='enterprise.manage.join.button'
+                >
+                    <CompassIcon
+                        name='account-multiple-plus-outline'
+                        size={18}
+                        color={theme.buttonBg}
+                    />
+                    <Text style={styles.secondaryActionText}>
+                        {intl.formatMessage({id: 'enterprise.manage.join', defaultMessage: 'Join another enterprise'})}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            <Text style={styles.sectionTitle}>
+                {intl.formatMessage({id: 'enterprise.manage.list_title', defaultMessage: 'Your enterprises'})}
+            </Text>
+
             <ScrollView
                 style={styles.flex}
                 contentContainerStyle={[styles.scrollContent, {paddingBottom: insets.bottom + 16}]}
@@ -395,54 +493,6 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                     />
                 )}
             >
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>
-                        {intl.formatMessage({id: 'enterprise.manage.title', defaultMessage: 'Manage enterprises'})}
-                    </Text>
-                    <Text style={styles.headerSubtitle}>
-                        {intl.formatMessage({
-                            id: 'enterprise.manage.subtitle_merged',
-                            defaultMessage: 'Includes your Mattermost teams (mapped to contact companies) and enterprises in the contact directory. Create or join additional enterprises below.',
-                        })}
-                    </Text>
-                </View>
-
-                <View style={styles.actionsRow}>
-                    <TouchableOpacity
-                        style={styles.primaryAction}
-                        onPress={handleCreateEnterprise}
-                        activeOpacity={0.7}
-                        testID='enterprise.manage.create.button'
-                    >
-                        <CompassIcon
-                            name='plus'
-                            size={18}
-                            color={theme.buttonColor}
-                        />
-                        <Text style={styles.primaryActionText}>
-                            {intl.formatMessage({id: 'enterprise.manage.create', defaultMessage: 'Create enterprise'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.secondaryAction}
-                        onPress={handleJoinEnterprise}
-                        activeOpacity={0.7}
-                        testID='enterprise.manage.join.button'
-                    >
-                        <CompassIcon
-                            name='account-multiple-plus-outline'
-                            size={18}
-                            color={theme.buttonBg}
-                        />
-                        <Text style={styles.secondaryActionText}>
-                            {intl.formatMessage({id: 'enterprise.manage.join', defaultMessage: 'Join another enterprise'})}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                <Text style={styles.sectionTitle}>
-                    {intl.formatMessage({id: 'enterprise.manage.list_title', defaultMessage: 'Your enterprises'})}
-                </Text>
                 <View style={styles.card}>
                     {renderCompanies()}
                 </View>
