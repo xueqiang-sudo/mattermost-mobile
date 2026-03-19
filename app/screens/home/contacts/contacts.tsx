@@ -24,6 +24,7 @@ import Loading from '@components/loading';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {useServerUrl} from '@context/server';
+import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getTeamById} from '@queries/servers/team';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
@@ -42,6 +43,8 @@ type Props = {
     currentUser?: UserModel;
     currentTeamId?: string;
     database?: Database;
+    /** RNN Home componentId；关管理弹窗时 Home 会 willAppear，用于刷新列表 */
+    rnnHomeComponentId?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -229,13 +232,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     subSection: {},
 }));
 
-const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
+const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();
+    const isFocusedRef = useRef(isFocused);
+    isFocusedRef.current = isFocused;
     const mounted = useRef(false);
 
     const [topLevelDepartments, setTopLevelDepartments] = useState<ContactDepartment[]>([]);
@@ -244,6 +249,8 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
     const [companyName, setCompanyName] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
+    /** Home 从弹窗下重新出现时递增，触发主列表重新拉取 */
+    const [homeReappearTick, setHomeReappearTick] = useState(0);
 
     const styles = getStyleSheet(theme);
 
@@ -293,6 +300,14 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
         const title = intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'});
         showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_SUPPLIERS, {type: 'supplier', closeButtonId: CLOSE_SUPPLIERS}, {useBackIcon: true});
     }, [intl]));
+
+    const bumpHomeReappearTick = useCallback(() => {
+        if (!isFocusedRef.current) {
+            return;
+        }
+        setHomeReappearTick((t) => t + 1);
+    }, []);
+    useOnComponentWillAppear(rnnHomeComponentId, bumpHomeReappearTick);
 
     useEffect(() => {
         const fetchEnterprise = async () => {
@@ -372,7 +387,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database}: Props) => {
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, database, isFocused, serverUrl]);
+    }, [currentTeamId, database, isFocused, serverUrl, homeReappearTick]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: ContactDepartment) => {
         const breadcrumb = [

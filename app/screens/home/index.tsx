@@ -202,9 +202,12 @@ export function HomeScreen(props: HomeProps) {
                         />
                         <Tab.Screen
                             name={Screens.CONTACTS}
-                            component={Contacts}
                             options={{tabBarButtonTestID: 'tab_bar.contacts.tab', freezeOnBlur: true, lazy: true}}
-                        />
+                        >
+                            {() => (
+                                <Contacts rnnHomeComponentId={props.componentId}/>
+                            )}
+                        </Tab.Screen>
                     </Tab.Navigator>
                 </NavigationContainer>
                 <LeftDrawer/>

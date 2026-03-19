@@ -16,6 +16,7 @@ import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
+import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheet, dismissAllModalsAndPopToScreen, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
@@ -54,6 +55,8 @@ type Props = {
     onBreadcrumbPress?: (toDismiss: number) => void;
     /** 从个人信息页部门浏览 Wrapper 内嵌时为 true：不渲染顶栏与搜索/管理按钮，由 Wrapper 提供返回/关闭 */
     fromEmployeeProfile?: boolean;
+    /** 通讯录 Tab 所在 RNN Home；关管理弹窗后 Home willAppear，栈内部门页据此刷新 */
+    rnnHomeComponentId?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -222,6 +225,7 @@ const ContactsDepartmentDetail = ({
     onNavigateToDepartment,
     onBreadcrumbPress,
     fromEmployeeProfile = false,
+    rnnHomeComponentId,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -516,15 +520,8 @@ const ContactsDepartmentDetail = ({
         };
     }, [fetchData]);
 
-    useEffect(() => {
-        const listener = Navigation.events().registerComponentWillAppearListener(({componentId: appearedId}) => {
-            if (appearedId === componentId) {
-                fetchData();
-            }
-        });
-
-        return () => listener.remove();
-    }, [componentId, fetchData]);
+    useOnComponentWillAppear(componentId, fetchData);
+    useOnComponentWillAppear(rnnHomeComponentId, fetchData);
 
     const renderContent = () => {
         if (loading) {

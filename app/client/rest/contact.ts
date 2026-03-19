@@ -487,7 +487,10 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         const upper = method.toUpperCase();
         if (upper !== 'GET') {
             this.invalidateCompanyCache(companyIdOfVersion);
-            return this.doRequestDirect<T>(path, method, body);
+            return this.doRequestDirect<T>(path, method, body).then((res: T) => {
+                this.invalidateCompanyCache(companyIdOfVersion);
+                return res;
+            });
         }
 
         const now = Date.now();
@@ -528,7 +531,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             this.responseByCompany.set(companyIdOfVersion, map);
         }
         const hit = map.get(path);
-        if (hit && hit.version === version && now - hit.at <= CONTACT_VERSION_CACHE_TTL_MS) {
+        if (hit && hit.version === version) {
             return hit.data as T;
         }
         const data = await this.doRequestDirect<T>(path, method, body);

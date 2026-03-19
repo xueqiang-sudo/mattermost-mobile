@@ -5,7 +5,6 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {Navigation} from 'react-native-navigation';
 
 import {
     createSubDepartment,
@@ -25,6 +24,7 @@ import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
+import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheet, dismissBottomSheet, dismissModals, showModal, showModalWithBackButton} from '@screens/navigation';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
@@ -239,15 +239,7 @@ const ContactsManage = ({
         };
     }, []);
 
-    useEffect(() => {
-        const listener = Navigation.events().registerComponentWillAppearListener(({componentId: appearedId}) => {
-            if (appearedId === componentId) {
-                refetch();
-            }
-        });
-
-        return () => listener.remove();
-    }, [componentId, refetch]);
+    useOnComponentWillAppear(componentId, refetch);
 
     useEffect(() => {
         const top = manageStack[manageStack.length - 1];

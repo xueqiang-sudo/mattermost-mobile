@@ -3,7 +3,7 @@
 
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import {createStackNavigator, type StackNavigationProp} from '@react-navigation/stack';
-import React from 'react';
+import React, {createContext, useContext} from 'react';
 
 import {Screens} from '@constants';
 
@@ -25,13 +25,18 @@ type ContactsStackParamList = {
 
 const Stack = createStackNavigator<ContactsStackParamList>();
 
+/** 通讯录 Tab 所在 RNN Home 的 componentId；关管理弹窗等会触发 Home 的 componentWillAppear */
+export const ContactsRnnHomeComponentIdContext = createContext<string | undefined>(undefined);
+
 type ContactsStackProps = {
     currentUser?: UserModel;
     currentTeamId?: string;
     database?: import('@nozbe/watermelondb').Database;
+    rnnHomeComponentId?: string;
 };
 
 function DepartmentDetailWrapper() {
+    const rnnHomeComponentId = useContext(ContactsRnnHomeComponentIdContext);
     const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
     const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
     const params = route.params;
@@ -42,6 +47,7 @@ function DepartmentDetailWrapper() {
     return (
         <ContactsDepartmentDetail
             componentId={Screens.CONTACTS_DEPARTMENT_DETAIL}
+            rnnHomeComponentId={rnnHomeComponentId}
             departmentId={params.departmentId}
             departmentName={params.departmentName}
             breadcrumb={params.breadcrumb}
@@ -64,25 +70,28 @@ function DepartmentDetailWrapper() {
     );
 }
 
-export function ContactsStack({currentUser, currentTeamId, database}: ContactsStackProps) {
+export function ContactsStack({currentUser, currentTeamId, database, rnnHomeComponentId}: ContactsStackProps) {
     return (
-        <Stack.Navigator
-            screenOptions={{headerShown: false}}
-            initialRouteName={Screens.CONTACTS}
-        >
-            <Stack.Screen name={Screens.CONTACTS}>
-                {() => (
-                    <ContactsScreen
-                        currentUser={currentUser}
-                        currentTeamId={currentTeamId}
-                        database={database}
-                    />
-                )}
-            </Stack.Screen>
+        <ContactsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
+            <Stack.Navigator
+                screenOptions={{headerShown: false}}
+                initialRouteName={Screens.CONTACTS}
+            >
+                <Stack.Screen name={Screens.CONTACTS}>
+                    {() => (
+                        <ContactsScreen
+                            currentUser={currentUser}
+                            currentTeamId={currentTeamId}
+                            database={database}
+                            rnnHomeComponentId={rnnHomeComponentId}
+                        />
+                    )}
+                </Stack.Screen>
             <Stack.Screen
                 name={Screens.CONTACTS_DEPARTMENT_DETAIL}
                 component={DepartmentDetailWrapper}
             />
-        </Stack.Navigator>
+            </Stack.Navigator>
+        </ContactsRnnHomeComponentIdContext.Provider>
     );
 }
