@@ -16,21 +16,33 @@ import {
 } from '@actions/remote/contact';
 import {ContactCompanyTypes} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
+import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {observeCurrentTeamId} from '@queries/servers/system';
+import {observeCurrentUser} from '@queries/servers/user';
 import {goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
 
 type Props = {
     currentUser?: UserModel;
+    currentTeamId?: string;
 };
 
 const edges: Edge[] = ['left', 'right'];
+
+/**
+ * 是否在企业列表中显示来源标签（Mattermost / 通讯录 / 两者皆有）。
+ * 默认 false 不显示，方便正式环境保持界面简洁。
+ * 设为 true 便于测试时快速区分企业来源。
+ */
+const SHOW_ENTERPRISE_SOURCE_LABEL = true;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
@@ -115,12 +127,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     companySource: {
         marginTop: 2,
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.5),
+        ...typography('Body', 50),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
     },
     companyMeta: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginLeft: 8,
+    },
+    currentBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+        backgroundColor: changeOpacity(theme.linkColor, 0.15),
+    },
+    currentBadgeText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.linkColor,
     },
     divider: {
         height: 1,
@@ -146,7 +167,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const ManageEnterpriseScreen = ({currentUser}: Props) => {
+const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
     const database = useDatabase();
     const theme = useTheme();
     const intl = useIntl();
@@ -157,6 +178,9 @@ const ManageEnterpriseScreen = ({currentUser}: Props) => {
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<unknown>();
+
+    const createInputModal = useCustomInputModal();
+    const joinInputModal = useCustomInputModal();
 
     const employeeId = currentUser?.id;
 
@@ -189,118 +213,79 @@ const ManageEnterpriseScreen = ({currentUser}: Props) => {
         loadCompanies();
     }, [loadCompanies]);
 
-    const handleCreateEnterprise = usePreventDoubleTap(useCallback(() => {
+    const handleCreateEnterprise = usePreventDoubleTap(useCallback(async () => {
         if (!employeeId) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.manage.loading_user', defaultMessage: 'Loading user'}),
+                intl.formatMessage({id: 'enterprise.manage.please_wait', defaultMessage: 'Please wait a moment and try again.'}),
+            );
             return;
         }
         const title = intl.formatMessage({id: 'enterprise.manage.create', defaultMessage: 'Create enterprise'});
         const placeholder = intl.formatMessage({id: 'enterprise.manage.create.name_placeholder', defaultMessage: 'Enterprise name'});
 
-        let inputValue = '';
-        Alert.prompt(
+        const inputValue = await createInputModal.showModal({
             title,
-            '',
-            [
-                {
-                    text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
-                    style: 'cancel',
-                },
-                {
-                    text: intl.formatMessage({id: 'mobile.post.confirm', defaultMessage: 'Confirm'}),
-                    onPress: async (value) => {
-                        inputValue = (value || '').trim();
-                        if (!inputValue) {
-                            return;
-                        }
-                        const res = await createEnterpriseForEmployee(employeeId, {
-                            name: inputValue,
-                            type: ContactCompanyTypes.Team,
-                        });
-                        if (res.error) {
-                            Alert.alert(
-                                intl.formatMessage({id: 'enterprise.manage.create_failed', defaultMessage: 'Failed to create enterprise'}),
-                            );
-                            return;
-                        }
-                        await loadCompanies();
-                    },
-                },
-            ],
-            'plain-text',
-            '',
-            'default',
             placeholder,
-        );
-    }, [employeeId, intl, loadCompanies]));
+            confirmContent: intl.formatMessage({id: 'mobile.post.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+        });
+        if (!inputValue?.trim()) {
+            return;
+        }
+        const res = await createEnterpriseForEmployee(employeeId, {
+            name: inputValue.trim(),
+            type: ContactCompanyTypes.Team,
+        });
+        if (res.error) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.manage.create_failed', defaultMessage: 'Failed to create enterprise'}),
+            );
+            return;
+        }
+        await loadCompanies();
+    }, [employeeId, intl, loadCompanies, createInputModal]));
 
-    const handleJoinEnterprise = usePreventDoubleTap(useCallback(() => {
+    const handleJoinEnterprise = usePreventDoubleTap(useCallback(async () => {
         if (!employeeId) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.manage.loading_user', defaultMessage: 'Loading user'}),
+                intl.formatMessage({id: 'enterprise.manage.please_wait', defaultMessage: 'Please wait a moment and try again.'}),
+            );
             return;
         }
         const title = intl.formatMessage({id: 'enterprise.manage.join', defaultMessage: 'Join another enterprise'});
         const placeholder = intl.formatMessage({id: 'enterprise.manage.join.placeholder', defaultMessage: 'Enterprise ID'});
 
-        Alert.prompt(
+        const companyId = await joinInputModal.showModal({
             title,
-            '',
-            [
-                {
-                    text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
-                    style: 'cancel',
-                },
-                {
-                    text: intl.formatMessage({id: 'mobile.post.confirm', defaultMessage: 'Confirm'}),
-                    onPress: async (value) => {
-                        const companyId = (value || '').trim();
-                        if (!companyId) {
-                            return;
-                        }
-                        const res = await joinEnterprise(employeeId, companyId);
-                        if (res.error) {
-                            Alert.alert(
-                                intl.formatMessage({id: 'enterprise.manage.join_failed', defaultMessage: 'Failed to join enterprise. Please check the ID and try again.'}),
-                            );
-                            return;
-                        }
-                        await loadCompanies();
-                    },
-                },
-            ],
-            'plain-text',
-            '',
-            'default',
             placeholder,
-        );
-    }, [employeeId, intl, loadCompanies]));
+            confirmContent: intl.formatMessage({id: 'mobile.post.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+        });
+        if (!companyId?.trim()) {
+            return;
+        }
+        const res = await joinEnterprise(employeeId, companyId.trim());
+        if (res.error) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.manage.join_failed', defaultMessage: 'Failed to join enterprise. Please check the ID and try again.'}),
+            );
+            return;
+        }
+        await loadCompanies();
+    }, [employeeId, intl, loadCompanies, joinInputModal]));
 
     const handleCompanyPress = usePreventDoubleTap(useCallback((entry: ManageEnterpriseEntry) => {
         const title = intl.formatMessage({id: 'enterprise.detail.title', defaultMessage: 'Enterprise information'});
-        const tryEnsureTeamCompany = entry.isMattermostTeam && !entry.hasContactCompanyRecord;
         goToScreen(Screens.MANAGE_ENTERPRISE_DETAIL, title, {
             companyId: entry.id,
             companyName: entry.name,
-            tryEnsureTeamCompany,
+            isMattermostTeam: entry.isMattermostTeam,
+            hasContactCompanyRecord: entry.hasContactCompanyRecord,
+            isCurrentTeam: entry.id === currentTeamId,
         });
-    }, [intl]));
-
-    const sourceLabel = useCallback((entry: ManageEnterpriseEntry) => {
-        if (entry.isMattermostTeam && entry.hasContactCompanyRecord) {
-            return intl.formatMessage({
-                id: 'enterprise.manage.source.mm_and_contact',
-                defaultMessage: 'Mattermost team · Contact directory',
-            });
-        }
-        if (entry.isMattermostTeam) {
-            return intl.formatMessage({
-                id: 'enterprise.manage.source.mm_pending',
-                defaultMessage: 'Mattermost team (sync to contacts on open)',
-            });
-        }
-        return intl.formatMessage({
-            id: 'enterprise.manage.source.contact_only',
-            defaultMessage: 'Contact directory',
-        });
-    }, [intl]);
+    }, [intl, currentTeamId]));
 
     const renderCompanies = () => {
         if (loading && !entries.length) {
@@ -347,7 +332,7 @@ const ManageEnterpriseScreen = ({currentUser}: Props) => {
                 >
                     <View style={{marginRight: 12}}>
                         <CompassIcon
-                            name={entry.isMattermostTeam ? 'account-group-outline' : 'sitemap'}
+                            name={entry.isMattermostTeam ? 'account-multiple-outline' : 'sitemap'}
                             size={22}
                             color={theme.linkColor}
                         />
@@ -359,16 +344,28 @@ const ManageEnterpriseScreen = ({currentUser}: Props) => {
                         >
                             {entry.name}
                         </Text>
-                        <Text
-                            style={styles.companySource}
-                            numberOfLines={2}
-                        >
-                            {sourceLabel(entry)}
-                        </Text>
+                        {SHOW_ENTERPRISE_SOURCE_LABEL && (
+                            <Text
+                                style={styles.companySource}
+                                numberOfLines={1}
+                            >
+                                {entry.isMattermostTeam && entry.hasContactCompanyRecord
+                                    ? intl.formatMessage({id: 'enterprise.manage.source.mm_and_contact', defaultMessage: 'Mattermost team · Contact directory'})
+                                    : entry.isMattermostTeam
+                                        ? intl.formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost team only'})
+                                        : intl.formatMessage({id: 'enterprise.manage.source.contact_only', defaultMessage: 'Contact directory'})}
+                            </Text>
+                        )}
                     </View>
-                    <Text style={styles.companyMeta}>
-                        {entry.type === ContactCompanyTypes.Team ? intl.formatMessage({id: 'enterprise.manage.type.team', defaultMessage: 'My enterprise'}) : ''}
-                    </Text>
+                    <View style={styles.companyMeta}>
+                        {entry.id === currentTeamId && (
+                            <View style={styles.currentBadge}>
+                                <Text style={styles.currentBadgeText}>
+                                    {intl.formatMessage({id: 'enterprise.manage.current_badge', defaultMessage: 'Current'})}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
                     <CompassIcon
                         name='chevron-right'
                         size={20}
@@ -450,9 +447,40 @@ const ManageEnterpriseScreen = ({currentUser}: Props) => {
                     {renderCompanies()}
                 </View>
             </ScrollView>
+            <CustomInputModal
+                key={createInputModal.visible ? 'create-open' : 'create-closed'}
+                visible={createInputModal.visible}
+                title={createInputModal.options.title}
+                placeholder={createInputModal.options.placeholder}
+                defaultValue={createInputModal.options.defaultValue}
+                confirmContent={createInputModal.options.confirmContent}
+                showCancelButton={createInputModal.options.showCancelButton}
+                cancelContent={createInputModal.options.cancelContent}
+                theme={theme}
+                onConfirm={createInputModal.handleConfirm}
+                onCancel={createInputModal.handleCancel}
+            />
+            <CustomInputModal
+                key={joinInputModal.visible ? 'join-open' : 'join-closed'}
+                visible={joinInputModal.visible}
+                title={joinInputModal.options.title}
+                placeholder={joinInputModal.options.placeholder}
+                defaultValue={joinInputModal.options.defaultValue}
+                confirmContent={joinInputModal.options.confirmContent}
+                showCancelButton={joinInputModal.options.showCancelButton}
+                cancelContent={joinInputModal.options.cancelContent}
+                theme={theme}
+                onConfirm={joinInputModal.handleConfirm}
+                onCancel={joinInputModal.handleCancel}
+            />
         </SafeAreaView>
     );
 };
 
-export default ManageEnterpriseScreen;
+const enhanced = withObservables([], ({database}: WithDatabaseArgs) => ({
+    currentUser: observeCurrentUser(database),
+    currentTeamId: observeCurrentTeamId(database),
+}));
+
+export default withDatabase(enhanced(ManageEnterpriseScreen));
 

@@ -558,3 +558,34 @@ export const createTeamByName = async (serverUrl: string, name: string, displayN
         return {error};
     }
 };
+
+export type FetchTeamMemberCountResult = {
+    data?: number;
+    error?: unknown;
+};
+
+/** 获取 Mattermost 团队成员数（用于管理企业详情页，当无通讯录企业时展示） */
+export const fetchTeamMemberCount = async (serverUrl: string, teamId: string): Promise<FetchTeamMemberCountResult> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const stats = await client.getTeamStats(teamId);
+        const count = stats?.total_member_count;
+        return typeof count === 'number' ? {data: count} : {data: 0};
+    } catch (error) {
+        logDebug('error on fetchTeamMemberCount', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 解散 Mattermost 团队（仅团队创建者/管理员可调用） */
+export const deleteTeam = async (serverUrl: string, teamId: string): Promise<{error?: unknown}> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        await client.deleteTeam(teamId);
+        return {};
+    } catch (error) {
+        logDebug('error on deleteTeam', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};

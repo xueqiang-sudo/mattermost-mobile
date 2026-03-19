@@ -5,14 +5,15 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {ScrollView, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {InteractionManager, ScrollView, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import Animated, {FadeIn} from 'react-native-reanimated';
 
+import {syncTeamToContactAfterCreate} from '@actions/remote/contact';
 import {createTeamByName} from '@actions/remote/team';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
-import {Screens} from '@constants';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
@@ -20,6 +21,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal} from '@screens/navigation';
 import {logError} from '@utils/log';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {cleanUpUrlable} from '@utils/url';
@@ -264,9 +266,10 @@ interface CreateTeamProps {
     closeButtonId: string;
     serverUrl: string;
     nickname: string;
+    userId?: string;
 }
 
-const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serverUrl, nickname}: CreateTeamProps) => {
+const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serverUrl, nickname, userId}: CreateTeamProps) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const intl = useIntl();
@@ -408,12 +411,26 @@ const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serv
 
         setLoading(true);
         try {
-            // 创建企业
-            const {error: createTeamError} = await createTeamByName(serverUrl, enterpriseUrl, enterpriseName);
-            if (createTeamError) {
+            // 创建 Mattermost 团队
+            const {team, error: createTeamError} = await createTeamByName(serverUrl, enterpriseUrl, enterpriseName);
+            if (createTeamError || !team) {
                 throw createTeamError;
             }
-            dismissModal({componentId: Screens.CREATE_TEAM});
+
+            // 同步创建通讯录企业并将当前用户加入
+            if (userId) {
+                await syncTeamToContactAfterCreate(serverUrl, team, userId);
+            }
+            dismissModal({componentId});
+            InteractionManager.runAfterInteractions(() => {
+                showSnackBar({
+                    barType: SNACK_BAR_TYPE.TEXT_COPIED,
+                    customMessage: intl.formatMessage({id: 'create_team.success', defaultMessage: 'Enterprise created successfully'}),
+                    type: MESSAGE_TYPE.SUCCESS,
+                    ignoreNavigationEvents: true,
+                    duration: 2500,
+                });
+            });
         } catch (err) {
             if ((err as ClientError).server_error_id === 'store.sql_team.save_team.existing.app_error') {
                 // 已经存在企业，需要提示

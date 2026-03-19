@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import NetworkManager from '@managers/network_manager';
 import {fetchProfilesInTeam} from '@actions/remote/user';
 import ContactService, {
     ContactCompanyTypes,
@@ -254,7 +255,7 @@ export const fetchCompany = async (companyId: string): Promise<FetchCompanyResul
 };
 
 /** 获取或创建当前 Mattermost 团队对应的通讯录公司（teamId 作为 company id） */
-export const ensureTeamCompany = async (teamId: string, teamName: string): Promise<EnsureTeamCompanyResult> => {
+export const ensureTeamCompany = async (teamId: string, teamName: string, ownerId?: string): Promise<EnsureTeamCompanyResult> => {
     if (!teamId) {
         return {error: new Error('teamId is required')};
     }
@@ -270,6 +271,7 @@ export const ensureTeamCompany = async (teamId: string, teamName: string): Promi
             id: teamId,
             name: teamName,
             type: ContactCompanyTypes.Team,
+            ...(ownerId ? {owner_id: ownerId} : {}),
         });
         try {
             await ContactService.createDepartment({
@@ -720,7 +722,7 @@ export type FetchManageEnterpriseListResult = {
  * 合并两套企业来源：
  * 1) 通讯录：当前用户在员工-企业关联中的企业（含自建/加入的独立企业）；
  * 2) Mattermost：用户所在团队；团队与通讯录对齐时 company.id === team_id（见 ensureTeamCompany）。
- * 若团队尚未在通讯录建企，仍列出团队（进入详情时可 ensureTeamCompany 同步）。
+ * 若团队尚未在通讯录建企，仍列出团队；管理企业详情页不会自动同步（需求：MM 有、通讯录无时不同步）。
  */
 export const fetchManageEnterpriseList = async (
     database: Database,
@@ -817,6 +819,31 @@ export type CreateEnterpriseForEmployeeResult = {
     error?: unknown;
 };
 
+/** 创建 Mattermost 团队后同步创建通讯录企业，并将当前用户加入 */
+export const syncTeamToContactAfterCreate = async (
+    serverUrl: string,
+    team: Team,
+    currentUserId: string,
+): Promise<{error?: unknown}> => {
+    if (!serverUrl || !team?.id || !currentUserId) {
+        return {};
+    }
+    try {
+        const companyRes = await ensureTeamCompany(team.id, team.display_name || team.name, currentUserId);
+        if (companyRes.error) {
+            logDebug('[syncTeamToContactAfterCreate.ensureTeamCompany]', getFullErrorMessage(companyRes.error));
+            return companyRes;
+        }
+        const client = NetworkManager.getClient(serverUrl);
+        const user = await client.getUser(currentUserId);
+        await ensureContactEmployeeForUser(serverUrl, team.id, user);
+        return {};
+    } catch (error) {
+        logDebug('[syncTeamToContactAfterCreate]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
 /** 为当前员工创建企业并自动加入该企业 */
 export const createEnterpriseForEmployee = async (
     employeeId: string,
@@ -832,6 +859,7 @@ export const createEnterpriseForEmployee = async (
             name,
             type: params.type ?? ContactCompanyTypes.Team,
             description: params.description,
+            owner_id: employeeId,
         });
         try {
             await ContactService.addEmployeeToCompany(employeeId, {company_id: company.id});
@@ -882,6 +910,27 @@ export const quitEnterprise = async (employeeId: string, companyId: string): Pro
     } catch (error) {
         logDebug('[ContactService.quitEnterprise]', getFullErrorMessage(error));
         return {error};
+    }
+};
+
+/**
+ * 获取 Mattermost 团队的创建者 ID（若 API 返回 creator_id）。
+ * 用于判断当前用户是否为创建者，从而决定显示「解散」或「退出」。
+ */
+export const fetchTeamCreatorId = async (
+    serverUrl: string,
+    teamId: string,
+): Promise<string | undefined> => {
+    if (!serverUrl || !teamId) {
+        return undefined;
+    }
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const team = await client.getTeam(teamId);
+        return team?.creator_id;
+    } catch (error) {
+        logDebug('[fetchTeamCreatorId]', getFullErrorMessage(error));
+        return undefined;
     }
 };
 

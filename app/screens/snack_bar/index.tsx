@@ -38,7 +38,7 @@ import type {ShowSnackBarArgs} from '@utils/snack_bar';
 
 type SnackBarProps = {
     componentId: AvailableScreens;
-    sourceScreen: AvailableScreens;
+    sourceScreen?: AvailableScreens;
 } & ShowSnackBarArgs;
 
 const SNACK_BAR_WIDTH = 96;
@@ -101,6 +101,8 @@ const SnackBar = ({
     sourceScreen,
     customMessage,
     type,
+    ignoreNavigationEvents = false,
+    duration = 3000,
 }: SnackBarProps) => {
     const [showSnackBar, setShowSnackBar] = useState<boolean | undefined>();
     const intl = useIntl();
@@ -232,22 +234,22 @@ const SnackBar = ({
         animateHiding(false);
     };
 
-    // This effect hides the snack bar after 3 seconds
+    // Effect hides the snack bar after duration
     useEffect(() => {
         mounted.current = true;
         baseTimer.current = setTimeout(() => {
             if (!isPanned.value) {
                 animateHiding(false);
             }
-        }, 3000);
+        }, duration);
 
         return () => {
             stopTimers();
             mounted.current = false;
         };
-    }, []);
+    }, [duration]);
 
-    // This effect dismisses the Navigation Overlay after we have hidden the snack bar
+    // Effect dismisses the overlay after snack bar is hidden
     useEffect(() => {
         if (showSnackBar === false) {
             if (userHasUndo?.current) {
@@ -257,8 +259,11 @@ const SnackBar = ({
         }
     }, [showSnackBar, onAction, componentId]);
 
-    // This effect checks if we are navigating away and if so, it dismisses the snack bar
+    // Effect hides snack bar when navigating away (skipped when ignoreNavigationEvents for toast-style messages)
     useEffect(() => {
+        if (ignoreNavigationEvents) {
+            return;
+        }
         const onHideSnackBar = (event?: ComponentEvent) => {
             const evtComponentId = event?.componentId;
             if ((componentId !== evtComponentId) && (sourceScreen !== evtComponentId)) {
@@ -277,7 +282,7 @@ const SnackBar = ({
             tabPress.remove();
             navigateToTab.remove();
         };
-    }, [animateHiding, componentId, sourceScreen]);
+    }, [animateHiding, componentId, ignoreNavigationEvents, sourceScreen]);
 
     const message = customMessage || intl.formatMessage(config.message, messageValues);
 

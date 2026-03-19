@@ -4,7 +4,7 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {ScrollView, Text, View} from 'react-native';
+import {FlatList, Text, View} from 'react-native';
 import {Navigation} from 'react-native-navigation';
 import {of as of$, combineLatest} from 'rxjs';
 import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
@@ -138,11 +138,7 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
 
     return (
         <View style={styles.container}>
-            <ScrollView
-                style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
+            <View style={styles.header}>
                 <View style={styles.userBlock}>
                     <TouchableWithFeedback
                         onPress={openAccountModal}
@@ -230,18 +226,31 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                     <Text style={styles.sectionLabel}>
                         {intl.formatMessage({id: 'left_drawer.enterprises', defaultMessage: 'Enterprises'})}
                     </Text>
-                    {myOrderedTeams.length === 0 ? (
-                        <Text style={styles.emptyTeams}>
-                            {intl.formatMessage({id: 'left_drawer.no_enterprises', defaultMessage: 'No enterprises'})}
-                        </Text>
-                    ) : (
-                        <DrawerTeamList
-                            myOrderedTeams={myOrderedTeams}
-                            onClose={onClose}
-                        />
-                    )}
                 </View>
-            </ScrollView>
+            </View>
+
+            <View style={styles.listWrapper}>
+                {myOrderedTeams.length === 0 ? (
+                    <Text style={styles.emptyTeams}>
+                        {intl.formatMessage({id: 'left_drawer.no_enterprises', defaultMessage: 'No enterprises'})}
+                    </Text>
+                ) : (
+                    <FlatList
+                        data={myOrderedTeams}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({item}) => (
+                            <DrawerTeamRow
+                                myTeam={item}
+                                onClose={onClose}
+                            />
+                        )}
+                        ItemSeparatorComponent={() => <View style={styles.teamSeparator}/>}
+                        contentContainerStyle={styles.teamListContent}
+                        showsVerticalScrollIndicator={false}
+                        bounces={false}
+                    />
+                )}
+            </View>
 
             <View style={styles.bottomSection}>
                 <View style={styles.divider}/>
@@ -316,6 +325,33 @@ type DrawerTeamListProps = {
     onClose: () => void;
 };
 
+const AVATAR_COLORS = [
+    '#5D7A8C', '#6B8E6B', '#8B7355', '#7B68A0', '#A0525D',
+    '#4682B4', '#2E8B57', '#CD853F', '#6A5ACD', '#DC143C',
+];
+
+function getEnterpriseAvatarStyle(displayName: string) {
+    const hash = displayName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const color = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    return {backgroundColor: changeOpacity(color, 0.9)};
+}
+
+function getEnterpriseInitials(displayName: string): string {
+    const trimmed = (displayName || '').trim();
+    if (!trimmed) {
+        return '?';
+    }
+    const isCJK = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(trimmed);
+    if (isCJK) {
+        return trimmed.slice(0, 2);
+    }
+    const segments = trimmed.split(/\s+/);
+    if (segments.length >= 2) {
+        return (segments[0][0] + segments[1][0]).toUpperCase().slice(0, 2);
+    }
+    return trimmed.slice(0, 2).toUpperCase();
+}
+
 function DrawerTeamListInner({
     myTeam,
     team,
@@ -343,6 +379,9 @@ function DrawerTeamListInner({
         return null;
     }
 
+    const initials = getEnterpriseInitials(team.displayName);
+    const avatarStyle = getEnterpriseAvatarStyle(team.displayName);
+
     return (
         <TouchableWithFeedback
             onPress={onPress}
@@ -350,17 +389,26 @@ function DrawerTeamListInner({
             style={[styles.teamRow, selected && styles.teamRowSelected]}
             testID={`left_drawer.team_row.${team.id}`}
         >
+            {selected && <View style={styles.teamRowSelectedBar}/>}
+            <View style={[styles.teamAvatar, avatarStyle]}>
+                <Text
+                    numberOfLines={1}
+                    style={styles.teamAvatarText}
+                >
+                    {initials}
+                </Text>
+            </View>
             <Text
                 numberOfLines={1}
-                style={styles.teamName}
+                style={[styles.teamName, selected && styles.teamNameSelected]}
             >
                 {team.displayName}
             </Text>
             {selected && (
                 <CompassIcon
-                    name='check'
+                    name='check-circle'
                     size={22}
-                    color={theme.sidebarText}
+                    color={theme.sidebarHeaderTextColor}
                 />
             )}
         </TouchableWithFeedback>
@@ -375,37 +423,33 @@ const DrawerTeamRow = withDatabase(withObservables(['myTeam'], ({myTeam, databas
     ),
 }))(DrawerTeamListInner));
 
-function DrawerTeamList({myOrderedTeams, onClose}: DrawerTeamListProps) {
-    return (
-        <>
-            {myOrderedTeams.map((myTeam) => (
-                <DrawerTeamRow
-                    key={myTeam.id}
-                    myTeam={myTeam}
-                    onClose={onClose}
-                />
-            ))}
-        </>
-    );
-}
-
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
     },
-    scroll: {
-        flex: 1,
+    header: {
+        flexShrink: 0,
     },
-    scrollContent: {
-        paddingBottom: 16,
+    listWrapper: {
+        flex: 1,
+        minHeight: 0,
+        paddingHorizontal: 16,
+    },
+    teamListContent: {
+        paddingVertical: 8,
+    },
+    teamSeparator: {
+        height: 8,
     },
     bottomSection: {
-        paddingBottom: 16,
+        flexShrink: 0,
+        paddingTop: 4,
+        paddingBottom: 20,
     },
     userBlock: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         paddingVertical: 16,
         backgroundColor: theme.sidebarBg,
     },
@@ -454,47 +498,82 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
     },
     section: {
-        paddingHorizontal: 20,
-        paddingTop: 8,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 8,
     },
     sectionLabel: {
-        color: changeOpacity(theme.sidebarText, 0.64),
-        ...typography('Heading', 50),
-        marginBottom: 8,
+        color: changeOpacity(theme.sidebarText, 0.56),
+        ...typography('Heading', 50, 'SemiBold'),
+        letterSpacing: 0.5,
     },
     emptyTeams: {
         color: changeOpacity(theme.sidebarText, 0.64),
         ...typography('Body', 100),
+        paddingVertical: 24,
+        paddingHorizontal: 16,
     },
     teamRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 12,
+        paddingVertical: 10,
         paddingHorizontal: 12,
-        borderRadius: 8,
-        marginBottom: 4,
+        paddingLeft: 14,
+        borderRadius: 10,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
+        position: 'relative',
+        overflow: 'hidden',
     },
     teamRowSelected: {
-        backgroundColor: changeOpacity(theme.sidebarText, 0.12),
+        backgroundColor: changeOpacity(theme.sidebarTextActiveBorder, 0.22),
+        borderColor: changeOpacity(theme.sidebarTextActiveBorder, 0.45),
+    },
+    teamRowSelectedBar: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 4,
+        backgroundColor: theme.sidebarTextActiveBorder,
+        borderTopLeftRadius: 10,
+        borderBottomLeftRadius: 10,
+    },
+    teamAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    teamAvatarText: {
+        color: '#FFFFFF',
+        ...typography('Heading', 75, 'SemiBold'),
     },
     teamName: {
         flex: 1,
-        color: theme.sidebarText,
+        color: changeOpacity(theme.sidebarText, 0.9),
         ...typography('Body', 200),
         marginRight: 8,
+        minWidth: 0,
+    },
+    teamNameSelected: {
+        color: theme.sidebarText,
+        ...typography('Body', 200, 'SemiBold'),
     },
     divider: {
         height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.12),
-        marginVertical: 6,
-        marginHorizontal: 20,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
+        marginVertical: 8,
+        marginHorizontal: 16,
     },
     menuRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
     },
     menuLabel: {
         color: theme.sidebarText,

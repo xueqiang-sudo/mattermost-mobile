@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useState} from 'react';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {useIntl} from 'react-intl';
@@ -8,33 +9,68 @@ import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area
 
 import {
     dissolveEnterprise,
-    ensureTeamCompany,
     fetchCompany,
     fetchEmployeeCountOfCompany,
+    fetchTeamCreatorId,
     quitEnterprise,
     type FetchCompanyResult,
     type FetchEmployeeCountOfCompanyResult,
 } from '@actions/remote/contact';
-import {type ContactCompany, ContactCompanyTypes} from '@client/rest/contact';
+import {deleteTeam, fetchTeamMemberCount, removeCurrentUserFromTeam} from '@actions/remote/team';
+import {type ContactCompany} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {observeCurrentUser} from '@queries/servers/user';
+import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
 
 type Props = {
     companyId: string;
     companyName?: string;
-    /** Mattermost 团队尚未在通讯录建企时，进入详情先 ensureTeamCompany */
-    tryEnsureTeamCompany?: boolean;
+    /** 企业对应 Mattermost 团队（companyId = teamId），用于获取创建者判断解散权限 */
+    isMattermostTeam?: boolean;
+    /** 通讯录中是否有该企业记录 */
+    hasContactCompanyRecord?: boolean;
+    /** 是否为当前选中的企业 */
+    isCurrentTeam?: boolean;
     currentUser?: UserModel;
     componentId: string;
 };
 
 const edges: Edge[] = ['left', 'right'];
+
+const AVATAR_COLORS = [
+    '#5D7A8C', '#6B8E6B', '#8B7355', '#7B68A0', '#A0525D',
+    '#4682B4', '#2E8B57', '#CD853F', '#6A5ACD', '#DC143C',
+];
+
+function getEnterpriseAvatarStyle(displayName: string) {
+    const hash = (displayName || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const color = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    return {backgroundColor: changeOpacity(color, 0.92)};
+}
+
+function getEnterpriseInitials(displayName: string): string {
+    const trimmed = (displayName || '').trim();
+    if (!trimmed) {
+        return '?';
+    }
+    const isCJK = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(trimmed);
+    if (isCJK) {
+        return trimmed.slice(0, 2);
+    }
+    const segments = trimmed.split(/\s+/);
+    if (segments.length >= 2) {
+        return (segments[0][0] + segments[1][0]).toUpperCase().slice(0, 2);
+    }
+    return trimmed.slice(0, 2).toUpperCase();
+}
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
@@ -42,58 +78,108 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: 16,
         paddingBottom: 24,
     },
-    header: {
-        paddingTop: 16,
-        paddingBottom: 12,
+    heroSection: {
+        paddingTop: 32,
+        paddingBottom: 28,
+        paddingHorizontal: 24,
+        backgroundColor: changeOpacity(theme.sidebarBg, 0.06),
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        alignItems: 'center',
+    },
+    avatarWrapper: {
+        width: 80,
+        height: 80,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    avatarText: {
+        color: '#FFFFFF',
+        ...typography('Heading', 400, 'SemiBold'),
+    },
+    nameWrapper: {
+        alignItems: 'center',
+        marginBottom: 8,
     },
     name: {
         ...typography('Heading', 500, 'SemiBold'),
         color: theme.centerChannelColor,
+        textAlign: 'center',
+    },
+    badgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginBottom: 12,
+    },
+    currentBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        borderRadius: 10,
+        backgroundColor: changeOpacity(theme.sidebarTextActiveBorder || theme.linkColor, 0.18),
+    },
+    currentBadgeText: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.sidebarTextActiveBorder || theme.linkColor,
     },
     metaRow: {
-        marginTop: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+    },
+    metaIcon: {
+        opacity: 0.72,
     },
     metaText: {
         ...typography('Body', 100),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
+        color: changeOpacity(theme.centerChannelColor, 0.72),
     },
-    sectionTitle: {
-        marginTop: 24,
-        marginBottom: 8,
-        ...typography('Body', 75, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
+    bodySection: {
+        paddingHorizontal: 20,
+        paddingTop: 24,
     },
-    card: {
-        borderRadius: 12,
-        backgroundColor: theme.centerChannelBg,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+    descriptionCard: {
+        borderRadius: 14,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        padding: 16,
+        marginBottom: 24,
     },
-    value: {
+    descriptionText: {
         ...typography('Body', 200),
         color: theme.centerChannelColor,
+        lineHeight: 22,
     },
     dangerButton: {
-        marginTop: 32,
-        paddingVertical: 12,
-        borderRadius: 8,
+        paddingVertical: 14,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: changeOpacity(theme.errorTextColor, 0.08),
         flexDirection: 'row',
-        columnGap: 6,
+        columnGap: 8,
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.errorTextColor, 0.2),
     },
     dangerButtonText: {
         ...typography('Body', 200, 'SemiBold'),
         color: theme.errorTextColor,
     },
+    card: {
+        borderRadius: 14,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        paddingHorizontal: 20,
+        paddingVertical: 18,
+    },
     loadingRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        columnGap: 8,
+        columnGap: 10,
     },
     errorText: {
         ...typography('Body', 100),
@@ -101,14 +187,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamCompany, currentUser, componentId}: Props) => {
+const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam, hasContactCompanyRecord = true, isCurrentTeam = false, currentUser, componentId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const insets = useSafeAreaInsets();
+    const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
     const [company, setCompany] = useState<ContactCompany | undefined>();
     const [memberCount, setMemberCount] = useState<number | undefined>();
+    const [isCreator, setIsCreator] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<unknown>();
 
@@ -118,6 +206,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamComp
         const load = async () => {
             setLoading(true);
             setError(undefined);
+            setIsCreator(null);
 
             const loadPair = async () =>
                 Promise.all([
@@ -125,37 +214,71 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamComp
                     fetchEmployeeCountOfCompany(companyId),
                 ]) as Promise<[FetchCompanyResult, FetchEmployeeCountOfCompanyResult]>;
 
-            let [companyRes, countRes] = await loadPair();
-
-            if ((companyRes.error || !companyRes.data) && tryEnsureTeamCompany && companyName?.trim()) {
-                const ensured = await ensureTeamCompany(companyId, companyName.trim());
-                if (ensured.data) {
-                    [companyRes, countRes] = await loadPair();
-                }
-            }
+            const [companyRes, countRes] = await loadPair();
 
             if (companyRes.error || !companyRes.data) {
-                setError(companyRes.error ?? new Error('Company not found'));
+                if (!hasContactCompanyRecord && companyName) {
+                    setCompany({
+                        id: companyId,
+                        name: companyName,
+                        type: 'team' as const,
+                    });
+                } else {
+                    setError(companyRes.error ?? new Error('Company not found'));
+                }
             } else {
                 setCompany(companyRes.data);
             }
 
-            if (!countRes.error && typeof countRes.data === 'number') {
+            // 有通讯录企业则以通讯录为主，没有则使用 Mattermost 成员数
+            if (hasContactCompanyRecord && !countRes.error && typeof countRes.data === 'number') {
+                setMemberCount(countRes.data);
+            } else if (!hasContactCompanyRecord && isMattermostTeam && serverUrl) {
+                const mmCountRes = await fetchTeamMemberCount(serverUrl, companyId);
+                if (!mmCountRes.error && typeof mmCountRes.data === 'number') {
+                    setMemberCount(mmCountRes.data);
+                }
+            } else if (!countRes.error && typeof countRes.data === 'number') {
                 setMemberCount(countRes.data);
             }
             setLoading(false);
         };
 
         load();
-    }, [companyId, companyName, tryEnsureTeamCompany]);
+    }, [companyId, companyName, hasContactCompanyRecord, isMattermostTeam, serverUrl]);
+
+    // 判断是否显示「解散」：需求1/3 逻辑
+    // - 通讯录有且 owner_id 有效：以 owner_id 为准
+    // - 通讯录无 或 owner_id 为 null/undefined：若为 Mattermost 团队，以 Mattermost 创建者为准；否则为退出
+    useEffect(() => {
+        const checkCreator = async () => {
+            if (!employeeId) {
+                setIsCreator(false);
+                return;
+            }
+            const ownerId = company?.owner_id;
+            if (ownerId != null && ownerId !== '') {
+                setIsCreator(ownerId === employeeId);
+                return;
+            }
+            // 需求1: MM 有通讯录无；需求3: 通讯录有但 owner 为空 —— 均以 Mattermost 管理者为准
+            if (!isMattermostTeam || !serverUrl) {
+                setIsCreator(false);
+                return;
+            }
+            const creatorId = await fetchTeamCreatorId(serverUrl, companyId);
+            setIsCreator(creatorId === employeeId);
+        };
+        checkCreator();
+    }, [company, companyId, employeeId, isMattermostTeam, serverUrl]);
 
     const handleBackToList = useCallback(() => {
         dismissModal({componentId});
     }, [componentId]);
 
     const handleQuitOrDissolve = usePreventDoubleTap(useCallback(() => {
-        const isOwnerType = company?.type === ContactCompanyTypes.Team;
-        const isDissolve = isOwnerType;
+        const isDissolve = isCreator === true;
+        const useMattermostApi = isMattermostTeam && !hasContactCompanyRecord;
 
         const title = isDissolve ?
             intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :
@@ -178,12 +301,22 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamComp
                     style: 'destructive',
                     onPress: async () => {
                         if (isDissolve) {
-                            const res = await dissolveEnterprise(companyId);
-                            if (res.error) {
-                                Alert.alert(
-                                    intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
-                                );
-                                return;
+                            if (useMattermostApi && serverUrl) {
+                                const res = await deleteTeam(serverUrl, companyId);
+                                if (res.error) {
+                                    Alert.alert(
+                                        intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
+                                    );
+                                    return;
+                                }
+                            } else {
+                                const res = await dissolveEnterprise(companyId);
+                                if (res.error) {
+                                    Alert.alert(
+                                        intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
+                                    );
+                                    return;
+                                }
                             }
                             handleBackToList();
                             return;
@@ -192,24 +325,34 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamComp
                         if (!employeeId) {
                             return;
                         }
-                        const res = await quitEnterprise(employeeId, companyId);
-                        if (res.error) {
-                            Alert.alert(
-                                intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
-                            );
-                            return;
+                        if (useMattermostApi && serverUrl) {
+                            const res = await removeCurrentUserFromTeam(serverUrl, companyId);
+                            if (res.error) {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
+                                );
+                                return;
+                            }
+                        } else {
+                            const res = await quitEnterprise(employeeId, companyId);
+                            if (res.error) {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
+                                );
+                                return;
+                            }
                         }
                         handleBackToList();
                     },
                 },
             ],
         );
-    }, [company?.type, companyId, employeeId, handleBackToList, intl]));
+    }, [companyId, employeeId, handleBackToList, hasContactCompanyRecord, intl, isCreator, isMattermostTeam, serverUrl]));
 
     const renderBody = () => {
         if (loading && !company) {
             return (
-                <View style={styles.card}>
+                <View style={[styles.card, {marginHorizontal: 20, marginTop: 24}]}>
                     <View style={styles.loadingRow}>
                         <Loading
                             color={theme.centerChannelColor}
@@ -225,7 +368,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamComp
 
         if (error || !company) {
             return (
-                <View style={styles.card}>
+                <View style={[styles.card, {marginHorizontal: 20, marginTop: 24}]}>
                     <Text style={styles.errorText}>
                         {intl.formatMessage({id: 'enterprise.detail.load_failed', defaultMessage: 'Unable to load enterprise information.'})}
                     </Text>
@@ -233,71 +376,82 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamComp
             );
         }
 
+        const displayName = company.name || companyName || '';
+        const initials = getEnterpriseInitials(displayName);
+        const avatarStyle = getEnterpriseAvatarStyle(displayName);
+
         return (
             <>
-                <View style={styles.header}>
-                    <Text
-                        style={styles.name}
-                        numberOfLines={1}
-                    >
-                        {company.name || companyName}
-                    </Text>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>
-                            {intl.formatMessage(
-                                {id: 'enterprise.detail.id', defaultMessage: 'Enterprise ID: {id}'},
-                                {id: company.id},
-                            )}
+                <View style={styles.heroSection}>
+                    <View style={[styles.avatarWrapper, avatarStyle]}>
+                        <Text style={styles.avatarText} numberOfLines={1}>
+                            {initials}
                         </Text>
-                        {typeof memberCount === 'number' && (
-                            <Text style={styles.metaText}>
-                                {intl.formatMessage(
-                                    {id: 'enterprise.detail.member_count', defaultMessage: '{count} members'},
-                                    {count: memberCount},
-                                )}
-                            </Text>
-                        )}
                     </View>
-                </View>
-
-                <Text style={styles.sectionTitle}>
-                    {intl.formatMessage({id: 'enterprise.detail.basic_info', defaultMessage: 'Basic information'})}
-                </Text>
-                <View style={styles.card}>
-                    <Text style={styles.value}>
-                        {intl.formatMessage(
-                            {id: 'enterprise.detail.type', defaultMessage: 'Type: {type}'},
-                            {
-                                type: company.type === ContactCompanyTypes.Team ?
-                                    intl.formatMessage({id: 'enterprise.manage.type.team', defaultMessage: 'My enterprise'}) :
-                                    company.type,
-                            },
-                        )}
-                    </Text>
-                    {company.description ? (
-                        <Text style={[styles.value, {marginTop: 8}]}>
-                            {company.description}
+                    <View style={styles.nameWrapper}>
+                        <Text
+                            style={styles.name}
+                            numberOfLines={2}
+                        >
+                            {displayName}
                         </Text>
-                    ) : null}
+                    </View>
+                    {(isCurrentTeam || typeof memberCount === 'number') && (
+                        <View style={styles.badgeRow}>
+                            {isCurrentTeam && (
+                                <View style={styles.currentBadge}>
+                                    <Text style={styles.currentBadgeText}>
+                                        {intl.formatMessage({id: 'enterprise.detail.current_badge', defaultMessage: 'Current'})}
+                                    </Text>
+                                </View>
+                            )}
+                            {typeof memberCount === 'number' && (
+                                <View style={styles.metaRow}>
+                                    <CompassIcon
+                                        name='account-multiple-outline'
+                                        size={18}
+                                        color={changeOpacity(theme.centerChannelColor, 0.72)}
+                                        style={styles.metaIcon}
+                                    />
+                                    <Text style={styles.metaText}>
+                                        {intl.formatMessage(
+                                            {id: 'enterprise.detail.member_count', defaultMessage: '{count} members'},
+                                            {count: memberCount},
+                                        )}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
                 </View>
 
-                <TouchableOpacity
-                    style={styles.dangerButton}
-                    onPress={handleQuitOrDissolve}
-                    activeOpacity={0.7}
-                    testID={company.type === ContactCompanyTypes.Team ? 'enterprise.detail.dissolve.button' : 'enterprise.detail.quit.button'}
-                >
-                    <CompassIcon
-                        name={company.type === ContactCompanyTypes.Team ? 'close-circle-outline' : 'logout-variant'}
-                        size={20}
-                        color={theme.errorTextColor}
-                    />
-                    <Text style={styles.dangerButtonText}>
-                        {company.type === ContactCompanyTypes.Team ?
-                            intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :
-                            intl.formatMessage({id: 'enterprise.detail.quit', defaultMessage: 'Leave enterprise'})}
-                    </Text>
-                </TouchableOpacity>
+                <View style={styles.bodySection}>
+                    {company.description?.trim() ? (
+                        <View style={styles.descriptionCard}>
+                            <Text style={styles.descriptionText}>
+                                {company.description.trim()}
+                            </Text>
+                        </View>
+                    ) : null}
+
+                    <TouchableOpacity
+                        style={styles.dangerButton}
+                        onPress={handleQuitOrDissolve}
+                        activeOpacity={0.7}
+                        testID={isCreator ? 'enterprise.detail.dissolve.button' : 'enterprise.detail.quit.button'}
+                    >
+                        <CompassIcon
+                            name={isCreator ? 'close-circle-outline' : 'logout-variant'}
+                            size={20}
+                            color={theme.errorTextColor}
+                        />
+                        <Text style={styles.dangerButtonText}>
+                            {isCreator ?
+                                intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :
+                                intl.formatMessage({id: 'enterprise.detail.quit', defaultMessage: 'Leave enterprise'})}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </>
         );
     };
@@ -319,5 +473,9 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, tryEnsureTeamComp
     );
 };
 
-export default ManageEnterpriseDetailScreen;
+const enhanced = withObservables([], ({database}: WithDatabaseArgs) => ({
+    currentUser: observeCurrentUser(database),
+}));
+
+export default withDatabase(enhanced(ManageEnterpriseDetailScreen));
 

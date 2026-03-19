@@ -1182,6 +1182,8 @@
   "enterprise.manage.join.placeholder": "企業 ID",
   "enterprise.manage.join_failed": "加入失敗，請檢查企業 ID 後重試。",
   "enterprise.manage.loading": "正在載入企業清單…",
+  "enterprise.manage.loading_user": "正在載入使用者",
+  "enterprise.manage.please_wait": "請稍後再試。",
   "enterprise.manage.load_failed": "載入企業清單失敗，請稍後重試。",
   "enterprise.manage.empty": "此處尚未顯示您所屬的企業。請使用上方「建立企業」或「加入其他企業」，或下拉重新整理。",
   "enterprise.manage.list_title": "我的企業",

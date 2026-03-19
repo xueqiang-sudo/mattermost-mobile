@@ -11,10 +11,11 @@ import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area
 
 import {
     ensureTeamCompany,
+    fetchCompany,
     fetchDepartmentsByCompany,
     fetchEmployeeCountOfCompany,
     fetchEmployeesOfDefaultDepartment,
-    fetchCompany,
+    fetchTeamCreatorId,
     syncTeamMembersToCompany,
 } from '@actions/remote/contact';
 import {DEFAULT_DEPARTMENT_NAME, type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
@@ -328,8 +329,9 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
             if (getRes.error && mounted.current && database) {
                 const team = await getTeamById(database, currentTeamId);
                 const teamName = team?.displayName?.trim();
-                if (teamName) {
-                    const ensureRes = await ensureTeamCompany(currentTeamId, teamName);
+                if (teamName && serverUrl) {
+                    const ownerId = await fetchTeamCreatorId(serverUrl, currentTeamId);
+                    const ensureRes = await ensureTeamCompany(currentTeamId, teamName, ownerId);
                     if (ensureRes.error && mounted.current) {
                         setServiceError(true);
                         setLoading(false);

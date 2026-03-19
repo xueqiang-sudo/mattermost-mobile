@@ -1,8 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
-import {Keyboard, Modal, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {Keyboard, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View} from 'react-native';
 
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -112,6 +112,12 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
     const styles = getStyleSheet(theme);
     const [inputValue, setInputValue] = useState(defaultValue);
 
+    useEffect(() => {
+        if (visible) {
+            setInputValue(defaultValue);
+        }
+    }, [visible, defaultValue]);
+
     const handleConfirm = useCallback(() => {
         if (inputValue.trim()) {
             onConfirm(inputValue.trim());
@@ -132,11 +138,10 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
             onRequestClose={handleCancel}
         >
             <View style={styles.modalContainer}>
-                <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={Keyboard.dismiss}
-                >
-                    <View style={styles.modalContent}>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={StyleSheet.absoluteFill}/>
+                </TouchableWithoutFeedback>
+                <View style={styles.modalContent} pointerEvents='box-none'>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{title}</Text>
                         </View>
@@ -173,7 +178,6 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
                             </TouchableOpacity>
                         </View>
                     </View>
-                </TouchableOpacity>
             </View>
         </Modal>
     );

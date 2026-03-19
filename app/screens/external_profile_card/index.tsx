@@ -8,6 +8,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, Modal, Platform, ScrollView, Text, TouchableOpacity, View, StyleSheet} from 'react-native';
 import Share from 'react-native-share';
+import tinyColor from 'tinycolor2';
 import ViewShot from 'react-native-view-shot';
 
 import CompassIcon from '@components/compass_icon';
@@ -30,20 +31,25 @@ import {hasWriteStoragePermission} from '@utils/file';
 import {logError, logInfo} from '@utils/log';
 import {customBase64Encode} from '@utils/security';
 import {showSnackBar} from '@utils/snack_bar';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {blendColors, changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const CARD_GRADIENT_START = '#E8E8E8';
-const CARD_GRADIENT_END = '#C0C0C0';
+function getCardGradientColors(theme: Theme): [string, string] {
+    if (tinyColor(theme.sidebarBg).isDark()) {
+        return [theme.sidebarBg, theme.sidebarHeaderBg];
+    }
+    const endColor = blendColors(theme.linkColor, '#000000', 0.2, true);
+    return [theme.linkColor, endColor];
+}
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
-        backgroundColor: theme.centerChannelBg,
+        backgroundColor: blendColors(theme.centerChannelBg, theme.sidebarBg, 0.06),
     },
     content: {
         flexGrow: 1,
@@ -168,6 +174,7 @@ const ExternalProfileCardScreen = ({
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
+    const cardGradientColors = useMemo(() => getCardGradientColors(theme), [theme]);
     const viewShotRef = useRef<ViewShot>(null);
     const [moreMenuVisible, setMoreMenuVisible] = useState(false);
     const [qrTimestamp, setQrTimestamp] = useState(() => Date.now());
@@ -326,7 +333,7 @@ const ExternalProfileCardScreen = ({
                             <View style={styles.card}>
                                 <LinearGradient
                                     {...({
-                                        colors: [CARD_GRADIENT_START, CARD_GRADIENT_END],
+                                        colors: cardGradientColors,
                                         start: {x: 0, y: 0},
                                         end: {x: 1, y: 1},
                                         style: StyleSheet.absoluteFill,
