@@ -222,9 +222,6 @@ export interface ClientContactMix {
     /** DELETE /api/v1/employees/:id - 删除员工（级联删除关联） */
     deleteEmployee: (employeeId: string) => Promise<Record<string, never>>;
 
-    /** GET /api/v1/employees/:id/details - 获取员工详情（含公司、部门列表） */
-    getEmployeeDetails: (employeeId: string) => Promise<ContactEmployeeDetails>;
-
     /** GET /api/v1/employees/:id/cascade-departments - 获取员工在指定公司下的级联部门 */
     getEmployeeCascadeDepartments: (employeeId: string, companyId: string) => Promise<ContactEmployeeCascadeDepartments>;
 
@@ -314,9 +311,6 @@ export const contactRoutes = {
 
     /** GET/PUT/DELETE /api/v1/employees/:id */
     employee: (id: string) => `${CONTACT_API_BASE_ROUTE}/employees/${id}`,
-
-    /** GET /api/v1/employees/:id/details - 员工详情含公司/部门 */
-    employeeDetails: (employeeId: string) => `${CONTACT_API_BASE_ROUTE}/employees/${employeeId}/details`,
 
     /** GET /api/v1/employees/:id/cascade-departments - 员工详情及级联部门（需 company_id query） */
     employeeCascadeDepartments: (employeeId: string) => `${CONTACT_API_BASE_ROUTE}/employees/${employeeId}/cascade-departments`,
@@ -644,9 +638,6 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
 
     deleteEmployee = (employeeId: string) =>
         this.doRequestDirect<Record<string, never>>(contactRoutes.employee(employeeId), 'delete');
-
-    getEmployeeDetails = (employeeId: string) =>
-        this.doRequestDirect<ContactEmployeeDetails>(contactRoutes.employeeDetails(employeeId), 'get');
 
     getEmployeeCascadeDepartments = (employeeId: string, companyId: string) => {
         const path = `${contactRoutes.employeeCascadeDepartments(employeeId)}?company_id=${encodeURIComponent(companyId)}`;

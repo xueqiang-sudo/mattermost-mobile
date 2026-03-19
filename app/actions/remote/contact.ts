@@ -363,20 +363,6 @@ export const fetchEmployeeCountOfCompany = async (companyId: string): Promise<Fe
     }
 };
 
-/** 获取员工详情（含公司、部门列表） */
-export const fetchEmployeeDetails = async (employeeId: string): Promise<FetchEmployeeDetailsResult> => {
-    if (!employeeId) {
-        return {error: new Error('employeeId is required')};
-    }
-    try {
-        const details = await ContactService.getEmployeeDetails(employeeId);
-        return {data: details as ContactEmployeeDetails};
-    } catch (error) {
-        logDebug('[ContactService.fetchEmployeeDetails]', getFullErrorMessage(error));
-        return {error};
-    }
-};
-
 /** 获取单个部门（含 parent_id，用于修改部门名称时提交） */
 export const fetchContactDepartment = async (
     companyId: string,

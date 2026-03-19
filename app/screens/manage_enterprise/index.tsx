@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useDatabase} from '@nozbe/watermelondb/react';
+import {useDatabase, withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
