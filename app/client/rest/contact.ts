@@ -21,6 +21,13 @@ import * as ClientConstants from '@client/rest/constants';
 import ClientError from '@client/rest/error';
 import ClientTracking from '@client/rest/tracking';
 
+import {
+    cleanupExpiredContactDiskCache,
+    clearContactDiskCacheCompany,
+    readContactDiskCache,
+    writeContactDiskCache,
+} from './contact_disk_cache';
+
 export const CONTACT_API_BASE_ROUTE = '/api/v1';
 export const API_KEY_HEADER = 'X-API-KEY';
 const CONTACT_VERSION_CACHE_TTL_MS = 5000;
@@ -395,6 +402,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     private versionByCompany = new Map<string, {version: string; at: number}>();
     private versionInflight = new Map<string, Promise<string>>();
     private responseByCompany = new Map<string, Map<string, {version: string; data: unknown; at: number}>>();
+    private diskInvalidationInFlight = new Set<string>();
 
     constructor() {
         super(createPlaceholderApiClient());
@@ -447,6 +455,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         const config = this.buildConfig();
         const {client} = await getOrCreateAPIClient(contactServiceUrl, config);
         this.apiClient = client;
+        cleanupExpiredContactDiskCache().catch(() => undefined);
     };
 
     /** 确保已调用 init()，否则抛出 ClientError */
@@ -468,10 +477,18 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         return this.doFetchWithTracking(path, options, true) as Promise<T>;
     }
 
-    private invalidateCompanyCache(companyId: string) {
+    private async invalidateCompanyCache(companyId: string) {
         this.versionByCompany.delete(companyId);
         this.responseByCompany.delete(companyId);
         this.versionInflight.delete(companyId);
+
+        // 磁盘缓存与内存缓存同一套“按 companyId 全量失效”的策略。
+        this.diskInvalidationInFlight.add(companyId);
+        try {
+            await clearContactDiskCacheCompany(this.baseUrl, companyId);
+        } finally {
+            this.diskInvalidationInFlight.delete(companyId);
+        }
     }
 
     /** 显式传入 companyId 的读写：GET 按版本做响应缓存；非 GET 先失效再请求。版本/更新版本接口勿用此方法。 */
@@ -486,11 +503,10 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         }
         const upper = method.toUpperCase();
         if (upper !== 'GET') {
-            this.invalidateCompanyCache(companyIdOfVersion);
-            return this.doRequestDirect<T>(path, method, body).then((res: T) => {
-                this.invalidateCompanyCache(companyIdOfVersion);
-                return res;
-            });
+            await this.invalidateCompanyCache(companyIdOfVersion);
+            const res = await this.doRequestDirect<T>(path, method, body);
+            await this.invalidateCompanyCache(companyIdOfVersion);
+            return res;
         }
 
         const now = Date.now();
@@ -534,8 +550,21 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         if (hit && hit.version === version) {
             return hit.data as T;
         }
+        const baseUrl = this.baseUrl;
+        if (baseUrl && !this.diskInvalidationInFlight.has(companyIdOfVersion)) {
+            const diskData = await readContactDiskCache(baseUrl, companyIdOfVersion, path, version);
+            if (diskData !== null) {
+                map.set(path, {version, data: diskData, at: Date.now()});
+                return diskData as T;
+            }
+        }
+
         const data = await this.doRequestDirect<T>(path, method, body);
         map.set(path, {version, data, at: Date.now()});
+
+        if (baseUrl) {
+            await writeContactDiskCache(baseUrl, companyIdOfVersion, path, version, data);
+        }
         return data;
     }
 
