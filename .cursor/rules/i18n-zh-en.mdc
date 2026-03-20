@@ -1,37 +1,37 @@
 ---
-description: 国际化修改时必须同时提供英文与简体中文
+description: 国际化修改时必须同时提供英文、简体中文与繁体中文
 globs: assets/base/i18n/*.json
 alwaysApply: false
 ---
 
-# 国际化：中英双语
+# 国际化：英文、简体中文、繁体中文
 
-凡涉及**国际化文件修改**或**新增用户可见文案**时，必须同时支持**英文**和**简体中文**。
+凡涉及**国际化文件修改**或**新增用户可见文案**时，必须同时支持**英文**、**简体中文**和**繁体中文**。
 
-## 必须同步修改的两个文件
+## 必须同步修改的三个文件
 
 - **英文**：`assets/base/i18n/en.json`
 - **简体中文**：`assets/base/i18n/zh-CN.json`
+- **繁体中文**：`assets/base/i18n/zh-TW.json`
 
 ## 规则
 
-1. **新增翻译 key**：在 `en.json` 和 `zh-CN.json` 中**同时**添加相同 key，分别填写英文与简体中文文案。
-2. **修改已有 key**：若改动 `en.json` 中某 key 的文案，须在 `zh-CN.json` 中同步更新该 key 的中文文案。
-3. **占位符一致**：若文案含占位符（如 `{name}`、`{count}`），两个文件中 key 的占位符名称和数量必须一致。
+1. **新增翻译 key**：在 `en.json`、`zh-CN.json`、`zh-TW.json` 中**同时**添加相同 key，分别填写英文、简体中文与繁体中文文案。
+2. **修改已有 key**：若改动某 key 的文案，须在三个文件中同步更新。
+3. **占位符一致**：若文案含占位符（如 `{name}`、`{count}`），三个文件中 key 的占位符名称和数量必须一致。
 4. **代码中的默认文案**：使用 `intl.formatMessage` 等时的 defaultMessage 应与 `en.json` 中该 key 的英文一致。
+5. **繁体中文用词**：参考现有 `zh-TW.json` 风格（如：登出、設定、封存、伺服器等），与简体中文用词区分。
 
 ## 示例
 
 新增「联系人」相关文案时：
-
 **en.json** 增加：
-```json
 "contacts.manage.title": "Manage Contacts"
-```
 
 **zh-CN.json** 增加（同一 key）：
-```json
 "contacts.manage.title": "管理联系人"
-```
 
-缺一不可；只改 en 或只改 zh-CN 视为未完成国际化。
+**zh-TW.json** 增加（同一 key）：
+"contacts.manage.title": "管理聯絡人"
+
+缺一不可；只改部分文件视为未完成国际化。

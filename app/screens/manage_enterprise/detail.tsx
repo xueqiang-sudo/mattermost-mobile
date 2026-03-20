@@ -303,19 +303,19 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                     style: 'destructive',
                     onPress: async () => {
                         if (isDissolve) {
-                            // 解散：同时解散 Mattermost 团队与通讯录企业
-                            if (isMattermostTeam && serverUrl) {
-                                const mmRes = await deleteTeam(serverUrl, companyId);
-                                if (mmRes.error) {
+                            // 解散：先操作通讯录，再操作 Mattermost
+                            if (hasContactCompanyRecord) {
+                                const contactRes = await dissolveEnterprise(companyId);
+                                if (contactRes.error) {
                                     Alert.alert(
                                         intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
                                     );
                                     return;
                                 }
                             }
-                            if (hasContactCompanyRecord) {
-                                const contactRes = await dissolveEnterprise(companyId);
-                                if (contactRes.error) {
+                            if (isMattermostTeam && serverUrl) {
+                                const mmRes = await deleteTeam(serverUrl, companyId);
+                                if (mmRes.error) {
                                     Alert.alert(
                                         intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
                                     );
@@ -326,22 +326,22 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                             return;
                         }
 
-                        // 退出：同时退出 Mattermost 团队与通讯录企业
+                        // 退出：先操作通讯录，再操作 Mattermost
                         if (!employeeId) {
                             return;
                         }
-                        if (isMattermostTeam && serverUrl) {
-                            const mmRes = await removeCurrentUserFromTeam(serverUrl, companyId);
-                            if (mmRes.error) {
+                        if (hasContactCompanyRecord) {
+                            const contactRes = await quitEnterprise(employeeId, companyId);
+                            if (contactRes.error) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
                                 );
                                 return;
                             }
                         }
-                        if (hasContactCompanyRecord) {
-                            const contactRes = await quitEnterprise(employeeId, companyId);
-                            if (contactRes.error) {
+                        if (isMattermostTeam && serverUrl) {
+                            const mmRes = await removeCurrentUserFromTeam(serverUrl, companyId);
+                            if (mmRes.error) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
                                 );
