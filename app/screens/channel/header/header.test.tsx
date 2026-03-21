@@ -29,6 +29,11 @@ jest.mock('@calls/state', () => ({
     }),
 }));
 
+jest.mock('@hooks/device', () => ({
+    ...jest.requireActual('@hooks/device'),
+    useIsTablet: () => true,
+}));
+
 const serverUrl = 'some.server.url';
 jest.mock('@context/server');
 jest.mocked(useServerUrl).mockReturnValue(serverUrl);

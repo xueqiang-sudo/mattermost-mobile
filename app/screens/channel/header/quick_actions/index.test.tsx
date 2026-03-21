@@ -24,8 +24,10 @@ describe('ChannelQuickAction', () => {
         return {
             channelId: 'channel-id',
             callsEnabled: false,
+            channelDisplayName: 'Town Square',
             isDMorGM: false,
-            hasPlaybookRuns: false,
+            isPlaybooksEnabled: false,
+            playbooksActiveRuns: 0,
         };
     }
 
@@ -36,29 +38,30 @@ describe('ChannelQuickAction', () => {
         database = serverDatabase.database;
     });
 
-    it('does not show playbook runs option when hasPlaybookRuns is false', () => {
+    it('does not show playbook runs option when isPlaybooksEnabled is false', () => {
         const props = getBaseProps();
-        props.hasPlaybookRuns = false;
+        props.isPlaybooksEnabled = false;
         const {queryByTestId} = renderWithEverything(<ChannelQuickAction {...props}/>, {database});
 
         expect(queryByTestId('playbook-runs-option')).toBeNull();
     });
 
-    it('shows playbook runs option when hasPlaybookRuns is true', () => {
+    it('shows playbook runs option when isPlaybooksEnabled is true', () => {
         const props = getBaseProps();
-        props.hasPlaybookRuns = true;
+        props.isPlaybooksEnabled = true;
         const {getByTestId} = renderWithEverything(<ChannelQuickAction {...props}/>, {database});
 
         const playbookRunsOption = getByTestId('playbook-runs-option');
         expect(playbookRunsOption).toBeTruthy();
         expect(playbookRunsOption.props.channelId).toBe('channel-id');
+        expect(playbookRunsOption.props.channelName).toBe('Town Square');
         expect(playbookRunsOption.props.location).toBe('quick_actions');
     });
 
     it('does not show playbook runs option when is DM or GM', () => {
         const props = getBaseProps();
         props.isDMorGM = true;
-        props.hasPlaybookRuns = true;
+        props.isPlaybooksEnabled = true;
         const {queryByTestId} = renderWithEverything(<ChannelQuickAction {...props}/>, {database});
         expect(queryByTestId('playbook-runs-option')).toBeNull();
     });

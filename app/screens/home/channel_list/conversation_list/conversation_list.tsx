@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {DeviceEventEmitter, FlatList, StyleSheet, Text, View} from 'react-native';
 import {useIntl} from 'react-intl';
+import {DeviceEventEmitter, FlatList, StyleSheet, Text, View} from 'react-native';
 
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';

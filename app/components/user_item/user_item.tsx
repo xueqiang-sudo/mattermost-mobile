@@ -9,11 +9,11 @@ import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import ProfilePicture from '@components/profile_picture';
 import {BotTag, GuestTag} from '@components/tag';
+import {Preferences} from '@constants';
 import {useTheme} from '@context/theme';
 import {nonBreakingString} from '@utils/strings';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {Preferences} from '@constants';
 import {displayUsername, getUserCustomStatus, isBot, isCustomStatusExpired, isDeactivated, isGuest, isShared} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
@@ -83,12 +83,12 @@ const nonThemedStyles = StyleSheet.create({
         alignItems: 'center',
         gap: 4,
     },
-        profile: {
-            marginRight: 12,
-        },
-        leftDecorator: {
-            marginRight: 12,
-        },
+    profile: {
+        marginRight: 12,
+    },
+    leftDecorator: {
+        marginRight: 12,
+    },
     flex: {
         flex: 1,
     },

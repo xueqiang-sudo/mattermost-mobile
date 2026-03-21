@@ -598,15 +598,15 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                         }
                     });
 
-                    const sorted = [...channelMap.values()]
-                        .filter(({channel}) => {
+                    const sorted = [...channelMap.values()].
+                        filter(({channel}) => {
                             if (channel.type !== General.DM_CHANNEL) {
                                 return true;
                             }
                             const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
                             return teammateId !== currentUserId;
-                        })
-                        .sort((a, b) => {
+                        }).
+                        sort((a, b) => {
                             const isUnreadA = a.myChannel.isUnread || a.myChannel.mentionsCount > 0;
                             const isUnreadB = b.myChannel.isUnread || b.myChannel.mentionsCount > 0;
 

@@ -261,7 +261,7 @@ export default function SelectedUsers({
                 <View style={style.bottomBar}>
                     <ScrollView
                         style={style.usersScroll}
-                        horizontal
+                        horizontal={true}
                         showsHorizontalScrollIndicator={false}
                     >
                         <View
@@ -273,15 +273,15 @@ export default function SelectedUsers({
                     </ScrollView>
                     <Animated.View style={animatedButtonStyle}>
                         <Button
-                        onPress={handlePress}
-                        iconName={buttonIcon}
-                        text={buttonText}
-                        theme={theme}
-                        emphasis={'primary'}
-                        size={'lg'}
-                        testID={`${testID}.start.button`}
-                        disabled={isDisabled}
-                    />
+                            onPress={handlePress}
+                            iconName={buttonIcon}
+                            text={buttonText}
+                            theme={theme}
+                            emphasis={'primary'}
+                            size={'lg'}
+                            testID={`${testID}.start.button`}
+                            disabled={isDisabled}
+                        />
                     </Animated.View>
                 </View>
             </Animated.View>

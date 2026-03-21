@@ -87,10 +87,10 @@ export function ContactsStack({currentUser, currentTeamId, database, rnnHomeComp
                         />
                     )}
                 </Stack.Screen>
-            <Stack.Screen
-                name={Screens.CONTACTS_DEPARTMENT_DETAIL}
-                component={DepartmentDetailWrapper}
-            />
+                <Stack.Screen
+                    name={Screens.CONTACTS_DEPARTMENT_DETAIL}
+                    component={DepartmentDetailWrapper}
+                />
             </Stack.Navigator>
         </ContactsRnnHomeComponentIdContext.Provider>
     );

@@ -26,6 +26,7 @@ jest.mock('@context/server', () => ({
 
 jest.mock('@screens/navigation', () => ({
     openAsBottomSheet: jest.fn(),
+    bottomSheet: jest.fn(),
 }));
 
 jest.mock('@utils/post', () => ({

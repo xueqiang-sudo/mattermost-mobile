@@ -77,7 +77,7 @@ const GmAvatarGrid = ({users, size, isOnCenterBg, isUnread, isMuted, style}: Pro
         return (
             <View style={[containerStyle, styles.placeholder, style, {width: size, height: size}]}>
                 <CompassIcon
-                    name="account-group-outline"
+                    name='account-group-outline'
                     size={size * 0.5}
                     style={[styles.placeholderIcon, {left: 0}]}
                 />

@@ -6,9 +6,9 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 
+import {ensureContactEmployeeForUser} from '@actions/remote/contact';
 import {addUsersToTeam, fetchMyTeams, getTeamMembersByIds} from '@actions/remote/team';
 import {fetchUsersByIds} from '@actions/remote/user';
-import {ensureContactEmployeeForUser} from '@actions/remote/contact';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import ProfilePicture from '@components/profile_picture';
@@ -29,6 +29,7 @@ type InviteUserJoinTeamProps = {
     componentId: AvailableScreens;
     closeButtonId: string;
     uid?: string;
+
     /** 从企业通讯录入口添加成员时，传入的目标部门 ID（null 表示默认部门） */
     contactTargetDepartmentId?: number | null;
 };

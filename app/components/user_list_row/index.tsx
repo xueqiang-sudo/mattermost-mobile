@@ -15,9 +15,9 @@ import FormattedText from '@components/formatted_text';
 import TutorialHighlight from '@components/tutorial_highlight';
 import TutorialLongPress from '@components/tutorial_highlight/long_press';
 import UserItem from '@components/user_item';
+import {Preferences} from '@constants';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
-import {Preferences} from '@constants';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -205,22 +205,22 @@ function UserListRow({
     return (
         <>
             <View style={contactSelectLayout ? style.rowDivider : undefined}>
-            <UserItem
-                user={user}
-                teammateNameDisplayOverride={contactSelectLayout ? Preferences.DISPLAY_PREFER_NICKNAME : undefined}
-                onUserLongPress={onLongPress}
-                onUserPress={handlePress}
-                showBadges={true}
-                testID={userItemTestID}
-                leftDecorator={contactSelectLayout ? decorator : undefined}
-                rightDecorator={!contactSelectLayout ? decorator : undefined}
-                avatarBorderRadius={avatarBorderRadius}
-                disabled={!(selectable || selected || !disabled)}
-                viewRef={viewRef}
-                padding={20}
-                includeMargin={includeMargin}
-                onLayout={onLayout}
-            />
+                <UserItem
+                    user={user}
+                    teammateNameDisplayOverride={contactSelectLayout ? Preferences.DISPLAY_PREFER_NICKNAME : undefined}
+                    onUserLongPress={onLongPress}
+                    onUserPress={handlePress}
+                    showBadges={true}
+                    testID={userItemTestID}
+                    leftDecorator={contactSelectLayout ? decorator : undefined}
+                    rightDecorator={!contactSelectLayout ? decorator : undefined}
+                    avatarBorderRadius={avatarBorderRadius}
+                    disabled={!(selectable || selected || !disabled)}
+                    viewRef={viewRef}
+                    padding={20}
+                    includeMargin={includeMargin}
+                    onLayout={onLayout}
+                />
             </View>
             {showTutorial &&
             <TutorialHighlight

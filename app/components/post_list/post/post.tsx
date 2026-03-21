@@ -79,7 +79,7 @@ type PostProps = {
 };
 
 const useWeChatStyle = (location: AvailableScreens) =>
-    location === Screens.CHANNEL || location === Screens.PERMALINK;
+    location === Screens.CHANNEL || location === Screens.PERMALINK || location === Screens.THREAD;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
@@ -91,6 +91,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginTop: 10,
         },
         container: {flexDirection: 'row'},
+
+        /** 微信风格：头像与名字顶部对齐 */
+        containerWeChatAlign: {
+            alignItems: 'flex-start',
+        },
         containerOwn: {
             flexDirection: 'row',
             justifyContent: 'flex-end',
@@ -113,19 +118,38 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             overflow: 'hidden',
             flex: 1,
         },
+
+        /** 微信风格：每条消息独立间距 8–12px */
+        postStyleWeChatSpacing: {
+            marginBottom: 10,
+        },
         profilePictureContainer: {
-            marginBottom: 5,
+            marginBottom: 4,
             marginRight: 10,
-            marginTop: 10,
+            marginTop: 6,
+        },
+        profilePictureContainerWeChat: {
+            marginTop: 2,
         },
         profilePictureContainerOwn: {
-            marginBottom: 5,
+            marginBottom: 4,
             marginLeft: 10,
             marginRight: 0,
-            marginTop: 10,
+            marginTop: 6,
+        },
+        profilePictureContainerOwnWeChat: {
+            marginTop: 2,
         },
         rightColumn: {
             flex: 1,
+            flexDirection: 'column',
+        },
+
+        /** Own WeChat row: do not flex-grow — only as wide as the bubble, packed to the right with the avatar. */
+        rightColumnOwnSizing: {
+            flexGrow: 0,
+            flexShrink: 1,
+            maxWidth: '78%',
             flexDirection: 'column',
         },
         rightColumnOwn: {
@@ -303,8 +327,14 @@ const Post = ({
     const highlightSaved = isSaved && !skipSavedHeader;
     const hightlightPinned = post.isPinned && !skipPinnedHeader;
     const itemTestID = `${testID}.${post.id}`;
+
+    const weChatStyle = useWeChatStyle(location);
+    const showSystemCentered = weChatStyle && isSystemPost && !isAutoResponder;
+    const showOwnLayout = weChatStyle && isOwnPost;
+    const effectiveConsecutivePost = weChatStyle ? false : isConsecutivePost;
+
     const rightColumnStyle: StyleProp<ViewStyle> = [
-        styles.rightColumn,
+        showOwnLayout ? styles.rightColumnOwnSizing : styles.rightColumn,
         (Boolean(post.rootId) && isLastReply && styles.rightColumnPadding),
         showOwnLayout && styles.rightColumnOwn,
         showSystemCentered && styles.rightColumnSystem,
@@ -327,18 +357,17 @@ const Post = ({
     // 2. Show the priority label in thread screen for the root post
     const showPostPriority = Boolean(isPostPriorityEnabled && post.metadata?.priority?.priority) && (location !== Screens.THREAD || !post.rootId);
 
-    const weChatStyle = useWeChatStyle(location);
-    const showSystemCentered = weChatStyle && isSystemPost && !isAutoResponder;
-    const showOwnLayout = weChatStyle && isOwnPost;
-
     const sameSequence = hasReplies ? (hasReplies && post.rootId) : !post.rootId;
-    if (!showPostPriority && hasSameRoot && isConsecutivePost && sameSequence && !showOwnLayout) {
+    if (!showPostPriority && hasSameRoot && effectiveConsecutivePost && sameSequence && !showOwnLayout) {
         consecutiveStyle = styles.consecutive;
         postAvatar = <View style={styles.consecutivePostContainer}/>;
     } else if (showSystemCentered) {
         postAvatar = null;
     } else {
-        const avatarContainerStyle = showOwnLayout ? styles.profilePictureContainerOwn : styles.profilePictureContainer;
+        const avatarContainerStyle = [
+            showOwnLayout ? styles.profilePictureContainerOwn : styles.profilePictureContainer,
+            weChatStyle && (showOwnLayout ? styles.profilePictureContainerOwnWeChat : styles.profilePictureContainerWeChat),
+        ];
         postAvatar = (
             <View style={[avatarContainerStyle, pendingPostStyle]}>
                 {(isAutoResponder || isSystemPost) ? (
@@ -348,7 +377,7 @@ const Post = ({
                         isAutoReponse={isAutoResponder}
                         location={location}
                         post={post}
-                        useRoundedSquare={weChatStyle}
+                        useRoundedSquare={weChatStyle && !showOwnLayout}
                     />
                 )}
             </View>
@@ -362,9 +391,12 @@ const Post = ({
                     isEphemeral={isEphemeral}
                 />
             );
+        } else if (showOwnLayout) {
+            header = null;
         } else {
             header = (
                 <Header
+                    alignWithAvatar={weChatStyle}
                     currentUser={currentUser}
                     differentThreadSequence={differentThreadSequence}
                     isAutoResponse={isAutoResponder}
@@ -464,7 +496,7 @@ const Post = ({
     return (
         <View
             testID={testID}
-            style={[styles.postStyle, style, highlightedStyle]}
+            style={[styles.postStyle, weChatStyle && styles.postStyleWeChatSpacing, style, highlightedStyle]}
         >
             <TouchableHighlight
                 testID={itemTestID}
@@ -476,18 +508,21 @@ const Post = ({
             >
                 <>
                     <PreHeader
-                        isConsecutivePost={isConsecutivePost}
+                        isConsecutivePost={effectiveConsecutivePost}
                         isSaved={isSaved}
                         isPinned={post.isPinned}
                         skipSavedHeader={skipSavedHeader}
                         skipPinnedHeader={skipPinnedHeader}
                     />
-                    <View style={[
-                        styles.container,
-                        consecutiveStyle,
-                        showOwnLayout && styles.containerOwn,
-                        showSystemCentered && styles.containerSystem,
-                    ]}>
+                    <View
+                        style={[
+                            styles.container,
+                            consecutiveStyle,
+                            showOwnLayout && styles.containerOwn,
+                            showSystemCentered && styles.containerSystem,
+                            weChatStyle && !showSystemCentered && styles.containerWeChatAlign,
+                        ]}
+                    >
                         {showOwnLayout ? (
                             <>
                                 <View style={rightColumnStyle}>

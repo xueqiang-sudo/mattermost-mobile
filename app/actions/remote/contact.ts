@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import NetworkManager from '@managers/network_manager';
 import {fetchProfilesInTeam} from '@actions/remote/user';
 import ContactService, {
     ContactCompanyTypes,
@@ -13,6 +12,7 @@ import ContactService, {
     type CreateEmployeeRequest,
 } from '@client/rest/contact';
 import {General} from '@constants';
+import NetworkManager from '@managers/network_manager';
 import {getTeamById, queryMyTeams} from '@queries/servers/team';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';

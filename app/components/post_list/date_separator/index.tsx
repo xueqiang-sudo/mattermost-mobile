@@ -15,6 +15,7 @@ type DateSeparatorProps = {
     date: number | Date;
     style?: StyleProp<Intersection<TextStyle, ViewStyle>>;
     timezone?: string | null;
+
     /** WeChat/WeCom style: centered text only, no lines, smaller grey */
     compact?: boolean;
 };

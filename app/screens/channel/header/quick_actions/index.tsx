@@ -16,8 +16,10 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 type Props = {
     channelId: string;
     callsEnabled: boolean;
+    channelDisplayName: string;
     isDMorGM: boolean;
-    hasPlaybookRuns: boolean;
+    isPlaybooksEnabled: boolean;
+    playbooksActiveRuns: number;
 }
 
 export const SEPARATOR_HEIGHT = 17;
@@ -43,8 +45,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ChannelQuickAction = ({
     channelId,
     callsEnabled,
+    channelDisplayName,
     isDMorGM,
-    hasPlaybookRuns,
+    isPlaybooksEnabled,
+    playbooksActiveRuns,
 }: Props) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -64,10 +68,12 @@ const ChannelQuickAction = ({
                 showAsLabel={true}
                 testID='channel.quick_actions.channel_info.action'
             />
-            {hasPlaybookRuns && !isDMorGM &&
+            {isPlaybooksEnabled && !isDMorGM &&
                 <PlaybookRunsOption
                     channelId={channelId}
+                    channelName={channelDisplayName}
                     location='quick_actions'
+                    playbooksActiveRuns={playbooksActiveRuns}
                 />
             }
             {callsEnabled && !isDMorGM && // if calls is not enabled, copy link will show in the channel actions

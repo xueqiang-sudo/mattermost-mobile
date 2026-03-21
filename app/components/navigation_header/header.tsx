@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useMemo} from 'react';
-import {Platform, Text, View} from 'react-native';
+import {Platform, StyleSheet, Text, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -38,6 +38,7 @@ type Props = {
     subtitleCompanion?: React.ReactElement;
     theme: Theme;
     title?: string;
+
     /** 覆盖 header 背景色，用于聊天界面等 */
     backgroundColor?: string;
 }
@@ -56,6 +57,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'flex-start',
         paddingHorizontal: 16,
         zIndex: 10,
+    },
+
+    /** 微信风格：与聊天区层次分隔的底部分割线 */
+    containerChatBottomBorder: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'rgba(0, 0, 0, 0.08)',
     },
     subtitleContainer: {
         flexDirection: 'row',
@@ -182,7 +189,12 @@ const Header = ({
     }), [defaultHeight]);
 
     const containerStyle = useMemo(() => (
-        [styles.container, containerAnimatedStyle, backgroundColor ? {backgroundColor} : undefined]), [styles, containerAnimatedStyle, backgroundColor]);
+        [
+            styles.container,
+            containerAnimatedStyle,
+            backgroundColor ? {backgroundColor} : undefined,
+            backgroundColor ? styles.containerChatBottomBorder : undefined,
+        ]), [styles, containerAnimatedStyle, backgroundColor]);
 
     const additionalTitleStyle = useMemo(() => {
         return {

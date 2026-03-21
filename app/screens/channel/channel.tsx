@@ -12,6 +12,7 @@ import PostDraft from '@components/post_draft';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
 import {Screens} from '@constants';
 import {ExtraKeyboardProvider} from '@context/extra_keyboard';
+import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useChannelSwitch} from '@hooks/channel_switch';
 import {useIsTablet} from '@hooks/device';
@@ -20,6 +21,7 @@ import {useTeamSwitch} from '@hooks/team_switch';
 import SecurityManager from '@managers/security_manager';
 import {popTopScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
+import {getChatListBackdropColor} from '@utils/theme';
 
 import ChannelPostList from './channel_post_list';
 import ChannelHeader from './header';
@@ -48,16 +50,12 @@ type ChannelProps = {
 
 const edges: Edge[] = ['left', 'right'];
 
-// 聊天界面设计：消息区域背景与列表一致
-const CHAT_MESSAGE_BG = '#F2F2F2';
-
 const styles = StyleSheet.create({
     flex: {
         flex: 1,
     },
     messageArea: {
         flex: 1,
-        backgroundColor: CHAT_MESSAGE_BG,
     },
 });
 
@@ -78,6 +76,7 @@ const Channel = ({
     includeChannelBanner,
     scheduledPostCount,
 }: ChannelProps) => {
+    const theme = useTheme();
     useGMasDMNotice(currentUserId, channelType, dismissedGMasDMNotice, hasGMasDMFeature);
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
@@ -143,7 +142,7 @@ const Channel = ({
                 />
                 {shouldRender &&
                 <ExtraKeyboardProvider>
-                    <View style={[styles.messageArea, {marginTop}]}>
+                    <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
                         <ChannelPostList
                             channelId={channelId}
                             nativeID={channelId}

@@ -20,8 +20,8 @@ import Loading from '@components/loading';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import {dismissModal} from '@screens/navigation';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -43,8 +43,10 @@ type Props = {
     sourceDepartmentId: number | null;
     sourceDepartmentName: string;
     onSuccess?: () => void;
+
     /** 仅移动单人员时传入，跳过成员选择直接进入选择目标部门 */
     singleEmployeeId?: string;
+
     /** 单人员时传入，用于确认弹窗中展示姓名 */
     singleEmployeeName?: string;
 };
@@ -274,15 +276,16 @@ const ContactsBatchMoveMembers = ({
     const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<Set<number>>(new Set());
     const [selectedDepartmentNames, setSelectedDepartmentNames] = useState<Record<number, string>>({});
     const [selectedMemberNames, setSelectedMemberNames] = useState<Record<string, string>>(() =>
-        singleEmployeeId && singleEmployeeName ? {[singleEmployeeId]: singleEmployeeName} : {},
+        (singleEmployeeId && singleEmployeeName ? {[singleEmployeeId]: singleEmployeeName} : {}),
     );
     const [selectedMemberSourceDepts, setSelectedMemberSourceDepts] = useState<Record<string, number>>(() =>
-        singleEmployeeId && sourceDepartmentId != null ? {[singleEmployeeId]: sourceDepartmentId} : {},
+        (singleEmployeeId && sourceDepartmentId != null ? {[singleEmployeeId]: sourceDepartmentId} : {}),
     );
     const [selectedDepartmentPaths, setSelectedDepartmentPaths] = useState<Record<number, number[]>>({});
     const [selectedMemberPaths, setSelectedMemberPaths] = useState<Record<string, number[]>>({});
     const [loading, setLoading] = useState(true);
     const [memberDepartments, setMemberDepartments] = useState<ContactDepartment[]>([]);
+
     /** 成员选择阶段的部门栈：默认从当前部门开始，可回退到根目录再浏览其它部门 */
     const [memberStack, setMemberStack] = useState<TargetLevel[]>(() => {
         if (sourceDepartmentId != null) {
@@ -294,6 +297,7 @@ const ContactsBatchMoveMembers = ({
 
         return [{departmentId: null, departmentName: undefined}];
     });
+
     /** 打开目标部门选择时，若用户已在某部门下，则直接进入该部门层级（显示其子部门列表） */
     const [targetStack, setTargetStack] = useState<TargetLevel[]>(() => {
         if (singleEmployeeId && sourceDepartmentId != null) {
@@ -319,6 +323,7 @@ const ContactsBatchMoveMembers = ({
         (level) => level.departmentId != null && selectedDepartmentIds.has(level.departmentId),
     );
     const targetDepartmentId = currentTarget?.departmentId ?? null;
+
     /** 根目录时使用默认部门 ID 作为目标 */
     const effectiveTargetDepartmentId = targetDepartmentId ?? defaultDepartmentId;
 
@@ -330,6 +335,7 @@ const ContactsBatchMoveMembers = ({
         effectiveSourceDepartmentId != null &&
         effectiveTargetDepartmentId !== effectiveSourceDepartmentId;
     const isAtRootLevel = targetDepartmentId === null;
+
     /** 是否有任一选中项可以移动到根目录（默认部门）：
      * - 成员：任一成员的源部门 !== 默认部门
      * - 部门：任一部门路径长度 > 1（即当前不在根目录下，有父部门）
@@ -356,6 +362,7 @@ const ContactsBatchMoveMembers = ({
         }
         return false;
     })();
+
     /** 根目录时允许按钮可点（点击时再拉取默认部门 ID），只要存在可移动的选中项 */
     const canMoveToRoot = isAtRootLevel &&
         (defaultDepartmentId == null ? (selectedIds.size > 0 || selectedDepartmentIds.size > 0) : hasAnyItemCanMoveToRoot);
@@ -424,7 +431,9 @@ const ContactsBatchMoveMembers = ({
     const loadTargetLevel = useCallback(async (departmentId: number | null) => {
         setTargetLoading(true);
         const res = await fetchContactDirectoryContent(companyId, departmentId ?? undefined);
-        if (!mounted.current) return;
+        if (!mounted.current) {
+            return;
+        }
         if (res.data) {
             setTargetDepartments(res.data.departments);
         } else {
@@ -435,7 +444,9 @@ const ContactsBatchMoveMembers = ({
 
     useEffect(() => {
         mounted.current = true;
-        return () => { mounted.current = false; };
+        return () => {
+            mounted.current = false;
+        };
     }, []);
 
     useEffect(() => {
@@ -452,27 +463,35 @@ const ContactsBatchMoveMembers = ({
 
     /** 尽早拉取默认部门 ID，便于在「选择目标部门」阶段点击「移动到根目录」时 canMoveToTarget 为 true */
     useEffect(() => {
-        if (!companyId) return;
+        if (!companyId) {
+            return;
+        }
         let cancelled = false;
         fetchDefaultDepartmentId(companyId).then((res) => {
             if (!cancelled && mounted.current && res.data != null) {
                 setDefaultDepartmentId(res.data);
             }
         });
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [companyId]);
 
     /** 目标阶段在根目录时若尚未拿到默认部门 ID 再拉一次，确保「移动到根目录」可点 */
     const atRootInTargetPhase = phase === 'target' && targetDepartmentId === null;
     useEffect(() => {
-        if (!atRootInTargetPhase || defaultDepartmentId != null || !companyId) return;
+        if (!atRootInTargetPhase || defaultDepartmentId != null || !companyId) {
+            return;
+        }
         let cancelled = false;
         fetchDefaultDepartmentId(companyId).then((res) => {
             if (!cancelled && mounted.current && res.data != null) {
                 setDefaultDepartmentId(res.data);
             }
         });
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [atRootInTargetPhase, defaultDepartmentId, companyId]);
 
     useEffect(() => {
@@ -485,7 +504,9 @@ const ContactsBatchMoveMembers = ({
                 setEnterpriseName(res.data.name);
             }
         });
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [companyId, phase]);
 
     /** 当已选部门包含某成员/子部门时，从选中中移除：取包含最多的目录，其下的不在 chips 显示
@@ -670,6 +691,7 @@ const ContactsBatchMoveMembers = ({
                         if (deptIdNum === id) {
                             return;
                         }
+
                         // 移除子孙部门
                         if (p.length >= path.length && path.every((v, idx) => v === p[idx])) {
                             nextIds.delete(deptIdNum);
@@ -855,12 +877,16 @@ const ContactsBatchMoveMembers = ({
             setSelectedDepartmentIds((prev) => new Set([...prev, ...deptsToAdd.map((d) => d.id)]));
             setSelectedDepartmentNames((prev) => {
                 const next = {...prev};
-                deptsToAdd.forEach((d) => { next[d.id] = d.name; });
+                deptsToAdd.forEach((d) => {
+                    next[d.id] = d.name;
+                });
                 return next;
             });
             setSelectedDepartmentPaths((prev) => {
                 const next = {...prev};
-                deptsToAdd.forEach((d) => { next[d.id] = [...currentPath, d.id]; });
+                deptsToAdd.forEach((d) => {
+                    next[d.id] = [...currentPath, d.id];
+                });
                 return next;
             });
         }
@@ -868,17 +894,23 @@ const ContactsBatchMoveMembers = ({
             setSelectedIds((prev) => new Set([...prev, ...membersToAdd.map((e) => e.id)]));
             setSelectedMemberNames((prev) => {
                 const next = {...prev};
-                membersToAdd.forEach((e) => { next[e.id] = e.name; });
+                membersToAdd.forEach((e) => {
+                    next[e.id] = e.name;
+                });
                 return next;
             });
             setSelectedMemberSourceDepts((prev) => {
                 const next = {...prev};
-                membersToAdd.forEach((e) => { next[e.id] = sourceDept; });
+                membersToAdd.forEach((e) => {
+                    next[e.id] = sourceDept;
+                });
                 return next;
             });
             setSelectedMemberPaths((prev) => {
                 const next = {...prev};
-                membersToAdd.forEach((e) => { next[e.id] = currentPath; });
+                membersToAdd.forEach((e) => {
+                    next[e.id] = currentPath;
+                });
                 return next;
             });
         }
@@ -904,6 +936,7 @@ const ContactsBatchMoveMembers = ({
         if (!allowedByTarget || effectiveSourceDepartmentId == null || (!hasMembers && !hasDepartments)) {
             return;
         }
+
         /** 根目录且尚未有默认部门 ID 时，先拉取再执行 */
         let resolvedTargetId = effectiveTargetDepartmentId;
         if (isAtRootLevel && resolvedTargetId == null) {
@@ -917,7 +950,9 @@ const ContactsBatchMoveMembers = ({
             }
             resolvedTargetId = defaultRes.data;
         }
-        if (resolvedTargetId == null) return;
+        if (resolvedTargetId == null) {
+            return;
+        }
         const memberCount = selectedIds.size;
         const deptCount = selectedDepartmentIds.size;
         const targetName = isAtRootLevel
@@ -962,7 +997,9 @@ const ContactsBatchMoveMembers = ({
                 ],
             );
         });
-        if (!ok) return;
+        if (!ok) {
+            return;
+        }
         setMoving(true);
         let deptFailed = 0;
         const deptTotal = selectedDepartmentIds.size;
@@ -974,7 +1011,9 @@ const ContactsBatchMoveMembers = ({
             }
             const newParentId = isAtRootLevel ? null : effectiveTargetDepartmentId;
             const res = await updateContactDepartment(deptId, companyId, name, newParentId);
-            if (res.error) deptFailed += 1;
+            if (res.error) {
+                deptFailed += 1;
+            }
         }
         let failed = 0;
         const count = selectedIds.size;
@@ -990,10 +1029,14 @@ const ContactsBatchMoveMembers = ({
                 srcDept,
                 resolvedTargetId,
             );
-            if (res.error) failed += 1;
+            if (res.error) {
+                failed += 1;
+            }
         }
         setMoving(false);
-        if (!mounted.current) return;
+        if (!mounted.current) {
+            return;
+        }
         if (deptFailed > 0 || failed > 0) {
             const parts: string[] = [];
             if (deptFailed > 0) {
@@ -1033,7 +1076,11 @@ const ContactsBatchMoveMembers = ({
         const showMemberBackArrow = memberStack.length > 1;
 
         return (
-            <SafeAreaView edges={['bottom']} style={styles.flex} testID='contacts.batch_move_members.screen'>
+            <SafeAreaView
+                edges={['bottom']}
+                style={styles.flex}
+                testID='contacts.batch_move_members.screen'
+            >
                 <View style={styles.header}>
                     {showMemberBackArrow ? (
                         <TouchableOpacity
@@ -1041,16 +1088,23 @@ const ContactsBatchMoveMembers = ({
                             onPress={handleBack}
                             testID='contacts.batch_move.back'
                         >
-                            <CompassIcon name='arrow-left' size={24} color={theme.sidebarText} />
+                            <CompassIcon
+                                name='arrow-left'
+                                size={24}
+                                color={theme.sidebarText}
+                            />
                         </TouchableOpacity>
                     ) : (
-                        <View style={styles.headerBackWrap} />
+                        <View style={styles.headerBackWrap}/>
                     )}
                     <View style={styles.headerCenter}>
                         <Text style={styles.headerTitle}>
                             {intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'})}
                         </Text>
-                        <Text style={styles.headerSubtitle} numberOfLines={1}>{subtitle}</Text>
+                        <Text
+                            style={styles.headerSubtitle}
+                            numberOfLines={1}
+                        >{subtitle}</Text>
                     </View>
                     {!isInsideSelectedDepartment && hasCurrentLevelItems && (
                         <TouchableOpacity
@@ -1065,13 +1119,24 @@ const ContactsBatchMoveMembers = ({
                             </Text>
                         </TouchableOpacity>
                     )}
-                    <TouchableOpacity style={styles.headerCloseWrap} onPress={handleClose} testID='contacts.batch_move.close'>
-                        <CompassIcon name='close' size={24} color={theme.sidebarText} />
+                    <TouchableOpacity
+                        style={styles.headerCloseWrap}
+                        onPress={handleClose}
+                        testID='contacts.batch_move.close'
+                    >
+                        <CompassIcon
+                            name='close'
+                            size={24}
+                            color={theme.sidebarText}
+                        />
                     </TouchableOpacity>
                 </View>
                 {loading ? (
                     <View style={styles.loadingContainer}>
-                        <Loading color={theme.centerChannelColor} size='small' />
+                        <Loading
+                            color={theme.centerChannelColor}
+                            size='small'
+                        />
                     </View>
                 ) : (employees.length === 0 && memberDepartments.length === 0) ? (
                     <Text style={styles.emptyMessage}>
@@ -1079,13 +1144,20 @@ const ContactsBatchMoveMembers = ({
                     </Text>
                 ) : (
                     <>
-                        <ScrollView style={styles.flex} contentContainerStyle={{paddingBottom: 24}} showsVerticalScrollIndicator={false}>
+                        <ScrollView
+                            style={styles.flex}
+                            contentContainerStyle={{paddingBottom: 24}}
+                            showsVerticalScrollIndicator={false}
+                        >
                             {memberDepartments.map((dept) => {
                                 const deptSelected = selectedDepartmentIds.has(dept.id);
                                 const deptDisabled = isInsideSelectedDepartment;
                                 const deptVisuallySelected = deptDisabled || deptSelected;
                                 return (
-                                    <View key={`dept-${dept.id}`} style={[styles.deptRow, deptSelected && styles.deptRowSelected]}>
+                                    <View
+                                        key={`dept-${dept.id}`}
+                                        style={[styles.deptRow, deptSelected && styles.deptRowSelected]}
+                                    >
                                         <TouchableOpacity
                                             onPress={() => !deptDisabled && toggleDepartment(dept.id, dept.name)}
                                             activeOpacity={0.7}
@@ -1099,7 +1171,11 @@ const ContactsBatchMoveMembers = ({
                                                         : (deptSelected ? styles.checkboxSelected : styles.checkboxUnselected),
                                                 ]}
                                             >
-                                                {deptVisuallySelected && <CompassIcon name='check' size={14} color='#fff' />}
+                                                {deptVisuallySelected && <CompassIcon
+                                                    name='check'
+                                                    size={14}
+                                                    color='#fff'
+                                                                         />}
                                             </View>
                                         </TouchableOpacity>
                                         <TouchableOpacity
@@ -1109,9 +1185,16 @@ const ContactsBatchMoveMembers = ({
                                             testID={`contacts.batch_move.member_dept.${dept.id}`}
                                         >
                                             <View style={styles.folderIcon}>
-                                                <CompassIcon name='folder-outline' size={24} color={theme.linkColor} />
+                                                <CompassIcon
+                                                    name='folder-outline'
+                                                    size={24}
+                                                    color={theme.linkColor}
+                                                />
                                             </View>
-                                            <Text style={styles.listItemName} numberOfLines={1}>{dept.name}</Text>
+                                            <Text
+                                                style={styles.listItemName}
+                                                numberOfLines={1}
+                                            >{dept.name}</Text>
                                             <CompassIcon
                                                 name='chevron-right'
                                                 size={24}
@@ -1141,12 +1224,22 @@ const ContactsBatchMoveMembers = ({
                                                     : (empSelected ? styles.checkboxSelected : styles.checkboxUnselected),
                                             ]}
                                         >
-                                            {empVisuallySelected && <CompassIcon name='check' size={14} color='#fff' />}
+                                            {empVisuallySelected && <CompassIcon
+                                                name='check'
+                                                size={14}
+                                                color='#fff'
+                                                                    />}
                                         </View>
                                         <View style={styles.listItemAvatar}>
-                                            <ContactAvatar employee={emp} size={40} />
+                                            <ContactAvatar
+                                                employee={emp}
+                                                size={40}
+                                            />
                                         </View>
-                                        <Text style={styles.listItemName} numberOfLines={1}>{emp.name}</Text>
+                                        <Text
+                                            style={styles.listItemName}
+                                            numberOfLines={1}
+                                        >{emp.name}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -1155,15 +1248,22 @@ const ContactsBatchMoveMembers = ({
                             {(selectedDepartmentIds.size > 0 || selectedIds.size > 0) && (
                                 <View style={styles.bottomBarChipsWrap}>
                                     <ScrollView
-                                        horizontal
+                                        horizontal={true}
                                         showsHorizontalScrollIndicator={true}
                                         contentContainerStyle={styles.bottomBarChipsScroll}
                                     >
                                         <View style={styles.bottomBarChipsRow}>
                                             {Array.from(selectedDepartmentIds).map((id) => (
-                                                <View key={`d-${id}`} style={styles.selectedChip}>
+                                                <View
+                                                    key={`d-${id}`}
+                                                    style={styles.selectedChip}
+                                                >
                                                     <View style={styles.selectedChipIcon}>
-                                                        <CompassIcon name='folder-outline' size={14} color={theme.linkColor} />
+                                                        <CompassIcon
+                                                            name='folder-outline'
+                                                            size={14}
+                                                            color={theme.linkColor}
+                                                        />
                                                     </View>
                                                     <Text style={styles.selectedChipText}>
                                                         {selectedDepartmentNames[id] ?? ''}
@@ -1171,9 +1271,16 @@ const ContactsBatchMoveMembers = ({
                                                 </View>
                                             ))}
                                             {Array.from(selectedIds).map((id) => (
-                                                <View key={`m-${id}`} style={styles.selectedChip}>
+                                                <View
+                                                    key={`m-${id}`}
+                                                    style={styles.selectedChip}
+                                                >
                                                     <View style={styles.selectedChipIcon}>
-                                                        <CompassIcon name='account-outline' size={14} color={theme.linkColor} />
+                                                        <CompassIcon
+                                                            name='account-outline'
+                                                            size={14}
+                                                            color={theme.linkColor}
+                                                        />
                                                     </View>
                                                     <Text style={styles.selectedChipText}>
                                                         {selectedMemberNames[id] ?? ''}
@@ -1215,32 +1322,62 @@ const ContactsBatchMoveMembers = ({
     const showBackArrow = targetStack.length > 1;
 
     return (
-        <SafeAreaView edges={['bottom']} style={styles.flex} testID='contacts.batch_move_members.screen'>
+        <SafeAreaView
+            edges={['bottom']}
+            style={styles.flex}
+            testID='contacts.batch_move_members.screen'
+        >
             <View style={styles.header}>
                 {showBackArrow ? (
-                    <TouchableOpacity style={styles.headerBackWrap} onPress={handleBack} testID='contacts.batch_move.back'>
-                        <CompassIcon name='arrow-left' size={24} color={theme.sidebarText} />
+                    <TouchableOpacity
+                        style={styles.headerBackWrap}
+                        onPress={handleBack}
+                        testID='contacts.batch_move.back'
+                    >
+                        <CompassIcon
+                            name='arrow-left'
+                            size={24}
+                            color={theme.sidebarText}
+                        />
                     </TouchableOpacity>
                 ) : (
-                    <View style={styles.headerBackWrap} />
+                    <View style={styles.headerBackWrap}/>
                 )}
                 <View style={styles.headerCenter}>
                     <Text style={styles.headerTitle}>
                         {intl.formatMessage({id: 'contacts.select_target_department', defaultMessage: 'Select target department'})}
                     </Text>
-                    <Text style={styles.headerSubtitle} numberOfLines={1}>{subtitle}</Text>
+                    <Text
+                        style={styles.headerSubtitle}
+                        numberOfLines={1}
+                    >{subtitle}</Text>
                 </View>
-                <TouchableOpacity style={styles.headerCloseWrap} onPress={handleClose} testID='contacts.batch_move.close'>
-                    <CompassIcon name='close' size={24} color={theme.sidebarText} />
+                <TouchableOpacity
+                    style={styles.headerCloseWrap}
+                    onPress={handleClose}
+                    testID='contacts.batch_move.close'
+                >
+                    <CompassIcon
+                        name='close'
+                        size={24}
+                        color={theme.sidebarText}
+                    />
                 </TouchableOpacity>
             </View>
             {targetLoading ? (
                 <View style={styles.loadingContainer}>
-                    <Loading color={theme.centerChannelColor} size='small' />
+                    <Loading
+                        color={theme.centerChannelColor}
+                        size='small'
+                    />
                 </View>
             ) : (
                 <>
-                    <ScrollView style={styles.flex} contentContainerStyle={{paddingBottom: 24}} showsVerticalScrollIndicator={false}>
+                    <ScrollView
+                        style={styles.flex}
+                        contentContainerStyle={{paddingBottom: 24}}
+                        showsVerticalScrollIndicator={false}
+                    >
                         {targetDepartments.map((dept) => {
                             const disabled = selectedDepartmentIds.has(dept.id);
                             return (
@@ -1257,10 +1394,21 @@ const ContactsBatchMoveMembers = ({
                                     testID={`contacts.batch_move.target_dept.${dept.id}`}
                                 >
                                     <View style={styles.folderIcon}>
-                                        <CompassIcon name='folder-outline' size={24} color={theme.linkColor} />
+                                        <CompassIcon
+                                            name='folder-outline'
+                                            size={24}
+                                            color={theme.linkColor}
+                                        />
                                     </View>
-                                    <Text style={styles.listItemName} numberOfLines={1}>{dept.name}</Text>
-                                    <CompassIcon name='chevron-right' size={24} color={changeOpacity(theme.centerChannelColor, 0.5)} />
+                                    <Text
+                                        style={styles.listItemName}
+                                        numberOfLines={1}
+                                    >{dept.name}</Text>
+                                    <CompassIcon
+                                        name='chevron-right'
+                                        size={24}
+                                        color={changeOpacity(theme.centerChannelColor, 0.5)}
+                                    />
                                 </TouchableOpacity>
                             );
                         })}
@@ -1280,9 +1428,16 @@ const ContactsBatchMoveMembers = ({
                                 >
                                     <View style={styles.bottomBarChipsRow}>
                                         {Array.from(selectedDepartmentIds).map((id) => (
-                                            <View key={`td-d-${id}`} style={styles.selectedChip}>
+                                            <View
+                                                key={`td-d-${id}`}
+                                                style={styles.selectedChip}
+                                            >
                                                 <View style={styles.selectedChipIcon}>
-                                                    <CompassIcon name='folder-outline' size={14} color={theme.linkColor} />
+                                                    <CompassIcon
+                                                        name='folder-outline'
+                                                        size={14}
+                                                        color={theme.linkColor}
+                                                    />
                                                 </View>
                                                 <Text style={styles.selectedChipText}>
                                                     {selectedDepartmentNames[id] ?? ''}
@@ -1290,9 +1445,16 @@ const ContactsBatchMoveMembers = ({
                                             </View>
                                         ))}
                                         {Array.from(selectedIds).map((id) => (
-                                            <View key={`td-m-${id}`} style={styles.selectedChip}>
+                                            <View
+                                                key={`td-m-${id}`}
+                                                style={styles.selectedChip}
+                                            >
                                                 <View style={styles.selectedChipIcon}>
-                                                    <CompassIcon name='account-outline' size={14} color={theme.linkColor} />
+                                                    <CompassIcon
+                                                        name='account-outline'
+                                                        size={14}
+                                                        color={theme.linkColor}
+                                                    />
                                                 </View>
                                                 <Text style={styles.selectedChipText}>
                                                     {selectedMemberNames[id] ?? ''}

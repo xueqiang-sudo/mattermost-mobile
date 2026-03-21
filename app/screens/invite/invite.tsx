@@ -6,6 +6,7 @@ import {type IntlShape, useIntl} from 'react-intl';
 import {Keyboard, View, type LayoutChangeEvent} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {ensureContactEmployeeForUser} from '@actions/remote/contact';
 import {searchProfiles} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
@@ -22,7 +23,6 @@ import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 
 import {sendGuestInvites, sendMembersInvites} from './actions';
-import {ensureContactEmployeeForUser} from '@actions/remote/contact';
 import Selection from './selection';
 import Summary from './summary';
 
@@ -87,6 +87,7 @@ type InviteProps = {
     emailInvitationsEnabled: boolean;
     canInviteGuests: boolean;
     allowGuestMagicLink: boolean;
+
     /** 从企业通讯录入口打开邀请时，传入目标部门 ID（null 表示默认部门） */
     contactTargetDepartmentId?: number | null;
 }

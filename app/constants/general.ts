@@ -30,6 +30,7 @@ export default {
         SHOW_FULLNAME: 'full_name',
     },
     SPECIAL_MENTIONS: new Set(['all', 'channel', 'here']),
+
     /** 群聊人数上限，设为较大值以支持任意人数（实际受服务端限制） */
     MAX_USERS_IN_GM: 9999,
     MIN_USERS_IN_GM: 3,

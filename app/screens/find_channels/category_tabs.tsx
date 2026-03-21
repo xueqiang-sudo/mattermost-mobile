@@ -89,7 +89,7 @@ const CategoryTabs = ({activeCategory, onCategoryChange}: Props) => {
     return (
         <View style={styles.container}>
             <ScrollView
-                horizontal
+                horizontal={true}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.scroll}
                 testID='find_channels.category_tabs'

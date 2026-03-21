@@ -8,8 +8,8 @@ import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
-import {changeOpacity} from '@utils/theme';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
+import {changeOpacity} from '@utils/theme';
 
 import PlusMenuItem from './item';
 import PlusMenuSeparator from './separator';

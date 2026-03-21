@@ -12,6 +12,7 @@ import type {StyleProp, TextStyle} from 'react-native';
 type Props = {
     timestamp: number;
     style?: StyleProp<TextStyle>;
+
     /** 用户时区，与聊天消息一致；空则使用设备默认 */
     timeZone?: string | null;
 };
@@ -36,5 +37,8 @@ export default function FormattedConversationTime({timestamp, style, timeZone}: 
     const intl = useIntl();
     const fmt = getConversationTimestampFormat(timestamp, {locale: intl.locale, timeZone: timeZone ?? undefined});
     const text = formatTimestamp(fmt, intl, timeZone ?? undefined);
-    return <Text style={style} numberOfLines={1}>{text}</Text>;
+    return (<Text
+        style={style}
+        numberOfLines={1}
+            >{text}</Text>);
 }

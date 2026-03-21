@@ -433,6 +433,7 @@ export default class ClientTracking {
 
         if (response.ok) {
             logDebug('request is success, url:', url, ' ,method:', method);
+
             // logInfo('request is success, url:', url, ' ,options:', options, ' ,data:', response.data);
             // logInfo('request is success, url:', url, ' ,data:', response.data);
             return returnDataOnly ? (response.data || {}) : response;

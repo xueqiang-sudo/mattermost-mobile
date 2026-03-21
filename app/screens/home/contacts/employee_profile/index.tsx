@@ -6,8 +6,8 @@ import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {deleteContactEmployee} from '@actions/remote/contact';
 import {makeDirectChannel} from '@actions/remote/channel';
+import {deleteContactEmployee} from '@actions/remote/contact';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';

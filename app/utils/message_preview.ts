@@ -5,14 +5,14 @@ const MAX_PREVIEW_LENGTH = 50;
 
 /**  strip basic markdown for list preview */
 function stripBasicMarkdown(text: string): string {
-    return text
-        .replace(/\*\*([^*]+)\*\*/g, '$1')
-        .replace(/\*([^*]+)\*/g, '$1')
-        .replace(/__([^_]+)__/g, '$1')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-        .replace(/^#+\s*/gm, '')
-        .replace(/\n/g, ' ')
-        .trim();
+    return text.
+        replace(/\*\*([^*]+)\*\*/g, '$1').
+        replace(/\*([^*]+)\*/g, '$1').
+        replace(/__([^_]+)__/g, '$1').
+        replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').
+        replace(/^#+\s*/gm, '').
+        replace(/\n/g, ' ').
+        trim();
 }
 
 /** Format post message for conversation list preview */

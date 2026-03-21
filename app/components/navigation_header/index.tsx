@@ -16,8 +16,8 @@ import NavigationSearch from './search';
 
 import type {SearchProps, SearchRef} from '@components/search';
 
-// 聊天界面设计参考色：浅灰 header 背景
-const CHAT_HEADER_BG = '#F5F5F5';
+// 微信风格：顶栏浅灰 #F3F3F3，与消息区形成层次（参考微信图2）
+const CHAT_HEADER_BG = '#F3F3F3';
 
 type Props = SearchProps & {
     hasSearch?: boolean;
@@ -33,6 +33,7 @@ type Props = SearchProps & {
     subtitle?: string;
     subtitleCompanion?: React.ReactElement;
     title?: string;
+
     /** 用于聊天界面：浅灰背景、更简洁的视觉效果 */
     useChatStyle?: boolean;
 }

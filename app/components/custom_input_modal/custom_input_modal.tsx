@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useState} from 'react';
-import {Keyboard, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View} from 'react-native';
 import {useIntl} from 'react-intl';
+import {Keyboard, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View} from 'react-native';
 
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -145,43 +145,46 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <View style={StyleSheet.absoluteFill}/>
                 </TouchableWithoutFeedback>
-                <View style={styles.modalContent} pointerEvents='box-none'>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{title}</Text>
-                        </View>
-                        <View style={styles.inputContainer}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder={placeholder}
-                                placeholderTextColor={styles.inputPlaceholder.color}
-                                onChangeText={setInputValue}
-                                value={inputValue}
-                                autoFocus={true}
-                                testID='custom_input_modal.input'
-                            />
-                        </View>
-                        <View style={styles.buttonContainer}>
-                            {showCancelButton && (
-                                <TouchableOpacity
-                                    style={[styles.button, styles.cancelButton]}
-                                    onPress={handleCancel}
-                                    activeOpacity={0.7}
-                                    testID='custom_input_modal.cancel.button'
-                                >
-                                    <Text style={styles.cancelButtonText}>{cancelContent ?? defaultCancel}</Text>
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity
-                                style={[styles.button, styles.confirmButton, isInputEmpty && styles.confirmButtonDisabled]}
-                                onPress={handleConfirm}
-                                activeOpacity={0.7}
-                                disabled={isInputEmpty}
-                                testID='custom_input_modal.confirm.button'
-                            >
-                                <Text style={styles.confirmButtonText}>{confirmContent ?? defaultConfirm}</Text>
-                            </TouchableOpacity>
-                        </View>
+                <View
+                    style={styles.modalContent}
+                    pointerEvents='box-none'
+                >
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>{title}</Text>
                     </View>
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder={placeholder}
+                            placeholderTextColor={styles.inputPlaceholder.color}
+                            onChangeText={setInputValue}
+                            value={inputValue}
+                            autoFocus={true}
+                            testID='custom_input_modal.input'
+                        />
+                    </View>
+                    <View style={styles.buttonContainer}>
+                        {showCancelButton && (
+                            <TouchableOpacity
+                                style={[styles.button, styles.cancelButton]}
+                                onPress={handleCancel}
+                                activeOpacity={0.7}
+                                testID='custom_input_modal.cancel.button'
+                            >
+                                <Text style={styles.cancelButtonText}>{cancelContent ?? defaultCancel}</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            style={[styles.button, styles.confirmButton, isInputEmpty && styles.confirmButtonDisabled]}
+                            onPress={handleConfirm}
+                            activeOpacity={0.7}
+                            disabled={isInputEmpty}
+                            testID='custom_input_modal.confirm.button'
+                        >
+                            <Text style={styles.confirmButtonText}>{confirmContent ?? defaultConfirm}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
         </Modal>
     );

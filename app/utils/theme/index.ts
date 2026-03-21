@@ -218,6 +218,55 @@ export function blendColors(background: string, foreground: string, opacity: num
     return `rgba(${red},${green},${blue},${alpha})`;
 }
 
+const WECHAT_STYLE_OWN_GREEN_LIGHT = '#95ec69';
+
+/** 微信风格聊天列表背景：浅灰 #F3F3F3 营造层次感 */
+const WECHAT_BACKDROP_LIGHT = '#F3F3F3';
+
+/**
+ * Chat list strip behind messages (WeChat / WeCom style). Theme-aware for light and dark.
+ */
+export function getChatListBackdropColor(theme: Theme): string {
+    const base = tinyColor(theme.centerChannelBg);
+    if (base.isLight()) {
+        return blendColors(theme.centerChannelBg, WECHAT_BACKDROP_LIGHT, 0.85, true);
+    }
+    return base.lighten(5).toHexString();
+}
+
+export type ChatBubbleSurfaceRole = 'own' | 'others';
+
+/**
+ * Message bubble fill for chat-style screens. Others: card on gray strip; own: green (light) or button (dark).
+ */
+export function getChatBubbleBackground(theme: Theme, role: ChatBubbleSurfaceRole): string {
+    const channelBg = tinyColor(theme.centerChannelBg);
+    const backdrop = tinyColor(getChatListBackdropColor(theme));
+
+    if (role === 'others') {
+        if (backdrop.isLight()) {
+            return '#ffffff';
+        }
+        return channelBg.lighten(8).toHexString();
+    }
+
+    if (channelBg.isLight()) {
+        return tinyColor.mix(theme.onlineIndicator, WECHAT_STYLE_OWN_GREEN_LIGHT, 75).toHexString();
+    }
+    return theme.buttonBg;
+}
+
+/** Border for others' bubbles on the chat backdrop (enterprise-style card edge). */
+export function getChatBubbleBorderColor(theme: Theme): string {
+    return changeOpacity(theme.centerChannelColor, 0.12);
+}
+
+/** Text on own bubble: dark on light green, theme button color on dark bubble. */
+export function getChatBubbleOwnTextColor(theme: Theme): string {
+    const bubble = tinyColor(getChatBubbleBackground(theme, 'own'));
+    return bubble.isLight() ? '#111111' : theme.buttonColor;
+}
+
 const themeTypeMap: ThemeTypeMap = {
     Mattermost: 'denim',
     Organization: 'sapphire',

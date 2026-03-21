@@ -24,18 +24,18 @@ import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
-import {useTheme} from '@context/theme';
 import {useServerUrl} from '@context/server';
+import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getTeamById} from '@queries/servers/team';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
+import {logInfo} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
 import type {Database} from '@nozbe/watermelondb';
 import type UserModel from '@typings/database/models/servers/user';
-import { logInfo } from '@utils/log';
-
 
 const edges: Edge[] = ['left', 'right'];
 const CLOSE_CUSTOMERS = 'close-contacts-customers';
@@ -45,6 +45,7 @@ type Props = {
     currentUser?: UserModel;
     currentTeamId?: string;
     database?: Database;
+
     /** RNN Home componentId；关管理弹窗时 Home 会 willAppear，用于刷新列表 */
     rnnHomeComponentId?: string;
 };
@@ -251,8 +252,10 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     const [companyName, setCompanyName] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
+
     /** 仅企业管理者可管理通讯录、可自动创建 */
     const [isEnterpriseManager, setIsEnterpriseManager] = useState(false);
+
     /** Home 从弹窗下重新出现时递增，触发主列表重新拉取 */
     const [homeReappearTick, setHomeReappearTick] = useState(0);
 

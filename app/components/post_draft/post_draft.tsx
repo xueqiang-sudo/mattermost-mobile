@@ -5,13 +5,12 @@ import React, {useEffect, useState} from 'react';
 import {Platform} from 'react-native';
 
 import Autocomplete from '@components/autocomplete';
+import {Screens} from '@constants';
 import {ExtraKeyboard} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
 import {useAutocompleteDefaultAnimatedValues} from '@hooks/autocomplete';
 import {useKeyboardHeight} from '@hooks/device';
 import {useDefaultHeaderHeight} from '@hooks/header';
-
-import {Screens} from '@constants';
 
 import Archived from './archived';
 import DraftHandler from './draft_handler';
@@ -107,7 +106,7 @@ function PostDraft({
             updateValue={setValue}
             value={value}
             setIsFocused={setIsFocused}
-            useChatInputStyle={location === Screens.CHANNEL}
+            useChatInputStyle={location === Screens.CHANNEL || location === Screens.THREAD}
         />
     );
 

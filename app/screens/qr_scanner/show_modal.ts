@@ -15,6 +15,7 @@ export const QR_SCAN_CONTEXT_JOIN_ENTERPRISE = 'join_enterprise' as const;
 
 type QrScannerOptions = {
     scanContext?: string;
+
     /**
      * 业务方可通过 extra 传入附加上下文（例如企业 ID、目标部门 ID），
      * 扫码结果在回调中会将该对象合并进解析出的 payload 一并传给后续页面。

@@ -203,6 +203,7 @@
     "fix": "npm run lint -- --fix",
     "i18n-clean-empty": "npm run mmjstool -- i18n clean-empty --mobile-dir .",
     "i18n-extract": "npm run mmjstool -- i18n extract-mobile",
+    "i18n-sync": "python3 scripts/sync_i18n.py",
     "ios": "react-native run-ios",
     "ios-gems": "bundle install",
     "ios-gems-m1": "arch -arm64 bundle install",

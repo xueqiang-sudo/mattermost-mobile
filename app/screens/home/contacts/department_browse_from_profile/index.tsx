@@ -14,6 +14,7 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import ContactsDepartmentDetail from '../department_detail';
+
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type StackLevel = {
@@ -150,7 +151,10 @@ const ContactsDepartmentBrowseFromProfile = ({
                         color={theme.sidebarHeaderTextColor}
                     />
                 </TouchableOpacity>
-                <View style={styles.headerTitleWrap} pointerEvents='box-none'>
+                <View
+                    style={styles.headerTitleWrap}
+                    pointerEvents='box-none'
+                >
                     <Text
                         style={styles.headerTitle}
                         numberOfLines={1}

@@ -189,8 +189,11 @@ const ContactsBatchSetMemberInfo = ({
     const toggleMember = useCallback((id: string) => {
         setSelectedIds((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
             return next;
         });
     }, []);
@@ -219,14 +222,22 @@ const ContactsBatchSetMemberInfo = ({
         }
         setSubmitting(true);
         const updates: { position?: string; phone?: string; email?: string } = {};
-        if (position.trim()) updates.position = position.trim();
-        if (phone.trim()) updates.phone = phone.trim();
-        if (email.trim()) updates.email = email.trim();
+        if (position.trim()) {
+            updates.position = position.trim();
+        }
+        if (phone.trim()) {
+            updates.phone = phone.trim();
+        }
+        if (email.trim()) {
+            updates.email = email.trim();
+        }
 
         let failed = 0;
         for (const employeeId of selectedIds) {
             const res = await updateContactEmployee(employeeId, updates);
-            if (res.error) failed += 1;
+            if (res.error) {
+                failed += 1;
+            }
         }
         setSubmitting(false);
 
@@ -247,25 +258,49 @@ const ContactsBatchSetMemberInfo = ({
     useAndroidHardwareBackHandler(componentId, handleClose);
 
     return (
-        <SafeAreaView edges={['bottom']} style={styles.flex} testID='contacts.batch_set_member_info.screen'>
+        <SafeAreaView
+            edges={['bottom']}
+            style={styles.flex}
+            testID='contacts.batch_set_member_info.screen'
+        >
             <View style={styles.header}>
-                <View style={styles.headerLeftSpacer} />
+                <View style={styles.headerLeftSpacer}/>
                 <Text style={styles.headerTitle}>
                     {intl.formatMessage({id: 'contacts.batch_set_member_info', defaultMessage: 'Batch set member info'})}
                 </Text>
                 <View style={styles.headerCloseWrap}>
-                    <TouchableOpacity onPress={handleClose} testID='contacts.batch_set.close'>
-                        <CompassIcon name='close' size={24} color={theme.sidebarText} />
+                    <TouchableOpacity
+                        onPress={handleClose}
+                        testID='contacts.batch_set.close'
+                    >
+                        <CompassIcon
+                            name='close'
+                            size={24}
+                            color={theme.sidebarText}
+                        />
                     </TouchableOpacity>
                 </View>
             </View>
-            <ScrollView style={styles.flex} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={styles.flex}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
                 <Text style={styles.sectionLabel}>
                     {intl.formatMessage({id: 'contacts.select_members', defaultMessage: 'Select members'})}
                 </Text>
-                <TouchableOpacity style={styles.selectRow} onPress={handleToggleMembersExpanded} activeOpacity={0.7} testID='contacts.batch_set.select_members'>
+                <TouchableOpacity
+                    style={styles.selectRow}
+                    onPress={handleToggleMembersExpanded}
+                    activeOpacity={0.7}
+                    testID='contacts.batch_set.select_members'
+                >
                     <View style={styles.selectRowIcon}>
-                        <CompassIcon name='plus' size={20} color='#fff' />
+                        <CompassIcon
+                            name='plus'
+                            size={20}
+                            color='#fff'
+                        />
                     </View>
                     <Text style={styles.selectRowText}>
                         {intl.formatMessage({id: 'contacts.select_members', defaultMessage: 'Select members'})}
@@ -287,12 +322,22 @@ const ContactsBatchSetMemberInfo = ({
                                 testID={`contacts.batch_set.member.${emp.id}`}
                             >
                                 <View style={[styles.checkbox, selectedIds.has(emp.id) ? styles.checkboxSelected : styles.checkboxUnselected]}>
-                                    {selectedIds.has(emp.id) && <CompassIcon name='check' size={14} color='#fff' />}
+                                    {selectedIds.has(emp.id) && <CompassIcon
+                                        name='check'
+                                        size={14}
+                                        color='#fff'
+                                                                />}
                                 </View>
                                 <View style={styles.listItemAvatar}>
-                                    <ContactAvatar employee={emp} size={36} />
+                                    <ContactAvatar
+                                        employee={emp}
+                                        size={36}
+                                    />
                                 </View>
-                                <Text style={styles.listItemName} numberOfLines={1}>{emp.name}</Text>
+                                <Text
+                                    style={styles.listItemName}
+                                    numberOfLines={1}
+                                >{emp.name}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>

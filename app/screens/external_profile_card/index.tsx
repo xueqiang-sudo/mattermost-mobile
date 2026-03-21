@@ -8,8 +8,8 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, Modal, Platform, ScrollView, Text, TouchableOpacity, View, StyleSheet} from 'react-native';
 import Share from 'react-native-share';
-import tinyColor from 'tinycolor2';
 import ViewShot from 'react-native-view-shot';
+import tinyColor from 'tinycolor2';
 
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';

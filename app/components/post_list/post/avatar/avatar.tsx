@@ -26,6 +26,7 @@ type AvatarProps = {
     isAutoReponse: boolean;
     location: AvailableScreens;
     post: PostModel;
+
     /** When true, use rounded square (WeChat/WeCom style) instead of circle */
     useRoundedSquare?: boolean;
 }

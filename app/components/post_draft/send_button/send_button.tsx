@@ -20,6 +20,9 @@ type Props = {
     showScheduledPostOptions: () => void;
     scheduledPostFeatureTooltipWatched: boolean;
     scheduledPostEnabled: boolean;
+
+    /** 微信风格：圆形绿色发送键 */
+    weChatCompact?: boolean;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
@@ -48,8 +51,29 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             width: 250,
             height: 140,
         },
+        sendButtonWeChat: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        sendButtonWeChatActive: {
+            backgroundColor: '#07C160',
+        },
+        sendButtonWeChatDisabled: {
+            backgroundColor: changeOpacity('#07C160', 0.35),
+        },
+        sendButtonContainerWeChat: {
+            justifyContent: 'flex-end',
+            paddingRight: 2,
+            paddingLeft: 2,
+            marginBottom: 2,
+        },
     };
 });
+
+const WECHAT_SEND_ICON = '#FFFFFF';
 
 const SendButton: React.FC<Props> = ({
     testID,
@@ -58,6 +82,7 @@ const SendButton: React.FC<Props> = ({
     showScheduledPostOptions,
     scheduledPostFeatureTooltipWatched,
     scheduledPostEnabled,
+    weChatCompact,
 }: Props) => {
     const theme = useTheme();
     const sendButtonTestID = `${testID}.send.button` + (disabled ? '.disabled' : '');
@@ -83,9 +108,17 @@ const SendButton: React.FC<Props> = ({
         storeScheduledPostTutorial();
     }, []);
 
-    const viewStyle = useMemo(() => [style.sendButton, disabled ? style.disableButton : {}], [disabled, style]);
+    const viewStyle = useMemo(() => {
+        if (weChatCompact) {
+            return [
+                style.sendButtonWeChat,
+                disabled ? style.sendButtonWeChatDisabled : style.sendButtonWeChatActive,
+            ];
+        }
+        return [style.sendButton, disabled ? style.disableButton : {}];
+    }, [disabled, style, weChatCompact]);
 
-    const buttonColor = disabled ? changeOpacity(theme.buttonColor, 0.5) : theme.buttonColor;
+    const buttonColor = weChatCompact ? (disabled ? changeOpacity(WECHAT_SEND_ICON, 0.5) : WECHAT_SEND_ICON) : (disabled ? changeOpacity(theme.buttonColor, 0.5) : theme.buttonColor);
 
     const sendMessageWithDoubleTapPrevention = usePreventDoubleTap(sendMessage);
 
@@ -93,7 +126,7 @@ const SendButton: React.FC<Props> = ({
         <TouchableWithFeedback
             testID={sendButtonTestID}
             onPress={sendMessageWithDoubleTapPrevention}
-            style={style.sendButtonContainer}
+            style={weChatCompact ? style.sendButtonContainerWeChat : style.sendButtonContainer}
             type={'opacity'}
             disabled={disabled}
             onLongPress={scheduledPostEnabled ? showScheduledPostOptions : undefined}
@@ -109,7 +142,7 @@ const SendButton: React.FC<Props> = ({
                 <View style={viewStyle}>
                     <CompassIcon
                         name='send'
-                        size={24}
+                        size={weChatCompact ? 20 : 24}
                         color={buttonColor}
                     />
                 </View>

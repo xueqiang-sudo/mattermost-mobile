@@ -8,6 +8,7 @@ const mockDelete = jest.fn();
 
 const mockDiskFiles = new Map<string, string>();
 const mockDiskDirs = new Set<string>();
+
 /** 测试用：覆盖所有磁盘缓存文件的 modificationTime（秒时间戳），用于验证 7 天过期逻辑 */
 let mockDiskFileModificationTimeOverride: number | undefined;
 const mockDocumentDirectory = '/mock-doc/';

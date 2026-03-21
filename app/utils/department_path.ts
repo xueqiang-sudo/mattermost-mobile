@@ -69,15 +69,15 @@ export function getNavigationalPathView(
             label,
             originalIndex: i,
         }));
-        return { items, fullSegments, middleSegments: [] };
+        return {items, fullSegments, middleSegments: []};
     }
     const first = fullSegments[0];
     const last = fullSegments[fullSegments.length - 1];
     const middleSegments = fullSegments.slice(1, -1);
     const items: NavigationalPathItem[] = [
-        { type: 'segment', label: first, originalIndex: 0 },
-        { type: 'ellipsis', label: '...' },
-        { type: 'segment', label: last, originalIndex: fullSegments.length - 1 },
+        {type: 'segment', label: first, originalIndex: 0},
+        {type: 'ellipsis', label: '...'},
+        {type: 'segment', label: last, originalIndex: fullSegments.length - 1},
     ];
-    return { items, fullSegments, middleSegments };
+    return {items, fullSegments, middleSegments};
 }

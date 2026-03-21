@@ -10,6 +10,10 @@ import NavigationStore from '@store/navigation_store';
 import {
     blendColors,
     changeOpacity,
+    getChatBubbleBackground,
+    getChatBubbleBorderColor,
+    getChatBubbleOwnTextColor,
+    getChatListBackdropColor,
     getComponents,
     getKeyboardAppearanceFromTheme,
     hexToHue,
@@ -186,6 +190,31 @@ describe('blendColors', () => {
         const opacity = 0.5;
         const result = blendColors(background, foreground, opacity, true);
         expect(result).toBe('#7f007f');
+    });
+});
+
+describe('chat list / bubble surfaces', () => {
+    it('should return a backdrop color for light channel', () => {
+        const backdrop = getChatListBackdropColor(themes.denim);
+        expect(backdrop).toMatch(/^#/);
+        expect(backdrop).not.toBe(themes.denim.centerChannelBg);
+    });
+
+    it('should return white others bubble on light backdrop', () => {
+        const bg = getChatBubbleBackground(themes.denim, 'others');
+        expect(bg.toLowerCase()).toBe('#ffffff');
+    });
+
+    it('should return readable own-bubble text for light and dark themes', () => {
+        expect(getChatBubbleOwnTextColor(themes.denim)).toBe('#111111');
+        const onyxOwnText = getChatBubbleOwnTextColor(themes.onyx);
+        expect(onyxOwnText).toMatch(/^#/);
+        expect(onyxOwnText.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('should return border color with opacity', () => {
+        const border = getChatBubbleBorderColor(themes.denim);
+        expect(border.startsWith('rgba(')).toBe(true);
     });
 });
 

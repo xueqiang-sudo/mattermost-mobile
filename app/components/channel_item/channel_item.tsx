@@ -93,6 +93,7 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     iconWrapper: {
         position: 'relative' as const,
     },
+
     // 未读徽章：右上角叠加显示，圆形，>99 显示 99+，参考微信/企微
     iconBadge: {
         position: 'absolute' as const,
@@ -216,6 +217,7 @@ const ChannelItem = ({
     ], [height, showActive, styles, isOnHome]);
 
     const showIconBadge = isOnHome && (mentionsCount > 0 || (isUnread && !isMuted));
+
     // 传入实际数量，Badge 组件会在 >99 时显示 "99+"
     const badgeValue = mentionsCount > 0 ? mentionsCount : (isUnread && messageCount > 0 ? messageCount : -1);
     const subtitle = formatMessagePreview(lastPostPreview);
@@ -245,11 +247,11 @@ const ChannelItem = ({
                     />
                     {showIconBadge && (
                         <Badge
-                            visible
+                            visible={true}
                             value={badgeValue}
-                            type="Small"
-                            backgroundColor="#FF3B30"
-                            color="#FFFFFF"
+                            type='Small'
+                            backgroundColor='#FF3B30'
+                            color='#FFFFFF'
                             borderColor={isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg}
                             style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg, styles.iconBadge]}
                         />
@@ -261,7 +263,7 @@ const ChannelItem = ({
                             <ChannelBody
                                 displayName={displayName}
                                 isMuted={isMuted}
-                                teamDisplayName=""
+                                teamDisplayName=''
                                 teammateId={teammateId}
                                 testId={channelItemTestId}
                                 textStyles={textStyles}
@@ -284,7 +286,7 @@ const ChannelItem = ({
                         {Boolean(subtitle) && (
                             <Text
                                 numberOfLines={1}
-                                ellipsizeMode="tail"
+                                ellipsizeMode='tail'
                                 style={[styles.subtitle, isMuted && styles.muted, isOnCenterBg && styles.subtitleOnCenterBg]}
                             >
                                 {subtitle}
@@ -314,7 +316,7 @@ const ChannelItem = ({
                         />
                         {hasCall && (
                             <CompassIcon
-                                name="phone-in-talk"
+                                name='phone-in-talk'
                                 size={16}
                                 style={[textStyles, styles.hasCall]}
                             />

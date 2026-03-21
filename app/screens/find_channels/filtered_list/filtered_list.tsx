@@ -6,7 +6,6 @@ import {useIntl} from 'react-intl';
 import {Alert, FlatList, type ListRenderItemInfo, Platform, StyleSheet, View} from 'react-native';
 import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 
-import {General} from '@constants';
 import {switchToGlobalThreads} from '@actions/local/thread';
 import {joinChannelIfNeeded, makeDirectChannel, searchAllChannels, switchToChannelById} from '@actions/remote/channel';
 import {searchProfiles} from '@actions/remote/user';
@@ -15,6 +14,7 @@ import Loading from '@components/loading';
 import NoResultsWithTerm from '@components/no_results_with_term';
 import ThreadsButton from '@components/threads_button';
 import UserItem from '@components/user_item';
+import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useDebounce} from '@hooks/utils';
@@ -22,7 +22,6 @@ import {sortChannelsByDisplayName} from '@utils/channel';
 import {displayUsername} from '@utils/user';
 
 import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
-
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type UserModel from '@typings/database/models/servers/user';
 

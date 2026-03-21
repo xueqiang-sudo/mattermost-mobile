@@ -9,7 +9,6 @@ import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-nati
 import {logout} from '@actions/remote/session';
 import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
 import CompassIcon from '@components/compass_icon';
-import {findChannels} from '@screens/navigation';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
@@ -18,6 +17,7 @@ import {useLeftDrawer} from '@context/left_drawer';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {findChannels} from '@screens/navigation';
 import {bottomSheet} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {alertPushProxyError, alertPushProxyUnknown} from '@utils/push_proxy';

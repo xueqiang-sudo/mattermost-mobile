@@ -31,6 +31,9 @@ import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type HeaderProps = {
+
+    /** 微信风格：名字与头像顶部对齐 */
+    alignWithAvatar?: boolean;
     author?: UserModel;
     commentCount: number;
     currentUser?: UserModel;
@@ -58,6 +61,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 1,
             marginTop: 10,
         },
+        containerAlignAvatar: {
+            marginTop: 2,
+        },
         pendingPost: {
             opacity: 0.5,
         },
@@ -82,6 +88,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 
 const Header = (props: HeaderProps) => {
     const {
+        alignWithAvatar,
         author, commentCount = 0, currentUser, enablePostUsernameOverride, isAutoResponse, isCRTEnabled, isCustomStatusEnabled,
         isEphemeral, isMilitaryTime, isPendingOrFailed, isSystemPost, isWebHook,
         location, post, rootPostAuthor, showPostPriority, shouldRenderReplyButton, teammateNameDisplay, hideGuestTags,
@@ -113,7 +120,7 @@ const Header = (props: HeaderProps) => {
 
     return (
         <>
-            <View style={[style.container, pendingPostStyle]}>
+            <View style={[style.container, alignWithAvatar && style.containerAlignAvatar, pendingPostStyle]}>
                 <View style={style.wrapper}>
                     <HeaderDisplayName
                         channelId={post.channelId}

@@ -14,12 +14,14 @@ import RoundedHeaderContext from '@components/rounded_header_context';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
 import {Screens} from '@constants';
 import {ExtraKeyboardProvider} from '@context/extra_keyboard';
+import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useDidUpdate from '@hooks/did_update';
 import SecurityManager from '@managers/security_manager';
 import {popTopScreen, setButtons} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
+import {getChatListBackdropColor} from '@utils/theme';
 
 import ThreadPostList from './thread_post_list';
 
@@ -53,6 +55,7 @@ const Thread = ({
     showIncomingCalls,
     scheduledPostCount,
 }: ThreadProps) => {
+    const theme = useTheme();
     const [containerHeight, setContainerHeight] = useState(0);
 
     const close = useCallback(() => {
@@ -123,7 +126,7 @@ const Thread = ({
                 <RoundedHeaderContext/>
                 {Boolean(rootPost) &&
                 <ExtraKeyboardProvider>
-                    <View style={styles.flex}>
+                    <View style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}>
                         <ThreadPostList
                             nativeID={rootId}
                             rootPost={rootPost!}

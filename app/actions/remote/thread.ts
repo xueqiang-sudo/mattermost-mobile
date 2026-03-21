@@ -53,6 +53,7 @@ export const fetchAndSwitchToThread = async (
     rootId: string,
     isFromNotification = false,
     groupLabel?: RequestGroupLabel,
+
     /** 为 true 时忽略频道内禁用策略（主题 modal、推送、冷启动恢复话题等） */
     bypassChannelThreadDisable = false,
 ) => {

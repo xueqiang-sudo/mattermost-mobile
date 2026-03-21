@@ -6,15 +6,14 @@ import {defineMessages, useIntl} from 'react-intl';
 import {Platform, SectionList, type SectionListRenderItemInfo, StyleSheet} from 'react-native';
 import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 
-import {General} from '@constants';
 import {switchToChannelById} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
+import {General} from '@constants';
 import {useServerUrl} from '@context/server';
-
-import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
 
 import FindChannelsHeader from './header';
 
+import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
 import type ChannelModel from '@typings/database/models/servers/channel';
 
 const isGroupChannel = (c: ChannelModel) => c.type === General.GM_CHANNEL || c.type === General.OPEN_CHANNEL || c.type === General.PRIVATE_CHANNEL;
@@ -43,7 +42,7 @@ const style = StyleSheet.create({
 const buildSections = (recentChannels: ChannelModel[], category: FindChannelsCategory) => {
     const filtered = category === 'all' ? recentChannels :
         category === 'contacts' ? recentChannels.filter(isDirectChannel) :
-        recentChannels.filter(isGroupChannel);
+            recentChannels.filter(isGroupChannel);
     const sections = [];
     if (filtered.length) {
         sections.push({

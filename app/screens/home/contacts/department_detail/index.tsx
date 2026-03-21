@@ -8,6 +8,7 @@ import {Navigation} from 'react-native-navigation';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchContactDirectoryContent, fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact';
+import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
@@ -25,7 +26,6 @@ import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-department-detail';
@@ -35,14 +35,17 @@ const DEPT_MANAGE_BUTTON_ID = 'contacts-department-detail-manage';
 type Props = {
     componentId: AvailableScreens;
     closeButtonId?: string;
+
     /** null 表示根目录（企业通讯录） */
     departmentId: number | null;
     departmentName: string;
     breadcrumb?: string[];
     companyId: string;
     companyName?: string;
+
     /** 从通讯录栈 push 进入时为 true，返回用 pop；否则为 modal，返回用 dismiss */
     isStackScreen?: boolean;
+
     /** React Navigation 栈内时由 wrapper 传入，替代 RNN 的返回/子部门/面包屑 */
     onBack?: () => void;
     onNavigateToDepartment?: (params: {
@@ -53,8 +56,10 @@ type Props = {
         companyName?: string;
     }) => void;
     onBreadcrumbPress?: (toDismiss: number) => void;
+
     /** 从个人信息页部门浏览 Wrapper 内嵌时为 true：不渲染顶栏与搜索/管理按钮，由 Wrapper 提供返回/关闭 */
     fromEmployeeProfile?: boolean;
+
     /** 通讯录 Tab 所在 RNN Home；关管理弹窗后 Home willAppear，栈内部门页据此刷新 */
     rnnHomeComponentId?: string;
 };
@@ -708,7 +713,10 @@ const ContactsDepartmentDetail = ({
                                     activeOpacity={0.7}
                                     testID='contacts.department_detail.breadcrumb.ellipsis'
                                 >
-                                    <Text style={styles.breadcrumbEllipsisText} numberOfLines={1}>
+                                    <Text
+                                        style={styles.breadcrumbEllipsisText}
+                                        numberOfLines={1}
+                                    >
                                         {pathItem.label}
                                     </Text>
                                 </TouchableOpacity>

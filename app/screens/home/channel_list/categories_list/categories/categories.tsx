@@ -73,6 +73,7 @@ const Categories = ({
     const onChannelSwitch = useCallback(async (c: Channel | ChannelModel) => {
         DeviceEventEmitter.emit(Events.ACTIVE_SCREEN, CHANNEL);
         PerformanceMetricsManager.startMetric('mobile_channel_switch');
+
         // console.error('qgstest onChannelSwitch', c.id, c);
         // switchToChannelById(serverUrl, 'jxt7qqgf9pd7uy3zjpr4kmi1tr');
         switchToChannelById(serverUrl, c.id);

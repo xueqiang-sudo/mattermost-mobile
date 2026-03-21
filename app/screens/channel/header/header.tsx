@@ -188,7 +188,7 @@ const ChannelHeader = ({
         if (callsAvailable && !isDMorGM) {
             items += 1;
         }
-        if (hasPlaybookRuns && !isDMorGM) {
+        if (isPlaybooksEnabled && !isDMorGM) {
             items += 1;
         }
         let height = CHANNEL_ACTIONS_OPTIONS_HEIGHT + SEPARATOR_HEIGHT + MARGIN + (items * ITEM_HEIGHT);
@@ -201,8 +201,10 @@ const ChannelHeader = ({
                 <QuickActions
                     channelId={channelId}
                     callsEnabled={callsAvailable}
+                    channelDisplayName={displayName ?? ''}
                     isDMorGM={isDMorGM}
-                    hasPlaybookRuns={hasPlaybookRuns}
+                    isPlaybooksEnabled={isPlaybooksEnabled}
+                    playbooksActiveRuns={playbooksActiveRuns}
                 />
             );
         };
@@ -214,7 +216,7 @@ const ChannelHeader = ({
             theme,
             closeButtonId: 'close-channel-quick-actions',
         });
-    }, [isTablet, callsAvailable, isDMorGM, hasPlaybookRuns, theme, onTitlePress, channelId]);
+    }, [isTablet, callsAvailable, isDMorGM, hasPlaybookRuns, isPlaybooksEnabled, playbooksActiveRuns, displayName, theme, onTitlePress, channelId]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead
@@ -239,7 +241,9 @@ const ChannelHeader = ({
 
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
-        if (isPlaybooksEnabled && !isDMorGM) {
+
+        // 手机微信风格：仅保留「…」，Playbook 等收入底部菜单
+        if (isTablet && isPlaybooksEnabled && !isDMorGM) {
             buttons.push({
                 iconName: 'product-playbooks',
                 onPress: openPlaybooksRuns,
@@ -248,38 +252,43 @@ const ChannelHeader = ({
             });
         }
 
-        // {
-        //     iconName: 'magnify',
-        //     onPress: () => {
-        //         DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: 'Search', params: {searchTerm: `in: ${searchTerm}`}});
-        //         if (!isTablet) {
-        //             popTopScreen(componentId);
-        //         }
-        //     },
-        // },
         buttons.push({
-            iconName: Platform.select({android: 'dots-vertical', default: 'dots-horizontal'}),
+            iconName: 'dots-horizontal',
             onPress: onChannelQuickAction,
             buttonType: 'opacity',
             testID: 'channel_header.channel_quick_actions.button',
         });
 
         return buttons;
-    }, [isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, onChannelQuickAction, openPlaybooksRuns]);
+    }, [isTablet, isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, onChannelQuickAction, openPlaybooksRuns]);
 
     let title = displayName;
     if (isOwnDirectMessage) {
         title = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
 
-    let subtitle;
-    if (memberCount) {
+    // 手机微信风格：标题单行含人数，如「频道名 (7)」
+    const weChatPhoneTitle = !isTablet && Boolean(memberCount) && channelType !== General.DM_CHANNEL;
+    if (weChatPhoneTitle && memberCount) {
+        title = intl.formatMessage(
+            {id: 'channel_header.title_with_member_count', defaultMessage: '{name} ({count})'},
+            {name: displayName, count: memberCount},
+        );
+    }
+
+    let subtitle: string | undefined;
+    if (weChatPhoneTitle) {
+        subtitle = undefined;
+    } else if (memberCount) {
         subtitle = intl.formatMessage({id: 'channel_header.member_count', defaultMessage: '{count, plural, one {# member} other {# members}}'}, {count: memberCount});
     } else if (!customStatus || !customStatus.text || isCustomStatusExpired) {
         subtitle = intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
     }
 
     const subtitleCompanion = useMemo(() => {
+        if (weChatPhoneTitle) {
+            return undefined;
+        }
         if (memberCount || !customStatus || !customStatus.text || isCustomStatusExpired) {
             return (
                 <CompassIcon
@@ -313,7 +322,7 @@ const ChannelHeader = ({
         }
 
         return undefined;
-    }, [memberCount, customStatus, isCustomStatusExpired, theme.sidebarHeaderTextColor, styles.customStatusContainer, styles.customStatusEmoji, styles.customStatusText, styles.subtitle, isCustomStatusEnabled]);
+    }, [weChatPhoneTitle, memberCount, customStatus, isCustomStatusExpired, theme.sidebarHeaderTextColor, styles.customStatusContainer, styles.customStatusEmoji, styles.customStatusText, styles.subtitle, isCustomStatusEnabled]);
 
     useEffect(() => {
         const asyncEffect = async () => {

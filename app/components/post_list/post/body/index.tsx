@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {type LayoutChangeEvent, type StyleProp, View, type ViewStyle} from 'react-native';
+import {type LayoutChangeEvent, type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle} from 'react-native';
 
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
@@ -12,7 +12,7 @@ import {THREAD} from '@constants/screens';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
 import {PLAYBOOKS_UPDATE_STATUS_POST_TYPE} from '@playbooks/constants/plugin';
 import {isEdited as postEdited, isPostFailed} from '@utils/post';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {getChatBubbleBackground, getChatBubbleBorderColor, getChatBubbleOwnTextColor, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Acknowledgements from './acknowledgements';
 import AddMembers from './add_members';
@@ -56,6 +56,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignContent: 'flex-start',
             marginTop: 12,
         },
+        ackAndReactionsOwnWeChat: {
+            flex: 0,
+            alignSelf: 'flex-end',
+            justifyContent: 'flex-end',
+        },
         bubble: {
             borderRadius: 12,
             maxWidth: '85%',
@@ -63,20 +68,59 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             paddingHorizontal: 12,
             paddingVertical: 8,
         },
-        bubbleOthers: {
-            backgroundColor: theme.centerChannelBg,
-            borderTopLeftRadius: 2,
+
+        /** 微信风格：小圆角 5px */
+        bubbleWeChat: {
+            borderRadius: 5,
         },
-        bubbleOwn: {
-            backgroundColor: theme.buttonBg,
-            borderTopRightRadius: 2,
+
+        /** 微信风格：气泡+尾巴容器，overflow 可见以显示三角箭头 */
+        bubbleWithTailWrapper: {
+            flexDirection: 'row',
+            alignSelf: 'flex-start',
         },
-        bubbleOwnText: {
-            color: theme.buttonColor,
+        bubbleWithTailWrapperOwn: {
+            alignSelf: 'flex-end',
+        },
+
+        /** 气泡三角尾巴：向左指（他人消息） */
+        bubbleTailLeft: {
+            width: 0,
+            height: 0,
+            borderTopWidth: 5,
+            borderBottomWidth: 5,
+            borderRightWidth: 6,
+            borderTopColor: 'transparent',
+            borderBottomColor: 'transparent',
+            marginRight: -1,
+            marginTop: 8,
+        },
+
+        /** 气泡三角尾巴：向右指（本人消息），borderLeftColor 需动态传入 */
+        bubbleTailRight: {
+            width: 0,
+            height: 0,
+            borderLeftWidth: 6,
+            borderTopWidth: 5,
+            borderBottomWidth: 5,
+            borderTopColor: 'transparent',
+            borderBottomColor: 'transparent',
+            marginLeft: -1,
+            marginTop: 8,
+        },
+
+        /** Own messages: bubble hugs content and sits at the end of the (narrow) column — WeChat-style. */
+        bubbleOwnWeChat: {
+            maxWidth: '100%',
+            alignSelf: 'flex-end',
         },
         messageBody: {
             paddingVertical: 2,
             flex: 1,
+        },
+        messageBodyOwnWeChat: {
+            flex: 0,
+            alignSelf: 'stretch',
         },
         messageContainer: {width: '100%'},
         replyBar: {
@@ -100,13 +144,19 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         messageContainerWithReplyBar: {
             flexDirection: 'row',
+        },
+        messageContainerFullWidth: {
             width: '100%',
+        },
+        messageRowOwnWeChat: {
+            alignSelf: 'flex-end',
+            maxWidth: '100%',
         },
     };
 });
 
 const useWeChatStyle = (location: AvailableScreens) =>
-    location === Screens.CHANNEL || location === Screens.PERMALINK;
+    location === Screens.CHANNEL || location === Screens.PERMALINK || location === Screens.THREAD;
 
 const Body = ({
     appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
@@ -155,6 +205,36 @@ const Body = ({
         }
     }, [location]);
 
+    const weChatStyleActive = useWeChatStyle(location);
+    const chatBubbleSurface = useMemo(() => {
+        if (!weChatStyleActive) {
+            return null;
+        }
+        return {
+            ownBg: getChatBubbleBackground(theme, 'own'),
+            othersBg: getChatBubbleBackground(theme, 'others'),
+            border: getChatBubbleBorderColor(theme),
+            ownText: getChatBubbleOwnTextColor(theme),
+        };
+    }, [theme, weChatStyleActive]);
+
+    const showBubble = weChatStyleActive && !hasBeenDeleted;
+    const bubbleStyle = useMemo(() => {
+        if (!showBubble || !chatBubbleSurface) {
+            return undefined;
+        }
+        const base = [style.bubble, style.bubbleWeChat];
+        if (isOwnPost) {
+            return [...base, style.bubbleOwnWeChat, {backgroundColor: chatBubbleSurface.ownBg, borderTopRightRadius: 0}];
+        }
+        return [...base, {
+            backgroundColor: chatBubbleSurface.othersBg,
+            borderWidth: StyleSheet.hairlineWidth * 2,
+            borderColor: chatBubbleSurface.border,
+            borderTopLeftRadius: 0,
+        }];
+    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleWeChat]);
+
     if (hasBeenDeleted) {
         body = (
             <FormattedText
@@ -180,19 +260,19 @@ const Body = ({
             />
         );
     } else if (isJumboEmoji) {
-        const weChatOwnBubble = useWeChatStyle(location) && isOwnPost;
+        const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <JumboEmoji
-                baseTextStyle={weChatOwnBubble ? style.bubbleOwnText : style.message}
+                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} as TextStyle : style.message}
                 isEdited={isEdited}
                 value={post.message}
             />
         );
     } else if (post.message.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
-        const weChatOwnBubble = useWeChatStyle(location) && isOwnPost;
+        const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <Message
-                baseTextStyle={weChatOwnBubble ? style.bubbleOwnText : undefined}
+                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} as TextStyle : undefined}
                 highlight={highlight}
                 isEdited={isEdited}
                 isPendingOrFailed={isPendingOrFailed}
@@ -210,7 +290,7 @@ const Body = ({
     const reactionsVisible = hasReactions && showAddReaction;
     if (!hasBeenDeleted) {
         body = (
-            <View style={style.messageBody}>
+            <View style={[style.messageBody, weChatStyleActive && isOwnPost && style.messageBodyOwnWeChat]}>
                 {message}
                 {hasContent &&
                 <Content
@@ -231,7 +311,7 @@ const Body = ({
                 />
                 }
                 {(acknowledgementsVisible || reactionsVisible) && (
-                    <View style={style.ackAndReactionsContainer}>
+                    <View style={[style.ackAndReactionsContainer, weChatStyleActive && isOwnPost && style.ackAndReactionsOwnWeChat]}>
                         {acknowledgementsVisible && (
                             <Acknowledgements
                                 hasReactions={hasReactions}
@@ -253,16 +333,42 @@ const Body = ({
         );
     }
 
-    const showBubble = useWeChatStyle(location) && !hasBeenDeleted;
-    const bubbleStyle = showBubble ? [style.bubble, isOwnPost ? style.bubbleOwn : style.bubbleOthers] : undefined;
-
     const content = (
         <>
             <View style={replyBarStyle}/>
             {bubbleStyle ? (
-                <View style={bubbleStyle}>
-                    {body}
-                </View>
+                weChatStyleActive && chatBubbleSurface ? (
+                    <View
+                        style={[
+                            style.bubbleWithTailWrapper,
+                            isOwnPost && style.bubbleWithTailWrapperOwn,
+                        ]}
+                    >
+                        {!isOwnPost && (
+                            <View
+                                style={[
+                                    style.bubbleTailLeft,
+                                    {borderRightColor: chatBubbleSurface.othersBg},
+                                ]}
+                            />
+                        )}
+                        <View style={bubbleStyle}>
+                            {body}
+                        </View>
+                        {isOwnPost && (
+                            <View
+                                style={[
+                                    style.bubbleTailRight,
+                                    {borderLeftColor: chatBubbleSurface.ownBg},
+                                ]}
+                            />
+                        )}
+                    </View>
+                ) : (
+                    <View style={bubbleStyle}>
+                        {body}
+                    </View>
+                )
             ) : body}
             {isFailed &&
             <Failed
@@ -275,7 +381,10 @@ const Body = ({
 
     return (
         <View
-            style={style.messageContainerWithReplyBar}
+            style={[
+                style.messageContainerWithReplyBar,
+                weChatStyleActive && isOwnPost ? style.messageRowOwnWeChat : style.messageContainerFullWidth,
+            ]}
             onLayout={onLayout}
         >
             {content}

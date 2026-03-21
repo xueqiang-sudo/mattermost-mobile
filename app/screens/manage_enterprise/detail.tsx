@@ -3,8 +3,8 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useState} from 'react';
-import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {useIntl} from 'react-intl';
+import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {
@@ -20,26 +20,30 @@ import {deleteTeam, fetchTeamMemberCount, removeCurrentUserFromTeam} from '@acti
 import {type ContactCompany} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
-import {useServerUrl} from '@context/server';
-import {useTheme} from '@context/theme';
 import {Events} from '@constants';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
+import {useServerUrl} from '@context/server';
+import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {observeCurrentUser} from '@queries/servers/user';
 import {popTopScreen} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {observeCurrentUser} from '@queries/servers/user';
+
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
 
 type Props = {
     companyId: string;
     companyName?: string;
+
     /** 企业对应 Mattermost 团队（companyId = teamId），用于获取创建者判断解散权限 */
     isMattermostTeam?: boolean;
+
     /** 通讯录中是否有该企业记录 */
     hasContactCompanyRecord?: boolean;
+
     /** 是否为当前选中的企业 */
     isCurrentTeam?: boolean;
     currentUser?: UserModel;
@@ -399,7 +403,10 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             <>
                 <View style={styles.heroSection}>
                     <View style={[styles.avatarWrapper, avatarStyle]}>
-                        <Text style={styles.avatarText} numberOfLines={1}>
+                        <Text
+                            style={styles.avatarText}
+                            numberOfLines={1}
+                        >
                             {initials}
                         </Text>
                     </View>

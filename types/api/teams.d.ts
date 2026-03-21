@@ -29,6 +29,7 @@ type TeamType = 'O' | 'I';
 type Team = {
     id: string;
     create_at: number;
+
     /** Mattermost server may return creator_id for the team creator */
     creator_id?: string;
     update_at: number;
