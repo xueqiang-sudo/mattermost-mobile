@@ -162,7 +162,8 @@ const CreateOrEditChannel = ({
     }, [channel, displayName, purpose, header, type]);
 
     const isValidDisplayName = useCallback((): boolean => {
-        if (isDirect(channel)) {
+        // DM 不需要验证 displayName；GM 群聊需要验证
+        if (channel?.type === General.DM_CHANNEL) {
             return true;
         }
 
@@ -211,11 +212,13 @@ const CreateOrEditChannel = ({
 
         const patchChannel: ChannelPatch = {
             header,
-            ...!isDirect(channel) && {
-                display_name: displayName,
-                purpose,
-            },
         };
+        if (channel.type === General.GM_CHANNEL) {
+            patchChannel.display_name = displayName;
+        } else if (!isDirect(channel)) {
+            patchChannel.display_name = displayName;
+            patchChannel.purpose = purpose;
+        }
 
         setCanSave(false);
         const patchedChannel = await handlePatchChannel(serverUrl, channel.id, patchChannel);

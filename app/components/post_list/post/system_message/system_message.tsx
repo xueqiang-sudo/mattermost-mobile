@@ -20,6 +20,7 @@ import type {PrimitiveType} from 'intl-messageformat';
 
 type SystemMessageProps = {
     author?: UserModel;
+    compact?: boolean;
     location: AvailableScreens;
     post: PostModel;
 }
@@ -48,9 +49,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         container: {
             marginBottom: 5,
         },
+        containerCompact: {
+            alignSelf: 'center',
+            marginVertical: 4,
+        },
         systemMessage: {
             color: changeOpacity(theme.centerChannelColor, 0.6),
             ...typography('Body', 200, 'Regular'),
+        },
+        systemMessageCompact: {
+            color: changeOpacity(theme.centerChannelColor, 0.5),
+            fontSize: 12,
+            ...typography('Body', 75, 'Regular'),
         },
     };
 });
@@ -290,11 +300,14 @@ const systemMessageRenderers = {
     [Post.POST_TYPES.CHANNEL_UNARCHIVED]: renderUnarchivedMessage,
 };
 
-export const SystemMessage = ({post, location, author, hideGuestTags}: SystemMessageProps & { hideGuestTags: boolean}) => {
+export const SystemMessage = ({post, location, author, compact, hideGuestTags}: SystemMessageProps & { hideGuestTags: boolean}) => {
     const intl = useIntl();
     const theme = useTheme();
     const style = getStyleSheet(theme);
-    const styles = {messageStyle: style.systemMessage, containerStyle: style.container};
+    const styles = {
+        messageStyle: compact ? style.systemMessageCompact : style.systemMessage,
+        containerStyle: compact ? style.containerCompact : style.container,
+    };
 
     if (post.type === Post.POST_TYPES.GUEST_JOIN_CHANNEL) {
         return renderGuestJoinChannelMessage({post, author, location, styles, intl, theme}, hideGuestTags);

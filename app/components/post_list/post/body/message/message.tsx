@@ -18,8 +18,10 @@ import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
 import type {HighlightWithoutNotificationKey, SearchPattern} from '@typings/global/markdown';
 import type {AvailableScreens} from '@typings/screens/navigation';
+import type {TextStyle} from 'react-native';
 
 type MessageProps = {
+    baseTextStyle?: TextStyle;
     currentUser?: UserModel;
     isHighlightWithoutNotificationLicensed?: boolean;
     highlight: boolean;
@@ -56,13 +58,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const Message = ({currentUser, isHighlightWithoutNotificationLicensed, highlight, isEdited, isPendingOrFailed, isReplyPost, layoutWidth, location, post, searchPatterns, theme}: MessageProps) => {
+const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLicensed, highlight, isEdited, isPendingOrFailed, isReplyPost, layoutWidth, location, post, searchPatterns, theme}: MessageProps) => {
     const [open, setOpen] = useState(false);
     const [height, setHeight] = useState<number|undefined>();
     const dimensions = useWindowDimensions();
     const maxHeight = Math.round((dimensions.height * 0.5) + SHOW_MORE_HEIGHT);
     const animatedStyle = useShowMoreAnimatedStyle(height, maxHeight, open);
     const style = getStyleSheet(theme);
+    const textStyle = baseTextStyle ?? style.message;
 
     // We need to memoize these two values because they are actually getters that return a new list
     // on every render. We need to trust that changes in the currentUser will trigger the recalculation.
@@ -100,7 +103,7 @@ const Message = ({currentUser, isHighlightWithoutNotificationLicensed, highlight
                         onLayout={onLayout}
                     >
                         <Markdown
-                            baseTextStyle={style.message}
+                            baseTextStyle={textStyle}
                             channelId={post.channelId}
                             channelMentions={channelMentions}
                             imagesMetadata={post.metadata?.images}

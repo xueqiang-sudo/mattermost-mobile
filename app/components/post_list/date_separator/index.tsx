@@ -8,13 +8,15 @@ import FormattedDate, {type FormattedDateFormat} from '@components/formatted_dat
 import FormattedText from '@components/formatted_text';
 import {useTheme} from '@context/theme';
 import {isSameYear, isToday, isYesterday} from '@utils/datetime';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 type DateSeparatorProps = {
     date: number | Date;
     style?: StyleProp<Intersection<TextStyle, ViewStyle>>;
     timezone?: string | null;
+    /** WeChat/WeCom style: centered text only, no lines, smaller grey */
+    compact?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -23,6 +25,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'center',
             flexDirection: 'row',
             marginVertical: 8,
+        },
+        containerCompact: {
+            alignSelf: 'center',
+            marginVertical: 6,
         },
         line: {
             flex: 1,
@@ -34,6 +40,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             color: theme.centerChannelColor,
             marginHorizontal: 12,
             ...typography('Body', 75, 'SemiBold'),
+        },
+        dateCompact: {
+            color: changeOpacity(theme.centerChannelColor, 0.5),
+            fontSize: 12,
+            ...typography('Body', 75, 'Regular'),
         },
     };
 });
@@ -77,14 +88,26 @@ const RecentDate = (props: DateSeparatorProps) => {
 };
 
 const DateSeparator = (props: DateSeparatorProps) => {
+    const {compact, ...rest} = props;
     const theme = useTheme();
     const styles = getStyleSheet(theme);
+
+    if (compact) {
+        return (
+            <View style={[styles.containerCompact, props.style as StyleProp<ViewStyle>]}>
+                <RecentDate
+                    {...rest}
+                    style={styles.dateCompact}
+                />
+            </View>
+        );
+    }
 
     return (
         <View style={[styles.container, props.style as StyleProp<ViewStyle>]}>
             <View style={styles.line}/>
             <RecentDate
-                {...props}
+                {...rest}
                 style={styles.date}
             />
             <View style={styles.line}/>

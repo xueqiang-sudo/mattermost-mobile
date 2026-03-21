@@ -6,6 +6,7 @@ import PLAYBOOKS_SCREENS from '@playbooks/constants/screens';
 export const ABOUT = 'About';
 export const ACCOUNT = 'Account';
 export const ACCOUNT_MODAL = 'AccountModal';
+export const AI_AGENT = 'AIAgent';
 export const APPS_FORM = 'AppForm';
 export const BOTTOM_SHEET = 'BottomSheet';
 export const BROWSE_CHANNELS = 'BrowseChannels';
@@ -68,6 +69,7 @@ export const LOGIN = 'Login';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
 export const MENTIONS = 'Mentions';
 export const MFA = 'MFA';
+export const MY_HOMEPAGE = 'MyHomepage';
 export const ONBOARDING = 'Onboarding';
 export const PDF_VIEWER = 'PdfViewer';
 export const PERMALINK = 'Permalink';
@@ -116,6 +118,7 @@ export default {
     ABOUT,
     ACCOUNT,
     ACCOUNT_MODAL,
+    AI_AGENT,
     APPS_FORM,
     BOTTOM_SHEET,
     BROWSE_CHANNELS,
@@ -177,6 +180,7 @@ export default {
     MANAGE_CHANNEL_MEMBERS,
     MENTIONS,
     MFA,
+    MY_HOMEPAGE,
     ONBOARDING,
     PDF_VIEWER,
     PERMALINK,

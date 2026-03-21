@@ -27,12 +27,26 @@ export function displayUsername(user?: UserProfile | UserModel | null, locale?: 
     let name = useFallbackUsername ? getLocalizedMessage(locale || DEFAULT_LOCALE, displayUsernameMessages.someone.id, displayUsernameMessages.someone.defaultMessage) : '';
 
     if (user) {
+        const fullName = getFullName(user);
+        const nickname = (user.nickname || '').trim();
+
         if (teammateDisplayNameSetting === Preferences.DISPLAY_PREFER_NICKNAME) {
-            name = user.nickname || getFullName(user);
+            // 昵称优先：有姓名时显示「姓名 (昵称)」
+            if (nickname && fullName) {
+                name = `${fullName} (${nickname})`;
+            } else {
+                name = nickname || fullName;
+            }
         } else if (teammateDisplayNameSetting === Preferences.DISPLAY_PREFER_FULL_NAME) {
-            name = getFullName(user);
+            name = fullName;
         } else {
-            name = user.username;
+            // 项目要求：不直接显示 username，优先显示昵称，有姓名则一并显示
+            // 格式：昵称 (姓名) 或 仅昵称/仅姓名，均无时 fallback 到 username
+            if (nickname && fullName) {
+                name = `${nickname} (${fullName})`;
+            } else {
+                name = nickname || fullName;
+            }
         }
 
         if (!name || name.trim().length === 0) {

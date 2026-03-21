@@ -21,7 +21,10 @@ type SelectedChipProps = {
         onPress?: (id: string) => void;
     };
     showAnimation?: boolean;
+    avatarBorderRadius?: number;
 }
+
+const CHIP_AVATAR_SIZE = 20;
 
 export default function UserChip({
     testID,
@@ -30,6 +33,7 @@ export default function UserChip({
     onPress: receivedOnPress,
     action: receivedAction,
     showAnimation,
+    avatarBorderRadius,
 }: SelectedChipProps) {
     const intl = useIntl();
 
@@ -52,12 +56,13 @@ export default function UserChip({
     const picture = useMemo(() => (
         <ProfilePicture
             author={user}
-            size={20}
-            iconSize={20}
+            size={CHIP_AVATAR_SIZE}
+            iconSize={CHIP_AVATAR_SIZE}
             testID={`${testID}.profile_picture`}
             showStatus={false}
+            borderRadius={avatarBorderRadius}
         />
-    ), [testID, user]);
+    ), [testID, user, avatarBorderRadius]);
 
     return (
         <BaseChip

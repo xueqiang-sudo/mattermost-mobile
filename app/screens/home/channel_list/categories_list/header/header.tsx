@@ -9,6 +9,7 @@ import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-nati
 import {logout} from '@actions/remote/session';
 import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
 import CompassIcon from '@components/compass_icon';
+import {findChannels} from '@screens/navigation';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
@@ -67,6 +68,10 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.sidebarText, 0.8),
         fontSize: 24,
     },
+    rightButtonsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     plusButton: {
         backgroundColor: changeOpacity(theme.sidebarText, 0.08),
         height: PLUS_BUTTON_SIZE,
@@ -74,6 +79,15 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         borderRadius: PLUS_BUTTON_SIZE / 2,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    searchButton: {
+        backgroundColor: changeOpacity(theme.sidebarText, 0.08),
+        height: PLUS_BUTTON_SIZE,
+        width: PLUS_BUTTON_SIZE,
+        borderRadius: PLUS_BUTTON_SIZE / 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
     },
     plusIcon: {
         color: changeOpacity(theme.sidebarText, 0.8),
@@ -183,9 +197,16 @@ const ChannelListHeader = ({
             renderContent,
             snapPoints: [1, bottomSheetSnapPoint(items, ITEM_HEIGHT) + (separators * SEPARATOR_HEIGHT)],
             theme,
-            title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Options'}),
+            title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Start a conversation'}),
         });
     }, [intl, theme, canCreateChannels, canInvitePeople, canJoinChannels]));
+
+    const onSearchPress = usePreventDoubleTap(useCallback(() => {
+        findChannels(
+            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Find Channels'}),
+            theme,
+        );
+    }, [intl, theme]));
 
     const onPushAlertPress = useCallback(() => {
         if (pushProxyStatus === PUSH_PROXY_STATUS_NOT_AVAILABLE) {
@@ -258,18 +279,32 @@ const ChannelListHeader = ({
                         <LoadingUnreads/>
                     </View>
                 </View>
-                <TouchableWithFeedback
-                    hitSlop={hitSlop}
-                    onPress={onPress}
-                    style={styles.plusButton}
-                    testID='channel_list_header.plus.button'
-                    type='opacity'
-                >
-                    <CompassIcon
-                        style={styles.plusIcon}
-                        name='plus'
-                    />
-                </TouchableWithFeedback>
+                <View style={styles.rightButtonsContainer}>
+                    <TouchableWithFeedback
+                        hitSlop={hitSlop}
+                        onPress={onSearchPress}
+                        style={styles.searchButton}
+                        testID='channel_list_header.search.button'
+                        type='opacity'
+                    >
+                        <CompassIcon
+                            style={styles.plusIcon}
+                            name='magnify'
+                        />
+                    </TouchableWithFeedback>
+                    <TouchableWithFeedback
+                        hitSlop={hitSlop}
+                        onPress={onPress}
+                        style={styles.plusButton}
+                        testID='channel_list_header.plus.button'
+                        type='opacity'
+                    >
+                        <CompassIcon
+                            style={styles.plusIcon}
+                            name='plus'
+                        />
+                    </TouchableWithFeedback>
+                </View>
             </View>
         );
     } else {

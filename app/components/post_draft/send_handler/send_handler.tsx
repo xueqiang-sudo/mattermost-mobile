@@ -21,6 +21,7 @@ type Props = {
     channelName?: string;
     rootId: string;
     canShowPostPriority?: boolean;
+    useChatInputStyle?: boolean;
     setIsFocused: (isFocused: boolean) => void;
 
     // From database
@@ -74,6 +75,7 @@ export default function SendHandler({
     cursorPosition,
     rootId,
     canShowPostPriority,
+    useChatInputStyle,
     useChannelMentions,
     userIsOutOfOffice,
     customEmojis,
@@ -154,6 +156,7 @@ export default function SendHandler({
             currentUserId={currentUserId}
             rootId={rootId}
             canShowPostPriority={canShowPostPriority}
+            useChatInputStyle={useChatInputStyle}
             cursorPosition={cursorPosition}
             updateCursorPosition={updateCursorPosition}
             value={value}

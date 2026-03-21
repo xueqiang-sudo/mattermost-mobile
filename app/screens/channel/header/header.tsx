@@ -338,6 +338,7 @@ const ChannelHeader = ({
                 subtitle={subtitle}
                 subtitleCompanion={subtitleCompanion}
                 title={title}
+                useChatStyle={true}
             />
             <View style={contextStyle}>
                 <RoundedHeaderContext/>

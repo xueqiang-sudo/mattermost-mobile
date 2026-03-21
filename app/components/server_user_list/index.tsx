@@ -4,7 +4,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import UserList from '@components/user_list';
-import {General} from '@constants';
+import {General, Screens} from '@constants';
 import {useDebounce} from '@hooks/utils';
 import {filterProfilesMatchingTerm} from '@utils/user';
 
@@ -133,6 +133,7 @@ export default function ServerUserList({
             includeUserMargin={true}
             location={location}
             customSection={customSection}
+            contactSelectLayout={location === Screens.CREATE_DIRECT_MESSAGE}
         />
     );
 }

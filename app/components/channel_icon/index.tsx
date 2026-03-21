@@ -11,12 +11,17 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import DmAvatar from './dm_avatar';
+import GmAvatarGrid from './gm_avatar_grid';
+
+const ROUNDED_SQUARE_RATIO = 0.1;
 
 type ChannelIconProps = {
+    channelId?: string;
     hasDraft?: boolean;
     isActive?: boolean;
     isArchived?: boolean;
     isOnCenterBg?: boolean;
+    isOnHome?: boolean;
     isUnread?: boolean;
     isMuted?: boolean;
     membersCount?: number;
@@ -55,6 +60,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             borderRadius: 4,
             justifyContent: 'center',
         },
+        iconBox: {
+            alignItems: 'center',
+            backgroundColor: changeOpacity(theme.sidebarText, 0.16),
+            justifyContent: 'center',
+        },
         groupBoxActive: {
             backgroundColor: changeOpacity(theme.sidebarText, 0.3),
         },
@@ -63,6 +73,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         groupBoxOnCenterBg: {
             backgroundColor: changeOpacity(theme.centerChannelColor, 0.3),
+        },
+        townSquareBox: {
+            backgroundColor: changeOpacity(theme.sidebarTextActiveBorder || theme.linkColor, 0.2),
+        },
+        channelBox: {
+            backgroundColor: changeOpacity(theme.sidebarText, 0.2),
         },
         group: {
             color: theme.sidebarText,
@@ -87,8 +103,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 });
 
 const ChannelIcon = ({
+    channelId,
     hasDraft = false, isActive = false, isArchived = false,
-    isOnCenterBg = false, isUnread = false, isMuted = false,
+    isOnCenterBg = false, isOnHome = false, isUnread = false, isMuted = false,
     membersCount = 0, name,
     shared, size = 12, style, testID, type,
 }: ChannelIconProps) => {
@@ -125,6 +142,8 @@ const ChannelIcon = ({
         mutedStyle = styles.muted;
     }
 
+    const roundedSquareRadius = isOnHome ? Math.round(size * ROUNDED_SQUARE_RATIO) : undefined;
+
     const commonStyles: StyleProp<Intersection<TextStyle, ViewStyle>> = [
         style,
         mutedStyle,
@@ -138,9 +157,21 @@ const ChannelIcon = ({
         {fontSize: size},
     ];
 
+    const wrapIconInBox = (iconElement: React.ReactNode, variant?: 'town_square' | 'channel') => {
+        if (isOnHome) {
+            const variantStyle = variant === 'town_square' ? styles.townSquareBox : variant === 'channel' ? styles.channelBox : null;
+            return (
+                <View style={[styles.iconBox, variantStyle, unreadGroupBox, activeGroupBox, commonStyles, {width: size, height: size, borderRadius: roundedSquareRadius}]}>
+                    {iconElement}
+                </View>
+            );
+        }
+        return iconElement;
+    };
+
     let icon = null;
     if (isArchived) {
-        icon = (
+        icon = wrapIconInBox(
             <CompassIcon
                 name='archive-outline'
                 style={[
@@ -148,10 +179,10 @@ const ChannelIcon = ({
                     {left: 1},
                 ]}
                 testID={`${testID}.archive`}
-            />
+            />,
         );
     } else if (hasDraft) {
-        icon = (
+        icon = wrapIconInBox(
             <CompassIcon
                 name='pencil-outline'
                 style={[
@@ -159,12 +190,12 @@ const ChannelIcon = ({
                     {left: 2},
                 ]}
                 testID={`${testID}.draft`}
-            />
+            />,
         );
     } else if (shared) {
         const iconName = type === General.PRIVATE_CHANNEL ? 'circle-multiple-outline-lock' : 'circle-multiple-outline';
         const sharedTestID = type === General.PRIVATE_CHANNEL ? 'channel_icon.shared_private' : 'channel_icon.shared_open';
-        icon = (
+        icon = wrapIconInBox(
             <CompassIcon
                 name={iconName}
                 style={[
@@ -172,49 +203,95 @@ const ChannelIcon = ({
                     {left: 0.5},
                 ]}
                 testID={sharedTestID}
-            />
+            />,
         );
     } else if (type === General.OPEN_CHANNEL) {
-        icon = (
-            <CompassIcon
-                name='globe'
-                style={[
-                    commonIconStyles,
-                    {left: 1},
-                ]}
-                testID={`${testID}.public`}
-            />
-        );
+        const isTownSquare = name === General.DEFAULT_CHANNEL;
+        if (channelId && isOnHome) {
+            icon = (
+                <View style={[commonStyles, {width: size, height: size, borderRadius: roundedSquareRadius, overflow: 'hidden'}]}>
+                    <GmAvatarGrid
+                        channelId={channelId}
+                        size={size}
+                        isOnCenterBg={isOnCenterBg}
+                        isUnread={isUnread && !isMuted}
+                        isMuted={isMuted}
+                        style={style}
+                    />
+                </View>
+            );
+        } else {
+            icon = wrapIconInBox(
+                <CompassIcon
+                    name={isTownSquare ? 'home-variant-outline' : 'pound'}
+                    style={[commonIconStyles, {left: 1}]}
+                    testID={`${testID}.${isTownSquare ? 'town_square' : 'public'}`}
+                />,
+                isTownSquare ? 'town_square' : 'channel',
+            );
+        }
     } else if (type === General.PRIVATE_CHANNEL) {
-        icon = (
-            <CompassIcon
-                name='lock-outline'
-                style={[
-                    commonIconStyles,
-                    {left: 0.5},
-                ]}
-                testID={`${testID}.private`}
-            />
-        );
+        if (channelId && isOnHome) {
+            icon = (
+                <View style={[commonStyles, {width: size, height: size, borderRadius: roundedSquareRadius, overflow: 'hidden'}]}>
+                    <GmAvatarGrid
+                        channelId={channelId}
+                        size={size}
+                        isOnCenterBg={isOnCenterBg}
+                        isUnread={isUnread && !isMuted}
+                        isMuted={isMuted}
+                        style={style}
+                    />
+                </View>
+            );
+        } else {
+            icon = wrapIconInBox(
+                <CompassIcon
+                    name='lock-outline'
+                    style={[
+                        commonIconStyles,
+                        {left: 0.5},
+                    ]}
+                    testID={`${testID}.private`}
+                />,
+            );
+        }
     } else if (type === General.GM_CHANNEL) {
-        const fontSize = size - 12;
-        icon = (
-            <View
-                style={[styles.groupBox, unreadGroupBox, activeGroupBox, commonStyles, {width: size, height: size}]}
-            >
-                <Text
-                    style={[styles.group, unreadGroup, activeGroup, {fontSize}]}
-                    testID={`${testID}.gm_member_count`}
+        const groupBoxBorderRadius = isOnHome ? roundedSquareRadius : 4;
+        if (channelId && isOnHome) {
+            icon = (
+                <View style={[commonStyles, {width: size, height: size, borderRadius: groupBoxBorderRadius, overflow: 'hidden'}]}>
+                    <GmAvatarGrid
+                        channelId={channelId}
+                        size={size}
+                        isOnCenterBg={isOnCenterBg}
+                        isUnread={isUnread && !isMuted}
+                        isMuted={isMuted}
+                        style={style}
+                    />
+                </View>
+            );
+        } else {
+            const fontSize = size - 12;
+            icon = (
+                <View
+                    style={[styles.groupBox, unreadGroupBox, activeGroupBox, commonStyles, {width: size, height: size, borderRadius: groupBoxBorderRadius}]}
                 >
-                    {membersCount - 1}
-                </Text>
-            </View>
-        );
+                    <Text
+                        style={[styles.group, unreadGroup, activeGroup, {fontSize}]}
+                        testID={`${testID}.gm_member_count`}
+                    >
+                        {membersCount - 1}
+                    </Text>
+                </View>
+            );
+        }
     } else if (type === General.DM_CHANNEL) {
         icon = (
             <DmAvatar
                 channelName={name}
                 isOnCenterBg={isOnCenterBg}
+                isOnHome={isOnHome}
                 style={commonStyles}
                 size={size}
             />

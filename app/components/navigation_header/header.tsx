@@ -38,6 +38,8 @@ type Props = {
     subtitleCompanion?: React.ReactElement;
     theme: Theme;
     title?: string;
+    /** 覆盖 header 背景色，用于聊天界面等 */
+    backgroundColor?: string;
 }
 
 const hitSlop = {top: 20, bottom: 20, left: 20, right: 20};
@@ -67,6 +69,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginBottom: 8,
         marginTop: 2,
         height: 13,
+    },
+    subtitleChatStyle: {
+        color: 'rgba(31, 31, 31, 0.72)',
     },
     titleContainer: {
         alignItems: Platform.select({android: 'flex-start', ios: 'center'}),
@@ -126,6 +131,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.sidebarHeaderTextColor,
         ...typography('Heading', 300),
     },
+    titleChatStyle: {
+        color: '#1F1F1F',
+    },
 }));
 
 const Header = ({
@@ -143,6 +151,7 @@ const Header = ({
     subtitleCompanion,
     theme,
     title,
+    backgroundColor,
 }: Props) => {
     const styles = getStyleSheet(theme);
     const insets = useSafeAreaInsets();
@@ -173,7 +182,7 @@ const Header = ({
     }), [defaultHeight]);
 
     const containerStyle = useMemo(() => (
-        [styles.container, containerAnimatedStyle]), [styles, containerAnimatedStyle]);
+        [styles.container, containerAnimatedStyle, backgroundColor ? {backgroundColor} : undefined]), [styles, containerAnimatedStyle, backgroundColor]);
 
     const additionalTitleStyle = useMemo(() => {
         return {
@@ -201,7 +210,7 @@ const Header = ({
                         <CompassIcon
                             size={24}
                             name={Platform.select({android: 'arrow-left', ios: 'arrow-back-ios'})!}
-                            color={theme.sidebarHeaderTextColor}
+                            color={backgroundColor ? '#1F1F1F' : theme.sidebarHeaderTextColor}
                         />
                         {leftComponent}
                     </Animated.View>
@@ -219,7 +228,7 @@ const Header = ({
                         <Animated.Text
                             ellipsizeMode='tail'
                             numberOfLines={1}
-                            style={[styles.title, opacity]}
+                            style={[styles.title, backgroundColor && styles.titleChatStyle, opacity]}
                             testID='navigation.header.title'
                         >
                             {title}
@@ -230,7 +239,7 @@ const Header = ({
                             <Text
                                 ellipsizeMode='tail'
                                 numberOfLines={1}
-                                style={styles.subtitle}
+                                style={[styles.subtitle, backgroundColor && styles.subtitleChatStyle]}
                                 testID='navigation.header.subtitle'
                             >
                                 {subtitle}
@@ -258,7 +267,7 @@ const Header = ({
                             <CompassIcon
                                 size={24}
                                 name={r.iconName}
-                                color={r.color || theme.sidebarHeaderTextColor}
+                                color={r.color || (backgroundColor ? '#1F1F1F' : theme.sidebarHeaderTextColor)}
                             />
                             {Boolean(r.count) && (
                                 <Text style={styles.title}>{r.count}</Text>

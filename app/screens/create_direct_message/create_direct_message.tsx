@@ -13,7 +13,7 @@ import Loading from '@components/loading';
 import Search from '@components/search';
 import SelectedUsers from '@components/selected_users';
 import ServerUserList from '@components/server_user_list';
-import {General, Screens} from '@constants';
+import {General, Preferences, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -40,9 +40,17 @@ const messages = defineMessages({
         id: 'mobile.create_direct_message.start',
         defaultMessage: 'Start Conversation',
     },
+    done: {
+        id: 'create_direct_message.done',
+        defaultMessage: 'Done',
+    },
+    doneWithCount: {
+        id: 'create_direct_message.done_with_count',
+        defaultMessage: 'Done ({count})',
+    },
     toastMessage: {
         id: 'mobile.create_direct_message.max_limit_reached',
-        defaultMessage: 'Group messages are limited to {maxCount} members',
+        defaultMessage: 'Group messages have reached the maximum number of members',
     },
 });
 
@@ -66,11 +74,16 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
             flex: 1,
+            backgroundColor: theme.centerChannelBg,
         },
         searchBar: {
-            marginLeft: 12,
-            marginRight: Platform.select({ios: 4, default: 12}),
-            marginVertical: 12,
+            marginHorizontal: 16,
+            marginTop: 12,
+            marginBottom: 8,
+            paddingVertical: 4,
+        },
+        searchBarInput: {
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
         },
         loadingContainer: {
             alignItems: 'center',
@@ -204,7 +217,8 @@ export default function CreateDirectMessage({
     }, []);
 
     const updateNavigationButtons = useCallback(async () => {
-        const closeIcon = await CompassIcon.getImageSource('close', 24, theme.sidebarHeaderTextColor);
+        const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
+        const closeIcon = await CompassIcon.getImageSource('close', 24, closeIconColor);
         setButtons(componentId, {
             leftButtons: [{
                 id: CLOSE_BUTTON,
@@ -212,7 +226,7 @@ export default function CreateDirectMessage({
                 testID: 'close.create_direct_message.button',
             }],
         });
-    }, [componentId, theme.sidebarHeaderTextColor]);
+    }, [componentId, theme.centerChannelColor]);
 
     const onChangeText = useCallback((searchTerm: string) => {
         setTerm(searchTerm);
@@ -294,7 +308,7 @@ export default function CreateDirectMessage({
             <View style={style.searchBar}>
                 <Search
                     testID='create_direct_message.search_bar'
-                    placeholder={formatMessage({id: 'search_bar.search', defaultMessage: 'Search'})}
+                    placeholder={formatMessage({id: 'create_direct_message.search_placeholder', defaultMessage: 'Search contacts'})}
                     cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                     onChangeText={onChangeText}
@@ -302,6 +316,7 @@ export default function CreateDirectMessage({
                     autoCapitalize='none'
                     keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
                     value={term}
+                    inputContainerStyle={style.searchBarInput}
                 />
             </View>
             <ServerUserList
@@ -320,15 +335,16 @@ export default function CreateDirectMessage({
                 showToast={showToast}
                 setShowToast={setShowToast}
                 toastIcon={'check'}
-                toastMessage={formatMessage(messages.toastMessage, {maxCount: General.MAX_USERS_IN_GM})}
+                toastMessage={formatMessage(messages.toastMessage)}
                 selectedIds={selectedIds}
                 onRemove={handleRemoveProfile}
-                teammateNameDisplay={teammateNameDisplay}
+                teammateNameDisplay={Preferences.DISPLAY_PREFER_NICKNAME}
                 onPress={startConversation}
                 buttonIcon={'forum-outline'}
-                buttonText={formatMessage(messages.buttonText)}
+                buttonText={selectedCount > 1 ? formatMessage(messages.done) : formatMessage(messages.buttonText)}
                 testID='create_direct_message'
                 maxUsers={General.MAX_USERS_IN_GM}
+                avatarBorderRadius={4}
             />
         </SafeAreaView>
     );

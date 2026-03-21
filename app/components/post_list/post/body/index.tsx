@@ -36,6 +36,7 @@ type BodyProps = {
     isFirstReply?: boolean;
     isJumboEmoji: boolean;
     isLastReply?: boolean;
+    isOwnPost?: boolean;
     isPendingOrFailed: boolean;
     isPostAcknowledgementEnabled?: boolean;
     isPostAddChannelMember: boolean;
@@ -54,6 +55,24 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexWrap: 'wrap',
             alignContent: 'flex-start',
             marginTop: 12,
+        },
+        bubble: {
+            borderRadius: 12,
+            maxWidth: '85%',
+            overflow: 'hidden',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+        },
+        bubbleOthers: {
+            backgroundColor: theme.centerChannelBg,
+            borderTopLeftRadius: 2,
+        },
+        bubbleOwn: {
+            backgroundColor: theme.buttonBg,
+            borderTopRightRadius: 2,
+        },
+        bubbleOwnText: {
+            color: theme.buttonColor,
         },
         messageBody: {
             paddingVertical: 2,
@@ -86,9 +105,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
+const useWeChatStyle = (location: AvailableScreens) =>
+    location === Screens.CHANNEL || location === Screens.PERMALINK;
+
 const Body = ({
     appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
-    isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
+    isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isOwnPost, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
     location, post, searchPatterns, showAddReaction, theme,
 }: BodyProps) => {
     const style = getStyleSheet(theme);
@@ -158,16 +180,19 @@ const Body = ({
             />
         );
     } else if (isJumboEmoji) {
+        const weChatOwnBubble = useWeChatStyle(location) && isOwnPost;
         message = (
             <JumboEmoji
-                baseTextStyle={style.message}
+                baseTextStyle={weChatOwnBubble ? style.bubbleOwnText : style.message}
                 isEdited={isEdited}
                 value={post.message}
             />
         );
     } else if (post.message.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
+        const weChatOwnBubble = useWeChatStyle(location) && isOwnPost;
         message = (
             <Message
+                baseTextStyle={weChatOwnBubble ? style.bubbleOwnText : undefined}
                 highlight={highlight}
                 isEdited={isEdited}
                 isPendingOrFailed={isPendingOrFailed}
@@ -228,19 +253,32 @@ const Body = ({
         );
     }
 
-    return (
-        <View
-            style={style.messageContainerWithReplyBar}
-            onLayout={onLayout}
-        >
+    const showBubble = useWeChatStyle(location) && !hasBeenDeleted;
+    const bubbleStyle = showBubble ? [style.bubble, isOwnPost ? style.bubbleOwn : style.bubbleOthers] : undefined;
+
+    const content = (
+        <>
             <View style={replyBarStyle}/>
-            {body}
+            {bubbleStyle ? (
+                <View style={bubbleStyle}>
+                    {body}
+                </View>
+            ) : body}
             {isFailed &&
             <Failed
                 post={post}
                 theme={theme}
             />
             }
+        </>
+    );
+
+    return (
+        <View
+            style={style.messageContainerWithReplyBar}
+            onLayout={onLayout}
+        >
+            {content}
         </View>
     );
 };

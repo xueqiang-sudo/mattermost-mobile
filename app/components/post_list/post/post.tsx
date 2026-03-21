@@ -78,6 +78,9 @@ type PostProps = {
     thread?: ThreadModel;
 };
 
+const useWeChatStyle = (location: AvailableScreens) =>
+    location === Screens.CHANNEL || location === Screens.PERMALINK;
+
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         consecutive: {marginTop: 0},
@@ -88,6 +91,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginTop: 10,
         },
         container: {flexDirection: 'row'},
+        containerOwn: {
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+        },
+        containerSystem: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+        },
         highlight: {backgroundColor: changeOpacity(theme.mentionHighlightBg, 0.5)},
         highlightBar: {
             backgroundColor: theme.mentionHighlightBg,
@@ -107,9 +118,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginRight: 10,
             marginTop: 10,
         },
+        profilePictureContainerOwn: {
+            marginBottom: 5,
+            marginLeft: 10,
+            marginRight: 0,
+            marginTop: 10,
+        },
         rightColumn: {
             flex: 1,
             flexDirection: 'column',
+        },
+        rightColumnOwn: {
+            alignItems: 'flex-end',
+        },
+        rightColumnSystem: {
+            alignSelf: 'center',
+            flex: undefined,
         },
         rightColumnPadding: {paddingBottom: 3},
     };
@@ -279,7 +303,12 @@ const Post = ({
     const highlightSaved = isSaved && !skipSavedHeader;
     const hightlightPinned = post.isPinned && !skipPinnedHeader;
     const itemTestID = `${testID}.${post.id}`;
-    const rightColumnStyle: StyleProp<ViewStyle> = [styles.rightColumn, (Boolean(post.rootId) && isLastReply && styles.rightColumnPadding)];
+    const rightColumnStyle: StyleProp<ViewStyle> = [
+        styles.rightColumn,
+        (Boolean(post.rootId) && isLastReply && styles.rightColumnPadding),
+        showOwnLayout && styles.rightColumnOwn,
+        showSystemCentered && styles.rightColumnSystem,
+    ];
     const pendingPostStyle: StyleProp<ViewStyle> | undefined = isPendingOrFailed ? styles.pendingPost : undefined;
 
     let highlightedStyle: StyleProp<ViewStyle>;
@@ -298,13 +327,20 @@ const Post = ({
     // 2. Show the priority label in thread screen for the root post
     const showPostPriority = Boolean(isPostPriorityEnabled && post.metadata?.priority?.priority) && (location !== Screens.THREAD || !post.rootId);
 
+    const weChatStyle = useWeChatStyle(location);
+    const showSystemCentered = weChatStyle && isSystemPost && !isAutoResponder;
+    const showOwnLayout = weChatStyle && isOwnPost;
+
     const sameSequence = hasReplies ? (hasReplies && post.rootId) : !post.rootId;
-    if (!showPostPriority && hasSameRoot && isConsecutivePost && sameSequence) {
+    if (!showPostPriority && hasSameRoot && isConsecutivePost && sameSequence && !showOwnLayout) {
         consecutiveStyle = styles.consecutive;
         postAvatar = <View style={styles.consecutivePostContainer}/>;
+    } else if (showSystemCentered) {
+        postAvatar = null;
     } else {
+        const avatarContainerStyle = showOwnLayout ? styles.profilePictureContainerOwn : styles.profilePictureContainer;
         postAvatar = (
-            <View style={[styles.profilePictureContainer, pendingPostStyle]}>
+            <View style={[avatarContainerStyle, pendingPostStyle]}>
                 {(isAutoResponder || isSystemPost) ? (
                     <SystemAvatar theme={theme}/>
                 ) : (
@@ -312,12 +348,13 @@ const Post = ({
                         isAutoReponse={isAutoResponder}
                         location={location}
                         post={post}
+                        useRoundedSquare={weChatStyle}
                     />
                 )}
             </View>
         );
 
-        if (isSystemPost && !isAutoResponder) {
+        if (isSystemPost && !isAutoResponder && !showSystemCentered) {
             header = (
                 <SystemHeader
                     createAt={post.createAt}
@@ -349,6 +386,7 @@ const Post = ({
     if (isSystemPost && !isEphemeral && !isAutoResponder) {
         body = (
             <SystemMessage
+                compact={showSystemCentered}
                 location={location}
                 post={post}
             />
@@ -391,6 +429,7 @@ const Post = ({
                 isFirstReply={isFirstReply}
                 isJumboEmoji={isJumboEmoji}
                 isLastReply={isLastReply}
+                isOwnPost={isOwnPost}
                 isPendingOrFailed={isPendingOrFailed}
                 isPostAcknowledgementEnabled={isPostAcknowledgementEnabled}
                 isPostAddChannelMember={isPostAddChannelMember}
@@ -443,14 +482,36 @@ const Post = ({
                         skipSavedHeader={skipSavedHeader}
                         skipPinnedHeader={skipPinnedHeader}
                     />
-                    <View style={[styles.container, consecutiveStyle]}>
-                        {postAvatar}
-                        <View style={rightColumnStyle}>
-                            {header}
-                            {body}
-                            {footer}
-                        </View>
-                        {unreadDot}
+                    <View style={[
+                        styles.container,
+                        consecutiveStyle,
+                        showOwnLayout && styles.containerOwn,
+                        showSystemCentered && styles.containerSystem,
+                    ]}>
+                        {showOwnLayout ? (
+                            <>
+                                <View style={rightColumnStyle}>
+                                    {body}
+                                    {footer}
+                                </View>
+                                {postAvatar}
+                                {unreadDot}
+                            </>
+                        ) : showSystemCentered ? (
+                            <View style={rightColumnStyle}>
+                                {body}
+                            </View>
+                        ) : (
+                            <>
+                                {postAvatar}
+                                <View style={rightColumnStyle}>
+                                    {header}
+                                    {body}
+                                    {footer}
+                                </View>
+                                {unreadDot}
+                            </>
+                        )}
                     </View>
                 </>
             </TouchableHighlight>

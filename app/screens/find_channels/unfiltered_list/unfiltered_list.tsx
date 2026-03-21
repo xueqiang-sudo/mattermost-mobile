@@ -6,15 +6,22 @@ import {defineMessages, useIntl} from 'react-intl';
 import {Platform, SectionList, type SectionListRenderItemInfo, StyleSheet} from 'react-native';
 import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 
+import {General} from '@constants';
 import {switchToChannelById} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
 import {useServerUrl} from '@context/server';
+
+import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
 
 import FindChannelsHeader from './header';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 
+const isGroupChannel = (c: ChannelModel) => c.type === General.GM_CHANNEL || c.type === General.OPEN_CHANNEL || c.type === General.PRIVATE_CHANNEL;
+const isDirectChannel = (c: ChannelModel) => c.type === General.DM_CHANNEL;
+
 type Props = {
+    category: FindChannelsCategory;
     close: () => Promise<void>;
     keyboardOverlap: number;
     recentChannels: ChannelModel[];
@@ -33,22 +40,25 @@ const style = StyleSheet.create({
     flex: {flex: 1},
 });
 
-const buildSections = (recentChannels: ChannelModel[]) => {
+const buildSections = (recentChannels: ChannelModel[], category: FindChannelsCategory) => {
+    const filtered = category === 'all' ? recentChannels :
+        category === 'contacts' ? recentChannels.filter(isDirectChannel) :
+        recentChannels.filter(isGroupChannel);
     const sections = [];
-    if (recentChannels.length) {
+    if (filtered.length) {
         sections.push({
             ...sectionNames.recent,
-            data: recentChannels,
+            data: filtered,
         });
     }
 
     return sections;
 };
 
-const UnfilteredList = ({close, keyboardOverlap, recentChannels, showTeamName, testID}: Props) => {
+const UnfilteredList = ({category, close, keyboardOverlap, recentChannels, showTeamName, testID}: Props) => {
     const intl = useIntl();
     const serverUrl = useServerUrl();
-    const [sections, setSections] = useState(buildSections(recentChannels));
+    const [sections, setSections] = useState(buildSections(recentChannels, category));
     const sectionListStyle = useMemo(() => ({paddingBottom: keyboardOverlap}), [keyboardOverlap]);
 
     const onPress = useCallback(async (c: Channel | ChannelModel) => {
@@ -74,8 +84,8 @@ const UnfilteredList = ({close, keyboardOverlap, recentChannels, showTeamName, t
     }, [onPress, showTeamName, testID]);
 
     useEffect(() => {
-        setSections(buildSections(recentChannels));
-    }, [recentChannels]);
+        setSections(buildSections(recentChannels, category));
+    }, [recentChannels, category]);
 
     return (
         <Animated.View

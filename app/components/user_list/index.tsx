@@ -159,12 +159,21 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             justifyContent: 'center',
             height: 24,
         },
+        sectionContainerContactSelect: {
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+            height: 24,
+            paddingLeft: 16,
+        },
         sectionWrapper: {
             backgroundColor: theme.centerChannelBg,
         },
         sectionText: {
             color: theme.centerChannelColor,
             ...typography('Body', 75, 'SemiBold'),
+        },
+        sectionTextContactSelect: {
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            ...typography('Body', 75, 'Regular'),
         },
     };
 });
@@ -185,6 +194,7 @@ type Props = {
     includeUserMargin?: boolean;
     location: AvailableScreens;
     customSection?: (profiles: UserProfile[]) => Array<SectionListData<UserProfile>>;
+    contactSelectLayout?: boolean;
 }
 
 export default function UserList({
@@ -203,6 +213,7 @@ export default function UserList({
     includeUserMargin,
     location,
     customSection,
+    contactSelectLayout = false,
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
@@ -257,6 +268,7 @@ export default function UserList({
         return (
             <UserListRow
                 key={item.id}
+                contactSelectLayout={contactSelectLayout}
                 highlight={section?.first && index === 0}
                 id={item.id}
                 isChannelAdmin={isChAdmin}
@@ -273,7 +285,7 @@ export default function UserList({
                 includeMargin={includeUserMargin}
             />
         );
-    }, [selectedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, tutorialWatched, includeUserMargin]);
+    }, [selectedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, tutorialWatched, includeUserMargin, contactSelectLayout]);
 
     const renderLoading = useCallback(() => {
         if (!loading) {
@@ -304,12 +316,12 @@ export default function UserList({
     const renderSectionHeader = useCallback(({section}: {section: SectionListData<UserProfile>}) => {
         return (
             <View style={style.sectionWrapper}>
-                <View style={style.sectionContainer}>
-                    <Text style={style.sectionText}>{section.id}</Text>
+                <View style={[style.sectionContainer, contactSelectLayout && style.sectionContainerContactSelect]}>
+                    <Text style={[style.sectionText, contactSelectLayout && style.sectionTextContactSelect]}>{section.id}</Text>
                 </View>
             </View>
         );
-    }, [style]);
+    }, [style, contactSelectLayout]);
 
     const renderFlatList = (items: UserProfile[]) => {
         return (

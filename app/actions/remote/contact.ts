@@ -254,8 +254,10 @@ export const fetchCompany = async (companyId: string): Promise<FetchCompanyResul
     }
 };
 
-/** 获取或创建当前 Mattermost 团队对应的通讯录公司（teamId 作为 company id） */
-export const ensureTeamCompany = async (teamId: string, teamName: string, ownerId?: string): Promise<EnsureTeamCompanyResult> => {
+/** 获取或创建当前 Mattermost 团队对应的通讯录公司（teamId 作为 company id）。
+ * 创建企业时 owner_id 必须有，否则不创建。
+ */
+export const ensureTeamCompany = async (teamId: string, teamName: string, ownerId: string): Promise<EnsureTeamCompanyResult> => {
     if (!teamId) {
         return {error: new Error('teamId is required')};
     }
@@ -266,12 +268,15 @@ export const ensureTeamCompany = async (teamId: string, teamName: string, ownerI
     if (!teamName) {
         return getRes;
     }
+    if (!ownerId || ownerId.trim() === '') {
+        return {error: new Error('owner_id is required when creating enterprise')};
+    }
     try {
         const company = await ContactService.createCompany({
             id: teamId,
             name: teamName,
             type: ContactCompanyTypes.Team,
-            ...(ownerId ? {owner_id: ownerId} : {}),
+            owner_id: ownerId,
         });
         try {
             await ContactService.createDepartment({
@@ -932,6 +937,28 @@ export const fetchTeamCreatorId = async (
         logDebug('[fetchTeamCreatorId]', getFullErrorMessage(error));
         return undefined;
     }
+};
+
+/**
+ * 判断当前用户是否有权限管理企业通讯录。
+ * - 通讯录存在且 owner_id 有效：owner_id === userId
+ * - 通讯录存在但 owner_id 为空：团队创建者或管理员（fetchCanDissolveTeam）
+ * - 通讯录不存在：团队创建者或管理员（仅他们可自动创建）
+ */
+export const fetchCanManageEnterprise = async (
+    serverUrl: string,
+    teamId: string,
+    userId: string,
+    company?: ContactCompany | null,
+): Promise<boolean> => {
+    if (!serverUrl || !teamId || !userId) {
+        return false;
+    }
+    const ownerId = company?.owner_id ?? (company as {ownerId?: string})?.ownerId;
+    if (ownerId != null && ownerId !== '') {
+        return ownerId === userId;
+    }
+    return fetchCanDissolveTeam(serverUrl, teamId, userId);
 };
 
 /**

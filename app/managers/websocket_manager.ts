@@ -88,7 +88,11 @@ class WebsocketManagerSingleton {
         const client = new WebSocketClient(serverUrl, bearerToken, preauthSecret);
 
         client.setFirstConnectCallback(() => this.onFirstConnect(serverUrl));
-        client.setEventCallback((evt: WebSocketMessage) => handleWebSocketEvent(serverUrl, evt));
+        client.setEventCallback((evt: WebSocketMessage) => {
+            handleWebSocketEvent(serverUrl, evt).catch((err) => {
+                logError('[WebsocketManager] 处理 WebSocket 事件失败', serverUrl, evt?.event, err);
+            });
+        });
 
         //client.setMissedEventsCallback(() => {}) Nothing to do on missedEvents callback
         client.setReconnectCallback(() => this.onReconnect(serverUrl));

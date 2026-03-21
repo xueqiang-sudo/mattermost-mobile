@@ -27,10 +27,8 @@ import {notificationError} from '@utils/notification';
 
 import ChannelList from './channel_list';
 import Contacts from './contacts';
-import RecentMentions from './recent_mentions';
-import SavedMessages from './saved_messages';
-import Search from './search';
 import TabBar from './tab_bar';
+import UnderDevelopment from './under_development';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 
@@ -186,20 +184,17 @@ export function HomeScreen(props: HomeProps) {
                             {() => <ChannelList {...props}/>}
                         </Tab.Screen>
                         <Tab.Screen
-                            name={Screens.SEARCH}
-                            component={Search}
-                            options={{tabBarButtonTestID: 'tab_bar.search.tab', freezeOnBlur: true, lazy: true}}
-                        />
+                            name={Screens.AI_AGENT}
+                            options={{tabBarButtonTestID: 'tab_bar.ai_agent.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => <UnderDevelopment pageName={intl.formatMessage({id: 'tab_bar.ai_agent.label', defaultMessage: 'AI Agent'})}/>}
+                        </Tab.Screen>
                         <Tab.Screen
-                            name={Screens.MENTIONS}
-                            component={RecentMentions}
-                            options={{tabBarButtonTestID: 'tab_bar.mentions.tab', freezeOnBlur: true, lazy: true}}
-                        />
-                        <Tab.Screen
-                            name={Screens.SAVED_MESSAGES}
-                            component={SavedMessages}
-                            options={{tabBarButtonTestID: 'tab_bar.saved_messages.tab', freezeOnBlur: true, lazy: true}}
-                        />
+                            name={Screens.MY_HOMEPAGE}
+                            options={{tabBarButtonTestID: 'tab_bar.my_homepage.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => <UnderDevelopment pageName={intl.formatMessage({id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'})}/>}
+                        </Tab.Screen>
                         <Tab.Screen
                             name={Screens.CONTACTS}
                             options={{tabBarButtonTestID: 'tab_bar.contacts.tab', freezeOnBlur: true, lazy: true}}

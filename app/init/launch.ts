@@ -232,7 +232,7 @@ export const launchToHome = async (props: LaunchProps) => {
 
                 if (lastViewedThread && lastViewedThread.server_url === props.serverUrl && lastViewedThread.thread_id) {
                     PerformanceMetricsManager.setLoadTarget('THREAD');
-                    fetchAndSwitchToThread(props.serverUrl!, lastViewedThread.thread_id);
+                    fetchAndSwitchToThread(props.serverUrl!, lastViewedThread.thread_id, false, undefined, true);
                 } else if (lastViewedChannel && lastViewedChannel.server_url === props.serverUrl && lastViewedChannel.channel_id) {
                     PerformanceMetricsManager.setLoadTarget('CHANNEL');
                     switchToChannelById(props.serverUrl!, lastViewedChannel.channel_id);

@@ -34,6 +34,7 @@ export default keyMirror({
     CRT_TOGGLED: null,
     JOIN_CALL_BAR_VISIBLE: null,
     DRAFT_SWIPEABLE: null,
+    MANAGE_ENTERPRISE_REFRESH: null,
     ACTIVE_SCREEN: null,
     ACTIVE_SERVER_CHANGED: null,
     FILE_ADD_REMOVED: null,

@@ -194,7 +194,7 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
 
     models.push(...postModels);
 
-    operator.batchRecords(models, 'handleNewPostEvent');
+    await operator.batchRecords(models, 'handleNewPostEvent');
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {

@@ -13,6 +13,7 @@ import {useTheme} from '@context/theme';
 import {nonBreakingString} from '@utils/strings';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {Preferences} from '@constants';
 import {displayUsername, getUserCustomStatus, isBot, isCustomStatusExpired, isDeactivated, isGuest, isShared} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
@@ -29,7 +30,10 @@ type Props = {
     showBadges?: boolean;
     locale?: string;
     teammateNameDisplay: string;
+    teammateNameDisplayOverride?: string;
+    leftDecorator?: React.ReactNode;
     rightDecorator?: React.ReactNode;
+    avatarBorderRadius?: number;
     onUserPress?: (user: UserProfile | UserModel) => void;
     onUserLongPress?: (user: UserProfile | UserModel) => void;
     onLayout?: () => void;
@@ -79,9 +83,12 @@ const nonThemedStyles = StyleSheet.create({
         alignItems: 'center',
         gap: 4,
     },
-    profile: {
-        marginRight: 12,
-    },
+        profile: {
+            marginRight: 12,
+        },
+        leftDecorator: {
+            marginRight: 12,
+        },
     flex: {
         flex: 1,
     },
@@ -97,8 +104,11 @@ const UserItem = ({
     isCustomStatusEnabled,
     showBadges = false,
     locale,
-    teammateNameDisplay,
+    teammateNameDisplay: teammateNameDisplayProp,
+    teammateNameDisplayOverride,
+    leftDecorator,
     rightDecorator,
+    avatarBorderRadius,
     onLayout,
     onUserPress,
     onUserLongPress,
@@ -121,8 +131,11 @@ const UserItem = ({
     const customStatus = getUserCustomStatus(user);
     const customStatusExpired = isCustomStatusExpired(user);
 
+    const teammateNameDisplay = teammateNameDisplayOverride ?? teammateNameDisplayProp;
     let displayName = displayUsername(user, locale, teammateNameDisplay);
-    const showTeammateDisplay = displayName !== user?.username;
+    const showUsernameSuffix = displayName !== user?.username &&
+        teammateNameDisplay !== Preferences.DISPLAY_PREFER_NICKNAME &&
+        teammateNameDisplay !== Preferences.DISPLAY_PREFER_FULL_NAME;
     if (isCurrentUser) {
         displayName = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
@@ -164,12 +177,18 @@ const UserItem = ({
                 style={[containerViewStyle, containerStyle]}
                 testID={userItemTestId}
             >
+                {Boolean(leftDecorator) && (
+                    <View style={nonThemedStyles.leftDecorator}>
+                        {leftDecorator}
+                    </View>
+                )}
                 <ProfilePicture
                     author={user}
                     size={size}
                     showStatus={false}
                     testID={`${userItemTestId}.profile_picture`}
                     containerStyle={nonThemedStyles.profile}
+                    borderRadius={avatarBorderRadius}
                 />
                 <View style={nonThemedStyles.rowInfoBaseContainer}>
                     <View style={nonThemedStyles.rowInfoContainer}>
@@ -179,7 +198,7 @@ const UserItem = ({
                             testID={`${userItemTestId}.display_name`}
                         >
                             {nonBreakingString(displayName)}
-                            {Boolean(showTeammateDisplay) && Boolean(user?.username) && (
+                            {Boolean(showUsernameSuffix) && Boolean(user?.username) && (
                                 <Text
                                     style={style.rowUsername}
                                     testID={`${userItemTestId}.username`}

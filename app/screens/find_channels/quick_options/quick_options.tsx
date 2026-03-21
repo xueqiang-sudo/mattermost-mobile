@@ -11,10 +11,10 @@ import OptionBox, {OPTIONS_HEIGHT} from '@components/option_box';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {showModal} from '@screens/navigation';
+import {changeOpacity} from '@utils/theme';
 
 type Props = {
     canCreateChannels: boolean;
-    canJoinChannels: boolean;
     close: () => Promise<void>;
 }
 
@@ -32,19 +32,9 @@ const styles = StyleSheet.create({
     },
 });
 
-const QuickOptions = ({canCreateChannels, canJoinChannels, close}: Props) => {
+const QuickOptions = ({canCreateChannels, close}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
-
-    const browseChannels = useCallback(async () => {
-        const title = intl.formatMessage({id: 'browse_channels.title', defaultMessage: 'Browse channels'});
-        const closeButton = await CompassIcon.getImageSource('close', 24, theme.sidebarHeaderTextColor);
-
-        await close();
-        showModal(Screens.BROWSE_CHANNELS, title, {
-            closeButton,
-        });
-    }, [intl, theme]);
 
     const createNewChannel = useCallback(async () => {
         const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
@@ -55,11 +45,21 @@ const QuickOptions = ({canCreateChannels, canJoinChannels, close}: Props) => {
 
     const openDirectMessage = useCallback(async () => {
         const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Create Direct Message'});
-        const closeButton = await CompassIcon.getImageSource('close', 24, theme.sidebarHeaderTextColor);
+        const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
+        const closeButton = await CompassIcon.getImageSource('close', 24, closeIconColor);
 
         await close();
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
+        }, {
+            topBar: {
+                background: {color: theme.centerChannelBg},
+                title: {color: theme.centerChannelColor},
+                leftButtonColor: closeIconColor,
+            },
+            statusBar: {
+                backgroundColor: theme.centerChannelBg,
+            },
         });
     }, [intl, theme]);
 
@@ -70,17 +70,6 @@ const QuickOptions = ({canCreateChannels, canJoinChannels, close}: Props) => {
             style={styles.container}
         >
             <Animated.View style={styles.wrapper}>
-                {canJoinChannels &&
-                <>
-                    <OptionBox
-                        iconName='globe'
-                        onPress={browseChannels}
-                        text={intl.formatMessage({id: 'find_channels.directory', defaultMessage: 'Directory'})}
-                        testID='find_channels.quick_options.directory.option'
-                    />
-                    <View style={styles.separator}/>
-                </>
-                }
                 <OptionBox
                     iconName='account-outline'
                     onPress={openDirectMessage}

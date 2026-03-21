@@ -13,11 +13,10 @@ import {useWindowDimensions} from '@hooks/device';
 import NavigationStore from '@store/navigation_store';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
+import AIAgent from './ai_agent';
 import Contacts from './contacts';
 import Home from './home';
-import Mentions from './mentions';
-import SavedMessages from './saved_messages';
-import Search from './search';
+import MyHomepage from './my_homepage';
 
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 
@@ -65,19 +64,17 @@ const shadowSides = {top: true, bottom: false, end: false, start: false};
 const shadowOffset: [x: number | string, y: number | string] = [0, -0.5];
 
 const TabComponents: Record<string, any> = {
-    Contacts,
-    Home,
-    Mentions,
-    SavedMessages,
-    Search,
+    [Screens.AI_AGENT]: AIAgent,
+    [Screens.CONTACTS]: Contacts,
+    [Screens.HOME]: Home,
+    [Screens.MY_HOMEPAGE]: MyHomepage,
 };
 
 const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
+    [Screens.AI_AGENT]: {id: 'tab_bar.ai_agent.label', defaultMessage: 'AI Agent'},
     [Screens.CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
     [Screens.HOME]: {id: 'tab_bar.home.label', defaultMessage: 'Home'},
-    [Screens.MENTIONS]: {id: 'tab_bar.mentions.label', defaultMessage: 'Mentions'},
-    [Screens.SAVED_MESSAGES]: {id: 'tab_bar.saved_messages.label', defaultMessage: 'Saved'},
-    [Screens.SEARCH]: {id: 'tab_bar.search.label', defaultMessage: 'Search'},
+    [Screens.MY_HOMEPAGE]: {id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'},
 };
 
 function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {theme: Theme}) {

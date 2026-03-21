@@ -16,6 +16,9 @@ import NavigationSearch from './search';
 
 import type {SearchProps, SearchRef} from '@components/search';
 
+// 聊天界面设计参考色：浅灰 header 背景
+const CHAT_HEADER_BG = '#F5F5F5';
+
 type Props = SearchProps & {
     hasSearch?: boolean;
     isLargeTitle?: boolean;
@@ -30,6 +33,8 @@ type Props = SearchProps & {
     subtitle?: string;
     subtitleCompanion?: React.ReactElement;
     title?: string;
+    /** 用于聊天界面：浅灰背景、更简洁的视觉效果 */
+    useChatStyle?: boolean;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -54,11 +59,13 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
     subtitle,
     subtitleCompanion,
     title = '',
+    useChatStyle = false,
     hideHeader,
     ...searchProps
 }: Props, ref) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
+    const containerStyle = useChatStyle ? [styles.container, {backgroundColor: CHAT_HEADER_BG}] : styles.container;
 
     const {largeHeight, defaultHeight, headerOffset} = useHeaderHeight();
 
@@ -85,7 +92,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
     }, [lockValue, headerOffset]);
 
     return (
-        <Animated.View style={[styles.container, containerHeight]}>
+        <Animated.View style={[containerStyle, containerHeight]}>
             <Header
                 defaultHeight={defaultHeight}
                 hasSearch={hasSearch}
@@ -101,6 +108,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
                 subtitleCompanion={subtitleCompanion}
                 theme={theme}
                 title={title}
+                backgroundColor={useChatStyle ? CHAT_HEADER_BG : undefined}
             />
             {isLargeTitle &&
                 <NavigationHeaderLargeTitle

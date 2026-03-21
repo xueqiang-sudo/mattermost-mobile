@@ -14,6 +14,7 @@ import {dismissModal} from '@screens/navigation';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import CategoryTabs, {type FindChannelsCategory} from './category_tabs';
 import FilteredList from './filtered_list';
 import QuickOptions from './quick_options';
 import UnfilteredList from './unfiltered_list';
@@ -47,6 +48,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
     const theme = useTheme();
     const [term, setTerm] = useState('');
     const [loading, setLoading] = useState(false);
+    const [category, setCategory] = useState<FindChannelsCategory>('all');
     const styles = getStyleSheet(theme);
     const color = useMemo(() => changeOpacity(theme.centerChannelColor, 0.72), [theme]);
     const listView = useRef<View>(null);
@@ -108,6 +110,10 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                 testID='find_channels.search_bar'
             />
             {term === '' && <QuickOptions close={close}/>}
+            <CategoryTabs
+                activeCategory={category}
+                onCategoryChange={setCategory}
+            />
             <View
                 style={styles.listContainer}
                 onLayout={onLayout}
@@ -115,6 +121,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
             >
                 {term === '' &&
                 <UnfilteredList
+                    category={category}
                     close={close}
                     keyboardOverlap={overlap}
                     testID='find_channels.unfiltered_list'
@@ -122,6 +129,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                 }
                 {Boolean(term) &&
                 <FilteredList
+                    category={category}
                     close={close}
                     keyboardOverlap={overlap}
                     loading={loading}

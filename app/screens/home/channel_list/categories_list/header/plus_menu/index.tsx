@@ -8,6 +8,7 @@ import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
+import {changeOpacity} from '@utils/theme';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import PlusMenuItem from './item';
@@ -44,10 +45,20 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
     const openDirectMessage = useCallback(async () => {
         await dismissBottomSheet();
 
-        const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Create Direct Message'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+        const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Start a private chat'});
+        const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
+        }, {
+            topBar: {
+                background: {color: theme.centerChannelBg},
+                title: {color: theme.centerChannelColor},
+                leftButtonColor: closeIconColor,
+            },
+            statusBar: {
+                backgroundColor: theme.centerChannelBg,
+            },
         });
     }, [intl, theme]);
 
@@ -67,22 +78,23 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
 
     return (
         <>
-            {canJoinChannels &&
+            {/* 发起会话：单聊优先，其次群聊/频道，最后浏览 */}
             <PlusMenuItem
-                pickerAction='browseChannels'
-                onPress={browseChannels}
+                pickerAction='openDirectMessage'
+                onPress={openDirectMessage}
             />
-            }
             {canCreateChannels &&
             <PlusMenuItem
                 pickerAction='createNewChannel'
                 onPress={createNewChannel}
             />
             }
+            {canJoinChannels &&
             <PlusMenuItem
-                pickerAction='openDirectMessage'
-                onPress={openDirectMessage}
+                pickerAction='browseChannels'
+                onPress={browseChannels}
             />
+            }
             {canInvitePeople &&
             <>
                 <PlusMenuSeparator/>

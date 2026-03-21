@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 // import {useManagedConfig} from '@mattermost/react-native-emm';
-import {useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
+import {useFocusEffect, useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
@@ -18,6 +18,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
+import WebsocketManager from '@managers/websocket_manager';
 import {resetToTeams, openToS} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {isMainActivity} from '@utils/helpers';
@@ -25,7 +26,7 @@ import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
 
 import AdditionalTabletView from './additional_tablet_view';
-import CategoriesList from './categories_list';
+import ConversationList from './conversation_list';
 import Servers from './servers';
 
 import type {LaunchType} from '@typings/launch';
@@ -175,6 +176,18 @@ const ChannelListScreen = (props: ChannelProps) => {
         PerformanceMetricsManager.measureTimeToInteraction();
     }, []);
 
+    // 首页获得焦点时，若 WebSocket 未连接则尝试重连，确保能实时接收新消息
+    useFocusEffect(
+        useCallback(() => {
+            if (!serverUrl) {
+                return;
+            }
+            if (!WebsocketManager.isConnected(serverUrl)) {
+                WebsocketManager.openAll('WebSocket Reconnect');
+            }
+        }, [serverUrl]),
+    );
+
     return (
         <>
             <Animated.View style={top}/>
@@ -192,7 +205,7 @@ const ChannelListScreen = (props: ChannelProps) => {
                     <Animated.View
                         style={[styles.content, animated]}
                     >
-                        <CategoriesList
+                        <ConversationList
                             iconPad={canAddOtherServers}
                             isCRTEnabled={props.isCRTEnabled}
                             moreThanOneTeam={props.hasMoreThanOneTeam}

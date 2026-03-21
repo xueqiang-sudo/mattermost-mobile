@@ -141,7 +141,7 @@ const Thread = ({author, channel, location, post, teammateNameDisplay, testID, t
     }, []);
 
     const showThread = usePreventDoubleTap(useCallback(() => {
-        fetchAndSwitchToThread(serverUrl, thread.id);
+        fetchAndSwitchToThread(serverUrl, thread.id, false, undefined, true);
     }, [serverUrl, thread.id]));
 
     const onChannelNamePressed = useCallback(() => {

@@ -19,10 +19,6 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 
     const currentUser = observeCurrentUser(database);
 
-    const canJoinChannels = combineLatest([currentUser, team]).pipe(
-        switchMap(([u, t]) => observePermissionForTeam(database, t, u, Permissions.JOIN_PUBLIC_CHANNELS, true)),
-    );
-
     const canCreatePublicChannels = combineLatest([currentUser, team]).pipe(
         switchMap(([u, t]) => observePermissionForTeam(database, t, u, Permissions.CREATE_PUBLIC_CHANNEL, true)),
     );
@@ -37,7 +33,6 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 
     return {
         canCreateChannels,
-        canJoinChannels,
     };
 });
 

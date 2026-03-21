@@ -54,9 +54,8 @@ export type ContactCompany = {
     id: string;
     name: string;
     type: ContactCompanyType;
+    owner_id: string;
     description?: string;
-    /** 企业拥有者员工 ID，后端实现后用于判断解散权限 */
-    owner_id?: string;
 }
 
 /** 部门模型：id 为自增主键，parent_id 为父部门 ID，支持树形结构 */

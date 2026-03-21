@@ -62,8 +62,8 @@ const SearchField = () => {
                     style={styles.icon}
                 />
                 <FormattedText
-                    defaultMessage='Find channels...'
-                    id='channel_list.find_channels'
+                    defaultMessage='Search conversations, channels and contacts...'
+                    id='channel_list.search_placeholder'
                     style={styles.input}
                 />
             </>

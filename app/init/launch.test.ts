@@ -235,7 +235,7 @@ describe('Launch', () => {
 
             await launchToHome(props);
 
-            expect(fetchAndSwitchToThread).toHaveBeenCalledWith(serverUrl, 'thread1');
+            expect(fetchAndSwitchToThread).toHaveBeenCalledWith(serverUrl, 'thread1', false, undefined, true);
             expect(appEntry).toHaveBeenCalledWith(serverUrl);
         });
     });

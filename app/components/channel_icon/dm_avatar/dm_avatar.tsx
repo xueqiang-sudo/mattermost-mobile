@@ -17,6 +17,7 @@ type Props = {
     authorId: string;
     author?: UserModel;
     isOnCenterBg?: boolean;
+    isOnHome?: boolean;
     style: StyleProp<Intersection<TextStyle, ViewStyle>>;
     size: number;
 }
@@ -42,6 +43,7 @@ const DmAvatar = ({
     authorId,
     author,
     isOnCenterBg,
+    isOnHome = false,
     style,
     size,
 }: Props) => {
@@ -64,6 +66,7 @@ const DmAvatar = ({
         );
     }
 
+    const borderRadius = isOnHome ? Math.round(size * 0.1) : undefined;
     return (
         <ProfilePicture
             author={author}
@@ -72,6 +75,7 @@ const DmAvatar = ({
             statusSize={12}
             statusStyle={[styles.status, isOnCenterBg && styles.statusOnCenterBg]}
             containerStyle={style}
+            borderRadius={borderRadius}
         />
     );
 };

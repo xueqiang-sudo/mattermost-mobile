@@ -68,6 +68,38 @@ export function formatTime(seconds: number) {
     return `${hh}${mm}:${ss}`;
 }
 
+export type ConversationTimestampFormat =
+    | {type: 'time'; value: string}
+    | {type: 'yesterday'}
+    | {type: 'weekday'; date: Date}
+    | {type: 'date'; value: string};
+
+type LocaleAndTimezone = {locale?: string; timeZone?: string};
+
+/**
+ * 企业微信风格会话列表时间戳：当天 "HH:mm"，昨天用 date_separator.yesterday，
+ * 本周用 locale 的 weekday short，更早 "M/d"
+ * @param timeZone 用户时区（如 Asia/Shanghai），与聊天消息保持一致；空则使用设备默认
+ */
+export function getConversationTimestampFormat(timestamp: number, opts?: LocaleAndTimezone): ConversationTimestampFormat {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const fmtOpts: Intl.DateTimeFormatOptions = opts?.timeZone ? {timeZone: opts.timeZone} : {};
+    if (isToday(date)) {
+        const value = date.toLocaleTimeString(opts?.locale, {hour: '2-digit', minute: '2-digit', hour12: false, ...fmtOpts});
+        return {type: 'time', value};
+    }
+    if (isYesterday(date)) {
+        return {type: 'yesterday'};
+    }
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+    if (diffDays < 7) {
+        return {type: 'weekday', date};
+    }
+    const value = date.toLocaleDateString(opts?.locale, {month: 'numeric', day: 'numeric', ...fmtOpts});
+    return {type: 'date', value};
+}
+
 export function formatDate(date?: Date, isNumeric?: boolean) {
     // eslint-disable-next-line no-unused-expressions, no-param-reassign
     !date && (date = new Date());

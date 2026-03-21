@@ -20,6 +20,7 @@ import {
     loadEarlierThreads,
     fetchAndSwitchToThread,
     syncThreadsIfNeeded,
+    __setThreadNavigationEnabledForTesting,
 } from './thread';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
@@ -206,24 +207,29 @@ describe('get threads', () => {
         expect(result.models?.length).toBe(4); // 1 thread, 1 thread participant, 1 thread in team, 1 team thread sync
     });
 
-    it('fetchAndSwitchToThread - handle error', async () => {
-        const result = await fetchAndSwitchToThread('foo', '');
-        expect(result).toBeDefined();
-        expect(result.error).toBeTruthy();
-    });
+    describe('fetchAndSwitchToThread', () => {
+        beforeEach(() => __setThreadNavigationEnabledForTesting(true));
+        afterEach(() => __setThreadNavigationEnabledForTesting(false));
 
-    it('fetchAndSwitchToThread - base case', async () => {
-        await operator.handlePosts({
-            actionType: ActionType.POSTS.RECEIVED_IN_CHANNEL,
-            order: [post1.id],
-            posts: [post1],
-            prepareRecordsOnly: false,
+        it('handle error', async () => {
+            const result = await fetchAndSwitchToThread('foo', '');
+            expect(result).toBeDefined();
+            expect(result.error).toBeTruthy();
         });
-        await operator.handleThreads({threads, prepareRecordsOnly: false, teamId: team.id});
 
-        const result = await fetchAndSwitchToThread(serverUrl, thread1.id);
-        expect(result).toBeDefined();
-        expect(result.error).toBeUndefined();
+        it('base case', async () => {
+            await operator.handlePosts({
+                actionType: ActionType.POSTS.RECEIVED_IN_CHANNEL,
+                order: [post1.id],
+                posts: [post1],
+                prepareRecordsOnly: false,
+            });
+            await operator.handleThreads({threads, prepareRecordsOnly: false, teamId: team.id});
+
+            const result = await fetchAndSwitchToThread(serverUrl, thread1.id);
+            expect(result).toBeDefined();
+            expect(result.error).toBeUndefined();
+        });
     });
 });
 

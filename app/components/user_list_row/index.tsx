@@ -17,12 +17,16 @@ import TutorialLongPress from '@components/tutorial_highlight/long_press';
 import UserItem from '@components/user_item';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
+import {Preferences} from '@constants';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type UserModel from '@typings/database/models/servers/user';
 
+const AVATAR_ROUNDED_SQUARE_RATIO = 0.2;
+
 type Props = {
+    contactSelectLayout?: boolean;
     highlight?: boolean;
     id: string;
     includeMargin?: boolean;
@@ -45,6 +49,14 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             alignItems: 'center',
             justifyContent: 'center',
             marginLeft: 12,
+        },
+        selectorLeft: {
+            marginLeft: 0,
+            marginRight: 12,
+        },
+        rowDivider: {
+            borderBottomWidth: 1,
+            borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
         },
         selectorManage: {
             alignItems: 'center',
@@ -79,6 +91,7 @@ const messages = defineMessages({
 });
 
 function UserListRow({
+    contactSelectLayout = false,
     id,
     includeMargin,
     highlight,
@@ -175,7 +188,7 @@ function UserListRow({
 
         const color = selected ? theme.buttonBg : changeOpacity(theme.centerChannelColor, DEFAULT_ICON_OPACITY);
         return (
-            <View style={style.selector}>
+            <View style={[style.selector, contactSelectLayout && style.selectorLeft]}>
                 <CompassIcon
                     name={selected ? 'check-circle' : 'circle-outline'}
                     size={28}
@@ -183,25 +196,32 @@ function UserListRow({
                 />
             </View>
         );
-    }, [selectable, selected, theme.buttonBg, theme.centerChannelColor, style.selector]);
+    }, [selectable, selected, theme.buttonBg, theme.centerChannelColor, style.selector, style.selectorLeft, contactSelectLayout]);
 
     const userItemTestID = `${testID}.${id}`;
+    const avatarBorderRadius = contactSelectLayout ? Math.round(24 * AVATAR_ROUNDED_SQUARE_RATIO) : undefined;
+    const decorator = manageMode ? manageModeIcon : icon;
 
     return (
         <>
+            <View style={contactSelectLayout ? style.rowDivider : undefined}>
             <UserItem
                 user={user}
+                teammateNameDisplayOverride={contactSelectLayout ? Preferences.DISPLAY_PREFER_NICKNAME : undefined}
                 onUserLongPress={onLongPress}
                 onUserPress={handlePress}
                 showBadges={true}
                 testID={userItemTestID}
-                rightDecorator={manageMode ? manageModeIcon : icon}
+                leftDecorator={contactSelectLayout ? decorator : undefined}
+                rightDecorator={!contactSelectLayout ? decorator : undefined}
+                avatarBorderRadius={avatarBorderRadius}
                 disabled={!(selectable || selected || !disabled)}
                 viewRef={viewRef}
                 padding={20}
                 includeMargin={includeMargin}
                 onLayout={onLayout}
             />
+            </View>
             {showTutorial &&
             <TutorialHighlight
                 itemBounds={itemBounds}

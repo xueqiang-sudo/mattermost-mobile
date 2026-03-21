@@ -29,7 +29,7 @@ const PlusMenuItem = ({pickerAction, onPress}: PlusMenuItemProps) => {
 
         openDirectMessage: {
             leftIcon: 'account-outline',
-            text: intl.formatMessage({id: 'plus_menu.open_direct_message.title', defaultMessage: 'Open a Direct Message'}),
+            text: intl.formatMessage({id: 'plus_menu.open_direct_message.title', defaultMessage: 'Start a private chat'}),
             testID: 'plus_menu_item.open_direct_message',
         },
         invitePeopleToTeam: {

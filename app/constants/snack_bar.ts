@@ -30,6 +30,8 @@ export const SNACK_BAR_TYPE = keyMirror({
     DELETE_SCHEDULED_POST_ERROR: null,
     PLAYBOOK_ERROR: null,
     BOR_POST_EXPIRED: null,
+    ENTERPRISE_DISSOLVED_SUCCESS: null,
+    ENTERPRISE_QUIT_SUCCESS: null,
 });
 
 export const MESSAGE_TYPE = {
@@ -121,6 +123,14 @@ const messages = defineMessages({
     BOR_POST_EXPIRED: {
         id: 'snack.bar.bor_post_expired.error',
         defaultMessage: 'This burn-on-read post has expired and can no longer be revealed.',
+    },
+    ENTERPRISE_DISSOLVED_SUCCESS: {
+        id: 'snack.bar.enterprise.dissolved.success',
+        defaultMessage: 'Enterprise dissolved successfully',
+    },
+    ENTERPRISE_QUIT_SUCCESS: {
+        id: 'snack.bar.enterprise.quit.success',
+        defaultMessage: 'Left enterprise successfully',
     },
 });
 
@@ -227,6 +237,18 @@ export const SNACK_BAR_CONFIG: Record<string, SnackBarConfig> = {
         iconName: 'alert-outline',
         canUndo: false,
         type: MESSAGE_TYPE.ERROR,
+    },
+    ENTERPRISE_DISSOLVED_SUCCESS: {
+        message: messages.ENTERPRISE_DISSOLVED_SUCCESS,
+        iconName: 'check',
+        canUndo: false,
+        type: MESSAGE_TYPE.SUCCESS,
+    },
+    ENTERPRISE_QUIT_SUCCESS: {
+        message: messages.ENTERPRISE_QUIT_SUCCESS,
+        iconName: 'check',
+        canUndo: false,
+        type: MESSAGE_TYPE.SUCCESS,
     },
 };
 

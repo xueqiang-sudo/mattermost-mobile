@@ -184,6 +184,25 @@ export const getRecentPostsInChannel = async (database: Database, channelId: str
     return [];
 };
 
+/** 用于会话列表最后一条消息预览 */
+export const queryLastPostInChannel = (database: Database, channelId: string) => {
+    return database.get<PostModel>(POST).query(
+        Q.and(
+            Q.where('channel_id', channelId),
+            Q.where('delete_at', Q.eq(0)),
+        ),
+        Q.sortBy('create_at', Q.desc),
+        Q.take(1),
+    );
+};
+
+export const observeLastPostInChannel = (database: Database, channelId: string) => {
+    return queryLastPostInChannel(database, channelId).observe().pipe(
+        switchMap((posts) => of$(posts[0] ?? null)),
+        distinctUntilChanged((a, b) => a?.id === b?.id),
+    );
+};
+
 export const queryPostsById = (database: Database, postIds: string[], sort?: Q.SortOrder) => {
     const clauses: Q.Clause[] = [Q.where('id', Q.oneOf(postIds))];
     if (sort) {

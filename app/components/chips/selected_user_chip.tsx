@@ -12,6 +12,7 @@ type SelectedChipProps = {
     onPress: (id: string) => void;
     testID?: string;
     teammateNameDisplay: string;
+    avatarBorderRadius?: number;
 }
 
 export default function SelectedUserChip({
@@ -19,6 +20,7 @@ export default function SelectedUserChip({
     user,
     teammateNameDisplay,
     onPress,
+    avatarBorderRadius,
 }: SelectedChipProps) {
     const action = useMemo(() => ({icon: 'remove' as const, onPress}), [onPress]);
     return (
@@ -28,6 +30,7 @@ export default function SelectedUserChip({
             showAnimation={true}
             teammateNameDisplay={teammateNameDisplay}
             user={user}
+            avatarBorderRadius={avatarBorderRadius}
         />
     );
 }

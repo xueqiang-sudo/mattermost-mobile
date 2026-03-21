@@ -13,7 +13,7 @@ import {sanitizeLikeString} from '@helpers/database';
 import EphemeralStore from '@store/ephemeral_store';
 import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
-import {isSystemAdmin} from '@utils/user';
+import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
 
 import {prepareDeletePost} from './post';
 import {queryRoles} from './role';
@@ -575,6 +575,59 @@ export function queryMyRecentChannels(database: Database, take: number) {
         ...count,
     );
 }
+
+export const observeRecentConversationsForTeam = (database: Database, teamId: string): Observable<ChannelModel[]> => {
+    const myChannelsQuery = queryAllMyChannelsForTeam(database, teamId).extend(
+        Q.on(CHANNEL, Q.where('delete_at', Q.eq(0))),
+        Q.sortBy('last_post_at', Q.desc),
+    );
+
+    return myChannelsQuery.observeWithColumns(['last_post_at', 'last_viewed_at', 'is_unread', 'mentions_count', 'message_count']).pipe(
+        combineLatestWith(observeCurrentUserId(database)),
+        switchMap(([myChannels, currentUserId]) => {
+            if (myChannels.length === 0) {
+                return of$([]);
+            }
+
+            return combineLatest(myChannels.map((mc) => mc.channel.observe())).pipe(
+                map$((channels) => {
+                    const channelMap = new Map<string, {channel: ChannelModel; myChannel: MyChannelModel}>();
+                    channels.forEach((channel, index) => {
+                        if (channel && index < myChannels.length) {
+                            channelMap.set(channel.id, {channel, myChannel: myChannels[index]});
+                        }
+                    });
+
+                    const sorted = [...channelMap.values()]
+                        .filter(({channel}) => {
+                            if (channel.type !== General.DM_CHANNEL) {
+                                return true;
+                            }
+                            const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
+                            return teammateId !== currentUserId;
+                        })
+                        .sort((a, b) => {
+                            const isUnreadA = a.myChannel.isUnread || a.myChannel.mentionsCount > 0;
+                            const isUnreadB = b.myChannel.isUnread || b.myChannel.mentionsCount > 0;
+
+                            if (isUnreadA && !isUnreadB) {
+                                return -1;
+                            }
+                            if (!isUnreadA && isUnreadB) {
+                                return 1;
+                            }
+
+                            const sortTimeA = Math.max(a.myChannel.lastPostAt || 0, a.myChannel.lastViewedAt || 0, a.channel.createAt || 0);
+                            const sortTimeB = Math.max(b.myChannel.lastPostAt || 0, b.myChannel.lastViewedAt || 0, b.channel.createAt || 0);
+                            return sortTimeB - sortTimeA;
+                        });
+
+                    return sorted.map((s) => s.channel);
+                }),
+            );
+        }),
+    );
+};
 
 export const observeDirectChannelsByTerm = (database: Database, term: string, take = 20, matchStart = false) => {
     const onlyDMs = term.startsWith('@') ? "AND c.type='D'" : '';

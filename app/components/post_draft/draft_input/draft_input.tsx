@@ -25,6 +25,12 @@ import Header from './header';
 
 import type {PasteInputRef} from '@mattermost/react-native-paste-input';
 
+// 聊天界面设计：输入栏白色圆角
+const CHAT_INPUT_BG = '#FFFFFF';
+const CHAT_INPUT_BORDER_RADIUS = 8;
+const CHAT_INPUT_MARGIN_H = 12;
+const CHAT_INPUT_MARGIN_B = 8;
+
 export type Props = {
     testID?: string;
     channelId: string;
@@ -33,6 +39,8 @@ export type Props = {
     rootId?: string;
     currentUserId: string;
     canShowPostPriority?: boolean;
+    /** 用于聊天界面：白色圆角输入栏 */
+    useChatInputStyle?: boolean;
 
     // Post Props
     postPriority: PostPriority;
@@ -92,12 +100,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             flexDirection: 'row',
             justifyContent: 'center',
             paddingBottom: 2,
-            backgroundColor: theme.centerChannelBg,
-            borderWidth: 1,
-            borderBottomWidth: 0,
-            borderColor: changeOpacity(theme.centerChannelColor, 0.20),
-            borderTopLeftRadius: 12,
-            borderTopRightRadius: 12,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+            borderTopWidth: 1,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+        },
+        inputWrapperChatStyle: {
+            backgroundColor: CHAT_INPUT_BG,
+            borderTopWidth: 0,
+            borderColor: 'transparent',
+            marginHorizontal: CHAT_INPUT_MARGIN_H,
+            marginBottom: CHAT_INPUT_MARGIN_B,
+            borderRadius: CHAT_INPUT_BORDER_RADIUS,
+            overflow: 'hidden',
+            paddingHorizontal: 8,
+            paddingTop: 6,
         },
         postPriorityLabel: {
             marginLeft: 12,
@@ -134,6 +150,7 @@ function DraftInput({
     persistentNotificationMaxRecipients,
     setIsFocused,
     scheduledPostsEnabled,
+    useChatInputStyle = false,
 }: Props) {
     const intl = useIntl();
     const serverUrl = useServerUrl();
@@ -203,7 +220,7 @@ function DraftInput({
             <SafeAreaView
                 edges={SAFE_AREA_VIEW_EDGES}
                 onLayout={handleLayout}
-                style={style.inputWrapper}
+                style={useChatInputStyle ? [style.inputWrapper, style.inputWrapperChatStyle] : style.inputWrapper}
                 testID={testID}
             >
 

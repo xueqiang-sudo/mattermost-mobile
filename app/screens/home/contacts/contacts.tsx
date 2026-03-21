@@ -11,6 +11,7 @@ import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area
 
 import {
     ensureTeamCompany,
+    fetchCanManageEnterprise,
     fetchCompany,
     fetchDepartmentsByCompany,
     fetchEmployeeCountOfCompany,
@@ -250,6 +251,8 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     const [companyName, setCompanyName] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
+    /** 仅企业管理者可管理通讯录、可自动创建 */
+    const [isEnterpriseManager, setIsEnterpriseManager] = useState(false);
     /** Home 从弹窗下重新出现时递增，触发主列表重新拉取 */
     const [homeReappearTick, setHomeReappearTick] = useState(0);
 
@@ -327,10 +330,22 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
 
             const getRes = await fetchCompany(currentTeamId);
             if (getRes.error && mounted.current && database) {
+                // 通讯录不存在：仅企业管理者（团队创建者或管理员）可自动创建
                 const team = await getTeamById(database, currentTeamId);
                 const teamName = team?.displayName?.trim();
-                if (teamName && serverUrl) {
+                const currentUserId = currentUser?.id;
+                if (teamName && serverUrl && currentUserId) {
+                    const canManage = await fetchCanManageEnterprise(serverUrl, currentTeamId, currentUserId, null);
+                    if (!canManage && mounted.current) {
+                        setIsEnterpriseManager(false);
+                        setLoading(false);
+                        return;
+                    }
                     const ownerId = await fetchTeamCreatorId(serverUrl, currentTeamId);
+                    if (!ownerId || ownerId.trim() === '' || !mounted.current) {
+                        setLoading(false);
+                        return;
+                    }
                     const ensureRes = await ensureTeamCompany(currentTeamId, teamName, ownerId);
                     if (ensureRes.error && mounted.current) {
                         setServiceError(true);
@@ -339,6 +354,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                     }
                     if (mounted.current) {
                         setCompanyName(teamName);
+                        setIsEnterpriseManager(true);
                     }
 
                     // 新建企业时，将团队成员同步到通讯录默认部门
@@ -352,6 +368,15 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                 }
             } else if (getRes.data?.name && mounted.current) {
                 setCompanyName(getRes.data.name);
+                const currentUserId = currentUser?.id;
+                if (currentUserId && serverUrl) {
+                    const canManage = await fetchCanManageEnterprise(serverUrl, currentTeamId!, currentUserId, getRes.data);
+                    setIsEnterpriseManager(canManage);
+                } else {
+                    setIsEnterpriseManager(false);
+                }
+            } else if (mounted.current) {
+                setIsEnterpriseManager(false);
             }
 
             const deptRes = await fetchDepartmentsByCompany(currentTeamId, {parentDepartmentId: -1});
@@ -389,7 +414,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, database, isFocused, serverUrl, homeReappearTick]);
+    }, [currentTeamId, currentUser?.id, database, isFocused, serverUrl, homeReappearTick]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: ContactDepartment) => {
         const breadcrumb = [
@@ -558,18 +583,20 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                         />
                     </TouchableOpacity>
                     */}
-                    <TouchableOpacity
-                        style={styles.headerIconButton}
-                        onPress={handleManageContacts}
-                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                        testID='contacts.header.manage'
-                    >
-                        <CompassIcon
-                            name='format-list-bulleted'
-                            size={24}
-                            color={theme.sidebarText}
-                        />
-                    </TouchableOpacity>
+                    {isEnterpriseManager && (
+                        <TouchableOpacity
+                            style={styles.headerIconButton}
+                            onPress={handleManageContacts}
+                            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                            testID='contacts.header.manage'
+                        >
+                            <CompassIcon
+                                name='format-list-bulleted'
+                                size={24}
+                                color={theme.sidebarText}
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
 

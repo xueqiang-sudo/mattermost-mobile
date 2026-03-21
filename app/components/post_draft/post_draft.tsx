@@ -11,6 +11,8 @@ import {useAutocompleteDefaultAnimatedValues} from '@hooks/autocomplete';
 import {useKeyboardHeight} from '@hooks/device';
 import {useDefaultHeaderHeight} from '@hooks/header';
 
+import {Screens} from '@constants';
+
 import Archived from './archived';
 import DraftHandler from './draft_handler';
 import ReadOnly from './read_only';
@@ -105,6 +107,7 @@ function PostDraft({
             updateValue={setValue}
             value={value}
             setIsFocused={setIsFocused}
+            useChatInputStyle={location === Screens.CHANNEL}
         />
     );
 

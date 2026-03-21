@@ -3,7 +3,7 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useState} from 'react';
-import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {useIntl} from 'react-intl';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -22,8 +22,11 @@ import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {Events} from '@constants';
+import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {observeCurrentUser} from '@queries/servers/user';
@@ -275,8 +278,14 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
         checkCreator();
     }, [company, companyId, employeeId, isMattermostTeam, serverUrl]);
 
-    const handleBackToList = useCallback(() => {
-        dismissModal({componentId});
+    const handleSuccessAndBack = useCallback((isDissolve: boolean) => {
+        showSnackBar({
+            barType: isDissolve ? SNACK_BAR_TYPE.ENTERPRISE_DISSOLVED_SUCCESS : SNACK_BAR_TYPE.ENTERPRISE_QUIT_SUCCESS,
+            ignoreNavigationEvents: true,
+            duration: 2000,
+        });
+        DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
+        popTopScreen(componentId);
     }, [componentId]);
 
     const handleQuitOrDissolve = usePreventDoubleTap(useCallback(() => {
@@ -322,7 +331,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                                     return;
                                 }
                             }
-                            handleBackToList();
+                            handleSuccessAndBack(true);
                             return;
                         }
 
@@ -348,12 +357,12 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                                 return;
                             }
                         }
-                        handleBackToList();
+                        handleSuccessAndBack(false);
                     },
                 },
             ],
         );
-    }, [companyId, employeeId, handleBackToList, hasContactCompanyRecord, intl, isCreator, isMattermostTeam, serverUrl]));
+    }, [companyId, employeeId, handleSuccessAndBack, hasContactCompanyRecord, intl, isCreator, isMattermostTeam, serverUrl]));
 
     const renderBody = () => {
         if (loading && !company) {

@@ -17,6 +17,7 @@ import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {changeOpacity} from '@utils/theme';
 import {getDateForDateLine, preparePostList} from '@utils/post_list';
 
 import {INITIAL_BATCH_TO_RENDER, SCROLL_POSITION_CONFIG, VIEWABILITY_CONFIG} from './config';
@@ -118,6 +119,12 @@ const PostList = ({
     const [lastPostId, setLastPostId] = useState<string | undefined>(firstIdInPosts);
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    // 聊天界面设计：消息区域浅灰背景 #F2F2F2
+    const CHAT_MESSAGE_BG = '#F2F2F2';
+    const listContentStyle = useMemo(() => {
+        const isChannel = location === Screens.CHANNEL || location === Screens.PERMALINK;
+        return isChannel ? {backgroundColor: CHAT_MESSAGE_BG, flexGrow: 1} : undefined;
+    }, [location]);
     const orderedPosts = useMemo(() => {
         return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, location === Screens.THREAD, savedPostIds);
     }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, location, savedPostIds]);
@@ -265,6 +272,7 @@ const PostList = ({
                 return (
                     <DateSeparator
                         key={item.value}
+                        compact={location === Screens.CHANNEL || location === Screens.PERMALINK}
                         date={getDateForDateLine(item.value)}
                         timezone={currentTimezone}
                     />
@@ -349,7 +357,7 @@ const PostList = ({
     return (
         <>
             <Animated.FlatList
-                contentContainerStyle={contentContainerStyle}
+                contentContainerStyle={[listContentStyle, contentContainerStyle]}
                 data={orderedPosts}
                 keyboardDismissMode='interactive'
                 keyboardShouldPersistTaps='handled'

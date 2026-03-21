@@ -3,16 +3,18 @@
 
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {StyleSheet, TouchableOpacity, View} from 'react-native';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
 import Badge from '@components/badge';
 import ChannelIcon from '@components/channel_icon';
 import CompassIcon from '@components/compass_icon';
+import FormattedConversationTime from '@components/formatted_conversation_time';
 import {General} from '@constants';
 import {HOME_PADDING} from '@constants/view';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {isDMorGM} from '@utils/channel';
+import {formatMessagePreview} from '@utils/message_preview';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getUserIdFromChannelName} from '@utils/user';
@@ -24,12 +26,14 @@ import type ChannelModel from '@typings/database/models/servers/channel';
 type Props = {
     channel: ChannelModel | Channel;
     currentUserId: string;
+    currentTimezone?: string | null;
     hasDraft: boolean;
     isActive: boolean;
     isMuted: boolean;
     membersCount: number;
     isUnread: boolean;
     mentionsCount: number;
+    messageCount?: number;
     onPress: (channel: ChannelModel | Channel) => void;
     teamDisplayName?: string;
     testID?: string;
@@ -37,10 +41,13 @@ type Props = {
     isOnCenterBg?: boolean;
     showChannelName?: boolean;
     isOnHome?: boolean;
+    lastPostAt?: number;
+    lastPostPreview?: string;
 }
 
 export const ROW_HEIGHT = 40;
 export const ROW_HEIGHT_WITH_TEAM = 58;
+export const ROW_HEIGHT_CONVERSATION = 72;
 
 export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
@@ -83,6 +90,34 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     mutedBadge: {
         opacity: 0.32,
     },
+    iconWrapper: {
+        position: 'relative' as const,
+    },
+    // 未读徽章：右上角叠加显示，圆形，>99 显示 99+，参考微信/企微
+    iconBadge: {
+        position: 'absolute' as const,
+        top: -4,
+        right: -4,
+        left: undefined,
+        borderColor: theme.sidebarBg,
+        marginLeft: 0,
+    },
+    timestamp: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.sidebarText, 0.64),
+        marginLeft: 8,
+    },
+    timestampOnCenterBg: {
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+    },
+    subtitle: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.sidebarText, 0.64),
+        marginTop: 2,
+    },
+    subtitleOnCenterBg: {
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+    },
     activeItem: {
         backgroundColor: changeOpacity(theme.sidebarTextActiveColor, 0.1),
         borderLeftColor: theme.sidebarTextActiveBorder,
@@ -107,12 +142,14 @@ export const textStyle = StyleSheet.create({
 const ChannelItem = ({
     channel,
     currentUserId,
+    currentTimezone,
     hasDraft,
     isActive,
     isMuted,
     membersCount,
     isUnread,
     mentionsCount,
+    messageCount = 0,
     onPress,
     teamDisplayName = '',
     testID,
@@ -120,6 +157,8 @@ const ChannelItem = ({
     isOnCenterBg = false,
     showChannelName = false,
     isOnHome = false,
+    lastPostAt = 0,
+    lastPostPreview = '',
 }: Props) => {
     const {formatMessage} = useIntl();
     const theme = useTheme();
@@ -136,7 +175,9 @@ const ChannelItem = ({
     const isOwnDirectMessage = (channel.type === General.DM_CHANNEL) && currentUserId === teammateId;
 
     let displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
-    if (isOwnDirectMessage) {
+    if (channel.name === General.DEFAULT_CHANNEL) {
+        displayName = teamDisplayName || formatMessage({id: 'channel_list.town_square.display_name', defaultMessage: 'Company group'});
+    } else if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
 
@@ -144,8 +185,11 @@ const ChannelItem = ({
     const channelItemTestId = `${testID}.${channel.name}`;
 
     const height = useMemo(() => {
+        if (isOnHome) {
+            return ROW_HEIGHT_CONVERSATION;
+        }
         return (teamDisplayName && !isTablet) ? ROW_HEIGHT_WITH_TEAM : ROW_HEIGHT;
-    }, [teamDisplayName, isTablet]);
+    }, [teamDisplayName, isTablet, isOnHome]);
 
     const handleOnPress = useCallback(() => {
         onPress(channel);
@@ -171,48 +215,112 @@ const ChannelItem = ({
         {minHeight: height},
     ], [height, showActive, styles, isOnHome]);
 
+    const showIconBadge = isOnHome && (mentionsCount > 0 || (isUnread && !isMuted));
+    // 传入实际数量，Badge 组件会在 >99 时显示 "99+"
+    const badgeValue = mentionsCount > 0 ? mentionsCount : (isUnread && messageCount > 0 ? messageCount : -1);
+    const subtitle = formatMessagePreview(lastPostPreview);
+
     return (
         <TouchableOpacity onPress={handleOnPress}>
             <View
                 style={containerStyle}
                 testID={channelItemTestId}
             >
-                <ChannelIcon
-                    hasDraft={hasDraft}
-                    isActive={isTablet && isActive}
-                    isOnCenterBg={isOnCenterBg}
-                    isUnread={isBolded}
-                    isArchived={deleteAt > 0}
-                    membersCount={membersCount}
-                    name={channel.name}
-                    shared={channel.shared}
-                    size={24}
-                    type={channel.type}
-                    isMuted={isMuted}
-                    style={styles.icon}
-                />
-                <ChannelBody
-                    displayName={displayName}
-                    isMuted={isMuted}
-                    teamDisplayName={teamDisplayName}
-                    teammateId={teammateId}
-                    testId={channelItemTestId}
-                    textStyles={textStyles}
-                    channelName={channelName}
-                />
-                <View style={styles.filler}/>
-                <Badge
-                    visible={mentionsCount > 0}
-                    value={mentionsCount}
-                    style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg]}
-                />
-                {hasCall &&
-                <CompassIcon
-                    name='phone-in-talk'
-                    size={16}
-                    style={[textStyles, styles.hasCall]}
-                />
-                }
+                <View style={[styles.icon, isOnHome && styles.iconWrapper]}>
+                    <ChannelIcon
+                        channelId={channel.id}
+                        hasDraft={hasDraft}
+                        isActive={isTablet && isActive}
+                        isOnCenterBg={isOnCenterBg}
+                        isOnHome={isOnHome}
+                        isUnread={isBolded}
+                        isArchived={deleteAt > 0}
+                        membersCount={membersCount}
+                        name={channel.name}
+                        shared={channel.shared}
+                        size={isOnHome ? 48 : 24}
+                        type={channel.type}
+                        isMuted={isMuted}
+                        style={!isOnHome ? styles.icon : undefined}
+                    />
+                    {showIconBadge && (
+                        <Badge
+                            visible
+                            value={badgeValue}
+                            type="Small"
+                            backgroundColor="#FF3B30"
+                            color="#FFFFFF"
+                            borderColor={isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg}
+                            style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg, styles.iconBadge]}
+                        />
+                    )}
+                </View>
+                {isOnHome ? (
+                    <View style={{flex: 1, minWidth: 0, justifyContent: 'center'}}>
+                        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <ChannelBody
+                                displayName={displayName}
+                                isMuted={isMuted}
+                                teamDisplayName=""
+                                teammateId={teammateId}
+                                testId={channelItemTestId}
+                                textStyles={textStyles}
+                                channelName={channelName}
+                                channelType={channel.type}
+                                channelNameKey={channel.name}
+                                isOnHome={true}
+                                isOnCenterBg={isOnCenterBg}
+                            />
+                            {lastPostAt > 0 ? (
+                                <FormattedConversationTime
+                                    timestamp={lastPostAt}
+                                    timeZone={currentTimezone ?? undefined}
+                                    style={[styles.timestamp, isOnCenterBg && styles.timestampOnCenterBg]}
+                                />
+                            ) : (
+                                <View style={{minWidth: 24}}/>
+                            )}
+                        </View>
+                        {Boolean(subtitle) && (
+                            <Text
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                                style={[styles.subtitle, isMuted && styles.muted, isOnCenterBg && styles.subtitleOnCenterBg]}
+                            >
+                                {subtitle}
+                            </Text>
+                        )}
+                    </View>
+                ) : (
+                    <>
+                        <ChannelBody
+                            displayName={displayName}
+                            isMuted={isMuted}
+                            teamDisplayName={teamDisplayName}
+                            teammateId={teammateId}
+                            testId={channelItemTestId}
+                            textStyles={textStyles}
+                            channelName={channelName}
+                            channelType={channel.type}
+                            channelNameKey={channel.name}
+                            isOnHome={isOnHome}
+                            isOnCenterBg={isOnCenterBg}
+                        />
+                        <View style={styles.filler}/>
+                        <Badge
+                            visible={mentionsCount > 0}
+                            value={mentionsCount}
+                            style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg]}
+                        />
+                        {hasCall && (
+                            <CompassIcon
+                                name="phone-in-talk"
+                                size={16}
+                                style={[textStyles, styles.hasCall]}
+                            />
+                        )}
+                    </>
+                )}
             </View>
         </TouchableOpacity>
     );

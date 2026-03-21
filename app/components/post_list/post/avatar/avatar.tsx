@@ -26,6 +26,8 @@ type AvatarProps = {
     isAutoReponse: boolean;
     location: AvailableScreens;
     post: PostModel;
+    /** When true, use rounded square (WeChat/WeCom style) instead of circle */
+    useRoundedSquare?: boolean;
 }
 
 const style = StyleSheet.create({
@@ -34,7 +36,9 @@ const style = StyleSheet.create({
     },
 });
 
-const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post}: AvatarProps) => {
+const CHAT_AVATAR_BORDER_RADIUS = 6;
+
+const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, useRoundedSquare}: AvatarProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -105,6 +109,7 @@ const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post}:
     let component = (
         <ProfilePicture
             author={author}
+            borderRadius={useRoundedSquare ? CHAT_AVATAR_BORDER_RADIUS : undefined}
             size={ViewConstant.PROFILE_PICTURE_SIZE}
             iconSize={24}
             showStatus={!isAutoReponse || author?.isBot}

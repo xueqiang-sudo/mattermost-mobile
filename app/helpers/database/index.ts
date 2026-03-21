@@ -36,7 +36,8 @@ export function extractChannelDisplayName(raw: Pick<Channel, 'type' | 'display_n
             if (raw.fake) {
                 displayName = raw.display_name;
             } else {
-                displayName = record?.displayName || raw.display_name;
+                // 服务端数据：优先使用服务端 display_name（支持群聊重命名后正确显示）
+                displayName = raw.display_name?.trim() || record?.displayName || '';
             }
             break;
         }

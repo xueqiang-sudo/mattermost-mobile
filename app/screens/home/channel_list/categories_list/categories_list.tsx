@@ -144,7 +144,6 @@ const CategoriesList = ({
 
         return (
             <>
-                <SubHeader/>
                 {threadButtonComponent}
                 {draftsButtonComponent}
                 {playbooksButtonComponent}
@@ -156,6 +155,7 @@ const CategoriesList = ({
     return (
         <Animated.View style={[styles.container, tabletStyle]}>
             <ChannelListHeader iconPad={iconPad}/>
+            <SubHeader/>
             {content}
         </Animated.View>
     );

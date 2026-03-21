@@ -29,6 +29,7 @@ type Props = {
     updateValue: React.Dispatch<React.SetStateAction<string>>;
     value: string;
     setIsFocused: (isFocused: boolean) => void;
+    useChatInputStyle?: boolean;
 }
 
 const emptyFileList: FileInfo[] = [];
@@ -49,6 +50,7 @@ export default function DraftHandler(props: Props) {
         updateValue,
         value,
         setIsFocused,
+        useChatInputStyle,
     } = props;
 
     const serverUrl = useServerUrl();
@@ -123,6 +125,7 @@ export default function DraftHandler(props: Props) {
             channelId={channelId}
             rootId={rootId}
             canShowPostPriority={canShowPostPriority}
+            useChatInputStyle={useChatInputStyle}
 
             // From draft handler
             cursorPosition={cursorPosition}

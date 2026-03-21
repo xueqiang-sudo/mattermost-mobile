@@ -48,9 +48,16 @@ type ChannelProps = {
 
 const edges: Edge[] = ['left', 'right'];
 
+// 聊天界面设计：消息区域背景与列表一致
+const CHAT_MESSAGE_BG = '#F2F2F2';
+
 const styles = StyleSheet.create({
     flex: {
         flex: 1,
+    },
+    messageArea: {
+        flex: 1,
+        backgroundColor: CHAT_MESSAGE_BG,
     },
 });
 
@@ -136,7 +143,7 @@ const Channel = ({
                 />
                 {shouldRender &&
                 <ExtraKeyboardProvider>
-                    <View style={[styles.flex, {marginTop}]}>
+                    <View style={[styles.messageArea, {marginTop}]}>
                         <ChannelPostList
                             channelId={channelId}
                             nativeID={channelId}

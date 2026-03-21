@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {type LayoutChangeEvent, Platform, ScrollView, View} from 'react-native';
+import {type LayoutChangeEvent, Platform, ScrollView, StyleSheet, View} from 'react-native';
 import Animated, {useAnimatedStyle, useDerivedValue, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -80,6 +80,11 @@ type Props = {
      * Max number of users in the list
      */
     maxUsers?: number;
+
+    /**
+     * When set, avatar is a rounded square. Omit for circular.
+     */
+    avatarBorderRadius?: number;
 }
 
 const BUTTON_HEIGHT = 48;
@@ -99,34 +104,31 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
     return {
         container: {
             backgroundColor: theme.centerChannelBg,
-            borderBottomWidth: 0,
-            borderColor: changeOpacity(theme.centerChannelColor, 0.16),
-            borderTopLeftRadius: 12,
-            borderTopRightRadius: 12,
-            borderWidth: 1,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: changeOpacity(theme.centerChannelColor, 0.12),
             maxHeight: PANEL_MAX_HEIGHT,
             overflow: 'hidden',
-            paddingHorizontal: 20,
-            shadowColor: theme.centerChannelColor,
-            shadowOffset: {
-                width: 0,
-                height: 8,
-            },
-            shadowOpacity: 0.16,
-            shadowRadius: 24,
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: 16,
         },
         toast: {
             backgroundColor: theme.errorTextColor,
         },
+        bottomBar: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+        },
         usersScroll: {
-            marginTop: SCROLL_MARGIN_TOP,
-            marginBottom: SCROLL_MARGIN_BOTTOM,
+            flex: 1,
+            marginRight: 12,
         },
         users: {
             flexDirection: 'row',
-            flexGrow: 1,
-            flexWrap: 'wrap',
+            alignItems: 'center',
             gap: CHIP_GAP,
+            paddingVertical: 4,
         },
         message: {
             color: theme.centerChannelBg,
@@ -152,6 +154,7 @@ export default function SelectedUsers({
     toastIcon,
     toastMessage,
     maxUsers,
+    avatarBorderRadius,
 }: Props) {
     const theme = useTheme();
     const style = getStyleFromTheme(theme);
@@ -175,11 +178,12 @@ export default function SelectedUsers({
                     onPress={onRemove}
                     teammateNameDisplay={teammateNameDisplay}
                     testID={userItemTestID}
+                    avatarBorderRadius={avatarBorderRadius}
                 />,
             );
         }
         return u;
-    }, [selectedIds, teammateNameDisplay, onRemove, testID]);
+    }, [selectedIds, teammateNameDisplay, onRemove, testID, avatarBorderRadius]);
 
     const totalPanelHeight = useDerivedValue(() => (
         isVisible ? usersChipsHeight.value + SCROLL_MARGIN_BOTTOM + SCROLL_MARGIN_TOP + BUTTON_HEIGHT : 0
@@ -254,16 +258,21 @@ export default function SelectedUsers({
             />
             }
             <Animated.View style={[style.container, animatedViewStyle]}>
-                <ScrollView style={style.usersScroll}>
-                    <View
-                        style={style.users}
-                        onLayout={onLayout}
+                <View style={style.bottomBar}>
+                    <ScrollView
+                        style={style.usersScroll}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
                     >
-                        {users}
-                    </View>
-                </ScrollView>
-                <Animated.View style={animatedButtonStyle}>
-                    <Button
+                        <View
+                            style={style.users}
+                            onLayout={onLayout}
+                        >
+                            {users}
+                        </View>
+                    </ScrollView>
+                    <Animated.View style={animatedButtonStyle}>
+                        <Button
                         onPress={handlePress}
                         iconName={buttonIcon}
                         text={buttonText}
@@ -273,7 +282,8 @@ export default function SelectedUsers({
                         testID={`${testID}.start.button`}
                         disabled={isDisabled}
                     />
-                </Animated.View>
+                    </Animated.View>
+                </View>
             </Animated.View>
         </Animated.View>
     );

@@ -4,7 +4,7 @@
 import {useDatabase, withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {
@@ -18,12 +18,12 @@ import {ContactCompanyTypes} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
-import {Screens} from '@constants';
+import {Events, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
-import {goToScreen} from '@screens/navigation';
+import {dismissModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -236,9 +236,9 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
 
     const employeeId = currentUser?.id;
 
-    const loadCompanies = useCallback(async (opts?: {isRefresh?: boolean}) => {
+    const loadCompanies = useCallback(async (opts?: {isRefresh?: boolean}): Promise<ManageEnterpriseEntry[]> => {
         if (!employeeId) {
-            return;
+            return [];
         }
         if (opts?.isRefresh) {
             setRefreshing(true);
@@ -247,22 +247,34 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
         }
         setError(undefined);
         const res: FetchManageEnterpriseListResult = await fetchManageEnterpriseList(database, employeeId);
-        if (res.error && !res.data?.length) {
+        const newEntries = res.data ?? [];
+        if (res.error && !newEntries.length) {
             setError(res.error);
             setEntries([]);
         } else {
             setError(undefined);
-            setEntries(res.data ?? []);
+            setEntries(newEntries);
         }
         if (opts?.isRefresh) {
             setRefreshing(false);
         } else {
             setLoading(false);
         }
+        return newEntries;
     }, [database, employeeId]);
 
     useEffect(() => {
         loadCompanies();
+    }, [loadCompanies]);
+
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(Events.MANAGE_ENTERPRISE_REFRESH, async () => {
+            const entries = await loadCompanies({isRefresh: true});
+            if (entries.length === 0) {
+                dismissModal();
+            }
+        });
+        return () => listener.remove();
     }, [loadCompanies]);
 
     const handleCreateEnterprise = usePreventDoubleTap(useCallback(async () => {

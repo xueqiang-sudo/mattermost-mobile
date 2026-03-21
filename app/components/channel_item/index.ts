@@ -3,16 +3,19 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
-import {of as of$} from 'rxjs';
-import {switchMap, distinctUntilChanged} from 'rxjs/operators';
+import {of as of$, combineLatest} from 'rxjs';
+import {switchMap, distinctUntilChanged, map, shareReplay} from 'rxjs/operators';
 
 import {observeChannelsWithCalls} from '@calls/state';
 import {General} from '@constants';
 import {withServerUrl} from '@context/server';
 import {observeIsMutedSetting, observeMyChannel, queryChannelMembers} from '@queries/servers/channel';
 import {queryDraft} from '@queries/servers/drafts';
+import {observeLastPostInChannel} from '@queries/servers/post';
 import {observeCurrentChannelId, observeCurrentUserId} from '@queries/servers/system';
 import {observeTeam} from '@queries/servers/team';
+import {observeCurrentUser} from '@queries/servers/user';
+import {getTimezone} from '@utils/user';
 
 import ChannelItem from './channel_item';
 
@@ -25,15 +28,17 @@ type EnhanceProps = WithDatabaseArgs & {
     serverUrl?: string;
     shouldHighlightActive?: boolean;
     shouldHighlightState?: boolean;
+    isOnHome?: boolean;
 }
 
-const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActive', 'shouldHighlightState'], ({
+const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActive', 'shouldHighlightState', 'isOnHome'], ({
     channel,
     database,
     serverUrl,
     showTeamName = false,
     shouldHighlightActive = false,
     shouldHighlightState = false,
+    isOnHome = false,
 }: EnhanceProps) => {
     const currentUserId = observeCurrentUserId(database);
     const myChannel = observeMyChannel(database, channel.id);
@@ -73,7 +78,7 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
         ) : of$(false);
 
     const teamId = 'teamId' in channel ? channel.teamId : channel.team_id;
-    const teamDisplayName = (teamId && showTeamName) ?
+    const teamDisplayName = teamId ?
         observeTeam(database, teamId).pipe(
             switchMap((team) => of$(team?.displayName || '')),
             distinctUntilChanged(),
@@ -91,7 +96,13 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
 
     const mentionsCount = shouldHighlightState ?
         myChannel.pipe(
-            switchMap((mc) => of$(mc?.mentionsCount)),
+            switchMap((mc) => of$(mc?.mentionsCount ?? 0)),
+            distinctUntilChanged(),
+        ) : of$(0);
+
+    const messageCount = shouldHighlightState ?
+        myChannel.pipe(
+            switchMap((mc) => of$(mc?.messageCount ?? 0)),
             distinctUntilChanged(),
         ) : of$(0);
 
@@ -100,17 +111,39 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
         distinctUntilChanged(),
     );
 
+    const lastPost = observeLastPostInChannel(database, channel.id).pipe(shareReplay({bufferSize: 1, refCount: true}));
+    const lastPostAt = (isOnHome && shouldHighlightState) ?
+        combineLatest([lastPost, myChannel]).pipe(
+            map(([post, mc]) => Math.max(post?.createAt ?? 0, mc?.lastPostAt ?? 0)),
+            distinctUntilChanged(),
+        ) : of$(0);
+
+    const lastPostPreview = isOnHome ?
+        lastPost.pipe(
+            switchMap((post) => of$(post?.message ?? '')),
+            distinctUntilChanged(),
+        ) : of$('');
+
+    const currentTimezone = observeCurrentUser(database).pipe(
+        map((user) => getTimezone(user?.timezone) || null),
+        distinctUntilChanged(),
+    );
+
     return {
         channel: 'observe' in channel ? channel.observe() : of$(channel),
         currentUserId,
+        currentTimezone,
         hasDraft,
         isActive,
         isMuted,
         membersCount,
         isUnread,
         mentionsCount,
+        messageCount,
         teamDisplayName,
         hasCall,
+        lastPostAt,
+        lastPostPreview,
     };
 });
 

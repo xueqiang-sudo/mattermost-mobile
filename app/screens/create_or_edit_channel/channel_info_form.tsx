@@ -143,7 +143,8 @@ export default function ChannelInfoForm({
     const makePrivateLabel = formatMessage({id: 'channel_modal.makePrivate.label', defaultMessage: 'Make Private'});
     const makePrivateDescription = formatMessage({id: 'channel_modal.makePrivate.description', defaultMessage: 'When a channel is set to private, only invited team members can access and participate in that channel'});
 
-    const displayHeaderOnly = headerOnly || channelType === General.DM_CHANNEL || channelType === General.GM_CHANNEL;
+    // GM 群聊编辑时显示名称字段以支持修改群聊名称
+    const displayHeaderOnly = headerOnly || channelType === General.DM_CHANNEL || (channelType === General.GM_CHANNEL && !editing);
     const showSelector = !displayHeaderOnly && !editing;
 
     const isPrivate = type === General.PRIVATE_CHANNEL;
