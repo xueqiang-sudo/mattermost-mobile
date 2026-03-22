@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {type ReactNode, useCallback, useMemo, useState} from 'react';
 import {Dimensions, type LayoutChangeEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 
 import Files from '@components/files';
@@ -115,11 +115,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginTop: WECHAT_BUBBLE_TAIL_MARGIN_TOP,
         },
 
-        /** Own messages: width capped by bubbleWithTailWrapper maxWidth — WeChat-style. */
+        /** Own messages: width capped by bubbleWithTailWrapper maxWidth — WeChat-style. Right alignment uses bubbleWithTailWrapperOwn only. */
         bubbleOwnWeChat: {
             maxWidth: '100%',
-            alignSelf: 'flex-end',
         },
+
         /** Others' messages: inner bubble fills wrapper (wrapper limits screen width). */
         bubbleOthersWeChat: {
             maxWidth: '100%',
@@ -128,12 +128,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             paddingVertical: 2,
             flex: 1,
         },
-        messageBodyOwnWeChat: {
-            flex: 0,
-            alignSelf: 'stretch',
-            minWidth: 0,
-        },
-        messageBodyOthersWeChat: {
+
+        /** WeChat: same body wrapper for own and others (others path was the stable baseline). */
+        messageBodyWeChat: {
             flex: 0,
             alignSelf: 'stretch',
         },
@@ -249,7 +246,7 @@ const Body = ({
             borderColor: chatBubbleSurface.border,
             borderTopLeftRadius: 0,
         }];
-    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleOthersWeChat, style.bubbleWeChat]);
+    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
 
     if (hasBeenDeleted) {
         body = (
@@ -297,7 +294,7 @@ const Body = ({
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <Message
-                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} : undefined}
+                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? [style.message, {color: chatBubbleSurface.ownText}] : undefined}
                 highlight={highlight}
                 isEdited={isEdited}
                 isPendingOrFailed={isPendingOrFailed}
@@ -319,8 +316,7 @@ const Body = ({
             <View
                 style={[
                     style.messageBody,
-                    weChatStyleActive && isOwnPost && style.messageBodyOwnWeChat,
-                    weChatStyleActive && !isOwnPost && style.messageBodyOthersWeChat,
+                    weChatStyleActive && style.messageBodyWeChat,
                 ]}
             >
                 {message}
@@ -365,44 +361,51 @@ const Body = ({
         );
     }
 
+    let bubbleSection: ReactNode;
+    if (!bubbleStyle) {
+        bubbleSection = body;
+    } else if (weChatStyleActive && chatBubbleSurface) {
+        bubbleSection = (
+            <View
+                style={[
+                    style.bubbleWithTailWrapper,
+                    isOwnPost && style.bubbleWithTailWrapperOwn,
+                    {maxWidth: weChatBubbleMaxWidth},
+                ]}
+            >
+                {!isOwnPost && (
+                    <View
+                        style={[
+                            style.bubbleTailLeft,
+                            {borderRightColor: chatBubbleSurface.othersBg},
+                        ]}
+                    />
+                )}
+                <View style={bubbleStyle}>
+                    {body}
+                </View>
+                {isOwnPost && (
+                    <View
+                        style={[
+                            style.bubbleTailRight,
+                            {borderLeftColor: chatBubbleSurface.ownBg},
+                        ]}
+                    />
+                )}
+            </View>
+        );
+    } else {
+        bubbleSection = (
+            <View style={bubbleStyle}>
+                {body}
+            </View>
+        );
+    }
+
     const content = (
         <>
             <View style={replyBarStyle}/>
-            {bubbleStyle ? (
-                weChatStyleActive && chatBubbleSurface ? (
-                    <View
-                        style={[
-                            style.bubbleWithTailWrapper,
-                            isOwnPost && style.bubbleWithTailWrapperOwn,
-                            {maxWidth: weChatBubbleMaxWidth},
-                        ]}
-                    >
-                        {!isOwnPost && (
-                            <View
-                                style={[
-                                    style.bubbleTailLeft,
-                                    {borderRightColor: chatBubbleSurface.othersBg},
-                                ]}
-                            />
-                        )}
-                        <View style={bubbleStyle}>
-                            {body}
-                        </View>
-                        {isOwnPost && (
-                            <View
-                                style={[
-                                    style.bubbleTailRight,
-                                    {borderLeftColor: chatBubbleSurface.ownBg},
-                                ]}
-                            />
-                        )}
-                    </View>
-                ) : (
-                    <View style={bubbleStyle}>
-                        {body}
-                    </View>
-                )
-            ) : body}
+            {bubbleSection}
             {isFailed &&
             <Failed
                 post={post}

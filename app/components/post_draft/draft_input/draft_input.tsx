@@ -3,8 +3,8 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, type EmitterSubscription, Modal, PanResponder, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
-import Animated, {cancelAnimation, type SharedValue, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
+import {AppState, Keyboard, type LayoutChangeEvent, type EmitterSubscription, Modal, PanResponder, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
+import Animated, {cancelAnimation, Easing, type SharedValue, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
@@ -58,12 +58,12 @@ const voiceHudStyles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     card: {
-        width: 168,
-        minHeight: 168,
+        width: 236,
+        minHeight: 176,
         borderRadius: 16,
         backgroundColor: 'rgba(0,0,0,0.72)',
-        paddingVertical: 20,
-        paddingHorizontal: 14,
+        paddingVertical: 18,
+        paddingHorizontal: 16,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -71,59 +71,122 @@ const voiceHudStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        height: 36,
-        marginTop: 14,
+        height: 40,
+        marginTop: 12,
         gap: 4,
-    },
-    meterBar: {
-        width: 5,
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        borderRadius: 2,
     },
     hudCaption: {
         color: 'rgba(255,255,255,0.95)',
         fontSize: 13,
-        marginTop: 14,
+        marginTop: 12,
         textAlign: 'center',
+        lineHeight: 18,
     },
     cancelPill: {
         backgroundColor: '#E64340',
-        borderRadius: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginTop: 16,
+        borderRadius: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        marginTop: 12,
+        alignSelf: 'stretch',
+        minWidth: 0,
     },
     cancelPillText: {
         color: '#FFFFFF',
-        fontSize: 13,
+        fontSize: 12,
+        lineHeight: 17,
         textAlign: 'center',
     },
 });
 
 type VoiceRecordingHudProps = {
     inCancelZone: boolean;
-    /** dB，约 -160～0；UI 线程更新，避免 setState 导致整页重绘卡顿 */
-    meteringDb: SharedValue<number>;
     slideToCancelHint: string;
     releaseToCancelHint: string;
 };
 
-const VOICE_HUD_METER_BAR_COUNT = 8;
+const HUD_SMOOTH_WAVE_COUNT = 8;
 
-/** 单条音量柱：高度在 UI 线程随 meteringDb 变化 */
-function VoiceHudMeterBar({index, meteringDb}: {index: number; meteringDb: SharedValue<number>}) {
+/** 中央 HUD 与底部按住条共用：单一相位正弦波，整排连续流动（周期一致） */
+const VOICE_WAVE_LOOP_MS = 1400;
+
+function SmoothWaveBar({
+    index,
+    phase,
+    width,
+    maxHeightPx,
+    color,
+}: {
+    index: number;
+    phase: SharedValue<number>;
+    width: number;
+    maxHeightPx: number;
+    color: string;
+}) {
     const barStyle = useAnimatedStyle(() => {
-        const level = meteringDb.value;
-        const normalized = Math.min(1, Math.max(0, (level + 55) / 55));
-        const t = Math.min(1, Math.max(0, normalized + (index - 3.5) * 0.07));
-        const h = 6 + t * 28;
-        return {height: h};
-    }, [index, meteringDb]);
-    return <Animated.View style={[voiceHudStyles.meterBar, barStyle]}/>;
+        const p = phase.value;
+        const w = Math.sin(p * Math.PI * 2 + index * 0.72);
+        const n = (w + 1) / 2;
+        const h = 5 + n * maxHeightPx;
+        return {
+            width,
+            height: h,
+            backgroundColor: color,
+            borderRadius: 2,
+        };
+    }, [color, index, maxHeightPx, phase, width]);
+    return <Animated.View style={barStyle}/>;
 }
 
-/** 微信式中央 HUD：录制态麦克风+音量条；上移取消态提示（Modal 根层 pointerEvents=none 尽量不挡底部按住条） */
-function VoiceRecordingHud({inCancelZone, meteringDb, slideToCancelHint, releaseToCancelHint}: VoiceRecordingHudProps) {
+function SmoothWaveformStrip({
+    barWidth,
+    maxBarHeightPx,
+    gap,
+    barColor,
+}: {
+    barWidth: number;
+    maxBarHeightPx: number;
+    gap: number;
+    barColor: string;
+}) {
+    const phase = useSharedValue(0);
+    useEffect(() => {
+        phase.value = 0;
+        phase.value = withRepeat(
+            withTiming(1, {duration: VOICE_WAVE_LOOP_MS, easing: Easing.linear}),
+            -1,
+            false,
+        );
+        return () => {
+            cancelAnimation(phase);
+        };
+    }, [phase]);
+    return (
+        <View
+            style={{
+                height: WAVE_STRIP_HEIGHT,
+                flexDirection: 'row',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                gap,
+            }}
+        >
+            {Array.from({length: HUD_SMOOTH_WAVE_COUNT}, (_, i) => (
+                <SmoothWaveBar
+                    key={i}
+                    color={barColor}
+                    index={i}
+                    maxHeightPx={maxBarHeightPx}
+                    phase={phase}
+                    width={barWidth}
+                />
+            ))}
+        </View>
+    );
+}
+
+/** 微信式中央 HUD：Modal 根层 pointerEvents=none 不挡底部按住条 */
+function VoiceRecordingHud({inCancelZone, slideToCancelHint, releaseToCancelHint}: VoiceRecordingHudProps) {
     return (
         <Modal
             visible={true}
@@ -144,13 +207,12 @@ function VoiceRecordingHud({inCancelZone, meteringDb, slideToCancelHint, release
                                 color={'#FFFFFF'}
                             />
                             <View style={voiceHudStyles.meterRow}>
-                                {Array.from({length: VOICE_HUD_METER_BAR_COUNT}, (_, i) => (
-                                    <VoiceHudMeterBar
-                                        key={i}
-                                        index={i}
-                                        meteringDb={meteringDb}
-                                    />
-                                ))}
+                                <SmoothWaveformStrip
+                                    barColor={'rgba(255,255,255,0.92)'}
+                                    barWidth={5}
+                                    gap={4}
+                                    maxBarHeightPx={28}
+                                />
                             </View>
                             <Text style={voiceHudStyles.hudCaption}>{slideToCancelHint}</Text>
                         </>
@@ -161,6 +223,14 @@ function VoiceRecordingHud({inCancelZone, meteringDb, slideToCancelHint, release
                                 size={44}
                                 color={'#FFFFFF'}
                             />
+                            <View style={voiceHudStyles.meterRow}>
+                                <SmoothWaveformStrip
+                                    barColor={'rgba(255,255,255,0.85)'}
+                                    barWidth={5}
+                                    gap={4}
+                                    maxBarHeightPx={28}
+                                />
+                            </View>
                             <View style={voiceHudStyles.cancelPill}>
                                 <Text style={voiceHudStyles.cancelPillText}>{releaseToCancelHint}</Text>
                             </View>
@@ -169,51 +239,6 @@ function VoiceRecordingHud({inCancelZone, meteringDb, slideToCancelHint, release
                 </View>
             </View>
         </Modal>
-    );
-}
-
-/** 千问风格：单个波形条（自下而上伸缩，父容器固定高度） */
-function WaveformBar({index, recording}: {index: number; recording: boolean}) {
-    const height = useSharedValue(8);
-    const animatedStyle = useAnimatedStyle(() => ({
-        height: height.value,
-        width: 3,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 2,
-    }));
-    useEffect(() => {
-        if (recording) {
-            const maxDelta = Math.max(4, WAVE_STRIP_HEIGHT - 8);
-            height.value = withRepeat(
-                withTiming(8 + Math.random() * maxDelta, {duration: 150 + index * 25}),
-                -1,
-                true,
-            );
-        } else {
-            cancelAnimation(height);
-            height.value = withTiming(8);
-        }
-        return () => cancelAnimation(height);
-    }, [recording, index]);
-    return <Animated.View style={animatedStyle}/>;
-}
-
-/** 千问风格：录制时波形动画（固定条带高度 + 底对齐，避免条高度变化带动整列重排） */
-function WaveformBars({recording}: {recording: boolean}) {
-    return (
-        <View
-            style={{
-                height: WAVE_STRIP_HEIGHT,
-                flexDirection: 'row',
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-                gap: 3,
-            }}
-        >
-            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                <WaveformBar key={i} index={i} recording={recording} />
-            ))}
-        </View>
     );
 }
 
@@ -316,20 +341,27 @@ function HoldToSpeakButton({
                 {showRecordUi ? (
                     <View style={{alignItems: 'center', justifyContent: 'center', flex: 1, width: '100%'}}>
                         <Text
+                            numberOfLines={2}
+                            adjustsFontSizeToFit={Platform.OS === 'ios'}
+                            minimumFontScale={0.85}
                             style={{
                                 color: inCancelZone ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.88)',
-                                fontSize: 11,
+                                fontSize: inCancelZone ? 10 : 11,
+                                lineHeight: inCancelZone ? 14 : 14,
                                 marginBottom: 4,
                                 textAlign: 'center',
+                                paddingHorizontal: 6,
+                                width: '100%',
                             }}
                         >
                             {inCancelZone ? cancelBarHint : recordingBarHint}
                         </Text>
-                        {inCancelZone ? (
-                            <View style={{height: WAVE_STRIP_HEIGHT}} />
-                        ) : (
-                            <WaveformBars recording={true} />
-                        )}
+                        <SmoothWaveformStrip
+                            barColor={inCancelZone ? 'rgba(255,255,255,0.82)' : '#FFFFFF'}
+                            barWidth={3}
+                            gap={3}
+                            maxBarHeightPx={Math.max(4, WAVE_STRIP_HEIGHT - 6)}
+                        />
                     </View>
                 ) : (
                     <Text style={{color: WECHAT_ICON_MUTED, fontSize: 15}}>{holdLabel}</Text>
@@ -604,14 +636,22 @@ function DraftInput({
         });
     }, [intl]);
 
-    const {state: voiceState, meteringShared: voiceMeteringShared, startRecording, stopRecordingAndSend, cancelRecording} = useVoiceRecorder(
+    /** 手指仍按住；权限弹窗期间松手会置 false，避免权限通过后仍进入录音导致 HUD/波形无法关闭 */
+    const voiceFingerDownRef = useRef(false);
+
+    const {state: voiceState, startRecording, stopRecordingAndSend, cancelRecording} = useVoiceRecorder(
         handleVoiceRecorded,
         handleVoiceError,
+        {
+            shouldProceedAfterPermission: () => voiceFingerDownRef.current,
+        },
     );
 
     const hasVoiceRecording = Boolean(sendVoiceAsr);
     const [voiceMode, setVoiceMode] = useState(false);
     const [voiceCancelZone, setVoiceCancelZone] = useState(false);
+    /** 手指按下即 true，用于在 native 录音尚未进入 recording 时仍显示中央 HUD */
+    const [voicePressActive, setVoicePressActive] = useState(false);
 
     useEffect(() => {
         if (voiceState !== 'recording') {
@@ -671,6 +711,12 @@ function DraftInput({
         }
     }, [voiceMode]);
 
+    useEffect(() => {
+        if (!voiceMode) {
+            setVoicePressActive(false);
+        }
+    }, [voiceMode]);
+
     const wrappedSetIsFocused = useCallback((focused: boolean) => {
         if (focused) {
             setEmojiPanelOpen(false);
@@ -706,16 +752,37 @@ function DraftInput({
     }, [emojiPanelOpen, voiceMode, hasVoiceRecording, switchToTextMode]));
 
     const handleVoiceGestureStart = useCallback(() => {
+        voiceFingerDownRef.current = true;
+        setVoicePressActive(true);
         startRecording();
     }, [startRecording]);
 
     const handleVoiceGestureEnd = useCallback((shouldCancel: boolean) => {
+        voiceFingerDownRef.current = false;
+        setVoicePressActive(false);
         if (shouldCancel) {
             cancelRecording();
             return;
         }
         stopRecordingAndSend();
     }, [cancelRecording, stopRecordingAndSend]);
+
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (nextAppState) => {
+            if (nextAppState === 'background') {
+                setVoicePressActive(false);
+                cancelRecording();
+            }
+        });
+        return () => sub.remove();
+    }, [cancelRecording]);
+
+    useEffect(() => {
+        return () => {
+            setVoicePressActive(false);
+            cancelRecording();
+        };
+    }, [cancelRecording]);
 
     const renderQuickActionsForSheet = useCallback(() => (
         <QuickActionsSheet
@@ -962,7 +1029,7 @@ function DraftInput({
     );
 
     const showVoiceRecordingHud = Boolean(
-        weChatPhoneFooter && voiceMode && hasVoiceRecording && voiceState === 'recording',
+        weChatPhoneFooter && voiceMode && hasVoiceRecording && (voiceState === 'recording' || voicePressActive),
     );
 
     return (
@@ -970,7 +1037,6 @@ function DraftInput({
             {showVoiceRecordingHud && (
                 <VoiceRecordingHud
                     inCancelZone={voiceCancelZone}
-                    meteringDb={voiceMeteringShared}
                     slideToCancelHint={voiceHudSlideHint}
                     releaseToCancelHint={voiceHudReleaseCancelHint}
                 />

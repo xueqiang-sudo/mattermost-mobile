@@ -15,6 +15,14 @@ export type VoiceRecorderState = 'idle' | 'recording';
 
 export type VoiceRecorderErrorCode = 'permission_denied' | 'record_failed' | 'process_failed' | 'too_short';
 
+export type UseVoiceRecorderOptions = {
+    /**
+     * After mic permission resolves, return false to abort starting the recorder.
+     * Use when the user may have released the hold while the system permission dialog was shown.
+     */
+    shouldProceedAfterPermission?: () => boolean;
+};
+
 const MIN_RECORDING_DURATION_MS = 500;
 
 /** 静音判定：低于此 dB 视为静音（通常 -160 为无声，-50 以下为安静环境） */
@@ -26,7 +34,11 @@ const SILENCE_DURATION_MS = 2500;
 export function useVoiceRecorder(
     onRecorded: (files: FileInfo[]) => void,
     onError?: (code: VoiceRecorderErrorCode) => void,
+    options?: UseVoiceRecorderOptions,
 ) {
+    const optionsRef = useRef(options);
+    optionsRef.current = options;
+
     const [state, setState] = useState<VoiceRecorderState>('idle');
     /** 语音 HUD 音量条（dB，约 -160～0）；SharedValue 在 UI 线程驱动动画，避免每帧 setState 卡顿 */
     const meteringShared = useSharedValue(-160);
@@ -61,6 +73,11 @@ export function useVoiceRecorder(
             const hasPermission = await requestPermission();
             if (!hasPermission) {
                 onError?.('permission_denied');
+                return;
+            }
+
+            const proceed = optionsRef.current?.shouldProceedAfterPermission?.() ?? true;
+            if (!proceed) {
                 return;
             }
 
