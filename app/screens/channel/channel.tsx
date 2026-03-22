@@ -80,12 +80,12 @@ const Channel = ({
     useGMasDMNotice(currentUserId, channelType, dismissedGMasDMNotice, hasGMasDMFeature);
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
-    const [shouldRenderPosts, setShouldRenderPosts] = useState(false);
     const switchingTeam = useTeamSwitch();
     const switchingChannels = useChannelSwitch();
     const defaultHeight = useDefaultHeaderHeight();
     const [containerHeight, setContainerHeight] = useState(0);
-    const shouldRender = !switchingTeam && !switchingChannels && shouldRenderPosts && Boolean(channelId);
+    /** 与 channelId 同步即可；勿用「首帧 false + rAF 再 true」否则刚进频道会长时间只有顶栏、无消息区与输入栏 */
+    const shouldRender = !switchingTeam && !switchingChannels && Boolean(channelId);
     const handleBack = useCallback(() => {
         popTopScreen(componentId);
     }, [componentId]);
@@ -94,13 +94,7 @@ const Channel = ({
 
     const marginTop = defaultHeight + (isTablet ? 0 : -insets.top);
     useEffect(() => {
-        // This is done so that the header renders
-        // and the screen does not look totally blank
-        const raf = requestAnimationFrame(() => {
-            setShouldRenderPosts(Boolean(channelId));
-        });
-
-        // This is done to give time to the WS event
+        // Give time to the WS event
         const t = setTimeout(() => {
             EphemeralStore.removeSwitchingToChannel(channelId);
         }, 500);
@@ -108,7 +102,6 @@ const Channel = ({
         storeLastViewedChannelIdAndServer(channelId);
 
         return () => {
-            cancelAnimationFrame(raf);
             clearTimeout(t);
             removeLastViewedChannelIdAndServer();
             EphemeralStore.removeSwitchingToChannel(channelId);
