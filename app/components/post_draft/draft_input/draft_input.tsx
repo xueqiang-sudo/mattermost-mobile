@@ -20,7 +20,13 @@ import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
 import {persistentNotificationsConfirmation} from '@utils/post';
 import {emojiShortNameToMarkdownToken} from '@utils/emoji/helpers';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {
+    changeOpacity,
+    getChatBubbleBackground,
+    getChatBubbleBorderColor,
+    getChatListBackdropColor,
+    makeStyleSheetFromTheme,
+} from '@utils/theme';
 import {showSnackBar} from '@utils/snack_bar';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 
@@ -36,8 +42,7 @@ import Header from './header';
 import type {PasteInputRef} from '@mattermost/react-native-paste-input';
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 
-// 微信风格：输入栏白底、简洁圆角
-const CHAT_INPUT_BG = '#FFFFFF';
+// 微信风格：圆角与边距（输入区/底栏背景随 theme，见 getStyleSheet）
 const CHAT_INPUT_BORDER_RADIUS = 8;
 const CHAT_INPUT_MARGIN_H = 10;
 const CHAT_INPUT_MARGIN_B = 6;
@@ -264,6 +269,11 @@ function HoldToSpeakButton({
     onCancelZoneChange,
     embedded,
 }: HoldToSpeakButtonProps) {
+    const theme = useTheme();
+    const idleShellBg = embedded ? 'transparent' : getChatBubbleBackground(theme, 'others');
+    const idleBorderColor = getChatBubbleBorderColor(theme);
+    const holdLabelColor = changeOpacity(theme.centerChannelColor, 0.52);
+
     const [isHolding, setIsHolding] = useState(false);
     const [inCancelZone, setInCancelZone] = useState(false);
     const inCancelZoneRef = useRef(false);
@@ -315,7 +325,7 @@ function HoldToSpeakButton({
 
     const showRecordUi = isHolding || recording;
     const barBg = !showRecordUi
-        ? (embedded ? 'transparent' : CHAT_INPUT_BG)
+        ? idleShellBg
         : inCancelZone
             ? '#8A8A8A'
             : '#5D89EA';
@@ -333,7 +343,7 @@ function HoldToSpeakButton({
                     borderRadius: embedded ? 0 : 6,
                     backgroundColor: barBg,
                     borderWidth: embedded ? 0 : StyleSheet.hairlineWidth,
-                    borderColor: showRecordUi ? 'transparent' : 'rgba(0,0,0,0.08)',
+                    borderColor: showRecordUi ? 'transparent' : idleBorderColor,
                     justifyContent: 'center',
                     alignItems: 'center',
                 }}
@@ -364,16 +374,12 @@ function HoldToSpeakButton({
                         />
                     </View>
                 ) : (
-                    <Text style={{color: WECHAT_ICON_MUTED, fontSize: 15}}>{holdLabel}</Text>
+                    <Text style={{color: holdLabelColor, fontSize: 15}}>{holdLabel}</Text>
                 )}
             </View>
         </View>
     );
 }
-
-/** 微信底栏背景 #F3F3F3，与头部一致（参考微信图2） */
-const WECHAT_FOOTER_BG = '#F3F3F3';
-const WECHAT_ICON_MUTED = 'rgba(0, 0, 0, 0.55)';
 
 export type Props = {
     testID?: string;
@@ -425,6 +431,11 @@ const SAFE_AREA_VIEW_EDGES: Edge[] = ['left', 'right'];
 const SCHEDULED_POST_PICKER_BUTTON = 'close-scheduled-post-picker';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
+    /** 与消息列表 strip 一致，避免切换深/浅色主题后底栏仍停留在浅灰 */
+    const footerBarBg = getChatListBackdropColor(theme);
+    const inputShellBg = getChatBubbleBackground(theme, 'others');
+    const shellBorder = getChatBubbleBorderColor(theme);
+
     return {
         actionsContainer: {
             display: 'flex',
@@ -460,7 +471,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             borderColor: changeOpacity(theme.centerChannelColor, 0.12),
         },
         inputWrapperChatStyle: {
-            backgroundColor: CHAT_INPUT_BG,
+            backgroundColor: inputShellBg,
             borderTopWidth: 0,
             borderColor: 'transparent',
             marginHorizontal: CHAT_INPUT_MARGIN_H,
@@ -471,7 +482,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             paddingTop: 6,
         },
         inputWrapperWeChatPhone: {
-            backgroundColor: WECHAT_FOOTER_BG,
+            backgroundColor: footerBarBg,
             borderTopWidth: 0,
             paddingTop: 8,
             paddingBottom: Platform.select({ios: 6, android: 8}),
@@ -483,6 +494,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             paddingHorizontal: 4,
             minHeight: 48,
         },
+
         /** 喇叭/键盘：在输入框白底容器外侧最左 */
         weChatLeftModeToggle: {
             paddingHorizontal: 4,
@@ -497,10 +509,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: CHAT_INPUT_BG,
+            backgroundColor: inputShellBg,
             borderRadius: 6,
             borderWidth: StyleSheet.hairlineWidth,
-            borderColor: 'rgba(0, 0, 0, 0.08)',
+            borderColor: shellBorder,
             marginHorizontal: 2,
             marginBottom: 2,
             minHeight: 40,
@@ -578,6 +590,7 @@ function DraftInput({
     const quickActionsTestID = `${testID}.quick_actions`;
     const sendActionTestID = `${testID}.send_action`;
     const style = getStyleSheet(theme);
+    const weChatFooterIconColor = changeOpacity(theme.centerChannelColor, 0.52);
 
     const {persistentNotificationsEnabled, noMentionsError, mentionsList} = usePersistentNotificationProps({
         value,
@@ -938,9 +951,9 @@ function DraftInput({
                     >
                         <View style={{justifyContent: 'center', alignItems: 'center'}}>
                             {voiceMode ? (
-                                <CompassIcon name='keyboard-outline' size={22} color={WECHAT_ICON_MUTED} />
+                                <CompassIcon name='keyboard-outline' size={22} color={weChatFooterIconColor} />
                             ) : (
-                                <CompassIcon name='volume-high' size={22} color={WECHAT_ICON_MUTED} />
+                                <CompassIcon name='volume-high' size={22} color={weChatFooterIconColor} />
                             )}
                         </View>
                     </TouchableWithFeedback>
@@ -987,7 +1000,7 @@ function DraftInput({
                 >
                     <View style={style.weChatSideIconHit}>
                         <CompassIcon
-                            color={WECHAT_ICON_MUTED}
+                            color={weChatFooterIconColor}
                             name={emojiPanelOpen ? 'keyboard-outline' : 'emoticon-happy-outline'}
                             size={26}
                         />
@@ -1003,7 +1016,7 @@ function DraftInput({
                 >
                     <View style={style.weChatSideIconHit}>
                         <CompassIcon
-                            color={WECHAT_ICON_MUTED}
+                            color={weChatFooterIconColor}
                             name='plus-box-outline'
                             size={26}
                         />

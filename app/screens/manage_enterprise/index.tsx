@@ -518,7 +518,6 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                 confirmContent={createInputModal.options.confirmContent}
                 showCancelButton={createInputModal.options.showCancelButton}
                 cancelContent={createInputModal.options.cancelContent}
-                theme={theme}
                 onConfirm={createInputModal.handleConfirm}
                 onCancel={createInputModal.handleCancel}
             />
@@ -531,7 +530,6 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                 confirmContent={joinInputModal.options.confirmContent}
                 showCancelButton={joinInputModal.options.showCancelButton}
                 cancelContent={joinInputModal.options.cancelContent}
-                theme={theme}
                 onConfirm={joinInputModal.handleConfirm}
                 onCancel={joinInputModal.handleCancel}
             />

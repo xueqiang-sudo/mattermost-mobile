@@ -4,8 +4,6 @@
 import {useCallback, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 
-import {useTheme} from '@context/theme';
-
 interface CustomInputModalOptions {
     title: string;
     placeholder: string;
@@ -18,7 +16,6 @@ interface CustomInputModalOptions {
 interface UseCustomInputModalReturn {
     visible: boolean;
     options: CustomInputModalOptions;
-    theme: Theme;
     showModal: (modalOptions: CustomInputModalOptions) => Promise<string | null>;
     handleConfirm: (value: string) => void;
     handleCancel: () => void;
@@ -28,7 +25,6 @@ const DEFAULT_CONFIRM = {id: 'common.confirm', defaultMessage: 'Confirm'};
 const DEFAULT_CANCEL = {id: 'common.cancel', defaultMessage: 'Cancel'};
 
 export const useCustomInputModal = (): UseCustomInputModalReturn => {
-    const theme = useTheme();
     const intl = useIntl();
     const [visible, setVisible] = useState(false);
     const [options, setOptions] = useState<CustomInputModalOptions>({
@@ -75,7 +71,6 @@ export const useCustomInputModal = (): UseCustomInputModalReturn => {
     return {
         visible,
         options,
-        theme,
         showModal,
         handleConfirm,
         handleCancel,

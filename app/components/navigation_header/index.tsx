@@ -1,23 +1,20 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {forwardRef} from 'react';
+import React, {forwardRef, useMemo} from 'react';
 import Animated, {useAnimatedStyle, useDerivedValue} from 'react-native-reanimated';
 
 import {SEARCH_INPUT_HEIGHT, SEARCH_INPUT_MARGIN} from '@constants/view';
 import {useTheme} from '@context/theme';
 import useHeaderHeight, {MAX_OVERSCROLL} from '@hooks/header';
 import {clamp} from '@utils/gallery';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Header, {type HeaderRightButton} from './header';
 import NavigationHeaderLargeTitle from './large';
 import NavigationSearch from './search';
 
 import type {SearchProps, SearchRef} from '@components/search';
-
-// 微信风格：顶栏浅灰 #F3F3F3，与消息区形成层次（参考微信图2）
-const CHAT_HEADER_BG = '#F3F3F3';
 
 type Props = SearchProps & {
     hasSearch?: boolean;
@@ -66,7 +63,8 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
 }: Props, ref) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
-    const containerStyle = useChatStyle ? [styles.container, {backgroundColor: CHAT_HEADER_BG}] : styles.container;
+    const chatHeaderBackground = useMemo(() => getChatListBackdropColor(theme), [theme]);
+    const containerStyle = useChatStyle ? [styles.container, {backgroundColor: chatHeaderBackground}] : styles.container;
 
     const {largeHeight, defaultHeight, headerOffset} = useHeaderHeight();
 
@@ -109,7 +107,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
                 subtitleCompanion={subtitleCompanion}
                 theme={theme}
                 title={title}
-                backgroundColor={useChatStyle ? CHAT_HEADER_BG : undefined}
+                backgroundColor={useChatStyle ? chatHeaderBackground : undefined}
             />
             {isLargeTitle &&
                 <NavigationHeaderLargeTitle

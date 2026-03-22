@@ -426,7 +426,6 @@ const PhoneLoginForm = ({
             confirmContent={options.confirmContent}
             showCancelButton={options.showCancelButton}
             cancelContent={options.cancelContent}
-            theme={theme}
             onConfirm={handleConfirm}
             onCancel={handleCancel}
         />

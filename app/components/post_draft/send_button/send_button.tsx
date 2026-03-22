@@ -12,7 +12,7 @@ import ScheduledPostTooltip from '@components/post_draft/send_button/scheduled_p
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, getWeChatCompactSendButtonBackground, makeStyleSheetFromTheme} from '@utils/theme';
 
 type Props = {
     testID: string;
@@ -27,6 +27,7 @@ type Props = {
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
+    const weChatSendBg = getWeChatCompactSendButtonBackground(theme);
     return {
         disableButton: {
             backgroundColor: changeOpacity(theme.buttonBg, 0.3),
@@ -62,10 +63,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             justifyContent: 'center',
         },
         sendButtonWeChatActive: {
-            backgroundColor: '#07C160',
+            backgroundColor: weChatSendBg,
         },
         sendButtonWeChatDisabled: {
-            backgroundColor: changeOpacity('#07C160', 0.35),
+            backgroundColor: changeOpacity(weChatSendBg, 0.35),
         },
         sendButtonContainerWeChat: {
             justifyContent: 'flex-end',

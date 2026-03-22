@@ -177,7 +177,12 @@ const ChannelItem = ({
 
     let displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
     if (channel.name === General.DEFAULT_CHANNEL) {
-        displayName = teamDisplayName || formatMessage({id: 'channel_list.town_square.display_name', defaultMessage: 'Company group'});
+        /** 首页顶栏已展示企业名，列表再用 teamDisplayName 会重复；侧栏等非首页仍可用团队名区分多团队 */
+        const townSquareLabel = formatMessage({
+            id: 'channel_list.town_square.display_name',
+            defaultMessage: 'All-staff chat',
+        });
+        displayName = isOnHome ? townSquareLabel : (teamDisplayName || townSquareLabel);
     } else if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }

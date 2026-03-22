@@ -59,10 +59,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         zIndex: 10,
     },
 
-    /** 微信风格：与聊天区层次分隔的底部分割线 */
+    /** 微信风格：与聊天区层次分隔的底部分割线（随主题） */
     containerChatBottomBorder: {
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     subtitleContainer: {
         flexDirection: 'row',
@@ -78,7 +78,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         height: 13,
     },
     subtitleChatStyle: {
-        color: 'rgba(31, 31, 31, 0.72)',
+        color: changeOpacity(theme.centerChannelColor, 0.72),
     },
     titleContainer: {
         alignItems: Platform.select({android: 'flex-start', ios: 'center'}),
@@ -139,7 +139,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Heading', 300),
     },
     titleChatStyle: {
-        color: '#1F1F1F',
+        color: theme.centerChannelColor,
     },
 }));
 
@@ -222,7 +222,7 @@ const Header = ({
                         <CompassIcon
                             size={24}
                             name={Platform.select({android: 'arrow-left', ios: 'arrow-back-ios'})!}
-                            color={backgroundColor ? '#1F1F1F' : theme.sidebarHeaderTextColor}
+                            color={backgroundColor ? theme.centerChannelColor : theme.sidebarHeaderTextColor}
                         />
                         {leftComponent}
                     </Animated.View>
@@ -279,7 +279,7 @@ const Header = ({
                             <CompassIcon
                                 size={24}
                                 name={r.iconName}
-                                color={r.color || (backgroundColor ? '#1F1F1F' : theme.sidebarHeaderTextColor)}
+                                color={r.color || (backgroundColor ? theme.centerChannelColor : theme.sidebarHeaderTextColor)}
                             />
                             {Boolean(r.count) && (
                                 <Text style={styles.title}>{r.count}</Text>

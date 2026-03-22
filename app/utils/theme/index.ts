@@ -261,6 +261,17 @@ export function getChatBubbleBorderColor(theme: Theme): string {
     return changeOpacity(theme.centerChannelColor, 0.12);
 }
 
+/**
+ * WeChat-style compact send button: classic green on light chat strip; theme button color on dark
+ * so the footer/input row stays consistent after theme switches.
+ */
+export function getWeChatCompactSendButtonBackground(theme: Theme): string {
+    if (tinyColor(getChatListBackdropColor(theme)).isLight()) {
+        return '#07C160';
+    }
+    return theme.buttonBg;
+}
+
 /** Text on own bubble: dark on light green, theme button color on dark bubble. */
 export function getChatBubbleOwnTextColor(theme: Theme): string {
     const bubble = tinyColor(getChatBubbleBackground(theme, 'own'));

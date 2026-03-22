@@ -690,7 +690,6 @@ const ContactsManage = ({
                 confirmContent={subDeptInput.options.confirmContent}
                 showCancelButton={subDeptInput.options.showCancelButton}
                 cancelContent={subDeptInput.options.cancelContent}
-                theme={theme}
                 onConfirm={subDeptInput.handleConfirm}
                 onCancel={subDeptInput.handleCancel}
             />
@@ -703,7 +702,6 @@ const ContactsManage = ({
                 confirmContent={modifyDeptNameInput.options.confirmContent}
                 showCancelButton={modifyDeptNameInput.options.showCancelButton}
                 cancelContent={modifyDeptNameInput.options.cancelContent}
-                theme={theme}
                 onConfirm={modifyDeptNameInput.handleConfirm}
                 onCancel={modifyDeptNameInput.handleCancel}
             />
@@ -716,7 +714,6 @@ const ContactsManage = ({
                 confirmContent={modifyEnterpriseNameInput.options.confirmContent}
                 showCancelButton={modifyEnterpriseNameInput.options.showCancelButton}
                 cancelContent={modifyEnterpriseNameInput.options.cancelContent}
-                theme={theme}
                 onConfirm={modifyEnterpriseNameInput.handleConfirm}
                 onCancel={modifyEnterpriseNameInput.handleCancel}
             />

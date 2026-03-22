@@ -1,11 +1,12 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Keyboard, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View} from 'react-native';
 
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {useTheme} from '@context/theme';
+import {changeOpacity, getKeyboardAppearanceFromTheme} from '@utils/theme';
 
 interface CustomInputModalProps {
     visible: boolean;
@@ -15,88 +16,89 @@ interface CustomInputModalProps {
     confirmContent?: string;
     showCancelButton?: boolean;
     cancelContent?: string;
-    theme: Theme;
     onConfirm: (value: string) => void;
     onCancel: () => void;
 }
 
-const getStyleSheet = makeStyleSheetFromTheme(() => ({
-    modalContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContent: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 24,
-        width: '90%',
-    },
-    modalHeader: {
-        marginBottom: 24,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#000000',
-        textAlign: 'center',
-    },
-    inputContainer: {
-        marginBottom: 32,
-        width: '100%',
-        flexDirection: 'row',
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-        borderRadius: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        fontSize: 16,
-        color: '#000000',
-        backgroundColor: '#FFFFFF',
-        height: 48,
-        width: '100%',
-    },
-    inputPlaceholder: {
-        color: '#999999',
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 16,
-        width: '100%',
-    },
-    button: {
-        flex: 1,
-        height: 48,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 8,
-    },
-    cancelButton: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    cancelButtonText: {
-        color: '#000000',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    confirmButton: {
-        backgroundColor: '#FF9500',
-    },
-    confirmButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    confirmButtonDisabled: {
-        backgroundColor: '#FFCC80',
-    },
-}));
+/** 不用 makeStyleSheetFromTheme 的全局缓存，避免 theme 引用未变时切换主题不刷新 */
+function createStyles(theme: Theme) {
+    return StyleSheet.create({
+        modalContainer: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.5),
+        },
+        modalContent: {
+            backgroundColor: theme.centerChannelBg,
+            borderRadius: 12,
+            padding: 24,
+            width: '90%',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+        },
+        modalHeader: {
+            marginBottom: 24,
+        },
+        modalTitle: {
+            fontSize: 18,
+            fontWeight: 'bold',
+            color: theme.centerChannelColor,
+            textAlign: 'center',
+        },
+        inputContainer: {
+            marginBottom: 32,
+            width: '100%',
+            flexDirection: 'row',
+        },
+        input: {
+            borderWidth: 1,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+            borderRadius: 8,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            fontSize: 16,
+            color: theme.centerChannelColor,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+            height: 48,
+            width: '100%',
+        },
+        buttonContainer: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            gap: 16,
+            width: '100%',
+        },
+        button: {
+            flex: 1,
+            height: 48,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: 8,
+        },
+        cancelButton: {
+            backgroundColor: theme.centerChannelBg,
+            borderWidth: 1,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.2),
+        },
+        cancelButtonText: {
+            color: theme.centerChannelColor,
+            fontSize: 16,
+            fontWeight: '600',
+        },
+        confirmButton: {
+            backgroundColor: theme.buttonBg,
+        },
+        confirmButtonText: {
+            color: theme.buttonColor,
+            fontSize: 16,
+            fontWeight: '600',
+        },
+        confirmButtonDisabled: {
+            backgroundColor: changeOpacity(theme.buttonBg, 0.45),
+        },
+    });
+}
 
 const CustomInputModal: React.FC<CustomInputModalProps> = ({
     visible,
@@ -106,14 +108,27 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
     confirmContent,
     showCancelButton = true,
     cancelContent,
-    theme,
     onConfirm,
     onCancel,
 }) => {
     const intl = useIntl();
+    const theme = useTheme();
+    const styles = useMemo(
+        () => createStyles(theme),
+        [
+            theme.centerChannelBg,
+            theme.centerChannelColor,
+            theme.buttonBg,
+            theme.buttonColor,
+        ],
+    );
+    const placeholderColor = useMemo(
+        () => changeOpacity(theme.centerChannelColor, 0.5),
+        [theme.centerChannelColor],
+    );
+
     const defaultConfirm = intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'});
     const defaultCancel = intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'});
-    const styles = getStyleSheet(theme);
     const [inputValue, setInputValue] = useState(defaultValue);
 
     useEffect(() => {
@@ -156,10 +171,13 @@ const CustomInputModal: React.FC<CustomInputModalProps> = ({
                         <TextInput
                             style={styles.input}
                             placeholder={placeholder}
-                            placeholderTextColor={styles.inputPlaceholder.color}
+                            placeholderTextColor={placeholderColor}
                             onChangeText={setInputValue}
                             value={inputValue}
                             autoFocus={true}
+                            keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
+                            selectionColor={theme.buttonBg}
+                            underlineColorAndroid='transparent'
                             testID='custom_input_modal.input'
                         />
                     </View>
