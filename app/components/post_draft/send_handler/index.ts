@@ -5,15 +5,16 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {combineLatest, of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
-import {General, Permissions} from '@constants';
+import {General, Permissions, Preferences} from '@constants';
 import {DRAFT_TYPE_SCHEDULED, type DraftType} from '@constants/draft';
 import {MAX_MESSAGE_LENGTH_FALLBACK} from '@constants/post_draft';
 import {observeChannel, observeChannelInfo} from '@queries/servers/channel';
 import {queryAllCustomEmojis} from '@queries/servers/custom_emoji';
+import {queryEmojiPreferences} from '@queries/servers/preference';
 import {observeFirstDraft, queryDraft} from '@queries/servers/drafts';
 import {observePermissionForChannel} from '@queries/servers/role';
 import {observeFirstScheduledPost, queryScheduledPost} from '@queries/servers/scheduled_post';
-import {observeConfigBooleanValue, observeConfigIntValue, observeCurrentUserId} from '@queries/servers/system';
+import {observeConfigBooleanValue, observeConfigIntValue, observeCurrentUserId, observeRecentReactions} from '@queries/servers/system';
 import {observeUser} from '@queries/servers/user';
 
 import SendHandler, {INITIAL_PRIORITY} from './send_handler';
@@ -89,6 +90,12 @@ const enhanced = withObservables(['channelId', 'rootId', 'draftType'], (ownProps
     );
 
     const customEmojis = queryAllCustomEmojis(database).observe();
+    const customEmojisEnabled = observeConfigBooleanValue(database, 'EnableCustomEmoji');
+    const recentEmojis = observeRecentReactions(database);
+    const skinTone = queryEmojiPreferences(database, Preferences.EMOJI_SKINTONE).
+        observeWithColumns(['value']).pipe(
+            switchMap((prefs) => of$(prefs?.[0]?.value ?? 'default')),
+        );
 
     return {
         channelType,
@@ -101,6 +108,9 @@ const enhanced = withObservables(['channelId', 'rootId', 'draftType'], (ownProps
         userIsOutOfOffice,
         useChannelMentions,
         customEmojis,
+        customEmojisEnabled,
+        recentEmojis,
+        skinTone,
         persistentNotificationInterval,
         persistentNotificationMaxRecipients,
         postPriority,

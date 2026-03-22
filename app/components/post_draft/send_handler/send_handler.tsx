@@ -33,6 +33,9 @@ type Props = {
     useChannelMentions: boolean;
     userIsOutOfOffice: boolean;
     customEmojis: CustomEmojiModel[];
+    customEmojisEnabled: boolean;
+    recentEmojis: string[];
+    skinTone: string;
 
     // DRAFT Handler
     value: string;
@@ -79,6 +82,9 @@ export default function SendHandler({
     useChannelMentions,
     userIsOutOfOffice,
     customEmojis,
+    customEmojisEnabled,
+    recentEmojis,
+    skinTone,
     value,
     clearDraft,
     updateValue,
@@ -174,6 +180,10 @@ export default function SendHandler({
             persistentNotificationInterval={persistentNotificationInterval}
             persistentNotificationMaxRecipients={persistentNotificationMaxRecipients}
             setIsFocused={setIsFocused}
+            customEmojis={customEmojis}
+            customEmojisEnabled={customEmojisEnabled}
+            recentEmojis={recentEmojis}
+            skinTone={skinTone}
         />
     );
 }

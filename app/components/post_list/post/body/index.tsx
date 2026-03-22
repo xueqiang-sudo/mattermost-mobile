@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {Dimensions, type LayoutChangeEvent, type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle} from 'react-native';
+import {Dimensions, type LayoutChangeEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
@@ -130,7 +130,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         messageBodyOwnWeChat: {
             flex: 0,
-            alignSelf: 'flex-end',
+            alignSelf: 'stretch',
+            minWidth: 0,
         },
         messageBodyOthersWeChat: {
             flex: 0,
@@ -278,7 +279,7 @@ const Body = ({
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <JumboEmoji
-                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} as TextStyle : style.message}
+                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? [style.message, {color: chatBubbleSurface.ownText}] : style.message}
                 isEdited={isEdited}
                 value={post.message}
             />
@@ -287,7 +288,7 @@ const Body = ({
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <FormattedText
-                style={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} as TextStyle : style.message}
+                style={weChatOwnBubble && chatBubbleSurface ? [style.message, {color: chatBubbleSurface.ownText}] : style.message}
                 id='post_body.voice_message'
                 defaultMessage='Voice message'
             />
@@ -296,7 +297,7 @@ const Body = ({
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <Message
-                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} as TextStyle : undefined}
+                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} : undefined}
                 highlight={highlight}
                 isEdited={isEdited}
                 isPendingOrFailed={isPendingOrFailed}
@@ -306,6 +307,7 @@ const Body = ({
                 post={post}
                 searchPatterns={searchPatterns}
                 theme={theme}
+                unboundedMarkdownHeight={weChatStyleActive}
             />
         );
     }

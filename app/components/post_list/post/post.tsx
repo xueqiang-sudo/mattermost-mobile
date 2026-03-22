@@ -141,9 +141,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginRight: 10,
             marginTop: 6,
         },
-        /** 微信风格：与 Header 顶边对齐，避免头像整体偏下 */
+        /** 微信风格：相对昵称/时间行略下移 2px，与文字顶边视觉齐平 */
         profilePictureContainerWeChat: {
-            marginTop: 0,
+            marginTop: 4,
             alignSelf: 'flex-start',
         },
         profilePictureContainerOwn: {
@@ -152,9 +152,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginRight: 0,
             marginTop: 6,
         },
-        /** 微信风格：自己头像也方角，与对方一致 */
+        /** 微信风格：自己头像与对方一致，略下移与仅时间行齐平 */
         profilePictureContainerOwnWeChat: {
-            marginTop: 0,
+            marginTop: 4,
         },
         rightColumn: {
             flex: 1,

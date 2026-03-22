@@ -3,6 +3,7 @@
 
 import {useCallback, useRef, useState} from 'react';
 import {Platform} from 'react-native';
+import {useSharedValue} from 'react-native-reanimated';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import Permissions from 'react-native-permissions';
 import {cacheDirectory, getInfoAsync} from 'expo-file-system';
@@ -27,6 +28,8 @@ export function useVoiceRecorder(
     onError?: (code: VoiceRecorderErrorCode) => void,
 ) {
     const [state, setState] = useState<VoiceRecorderState>('idle');
+    /** 语音 HUD 音量条（dB，约 -160～0）；SharedValue 在 UI 线程驱动动画，避免每帧 setState 卡顿 */
+    const meteringShared = useSharedValue(-160);
     const audioRecorderPlayerRef = useRef<AudioRecorderPlayer | null>(null);
     const recordStartTimeRef = useRef<number>(0);
     const recordingPathRef = useRef<string | null>(null);
@@ -71,10 +74,12 @@ export function useVoiceRecorder(
             recordStartTimeRef.current = Date.now();
             lastVoiceTimeRef.current = Date.now();
             setState('recording');
+            meteringShared.value = -160;
 
             audioRecorderPlayer.addRecordBackListener((meta) => {
-                const metering = meta.currentMetering ?? -160;
-                if (metering > SILENCE_THRESHOLD_DB) {
+                const level = meta.currentMetering ?? -160;
+                meteringShared.value = level;
+                if (level > SILENCE_THRESHOLD_DB) {
                     lastVoiceTimeRef.current = Date.now();
                     if (silenceCheckTimeoutRef.current) {
                         clearTimeout(silenceCheckTimeoutRef.current);
@@ -94,9 +99,10 @@ export function useVoiceRecorder(
             logError('[useVoiceRecorder.startRecording]', err);
             audioRecorderPlayerRef.current = null;
             setState('idle');
+            meteringShared.value = -160;
             onError?.('record_failed');
         }
-    }, [requestPermission, getAudioRecorderPlayer, onError]);
+    }, [requestPermission, getAudioRecorderPlayer, onError, meteringShared]);
 
     const stopRecordingAndSend = useCallback(async () => {
         let path = recordingPathRef.current;
@@ -107,6 +113,7 @@ export function useVoiceRecorder(
         const audioRecorderPlayer = audioRecorderPlayerRef.current;
         recordingPathRef.current = null;
         setState('idle');
+        meteringShared.value = -160;
 
         if (silenceCheckTimeoutRef.current) {
             clearTimeout(silenceCheckTimeoutRef.current);
@@ -161,7 +168,7 @@ export function useVoiceRecorder(
             logError('[useVoiceRecorder.stopRecordingAndSend]', err);
             onError?.('process_failed');
         }
-    }, [onRecorded, onError]);
+    }, [onRecorded, onError, meteringShared]);
 
     stopRecordingAndSendRef.current = stopRecordingAndSend;
 
@@ -171,6 +178,7 @@ export function useVoiceRecorder(
         recordingPathRef.current = null;
         audioRecorderPlayerRef.current = null;
         setState('idle');
+        meteringShared.value = -160;
 
         if (silenceCheckTimeoutRef.current) {
             clearTimeout(silenceCheckTimeoutRef.current);
@@ -189,6 +197,7 @@ export function useVoiceRecorder(
 
     return {
         state,
+        meteringShared,
         startRecording,
         stopRecordingAndSend,
         cancelRecording,

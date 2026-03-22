@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {type LayoutChangeEvent, ScrollView, useWindowDimensions, View} from 'react-native';
+import {type LayoutChangeEvent, ScrollView, type StyleProp, useWindowDimensions, View} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import Markdown from '@components/markdown';
@@ -21,7 +21,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 import type {TextStyle} from 'react-native';
 
 type MessageProps = {
-    baseTextStyle?: TextStyle;
+    baseTextStyle?: StyleProp<TextStyle>;
     currentUser?: UserModel;
     isHighlightWithoutNotificationLicensed?: boolean;
     highlight: boolean;
@@ -30,6 +30,12 @@ type MessageProps = {
     isReplyPost: boolean;
     layoutWidth?: number;
     location: AvailableScreens;
+
+    /**
+     * 微信气泡等：Markdown 区域随内容完整增高，不使用半屏 maxHeight +「展开」裁剪。
+     * 为 false 时保持频道内长帖折叠逻辑（仅频道/线程/固定链接在 height 未测量前用无界首帧）。
+     */
+    unboundedMarkdownHeight?: boolean;
     post: PostModel;
     searchPatterns?: SearchPattern[];
     theme: Theme;
@@ -58,14 +64,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLicensed, highlight, isEdited, isPendingOrFailed, isReplyPost, layoutWidth, location, post, searchPatterns, theme}: MessageProps) => {
+const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLicensed, highlight, isEdited, isPendingOrFailed, isReplyPost, layoutWidth, location, unboundedMarkdownHeight = false, post, searchPatterns, theme}: MessageProps) => {
     const [open, setOpen] = useState(false);
     const [height, setHeight] = useState<number|undefined>();
     const dimensions = useWindowDimensions();
     const maxHeight = Math.round((dimensions.height * 0.5) + SHOW_MORE_HEIGHT);
     const animatedStyle = useShowMoreAnimatedStyle(height, maxHeight, open);
     const style = getStyleSheet(theme);
-    const textStyle = baseTextStyle ?? style.message;
+    /** 气泡仅传 color 时须与默认排版合并，否则丢失字号/行高会导致英文被裁切 */
+    const textStyle = baseTextStyle ? [style.message, baseTextStyle] : style.message;
+
+    const isChannelThreadPermalink = location === CHANNEL || location === PERMALINK || location === THREAD;
 
     // We need to memoize these two values because they are actually getters that return a new list
     // on every render. We need to trust that changes in the currentUser will trigger the recalculation.
@@ -79,19 +88,20 @@ const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLice
 
     const onLayout = useCallback((event: LayoutChangeEvent) => {
         const h = event.nativeEvent.layout.height;
-        if (h > maxHeight) {
+        if (h > maxHeight && !unboundedMarkdownHeight) {
             setHeight(event.nativeEvent.layout.height);
         }
-    }, [maxHeight]);
+    }, [maxHeight, unboundedMarkdownHeight]);
     const onPress = () => setOpen(!open);
 
     const channelMentions = useMemo(() => {
         return isChannelMentions(post.props?.channel_mentions) ? post.props.channel_mentions : {};
     }, [post.props?.channel_mentions]);
 
-    /** 频道/线程/固定链接：短消息不套半屏 maxHeight，避免 ScrollView 撑满导致绿气泡过高 */
-    const isWeChatChatLayout = location === CHANNEL || location === PERMALINK || location === THREAD;
-    const useSimpleUnboundedBody = isWeChatChatLayout && height === undefined;
+    /**
+     * 微信气泡：始终无界。否则保持原逻辑：频道/线程/固定链接仅在 height 未记录前无界，长文记录后套半屏折叠。
+     */
+    const useSimpleUnboundedBody = unboundedMarkdownHeight || (isChannelThreadPermalink && height === undefined);
     const wrapperStyle = useSimpleUnboundedBody ? {} : animatedStyle;
 
     const messageInner = (
@@ -136,7 +146,7 @@ const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLice
                     </ScrollView>
                 )}
             </Animated.View>
-            {(height || 0) > maxHeight &&
+            {!unboundedMarkdownHeight && (height || 0) > maxHeight &&
             <ShowMoreButton
                 highlight={highlight}
                 theme={theme}

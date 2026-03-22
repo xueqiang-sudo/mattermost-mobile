@@ -104,7 +104,7 @@ const PostList = ({
     shouldRenderReplyButton = true,
     shouldShowJoinLeaveMessages,
     showMoreMessages,
-    showNewMessageLine = true,
+    showNewMessageLine = false,
     testID,
     savedPostIds,
 }: Props) => {

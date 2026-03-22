@@ -118,6 +118,19 @@ describe('components/post_list/PostList', () => {
         expect(getByTestId('post_list.new_messages_line')).toBeTruthy();
     });
 
+    it('should not show new message line by default', () => {
+        const props = {
+            ...baseProps,
+            lastViewedAt: 1234567000,
+            posts: [mockPostModel({createAt: 1234567890})],
+        };
+        const {queryByTestId} = renderWithEverything(
+            <PostList {...props}/>,
+            {database, serverUrl},
+        );
+        expect(queryByTestId('post_list.new_messages_line')).toBeNull();
+    });
+
     it('handles refresh in channel', async () => {
         const {getByTestId} = renderWithEverything(<PostList {...baseProps}/>, {database, serverUrl});
         const flatList = getByTestId('post_list.flat_list');

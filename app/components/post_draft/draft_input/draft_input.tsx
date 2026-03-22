@@ -3,8 +3,8 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, type EmitterSubscription, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
-import Animated, {cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
+import {Keyboard, type LayoutChangeEvent, type EmitterSubscription, Modal, PanResponder, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
+import Animated, {cancelAnimation, type SharedValue, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
@@ -19,10 +19,12 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
 import {persistentNotificationsConfirmation} from '@utils/post';
+import {emojiShortNameToMarkdownToken} from '@utils/emoji/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {showSnackBar} from '@utils/snack_bar';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 
+import DraftEmojiPanel from '../draft_emoji_panel';
 import PostInput from '../post_input';
 import QuickActions, {QuickActionsSheet} from '../quick_actions';
 import SendAction from '../send_button';
@@ -32,6 +34,7 @@ import Uploads from '../uploads';
 import Header from './header';
 
 import type {PasteInputRef} from '@mattermost/react-native-paste-input';
+import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 
 // 微信风格：输入栏白底、简洁圆角
 const CHAT_INPUT_BG = '#FFFFFF';
@@ -40,10 +43,134 @@ const CHAT_INPUT_MARGIN_H = 10;
 const CHAT_INPUT_MARGIN_B = 6;
 
 const CLOSE_DRAFT_MORE = 'close-draft-more-actions';
-const CLOSE_DRAFT_EMOJI = 'close-draft-emoji-picker';
+
+/** 手指上移超过此阈值（px）进入「取消发送」预览态 */
+const VOICE_CANCEL_THRESHOLD_PX = 80;
 
 /** 波形条最大高度，须 ≤ WAVE_STRIP_HEIGHT，避免撑开行高导致上方提示文字随 flex 居中上下抖 */
 const WAVE_STRIP_HEIGHT = 28;
+
+const voiceHudStyles = StyleSheet.create({
+    overlayRoot: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'transparent',
+    },
+    card: {
+        width: 168,
+        minHeight: 168,
+        borderRadius: 16,
+        backgroundColor: 'rgba(0,0,0,0.72)',
+        paddingVertical: 20,
+        paddingHorizontal: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    meterRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        height: 36,
+        marginTop: 14,
+        gap: 4,
+    },
+    meterBar: {
+        width: 5,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        borderRadius: 2,
+    },
+    hudCaption: {
+        color: 'rgba(255,255,255,0.95)',
+        fontSize: 13,
+        marginTop: 14,
+        textAlign: 'center',
+    },
+    cancelPill: {
+        backgroundColor: '#E64340',
+        borderRadius: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginTop: 16,
+    },
+    cancelPillText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        textAlign: 'center',
+    },
+});
+
+type VoiceRecordingHudProps = {
+    inCancelZone: boolean;
+    /** dB，约 -160～0；UI 线程更新，避免 setState 导致整页重绘卡顿 */
+    meteringDb: SharedValue<number>;
+    slideToCancelHint: string;
+    releaseToCancelHint: string;
+};
+
+const VOICE_HUD_METER_BAR_COUNT = 8;
+
+/** 单条音量柱：高度在 UI 线程随 meteringDb 变化 */
+function VoiceHudMeterBar({index, meteringDb}: {index: number; meteringDb: SharedValue<number>}) {
+    const barStyle = useAnimatedStyle(() => {
+        const level = meteringDb.value;
+        const normalized = Math.min(1, Math.max(0, (level + 55) / 55));
+        const t = Math.min(1, Math.max(0, normalized + (index - 3.5) * 0.07));
+        const h = 6 + t * 28;
+        return {height: h};
+    }, [index, meteringDb]);
+    return <Animated.View style={[voiceHudStyles.meterBar, barStyle]}/>;
+}
+
+/** 微信式中央 HUD：录制态麦克风+音量条；上移取消态提示（Modal 根层 pointerEvents=none 尽量不挡底部按住条） */
+function VoiceRecordingHud({inCancelZone, meteringDb, slideToCancelHint, releaseToCancelHint}: VoiceRecordingHudProps) {
+    return (
+        <Modal
+            visible={true}
+            transparent={true}
+            animationType={'fade'}
+            statusBarTranslucent={true}
+        >
+            <View
+                style={voiceHudStyles.overlayRoot}
+                pointerEvents={'none'}
+            >
+                <View style={voiceHudStyles.card}>
+                    {!inCancelZone ? (
+                        <>
+                            <CompassIcon
+                                name={'microphone'}
+                                size={40}
+                                color={'#FFFFFF'}
+                            />
+                            <View style={voiceHudStyles.meterRow}>
+                                {Array.from({length: VOICE_HUD_METER_BAR_COUNT}, (_, i) => (
+                                    <VoiceHudMeterBar
+                                        key={i}
+                                        index={i}
+                                        meteringDb={meteringDb}
+                                    />
+                                ))}
+                            </View>
+                            <Text style={voiceHudStyles.hudCaption}>{slideToCancelHint}</Text>
+                        </>
+                    ) : (
+                        <>
+                            <CompassIcon
+                                name={'reply-outline'}
+                                size={44}
+                                color={'#FFFFFF'}
+                            />
+                            <View style={voiceHudStyles.cancelPill}>
+                                <Text style={voiceHudStyles.cancelPillText}>{releaseToCancelHint}</Text>
+                            </View>
+                        </>
+                    )}
+                </View>
+            </View>
+        </Modal>
+    );
+}
 
 /** 千问风格：单个波形条（自下而上伸缩，父容器固定高度） */
 function WaveformBar({index, recording}: {index: number; recording: boolean}) {
@@ -90,51 +217,125 @@ function WaveformBars({recording}: {recording: boolean}) {
     );
 }
 
-/** 千问风格：按住说话按钮（含波形）；embedded 时贴在外壳内，不再画内边框避免与键盘之间出现分隔线 */
+type HoldToSpeakButtonProps = {
+    recording: boolean;
+    holdLabel: string;
+    recordingBarHint: string;
+    cancelBarHint: string;
+    onGestureStart: () => void;
+    onGestureEnd: (shouldCancel: boolean) => void;
+    onCancelZoneChange: (inCancel: boolean) => void;
+    embedded?: boolean;
+};
+
+/** 千问风格：PanResponder 跟踪上移，松手时取消或发送；embedded 时贴在外壳内 */
 function HoldToSpeakButton({
     recording,
     holdLabel,
-    releaseLabel,
-    onPressIn,
-    onPressOut,
+    recordingBarHint,
+    cancelBarHint,
+    onGestureStart,
+    onGestureEnd,
+    onCancelZoneChange,
     embedded,
-}: {
-    recording: boolean;
-    holdLabel: string;
-    releaseLabel: string;
-    onPressIn: () => void;
-    onPressOut: () => void;
-    embedded?: boolean;
-}) {
+}: HoldToSpeakButtonProps) {
+    const [isHolding, setIsHolding] = useState(false);
+    const [inCancelZone, setInCancelZone] = useState(false);
+    const inCancelZoneRef = useRef(false);
+    const handlersRef = useRef({onGestureStart, onGestureEnd, onCancelZoneChange});
+    useEffect(() => {
+        handlersRef.current = {onGestureStart, onGestureEnd, onCancelZoneChange};
+    }, [onGestureStart, onGestureEnd, onCancelZoneChange]);
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onStartShouldSetPanResponderCapture: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponderCapture: () => true,
+            onPanResponderTerminationRequest: () => false,
+            onPanResponderGrant: () => {
+                inCancelZoneRef.current = false;
+                setInCancelZone(false);
+                handlersRef.current.onCancelZoneChange(false);
+                setIsHolding(true);
+                handlersRef.current.onGestureStart();
+            },
+            onPanResponderMove: (_, gestureState) => {
+                const cancel = gestureState.dy < -VOICE_CANCEL_THRESHOLD_PX;
+                if (cancel !== inCancelZoneRef.current) {
+                    inCancelZoneRef.current = cancel;
+                    setInCancelZone(cancel);
+                    handlersRef.current.onCancelZoneChange(cancel);
+                }
+            },
+            onPanResponderRelease: () => {
+                const shouldCancel = inCancelZoneRef.current;
+                inCancelZoneRef.current = false;
+                setInCancelZone(false);
+                setIsHolding(false);
+                handlersRef.current.onCancelZoneChange(false);
+                handlersRef.current.onGestureEnd(shouldCancel);
+            },
+            onPanResponderTerminate: () => {
+                const shouldCancel = inCancelZoneRef.current;
+                inCancelZoneRef.current = false;
+                setInCancelZone(false);
+                setIsHolding(false);
+                handlersRef.current.onCancelZoneChange(false);
+                handlersRef.current.onGestureEnd(shouldCancel);
+            },
+        }),
+    ).current;
+
+    const showRecordUi = isHolding || recording;
+    const barBg = !showRecordUi
+        ? (embedded ? 'transparent' : CHAT_INPUT_BG)
+        : inCancelZone
+            ? '#8A8A8A'
+            : '#5D89EA';
+
     return (
-        <Pressable
-            onPressIn={onPressIn}
-            onPressOut={onPressOut}
-            style={({pressed}) => [
-                {
+        <View
+            style={{flex: 1, minHeight: 40}}
+            collapsable={false}
+            {...panResponder.panHandlers}
+        >
+            <View
+                style={{
                     flex: 1,
                     minHeight: 40,
                     borderRadius: embedded ? 0 : 6,
-                    backgroundColor: recording ? '#5D89EA' : (embedded ? 'transparent' : CHAT_INPUT_BG),
+                    backgroundColor: barBg,
                     borderWidth: embedded ? 0 : StyleSheet.hairlineWidth,
-                    borderColor: recording ? 'transparent' : 'rgba(0,0,0,0.08)',
+                    borderColor: showRecordUi ? 'transparent' : 'rgba(0,0,0,0.08)',
                     justifyContent: 'center',
                     alignItems: 'center',
-                },
-                pressed && !recording && {opacity: 0.8},
-            ]}
-        >
-            {recording ? (
-                <View style={{alignItems: 'center', justifyContent: 'center', flex: 1, width: '100%'}}>
-                    <Text style={{color: 'rgba(255,255,255,0.8)', fontSize: 11, marginBottom: 4, textAlign: 'center'}}>
-                        {releaseLabel}
-                    </Text>
-                    <WaveformBars recording={true} />
-                </View>
-            ) : (
-                <Text style={{color: WECHAT_ICON_MUTED, fontSize: 15}}>{holdLabel}</Text>
-            )}
-        </Pressable>
+                }}
+            >
+                {showRecordUi ? (
+                    <View style={{alignItems: 'center', justifyContent: 'center', flex: 1, width: '100%'}}>
+                        <Text
+                            style={{
+                                color: inCancelZone ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.88)',
+                                fontSize: 11,
+                                marginBottom: 4,
+                                textAlign: 'center',
+                            }}
+                        >
+                            {inCancelZone ? cancelBarHint : recordingBarHint}
+                        </Text>
+                        {inCancelZone ? (
+                            <View style={{height: WAVE_STRIP_HEIGHT}} />
+                        ) : (
+                            <WaveformBars recording={true} />
+                        )}
+                    </View>
+                ) : (
+                    <Text style={{color: WECHAT_ICON_MUTED, fontSize: 15}}>{holdLabel}</Text>
+                )}
+            </View>
+        </View>
     );
 }
 
@@ -179,6 +380,12 @@ export type Props = {
     updatePostInputTop: (top: number) => void;
     setIsFocused: (isFocused: boolean) => void;
     scheduledPostsEnabled: boolean;
+
+    /** Inline emoji panel (WeChat-style footer) */
+    customEmojis?: CustomEmojiModel[];
+    customEmojisEnabled?: boolean;
+    recentEmojis?: string[];
+    skinTone?: string;
 }
 
 const SAFE_AREA_VIEW_EDGES: Edge[] = ['left', 'right'];
@@ -312,6 +519,10 @@ function DraftInput({
     setIsFocused,
     scheduledPostsEnabled,
     useChatInputStyle = false,
+    customEmojis = [],
+    customEmojisEnabled = false,
+    recentEmojis = [],
+    skinTone = 'default',
 }: Props) {
     const intl = useIntl();
     const serverUrl = useServerUrl();
@@ -323,6 +534,7 @@ function DraftInput({
     }, []);
 
     const inputRef = useRef<PasteInputRef>();
+    const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
     const focus = useCallback(() => {
         inputRef.current?.focus();
     }, []);
@@ -392,13 +604,20 @@ function DraftInput({
         });
     }, [intl]);
 
-    const {state: voiceState, startRecording, stopRecordingAndSend, cancelRecording} = useVoiceRecorder(
+    const {state: voiceState, meteringShared: voiceMeteringShared, startRecording, stopRecordingAndSend, cancelRecording} = useVoiceRecorder(
         handleVoiceRecorded,
         handleVoiceError,
     );
 
     const hasVoiceRecording = Boolean(sendVoiceAsr);
     const [voiceMode, setVoiceMode] = useState(false);
+    const [voiceCancelZone, setVoiceCancelZone] = useState(false);
+
+    useEffect(() => {
+        if (voiceState !== 'recording') {
+            setVoiceCancelZone(false);
+        }
+    }, [voiceState]);
 
     const stopVoiceIfRecording = useCallback(() => {
         if (voiceState === 'recording') {
@@ -446,32 +665,57 @@ function DraftInput({
         setTimeout(() => inputRef.current?.focus(), 100);
     }, [stopVoiceIfRecording]));
 
-    const handleHoldPressIn = useCallback(() => {
+    useEffect(() => {
+        if (voiceMode) {
+            setEmojiPanelOpen(false);
+        }
+    }, [voiceMode]);
+
+    const wrappedSetIsFocused = useCallback((focused: boolean) => {
+        if (focused) {
+            setEmojiPanelOpen(false);
+        }
+        setIsFocused(focused);
+    }, [setIsFocused]);
+
+    const handleDraftEmojiPick = useCallback((shortName: string) => {
+        const token = emojiShortNameToMarkdownToken(shortName);
+        if (!token) {
+            return;
+        }
+        updateValue((v) => v + token);
+        updateCursorPosition((cp) => cp + [...token].length);
+    }, [updateValue, updateCursorPosition]);
+
+    const onEmojiToolbarPress = usePreventDoubleTap(useCallback(() => {
+        if (emojiPanelOpen) {
+            setEmojiPanelOpen(false);
+            setTimeout(() => inputRef.current?.focus(), 50);
+            return;
+        }
+        if (voiceMode && hasVoiceRecording) {
+            switchToTextMode();
+            setTimeout(() => {
+                Keyboard.dismiss();
+                setEmojiPanelOpen(true);
+            }, 120);
+            return;
+        }
+        Keyboard.dismiss();
+        setEmojiPanelOpen(true);
+    }, [emojiPanelOpen, voiceMode, hasVoiceRecording, switchToTextMode]));
+
+    const handleVoiceGestureStart = useCallback(() => {
         startRecording();
     }, [startRecording]);
 
-    const handleHoldPressOut = useCallback(() => {
-        if (voiceState === 'recording') {
-            stopRecordingAndSend();
+    const handleVoiceGestureEnd = useCallback((shouldCancel: boolean) => {
+        if (shouldCancel) {
+            cancelRecording();
+            return;
         }
-    }, [voiceState, stopRecordingAndSend]);
-
-    const openDraftEmojiPicker = usePreventDoubleTap(useCallback(() => {
-        Keyboard.dismiss();
-        openAsBottomSheet({
-            closeButtonId: CLOSE_DRAFT_EMOJI,
-            screen: Screens.EMOJI_PICKER,
-            theme,
-            title: intl.formatMessage({id: 'mobile.post_info.add_reaction', defaultMessage: 'Add Reaction'}),
-            props: {
-                closeButtonId: CLOSE_DRAFT_EMOJI,
-                onEmojiPress: (emoji: string) => {
-                    updateValue((v) => v + emoji);
-                    updateCursorPosition((cp) => cp + [...emoji].length);
-                },
-            },
-        });
-    }, [intl, theme, updateValue, updateCursorPosition]));
+        stopRecordingAndSend();
+    }, [cancelRecording, stopRecordingAndSend]);
 
     const renderQuickActionsForSheet = useCallback(() => (
         <QuickActionsSheet
@@ -505,6 +749,23 @@ function DraftInput({
     }, [intl, renderQuickActionsForSheet, theme]));
 
     const sideHitSlop = {top: 10, bottom: 10, left: 10, right: 10};
+
+    const voiceRecordingBarHint = intl.formatMessage({
+        id: 'post_draft.voice.recording_bar_hint',
+        defaultMessage: 'Release to send — slide up to cancel',
+    });
+    const voiceCancelBarHint = intl.formatMessage({
+        id: 'post_draft.voice.cancel_bar_hint',
+        defaultMessage: 'Release to cancel sending',
+    });
+    const voiceHudSlideHint = intl.formatMessage({
+        id: 'post_draft.voice.hud_slide_to_cancel',
+        defaultMessage: 'Slide up to cancel',
+    });
+    const voiceHudReleaseCancelHint = intl.formatMessage({
+        id: 'post_draft.voice.hud_release_to_cancel',
+        defaultMessage: 'Release to cancel sending',
+    });
 
     const classicFooter = (
         <SafeAreaView
@@ -542,7 +803,7 @@ function DraftInput({
                     addFiles={addFiles}
                     sendMessage={handleSendMessage}
                     inputRef={inputRef}
-                    setIsFocused={setIsFocused}
+                    setIsFocused={wrappedSetIsFocused}
                 />
                 <Uploads
                     currentUserId={currentUserId}
@@ -621,9 +882,11 @@ function DraftInput({
                             embedded={true}
                             recording={voiceState === 'recording'}
                             holdLabel={intl.formatMessage({id: 'post_draft.voice.hold_to_speak', defaultMessage: 'Hold to speak'})}
-                            releaseLabel={intl.formatMessage({id: 'post_draft.voice.release_to_send', defaultMessage: 'Release to send, slide up to cancel'})}
-                            onPressIn={handleHoldPressIn}
-                            onPressOut={handleHoldPressOut}
+                            recordingBarHint={voiceRecordingBarHint}
+                            cancelBarHint={voiceCancelBarHint}
+                            onGestureStart={handleVoiceGestureStart}
+                            onGestureEnd={handleVoiceGestureEnd}
+                            onCancelZoneChange={setVoiceCancelZone}
                         />
                     ) : (
                         <View style={style.weChatInputInner}>
@@ -639,7 +902,7 @@ function DraftInput({
                                 addFiles={addFiles}
                                 sendMessage={handleSendMessageWithVoiceCleanup}
                                 inputRef={inputRef}
-                                setIsFocused={setIsFocused}
+                                setIsFocused={wrappedSetIsFocused}
                                 onBlurExtra={stopVoiceIfRecording}
                             />
                         </View>
@@ -648,14 +911,14 @@ function DraftInput({
                 <TouchableWithFeedback
                     borderlessRipple={true}
                     hitSlop={sideHitSlop}
-                    onPress={openDraftEmojiPicker}
+                    onPress={onEmojiToolbarPress}
                     rippleRadius={20}
                     type='opacity'
                 >
                     <View style={style.weChatSideIconHit}>
                         <CompassIcon
                             color={WECHAT_ICON_MUTED}
-                            name='emoticon-happy-outline'
+                            name={emojiPanelOpen ? 'keyboard-outline' : 'emoticon-happy-outline'}
                             size={26}
                         />
                     </View>
@@ -685,11 +948,33 @@ function DraftInput({
                     weChatCompact={true}
                 />
             </View>
+            {emojiPanelOpen && (
+                <DraftEmojiPanel
+                    customEmojis={customEmojis}
+                    customEmojisEnabled={customEmojisEnabled}
+                    onPick={handleDraftEmojiPick}
+                    recentEmojis={recentEmojis}
+                    skinTone={skinTone}
+                    testID={`${testID}.draft_emoji_panel`}
+                />
+            )}
         </SafeAreaView>
+    );
+
+    const showVoiceRecordingHud = Boolean(
+        weChatPhoneFooter && voiceMode && hasVoiceRecording && voiceState === 'recording',
     );
 
     return (
         <>
+            {showVoiceRecordingHud && (
+                <VoiceRecordingHud
+                    inCancelZone={voiceCancelZone}
+                    meteringDb={voiceMeteringShared}
+                    slideToCancelHint={voiceHudSlideHint}
+                    releaseToCancelHint={voiceHudReleaseCancelHint}
+                />
+            )}
             <Typing
                 channelId={channelId}
                 rootId={rootId}

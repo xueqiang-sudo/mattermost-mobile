@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Text, TouchableOpacity, useWindowDimensions, View} from 'react-native';
+import {Platform, Text, TouchableOpacity, useWindowDimensions, View} from 'react-native';
 
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import FormattedText from '@components/formatted_text';
@@ -38,6 +38,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             color: theme.centerChannelColor,
             flexGrow: 1,
             ...typography('Body', 200, 'SemiBold'),
+            ...Platform.select({
+                android: {
+                    includeFontPadding: false,
+                },
+                default: {},
+            }),
         },
         displayNameCustomEmojiWidth: {
             maxWidth: '90%',
@@ -50,9 +56,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         displayNameContainerWeChat: {
             maxWidth: '92%',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             flexShrink: 1,
             minWidth: 0,
+        },
+        /** 微信：Body/200 默认 lineHeight 24，行上方留白多；收紧行高以贴近头像顶边（略大于 16px 字号以免裁切） */
+        displayNameWeChat: {
+            lineHeight: 18,
+            paddingTop: 0,
+            paddingBottom: 0,
         },
         displayNameContainerBotReplyWidth: {
             maxWidth: '50%',
@@ -123,7 +135,7 @@ const HeaderDisplayName = ({
             >
                 <View style={displayNameStyle}>
                     <Text
-                        style={style.displayName}
+                        style={[style.displayName, wideDisplayName && style.displayNameWeChat]}
                         ellipsizeMode={'tail'}
                         numberOfLines={1}
                         testID='post_header.display_name'
@@ -146,7 +158,7 @@ const HeaderDisplayName = ({
             <FormattedText
                 id='channel_loader.someone'
                 defaultMessage='Someone'
-                style={style.displayName}
+                style={[style.displayName, wideDisplayName && style.displayNameWeChat]}
                 testID='post_header.display_name'
             />
         </View>

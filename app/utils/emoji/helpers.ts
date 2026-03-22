@@ -58,6 +58,24 @@ export function isUnicodeEmoji(text: string) {
     return UNICODE_REGEX.test(text);
 }
 
+/**
+ * Mattermost markdown only renders emoji when written as :short_name:.
+ * The picker supplies bare aliases; use this when inserting into the post draft.
+ */
+export function emojiShortNameToMarkdownToken(name: string): string {
+    if (!name) {
+        return '';
+    }
+    const trimmed = name.trim();
+    if (trimmed.length >= 2 && trimmed.startsWith(':') && trimmed.endsWith(':')) {
+        return trimmed;
+    }
+    if (/^[a-zA-Z0-9_+-]+$/.test(trimmed)) {
+        return `:${trimmed}:`;
+    }
+    return trimmed;
+}
+
 export function getEmoticonName(value: string) {
     return Object.keys(RE_EMOTICON).find((key) => value.match(RE_EMOTICON[key]) !== null);
 }

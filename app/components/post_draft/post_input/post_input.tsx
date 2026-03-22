@@ -73,9 +73,9 @@ const getPlaceHolder = (rootId?: string) => {
     let placeholder;
 
     if (rootId) {
-        placeholder = defineMessage({id: 'create_post.thread_reply', defaultMessage: 'Reply to this thread...'});
+        placeholder = defineMessage({id: 'create_post.thread_reply', defaultMessage: 'Write a reply…'});
     } else {
-        placeholder = defineMessage({id: 'create_post.write', defaultMessage: 'Message {channelDisplayName}'});
+        placeholder = defineMessage({id: 'create_post.write', defaultMessage: 'Write in {channelDisplayName}…'});
     }
 
     return placeholder;

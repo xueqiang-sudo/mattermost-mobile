@@ -3,7 +3,7 @@
 
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {Text, View} from 'react-native';
+import {Platform, Text, View} from 'react-native';
 
 import {removePost} from '@actions/local/post';
 import CompassIcon from '@components/compass_icon';
@@ -69,16 +69,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 1,
             marginTop: 10,
         },
-        /** 微信风格：覆盖 container 的 flex:1，避免 Header 块纵向撑满 */
+        /** 微信风格：覆盖 container 的 flex:1；与下方气泡略留间距（他人消息） */
         containerAlignAvatar: {
             marginTop: 0,
+            marginBottom: 4,
             flex: 0,
             alignSelf: 'stretch',
-            /**
-             * 与左侧头像（PROFILE_PICTURE_SIZE≈32）垂直居中对齐首行昵称+时间：
-             * 仅顶对齐时小号时间字体会显得偏上，略下移整行更贴近头像中线。
-             */
-            paddingTop: 6,
         },
         pendingPost: {
             opacity: 0.5,
@@ -89,25 +85,25 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'center',
             gap: 5,
         },
-        /** 微信风格：昵称、标签、时间在同一行内垂直居中，避免时间字重更小而视觉上飘在上方 */
+        /** 微信风格：昵称、标签、时间与头像顶部齐平（横轴为顶对齐） */
         wrapperWeChat: {
-            alignItems: 'center',
+            alignItems: 'flex-start',
             flex: 0,
             flexShrink: 1,
             alignSelf: 'stretch',
         },
-        /** 微信风格：本人消息仅显示时间，右对齐 */
+        /** 微信风格：本人消息仅显示时间；与气泡间距略紧 */
         containerTimeOnly: {
             marginTop: 0,
-            marginBottom: 4,
+            marginBottom: 0,
             alignSelf: 'flex-end',
             minHeight: 20,
             flex: 0,
         },
-        /** 私聊中对方消息：仅时间，左对齐 */
+        /** 私聊中对方消息：仅时间，左对齐；与他人昵称行一致略留空 */
         containerOthersDmTime: {
             marginTop: 0,
-            marginBottom: 4,
+            marginBottom: 6,
             alignSelf: 'flex-start',
             flex: 0,
         },
@@ -115,6 +111,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             color: theme.centerChannelColor,
             opacity: 0.5,
             ...typography('Body', 75, 'Regular'),
+            ...Platform.select({
+                android: {
+                    includeFontPadding: false,
+                },
+                default: {},
+            }),
+        },
+        /**
+         * 微信相对时间：Body/75 默认 lineHeight 16，行框偏高易显得比头像低；
+         * 略收紧行高（仍略大于字号，避免中文/英文裁切）。
+         */
+        timeWeChat: {
+            lineHeight: 14,
+            paddingTop: 0,
+            paddingBottom: 0,
         },
         visibleToYou: {
             color: theme.centerChannelColor,
@@ -170,7 +181,7 @@ const Header = (props: HeaderProps) => {
     );
 
     const timeEl = useWeChatRelativeTime ? (
-        <Text style={style.time} testID='post_header.date_time'>
+        <Text style={[style.time, style.timeWeChat]} testID='post_header.date_time'>
             {formatWeChatPostHeaderTime(intl, post.createAt, getUserTimezone(currentUser))}
         </Text>
     ) : (

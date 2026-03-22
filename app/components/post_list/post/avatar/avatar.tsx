@@ -115,7 +115,7 @@ const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, 
             borderRadius={useRoundedSquare ? CHAT_AVATAR_BORDER_RADIUS : undefined}
             size={ViewConstant.PROFILE_PICTURE_SIZE}
             iconSize={24}
-            showStatus={!isAutoReponse || author?.isBot}
+            showStatus={false}
             statusStyle={useRoundedSquare ? {borderRadius: CHAT_STATUS_BORDER_RADIUS} : undefined}
             testID={`post_avatar.${author?.id}.profile_picture`}
         />
