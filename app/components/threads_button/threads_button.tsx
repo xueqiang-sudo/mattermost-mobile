@@ -6,6 +6,7 @@ import {DeviceEventEmitter, TouchableOpacity, View} from 'react-native';
 
 import {switchToGlobalThreads} from '@actions/local/thread';
 import Badge from '@components/badge';
+import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {
     getStyleSheet as getChannelItemStyleSheet,
     ROW_HEIGHT,
@@ -28,6 +29,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 24,
         marginRight: 12,
     },
+    headerButton: {
+        backgroundColor: changeOpacity(theme.sidebarText, 0.08),
+        height: PLUS_BUTTON_SIZE,
+        width: PLUS_BUTTON_SIZE,
+        borderRadius: PLUS_BUTTON_SIZE / 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
     iconActive: {
         color: theme.sidebarText,
     },
@@ -38,6 +48,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
     },
 }));
+
+const PLUS_BUTTON_SIZE = 28;
 
 type Props = {
     currentChannelId: string;
@@ -50,6 +62,8 @@ type Props = {
         mentions: number;
     };
     isOnHome?: boolean;
+    /** 紧凑图标模式，用于 header 右侧按钮区 */
+    variant?: 'list' | 'header';
 };
 
 const ThreadsButton = ({
@@ -60,6 +74,7 @@ const ThreadsButton = ({
     unreadsAndMentions,
     shouldHighlightActive = false,
     isOnHome = false,
+    variant = 'list',
 }: Props) => {
     const isTablet = useIsTablet();
     const serverUrl = useServerUrl();
@@ -113,6 +128,29 @@ const ThreadsButton = ({
 
         return [container, icon, text, badge];
     }, [customStyles, isActive, onCenterBg, styles, unreads, isOnHome]);
+
+    if (variant === 'header') {
+        return (
+            <TouchableWithFeedback
+                onPress={handlePress}
+                style={[customStyles.headerButton, (isActive || unreads) && {backgroundColor: changeOpacity(theme.sidebarText, 0.16)}]}
+                testID='channel_list.threads.button'
+                type='opacity'
+            >
+                <View style={{position: 'relative'}}>
+                    <CompassIcon
+                        name='message-text-outline'
+                        style={[customStyles.icon, {fontSize: 18, marginRight: 0}, (isActive || unreads) && customStyles.iconActive]}
+                    />
+                    {mentions > 0 && (
+                        <View style={{position: 'absolute', top: -4, right: -4}}>
+                            <Badge value={mentions} style={badgeStyle} visible={true} />
+                        </View>
+                    )}
+                </View>
+            </TouchableWithFeedback>
+        );
+    }
 
     return (
         <TouchableOpacity

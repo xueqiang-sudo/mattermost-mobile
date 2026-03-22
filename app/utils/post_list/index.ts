@@ -223,6 +223,11 @@ export function selectOrderedPosts(
             continue;
         }
 
+        // 语音转文字：custom_voice_asr 不显示，等服务器返回转写后的文字
+        if (post.currentPost.type === Post.POST_TYPES.CUSTOM_VOICE_ASR) {
+            continue;
+        }
+
         // Filter out join/leave messages if necessary
         if (shouldFilterJoinLeavePost(post.currentPost, showJoinLeave, currentUsername)) {
             continue;

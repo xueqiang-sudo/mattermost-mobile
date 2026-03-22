@@ -2,7 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo} from 'react';
-import {View} from 'react-native';
+import {useIntl} from 'react-intl';
+import {Text, View} from 'react-native';
 
 import {removePost} from '@actions/local/post';
 import CompassIcon from '@components/compass_icon';
@@ -10,7 +11,8 @@ import FormattedText from '@components/formatted_text';
 import FormattedTime from '@components/formatted_time';
 import ExpiryTimer from '@components/post_list/post/header/expiry_timer';
 import PostPriorityLabel from '@components/post_priority/post_priority_label';
-import {CHANNEL, THREAD} from '@constants/screens';
+import General from '@constants/general';
+import {CHANNEL, PERMALINK, THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {DEFAULT_LOCALE} from '@i18n';
@@ -19,6 +21,7 @@ import {postUserDisplayName} from '@utils/post';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {ensureString} from '@utils/types';
 import {typography} from '@utils/typography';
+import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 import {displayUsername, getUserCustomStatus, getUserTimezone, isCustomStatusExpired} from '@utils/user';
 
 import HeaderCommentedOn from './commented_on';
@@ -26,6 +29,7 @@ import HeaderDisplayName from './display_name';
 import HeaderReply from './reply';
 import HeaderTag from './tag';
 
+import type ChannelModel from '@typings/database/models/servers/channel';
 import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -34,6 +38,9 @@ type HeaderProps = {
 
     /** 微信风格：名字与头像顶部对齐 */
     alignWithAvatar?: boolean;
+
+    /** 微信风格：本人消息仅显示时间 */
+    timeOnly?: boolean;
     author?: UserModel;
     commentCount: number;
     currentUser?: UserModel;
@@ -53,6 +60,7 @@ type HeaderProps = {
     shouldRenderReplyButton?: boolean;
     teammateNameDisplay: string;
     hideGuestTags: boolean;
+    channel?: ChannelModel;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -61,8 +69,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 1,
             marginTop: 10,
         },
+        /** 微信风格：覆盖 container 的 flex:1，避免 Header 块纵向撑满 */
         containerAlignAvatar: {
-            marginTop: 2,
+            marginTop: 0,
+            flex: 0,
+            alignSelf: 'stretch',
+            /**
+             * 与左侧头像（PROFILE_PICTURE_SIZE≈32）垂直居中对齐首行昵称+时间：
+             * 仅顶对齐时小号时间字体会显得偏上，略下移整行更贴近头像中线。
+             */
+            paddingTop: 6,
         },
         pendingPost: {
             opacity: 0.5,
@@ -72,6 +88,28 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 5,
+        },
+        /** 微信风格：昵称、标签、时间在同一行内垂直居中，避免时间字重更小而视觉上飘在上方 */
+        wrapperWeChat: {
+            alignItems: 'center',
+            flex: 0,
+            flexShrink: 1,
+            alignSelf: 'stretch',
+        },
+        /** 微信风格：本人消息仅显示时间，右对齐 */
+        containerTimeOnly: {
+            marginTop: 0,
+            marginBottom: 4,
+            alignSelf: 'flex-end',
+            minHeight: 20,
+            flex: 0,
+        },
+        /** 私聊中对方消息：仅时间，左对齐 */
+        containerOthersDmTime: {
+            marginTop: 0,
+            marginBottom: 4,
+            alignSelf: 'flex-start',
+            flex: 0,
         },
         time: {
             color: theme.centerChannelColor,
@@ -86,13 +124,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
+const WECHAT_TIME_LOCATIONS = new Set<AvailableScreens>([CHANNEL, PERMALINK, THREAD]);
+
 const Header = (props: HeaderProps) => {
     const {
         alignWithAvatar,
-        author, commentCount = 0, currentUser, enablePostUsernameOverride, isAutoResponse, isCRTEnabled, isCustomStatusEnabled,
+        author, channel, commentCount = 0, currentUser, enablePostUsernameOverride, isAutoResponse, isCRTEnabled, isCustomStatusEnabled,
         isEphemeral, isMilitaryTime, isPendingOrFailed, isSystemPost, isWebHook,
         location, post, rootPostAuthor, showPostPriority, shouldRenderReplyButton, teammateNameDisplay, hideGuestTags,
+        timeOnly,
     } = props;
+    const intl = useIntl();
     const theme = useTheme();
     const style = getStyleSheet(theme);
     const pendingPostStyle = isPendingOrFailed ? style.pendingPost : undefined;
@@ -118,15 +160,55 @@ const Header = (props: HeaderProps) => {
         await removePost(serverUrl, post);
     }, [post, serverUrl]);
 
+    const useWeChatRelativeTime = WECHAT_TIME_LOCATIONS.has(location);
+    const hideOthersNameInDm = Boolean(
+        useWeChatRelativeTime &&
+        alignWithAvatar &&
+        channel?.type === General.DM_CHANNEL &&
+        currentUser &&
+        post.userId !== currentUser.id,
+    );
+
+    const timeEl = useWeChatRelativeTime ? (
+        <Text style={style.time} testID='post_header.date_time'>
+            {formatWeChatPostHeaderTime(intl, post.createAt, getUserTimezone(currentUser))}
+        </Text>
+    ) : (
+        <FormattedTime
+            timezone={getUserTimezone(currentUser)}
+            isMilitaryTime={isMilitaryTime}
+            value={post.createAt}
+            style={style.time}
+            testID='post_header.date_time'
+        />
+    );
+
+    if (timeOnly) {
+        return (
+            <View style={[style.container, style.containerTimeOnly, pendingPostStyle]}>
+                {timeEl}
+            </View>
+        );
+    }
+
+    if (hideOthersNameInDm) {
+        return (
+            <View style={[style.container, style.containerOthersDmTime, pendingPostStyle]}>
+                {timeEl}
+            </View>
+        );
+    }
+
     return (
         <>
             <View style={[style.container, alignWithAvatar && style.containerAlignAvatar, pendingPostStyle]}>
-                <View style={style.wrapper}>
+                <View style={[style.wrapper, alignWithAvatar && style.wrapperWeChat]}>
                     <HeaderDisplayName
                         channelId={post.channelId}
                         commentCount={commentCount}
                         displayName={displayName}
                         location={location}
+                        wideDisplayName={Boolean(alignWithAvatar && useWeChatRelativeTime)}
                         rootPostAuthor={rootAuthorDisplayName}
                         shouldRenderReplyButton={shouldRenderReplyButton}
                         theme={theme}
@@ -143,13 +225,7 @@ const Header = (props: HeaderProps) => {
                         showGuestTag={author?.isGuest && !hideGuestTags}
                     />
                     }
-                    <FormattedTime
-                        timezone={getUserTimezone(currentUser)}
-                        isMilitaryTime={isMilitaryTime}
-                        value={post.createAt}
-                        style={style.time}
-                        testID='post_header.date_time'
-                    />
+                    {timeEl}
                     {isEphemeral && (
                         <FormattedText
                             id='post_header.visible_message'

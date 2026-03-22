@@ -7,6 +7,7 @@ import {switchMap} from 'rxjs/operators';
 
 import {observeIsPlaybooksEnabled} from '@playbooks/database/queries/version';
 import {observeDraftCount} from '@queries/servers/drafts';
+import {observeIsCRTEnabled} from '@queries/servers/thread';
 import {observeScheduledPostEnabled, observeScheduledPostsForTeam} from '@queries/servers/scheduled_post';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeTeamLastChannelId} from '@queries/servers/team';
@@ -29,8 +30,10 @@ const enchanced = withObservables([], ({database}: WithDatabaseArgs) => {
     );
     const scheduledPostsEnabled = observeScheduledPostEnabled(database);
     const playbooksEnabled = observeIsPlaybooksEnabled(database);
+    const isCRTEnabled = observeIsCRTEnabled(database);
 
     return {
+        isCRTEnabled,
         lastChannelId,
         draftsCount,
         scheduledPostCount,

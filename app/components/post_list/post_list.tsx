@@ -133,8 +133,8 @@ const PostList = ({
 
     const isNewMessage = lastPostId ? firstIdInPosts !== lastPostId : false;
 
-    const scrollToEnd = useCallback(() => {
-        listRef.current?.scrollToOffset({offset: 0, animated: true});
+    const scrollToEnd = useCallback((animated = true) => {
+        listRef.current?.scrollToOffset({offset: 0, animated});
     }, []);
 
     useEffect(() => {
@@ -149,7 +149,7 @@ const PostList = ({
         const scrollToBottom = (screen: string) => {
             if (screen === location) {
                 const scrollToBottomTimer = setTimeout(() => {
-                    scrollToEnd();
+                    scrollToEnd(false);
                     clearTimeout(scrollToBottomTimer);
                 }, 400);
             }
@@ -384,7 +384,7 @@ const PostList = ({
             />
             {location !== Screens.PERMALINK &&
             <ScrollToEndView
-                onPress={scrollToEnd}
+                onPress={() => scrollToEnd(true)}
                 isNewMessage={isNewMessage}
                 showScrollToEndBtn={showScrollToEndBtn}
                 location={location}

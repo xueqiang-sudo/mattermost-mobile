@@ -2,7 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {InteractionManager, View} from 'react-native';
+import {InteractionManager, Text, View} from 'react-native';
+import {useIntl} from 'react-intl';
 import Tooltip from 'react-native-walkthrough-tooltip';
 
 import {storeScheduledPostTutorial} from '@actions/app/global';
@@ -52,9 +53,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             height: 140,
         },
         sendButtonWeChat: {
-            width: 36,
             height: 36,
-            borderRadius: 18,
+            minWidth: 52,
+            paddingHorizontal: 14,
+            borderRadius: 6,
             alignItems: 'center',
             justifyContent: 'center',
         },
@@ -69,6 +71,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             paddingRight: 2,
             paddingLeft: 2,
             marginBottom: 2,
+        },
+        sendButtonText: {
+            fontSize: 16,
+            fontWeight: '500',
         },
     };
 });
@@ -85,6 +91,7 @@ const SendButton: React.FC<Props> = ({
     weChatCompact,
 }: Props) => {
     const theme = useTheme();
+    const intl = useIntl();
     const sendButtonTestID = `${testID}.send.button` + (disabled ? '.disabled' : '');
     const style = getStyleSheet(theme);
 
@@ -140,11 +147,17 @@ const SendButton: React.FC<Props> = ({
                 tooltipStyle={style.scheduledPostTooltipStyle}
             >
                 <View style={viewStyle}>
-                    <CompassIcon
-                        name='send'
-                        size={weChatCompact ? 20 : 24}
-                        color={buttonColor}
-                    />
+                    {weChatCompact ? (
+                        <Text style={[style.sendButtonText, {color: buttonColor}]}>
+                            {intl.formatMessage({id: 'post_draft.send', defaultMessage: 'Send'})}
+                        </Text>
+                    ) : (
+                        <CompassIcon
+                            name='send'
+                            size={24}
+                            color={buttonColor}
+                        />
+                    )}
                 </View>
             </Tooltip>
         </TouchableWithFeedback>

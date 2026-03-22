@@ -102,7 +102,7 @@ export default function SendHandler({
         updateDraftPriority(serverUrl, channelId, rootId, priority);
     }, [serverUrl, channelId, rootId]);
 
-    const {handleSendMessage, canSend} = useHandleSendMessage({
+    const {handleSendMessage, canSend, sendVoiceAsr} = useHandleSendMessage({
         value,
         channelId,
         rootId,
@@ -165,6 +165,7 @@ export default function SendHandler({
             addFiles={addFiles}
             uploadFileError={uploadFileError}
             sendMessage={handleSendMessage}
+            sendVoiceAsr={sendVoiceAsr}
             canSend={canSend}
             maxMessageLength={maxMessageLength}
             updatePostInputTop={updatePostInputTop}

@@ -6,6 +6,7 @@ import {of as of$} from 'rxjs';
 import {map, switchMap} from 'rxjs/operators';
 
 import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
+import {observeChannel} from '@queries/servers/channel';
 import {observePost, observePostAuthor, queryPostReplies} from '@queries/servers/post';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {observeConfigBooleanValue} from '@queries/servers/system';
@@ -42,6 +43,7 @@ const withHeaderProps = withObservables(
 
         return {
             author,
+            channel: observeChannel(database, post.channelId),
             commentCount,
             enablePostUsernameOverride,
             isCustomStatusEnabled,

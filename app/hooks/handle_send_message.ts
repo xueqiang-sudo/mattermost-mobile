@@ -7,12 +7,13 @@ import {DeviceEventEmitter} from 'react-native';
 
 import {getChannelTimezones} from '@actions/remote/channel';
 import {executeCommand, handleGotoLocation} from '@actions/remote/command';
+import {uploadFile} from '@actions/remote/file';
 import {createPost} from '@actions/remote/post';
 import {handleReactionToLatestPost} from '@actions/remote/reactions';
 import {createScheduledPost} from '@actions/remote/scheduled_post';
 import {setStatus} from '@actions/remote/user';
 import {handleCallsSlashCommand} from '@calls/actions';
-import {Events, Screens} from '@constants';
+import {Events, PostTypes, Screens} from '@constants';
 import {NOTIFY_ALL_MEMBERS} from '@constants/post_draft';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
@@ -274,6 +275,58 @@ export const useHandleSendMessage = ({
         return Promise.resolve();
     }, [canSend, value, customEmojis, files, handleReaction, intl, sendMessage]);
 
+    const sendVoiceAsr = useCallback(async (voiceFiles: FileInfo[]) => {
+        if (!voiceFiles.length) {
+            return;
+        }
+        setSendingMessage(true);
+        try {
+            const uploadedFiles: FileInfo[] = [];
+            for (const file of voiceFiles) {
+                const uploaded = await new Promise<FileInfo>((resolve, reject) => {
+                    const {error, cancel} = uploadFile(
+                        serverUrl,
+                        file,
+                        channelId,
+                        () => {/* progress */},
+                        (response) => {
+                            if (response.code !== 201 || !response.data?.file_infos?.length) {
+                                reject(new Error((response.data?.message as string) || 'Failed to upload voice'));
+                                return;
+                            }
+                            const fi = response.data.file_infos[0] as FileInfo;
+                            fi.clientId = file.clientId;
+                            fi.localPath = file.localPath;
+                            resolve(fi);
+                        },
+                        (err) => reject(new Error(err?.message || 'Upload failed')),
+                    );
+                    if (error) {
+                        reject(error);
+                    }
+                });
+                uploadedFiles.push(uploaded);
+            }
+            const post = {
+                user_id: currentUserId,
+                channel_id: channelId,
+                root_id: rootId,
+                message: '',
+                type: PostTypes.CUSTOM_VOICE_ASR,
+            } as Post;
+            createPost(serverUrl, post, uploadedFiles);
+            DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, rootId ? Screens.THREAD : Screens.CHANNEL);
+        } catch (err) {
+            showSnackBar({
+                barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
+                customMessage: getErrorMessage(err),
+                type: MESSAGE_TYPE.ERROR,
+            });
+        } finally {
+            setSendingMessage(false);
+        }
+    }, [serverUrl, channelId, rootId, currentUserId]);
+
     useEffect(() => {
         getChannelTimezones(serverUrl, channelId).then(({channelTimezones}) => {
             setChannelTimezoneCount(channelTimezones?.length || 0);
@@ -283,5 +336,6 @@ export const useHandleSendMessage = ({
     return {
         handleSendMessage,
         canSend,
+        sendVoiceAsr,
     };
 };

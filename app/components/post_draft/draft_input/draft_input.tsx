@@ -1,9 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, Platform, ScrollView, StyleSheet, View} from 'react-native';
+import {Keyboard, type LayoutChangeEvent, type EmitterSubscription, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import Animated, {cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
@@ -13,14 +14,17 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {usePersistentNotificationProps} from '@hooks/persistent_notification_props';
+import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
-import {bottomSheet, openAsBottomSheet} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
 import {persistentNotificationsConfirmation} from '@utils/post';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {showSnackBar} from '@utils/snack_bar';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 
 import PostInput from '../post_input';
-import QuickActions from '../quick_actions';
+import QuickActions, {QuickActionsSheet} from '../quick_actions';
 import SendAction from '../send_button';
 import Typing from '../typing';
 import Uploads from '../uploads';
@@ -37,6 +41,102 @@ const CHAT_INPUT_MARGIN_B = 6;
 
 const CLOSE_DRAFT_MORE = 'close-draft-more-actions';
 const CLOSE_DRAFT_EMOJI = 'close-draft-emoji-picker';
+
+/** 波形条最大高度，须 ≤ WAVE_STRIP_HEIGHT，避免撑开行高导致上方提示文字随 flex 居中上下抖 */
+const WAVE_STRIP_HEIGHT = 28;
+
+/** 千问风格：单个波形条（自下而上伸缩，父容器固定高度） */
+function WaveformBar({index, recording}: {index: number; recording: boolean}) {
+    const height = useSharedValue(8);
+    const animatedStyle = useAnimatedStyle(() => ({
+        height: height.value,
+        width: 3,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 2,
+    }));
+    useEffect(() => {
+        if (recording) {
+            const maxDelta = Math.max(4, WAVE_STRIP_HEIGHT - 8);
+            height.value = withRepeat(
+                withTiming(8 + Math.random() * maxDelta, {duration: 150 + index * 25}),
+                -1,
+                true,
+            );
+        } else {
+            cancelAnimation(height);
+            height.value = withTiming(8);
+        }
+        return () => cancelAnimation(height);
+    }, [recording, index]);
+    return <Animated.View style={animatedStyle}/>;
+}
+
+/** 千问风格：录制时波形动画（固定条带高度 + 底对齐，避免条高度变化带动整列重排） */
+function WaveformBars({recording}: {recording: boolean}) {
+    return (
+        <View
+            style={{
+                height: WAVE_STRIP_HEIGHT,
+                flexDirection: 'row',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                gap: 3,
+            }}
+        >
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <WaveformBar key={i} index={i} recording={recording} />
+            ))}
+        </View>
+    );
+}
+
+/** 千问风格：按住说话按钮（含波形）；embedded 时贴在外壳内，不再画内边框避免与键盘之间出现分隔线 */
+function HoldToSpeakButton({
+    recording,
+    holdLabel,
+    releaseLabel,
+    onPressIn,
+    onPressOut,
+    embedded,
+}: {
+    recording: boolean;
+    holdLabel: string;
+    releaseLabel: string;
+    onPressIn: () => void;
+    onPressOut: () => void;
+    embedded?: boolean;
+}) {
+    return (
+        <Pressable
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+            style={({pressed}) => [
+                {
+                    flex: 1,
+                    minHeight: 40,
+                    borderRadius: embedded ? 0 : 6,
+                    backgroundColor: recording ? '#5D89EA' : (embedded ? 'transparent' : CHAT_INPUT_BG),
+                    borderWidth: embedded ? 0 : StyleSheet.hairlineWidth,
+                    borderColor: recording ? 'transparent' : 'rgba(0,0,0,0.08)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                },
+                pressed && !recording && {opacity: 0.8},
+            ]}
+        >
+            {recording ? (
+                <View style={{alignItems: 'center', justifyContent: 'center', flex: 1, width: '100%'}}>
+                    <Text style={{color: 'rgba(255,255,255,0.8)', fontSize: 11, marginBottom: 4, textAlign: 'center'}}>
+                        {releaseLabel}
+                    </Text>
+                    <WaveformBars recording={true} />
+                </View>
+            ) : (
+                <Text style={{color: WECHAT_ICON_MUTED, fontSize: 15}}>{holdLabel}</Text>
+            )}
+        </Pressable>
+    );
+}
 
 /** 微信底栏背景 #F3F3F3，与头部一致（参考微信图2） */
 const WECHAT_FOOTER_BG = '#F3F3F3';
@@ -66,6 +166,7 @@ export type Props = {
 
     // Send Handler
     sendMessage: (schedulingInfo?: SchedulingInfo) => Promise<void | {data?: boolean; error?: unknown}>;
+    sendVoiceAsr?: (voiceFiles: FileInfo[]) => Promise<void>;
     canSend: boolean;
     maxMessageLength: number;
 
@@ -132,27 +233,43 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         },
         inputWrapperWeChatPhone: {
             backgroundColor: WECHAT_FOOTER_BG,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: 'rgba(0, 0, 0, 0.08)',
+            borderTopWidth: 0,
             paddingTop: 8,
             paddingBottom: Platform.select({ios: 6, android: 8}),
+            minHeight: 56,
         },
         weChatInputRow: {
             flexDirection: 'row',
-            alignItems: 'flex-end',
-            paddingHorizontal: 6,
-            minHeight: 44,
+            alignItems: 'center',
+            paddingHorizontal: 4,
+            minHeight: 48,
+        },
+        /** 喇叭/键盘：在输入框白底容器外侧最左 */
+        weChatLeftModeToggle: {
+            paddingHorizontal: 4,
+            paddingVertical: 6,
+            marginRight: 2,
+            justifyContent: 'center',
+            alignItems: 'center',
+            minWidth: 36,
+            minHeight: 40,
         },
         weChatInputShell: {
             flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
             backgroundColor: CHAT_INPUT_BG,
             borderRadius: 6,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: 'rgba(0, 0, 0, 0.08)',
-            marginHorizontal: 4,
+            marginHorizontal: 2,
             marginBottom: 2,
-            minHeight: 36,
-            justifyContent: 'center',
+            minHeight: 40,
+            overflow: 'hidden',
+        },
+        weChatInputInner: {
+            flex: 1,
+            minWidth: 0,
         },
         weChatSideIconHit: {
             padding: 6,
@@ -181,6 +298,7 @@ function DraftInput({
     value,
     uploadFileError,
     sendMessage,
+    sendVoiceAsr,
     canSend,
     updateValue,
     addFiles,
@@ -256,6 +374,88 @@ function DraftInput({
 
     const weChatPhoneFooter = useChatInputStyle;
 
+    const handleVoiceRecorded = useCallback((voiceFiles: FileInfo[]) => {
+        sendVoiceAsr?.(voiceFiles);
+    }, [sendVoiceAsr]);
+
+    const handleVoiceError = useCallback((code: VoiceRecorderErrorCode) => {
+        const ids: Record<VoiceRecorderErrorCode, string> = {
+            permission_denied: intl.formatMessage({id: 'post_draft.voice.permission_denied', defaultMessage: 'Microphone permission denied'}),
+            record_failed: intl.formatMessage({id: 'post_draft.voice.record_failed', defaultMessage: 'Failed to record voice'}),
+            process_failed: intl.formatMessage({id: 'post_draft.voice.process_failed', defaultMessage: 'Failed to process recording'}),
+            too_short: intl.formatMessage({id: 'post_draft.voice.too_short', defaultMessage: 'Recording too short'}),
+        };
+        showSnackBar({
+            barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
+            customMessage: ids[code],
+            type: MESSAGE_TYPE.ERROR,
+        });
+    }, [intl]);
+
+    const {state: voiceState, startRecording, stopRecordingAndSend, cancelRecording} = useVoiceRecorder(
+        handleVoiceRecorded,
+        handleVoiceError,
+    );
+
+    const hasVoiceRecording = Boolean(sendVoiceAsr);
+    const [voiceMode, setVoiceMode] = useState(false);
+
+    const stopVoiceIfRecording = useCallback(() => {
+        if (voiceState === 'recording') {
+            stopRecordingAndSend();
+        }
+    }, [voiceState, stopRecordingAndSend]);
+
+    const cancelVoiceIfRecording = useCallback(() => {
+        if (voiceState === 'recording') {
+            cancelRecording();
+        }
+    }, [voiceState, cancelRecording]);
+
+    useEffect(() => {
+        if (voiceState !== 'recording') {
+            return;
+        }
+        const event = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const sub: EmitterSubscription = Keyboard.addListener(event, stopVoiceIfRecording);
+        return () => sub.remove();
+    }, [voiceState, stopVoiceIfRecording]);
+
+    useEffect(() => {
+        if (voiceState !== 'recording') {
+            return;
+        }
+        const MAX_RECORDING_MS = 60000;
+        const t = setTimeout(stopVoiceIfRecording, MAX_RECORDING_MS);
+        return () => clearTimeout(t);
+    }, [voiceState, stopVoiceIfRecording]);
+
+    const handleSendMessageWithVoiceCleanup = useCallback(async (schedulingInfoParam?: SchedulingInfo) => {
+        cancelVoiceIfRecording();
+        await handleSendMessage(schedulingInfoParam);
+    }, [handleSendMessage, cancelVoiceIfRecording]);
+
+    const switchToVoiceMode = usePreventDoubleTap(useCallback(() => {
+        Keyboard.dismiss();
+        setVoiceMode(true);
+    }, []));
+
+    const switchToTextMode = usePreventDoubleTap(useCallback(() => {
+        stopVoiceIfRecording();
+        setVoiceMode(false);
+        setTimeout(() => inputRef.current?.focus(), 100);
+    }, [stopVoiceIfRecording]));
+
+    const handleHoldPressIn = useCallback(() => {
+        startRecording();
+    }, [startRecording]);
+
+    const handleHoldPressOut = useCallback(() => {
+        if (voiceState === 'recording') {
+            stopRecordingAndSend();
+        }
+    }, [voiceState, stopRecordingAndSend]);
+
     const openDraftEmojiPicker = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
         openAsBottomSheet({
@@ -274,24 +474,24 @@ function DraftInput({
     }, [intl, theme, updateValue, updateCursorPosition]));
 
     const renderQuickActionsForSheet = useCallback(() => (
-        <View style={{paddingVertical: 8, paddingHorizontal: 4}}>
-            <QuickActions
-                testID={`${quickActionsTestID}.more_sheet`}
-                addFiles={addFiles}
-                canShowPostPriority={canShowPostPriority}
-                fileCount={files.length}
-                focus={focus}
-                postPriority={postPriority}
-                updatePostPriority={updatePostPriority}
-                updateValue={updateValue}
-                value={value}
-            />
-        </View>
+        <QuickActionsSheet
+            testID={`${quickActionsTestID}.more_sheet`}
+            addFiles={addFiles}
+            canShowPostPriority={canShowPostPriority}
+            fileCount={files.length}
+            focus={focus}
+            postPriority={postPriority}
+            updatePostPriority={updatePostPriority}
+            updateValue={updateValue}
+            value={value}
+            onDismiss={() => dismissBottomSheet()}
+        />
     ), [addFiles, canShowPostPriority, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value]);
 
     const openDraftMoreSheet = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
-        let sheetHeight = 56 + 44 + 24;
+        const QUICK_ACTIONS_SHEET_HEIGHT = 220;
+        let sheetHeight = QUICK_ACTIONS_SHEET_HEIGHT;
         if (Platform.OS === 'android') {
             sheetHeight += BOTTOM_SHEET_ANDROID_OFFSET;
         }
@@ -303,10 +503,6 @@ function DraftInput({
             closeButtonId: CLOSE_DRAFT_MORE,
         });
     }, [intl, renderQuickActionsForSheet, theme]));
-
-    const dismissKeyboardOnly = useCallback(() => {
-        Keyboard.dismiss();
-    }, []);
 
     const sideHitSlop = {top: 10, bottom: 10, left: 10, right: 10};
 
@@ -402,37 +598,52 @@ function DraftInput({
                 rootId={rootId}
             />
             <View style={style.weChatInputRow}>
-                <TouchableWithFeedback
-                    borderlessRipple={true}
-                    hitSlop={sideHitSlop}
-                    onPress={dismissKeyboardOnly}
-                    rippleRadius={20}
-                    type='opacity'
-                    testID={`${quickActionsTestID}.voice.button`}
-                >
-                    <View style={style.weChatSideIconHit}>
-                        <CompassIcon
-                            color={WECHAT_ICON_MUTED}
-                            name='microphone-outline'
-                            size={26}
-                        />
-                    </View>
-                </TouchableWithFeedback>
+                {hasVoiceRecording && (
+                    <TouchableWithFeedback
+                        borderlessRipple={true}
+                        onPress={voiceMode ? switchToTextMode : switchToVoiceMode}
+                        style={style.weChatLeftModeToggle}
+                        type='opacity'
+                        testID={voiceMode ? `${quickActionsTestID}.keyboard.button` : `${quickActionsTestID}.voice.button`}
+                    >
+                        <View style={{justifyContent: 'center', alignItems: 'center'}}>
+                            {voiceMode ? (
+                                <CompassIcon name='keyboard-outline' size={22} color={WECHAT_ICON_MUTED} />
+                            ) : (
+                                <CompassIcon name='volume-high' size={22} color={WECHAT_ICON_MUTED} />
+                            )}
+                        </View>
+                    </TouchableWithFeedback>
+                )}
                 <View style={style.weChatInputShell}>
-                    <PostInput
-                        testID={postInputTestID}
-                        channelId={channelId}
-                        maxMessageLength={maxMessageLength}
-                        rootId={rootId}
-                        cursorPosition={cursorPosition}
-                        updateCursorPosition={updateCursorPosition}
-                        updateValue={updateValue}
-                        value={value}
-                        addFiles={addFiles}
-                        sendMessage={handleSendMessage}
-                        inputRef={inputRef}
-                        setIsFocused={setIsFocused}
-                    />
+                    {voiceMode && hasVoiceRecording ? (
+                        <HoldToSpeakButton
+                            embedded={true}
+                            recording={voiceState === 'recording'}
+                            holdLabel={intl.formatMessage({id: 'post_draft.voice.hold_to_speak', defaultMessage: 'Hold to speak'})}
+                            releaseLabel={intl.formatMessage({id: 'post_draft.voice.release_to_send', defaultMessage: 'Release to send, slide up to cancel'})}
+                            onPressIn={handleHoldPressIn}
+                            onPressOut={handleHoldPressOut}
+                        />
+                    ) : (
+                        <View style={style.weChatInputInner}>
+                            <PostInput
+                                testID={postInputTestID}
+                                channelId={channelId}
+                                maxMessageLength={maxMessageLength}
+                                rootId={rootId}
+                                cursorPosition={cursorPosition}
+                                updateCursorPosition={updateCursorPosition}
+                                updateValue={updateValue}
+                                value={value}
+                                addFiles={addFiles}
+                                sendMessage={handleSendMessageWithVoiceCleanup}
+                                inputRef={inputRef}
+                                setIsFocused={setIsFocused}
+                                onBlurExtra={stopVoiceIfRecording}
+                            />
+                        </View>
+                    )}
                 </View>
                 <TouchableWithFeedback
                     borderlessRipple={true}
@@ -449,16 +660,6 @@ function DraftInput({
                         />
                     </View>
                 </TouchableWithFeedback>
-                {!sendActionDisabled && (
-                    <SendAction
-                        testID={sendActionTestID}
-                        disabled={sendActionDisabled}
-                        sendMessage={handleSendMessage}
-                        showScheduledPostOptions={handleShowScheduledPostOptions}
-                        scheduledPostEnabled={scheduledPostsEnabled}
-                        weChatCompact={true}
-                    />
-                )}
                 <TouchableWithFeedback
                     borderlessRipple={true}
                     hitSlop={sideHitSlop}
@@ -475,6 +676,14 @@ function DraftInput({
                         />
                     </View>
                 </TouchableWithFeedback>
+                <SendAction
+                    testID={sendActionTestID}
+                    disabled={sendActionDisabled}
+                    sendMessage={handleSendMessageWithVoiceCleanup}
+                    showScheduledPostOptions={handleShowScheduledPostOptions}
+                    scheduledPostEnabled={scheduledPostsEnabled}
+                    weChatCompact={true}
+                />
             </View>
         </SafeAreaView>
     );

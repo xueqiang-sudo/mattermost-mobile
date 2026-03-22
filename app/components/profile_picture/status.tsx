@@ -39,11 +39,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 
 const Status = ({author, statusSize, statusStyle, theme}: Props) => {
     const styles = getStyleSheet(theme);
+    const styleObj = Array.isArray(statusStyle) ? {} : (statusStyle as ViewStyle) || {};
+    const borderRadius = typeof styleObj.borderRadius === 'number' ? styleObj.borderRadius : statusSize / 2;
     const containerStyle = useMemo(() => ([
         styles.statusWrapper,
         statusStyle,
-        {borderRadius: statusSize / 2},
-    ]), [statusStyle, styles]);
+        {borderRadius},
+    ]), [statusStyle, styles, borderRadius]);
     const isBot = author && (('isBot' in author) ? author.isBot : author.is_bot);
     if (author?.status && !isBot) {
         return (

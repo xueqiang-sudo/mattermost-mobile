@@ -2,12 +2,13 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {type LayoutChangeEvent, type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle} from 'react-native';
+import {Dimensions, type LayoutChangeEvent, type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle} from 'react-native';
 
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
 import {Screens} from '@constants';
+import {PostTypes} from '@constants/post';
 import {THREAD} from '@constants/screens';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
 import {PLAYBOOKS_UPDATE_STATUS_POST_TYPE} from '@playbooks/constants/plugin';
@@ -24,6 +25,9 @@ import Reactions from './reactions';
 import type PostModel from '@typings/database/models/servers/post';
 import type {SearchPattern} from '@typings/global/markdown';
 import type {AvailableScreens} from '@typings/screens/navigation';
+
+/** 三角与气泡上沿留白，避免负 margin 参与异常拉伸；略对齐头像侧 */
+const WECHAT_BUBBLE_TAIL_MARGIN_TOP = 6;
 
 type BodyProps = {
     appsEnabled: boolean;
@@ -74,13 +78,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             borderRadius: 5,
         },
 
-        /** 微信风格：气泡+尾巴容器，overflow 可见以显示三角箭头 */
+        /** 微信风格：气泡+尾巴容器；alignItems 避免子项在交叉轴被 stretch 拉高 */
         bubbleWithTailWrapper: {
             flexDirection: 'row',
             alignSelf: 'flex-start',
+            alignItems: 'flex-start',
         },
         bubbleWithTailWrapperOwn: {
             alignSelf: 'flex-end',
+            alignItems: 'flex-start',
         },
 
         /** 气泡三角尾巴：向左指（他人消息） */
@@ -93,7 +99,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             borderTopColor: 'transparent',
             borderBottomColor: 'transparent',
             marginRight: -1,
-            marginTop: 8,
+            marginTop: WECHAT_BUBBLE_TAIL_MARGIN_TOP,
         },
 
         /** 气泡三角尾巴：向右指（本人消息），borderLeftColor 需动态传入 */
@@ -106,19 +112,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             borderTopColor: 'transparent',
             borderBottomColor: 'transparent',
             marginLeft: -1,
-            marginTop: 8,
+            marginTop: WECHAT_BUBBLE_TAIL_MARGIN_TOP,
         },
 
-        /** Own messages: bubble hugs content and sits at the end of the (narrow) column — WeChat-style. */
+        /** Own messages: width capped by bubbleWithTailWrapper maxWidth — WeChat-style. */
         bubbleOwnWeChat: {
             maxWidth: '100%',
             alignSelf: 'flex-end',
+        },
+        /** Others' messages: inner bubble fills wrapper (wrapper limits screen width). */
+        bubbleOthersWeChat: {
+            maxWidth: '100%',
         },
         messageBody: {
             paddingVertical: 2,
             flex: 1,
         },
         messageBodyOwnWeChat: {
+            flex: 0,
+            alignSelf: 'flex-end',
+        },
+        messageBodyOthersWeChat: {
             flex: 0,
             alignSelf: 'stretch',
         },
@@ -206,6 +220,7 @@ const Body = ({
     }, [location]);
 
     const weChatStyleActive = useWeChatStyle(location);
+    const weChatBubbleMaxWidth = useMemo(() => Dimensions.get('window').width * 0.86, []);
     const chatBubbleSurface = useMemo(() => {
         if (!weChatStyleActive) {
             return null;
@@ -227,13 +242,13 @@ const Body = ({
         if (isOwnPost) {
             return [...base, style.bubbleOwnWeChat, {backgroundColor: chatBubbleSurface.ownBg, borderTopRightRadius: 0}];
         }
-        return [...base, {
+        return [...base, style.bubbleOthersWeChat, {
             backgroundColor: chatBubbleSurface.othersBg,
             borderWidth: StyleSheet.hairlineWidth * 2,
             borderColor: chatBubbleSurface.border,
             borderTopLeftRadius: 0,
         }];
-    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleWeChat]);
+    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleOthersWeChat, style.bubbleWeChat]);
 
     if (hasBeenDeleted) {
         body = (
@@ -268,6 +283,15 @@ const Body = ({
                 value={post.message}
             />
         );
+    } else if (post.type === PostTypes.CUSTOM_VOICE_ASR) {
+        const weChatOwnBubble = weChatStyleActive && isOwnPost;
+        message = (
+            <FormattedText
+                style={weChatOwnBubble && chatBubbleSurface ? {color: chatBubbleSurface.ownText} as TextStyle : style.message}
+                id='post_body.voice_message'
+                defaultMessage='Voice message'
+            />
+        );
     } else if (post.message.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
@@ -290,7 +314,13 @@ const Body = ({
     const reactionsVisible = hasReactions && showAddReaction;
     if (!hasBeenDeleted) {
         body = (
-            <View style={[style.messageBody, weChatStyleActive && isOwnPost && style.messageBodyOwnWeChat]}>
+            <View
+                style={[
+                    style.messageBody,
+                    weChatStyleActive && isOwnPost && style.messageBodyOwnWeChat,
+                    weChatStyleActive && !isOwnPost && style.messageBodyOthersWeChat,
+                ]}
+            >
                 {message}
                 {hasContent &&
                 <Content
@@ -301,7 +331,7 @@ const Body = ({
                     theme={theme}
                 />
                 }
-                {hasFiles &&
+                {hasFiles && post.type !== PostTypes.CUSTOM_VOICE_ASR &&
                 <Files
                     failed={isFailed}
                     layoutWidth={layoutWidth}
@@ -342,6 +372,7 @@ const Body = ({
                         style={[
                             style.bubbleWithTailWrapper,
                             isOwnPost && style.bubbleWithTailWrapperOwn,
+                            {maxWidth: weChatBubbleMaxWidth},
                         ]}
                     >
                         {!isOwnPost && (

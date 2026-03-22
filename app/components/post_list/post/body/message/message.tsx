@@ -7,7 +7,7 @@ import Animated from 'react-native-reanimated';
 
 import Markdown from '@components/markdown';
 import {isChannelMentions} from '@components/markdown/channel_mention/channel_mention';
-import {SEARCH} from '@constants/screens';
+import {CHANNEL, PERMALINK, SEARCH, THREAD} from '@constants/screens';
 import {useShowMoreAnimatedStyle} from '@hooks/show_more';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -89,39 +89,52 @@ const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLice
         return isChannelMentions(post.props?.channel_mentions) ? post.props.channel_mentions : {};
     }, [post.props?.channel_mentions]);
 
+    /** 频道/线程/固定链接：短消息不套半屏 maxHeight，避免 ScrollView 撑满导致绿气泡过高 */
+    const isWeChatChatLayout = location === CHANNEL || location === PERMALINK || location === THREAD;
+    const useSimpleUnboundedBody = isWeChatChatLayout && height === undefined;
+    const wrapperStyle = useSimpleUnboundedBody ? {} : animatedStyle;
+
+    const messageInner = (
+        <View
+            style={[style.messageContainer, (isReplyPost && style.reply), (isPendingOrFailed && style.pendingPost)]}
+            onLayout={onLayout}
+        >
+            <Markdown
+                baseTextStyle={textStyle}
+                channelId={post.channelId}
+                channelMentions={channelMentions}
+                imagesMetadata={post.metadata?.images}
+                isEdited={isEdited}
+                isReplyPost={isReplyPost}
+                isSearchResult={location === SEARCH}
+                layoutWidth={layoutWidth}
+                location={location}
+                postId={post.id}
+                value={post.message}
+                mentionKeys={mentionKeys}
+                highlightKeys={highlightKeys}
+                searchPatterns={searchPatterns}
+                theme={theme}
+                isUnsafeLinksPost={Boolean(post.props?.unsafe_links && post.props.unsafe_links !== '')}
+            />
+        </View>
+    );
+
     return (
         <>
-            <Animated.View style={animatedStyle}>
-                <ScrollView
-                    keyboardShouldPersistTaps={'always'}
-                    scrollEnabled={false}
-                    showsVerticalScrollIndicator={false}
-                    showsHorizontalScrollIndicator={false}
-                >
-                    <View
-                        style={[style.messageContainer, (isReplyPost && style.reply), (isPendingOrFailed && style.pendingPost)]}
-                        onLayout={onLayout}
+            <Animated.View style={wrapperStyle}>
+                {useSimpleUnboundedBody ? (
+                    messageInner
+                ) : (
+                    <ScrollView
+                        keyboardShouldPersistTaps={'always'}
+                        scrollEnabled={false}
+                        showsVerticalScrollIndicator={false}
+                        showsHorizontalScrollIndicator={false}
                     >
-                        <Markdown
-                            baseTextStyle={textStyle}
-                            channelId={post.channelId}
-                            channelMentions={channelMentions}
-                            imagesMetadata={post.metadata?.images}
-                            isEdited={isEdited}
-                            isReplyPost={isReplyPost}
-                            isSearchResult={location === SEARCH}
-                            layoutWidth={layoutWidth}
-                            location={location}
-                            postId={post.id}
-                            value={post.message}
-                            mentionKeys={mentionKeys}
-                            highlightKeys={highlightKeys}
-                            searchPatterns={searchPatterns}
-                            theme={theme}
-                            isUnsafeLinksPost={Boolean(post.props?.unsafe_links && post.props.unsafe_links !== '')}
-                        />
-                    </View>
-                </ScrollView>
+                        {messageInner}
+                    </ScrollView>
+                )}
             </Animated.View>
             {(height || 0) > maxHeight &&
             <ShowMoreButton

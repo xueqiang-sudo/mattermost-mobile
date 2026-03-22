@@ -42,6 +42,8 @@ type Props = {
     iconPad?: boolean;
     onHeaderPress?: () => void;
     pushProxyStatus: string;
+    /** 话题按钮，放在搜索左侧，顺序：话题 | 搜索 | + */
+    threadsButton?: React.ReactNode;
 }
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -145,6 +147,7 @@ const ChannelListHeader = ({
     iconPad,
     onHeaderPress,
     pushProxyStatus,
+    threadsButton,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -280,6 +283,7 @@ const ChannelListHeader = ({
                     </View>
                 </View>
                 <View style={styles.rightButtonsContainer}>
+                    {threadsButton}
                     <TouchableWithFeedback
                         hitSlop={hitSlop}
                         onPress={onSearchPress}

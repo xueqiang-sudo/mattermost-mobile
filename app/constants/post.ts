@@ -38,6 +38,7 @@ export const PostTypes = {
 
     CUSTOM_LLMBOT: 'custom_llmbot',
     CUSTOM_LLM_POSTBACK: 'custom_llm_postback',
+    CUSTOM_VOICE_ASR: 'custom_voice_asr',
 
     BURN_ON_READ: 'burn_on_read',
 } as const;

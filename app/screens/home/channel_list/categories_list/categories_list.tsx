@@ -99,15 +99,15 @@ const CategoriesList = ({
         return {maxWidth: withTiming(tabletWidth.value, {duration: 350})};
     }, [isTablet, width]);
 
-    const threadButtonComponent = useMemo(() => {
+    const threadsButtonForHeader = useMemo(() => {
         if (!isCRTEnabled) {
             return null;
         }
-
         return (
             <ThreadsButton
                 isOnHome={true}
                 shouldHighlightActive={activeScreen === THREAD}
+                variant='header'
             />
         );
     }, [activeScreen, isCRTEnabled]);
@@ -144,17 +144,19 @@ const CategoriesList = ({
 
         return (
             <>
-                {threadButtonComponent}
                 {draftsButtonComponent}
                 {playbooksButtonComponent}
                 <Categories/>
             </>
         );
-    }, [draftsButtonComponent, hasChannels, playbooksButtonComponent, threadButtonComponent]);
+    }, [draftsButtonComponent, hasChannels, playbooksButtonComponent]);
 
     return (
         <Animated.View style={[styles.container, tabletStyle]}>
-            <ChannelListHeader iconPad={iconPad}/>
+            <ChannelListHeader
+                iconPad={iconPad}
+                threadsButton={threadsButtonForHeader}
+            />
             <SubHeader/>
             {content}
         </Animated.View>

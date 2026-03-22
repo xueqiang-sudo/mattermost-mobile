@@ -5,6 +5,7 @@ buildscript {
         compileSdkVersion = 35
         targetSdkVersion = 35
         supportLibVersion = "35.0.0"
+        androidXVersion = "1.7.0"
         kotlinVersion = "1.9.25"
         kotlin_version = kotlinVersion
         RNNKotlinVersion = kotlinVersion

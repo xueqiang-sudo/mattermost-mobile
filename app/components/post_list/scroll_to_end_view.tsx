@@ -93,16 +93,22 @@ const ScrollToEndView = ({
 
     const message = location === Screens.THREAD ? intl.formatMessage({id: 'postList.scrollToBottom.newReplies', defaultMessage: 'New replies'}) : intl.formatMessage({id: 'postList.scrollToBottom.newMessages', defaultMessage: 'New messages'});
 
+    // 显示时缓入；隐藏时 duration 0，避免点击回到底部后列表已就位但按钮仍缓慢消失
     const animatedStyle = useAnimatedStyle(
-        () => ({
-            transform: [
-                {
-                    translateY: withTiming(showScrollToEndBtn ? -100 - keyboardOverlap - bottomAdjustment : -15, {duration: 300}),
-                },
-            ],
-            maxWidth: withTiming(isNewMessage ? 169 : 40, {duration: 300}),
-            opacity: withTiming(showScrollToEndBtn ? 1 : 0),
-        }),
+        () => {
+            const ms = showScrollToEndBtn ? 300 : 0;
+            return {
+                transform: [
+                    {
+                        translateY: withTiming(showScrollToEndBtn ? -100 - keyboardOverlap - bottomAdjustment : -15, {
+                            duration: ms,
+                        }),
+                    },
+                ],
+                maxWidth: withTiming(isNewMessage ? 169 : 40, {duration: ms}),
+                opacity: withTiming(showScrollToEndBtn ? 1 : 0, {duration: ms}),
+            };
+        },
         [showScrollToEndBtn, isNewMessage, keyboardOverlap, bottomAdjustment],
     );
 

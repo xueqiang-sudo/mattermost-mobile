@@ -9,6 +9,7 @@ import {observeCanUploadFiles} from '@queries/servers/security';
 import {observeMaxFileCount} from '@queries/servers/system';
 
 import QuickActions from './quick_actions';
+import QuickActionsSheetBase from './quick_actions_sheet';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 
@@ -24,3 +25,4 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 });
 
 export default React.memo(withDatabase(enhanced(QuickActions)));
+export const QuickActionsSheet = React.memo(withDatabase(enhanced(QuickActionsSheetBase)));

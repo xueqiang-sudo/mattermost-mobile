@@ -5,7 +5,7 @@ import {useIsFocused, useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -241,6 +241,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
+    const topInset = insets.top || (Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0);
     const isFocused = useIsFocused();
     const isFocusedRef = useRef(isFocused);
     isFocusedRef.current = isFocused;
@@ -682,16 +683,18 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
 
     return (
         <Freeze freeze={!isFocused}>
-            <SafeAreaView
-                edges={edges}
-                style={styles.flex}
-                testID='contacts.screen'
-            >
-                <View style={[{height: insets.top, backgroundColor: theme.sidebarBg}]}/>
-                <Animated.View style={[styles.flex, animated]}>
-                    {content}
-                </Animated.View>
-            </SafeAreaView>
+            <>
+                <View style={[{height: topInset, backgroundColor: theme.sidebarBg}]}/>
+                <SafeAreaView
+                    edges={edges}
+                    style={styles.flex}
+                    testID='contacts.screen'
+                >
+                    <Animated.View style={[styles.flex, animated]}>
+                        {content}
+                    </Animated.View>
+                </SafeAreaView>
+            </>
         </Freeze>
     );
 };

@@ -18,6 +18,9 @@ type HeaderDisplayNameProps = {
     channelId: string;
     commentCount: number;
     displayName?: string;
+
+    /** 微信频道/线程：放宽昵称容器宽度，减少过早省略 */
+    wideDisplayName?: boolean;
     location: AvailableScreens;
     rootPostAuthor?: string;
     shouldRenderReplyButton?: boolean;
@@ -44,6 +47,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexDirection: 'row',
             alignItems: 'center',
         },
+        displayNameContainerWeChat: {
+            maxWidth: '92%',
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexShrink: 1,
+            minWidth: 0,
+        },
         displayNameContainerBotReplyWidth: {
             maxWidth: '50%',
         },
@@ -66,6 +76,7 @@ const HeaderDisplayName = ({
     shouldRenderReplyButton, theme,
     userIconOverride, userId, usernameOverride,
     showCustomStatusEmoji, customStatus,
+    wideDisplayName = false,
 }: HeaderDisplayNameProps) => {
     const dimensions = useWindowDimensions();
     const intl = useIntl();
@@ -96,8 +107,11 @@ const HeaderDisplayName = ({
         return undefined;
     };
 
-    const displayNameWidth = calcNameWidth();
-    const displayNameContainerStyle = [style.displayNameContainer, displayNameWidth];
+    const displayNameWidth = wideDisplayName ? undefined : calcNameWidth();
+    const displayNameContainerStyle = [
+        wideDisplayName ? style.displayNameContainerWeChat : style.displayNameContainer,
+        displayNameWidth,
+    ];
 
     const displayNameStyle = showCustomStatusEmoji ? style.displayNameCustomEmojiWidth : null;
 
@@ -128,7 +142,7 @@ const HeaderDisplayName = ({
     }
 
     return (
-        <View style={style.displayNameContainer}>
+        <View style={wideDisplayName ? style.displayNameContainerWeChat : style.displayNameContainer}>
             <FormattedText
                 id='channel_loader.someone'
                 defaultMessage='Someone'

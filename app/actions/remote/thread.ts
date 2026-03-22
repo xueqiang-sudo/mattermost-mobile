@@ -39,13 +39,10 @@ enum Direction {
     Down,
 }
 
-// 项目要求：频道内点击消息不进入话题界面；主题列表、通知等入口仍可打开话题。
-// 全局恢复频道内话题：将 THREAD_NAVIGATION_ENABLED 改为 true。
-// 测试中通过 __setThreadNavigationEnabledForTesting 覆盖。
-const THREAD_NAVIGATION_ENABLED = false;
-let _threadNavigationEnabled = THREAD_NAVIGATION_ENABLED;
+// 当 CRT 开启时，允许频道内点击消息进入话题；测试中通过 __setThreadNavigationEnabledForTesting 覆盖。
+let _threadNavigationEnabledOverride: boolean | null = null;
 export const __setThreadNavigationEnabledForTesting = (enabled: boolean) => {
-    _threadNavigationEnabled = enabled;
+    _threadNavigationEnabledOverride = enabled;
 };
 
 export const fetchAndSwitchToThread = async (
@@ -57,20 +54,22 @@ export const fetchAndSwitchToThread = async (
     /** 为 true 时忽略频道内禁用策略（主题 modal、推送、冷启动恢复话题等） */
     bypassChannelThreadDisable = false,
 ) => {
-    if (!_threadNavigationEnabled && !bypassChannelThreadDisable) {
-        return {};
-    }
-
     const database = DatabaseManager.serverDatabases[serverUrl]?.database;
     if (!database) {
         return {error: `${serverUrl} database not found`};
+    }
+
+    const isCRTEnabled = _threadNavigationEnabledOverride !== null
+        ? _threadNavigationEnabledOverride
+        : await getIsCRTEnabled(database);
+    if (!isCRTEnabled && !bypassChannelThreadDisable) {
+        return {};
     }
 
     // Load thread before we open to the thread modal
     fetchPostThread(serverUrl, rootId, undefined, false, groupLabel);
 
     // Mark thread as read
-    const isCRTEnabled = await getIsCRTEnabled(database);
     if (isCRTEnabled) {
         const post = await getPostById(database, rootId);
         if (post) {

@@ -24,7 +24,7 @@ import Navigation from './navigation';
 import Network from './network';
 import NotificationLevel from './notification_level';
 import Permissions from './permissions';
-import Post from './post';
+import Post, {PostTypes} from './post';
 import PostDraft from './post_draft';
 import Preferences from './preferences';
 import Profile from './profile';
@@ -65,6 +65,7 @@ export {
     NotificationLevel,
     Permissions,
     Post,
+    PostTypes,
     PostDraft,
     Preferences,
     Profile,

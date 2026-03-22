@@ -114,22 +114,37 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         pendingPost: {opacity: 0.5},
         postContent: {paddingHorizontal: 16},
+        /** 微信风格：触摸区域仅限气泡+头像，空白处不触发 */
+        postContentOwnWeChat: {alignSelf: 'flex-end'},
+        postContentOthersWeChat: {alignSelf: 'flex-start'},
         postStyle: {
             overflow: 'hidden',
             flex: 1,
         },
 
-        /** 微信风格：每条消息独立间距 8–12px */
+        /**
+         * 微信消息行高度必须随内容收缩。根样式 flex:1 会让每条 Cell 在父级中纵向撑满，
+         * 出现绿气泡占半屏、左侧白条等异常。
+         */
+        postStyleWeChatNoFlex: {
+            flex: 0,
+            flexGrow: 0,
+            flexShrink: 1,
+        },
+
+        /** 微信风格：每条消息间距略大，便于扫读 */
         postStyleWeChatSpacing: {
-            marginBottom: 10,
+            marginBottom: 20,
         },
         profilePictureContainer: {
             marginBottom: 4,
             marginRight: 10,
             marginTop: 6,
         },
+        /** 微信风格：与 Header 顶边对齐，避免头像整体偏下 */
         profilePictureContainerWeChat: {
-            marginTop: 2,
+            marginTop: 0,
+            alignSelf: 'flex-start',
         },
         profilePictureContainerOwn: {
             marginBottom: 4,
@@ -137,8 +152,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginRight: 0,
             marginTop: 6,
         },
+        /** 微信风格：自己头像也方角，与对方一致 */
         profilePictureContainerOwnWeChat: {
-            marginTop: 2,
+            marginTop: 0,
         },
         rightColumn: {
             flex: 1,
@@ -149,7 +165,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         rightColumnOwnSizing: {
             flexGrow: 0,
             flexShrink: 1,
-            maxWidth: '78%',
+            maxWidth: '90%',
+            flexDirection: 'column',
+        },
+        /** 微信他人消息：右栏随内容收缩，避免整行空白可点 */
+        rightColumnOthersWeChat: {
+            flexGrow: 0,
+            flexShrink: 1,
+            maxWidth: '90%',
             flexDirection: 'column',
         },
         rightColumnOwn: {
@@ -334,7 +357,9 @@ const Post = ({
     const effectiveConsecutivePost = weChatStyle ? false : isConsecutivePost;
 
     const rightColumnStyle: StyleProp<ViewStyle> = [
-        showOwnLayout ? styles.rightColumnOwnSizing : styles.rightColumn,
+        showOwnLayout ? styles.rightColumnOwnSizing : (
+            weChatStyle && !showSystemCentered ? styles.rightColumnOthersWeChat : styles.rightColumn
+        ),
         (Boolean(post.rootId) && isLastReply && styles.rightColumnPadding),
         showOwnLayout && styles.rightColumnOwn,
         showSystemCentered && styles.rightColumnSystem,
@@ -377,7 +402,7 @@ const Post = ({
                         isAutoReponse={isAutoResponder}
                         location={location}
                         post={post}
-                        useRoundedSquare={weChatStyle && !showOwnLayout}
+                        useRoundedSquare={weChatStyle}
                     />
                 )}
             </View>
@@ -392,7 +417,23 @@ const Post = ({
                 />
             );
         } else if (showOwnLayout) {
-            header = null;
+            header = (
+                <Header
+                    currentUser={currentUser}
+                    differentThreadSequence={differentThreadSequence}
+                    isAutoResponse={isAutoResponder}
+                    isCRTEnabled={isCRTEnabled}
+                    isEphemeral={isEphemeral}
+                    isPendingOrFailed={isPendingOrFailed}
+                    isSystemPost={isSystemPost}
+                    isWebHook={isWebHook}
+                    location={location}
+                    post={post}
+                    showPostPriority={showPostPriority}
+                    shouldRenderReplyButton={shouldRenderReplyButton}
+                    timeOnly
+                />
+            );
         } else {
             header = (
                 <Header
@@ -493,39 +534,52 @@ const Post = ({
         }
     }
 
+    const touchableStyle = [
+        styles.postContent,
+        weChatStyle && showOwnLayout && styles.postContentOwnWeChat,
+        weChatStyle && !showOwnLayout && !showSystemCentered && styles.postContentOthersWeChat,
+        weChatStyle && !showSystemCentered && {alignSelf: showOwnLayout ? 'flex-end' : 'flex-start'},
+    ];
+
     return (
         <View
             testID={testID}
-            style={[styles.postStyle, weChatStyle && styles.postStyleWeChatSpacing, style, highlightedStyle]}
+            style={[
+                styles.postStyle,
+                weChatStyle && styles.postStyleWeChatNoFlex,
+                weChatStyle && styles.postStyleWeChatSpacing,
+                style,
+                highlightedStyle,
+            ]}
         >
+            <PreHeader
+                isConsecutivePost={effectiveConsecutivePost}
+                isSaved={isSaved}
+                isPinned={post.isPinned}
+                skipSavedHeader={skipSavedHeader}
+                skipPinnedHeader={skipPinnedHeader}
+            />
             <TouchableHighlight
                 testID={itemTestID}
                 onPress={handlePress}
                 onLongPress={showPostOptions}
                 delayLongPress={200}
                 underlayColor={changeOpacity(theme.centerChannelColor, 0.1)}
-                style={styles.postContent}
+                style={touchableStyle}
             >
-                <>
-                    <PreHeader
-                        isConsecutivePost={effectiveConsecutivePost}
-                        isSaved={isSaved}
-                        isPinned={post.isPinned}
-                        skipSavedHeader={skipSavedHeader}
-                        skipPinnedHeader={skipPinnedHeader}
-                    />
-                    <View
-                        style={[
-                            styles.container,
-                            consecutiveStyle,
-                            showOwnLayout && styles.containerOwn,
-                            showSystemCentered && styles.containerSystem,
-                            weChatStyle && !showSystemCentered && styles.containerWeChatAlign,
-                        ]}
-                    >
+                <View
+                    style={[
+                        styles.container,
+                        consecutiveStyle,
+                        showOwnLayout && styles.containerOwn,
+                        showSystemCentered && styles.containerSystem,
+                        weChatStyle && !showSystemCentered && styles.containerWeChatAlign,
+                    ]}
+                >
                         {showOwnLayout ? (
                             <>
                                 <View style={rightColumnStyle}>
+                                    {header}
                                     {body}
                                     {footer}
                                 </View>
@@ -548,7 +602,6 @@ const Post = ({
                             </>
                         )}
                     </View>
-                </>
             </TouchableHighlight>
         </View>
     );

@@ -38,6 +38,8 @@ const style = StyleSheet.create({
 });
 
 const CHAT_AVATAR_BORDER_RADIUS = 6;
+/** 微信风格：状态指示器也用方角 */
+const CHAT_STATUS_BORDER_RADIUS = 4;
 
 const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, useRoundedSquare}: AvatarProps) => {
     const intl = useIntl();
@@ -114,6 +116,7 @@ const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, 
             size={ViewConstant.PROFILE_PICTURE_SIZE}
             iconSize={24}
             showStatus={!isAutoReponse || author?.isBot}
+            statusStyle={useRoundedSquare ? {borderRadius: CHAT_STATUS_BORDER_RADIUS} : undefined}
             testID={`post_avatar.${author?.id}.profile_picture`}
         />
     );

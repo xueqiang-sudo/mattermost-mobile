@@ -44,6 +44,8 @@ type Props = {
     sendMessage: () => void;
     inputRef: React.MutableRefObject<PasteInputRef | undefined>;
     setIsFocused: (isFocused: boolean) => void;
+    /** 可选：blur 时额外回调（如结束语音转文字） */
+    onBlurExtra?: () => void;
 }
 
 const showPasteFilesErrorDialog = (intl: IntlShape) => {
@@ -73,7 +75,7 @@ const getPlaceHolder = (rootId?: string) => {
     if (rootId) {
         placeholder = defineMessage({id: 'create_post.thread_reply', defaultMessage: 'Reply to this thread...'});
     } else {
-        placeholder = defineMessage({id: 'create_post.write', defaultMessage: 'Write to {channelDisplayName}'});
+        placeholder = defineMessage({id: 'create_post.write', defaultMessage: 'Message {channelDisplayName}'});
     }
 
     return placeholder;
@@ -115,6 +117,7 @@ export default function PostInput({
     sendMessage,
     inputRef,
     setIsFocused,
+    onBlurExtra,
 }: Props) {
     const intl = useIntl();
     const isTablet = useIsTablet();
@@ -148,6 +151,7 @@ export default function PostInput({
 
     const onBlur = useCallback(() => {
         keyboardContext?.registerTextInputBlur();
+        onBlurExtra?.();
         handleDraftUpdate({
             serverUrl,
             channelId,
@@ -155,7 +159,7 @@ export default function PostInput({
             value,
         });
         setIsFocused(false);
-    }, [keyboardContext, serverUrl, channelId, rootId, value, setIsFocused]);
+    }, [keyboardContext, onBlurExtra, serverUrl, channelId, rootId, value, setIsFocused]);
 
     const onFocus = useCallback(() => {
         keyboardContext?.registerTextInputFocus();

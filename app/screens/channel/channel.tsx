@@ -124,7 +124,7 @@ const Channel = ({
     return (
         <FreezeScreen>
             <SafeAreaView
-                style={styles.flex}
+                style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
                 mode='margin'
                 edges={edges}
                 testID='channel.screen'
