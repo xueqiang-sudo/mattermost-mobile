@@ -73,9 +73,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             paddingVertical: 8,
         },
 
-        /** 微信风格：小圆角 5px */
+        /** 微信风格：小圆角 5px；visible 避免与主文测量舍入叠加后裁切最后一行（配合 messageBodyWeChat 底边距） */
         bubbleWeChat: {
             borderRadius: 5,
+            overflow: 'visible',
         },
 
         /** 微信风格：气泡+尾巴容器；alignItems 避免子项在交叉轴被 stretch 拉高 */
@@ -133,6 +134,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         messageBodyWeChat: {
             flex: 0,
             alignSelf: 'stretch',
+            paddingBottom: 4,
         },
         messageContainer: {width: '100%'},
         replyBar: {

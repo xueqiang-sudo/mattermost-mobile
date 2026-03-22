@@ -308,7 +308,7 @@
   "create_direct_message.done_with_count": "完成 ({count})",
   "create_post.deactivated": "您正在查看已注销用户的归档频道。",
   "create_post.thread_reply": "回复此话题…",
-  "create_post.write": "在 {channelDisplayName} 说点什么…",
+  "create_post.write": "输入消息",
   "post_draft.more_actions": "More",
   "post_draft.quick_action.at_mention": "@ 提及",
   "post_draft.quick_action.slash_command": "/ 命令",

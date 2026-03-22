@@ -2,7 +2,15 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {type LayoutChangeEvent, ScrollView, type StyleProp, useWindowDimensions, View} from 'react-native';
+import {
+    type LayoutChangeEvent,
+    ScrollView,
+    type StyleProp,
+    StyleSheet,
+    type TextStyle,
+    useWindowDimensions,
+    View,
+} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import Markdown from '@components/markdown';
@@ -18,7 +26,6 @@ import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
 import type {HighlightWithoutNotificationKey, SearchPattern} from '@typings/global/markdown';
 import type {AvailableScreens} from '@typings/screens/navigation';
-import type {TextStyle} from 'react-native';
 
 type MessageProps = {
     baseTextStyle?: StyleProp<TextStyle>;
@@ -71,8 +78,20 @@ const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLice
     const maxHeight = Math.round((dimensions.height * 0.5) + SHOW_MORE_HEIGHT);
     const animatedStyle = useShowMoreAnimatedStyle(height, maxHeight, open);
     const style = getStyleSheet(theme);
+
     /** 气泡仅传 color 时须与默认排版合并，否则丢失字号/行高会导致英文被裁切 */
-    const textStyle = baseTextStyle ? [style.message, baseTextStyle] : style.message;
+    const textStyle = useMemo(
+        () => (baseTextStyle ? [style.message, baseTextStyle] : style.message),
+        [baseTextStyle, style.message],
+    );
+
+    /** 微信等无界 Markdown：段落根 Text 与叶子共用 flatten 后的排版，避免英文长文测量与裁切不一致 */
+    const baseParagraphStyle = useMemo((): StyleProp<TextStyle> | undefined => {
+        if (!unboundedMarkdownHeight) {
+            return undefined;
+        }
+        return StyleSheet.flatten(textStyle);
+    }, [textStyle, unboundedMarkdownHeight]);
 
     const isChannelThreadPermalink = location === CHANNEL || location === PERMALINK || location === THREAD;
 
@@ -110,6 +129,7 @@ const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLice
             onLayout={onLayout}
         >
             <Markdown
+                baseParagraphStyle={baseParagraphStyle}
                 baseTextStyle={textStyle}
                 channelId={post.channelId}
                 channelMentions={channelMentions}

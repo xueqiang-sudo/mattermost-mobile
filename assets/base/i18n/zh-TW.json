@@ -308,7 +308,7 @@
   "create_direct_message.done_with_count": "完成 ({count})",
   "create_post.deactivated": "正以被停權的使用者檢視已封存的頻道。",
   "create_post.thread_reply": "回覆此討論串…",
-  "create_post.write": "寫給 {channelDisplayName}",
+  "create_post.write": "輸入訊息",
   "post_draft.more_actions": "More",
   "post_draft.quick_action.at_mention": "@ 提及",
   "post_draft.quick_action.slash_command": "/ 指令",

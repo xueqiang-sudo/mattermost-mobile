@@ -162,3 +162,21 @@ export function filterChannelsMatchingTerm(channels: Channel[], term: string): C
 export function isDefaultChannel(channel: Channel | ChannelModel | undefined): boolean {
     return channel?.name === General.DEFAULT_CHANNEL;
 }
+
+/**
+ * Default team channel (town-square): show company/team display name in header and composer,
+ * consistent with {@link channel_item.tsx} list row. Falls back to channel.displayName if team is missing.
+ */
+export function getChannelTitleDisplayName(
+    channel: Pick<ChannelModel, 'name' | 'displayName'> | undefined,
+    teamDisplayName?: string | null,
+): string {
+    if (!channel) {
+        return '';
+    }
+    if (isDefaultChannel(channel)) {
+        const team = teamDisplayName?.trim();
+        return team || channel.displayName;
+    }
+    return channel.displayName;
+}

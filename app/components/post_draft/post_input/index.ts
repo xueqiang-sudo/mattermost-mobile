@@ -4,7 +4,7 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 import {of as of$} from 'rxjs';
-import {switchMap, distinctUntilChanged} from 'rxjs/operators';
+import {distinctUntilChanged, switchMap} from 'rxjs/operators';
 
 import {observeChannel, observeChannelInfo} from '@queries/servers/channel';
 import {observeConfigBooleanValue, observeConfigIntValue} from '@queries/servers/system';
@@ -25,10 +25,6 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: WithData
 
     const channel = observeChannel(database, channelId);
 
-    const channelDisplayName = channel.pipe(
-        switchMap((c) => of$(c?.displayName)),
-    );
-
     const membersInChannel = channel.pipe(
         switchMap((c) => (c ? observeChannelInfo(database, c.id) : of$({memberCount: 0}))),
         switchMap((i: ChannelInfoModel) => of$(i.memberCount)),
@@ -39,7 +35,6 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: WithData
         timeBetweenUserTypingUpdatesMilliseconds,
         enableUserTypingMessage,
         maxNotificationsPerChannel,
-        channelDisplayName,
         membersInChannel,
     };
 });

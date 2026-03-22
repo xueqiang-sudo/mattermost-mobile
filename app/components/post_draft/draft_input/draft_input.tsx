@@ -509,10 +509,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         weChatInputInner: {
             flex: 1,
             minWidth: 0,
+
+            /** 与 weChatInputRow 同高，让内层 TextInput 可撑满白底以便垂直对齐 */
+            alignSelf: 'stretch',
         },
         weChatSideIconHit: {
             padding: 6,
-            marginBottom: 4,
         },
         postPriorityLabel: {
             marginLeft: 12,
@@ -971,6 +973,7 @@ function DraftInput({
                                 inputRef={inputRef}
                                 setIsFocused={wrappedSetIsFocused}
                                 onBlurExtra={stopVoiceIfRecording}
+                                weChatCompactRow={true}
                             />
                         </View>
                     )}

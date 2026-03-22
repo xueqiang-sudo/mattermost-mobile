@@ -52,8 +52,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             width: 250,
             height: 140,
         },
+        /** 与 draft_input weChatInputShell minHeight 一致，避免「输入框 / 按住说话」与发送键高度不齐 */
         sendButtonWeChat: {
-            height: 36,
+            height: 40,
             minWidth: 52,
             paddingHorizontal: 14,
             borderRadius: 6,

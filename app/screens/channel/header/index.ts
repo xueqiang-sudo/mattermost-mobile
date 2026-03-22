@@ -4,7 +4,7 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 import {of as of$} from 'rxjs';
-import {combineLatestWith, distinctUntilChanged, switchMap} from 'rxjs/operators';
+import {combineLatestWith, distinctUntilChanged, map, switchMap} from 'rxjs/operators';
 
 import {General} from '@constants';
 import {queryPlaybookRunsPerChannel} from '@playbooks/database/queries/run';
@@ -12,7 +12,9 @@ import {observeIsPlaybooksEnabled} from '@playbooks/database/queries/version';
 import {observeChannel, observeChannelInfo} from '@queries/servers/channel';
 import {observeCanAddBookmarks, queryBookmarks} from '@queries/servers/channel_bookmark';
 import {observeConfigBooleanValue, observeCurrentTeamId, observeCurrentUserId} from '@queries/servers/system';
+import {observeTeam} from '@queries/servers/team';
 import {observeUser} from '@queries/servers/user';
+import {getChannelTitleDisplayName} from '@utils/channel';
 import {
     getUserCustomStatus,
     getUserIdFromChannelName,
@@ -77,7 +79,15 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     //     }),
     // );
 
-    const displayName = channel.pipe(switchMap((c) => of$(c?.displayName)));
+    const teamForChannel = channel.pipe(
+        switchMap((c) => (c?.teamId ? observeTeam(database, c.teamId) : of$(undefined))),
+    );
+
+    const displayName = channel.pipe(
+        combineLatestWith(teamForChannel),
+        map(([c, t]) => getChannelTitleDisplayName(c, t?.displayName)),
+        distinctUntilChanged(),
+    );
     const memberCount = channelInfo.pipe(
         combineLatestWith(dmUser),
         switchMap(([ci, dm]) => of$(dm ? undefined : ci?.memberCount)));

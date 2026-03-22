@@ -10,6 +10,7 @@ import {
     compareNotifyProps,
     filterChannelsMatchingTerm,
     generateChannelNameFromDisplayName,
+    getChannelTitleDisplayName,
     getDirectChannelName,
     isArchived,
     isDefaultChannel,
@@ -270,5 +271,27 @@ describe('isDefaultChannel', () => {
 
     it('should return false if channel is undefined', () => {
         expect(isDefaultChannel(undefined)).toBe(false);
+    });
+});
+
+describe('getChannelTitleDisplayName', () => {
+    it('should use team display name for default channel when provided', () => {
+        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道'} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Acme Corp')).toBe('Acme Corp');
+    });
+
+    it('should fall back to channel display name when team is missing', () => {
+        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道'} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, '')).toBe('公共频道');
+        expect(getChannelTitleDisplayName(channel, null)).toBe('公共频道');
+    });
+
+    it('should return channel display name for non-default channels', () => {
+        const channel = {name: 'off-topic', displayName: 'Off-Topic'} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Team')).toBe('Off-Topic');
+    });
+
+    it('should return empty string when channel is undefined', () => {
+        expect(getChannelTitleDisplayName(undefined, 'Team')).toBe('');
     });
 });

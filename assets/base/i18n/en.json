@@ -308,7 +308,7 @@
   "create_direct_message.done_with_count": "Done ({count})",
   "create_post.deactivated": "You are viewing an archived channel with a deactivated user.",
   "create_post.thread_reply": "Write a reply…",
-  "create_post.write": "Write in {channelDisplayName}…",
+  "create_post.write": "Type a message",
   "post_draft.more_actions": "More",
   "post_draft.quick_action.at_mention": "@ Mention",
   "post_draft.quick_action.slash_command": "/ Command",

@@ -132,6 +132,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexShrink: 1,
         },
 
+        /** 微信：避免根容器 overflow:hidden 二次裁切气泡内已测量的正文高度 */
+        postStyleWeChatOverflow: {
+            overflow: 'visible',
+        },
+
         /** 微信风格：每条消息间距略大，便于扫读 */
         postStyleWeChatSpacing: {
             marginBottom: 20,
@@ -164,7 +169,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         /** Own WeChat row: do not flex-grow — only as wide as the bubble, packed to the right with the avatar. */
         rightColumnOwnSizing: {
             flexGrow: 0,
-            flexShrink: 1,
+            flexShrink: 0,
             maxWidth: '90%',
             flexDirection: 'column',
         },
@@ -547,6 +552,7 @@ const Post = ({
             style={[
                 styles.postStyle,
                 weChatStyle && styles.postStyleWeChatNoFlex,
+                weChatStyle && styles.postStyleWeChatOverflow,
                 weChatStyle && styles.postStyleWeChatSpacing,
                 style,
                 highlightedStyle,

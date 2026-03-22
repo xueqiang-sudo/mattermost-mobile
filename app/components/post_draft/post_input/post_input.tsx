@@ -28,7 +28,6 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 
 type Props = {
     testID?: string;
-    channelDisplayName?: string;
     channelId: string;
     maxMessageLength: number;
     rootId: string;
@@ -46,6 +45,8 @@ type Props = {
     setIsFocused: (isFocused: boolean) => void;
     /** 可选：blur 时额外回调（如结束语音转文字） */
     onBlurExtra?: () => void;
+    /** 微信底栏单行：输入区撑满白底高度，便于光标与文字垂直对齐 */
+    weChatCompactRow?: boolean;
 }
 
 const showPasteFilesErrorDialog = (intl: IntlShape) => {
@@ -75,7 +76,8 @@ const getPlaceHolder = (rootId?: string) => {
     if (rootId) {
         placeholder = defineMessage({id: 'create_post.thread_reply', defaultMessage: 'Write a reply…'});
     } else {
-        placeholder = defineMessage({id: 'create_post.write', defaultMessage: 'Write in {channelDisplayName}…'});
+        /** 与主流 IM 一致：简短提示；会话对象已在顶栏展示 */
+        placeholder = defineMessage({id: 'create_post.write', defaultMessage: 'Type a message'});
     }
 
     return placeholder;
@@ -87,21 +89,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 15,
         lineHeight: 20,
         paddingHorizontal: 12,
-        paddingTop: Platform.select({
-            ios: 6,
+        /** 上下对称，避免 Android 原先 paddingTop 8 / paddingBottom 2 导致光标与占位偏下 */
+        paddingVertical: Platform.select({
+            ios: 8,
             android: 8,
         }),
-        paddingBottom: Platform.select({
-            ios: 6,
-            android: 2,
-        }),
-        minHeight: 30,
+        minHeight: 32,
     },
 }));
 
 export default function PostInput({
     testID,
-    channelDisplayName,
     channelId,
     maxMessageLength,
     rootId,
@@ -118,6 +116,7 @@ export default function PostInput({
     inputRef,
     setIsFocused,
     onBlurExtra,
+    weChatCompactRow = false,
 }: Props) {
     const intl = useIntl();
     const isTablet = useIsTablet();
@@ -138,8 +137,19 @@ export default function PostInput({
     const disableCopyAndPaste = managedConfig.copyAndPasteProtection === 'true';
     const maxHeight = isTablet ? 150 : 88;
     const pasteInputStyle = useMemo(() => {
-        return {...style.input, maxHeight};
-    }, [maxHeight, style.input]);
+        return {
+            ...style.input,
+            maxHeight,
+            ...(weChatCompactRow && {
+                flex: 1,
+                minHeight: 40,
+            }),
+            ...(Platform.OS === 'android' && {
+                includeFontPadding: false,
+                textAlignVertical: 'center',
+            }),
+        };
+    }, [maxHeight, style.input, weChatCompactRow]);
 
     const handleAndroidKeyboardHide = () => {
         onBlur();
@@ -342,7 +352,7 @@ export default function PostInput({
             onFocus={onFocus}
             onPaste={onPaste}
             onSelectionChange={handlePostDraftSelectionChanged}
-            placeholder={intl.formatMessage(getPlaceHolder(rootId), {channelDisplayName})}
+            placeholder={intl.formatMessage(getPlaceHolder(rootId))}
             placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
             ref={inputRef}
             smartPunctuation='disable'
