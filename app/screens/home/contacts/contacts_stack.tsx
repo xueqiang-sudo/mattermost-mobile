@@ -8,6 +8,7 @@ import React, {createContext, useContext} from 'react';
 import {Screens} from '@constants';
 
 import ContactsScreen from './contacts';
+import ContactsSearchScreen from './contacts_search';
 import ContactsDepartmentDetail from './department_detail';
 
 import type UserModel from '@typings/database/models/servers/user';
@@ -20,6 +21,13 @@ type ContactsStackParamList = {
         breadcrumb: string[];
         companyId: string;
         companyName?: string;
+    };
+    [Screens.CONTACTS_SEARCH]: {
+        companyId: string;
+        companyName?: string;
+        departmentId?: number;
+        departmentName?: string;
+        currentUserId?: string;
     };
 };
 
@@ -35,7 +43,7 @@ type ContactsStackProps = {
     rnnHomeComponentId?: string;
 };
 
-function DepartmentDetailWrapper() {
+function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
     const rnnHomeComponentId = useContext(ContactsRnnHomeComponentIdContext);
     const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
     const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
@@ -58,6 +66,15 @@ function DepartmentDetailWrapper() {
             onNavigateToDepartment={(nextParams) => {
                 navigation.push(Screens.CONTACTS_DEPARTMENT_DETAIL, {...nextParams});
             }}
+            onSearchPress={() => {
+                navigation.navigate(Screens.CONTACTS_SEARCH, {
+                    companyId: params.companyId,
+                    companyName: params.companyName,
+                    departmentId: params.departmentId,
+                    departmentName: params.departmentName,
+                    currentUserId,
+                });
+            }}
             onBreadcrumbPress={(toDismiss) => {
                 if (toDismiss <= 0) {
                     return;
@@ -66,6 +83,26 @@ function DepartmentDetailWrapper() {
                     navigation.goBack();
                 }
             }}
+        />
+    );
+}
+
+function ContactsSearchWrapper({currentUserId}: {currentUserId?: string}) {
+    const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.CONTACTS_SEARCH>>();
+    const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.CONTACTS_SEARCH>>();
+    const params = route.params;
+    if (!params) {
+        return null;
+    }
+    return (
+        <ContactsSearchScreen
+            componentId={Screens.CONTACTS_SEARCH}
+            companyId={params.companyId}
+            companyName={params.companyName}
+            departmentId={params.departmentId}
+            departmentName={params.departmentName}
+            currentUserId={params.currentUserId ?? currentUserId}
+            onBack={() => navigation.goBack()}
         />
     );
 }
@@ -87,10 +124,12 @@ export function ContactsStack({currentUser, currentTeamId, database, rnnHomeComp
                         />
                     )}
                 </Stack.Screen>
-                <Stack.Screen
-                    name={Screens.CONTACTS_DEPARTMENT_DETAIL}
-                    component={DepartmentDetailWrapper}
-                />
+                <Stack.Screen name={Screens.CONTACTS_DEPARTMENT_DETAIL}>
+                    {() => <DepartmentDetailWrapper currentUserId={currentUser?.id} />}
+                </Stack.Screen>
+                <Stack.Screen name={Screens.CONTACTS_SEARCH}>
+                    {() => <ContactsSearchWrapper currentUserId={currentUser?.id} />}
+                </Stack.Screen>
             </Stack.Navigator>
         </ContactsRnnHomeComponentIdContext.Provider>
     );

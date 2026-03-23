@@ -270,8 +270,15 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     }, [intl]));
 
     const handleSearch = usePreventDoubleTap(useCallback(() => {
-        navigation.navigate(Screens.SEARCH as never);
-    }, [navigation]));
+        if (!currentTeamId) {
+            return;
+        }
+        navigation.navigate(Screens.CONTACTS_SEARCH as never, {
+            companyId: currentTeamId,
+            companyName,
+            currentUserId: currentUser?.id,
+        } as never);
+    }, [companyName, currentTeamId, currentUser?.id, navigation]));
 
     const handleManageContacts = usePreventDoubleTap(useCallback(() => {
         const closeButtonId = 'close-contacts-manage';
@@ -573,7 +580,6 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.headerActions}>
-                    {/* 通讯录搜索按钮 - 暂不启用
                     <TouchableOpacity
                         style={styles.headerIconButton}
                         onPress={handleSearch}
@@ -586,7 +592,6 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                             color={theme.sidebarText}
                         />
                     </TouchableOpacity>
-                    */}
                     {isEnterpriseManager && (
                         <TouchableOpacity
                             style={styles.headerIconButton}

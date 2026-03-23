@@ -423,9 +423,13 @@ const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serv
             }
             dismissModal({componentId});
             InteractionManager.runAfterInteractions(() => {
+                const createdName = team.display_name ?? enterpriseName;
                 showSnackBar({
                     barType: SNACK_BAR_TYPE.TEXT_COPIED,
-                    customMessage: intl.formatMessage({id: 'create_team.success', defaultMessage: 'Enterprise created successfully'}),
+                    customMessage: intl.formatMessage(
+                        {id: 'create_team.success', defaultMessage: '{name} created successfully'},
+                        {name: createdName},
+                    ),
                     type: MESSAGE_TYPE.SUCCESS,
                     ignoreNavigationEvents: true,
                     duration: 2500,

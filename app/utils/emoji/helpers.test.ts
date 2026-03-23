@@ -24,6 +24,8 @@ import {
     getEmojis,
     searchEmojis,
     emojiShortNameToMarkdownToken,
+    emojiImageHexToUnicode,
+    emojiShortNameToUnicodeString,
 } from './helpers';
 
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
@@ -44,6 +46,23 @@ describe('helpers.ts tests', () => {
 
         it('should return empty string for empty input', () => {
             expect(emojiShortNameToMarkdownToken('')).toBe('');
+        });
+    });
+
+    describe('emojiImageHexToUnicode', () => {
+        it('should convert single-codepoint hex to a string', () => {
+            expect(emojiImageHexToUnicode('1f600')).toBe('😀');
+        });
+    });
+
+    describe('emojiShortNameToUnicodeString', () => {
+        it('should return unicode for built-in aliases', () => {
+            expect(emojiShortNameToUnicodeString('smile', 'default', [])).toBe('😄');
+            expect(emojiShortNameToUnicodeString('sweat_smile', 'default', [])).toBe('😅');
+        });
+
+        it('should return null for names marked as server custom', () => {
+            expect(emojiShortNameToUnicodeString('my_custom', 'default', ['my_custom'])).toBe(null);
         });
     });
 

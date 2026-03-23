@@ -282,15 +282,17 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
         checkCreator();
     }, [company, companyId, employeeId, isMattermostTeam, serverUrl]);
 
-    const handleSuccessAndBack = useCallback((isDissolve: boolean) => {
+    const handleSuccessAndBack = useCallback((isDissolve: boolean, enterpriseDisplayName: string) => {
+        const name = enterpriseDisplayName.trim() || companyId;
         showSnackBar({
             barType: isDissolve ? SNACK_BAR_TYPE.ENTERPRISE_DISSOLVED_SUCCESS : SNACK_BAR_TYPE.ENTERPRISE_QUIT_SUCCESS,
+            messageValues: {name},
             ignoreNavigationEvents: true,
             duration: 2000,
         });
         DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
         popTopScreen(componentId);
-    }, [componentId]);
+    }, [companyId, componentId]);
 
     const handleQuitOrDissolve = usePreventDoubleTap(useCallback(() => {
         const isDissolve = isCreator === true;
@@ -315,13 +317,17 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                     text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
                     style: 'destructive',
                     onPress: async () => {
+                        const resolvedName = (company?.name || companyName || companyId).trim() || companyId;
                         if (isDissolve) {
                             // 解散：先操作通讯录，再操作 Mattermost
                             if (hasContactCompanyRecord) {
                                 const contactRes = await dissolveEnterprise(companyId);
                                 if (contactRes.error) {
                                     Alert.alert(
-                                        intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
+                                        intl.formatMessage(
+                                            {id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve {name}.'},
+                                            {name: resolvedName},
+                                        ),
                                     );
                                     return;
                                 }
@@ -330,12 +336,15 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                                 const mmRes = await deleteTeam(serverUrl, companyId);
                                 if (mmRes.error) {
                                     Alert.alert(
-                                        intl.formatMessage({id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise.'}),
+                                        intl.formatMessage(
+                                            {id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve {name}.'},
+                                            {name: resolvedName},
+                                        ),
                                     );
                                     return;
                                 }
                             }
-                            handleSuccessAndBack(true);
+                            handleSuccessAndBack(true, resolvedName);
                             return;
                         }
 
@@ -347,7 +356,10 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                             const contactRes = await quitEnterprise(employeeId, companyId);
                             if (contactRes.error) {
                                 Alert.alert(
-                                    intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
+                                    intl.formatMessage(
+                                        {id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave {name}.'},
+                                        {name: resolvedName},
+                                    ),
                                 );
                                 return;
                             }
@@ -356,17 +368,20 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                             const mmRes = await removeCurrentUserFromTeam(serverUrl, companyId);
                             if (mmRes.error) {
                                 Alert.alert(
-                                    intl.formatMessage({id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave enterprise.'}),
+                                    intl.formatMessage(
+                                        {id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave {name}.'},
+                                        {name: resolvedName},
+                                    ),
                                 );
                                 return;
                             }
                         }
-                        handleSuccessAndBack(false);
+                        handleSuccessAndBack(false, resolvedName);
                     },
                 },
             ],
         );
-    }, [companyId, employeeId, handleSuccessAndBack, hasContactCompanyRecord, intl, isCreator, isMattermostTeam, serverUrl]));
+    }, [company, companyId, companyName, employeeId, handleSuccessAndBack, hasContactCompanyRecord, intl, isCreator, isMattermostTeam, serverUrl]));
 
     const renderBody = () => {
         if (loading && !company) {

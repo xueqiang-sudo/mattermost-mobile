@@ -92,11 +92,11 @@ export const ChannelBody = ({
     let tagLabel: string | undefined;
     if (isOnHome && channelType) {
         if (channelNameKey === General.DEFAULT_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.enterprise_group', defaultMessage: 'All Staff'});
+            tagLabel = formatMessage({id: 'channel_list.tag.enterprise_group', defaultMessage: 'All staff'});
         } else if (channelType === General.GM_CHANNEL) {
             tagLabel = formatMessage({id: 'channel_list.tag.group_chat', defaultMessage: 'Group'});
         } else if (channelType === General.OPEN_CHANNEL || channelType === General.PRIVATE_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.channel', defaultMessage: 'Channel'});
+            tagLabel = formatMessage({id: 'channel_list.tag.channel', defaultMessage: 'Discussion'});
         }
     }
 

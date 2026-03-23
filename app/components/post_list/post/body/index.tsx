@@ -283,15 +283,6 @@ const Body = ({
                 value={post.message}
             />
         );
-    } else if (post.type === PostTypes.CUSTOM_VOICE_ASR) {
-        const weChatOwnBubble = weChatStyleActive && isOwnPost;
-        message = (
-            <FormattedText
-                style={weChatOwnBubble && chatBubbleSurface ? [style.message, {color: chatBubbleSurface.ownText}] : style.message}
-                id='post_body.voice_message'
-                defaultMessage='Voice message'
-            />
-        );
     } else if (post.message.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (

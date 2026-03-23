@@ -3,12 +3,20 @@
 
 import React, {useCallback, useEffect, useRef} from 'react';
 import {useIntl} from 'react-intl';
+import {DeviceEventEmitter} from 'react-native';
 
 import {addFilesToDraft, removeDraft} from '@actions/local/draft';
+import {createPost} from '@actions/remote/post';
+import {uploadFile} from '@actions/remote/file';
+import {Events, Screens} from '@constants';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import useFileUploadError from '@hooks/file_upload_error';
 import DraftEditPostUploadManager from '@managers/draft_upload_manager';
+import {getErrorMessage} from '@utils/errors';
 import {fileMaxWarning, fileSizeWarning, uploadDisabledWarning} from '@utils/file';
+import {logError} from '@utils/log';
+import {showSnackBar} from '@utils/snack_bar';
 
 import SendHandler from '../send_handler';
 
@@ -24,6 +32,7 @@ type Props = {
     maxFileCount: number;
     maxFileSize: number;
     canUploadFiles: boolean;
+    currentUserId: string;
     updateCursorPosition: React.Dispatch<React.SetStateAction<number>>;
     updatePostInputTop: (top: number) => void;
     updateValue: React.Dispatch<React.SetStateAction<string>>;
@@ -45,6 +54,7 @@ export default function DraftHandler(props: Props) {
         maxFileCount,
         maxFileSize,
         canUploadFiles,
+        currentUserId,
         updateCursorPosition,
         updatePostInputTop,
         updateValue,
@@ -97,6 +107,58 @@ export default function DraftHandler(props: Props) {
         newUploadError(null);
     }, [intl, newUploadError, maxFileSize, serverUrl, files?.length, channelId, rootId]);
 
+    /** Upload one image and post it immediately (WeChat-style local sticker); does not touch draft text or draft files. */
+    const sendStandaloneStickerImage = useCallback(async (file: FileInfo) => {
+        if (!canUploadFiles) {
+            newUploadError(uploadDisabledWarning(intl));
+            return;
+        }
+        if (file.size > maxFileSize) {
+            newUploadError(fileSizeWarning(intl, maxFileSize));
+            return;
+        }
+        newUploadError(null);
+        try {
+            const uploaded = await new Promise<FileInfo>((resolve, reject) => {
+                const {error} = uploadFile(
+                    serverUrl,
+                    file,
+                    channelId,
+                    () => {/* progress */},
+                    (response) => {
+                        if (response.code !== 201 || !response.data?.file_infos?.length) {
+                            reject(new Error((response.data?.message as string) || 'Failed to upload image'));
+                            return;
+                        }
+                        const fi = response.data.file_infos[0] as FileInfo;
+                        fi.clientId = file.clientId;
+                        fi.localPath = file.localPath;
+                        resolve(fi);
+                    },
+                    (err) => reject(new Error(err?.message || 'Upload failed')),
+                );
+                if (error) {
+                    reject(error);
+                }
+            });
+            const post = {
+                user_id: currentUserId,
+                channel_id: channelId,
+                root_id: rootId,
+                message: '',
+            } as Post;
+            await createPost(serverUrl, post, [uploaded]);
+            DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, rootId ? Screens.THREAD : Screens.CHANNEL);
+        } catch (err) {
+            logError('[sendStandaloneStickerImage]', err);
+            showSnackBar({
+                barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
+                customMessage: getErrorMessage(err),
+                type: MESSAGE_TYPE.ERROR,
+            });
+        }
+    }, [canUploadFiles, channelId, currentUserId, intl, maxFileSize, newUploadError, rootId, serverUrl]);
+
     // This effect mainly handles keeping clean the uploadErrorHandlers, and
     // reinstantiate them on component mount and file retry.
     useEffect(() => {
@@ -138,6 +200,7 @@ export default function DraftHandler(props: Props) {
             updatePostInputTop={updatePostInputTop}
             updateValue={updateValue}
             setIsFocused={setIsFocused}
+            sendStandaloneStickerImage={sendStandaloneStickerImage}
         />
     );
 }

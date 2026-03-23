@@ -180,7 +180,7 @@ const ChannelItem = ({
         /** 首页顶栏已展示企业名，列表再用 teamDisplayName 会重复；侧栏等非首页仍可用团队名区分多团队 */
         const townSquareLabel = formatMessage({
             id: 'channel_list.town_square.display_name',
-            defaultMessage: 'All-staff chat',
+            defaultMessage: 'Enterprise main channel',
         });
         displayName = isOnHome ? townSquareLabel : (teamDisplayName || townSquareLabel);
     } else if (isOwnDirectMessage) {

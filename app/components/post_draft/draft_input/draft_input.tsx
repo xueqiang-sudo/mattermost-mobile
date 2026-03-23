@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {AppState, Keyboard, type LayoutChangeEvent, type EmitterSubscription, Modal, PanResponder, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
 import Animated, {cancelAnimation, Easing, type SharedValue, useAnimatedStyle, useSharedValue, withRepeat, withTiming} from 'react-native-reanimated';
@@ -19,7 +19,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
 import {persistentNotificationsConfirmation} from '@utils/post';
-import {emojiShortNameToMarkdownToken} from '@utils/emoji/helpers';
+import {emojiShortNameToMarkdownToken, emojiShortNameToUnicodeString} from '@utils/emoji/helpers';
 import {
     changeOpacity,
     getChatBubbleBackground,
@@ -415,6 +415,7 @@ export type Props = {
     uploadFileError: React.ReactNode;
     updateValue: React.Dispatch<React.SetStateAction<string>>;
     addFiles: (files: FileInfo[]) => void;
+    sendStandaloneStickerImage: (file: FileInfo) => Promise<void>;
     updatePostInputTop: (top: number) => void;
     setIsFocused: (isFocused: boolean) => void;
     scheduledPostsEnabled: boolean;
@@ -482,11 +483,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             paddingTop: 6,
         },
         inputWrapperWeChatPhone: {
+            alignItems: 'stretch',
             backgroundColor: footerBarBg,
             borderTopWidth: 0,
-            paddingTop: 8,
-            paddingBottom: Platform.select({ios: 6, android: 8}),
+            flexDirection: 'column',
             minHeight: 56,
+            paddingBottom: Platform.select({ios: 6, android: 8}),
+            paddingTop: 8,
+            width: '100%',
         },
         weChatInputRow: {
             flexDirection: 'row',
@@ -555,6 +559,7 @@ function DraftInput({
     canSend,
     updateValue,
     addFiles,
+    sendStandaloneStickerImage,
     updateCursorPosition,
     cursorPosition,
     updatePostInputTop,
@@ -739,14 +744,17 @@ function DraftInput({
         setIsFocused(focused);
     }, [setIsFocused]);
 
+    const customEmojiNames = useMemo(() => customEmojis.map((e) => e.name), [customEmojis]);
+
     const handleDraftEmojiPick = useCallback((shortName: string) => {
-        const token = emojiShortNameToMarkdownToken(shortName);
+        const unicode = emojiShortNameToUnicodeString(shortName, skinTone, customEmojiNames);
+        const token = unicode ?? emojiShortNameToMarkdownToken(shortName);
         if (!token) {
             return;
         }
         updateValue((v) => v + token);
         updateCursorPosition((cp) => cp + [...token].length);
-    }, [updateValue, updateCursorPosition]);
+    }, [customEmojiNames, skinTone, updateValue, updateCursorPosition]);
 
     const onEmojiToolbarPress = usePreventDoubleTap(useCallback(() => {
         if (emojiPanelOpen) {
@@ -1036,6 +1044,7 @@ function DraftInput({
                     customEmojis={customEmojis}
                     customEmojisEnabled={customEmojisEnabled}
                     onPick={handleDraftEmojiPick}
+                    onSendLocalSticker={sendStandaloneStickerImage}
                     recentEmojis={recentEmojis}
                     skinTone={skinTone}
                     testID={`${testID}.draft_emoji_panel`}

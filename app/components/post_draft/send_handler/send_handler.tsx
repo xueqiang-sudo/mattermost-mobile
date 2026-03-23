@@ -45,6 +45,8 @@ type Props = {
     updateCursorPosition: React.Dispatch<React.SetStateAction<number>>;
     updatePostInputTop: (top: number) => void;
     addFiles: (file: FileInfo[]) => void;
+    /** Immediate image-only post (local sticker); does not modify draft. */
+    sendStandaloneStickerImage: (file: FileInfo) => Promise<void>;
     uploadFileError: React.ReactNode;
     persistentNotificationInterval: number;
     persistentNotificationMaxRecipients: number;
@@ -89,6 +91,7 @@ export default function SendHandler({
     clearDraft,
     updateValue,
     addFiles,
+    sendStandaloneStickerImage,
     uploadFileError,
     updateCursorPosition,
     updatePostInputTop,
@@ -169,6 +172,7 @@ export default function SendHandler({
             files={files}
             updateValue={updateValue}
             addFiles={addFiles}
+            sendStandaloneStickerImage={sendStandaloneStickerImage}
             uploadFileError={uploadFileError}
             sendMessage={handleSendMessage}
             sendVoiceAsr={sendVoiceAsr}

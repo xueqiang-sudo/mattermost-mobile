@@ -1,11 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {Alert} from 'react-native';
+import {Alert, DeviceEventEmitter} from 'react-native';
 import {Navigation, OptionsModalPresentationStyle, type Options} from 'react-native-navigation';
 
 import CompassIcon from '@components/compass_icon';
-import {Screens, ServerErrors} from '@constants';
+import {Events, Screens, ServerErrors} from '@constants';
 import {showModal} from '@screens/navigation';
 import {isErrorWithMessage, isServerError} from '@utils/errors';
 
@@ -28,21 +28,10 @@ export function mergeNavigationOptions(componentId: string, options: Options) {
     Navigation.mergeOptions(componentId, options);
 }
 
-export function alertTeamRemove(displayName: string, intl: IntlShape) {
-    Alert.alert(
-        intl.formatMessage({
-            id: 'alert.removed_from_team.title',
-            defaultMessage: 'Removed from team',
-        }),
-        intl.formatMessage({
-            id: 'alert.removed_from_team.description',
-            defaultMessage: 'You have been removed from team {displayName}.',
-        }, {displayName}),
-        [{
-            style: 'cancel',
-            text: intl.formatMessage({id: 'mobile.oauth.something_wrong.okButton', defaultMessage: 'OK'}),
-        }],
-    );
+export function alertTeamRemove(displayName: string, _intl: IntlShape) {
+    if (displayName) {
+        DeviceEventEmitter.emit(Events.LEAVE_TEAM, displayName);
+    }
 }
 
 export function alertChannelRemove(displayName: string, intl: IntlShape) {

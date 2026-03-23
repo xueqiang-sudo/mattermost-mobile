@@ -53,6 +53,7 @@ describe('DraftInput', () => {
         uploadFileError: null,
         updateValue: jest.fn(),
         addFiles: jest.fn(),
+        sendStandaloneStickerImage: jest.fn().mockResolvedValue(undefined),
         updatePostInputTop: jest.fn(),
         setIsFocused: jest.fn(),
         scheduledPostsEnabled: true,

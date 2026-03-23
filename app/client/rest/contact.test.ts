@@ -145,6 +145,36 @@ describe('ContactService', () => {
         );
     });
 
+    it('should call deleteDepartmentForce with correct path and method', async () => {
+        const companyId = 'company_001';
+        const departmentId = 42;
+
+        await ContactService.deleteDepartmentForce(companyId, departmentId);
+
+        expect(mockDelete).toHaveBeenCalledWith(
+            contactRoutes.departmentForce(departmentId),
+            expect.objectContaining({
+                headers: expect.objectContaining({'X-API-KEY': 'test-contact-api-key'}),
+            }),
+        );
+    });
+
+    it('should call transferUserCompanyOwnership with body', async () => {
+        const userId = 'user_001';
+        const companyId = 'company_001';
+        const body = {new_owner_id: 'user_002'};
+
+        await ContactService.transferUserCompanyOwnership(userId, companyId, body);
+
+        expect(mockPost).toHaveBeenCalledWith(
+            contactRoutes.userTransferOwnership(userId, companyId),
+            expect.objectContaining({
+                body,
+                headers: expect.objectContaining({'X-API-KEY': 'test-contact-api-key'}),
+            }),
+        );
+    });
+
     it('should call getContactVersion on each invocation (direct, no response cache)', async () => {
         const companyId = 'company_ver';
         const versionInfo = {company_id: companyId, version: 'v9', type: 'contacts' as const};

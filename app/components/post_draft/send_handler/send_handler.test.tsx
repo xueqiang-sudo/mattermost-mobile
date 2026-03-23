@@ -73,6 +73,7 @@ describe('components/post_draft/send_handler/SendHandler', () => {
         updateCursorPosition: jest.fn(),
         updatePostInputTop: jest.fn(),
         addFiles: jest.fn(),
+        sendStandaloneStickerImage: jest.fn().mockResolvedValue(undefined),
         uploadFileError: null,
         setIsFocused: jest.fn(),
         persistentNotificationInterval: 0,

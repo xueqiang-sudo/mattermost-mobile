@@ -12,6 +12,7 @@ import {enableFreeze, enableScreens} from 'react-native-screens';
 import {autoUpdateTimezone} from '@actions/remote/user';
 import LeftDrawer from '@components/left_drawer';
 import ServerVersion from '@components/server_version';
+import TeamMembershipNotice from '@components/team_membership_notice';
 import {Events, Launch, Screens} from '@constants';
 import {LeftDrawerProvider} from '@context/left_drawer';
 import {useTheme} from '@context/theme';
@@ -22,7 +23,7 @@ import {findChannels, popToRoot} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {alertInvalidDeepLink, parseAndHandleDeepLink} from '@utils/deep_link';
 import {logError} from '@utils/log';
-import {alertChannelArchived, alertChannelRemove, alertTeamRemove} from '@utils/navigation';
+import {alertChannelArchived, alertChannelRemove} from '@utils/navigation';
 import {notificationError} from '@utils/notification';
 
 import ChannelList from './channel_list';
@@ -94,10 +95,6 @@ export function HomeScreen(props: HomeProps) {
     }, [intl]);
 
     useEffect(() => {
-        const leaveTeamListener = DeviceEventEmitter.addListener(Events.LEAVE_TEAM, (displayName: string) => {
-            alertTeamRemove(displayName, intl);
-        });
-
         const leaveChannelListener = DeviceEventEmitter.addListener(Events.LEAVE_CHANNEL, (displayName: string) => {
             alertChannelRemove(displayName, intl);
         });
@@ -113,7 +110,6 @@ export function HomeScreen(props: HomeProps) {
         });
 
         return () => {
-            leaveTeamListener.remove();
             leaveChannelListener.remove();
             archivedChannelListener.remove();
             crtToggledListener.remove();
@@ -207,6 +203,7 @@ export function HomeScreen(props: HomeProps) {
                 </NavigationContainer>
                 <LeftDrawer/>
                 <ServerVersion/>
+                <TeamMembershipNotice/>
             </LeftDrawerProvider>
         </View>
     );

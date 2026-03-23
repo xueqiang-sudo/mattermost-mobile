@@ -582,6 +582,19 @@ export const deleteTeam = async (serverUrl: string, teamId: string): Promise<{er
     try {
         const client = NetworkManager.getClient(serverUrl);
         await client.deleteTeam(teamId);
+
+        // 本地 DB 仍会保留 MY_TEAM/TEAM，直到 WebSocket 或同步；管理企业列表依赖 queryMyTeams，需立即清理
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentTeamId = await getCurrentTeamId(database);
+        if (currentTeamId === teamId) {
+            await removeTeamFromTeamHistory(operator, teamId);
+            const teamToJumpTo = await getLastTeam(database, teamId);
+            if (teamToJumpTo) {
+                await handleTeamChange(serverUrl, teamToJumpTo);
+            }
+        }
+        await localRemoveUserFromTeam(serverUrl, teamId);
+
         return {};
     } catch (error) {
         logDebug('error on deleteTeam', getFullErrorMessage(error));

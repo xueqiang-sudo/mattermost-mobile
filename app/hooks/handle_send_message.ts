@@ -307,6 +307,7 @@ export const useHandleSendMessage = ({
                 });
                 uploadedFiles.push(uploaded);
             }
+            // Server should create a separate normal post with transcript; this post stays hidden in the list (see selectOrderedPosts).
             const post = {
                 user_id: currentUserId,
                 channel_id: channelId,

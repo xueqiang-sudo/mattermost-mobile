@@ -126,11 +126,11 @@ const messages = defineMessages({
     },
     ENTERPRISE_DISSOLVED_SUCCESS: {
         id: 'snack.bar.enterprise.dissolved.success',
-        defaultMessage: 'Enterprise dissolved successfully',
+        defaultMessage: '{name} was dissolved successfully',
     },
     ENTERPRISE_QUIT_SUCCESS: {
         id: 'snack.bar.enterprise.quit.success',
-        defaultMessage: 'Left enterprise successfully',
+        defaultMessage: 'You left {name} successfully',
     },
 });
 

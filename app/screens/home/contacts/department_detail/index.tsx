@@ -19,7 +19,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {bottomSheet, dismissAllModalsAndPopToScreen, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {mergeNavigationOptions} from '@utils/navigation';
@@ -59,6 +59,9 @@ type Props = {
 
     /** 从个人信息页部门浏览 Wrapper 内嵌时为 true：不渲染顶栏与搜索/管理按钮，由 Wrapper 提供返回/关闭 */
     fromEmployeeProfile?: boolean;
+
+    /** 通讯录栈内：由 Wrapper 传入，打开通讯录搜索屏 */
+    onSearchPress?: () => void;
 
     /** 通讯录 Tab 所在 RNN Home；关管理弹窗后 Home willAppear，栈内部门页据此刷新 */
     rnnHomeComponentId?: string;
@@ -230,6 +233,7 @@ const ContactsDepartmentDetail = ({
     onNavigateToDepartment,
     onBreadcrumbPress,
     fromEmployeeProfile = false,
+    onSearchPress,
     rnnHomeComponentId,
 }: Props) => {
     const theme = useTheme();
@@ -279,8 +283,25 @@ const ContactsDepartmentDetail = ({
     }, [effectiveCloseButtonId, componentId, isStackScreen]);
 
     const handleSearch = useCallback(() => {
-        dismissAllModalsAndPopToScreen(Screens.SEARCH, '');
-    }, []);
+        if (onSearchPress) {
+            onSearchPress();
+            return;
+        }
+        const t = intl.formatMessage({id: 'contacts.search.title', defaultMessage: 'Search contacts'});
+        const closeId = `close-contacts-search-${companyId}-${departmentId ?? 'all'}`;
+        showModalWithBackButton(
+            Screens.CONTACTS_SEARCH,
+            t,
+            closeId,
+            {
+                companyId,
+                companyName,
+                ...(departmentId != null ? {departmentId, departmentName} : {}),
+                closeButtonId: closeId,
+            },
+            {useBackIcon: true},
+        );
+    }, [companyId, companyName, departmentId, departmentName, intl, onSearchPress]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: ContactDepartment) => {
         const newBreadcrumb = [...baseBreadcrumb, dept.name];

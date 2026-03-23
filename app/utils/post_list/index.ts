@@ -223,7 +223,7 @@ export function selectOrderedPosts(
             continue;
         }
 
-        // 语音转文字：custom_voice_asr 不显示，等服务器返回转写后的文字
+        // 语音转文字：隐藏 custom_voice_asr 帖（含附件）；服务端另发一条普通文字帖展示转写结果
         if (post.currentPost.type === Post.POST_TYPES.CUSTOM_VOICE_ASR) {
             continue;
         }

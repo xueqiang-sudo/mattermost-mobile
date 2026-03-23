@@ -8,13 +8,14 @@ import ContactService, {
     type ContactCompany,
     type ContactDepartment,
     type ContactEmployee,
-    type ContactEmployeeDetails,
+    type ContactEmployeeSearchItem,
     type CreateEmployeeRequest,
 } from '@client/rest/contact';
 import {General} from '@constants';
 import NetworkManager from '@managers/network_manager';
 import {getTeamById, queryMyTeams} from '@queries/servers/team';
 import {getFullErrorMessage} from '@utils/errors';
+import {generateId} from '@utils/general';
 import {logDebug} from '@utils/log';
 
 import type {Database} from '@nozbe/watermelondb';
@@ -65,11 +66,6 @@ export type FetchDepartmentDetailResult = {
     error?: unknown;
 };
 
-export type FetchEmployeeDetailsResult = {
-    data?: ContactEmployeeDetails;
-    error?: unknown;
-};
-
 export type FetchEmployeeCountOfDepartmentResult = {
     data?: number;
     error?: unknown;
@@ -84,6 +80,42 @@ export type ContactDirectoryContent = {
 export type FetchContactDirectoryContentResult = {
     data?: ContactDirectoryContent;
     error?: unknown;
+};
+
+export type FetchSearchContactEmployeesResult = {
+    data?: ContactEmployeeSearchItem[];
+    error?: unknown;
+};
+
+/**
+ * 通讯录员工搜索：公司范围或指定部门范围（departmentId 有值时走部门搜索接口）。
+ */
+export const fetchSearchContactEmployees = async (
+    companyId: string,
+    keyword: string,
+    options?: {departmentId?: number},
+): Promise<FetchSearchContactEmployeesResult> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
+    const kw = keyword.trim();
+    if (!kw) {
+        return {data: []};
+    }
+    try {
+        if (typeof options?.departmentId === 'number') {
+            const data = await ContactService.searchDepartmentEmployees(options.departmentId, {
+                keyword: kw,
+                companyId,
+            });
+            return {data};
+        }
+        const data = await ContactService.searchCompanyEmployees(companyId, {keyword: kw});
+        return {data};
+    } catch (error) {
+        logDebug('[fetchSearchContactEmployees]', getFullErrorMessage(error));
+        return {error};
+    }
 };
 
 /** 统一获取通讯录目录内容：根目录或子目录返回相同结构，调用层不区分层级 */
@@ -651,40 +683,14 @@ function normalizeContactCompanyList(raw: unknown): ContactCompany[] {
     return [];
 }
 
-/** 获取当前员工所属企业：合并 GET companies、员工详情、companies/details，去重（部分后端仅某一接口有数据） */
+/** 获取当前员工所属企业 */
 export const fetchMyCompanies = async (employeeId: string): Promise<FetchMyCompaniesResult> => {
     if (!employeeId) {
         return {error: new Error('employeeId is required')};
     }
     try {
-        const settled = await Promise.allSettled([
-            ContactService.getEmployeeCompanies(employeeId),
-            ContactService.getEmployeeDetails(employeeId),
-            ContactService.getEmployeeCompanyDetails(employeeId),
-        ]);
-
-        const merged: ContactCompany[] = [];
-        const pushAll = (list: ContactCompany[]) => {
-            for (const c of list) {
-                merged.push(c);
-            }
-        };
-
-        const errors: unknown[] = [];
-        for (let i = 0; i < settled.length; i++) {
-            const s = settled[i];
-            if (s.status === 'rejected') {
-                errors.push(s.reason);
-                logDebug('[fetchMyCompanies] source_failed', i, getFullErrorMessage(s.reason));
-                continue;
-            }
-            if (i === 1) {
-                pushAll(normalizeContactCompanyList((s.value as ContactEmployeeDetails).companies));
-            } else {
-                pushAll(normalizeContactCompanyList(s.value));
-            }
-        }
-
+        const raw = await ContactService.getEmployeeCompanies(employeeId);
+        const merged = normalizeContactCompanyList(raw);
         const seen = new Set<string>();
         const deduped = merged.filter((c) => {
             if (!c.id || seen.has(c.id)) {
@@ -693,10 +699,6 @@ export const fetchMyCompanies = async (employeeId: string): Promise<FetchMyCompa
             seen.add(c.id);
             return true;
         });
-
-        if (deduped.length === 0 && errors.length === settled.length) {
-            return {error: errors[0]};
-        }
         return {data: deduped};
     } catch (error) {
         logDebug('[ContactService.fetchMyCompanies]', getFullErrorMessage(error));
@@ -860,7 +862,7 @@ export const createEnterpriseForEmployee = async (
     }
     try {
         const company = await ContactService.createCompany({
-            id: '',
+            id: generateId(),
             name,
             type: params.type ?? ContactCompanyTypes.Team,
             description: params.description,
@@ -993,13 +995,13 @@ export type DissolveEnterpriseResult = {
     error?: unknown;
 };
 
-/** 解散企业（删除公司） */
+/** 解散企业（通讯录强制删除公司，含级联） */
 export const dissolveEnterprise = async (companyId: string): Promise<DissolveEnterpriseResult> => {
     if (!companyId) {
         return {error: new Error('companyId is required')};
     }
     try {
-        await ContactService.deleteCompany(companyId);
+        await ContactService.deleteCompanyForce(companyId);
         return {};
     } catch (error) {
         logDebug('[ContactService.dissolveEnterprise]', getFullErrorMessage(error));

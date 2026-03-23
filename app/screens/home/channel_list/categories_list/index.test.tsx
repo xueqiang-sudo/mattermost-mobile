@@ -35,9 +35,6 @@ describe('components/categories_list', () => {
             <CategoriesList
                 moreThanOneTeam={false}
                 hasChannels={true}
-                draftsCount={0}
-                scheduledPostHasError={false}
-                scheduledPostCount={0}
             />,
             {database},
         );
@@ -52,32 +49,12 @@ describe('components/categories_list', () => {
                 isCRTEnabled={true}
                 moreThanOneTeam={false}
                 hasChannels={true}
-                draftsCount={0}
-                scheduledPostCount={0}
-                scheduledPostHasError={false}
             />,
             {database},
         );
 
         await waitFor(() => {
             expect(wrapper.toJSON()).toBeTruthy();
-        });
-    });
-
-    it('should render channel list with Draft menu', async () => {
-        const wrapper = renderWithEverything(
-            <CategoriesList
-                isCRTEnabled={true}
-                moreThanOneTeam={false}
-                hasChannels={true}
-                draftsCount={1}
-                scheduledPostCount={0}
-                scheduledPostHasError={false}
-            />,
-            {database},
-        );
-        await waitFor(() => {
-            expect(wrapper.getByText('Drafts')).toBeTruthy();
         });
     });
 
@@ -94,9 +71,6 @@ describe('components/categories_list', () => {
             <CategoriesList
                 moreThanOneTeam={false}
                 hasChannels={true}
-                draftsCount={0}
-                scheduledPostCount={0}
-                scheduledPostHasError={false}
             />,
             {database},
         );
@@ -124,9 +98,6 @@ describe('components/categories_list', () => {
             <CategoriesList
                 moreThanOneTeam={true}
                 hasChannels={false}
-                draftsCount={0}
-                scheduledPostCount={0}
-                scheduledPostHasError={false}
             />,
             {database},
         );
@@ -139,46 +110,11 @@ describe('components/categories_list', () => {
         });
     });
 
-    it('should render channel list with Draft menu if scheduledPostCount is greater than 0 and scheduledPost feature is enabled', () => {
-        const wrapper = renderWithEverything(
-            <CategoriesList
-                isCRTEnabled={true}
-                moreThanOneTeam={false}
-                hasChannels={true}
-                draftsCount={0}
-                scheduledPostCount={1}
-                scheduledPostHasError={false}
-                scheduledPostsEnabled={true}
-            />,
-            {database},
-        );
-        expect(wrapper.getByText('Drafts')).toBeTruthy();
-    });
-
-    it('should not render channel list with Draft menu if scheduledPostCount is greater than 0 and scheduledPost feature is disabled', () => {
-        const wrapper = renderWithEverything(
-            <CategoriesList
-                isCRTEnabled={true}
-                moreThanOneTeam={false}
-                hasChannels={true}
-                draftsCount={0}
-                scheduledPostCount={1}
-                scheduledPostHasError={false}
-                scheduledPostsEnabled={false}
-            />,
-            {database},
-        );
-        expect(wrapper.queryByText('Drafts')).not.toBeTruthy();
-    });
-
     it('should not render channel list with Playbooks menu if playbooks feature is disabled', () => {
         const wrapper = renderWithEverything(
             <CategoriesList
                 moreThanOneTeam={false}
                 hasChannels={true}
-                draftsCount={0}
-                scheduledPostCount={0}
-                scheduledPostHasError={false}
                 playbooksEnabled={false}
             />,
             {database},
@@ -191,9 +127,6 @@ describe('components/categories_list', () => {
             <CategoriesList
                 moreThanOneTeam={false}
                 hasChannels={true}
-                draftsCount={0}
-                scheduledPostCount={0}
-                scheduledPostHasError={false}
                 playbooksEnabled={true}
             />,
             {database},

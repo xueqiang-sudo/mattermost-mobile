@@ -1,28 +1,52 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo, useState, type ReactNode} from 'react';
+import {chunk} from 'lodash';
+import React, {useCallback, useEffect, useMemo, useState, type ReactNode} from 'react';
 import {useIntl} from 'react-intl';
-import {FlatList, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
+import {
+    FlatList,
+    Platform,
+    Pressable,
+    StatusBar,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
+} from 'react-native';
+import {launchImageLibrary, type ImageLibraryOptions, type ImagePickerResponse} from 'react-native-image-picker';
+import {getInfoAsync} from 'expo-file-system';
+import type {Asset} from 'react-native-image-picker';
 
 import CompassIcon from '@components/compass_icon';
 import Emoji from '@components/emoji';
+import ExpoImage from '@components/expo_image';
 import TouchableEmoji from '@components/touchable_emoji';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {EMOJI_SIZE, EMOJIS_PER_ROW} from '@constants/emoji';
 import {useTheme} from '@context/theme';
+import {usePreventDoubleTap} from '@hooks/utils';
+import {extractFileInfo, lookupMimeType} from '@utils/file';
 import {EmojiIndicesByAlias} from '@utils/emoji';
 import {getEmojis} from '@utils/emoji/helpers';
+import {
+    addLocalDraftStickerFromSourceUri,
+    loadLocalDraftStickers,
+    type LocalDraftSticker,
+    removeLocalDraftSticker,
+} from '@utils/local_draft_stickers';
+import {logError} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 
-type TabKey = 'recent' | 'all' | 'fun' | 'custom';
+type TabKey = 'merged' | 'fun' | 'server' | 'local';
 
 type DraftEmojiPanelProps = {
     customEmojis: CustomEmojiModel[];
     customEmojisEnabled: boolean;
     onPick: (shortName: string) => void;
+    onSendLocalSticker: (file: FileInfo) => Promise<void>;
     recentEmojis: string[];
     skinTone: string;
     testID?: string;
@@ -31,7 +55,6 @@ type DraftEmojiPanelProps = {
 const PANEL_SCROLL_MAX_HEIGHT = 228;
 const TAB_BAR_HEIGHT = 48;
 const H_PADDING = 10;
-
 /** Curated fun / expressive built-ins (WeChat-style “stickers” vibe using standard emoji). */
 const FUN_EMOJI_ALIASES: readonly string[] = [
     'joy', 'rofl', 'grinning', 'smiley', 'smile', 'grin', 'laughing', 'satisfied', 'sweat_smile', 'wink', 'blush',
@@ -43,6 +66,10 @@ const FUN_EMOJI_ALIASES: readonly string[] = [
 function filterKnownAliases(names: readonly string[]): string[] {
     return names.filter((n) => EmojiIndicesByAlias.has(n));
 }
+
+type MergedListItem =
+    | {kind: 'header'; key: string; titleId: string; titleDefault: string}
+    | {kind: 'row'; key: string; names: string[]};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     root: {
@@ -84,12 +111,47 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.48),
         fontSize: 14,
     },
+    sectionHeader: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: changeOpacity(theme.centerChannelColor, 0.55),
+        marginBottom: 6,
+        marginTop: 4,
+    },
+    emojiRow: {
+        flexDirection: 'row',
+        flexWrap: 'nowrap',
+        marginBottom: 6,
+        justifyContent: 'flex-start',
+    },
+    localGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignContent: 'flex-start',
+    },
+    addCell: {
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: changeOpacity(theme.centerChannelColor, 0.28),
+        borderRadius: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
+        marginRight: 8,
+    },
+    localThumb: {
+        borderRadius: 6,
+        marginBottom: 8,
+        marginRight: 8,
+        overflow: 'hidden',
+    },
 }));
 
 const DraftEmojiPanel = ({
     customEmojis,
     customEmojisEnabled,
     onPick,
+    onSendLocalSticker,
     recentEmojis,
     skinTone,
     testID = 'draft_emoji.panel',
@@ -98,7 +160,8 @@ const DraftEmojiPanel = ({
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const {width: windowWidth} = useWindowDimensions();
-    const [tab, setTab] = useState<TabKey>('recent');
+    const [tab, setTab] = useState<TabKey>('merged');
+    const [localStickers, setLocalStickers] = useState<LocalDraftSticker[]>([]);
 
     const cellWidth = Math.floor((windowWidth - H_PADDING * 2) / EMOJIS_PER_ROW);
 
@@ -112,14 +175,62 @@ const DraftEmojiPanel = ({
         return recentEmojis.filter((n) => EmojiIndicesByAlias.has(n) || (customEmojisEnabled && customEmojis.some((c) => c.name === n)));
     }, [recentEmojis, customEmojis, customEmojisEnabled]);
 
-    const renderBuiltInItem = useCallback(({item}: {item: string}) => (
-        <View style={{width: cellWidth, alignItems: 'center', marginBottom: 6}}>
+    const reloadLocalStickers = useCallback(() => {
+        loadLocalDraftStickers().then(setLocalStickers).catch(() => setLocalStickers([]));
+    }, []);
+
+    useEffect(() => {
+        reloadLocalStickers();
+    }, [reloadLocalStickers, tab]);
+
+    const mergedFlatData: MergedListItem[] = useMemo(() => {
+        const out: MergedListItem[] = [];
+        if (recentFiltered.length > 0) {
+            out.push({
+                kind: 'header',
+                key: 'h-recent',
+                titleId: 'draft_emoji.section_recent',
+                titleDefault: 'Recently used',
+            });
+            chunk(recentFiltered, EMOJIS_PER_ROW).forEach((row, i) => {
+                out.push({kind: 'row', key: `recent-row-${i}`, names: row});
+            });
+        }
+        out.push({
+            kind: 'header',
+            key: 'h-all',
+            titleId: 'draft_emoji.section_all',
+            titleDefault: 'All emojis',
+        });
+        chunk(allBuiltInSorted, EMOJIS_PER_ROW).forEach((row, i) => {
+            out.push({kind: 'row', key: `all-row-${i}`, names: row});
+        });
+        return out;
+    }, [allBuiltInSorted, recentFiltered]);
+
+    const renderBuiltInCell = useCallback((name: string) => (
+        <View key={name} style={{width: cellWidth, alignItems: 'center'}}>
             <TouchableEmoji
-                name={item}
+                name={name}
                 onEmojiPress={onPick}
             />
         </View>
     ), [cellWidth, onPick]);
+
+    const renderMergedItem = useCallback(({item}: {item: MergedListItem}) => {
+        if (item.kind === 'header') {
+            return (
+                <Text style={styles.sectionHeader}>
+                    {intl.formatMessage({id: item.titleId, defaultMessage: item.titleDefault})}
+                </Text>
+            );
+        }
+        return (
+            <View style={styles.emojiRow}>
+                {item.names.map((n) => renderBuiltInCell(n))}
+            </View>
+        );
+    }, [intl, renderBuiltInCell, styles.emojiRow, styles.sectionHeader]);
 
     const renderCustomItem = useCallback(({item}: {item: CustomEmojiModel}) => (
         <View style={{width: cellWidth, alignItems: 'center', marginBottom: 6}}>
@@ -135,57 +246,141 @@ const DraftEmojiPanel = ({
         </View>
     ), [cellWidth, onPick]);
 
+    const openStickerPicker = usePreventDoubleTap(useCallback(() => {
+        const options: ImageLibraryOptions = {
+            quality: 1,
+            mediaType: 'photo',
+            selectionLimit: 1,
+        };
+        launchImageLibrary(options, async (response: ImagePickerResponse) => {
+            StatusBar.setHidden(false);
+            if (response.errorMessage || response.didCancel || !response.assets?.[0]?.uri) {
+                return;
+            }
+            const uri = response.assets[0].uri;
+            try {
+                await addLocalDraftStickerFromSourceUri(uri);
+                reloadLocalStickers();
+            } catch (e) {
+                logError('[DraftEmojiPanel.openStickerPicker]', e);
+            }
+        });
+    }, [reloadLocalStickers]));
+
+    const sendStickerFile = useCallback(async (sticker: LocalDraftSticker) => {
+        try {
+            const uri = sticker.localUri;
+            const name = uri.split('/').pop() || 'sticker.png';
+            const mime = lookupMimeType(name);
+            const path = uri.replace('file://', '');
+            let fileSize = 0;
+            try {
+                const info = await getInfoAsync(path, {size: true});
+                if ('size' in info) {
+                    fileSize = info.size ?? 0;
+                }
+            } catch {
+                // size optional
+            }
+            const asset = {
+                uri,
+                fileName: name,
+                type: mime,
+                fileSize,
+            } as Asset;
+            const extracted = await extractFileInfo([asset]);
+            const file = extracted[0];
+            if (!file?.localPath) {
+                return;
+            }
+            await onSendLocalSticker(file as FileInfo);
+        } catch (e) {
+            logError('[DraftEmojiPanel.sendStickerFile]', e);
+        }
+    }, [onSendLocalSticker]);
+
+    const onLongPressLocal = useCallback((sticker: LocalDraftSticker) => {
+        removeLocalDraftSticker(sticker.id).then(reloadLocalStickers).catch(() => {/* ignore */});
+    }, [reloadLocalStickers]);
+
+    const localStickerCols = 4;
+    const localCell = Math.floor((windowWidth - H_PADDING * 2 - (localStickerCols - 1) * 8) / localStickerCols);
+
+    const renderLocalTab = (): ReactNode => {
+        return (
+            <View style={styles.localGrid}>
+                <TouchableWithFeedback
+                    onPress={openStickerPicker}
+                    type={'opacity'}
+                    testID={`${testID}.local.add`}
+                >
+                    <View style={[styles.addCell, {width: localCell, height: localCell}]}>
+                        <CompassIcon
+                            name='plus'
+                            size={28}
+                            color={changeOpacity(theme.centerChannelColor, 0.45)}
+                        />
+                    </View>
+                </TouchableWithFeedback>
+                {localStickers.map((s) => (
+                    <TouchableWithFeedback
+                        key={s.id}
+                        onPress={() => sendStickerFile(s)}
+                        onLongPress={() => onLongPressLocal(s)}
+                        type={'opacity'}
+                        testID={`${testID}.local.${s.id}`}
+                    >
+                        <View style={[styles.localThumb, {width: localCell, height: localCell}]}>
+                            <ExpoImage
+                                id={`draft-local-sticker-${s.id}`}
+                                source={{uri: s.localUri}}
+                                style={{width: localCell, height: localCell}}
+                            />
+                        </View>
+                    </TouchableWithFeedback>
+                ))}
+            </View>
+        );
+    };
+
     const tabs: {key: TabKey; icon: string; labelId: string; defaultMessage: string}[] = useMemo(() => [
-        {key: 'recent', icon: 'clock-outline', labelId: 'draft_emoji.tab_recent', defaultMessage: 'Recent'},
-        {key: 'all', icon: 'emoticon-happy-outline', labelId: 'draft_emoji.tab_all', defaultMessage: 'All'},
+        {key: 'merged', icon: 'emoticon-happy-outline', labelId: 'draft_emoji.tab_emoji', defaultMessage: 'Emoji'},
         {key: 'fun', icon: 'star-outline', labelId: 'draft_emoji.tab_fun', defaultMessage: 'Fun'},
-        {key: 'custom', icon: 'emoticon-custom-outline', labelId: 'draft_emoji.tab_custom', defaultMessage: 'Custom'},
+        {key: 'server', icon: 'emoticon-custom-outline', labelId: 'draft_emoji.tab_server_custom', defaultMessage: 'Server'},
+        {key: 'local', icon: 'heart-outline', labelId: 'draft_emoji.tab_my_stickers', defaultMessage: 'My stickers'},
     ], []);
 
     let listContent: ReactNode;
-    if (tab === 'recent') {
-        if (recentFiltered.length === 0) {
-            listContent = (
-                <Text style={styles.empty}>
-                    {intl.formatMessage({id: 'draft_emoji.empty_recent', defaultMessage: 'No recent emojis yet'})}
-                </Text>
-            );
-        } else {
-            listContent = (
-                <FlatList
-                    data={recentFiltered}
-                    numColumns={EMOJIS_PER_ROW}
-                    keyExtractor={(item) => `r-${item}`}
-                    renderItem={renderBuiltInItem}
-                    scrollIndicatorInsets={{right: 1}}
-                    keyboardShouldPersistTaps={'always'}
-                />
-            );
-        }
-    } else if (tab === 'all') {
+    if (tab === 'merged') {
         listContent = (
             <FlatList
-                data={allBuiltInSorted}
-                numColumns={EMOJIS_PER_ROW}
-                keyExtractor={(item) => `a-${item}`}
-                renderItem={renderBuiltInItem}
-                initialNumToRender={42}
-                maxToRenderPerBatch={56}
-                windowSize={5}
+                key={'draft-emoji-merged'}
+                data={mergedFlatData}
+                keyExtractor={(it) => it.key}
+                renderItem={renderMergedItem}
+                initialNumToRender={12}
                 keyboardShouldPersistTaps={'always'}
             />
         );
     } else if (tab === 'fun') {
         listContent = (
             <FlatList
+                key={'draft-emoji-fun'}
                 data={funSorted}
                 numColumns={EMOJIS_PER_ROW}
                 keyExtractor={(item) => `f-${item}`}
-                renderItem={renderBuiltInItem}
+                renderItem={({item}) => (
+                    <View style={{width: cellWidth, alignItems: 'center', marginBottom: 6}}>
+                        <TouchableEmoji
+                            name={item}
+                            onEmojiPress={onPick}
+                        />
+                    </View>
+                )}
                 keyboardShouldPersistTaps={'always'}
             />
         );
-    } else {
+    } else if (tab === 'server') {
         if (!customEmojisEnabled || customEmojis.length === 0) {
             listContent = (
                 <Text style={styles.empty}>
@@ -195,6 +390,7 @@ const DraftEmojiPanel = ({
         } else {
             listContent = (
                 <FlatList
+                    key={'draft-emoji-server'}
                     data={customEmojis}
                     numColumns={EMOJIS_PER_ROW}
                     keyExtractor={(item) => item.id}
@@ -204,6 +400,8 @@ const DraftEmojiPanel = ({
                 />
             );
         }
+    } else {
+        listContent = renderLocalTab();
     }
 
     return (

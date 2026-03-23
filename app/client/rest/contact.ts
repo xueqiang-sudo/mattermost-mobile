@@ -76,12 +76,6 @@ export type ContactEmployee = {
     phone?: string;
 }
 
-/** 员工详情：包含所属公司列表与部门列表 */
-export type ContactEmployeeDetails = ContactEmployee & {
-    companies?: ContactCompany[];
-    departments?: ContactDepartment[];
-}
-
 /** 员工在公司下的级联部门路径（从根到叶） */
 export type ContactCascadeDepartmentPath = ContactDepartment[];
 
@@ -140,6 +134,11 @@ export type MoveEmployeeToDepartmentRequest = {
     to_department_id: number;
 }
 
+/** 转移企业所有权请求体（POST /users/:userId/transfer-ownership/:companyId） */
+export type TransferContactOwnershipRequest = {
+    new_owner_id: string;
+}
+
 /** 通讯录版本信息 */
 export type ContactVersionInfo = {
     company_id: string;
@@ -172,13 +171,19 @@ export interface ClientContactMix {
     /** PUT /api/v1/companies/:id - 更新公司 */
     updateCompany: (companyId: string, company: UpdateCompanyRequest) => Promise<ContactCompany>;
 
-    /** DELETE /api/v1/companies/:id - 删除公司（级联删除关联） */
+    /** DELETE /api/v1/companies/:id - 软删除公司 */
     deleteCompany: (companyId: string) => Promise<Record<string, never>>;
 
-    /** GET /api/v1/companies/:id/departments - 6. 获取公司及其部门 */
-    getCompanyWithDepartments: (companyId: string, opts?: {parentDepartmentId?: number}) => Promise<ContactCompany & {departments?: ContactDepartment[]}>;
+    /** DELETE /api/v1/companies/:id/force - 强制删除公司及其关联的部门与员工 */
+    deleteCompanyForce: (companyId: string) => Promise<Record<string, never>>;
 
-    /** GET /api/v1/companies/:id/employees - 7. 获取公司及其员工 */
+    /** GET /api/v1/companies/:id/departments — 获取公司及其部门（按公司过滤子集请用 getDepartmentsByCompany） */
+    getCompanyWithDepartments: (companyId: string) => Promise<ContactCompany & {departments?: ContactDepartment[]}>;
+
+    /**
+     * GET /api/v1/companies/:id/employees — 获取公司员工。
+     * 文档描述响应可能「含公司信息」；当前按纯 `ContactEmployee[]` 解析，若服务端返回包装对象需在调用方适配。
+     */
     getCompanyWithEmployees: (companyId: string) => Promise<ContactEmployee[]>;
 
     /** 获取公司下员工总数 */
@@ -196,7 +201,13 @@ export interface ClientContactMix {
     /** DELETE /api/v1/departments/:id - 删除部门（级联删除关联） */
     deleteDepartment: (companyId: string, departmentId: number) => Promise<Record<string, never>>;
 
-    /** GET /api/v1/departments/:id/employees - 5. 获取部门及其员工 */
+    /** DELETE /api/v1/departments/:id/force - 强制删除部门（含级联） */
+    deleteDepartmentForce: (companyId: string, departmentId: number) => Promise<Record<string, never>>;
+
+    /**
+     * GET /api/v1/departments/:id/employees — 获取部门员工。
+     * 文档描述响应可能「含部门信息」；当前按纯 `ContactEmployee[]` 解析，若服务端返回包装对象需在调用方适配。
+     */
     getDepartmentWithEmployees: (companyId: string, departmentId: number) => Promise<ContactEmployee[]>;
 
     /** GET /api/v1/departments/:id/sub-departments - 7. 获取子部门列表 */
@@ -223,20 +234,26 @@ export interface ClientContactMix {
     /** DELETE /api/v1/employees/:id - 删除员工（级联删除关联） */
     deleteEmployee: (employeeId: string) => Promise<Record<string, never>>;
 
+    /** GET /api/v1/employees/:id/check-delete - 检查员工是否可删除（响应结构以服务端为准） */
+    getEmployeeCheckDelete: (employeeId: string) => Promise<unknown>;
+
+    /** GET /api/v1/employees/:id/owned-companies - 员工拥有的企业 */
+    getEmployeeOwnedCompanies: (employeeId: string) => Promise<ContactCompany[]>;
+
     /** GET /api/v1/employees/:id/cascade-departments - 获取员工在指定公司下的级联部门 */
     getEmployeeCascadeDepartments: (employeeId: string, companyId: string) => Promise<ContactEmployeeCascadeDepartments>;
 
     /** POST /api/v1/employees/:id/companies - 将员工添加到公司 */
     addEmployeeToCompany: (employeeId: string, body: CompanyEmployeeRequest) => Promise<Record<string, never>>;
 
-    /** DELETE /api/v1/employees/:id/companies - 将员工从公司移除 */
+    /**
+     * 将员工从公司移除。OpenAPI 文档示例为 DELETE + JSON body；本客户端使用 query `company_id=`，
+     * 因部分栈不解析 DELETE body。若后端仅支持其中一种，请与后端对齐。
+     */
     removeEmployeeFromCompany: (employeeId: string, body: CompanyEmployeeRequest) => Promise<Record<string, never>>;
 
-    /** GET /api/v1/employees/:id/companies - 3. 获取员工所属公司 */
+    /** GET /api/v1/employees/:id/companies - 获取员工所属公司 */
     getEmployeeCompanies: (employeeId: string) => Promise<ContactCompany[]>;
-
-    /** GET /api/v1/employees/:id/companies/details - 4. 获取员工所属公司详情 */
-    getEmployeeCompanyDetails: (employeeId: string) => Promise<ContactCompany[]>;
 
     /** GET /api/v1/company-employees/:companyId/employees - 5. 获取公司下所有员工 */
     getEmployeesOfCompany: (companyId: string) => Promise<ContactEmployee[]>;
@@ -244,7 +261,9 @@ export interface ClientContactMix {
     /** POST /api/v1/employees/:id/departments - 将员工添加到部门（body 含 company_id） */
     addEmployeeToDepartment: (employeeId: string, body: DepartmentEmployeeRequest) => Promise<Record<string, never>>;
 
-    /** DELETE /api/v1/employees/:id/departments - 将员工从部门移除（body 含 company_id） */
+    /**
+     * 将员工从部门移除。文档示例为 DELETE + JSON body；本客户端使用 query 传 `department_id` 与 `company_id`。
+     */
     removeEmployeeFromDepartment: (employeeId: string, body: DepartmentEmployeeRequest) => Promise<Record<string, never>>;
 
     /** PUT /api/v1/employees/:id/move-department - 移动员工部门 */
@@ -267,6 +286,15 @@ export interface ClientContactMix {
 
     /** PUT /api/v1/versions/companies/:companyId/contacts - 更新通讯录版本 */
     updateContactVersion: (companyId: string) => Promise<UpdateContactVersionResponse>;
+
+    /** GET /api/v1/users/:userId/companies - 用户所在企业 */
+    getUserCompanies: (userId: string) => Promise<ContactCompany[]>;
+
+    /** GET /api/v1/users/:userId/owned-companies - 用户拥有的企业 */
+    getUserOwnedCompanies: (userId: string) => Promise<ContactCompany[]>;
+
+    /** POST /api/v1/users/:userId/transfer-ownership/:companyId - 转移企业所有权 */
+    transferUserCompanyOwnership: (userId: string, companyId: string, body: TransferContactOwnershipRequest) => Promise<unknown>;
 }
 
 /**
@@ -279,6 +307,9 @@ export const contactRoutes = {
 
     /** GET/PUT/DELETE /api/v1/companies/:id */
     company: (id: string) => `${CONTACT_API_BASE_ROUTE}/companies/${id}`,
+
+    /** DELETE /api/v1/companies/:id/force - 强制删除公司（含级联） */
+    companyForce: (id: string) => `${CONTACT_API_BASE_ROUTE}/companies/${id}/force`,
 
     /** GET /api/v1/companies/:id/departments - 获取公司及其部门 */
     companyWithDepartments: (companyId: string) => `${CONTACT_API_BASE_ROUTE}/companies/${companyId}/departments`,
@@ -294,6 +325,9 @@ export const contactRoutes = {
 
     /** GET/PUT/DELETE /api/v1/departments/:id */
     department: (id: number) => `${CONTACT_API_BASE_ROUTE}/departments/${id}`,
+
+    /** DELETE /api/v1/departments/:id/force - 强制删除部门（含级联） */
+    departmentForce: (id: number) => `${CONTACT_API_BASE_ROUTE}/departments/${id}/force`,
 
     /** GET /api/v1/departments/:id/employees - 获取部门及其员工 */
     departmentWithEmployees: (departmentId: number) => `${CONTACT_API_BASE_ROUTE}/departments/${departmentId}/employees`,
@@ -313,14 +347,17 @@ export const contactRoutes = {
     /** GET/PUT/DELETE /api/v1/employees/:id */
     employee: (id: string) => `${CONTACT_API_BASE_ROUTE}/employees/${id}`,
 
+    /** GET /api/v1/employees/:id/check-delete */
+    employeeCheckDelete: (id: string) => `${CONTACT_API_BASE_ROUTE}/employees/${id}/check-delete`,
+
+    /** GET /api/v1/employees/:id/owned-companies */
+    employeeOwnedCompanies: (id: string) => `${CONTACT_API_BASE_ROUTE}/employees/${id}/owned-companies`,
+
     /** GET /api/v1/employees/:id/cascade-departments - 员工详情及级联部门（需 company_id query） */
     employeeCascadeDepartments: (employeeId: string) => `${CONTACT_API_BASE_ROUTE}/employees/${employeeId}/cascade-departments`,
 
     /** POST/GET/DELETE /api/v1/employees/:id/companies - 员工-公司关联 */
     employeeCompanies: (employeeId: string) => `${CONTACT_API_BASE_ROUTE}/employees/${employeeId}/companies`,
-
-    /** GET /api/v1/employees/:id/companies/details */
-    employeeCompanyDetails: (employeeId: string) => `${CONTACT_API_BASE_ROUTE}/employees/${employeeId}/companies/details`,
 
     /** POST/DELETE /api/v1/employees/:id/departments - 员工-部门关联 */
     employeeDepartments: (employeeId: string) => `${CONTACT_API_BASE_ROUTE}/employees/${employeeId}/departments`,
@@ -348,6 +385,16 @@ export const contactRoutes = {
 
     /** GET/PUT /api/v1/versions/companies/:companyId/contacts - 获取/更新通讯录版本 */
     contactVersion: (companyId: string) => `${CONTACT_API_BASE_ROUTE}/versions/companies/${companyId}/contacts`,
+
+    /** GET /api/v1/users/:userId/companies */
+    userCompanies: (userId: string) => `${CONTACT_API_BASE_ROUTE}/users/${encodeURIComponent(userId)}/companies`,
+
+    /** GET /api/v1/users/:userId/owned-companies */
+    userOwnedCompanies: (userId: string) => `${CONTACT_API_BASE_ROUTE}/users/${encodeURIComponent(userId)}/owned-companies`,
+
+    /** POST /api/v1/users/:userId/transfer-ownership/:companyId */
+    userTransferOwnership: (userId: string, companyId: string) =>
+        `${CONTACT_API_BASE_ROUTE}/users/${encodeURIComponent(userId)}/transfer-ownership/${encodeURIComponent(companyId)}`,
 };
 
 /** 创建占位 API Client，用于构造函数调用 super()，实际请求前会被 init() 替换 */
@@ -578,6 +625,9 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     deleteCompany = (companyId: string) =>
         this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.company(companyId), 'delete');
 
+    deleteCompanyForce = (companyId: string) =>
+        this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.companyForce(companyId), 'delete');
+
     getCompanyWithDepartments = async (companyId: string) =>
         this.doRequestCompanyProxy<ContactCompany & {departments?: ContactDepartment[]}>(
             companyId,
@@ -613,6 +663,9 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     deleteDepartment = (companyId: string, departmentId: number) =>
         this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.department(departmentId), 'delete');
 
+    deleteDepartmentForce = (companyId: string, departmentId: number) =>
+        this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.departmentForce(departmentId), 'delete');
+
     getDepartmentWithEmployees = (companyId: string, departmentId: number) =>
         this.doRequestCompanyProxy<ContactEmployee[]>(companyId, contactRoutes.departmentWithEmployees(departmentId), 'get');
 
@@ -640,6 +693,12 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     deleteEmployee = (employeeId: string) =>
         this.doRequestDirect<Record<string, never>>(contactRoutes.employee(employeeId), 'delete');
 
+    getEmployeeCheckDelete = (employeeId: string) =>
+        this.doRequestDirect<unknown>(contactRoutes.employeeCheckDelete(employeeId), 'get');
+
+    getEmployeeOwnedCompanies = (employeeId: string) =>
+        this.doRequestDirect<ContactCompany[]>(contactRoutes.employeeOwnedCompanies(employeeId), 'get');
+
     getEmployeeCascadeDepartments = (employeeId: string, companyId: string) => {
         const path = `${contactRoutes.employeeCascadeDepartments(employeeId)}?company_id=${encodeURIComponent(companyId)}`;
         return this.doRequestCompanyProxy<ContactEmployeeCascadeDepartments>(companyId, path, 'get');
@@ -655,9 +714,6 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
 
     getEmployeeCompanies = (employeeId: string) =>
         this.doRequestDirect<ContactCompany[]>(contactRoutes.employeeCompanies(employeeId), 'get');
-
-    getEmployeeCompanyDetails = (employeeId: string) =>
-        this.doRequestDirect<ContactCompany[]>(contactRoutes.employeeCompanyDetails(employeeId), 'get');
 
     getEmployeesOfCompany = (companyId: string) =>
         this.doRequestCompanyProxy<ContactEmployee[]>(companyId, contactRoutes.employeesOfCompany(companyId), 'get');
@@ -722,6 +778,15 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
 
     updateContactVersion = (companyId: string) =>
         this.doRequestDirect<UpdateContactVersionResponse>(contactRoutes.contactVersion(companyId), 'put');
+
+    getUserCompanies = (userId: string) =>
+        this.doRequestDirect<ContactCompany[]>(contactRoutes.userCompanies(userId), 'get');
+
+    getUserOwnedCompanies = (userId: string) =>
+        this.doRequestDirect<ContactCompany[]>(contactRoutes.userOwnedCompanies(userId), 'get');
+
+    transferUserCompanyOwnership = (userId: string, companyId: string, body: TransferContactOwnershipRequest) =>
+        this.doRequestDirect<unknown>(contactRoutes.userTransferOwnership(userId, companyId), 'post', body);
 }
 
 const ContactService = new ContactServiceClass();

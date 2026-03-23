@@ -34,6 +34,7 @@ export const CONTACTS_DEPARTMENT_DETAIL = 'ContactsDepartmentDetail';
 export const CONTACTS_DEPARTMENT_BROWSE_FROM_PROFILE = 'ContactsDepartmentBrowseFromProfile';
 export const CONTACTS_EMPLOYEE_PROFILE = 'ContactsEmployeeProfile';
 export const CONTACTS_MANAGE = 'ContactsManage';
+export const CONTACTS_SEARCH = 'ContactsSearch';
 export const CONTACTS_BATCH_MOVE_MEMBERS = 'ContactsBatchMoveMembers';
 export const CONTACTS_BATCH_SET_MEMBER_INFO = 'ContactsBatchSetMemberInfo';
 export const TMP_DEV_TEST = 'TmpDevTest';
@@ -141,6 +142,7 @@ export default {
     CONTACTS_DEPARTMENT_BROWSE_FROM_PROFILE,
     CONTACTS_EMPLOYEE_PROFILE,
     CONTACTS_MANAGE,
+    CONTACTS_SEARCH,
     CONTACTS_BATCH_MOVE_MEMBERS,
     CONTACTS_BATCH_SET_MEMBER_INFO,
     TMP_DEV_TEST,
