@@ -21,6 +21,7 @@ const DEFAULT_OPTIONS = {
     forceConnection: true,
 };
 const TLS_HANDSHARE_ERROR = 1015;
+const isEnvFlagEnabled = (value?: string) => value === 'true' || value === '1';
 
 export default class WebSocketClient {
     private conn?: WebSocketClientInterface;
@@ -59,6 +60,7 @@ export default class WebSocketClient {
     private errorCallback?: Function;
     private closeCallback?: (connectFailCount: number) => void;
     private connectingCallback?: () => void;
+    private shouldLogWebSocketIO = () => isEnvFlagEnabled(global.process?.env?.MM_MOBILE_LOG_WS_IO);
 
     constructor(serverUrl: string, token: string, preauthSecret?: string) {
         this.token = token;
@@ -285,6 +287,9 @@ export default class WebSocketClient {
 
         this.conn!.onMessage((evt: any) => {
             const msg = evt.message;
+            if (this.shouldLogWebSocketIO()) {
+                logDebug('websocket received message', msg);
+            }
 
             // This indicates a reply to a websocket request.
             // We ignore sequence number validation of message responses
@@ -400,6 +405,9 @@ export default class WebSocketClient {
         };
 
         if (this.conn && this.conn.readyState === WebSocketReadyState.OPEN) {
+            if (this.shouldLogWebSocketIO()) {
+                logDebug('websocket send message', msg);
+            }
             this.conn.send(JSON.stringify(msg));
         }
     }
@@ -412,6 +420,14 @@ export default class WebSocketClient {
         };
 
         if (this.conn && this.conn.readyState === WebSocketReadyState.OPEN) {
+            if (this.shouldLogWebSocketIO()) {
+                const loggedData = action === 'authentication_challenge' ? {...data, token: '***'} : data;
+                logDebug('websocket send message', {
+                    action,
+                    seq: msg.seq,
+                    data: loggedData,
+                });
+            }
             this.conn.send(JSON.stringify(msg));
         }
     }

@@ -8,7 +8,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     createSubDepartment,
-    deleteContactDepartment,
+    deleteContactDepartmentForce,
     fetchContactDepartment,
     fetchContactDirectoryContent,
     fetchEmployeeCountOfDepartment,
@@ -547,7 +547,7 @@ const ContactsManage = ({
                                 );
                                 return;
                             }
-                            const delRes = await deleteContactDepartment(companyId, deptId);
+                            const delRes = await deleteContactDepartmentForce(companyId, deptId);
                             if (delRes.error) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),

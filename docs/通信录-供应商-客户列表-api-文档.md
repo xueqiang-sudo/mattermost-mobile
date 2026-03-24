@@ -221,6 +221,7 @@
 - **URL**: `DELETE /api/v1/departments/:id/force`
 - **参数**: `id` — 部门 ID
 
+
 ### 获取部门的员工(含部门信息)
 
 - **URL**: `GET /api/v1/departments/:id/employees`

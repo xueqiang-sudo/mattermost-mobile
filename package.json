@@ -215,6 +215,8 @@
     "intune:status": "./scripts/intune-status.sh",
     "lint": "eslint --ignore-pattern .gitignore --ignore-pattern node_modules --quiet .",
     "mmjstool": "mmjstool",
+    "docs:mattermost-api": "node docs/generate_mattermost_api_doc.js",
+    "docs:mattermost-api:fetch": "node docs/generate_mattermost_api_doc.js --fetch",
     "pod-install": "cd ios && RCT_NEW_ARCH_ENABLED=0 pod install --verbose",
     "pod-install-m1": "cd ios && RCT_NEW_ARCH_ENABLED=0 arch -x86_64 pod install --verbose",
     "postinstall": "patch-package && ./scripts/postinstall.sh",

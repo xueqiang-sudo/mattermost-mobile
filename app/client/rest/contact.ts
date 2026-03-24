@@ -510,12 +510,14 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         }
     }
 
-    private async doRequestDirect<T>(path: string, method: string, body?: object): Promise<T> {
+    private async doRequestDirect<T>(path: string, method: string, body?: object, headers?: Record<string, string>): Promise<T> {
         this.ensureInitialized();
         const options: ClientOptions = {
             method: method.toUpperCase(),
             ...(body !== undefined && method.toLowerCase() !== 'get' && {body: body as Record<string, unknown>}),
         };
+        // eslint-disable-next-line no-unused-expressions
+        headers && typeof headers === 'object' && (options.headers = Object.assign(options.headers || {}, headers));
         return this.doFetchWithTracking(path, options, true) as Promise<T>;
     }
 
@@ -539,14 +541,15 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         path: string,
         method: string,
         body?: object,
+        headers?: Record<string, string>,
     ): Promise<T> {
         if (!CONTACT_ENABLE_COMPANY_PROXY_CACHE) {
-            return this.doRequestDirect<T>(path, method, body);
+            return this.doRequestDirect<T>(path, method, body, headers);
         }
         const upper = method.toUpperCase();
         if (upper !== 'GET') {
             await this.invalidateCompanyCache(companyIdOfVersion);
-            const res = await this.doRequestDirect<T>(path, method, body);
+            const res = await this.doRequestDirect<T>(path, method, body, headers);
             await this.invalidateCompanyCache(companyIdOfVersion);
             return res;
         }
@@ -580,7 +583,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
                 }
             }
         } catch {
-            return this.doRequestDirect<T>(path, method, body);
+            return this.doRequestDirect<T>(path, method, body, headers);
         }
 
         let map = this.responseByCompany.get(companyIdOfVersion);
@@ -601,7 +604,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             }
         }
 
-        const data = await this.doRequestDirect<T>(path, method, body);
+        const data = await this.doRequestDirect<T>(path, method, body, headers);
         map.set(path, {version, data, at: Date.now()});
 
         if (baseUrl) {

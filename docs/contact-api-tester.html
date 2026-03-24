@@ -1099,6 +1099,8 @@
       statusEl.textContent = '';
 
       try {
+        const headers = { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' };
+
         let status, statusText, text;
         if (useProxy()) {
           const proxyRes = await fetch('/proxy', {
@@ -1107,7 +1109,7 @@
             body: JSON.stringify({
               targetUrl: url,
               method,
-              headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+              headers,
               body: reqBody
             })
           });
@@ -1118,7 +1120,7 @@
         } else {
           const res = await fetch(url, {
             method,
-            headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+            headers,
             body: reqBody || undefined
           });
           status = res.status;

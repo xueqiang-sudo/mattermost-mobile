@@ -221,6 +221,9 @@ const Body = ({
 
     const weChatStyleActive = useWeChatStyle(location);
     const weChatBubbleMaxWidth = useMemo(() => Dimensions.get('window').width * 0.86, []);
+    const weChatContentMaxWidth = useMemo(() => {
+        return Math.floor(weChatBubbleMaxWidth - 24);
+    }, [weChatBubbleMaxWidth]);
     const chatBubbleSurface = useMemo(() => {
         if (!weChatStyleActive) {
             return null;
@@ -279,6 +282,7 @@ const Body = ({
         message = (
             <JumboEmoji
                 baseTextStyle={weChatOwnBubble && chatBubbleSurface ? [style.message, {color: chatBubbleSurface.ownText}] : style.message}
+                compactWeChat={weChatStyleActive}
                 isEdited={isEdited}
                 value={post.message}
             />
@@ -316,7 +320,7 @@ const Body = ({
                 {hasContent &&
                 <Content
                     isReplyPost={isReplyPost}
-                    layoutWidth={layoutWidth}
+                    layoutWidth={weChatStyleActive ? weChatContentMaxWidth : layoutWidth}
                     location={location}
                     post={post}
                     theme={theme}
@@ -325,7 +329,7 @@ const Body = ({
                 {hasFiles && post.type !== PostTypes.CUSTOM_VOICE_ASR &&
                 <Files
                     failed={isFailed}
-                    layoutWidth={layoutWidth}
+                    layoutWidth={weChatStyleActive ? weChatContentMaxWidth : layoutWidth}
                     location={location}
                     post={post}
                     isReplyPost={isReplyPost}

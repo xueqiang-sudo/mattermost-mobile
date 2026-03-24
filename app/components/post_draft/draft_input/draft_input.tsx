@@ -1041,10 +1041,7 @@ function DraftInput({
             </View>
             {emojiPanelOpen && (
                 <DraftEmojiPanel
-                    customEmojis={customEmojis}
-                    customEmojisEnabled={customEmojisEnabled}
                     onPick={handleDraftEmojiPick}
-                    onSendLocalSticker={sendStandaloneStickerImage}
                     recentEmojis={recentEmojis}
                     skinTone={skinTone}
                     testID={`${testID}.draft_emoji_panel`}

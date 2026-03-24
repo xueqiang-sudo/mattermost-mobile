@@ -20,6 +20,11 @@ import ClientError from './error';
 
 import type {APIClientInterface, ClientHeaders, ClientResponse, ClientResponseMetrics, RequestOptions} from '@mattermost/react-native-network-client';
 
+// eslint-disable-next-line no-negated-condition
+const isEnvFlagEnabled = (value?: string, trueOtherVaue?: string) => (trueOtherVaue !== undefined ? value === trueOtherVaue : (value === 'true' || value === '1'));
+const shouldLogFetchSuccess = () => isEnvFlagEnabled(global.process?.env?.MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
+const shouldLogFetchData = () => isEnvFlagEnabled(global.process?.env?.MM_MOBILE_LOG_FETCH, '2'); // MM_MOBILE_LOG_FETCH = '2'
+
 type UrlData = {
     count: number;
     metrics?: ClientResponseMetrics;
@@ -432,14 +437,25 @@ export default class ClientTracking {
         }
 
         if (response.ok) {
-            logDebug('request is success, url:', url, ' ,method:', method);
 
-            // logInfo('request is success, url:', url, ' ,options:', options, ' ,data:', response.data);
-            // logInfo('request is success, url:', url, ' ,data:', response.data);
+            if (shouldLogFetchData()) {
+                logInfo(
+                    new Date().toISOString() + ' -- request data, url:',
+                    url,
+                    ' ,method:',
+                    method,
+                    ' ,options:',
+                    options,
+                    ' ,data:',
+                    response.data,
+                );
+            } else if (shouldLogFetchSuccess()) {
+                logDebug(new Date().toISOString() + ' -- request is success, url:', url, ' ,method:', method);
+            }
             return returnDataOnly ? (response.data || {}) : response;
         }
 
-        logInfo('request is failed, url:', this.apiClient.baseUrl+url, ' ,options:', options, ' ,status_code:', response.code, ' ,data:', response.data);
+        logInfo(new Date().toISOString() + ' -- request is failed, url:', this.apiClient.baseUrl+url, ' ,options:', options, ' ,status_code:', response.code, ' ,data:', response.data);
 
         throw new ClientError(this.apiClient.baseUrl, {
             message: response.data?.message as string || `Response with status code ${response.code}`,

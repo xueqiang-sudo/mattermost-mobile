@@ -3,7 +3,7 @@
 
 import {Node, Parser} from 'commonmark';
 import Renderer from 'commonmark-react-renderer';
-import React, {type ReactElement, useRef} from 'react';
+import React, {type ReactElement, useMemo, useRef} from 'react';
 import {type StyleProp, StyleSheet, Text, type TextStyle, View} from 'react-native';
 
 import EditedIndicator from '@components/edited_indicator';
@@ -14,6 +14,8 @@ type JumboEmojiProps = {
     baseTextStyle: StyleProp<TextStyle>;
     isEdited?: boolean;
     value: string;
+    /** 微信风格会话里缩小巨型表情，避免占满半屏 */
+    compactWeChat?: boolean;
 }
 
 const style = StyleSheet.create({
@@ -22,60 +24,62 @@ const style = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    jumboEmoji: {
-        fontSize: 50,
-        lineHeight: 60,
-    },
-    newLine: {
-        lineHeight: 60,
-    },
 });
 
-const JumboEmoji = ({baseTextStyle, isEdited, value}: JumboEmojiProps) => {
+const JumboEmoji = ({baseTextStyle, compactWeChat, isEdited, value}: JumboEmojiProps) => {
+    const fontSize = compactWeChat ? 28 : 40;
+    const lineHeight = compactWeChat ? 34 : 48;
+    const jumboEmojiStyle = useMemo(
+        () => ({fontSize, lineHeight}),
+        [fontSize, lineHeight],
+    );
+    const newLineStyle = useMemo(() => ({lineHeight}), [lineHeight]);
     const theme = useTheme();
 
-    const renderEmoji = ({emojiName, literal}: {context: string[]; emojiName: string; literal: string}) => {
-        return (
-            <View>
-                <Emoji
-                    emojiName={emojiName}
-                    literal={literal}
-                    testID='markdown_emoji'
-                    textStyle={[baseTextStyle, style.jumboEmoji]}
+    const renderer = useMemo(() => {
+        const renderEmoji = ({emojiName, literal}: {context: string[]; emojiName: string; literal: string}) => {
+            return (
+                <View>
+                    <Emoji
+                        emojiName={emojiName}
+                        literal={literal}
+                        testID='markdown_emoji'
+                        textStyle={[baseTextStyle, jumboEmojiStyle]}
+                    />
+                </View>
+            );
+        };
+
+        const renderParagraph = ({children}: {children: ReactElement}) => {
+            return (
+                <View style={style.block}>
+                    <Text>{children}</Text>
+                </View>
+            );
+        };
+
+        const renderText = ({literal}: {literal: string}) => {
+            return renderEmoji({emojiName: literal, literal, context: []});
+        };
+
+        const renderNewLine = () => {
+            return <Text style={[baseTextStyle, newLineStyle]}>{'\n'}</Text>;
+        };
+
+        const renderEditedIndicator = ({context}: {context: string[]}) => {
+            return (
+                <EditedIndicator
+                    baseTextStyle={baseTextStyle}
+                    theme={theme}
+                    context={context}
+                    iconSize={14}
+                    checkHeadings={false}
+                    testID='edited_indicator'
                 />
-            </View>
-        );
-    };
+            );
+        };
 
-    const renderParagraph = ({children}: {children: ReactElement}) => {
-        return (
-            <View style={style.block}><Text>{children}</Text></View>
-        );
-    };
-
-    const renderText = ({literal}: {literal: string}) => {
-        return renderEmoji({emojiName: literal, literal, context: []});
-    };
-
-    const renderNewLine = () => {
-        return <Text style={[baseTextStyle, style.newLine]}>{'\n'}</Text>;
-    };
-
-    const renderEditedIndicator = ({context}: {context: string[]}) => {
-        return (
-            <EditedIndicator
-                baseTextStyle={baseTextStyle}
-                theme={theme}
-                context={context}
-                iconSize={14}
-                checkHeadings={false}
-                testID='edited_indicator'
-            />
-        );
-    };
-
-    const createRenderer = () => {
-        const renderers: any = {
+        const renderers: Record<string, unknown> = {
             editedIndicator: renderEditedIndicator,
             emoji: renderEmoji,
             paragraph: renderParagraph,
@@ -89,10 +93,9 @@ const JumboEmoji = ({baseTextStyle, isEdited, value}: JumboEmojiProps) => {
             renderers,
             renderParagraphsInLists: true,
         });
-    };
+    }, [baseTextStyle, jumboEmojiStyle, newLineStyle, theme]);
 
     const parser = useRef(new Parser()).current;
-    const renderer = useRef(createRenderer()).current;
     const ast = parser.parse(value.replace(/\n*$/, ''));
 
     if (isEdited) {

@@ -5,6 +5,9 @@ build-ios
 server.PID
 mattermost.keystore
 tmp/
+
+# Generated upstream API YAML cache (see docs/generate_mattermost_api_doc.js)
+docs/.mm_api_source/
 .env
 env.d.ts
 *.apk

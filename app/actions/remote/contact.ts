@@ -599,7 +599,7 @@ export const moveContactEmployeeToDepartment = async (
 };
 
 /** 删除部门（级联删除关联） */
-export const deleteContactDepartment = async (
+export const deleteContactDepartmentForce = async (
     companyId: string,
     departmentId: number,
 ): Promise<{error?: unknown}> => {
@@ -607,10 +607,10 @@ export const deleteContactDepartment = async (
         return {error: new Error('companyId is required')};
     }
     try {
-        await ContactService.deleteDepartment(companyId, departmentId);
+        await ContactService.deleteDepartmentForce(companyId, departmentId);
         return {};
     } catch (error) {
-        logDebug('[deleteContactDepartment]', getFullErrorMessage(error));
+        logDebug('[deleteContactDepartmentForce]', getFullErrorMessage(error));
         return {error};
     }
 };

@@ -38,8 +38,8 @@ const style = StyleSheet.create({
     imageContainer: {
         alignItems: 'flex-start',
         justifyContent: 'flex-start',
-        marginBottom: 6,
-        marginTop: 10,
+        marginBottom: 4,
+        marginTop: 6,
     },
     image: {
         alignItems: 'center',
