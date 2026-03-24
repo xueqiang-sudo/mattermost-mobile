@@ -259,7 +259,8 @@ const Body = ({
         };
     }, [theme, weChatStyleActive]);
 
-    const hasTextMessage = Boolean(post.message.length || isEdited);
+    const displayMessage = post.message || post.messageSource;
+    const hasTextMessage = Boolean(displayMessage.length || isEdited);
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
     const showBubble = weChatStyleActive && !hasBeenDeleted;
     const bubbleStyle = useMemo(() => {
@@ -320,7 +321,7 @@ const Body = ({
                 value={post.message}
             />
         );
-    } else if (post.message.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
+    } else if (displayMessage.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <Message
@@ -335,6 +336,7 @@ const Body = ({
                 searchPatterns={searchPatterns}
                 theme={theme}
                 unboundedMarkdownHeight={weChatStyleActive}
+                value={displayMessage}
             />
         );
     }

@@ -46,6 +46,7 @@ type MessageProps = {
     post: PostModel;
     searchPatterns?: SearchPattern[];
     theme: Theme;
+    value?: string;
 }
 
 const SHOW_MORE_HEIGHT = 54;
@@ -71,7 +72,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLicensed, highlight, isEdited, isPendingOrFailed, isReplyPost, layoutWidth, location, unboundedMarkdownHeight = false, post, searchPatterns, theme}: MessageProps) => {
+const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLicensed, highlight, isEdited, isPendingOrFailed, isReplyPost, layoutWidth, location, unboundedMarkdownHeight = false, post, searchPatterns, theme, value}: MessageProps) => {
+    const messageValue = value ?? post.message;
+
     const [open, setOpen] = useState(false);
     const [height, setHeight] = useState<number|undefined>();
     const dimensions = useWindowDimensions();
@@ -140,7 +143,7 @@ const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLice
                 layoutWidth={layoutWidth}
                 location={location}
                 postId={post.id}
-                value={post.message}
+                value={messageValue}
                 mentionKeys={mentionKeys}
                 highlightKeys={highlightKeys}
                 searchPatterns={searchPatterns}
