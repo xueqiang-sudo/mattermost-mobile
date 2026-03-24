@@ -5,6 +5,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {InteractionManager, Text, View} from 'react-native';
 import {useIntl} from 'react-intl';
 import Tooltip from 'react-native-walkthrough-tooltip';
+import tinyColor from 'tinycolor2';
 
 import {storeScheduledPostTutorial} from '@actions/app/global';
 import CompassIcon from '@components/compass_icon';
@@ -127,7 +128,13 @@ const SendButton: React.FC<Props> = ({
         return [style.sendButton, disabled ? style.disableButton : {}];
     }, [disabled, style, weChatCompact]);
 
-    const buttonColor = weChatCompact ? (disabled ? changeOpacity(WECHAT_SEND_ICON, 0.5) : WECHAT_SEND_ICON) : (disabled ? changeOpacity(theme.buttonColor, 0.5) : theme.buttonColor);
+    const weChatSendTextColor = useMemo(() => {
+        const base = getWeChatCompactSendButtonBackground(theme);
+        return tinyColor(base).isDark() ? '#FFFFFF' : '#111111';
+    }, [theme]);
+    const buttonColor = weChatCompact ?
+        (disabled ? changeOpacity(weChatSendTextColor, 0.5) : weChatSendTextColor) :
+        (disabled ? changeOpacity(theme.buttonColor, 0.5) : theme.buttonColor);
 
     const sendMessageWithDoubleTapPrevention = usePreventDoubleTap(sendMessage);
 

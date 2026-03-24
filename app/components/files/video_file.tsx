@@ -21,6 +21,9 @@ import FileIcon from './file_icon';
 
 import type {ImageContentFit} from 'expo-image';
 
+const CHAT_SINGLE_MEDIA_MAX_WIDTH = 220;
+const CHAT_SINGLE_MEDIA_MAX_HEIGHT = 240;
+
 type Props = {
     index: number;
     file: FileInfo;
@@ -75,11 +78,17 @@ const VideoFile = ({
 
     const imageDimensions = useMemo(() => {
         if (isSingleImage) {
-            const viewPortHeight = Math.max(dimensions.height, dimensions.width) * 0.45;
-            return calculateDimensions(video.height || wrapperWidth, video.width || wrapperWidth, wrapperWidth, viewPortHeight);
+            // 与图片单图保持同一微信式固定上限，避免会话内占用过大。
+            const maxWidth = Math.min(wrapperWidth, CHAT_SINGLE_MEDIA_MAX_WIDTH);
+            return calculateDimensions(
+                video.height || wrapperWidth,
+                video.width || wrapperWidth,
+                maxWidth,
+                CHAT_SINGLE_MEDIA_MAX_HEIGHT,
+            );
         }
         return undefined;
-    }, [dimensions.height, dimensions.width, video.height, video.width, wrapperWidth, isSingleImage]);
+    }, [video.height, video.width, wrapperWidth, isSingleImage]);
 
     const handleError = useCallback(() => {
         setFailed(true);

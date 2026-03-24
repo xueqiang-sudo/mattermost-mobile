@@ -3,6 +3,7 @@
 
 import React, {type ReactNode, useCallback, useMemo, useState} from 'react';
 import {Dimensions, type LayoutChangeEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import tinyColor from 'tinycolor2';
 
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
@@ -13,7 +14,7 @@ import {THREAD} from '@constants/screens';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
 import {PLAYBOOKS_UPDATE_STATUS_POST_TYPE} from '@playbooks/constants/plugin';
 import {isEdited as postEdited, isPostFailed} from '@utils/post';
-import {getChatBubbleBackground, getChatBubbleBorderColor, getChatBubbleOwnTextColor, makeStyleSheetFromTheme} from '@utils/theme';
+import {blendColors, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Acknowledgements from './acknowledgements';
 import AddMembers from './add_members';
@@ -89,6 +90,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignSelf: 'flex-end',
             alignItems: 'flex-start',
         },
+        // 纯媒体（自己发送）不画尾巴时，补一个与头像的安全间距，避免内容跑到头像下方。
+        bubbleWithTailWrapperOwnMediaOnly: {
+            marginRight: 52,
+        },
 
         /** 气泡三角尾巴：向左指（他人消息） */
         bubbleTailLeft: {
@@ -135,6 +140,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 0,
             alignSelf: 'stretch',
             paddingBottom: 4,
+        },
+        // 纯媒体消息（仅图片/视频）不需要气泡内边距，避免出现微信里没有的大面积填充色。
+        messageBodyMediaOnlyWeChat: {
+            paddingVertical: 0,
+            paddingBottom: 0,
         },
         messageContainer: {width: '100%'},
         replyBar: {
@@ -228,18 +238,41 @@ const Body = ({
         if (!weChatStyleActive) {
             return null;
         }
+        const isLightTheme = tinyColor(theme.centerChannelBg).isLight();
+        // 主题自适应：弱化高饱和块状色，让气泡与主界面更融合（深色主题尤为明显）。
+        const ownBg = isLightTheme ?
+            blendColors(theme.centerChannelBg, theme.buttonBg, 0.38, true) :
+            blendColors(theme.centerChannelBg, theme.buttonBg, 0.3, true);
+        const othersBg = isLightTheme ?
+            blendColors(theme.centerChannelBg, '#FFFFFF', 0.72, true) :
+            blendColors(theme.centerChannelBg, '#FFFFFF', 0.1, true);
+        const border = isLightTheme ?
+            blendColors(othersBg, theme.centerChannelColor, 0.16, true) :
+            blendColors(othersBg, '#FFFFFF', 0.14, true);
+        const ownText = tinyColor(ownBg).isDark() ? '#FFFFFF' : theme.centerChannelColor;
+
         return {
-            ownBg: getChatBubbleBackground(theme, 'own'),
-            othersBg: getChatBubbleBackground(theme, 'others'),
-            border: getChatBubbleBorderColor(theme),
-            ownText: getChatBubbleOwnTextColor(theme),
+            ownBg,
+            othersBg,
+            border,
+            ownText,
         };
     }, [theme, weChatStyleActive]);
 
+    const hasTextMessage = Boolean(post.message.length || isEdited);
+    const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
     const showBubble = weChatStyleActive && !hasBeenDeleted;
     const bubbleStyle = useMemo(() => {
         if (!showBubble || !chatBubbleSurface) {
             return undefined;
+        }
+        if (isMediaOnlyWeChat) {
+            return [style.bubble, style.bubbleWeChat, {
+                backgroundColor: 'transparent',
+                borderWidth: 0,
+                paddingHorizontal: 0,
+                paddingVertical: 0,
+            }];
         }
         const base = [style.bubble, style.bubbleWeChat];
         if (isOwnPost) {
@@ -251,7 +284,7 @@ const Body = ({
             borderColor: chatBubbleSurface.border,
             borderTopLeftRadius: 0,
         }];
-    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
+    }, [showBubble, chatBubbleSurface, isMediaOnlyWeChat, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
 
     if (hasBeenDeleted) {
         body = (
@@ -314,6 +347,7 @@ const Body = ({
                 style={[
                     style.messageBody,
                     weChatStyleActive && style.messageBodyWeChat,
+                    isMediaOnlyWeChat && style.messageBodyMediaOnlyWeChat,
                 ]}
             >
                 {message}
@@ -333,6 +367,7 @@ const Body = ({
                     location={location}
                     post={post}
                     isReplyPost={isReplyPost}
+                    isMediaOnlyMessage={isMediaOnlyWeChat}
                 />
                 }
                 {(acknowledgementsVisible || reactionsVisible) && (
@@ -367,10 +402,11 @@ const Body = ({
                 style={[
                     style.bubbleWithTailWrapper,
                     isOwnPost && style.bubbleWithTailWrapperOwn,
+                    isOwnPost && isMediaOnlyWeChat && style.bubbleWithTailWrapperOwnMediaOnly,
                     {maxWidth: weChatBubbleMaxWidth},
                 ]}
             >
-                {!isOwnPost && (
+                {!isOwnPost && !isMediaOnlyWeChat && (
                     <View
                         style={[
                             style.bubbleTailLeft,
@@ -381,7 +417,7 @@ const Body = ({
                 <View style={bubbleStyle}>
                     {body}
                 </View>
-                {isOwnPost && (
+                {isOwnPost && !isMediaOnlyWeChat && (
                     <View
                         style={[
                             style.bubbleTailRight,

@@ -27,6 +27,7 @@ type FilesProps = {
     postId?: string;
     postProps?: Record<string, unknown>;
     isPermalinkPreview?: boolean;
+    isMediaOnlyMessage?: boolean;
 }
 
 const MAX_VISIBLE_ROW_IMAGES = 4;
@@ -35,6 +36,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         marginTop: 5,
         flexShrink: 0,
+        // 仅媒体消息时不要横向拉满，按内容自然宽度展示（对齐微信效果）。
+        alignSelf: 'flex-start',
     },
     rowItemContainer: {
         flex: 1,
@@ -64,6 +67,7 @@ const Files = ({
     postId,
     postProps,
     isPermalinkPreview = false,
+    isMediaOnlyMessage = false,
 }: FilesProps) => {
     const galleryIdentifier = `${postId}-fileAttachments-${location}`;
     const [inViewPort, setInViewPort] = useState(false);
@@ -73,7 +77,9 @@ const Files = ({
     const [filesForGallery, setFilesForGallery] = useState(() => [...imageAttachments, ...nonImageAttachments]);
 
     const attachmentIndex = (fileId: string) => {
-        return filesForGallery.findIndex((file) => file.id === fileId) || 0;
+        const index = filesForGallery.findIndex((file) => file.id === fileId);
+        // 找不到时回退到 0，避免把 -1 传给 Gallery 导致初始页错误（视频不会自动播放）。
+        return index >= 0 ? index : 0;
     };
 
     const handlePreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
@@ -88,6 +94,8 @@ const Files = ({
     }, [filesForGallery]);
 
     const isSingleImage = useMemo(() => filesInfo.filter((f) => isImage(f) || isVideo(f)).length === 1, [filesInfo]);
+    // 纯媒体消息不需要额外上边距，避免与时间行之间出现过大的空隙。
+    const compactTopSpacing = isMediaOnlyMessage && !isPermalinkPreview;
 
     const renderItems = (items: FileInfo[], moreImagesCount = 0, includeGutter = false, isImageRow = false) => {
         let nonVisibleImagesCount: number;
@@ -114,7 +122,12 @@ const Files = ({
             );
             return (
                 <View
-                    style={[container, styles.marginTop, shouldRemoveMarginTop && {marginTop: 0}]}
+                    style={[
+                        container,
+                        styles.marginTop,
+                        compactTopSpacing && {marginTop: 0},
+                        shouldRemoveMarginTop && {marginTop: 0},
+                    ]}
                     testID={`${file.id}-file-container`}
                     key={file.id}
                 >
@@ -144,6 +157,7 @@ const Files = ({
 
         const visibleImages = imageAttachments.slice(0, MAX_VISIBLE_ROW_IMAGES);
         const portraitPostWidth = layoutWidth || (getViewPortWidth(isReplyPost, isTablet) - 6);
+        const isSingleAttachmentImageRow = visibleImages.length === 1;
 
         let nonVisibleImagesCount;
         if (imageAttachments.length > MAX_VISIBLE_ROW_IMAGES) {
@@ -154,7 +168,8 @@ const Files = ({
             <View
                 style={[
                     styles.row,
-                    {width: portraitPostWidth},
+                    !isSingleAttachmentImageRow && {width: portraitPostWidth},
+                    compactTopSpacing && {marginTop: 0},
                     isPermalinkPreview && {marginTop: 0},
                 ]}
                 testID='image-row'

@@ -7,61 +7,41 @@ const YAML = require('yaml');
 
 const execFileAsync = promisify(execFile);
 
-const UPSTREAM_CLONE_DIR = path.join(__dirname, '.mm_api_source');
-const SOURCE_DIR = path.join(UPSTREAM_CLONE_DIR, 'api', 'v4', 'source');
-const UPSTREAM_GIT_URL = process.env.MM_UPSTREAM_GIT_URL || 'https://github.com/mattermost/mattermost.git';
+const GITHUB_API_BASE = 'https://api.github.com';
+const REPO_PATH = '/repos/mattermost/mattermost/contents/api/v4/source';
+const REF = 'master';
 const OUTPUT_FILE = path.join(__dirname, 'mattermost_api_doc.md');
 
-async function pathExists(filePath) {
-    try {
-        await fs.access(filePath);
-        return true;
-    } catch {
-        return false;
-    }
+async function curlGet(url, headers = []) {
+    const args = ['-fsSL', '--http1.1', '--retry', '3', '--retry-delay', '1', '--max-time', '180', ...headers.flatMap((h) => ['-H', h]), url];
+    const {stdout} = await execFileAsync('curl', args, {
+        maxBuffer: 100 * 1024 * 1024,
+        encoding: 'utf8',
+    });
+    return stdout;
 }
 
-async function ensureUpstreamYamlSources(forceFetch) {
-    const introPath = path.join(SOURCE_DIR, 'introduction.yaml');
-    if (!forceFetch && (await pathExists(introPath))) {
-        return;
-    }
-
-    await fs.rm(UPSTREAM_CLONE_DIR, {recursive: true, force: true});
-    await execFileAsync(
-        'git',
-        [
-            'clone',
-            '--depth',
-            '1',
-            '--filter=blob:none',
-            '--sparse',
-            '--single-branch',
-            '--branch',
-            'master',
-            UPSTREAM_GIT_URL,
-            UPSTREAM_CLONE_DIR,
-        ],
-        {maxBuffer: 40 * 1024 * 1024},
-    );
-    await execFileAsync(
-        'git',
-        ['sparse-checkout', 'set', 'api/v4/source'],
-        {cwd: UPSTREAM_CLONE_DIR, maxBuffer: 20 * 1024 * 1024},
-    );
-
-    if (!(await pathExists(introPath))) {
-        throw new Error(`Sparse checkout failed: missing ${introPath}`);
-    }
+async function fetchJson(url) {
+    const body = await curlGet(url, [
+        'Accept: application/vnd.github+json',
+        'User-Agent: mattermost-mobile-api-doc-generator',
+    ]);
+    return JSON.parse(body);
 }
 
-async function loadApiSourceFromDisk() {
-    const names = (await fs.readdir(SOURCE_DIR)).filter((n) => n.endsWith('.yaml'));
-    names.sort((a, b) => yamlFileSortKey(a).localeCompare(yamlFileSortKey(b)));
+async function loadApiSource() {
+    const listUrl = `${GITHUB_API_BASE}${REPO_PATH}?ref=${REF}`;
+    const files = await fetchJson(listUrl);
+    const yamlFiles = files.
+        filter((f) => f.type === 'file' && f.name.endsWith('.yaml')).
+        sort((a, b) => yamlFileSortKey(a.name).localeCompare(yamlFileSortKey(b.name)));
+
     const source = {};
-    for (const name of names) {
-        const text = await fs.readFile(path.join(SOURCE_DIR, name), 'utf8');
-        source[name] = YAML.parse(text);
+    for (const file of yamlFiles) {
+        const fileData = await fetchJson(file.url);
+        const encoded = (fileData.content || '').replace(/\n/g, '');
+        const text = Buffer.from(encoded, 'base64').toString('utf8');
+        source[file.name] = YAML.parse(text);
     }
     return source;
 }
@@ -272,7 +252,7 @@ function buildMarkdown(spec) {
     lines.push('');
     lines.push(`- OpenAPI版本: \`${spec.openapi || '3.0.0'}\``);
     lines.push(`- 生成时间: \`${new Date().toISOString()}\``);
-    lines.push('- 数据源: `mattermost/mattermost` 仓库 `api/v4/source/*.yaml`（由 `docs/generate_mattermost_api_doc.js` 通过 `git sparse-checkout` 拉取到 `docs/.mm_api_source/`）');
+    lines.push('- 数据源: `mattermost/mattermost` 仓库 `api/v4/source/*.yaml`（通过 GitHub Contents API 拉取）');
     lines.push('');
     lines.push('## 目录');
     lines.push('');
@@ -414,9 +394,7 @@ function buildMarkdown(spec) {
 }
 
 async function main() {
-    const forceFetch = process.argv.includes('--fetch');
-    await ensureUpstreamYamlSources(forceFetch);
-    const sourceMap = await loadApiSourceFromDisk();
+    const sourceMap = await loadApiSource();
     const model = buildOpenApiModel(sourceMap);
     const markdown = buildMarkdown(model);
     await fs.writeFile(OUTPUT_FILE, markdown, 'utf8');

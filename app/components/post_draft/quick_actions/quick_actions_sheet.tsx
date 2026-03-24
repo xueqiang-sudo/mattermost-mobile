@@ -107,7 +107,7 @@ type Props = {
     postPriority: PostPriority;
     updatePostPriority: (postPriority: PostPriority) => void;
     focus: () => void;
-    onDismiss: () => void;
+    onDismiss: () => void | Promise<void>;
 };
 
 const POST_PRIORITY_PICKER_BUTTON = 'close-post-priority-picker-sheet';
@@ -137,8 +137,13 @@ export default function QuickActionsSheet({
 
     const wrapWithDismiss = useCallback((fn: () => void) => {
         return () => {
-            onDismiss();
-            setTimeout(fn, 150);
+            void (async () => {
+                try {
+                    await onDismiss();
+                } finally {
+                    fn();
+                }
+            })();
         };
     }, [onDismiss]);
 

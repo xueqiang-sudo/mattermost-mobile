@@ -6,7 +6,7 @@ import {DeviceEventEmitter} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import FormattedText from '@components/formatted_text';
-import {Events} from '@constants';
+import {Events, General} from '@constants';
 import {TYPING_HEIGHT} from '@constants/post_draft';
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -14,6 +14,7 @@ import {typography} from '@utils/typography';
 
 type Props = {
     channelId: string;
+    channelType?: ChannelType;
     rootId: string;
 }
 
@@ -29,8 +30,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 
 function Typing({
     channelId,
+    channelType,
     rootId,
 }: Props) {
+    if (channelType !== General.DM_CHANNEL) {
+        return null;
+    }
+
     const typingHeight = useSharedValue(0);
     const typing = useRef<Array<{id: string; now: number; username: string}>>([]);
     const timeoutToDisappear = useRef<NodeJS.Timeout>();

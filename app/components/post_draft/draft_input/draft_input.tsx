@@ -1065,6 +1065,7 @@ function DraftInput({
             )}
             <Typing
                 channelId={channelId}
+                channelType={channelType}
                 rootId={rootId}
             />
             {weChatPhoneFooter ? weChatPhoneFooterEl : classicFooter}

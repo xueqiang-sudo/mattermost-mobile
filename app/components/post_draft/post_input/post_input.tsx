@@ -13,7 +13,7 @@ import {
 
 import {updateDraftMessage} from '@actions/local/draft';
 import {userTyping} from '@actions/websocket/users';
-import {Events, Screens} from '@constants';
+import {Events, General, Screens} from '@constants';
 import {useExtraKeyboardContext} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -29,6 +29,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 type Props = {
     testID?: string;
     channelId: string;
+    channelType?: ChannelType;
     maxMessageLength: number;
     rootId: string;
     timeBetweenUserTypingUpdatesMilliseconds: number;
@@ -101,6 +102,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 export default function PostInput({
     testID,
     channelId,
+    channelType,
     maxMessageLength,
     rootId,
     timeBetweenUserTypingUpdatesMilliseconds,
@@ -221,7 +223,8 @@ export default function PostInput({
             newValue &&
             lastTypingEventSent.current + timeBetweenUserTypingUpdatesMilliseconds < Date.now() &&
             membersInChannel < maxNotificationsPerChannel &&
-            enableUserTypingMessage
+            enableUserTypingMessage &&
+            channelType === General.DM_CHANNEL
         ) {
             userTyping(serverUrl, channelId, rootId);
             lastTypingEventSent.current = Date.now();
@@ -234,6 +237,7 @@ export default function PostInput({
         membersInChannel,
         maxNotificationsPerChannel,
         enableUserTypingMessage,
+        channelType,
         serverUrl,
         channelId,
         rootId,

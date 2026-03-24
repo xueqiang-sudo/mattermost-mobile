@@ -266,10 +266,13 @@ export function getChatBubbleBorderColor(theme: Theme): string {
  * so the footer/input row stays consistent after theme switches.
  */
 export function getWeChatCompactSendButtonBackground(theme: Theme): string {
+    const base = tinyColor(theme.buttonBg);
     if (tinyColor(getChatListBackdropColor(theme)).isLight()) {
-        return '#07C160';
+        // 主流配色：浅色主题使用主色本身，确保与全局按钮体系一致。
+        return base.toHexString();
     }
-    return theme.buttonBg;
+    // 深色主题下轻微提亮主色，维持对比度与可点击感。
+    return base.lighten(8).toHexString();
 }
 
 /** Text on own bubble: dark on light green, theme button color on dark bubble. */

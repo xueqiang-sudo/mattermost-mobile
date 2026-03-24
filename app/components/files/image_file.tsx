@@ -30,6 +30,8 @@ type ImageFileProps = {
 
 const SMALL_IMAGE_MAX_HEIGHT = 48;
 const SMALL_IMAGE_MAX_WIDTH = 48;
+const CHAT_SINGLE_MEDIA_MAX_WIDTH = 220;
+const CHAT_SINGLE_MEDIA_MAX_HEIGHT = 240;
 const GRADIENT_COLORS: LinearGradientProps['colors'] = ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, .32)'];
 const GRADIENT_END = {x: 1, y: 1};
 const GRADIENT_LOCATIONS: LinearGradientProps['locations'] = [0.5, 1];
@@ -79,8 +81,9 @@ const ImageFile = ({
 
     const getImageDimensions = () => {
         if (isSingleImage) {
-            const viewPortHeight = Math.max(dimensions.height, dimensions.width) * 0.45;
-            return calculateDimensions(file?.height, file?.width, wrapperWidth, viewPortHeight);
+            // 按微信风格使用固定上限，避免单图在聊天中占据过大空间。
+            const maxWidth = Math.min(wrapperWidth ?? CHAT_SINGLE_MEDIA_MAX_WIDTH, CHAT_SINGLE_MEDIA_MAX_WIDTH);
+            return calculateDimensions(file?.height, file?.width, maxWidth, CHAT_SINGLE_MEDIA_MAX_HEIGHT);
         }
 
         return undefined;

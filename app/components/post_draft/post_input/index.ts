@@ -30,12 +30,17 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: WithData
         switchMap((i: ChannelInfoModel) => of$(i.memberCount)),
         distinctUntilChanged(),
     );
+    const channelType = channel.pipe(
+        switchMap((c) => of$(c?.type)),
+        distinctUntilChanged(),
+    );
 
     return {
         timeBetweenUserTypingUpdatesMilliseconds,
         enableUserTypingMessage,
         maxNotificationsPerChannel,
         membersInChannel,
+        channelType,
     };
 });
 

@@ -36,7 +36,7 @@ type DraftEmojiPanelProps = {
     testID?: string;
 };
 
-const RECENT_VISIBLE_COUNT = 7;
+const RECENT_VISIBLE_COUNT = 10;
 const ALL_EMOJIS_PER_ROW = EMOJIS_PER_ROW + 1;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -58,7 +58,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        paddingVertical: 6,
+        paddingVertical: 4,
         paddingHorizontal: 8,
         marginBottom: 10,
     },
@@ -90,7 +90,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
     },
     recentEmojiItem: {
-        width: 55,
+        width: 40,
         alignItems: 'center',
         marginRight: 4,
     },
