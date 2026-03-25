@@ -6,7 +6,7 @@ import {useManagedConfig} from '@mattermost/react-native-emm';
 import React, {useMemo} from 'react';
 import {ScrollView} from 'react-native';
 
-import {CopyPermalinkOption, FollowThreadOption, ReplyOption, SaveOption} from '@components/common_post_options';
+import {CopyPermalinkOption, FollowThreadOption, ReplyOption} from '@components/common_post_options';
 import CopyTextOption from '@components/copy_text_option';
 import {ITEM_HEIGHT} from '@components/option_item';
 import {Screens} from '@constants';
@@ -22,8 +22,8 @@ import {isSystemMessage} from '@utils/post';
 import AppBindingsPostOptions from './options/app_bindings_post_option';
 import DeletePostOption from './options/delete_post_option';
 import EditOption from './options/edit_option';
-import MarkAsUnreadOption from './options/mark_unread_option';
 import PinChannelOption from './options/pin_channel_option';
+import RecallEditOption from './options/recall_edit_option';
 import ReactionBar from './reaction_bar';
 
 import type PostModel from '@typings/database/models/servers/post';
@@ -36,11 +36,10 @@ type PostOptionsProps = {
     canAddReaction: boolean;
     canDelete: boolean;
     canEdit: boolean;
-    canMarkAsUnread: boolean;
+    canRecallEdit: boolean;
     canPin: boolean;
     canReply: boolean;
     combinedPost?: Post | PostModel;
-    isSaved: boolean;
     sourceScreen: AvailableScreens;
     post: PostModel;
     thread?: ThreadModel;
@@ -50,9 +49,9 @@ type PostOptionsProps = {
     isBoRPost?: boolean;
 };
 const PostOptions = ({
-    canAddReaction, canDelete, canEdit,
-    canMarkAsUnread, canPin, canReply,
-    combinedPost, componentId, isSaved,
+    canAddReaction, canDelete, canEdit, canRecallEdit,
+    canPin, canReply,
+    combinedPost, componentId,
     sourceScreen, post, thread, bindings, serverUrl,
     isBoRPost,
 }: PostOptionsProps) => {
@@ -78,8 +77,8 @@ const PostOptions = ({
     const snapPoints = useMemo(() => {
         const items: Array<string | number> = [1];
         const optionsCount = [
-            canCopyPermalink, canCopyText, canDelete, canEdit,
-            canMarkAsUnread, canPin, canReply, !isSystemPost, shouldRenderFollow,
+            canCopyPermalink, canCopyText, canDelete, canEdit, canRecallEdit,
+            canPin, canReply, shouldRenderFollow,
         ].reduce((acc, v) => {
             return v ? acc + 1 : acc;
         }, 0) + (shouldShowBindings ? 0.5 : 0);
@@ -93,8 +92,8 @@ const PostOptions = ({
         return items;
     }, [
         canAddReaction, canCopyPermalink, canCopyText,
-        canDelete, canEdit, shouldRenderFollow, shouldShowBindings,
-        canMarkAsUnread, canPin, canReply, isSystemPost,
+        canDelete, canEdit, canRecallEdit, shouldRenderFollow, shouldShowBindings,
+        canPin, canReply,
     ]);
 
     const renderContent = () => {
@@ -122,24 +121,11 @@ const PostOptions = ({
                         thread={thread}
                     />
                 }
-                {canMarkAsUnread && !isSystemPost &&
-                <MarkAsUnreadOption
-                    bottomSheetId={Screens.POST_OPTIONS}
-                    post={post}
-                />
-                }
                 {canCopyPermalink &&
                 <CopyPermalinkOption
                     bottomSheetId={Screens.POST_OPTIONS}
                     post={post}
                     sourceScreen={sourceScreen}
-                />
-                }
-                {!isSystemPost &&
-                <SaveOption
-                    bottomSheetId={Screens.POST_OPTIONS}
-                    isSaved={isSaved}
-                    postId={post.id}
                 />
                 }
                 {Boolean(canCopyText && post.message) &&
@@ -160,6 +146,12 @@ const PostOptions = ({
                     bottomSheetId={Screens.POST_OPTIONS}
                     post={post}
                     canDelete={canDelete}
+                />
+                }
+                {canRecallEdit &&
+                <RecallEditOption
+                    bottomSheetId={Screens.POST_OPTIONS}
+                    post={post}
                 />
                 }
                 {canDelete &&

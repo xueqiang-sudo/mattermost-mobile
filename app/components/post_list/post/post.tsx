@@ -6,18 +6,19 @@ import {isAgentPost} from '@agents/utils';
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {type ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, Keyboard, Platform, type GestureResponderEvent, type StyleProp, View, type ViewStyle, TouchableHighlight} from 'react-native';
+import {Alert, DeviceEventEmitter, Keyboard, Platform, type GestureResponderEvent, type StyleProp, View, type ViewStyle, TouchableHighlight} from 'react-native';
 
+import {updateDraftMessage} from '@actions/local/draft';
 import {removePost} from '@actions/local/post';
 import {showPermalink} from '@actions/remote/permalink';
-import {markPostAsUnread, deletePost} from '@actions/remote/post';
-import {deleteSavedPost, savePostPreference} from '@actions/remote/preference';
+import {deletePost} from '@actions/remote/post';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import CallsCustomMessage from '@calls/components/calls_custom_message';
 import {isCallsCustomMessage} from '@calls/utils';
 import UnrevealedBurnOnReadPost from '@components/post_list/post/burn_on_read/unrevealed';
 import SystemAvatar from '@components/system_avatar';
 import SystemHeader from '@components/system_header';
+import {Events} from '@constants';
 import {POST_TIME_TO_FAIL} from '@constants/post';
 import * as Screens from '@constants/screens';
 import {useHideExtraKeyboardIfNeeded} from '@context/extra_keyboard';
@@ -48,7 +49,9 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 type PostProps = {
     appsEnabled: boolean;
     canDelete: boolean;
+    canEdit: boolean;
     currentUser?: UserModel;
+    author?: UserModel;
     customEmojiNames: string[];
     differentThreadSequence: boolean;
     hasFiles: boolean;
@@ -80,6 +83,8 @@ type PostProps = {
     testID?: string;
     thread?: ThreadModel;
 };
+
+const POST_RECALL_TIME_LIMIT_MS = 2 * 60 * 1000;
 
 const useWeChatStyle = (location: AvailableScreens) =>
     location === Screens.CHANNEL || location === Screens.PERMALINK;
@@ -201,6 +206,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 const Post = ({
     appsEnabled,
     canDelete,
+    canEdit,
+    author,
     currentUser,
     customEmojiNames,
     differentThreadSequence,
@@ -314,14 +321,15 @@ const Post = ({
         const overlayId = `post-options-popover-${post.id}-${Date.now()}`;
         const rootIdToOpen = post.rootId || post.id;
         const textMessage = post.messageSource || post.message;
+        const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
+        const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
         const x = event?.nativeEvent.pageX ?? 0;
         const y = event?.nativeEvent.pageY ?? 0;
-        const canReply = !isSystemPost && !hasBeenDeleted;
-        const canEdit = !isSystemPost && isOwnPost && !hasBeenDeleted;
-        const canMarkAsUnread = !isSystemPost && !hasBeenDeleted;
-        const canSave = !isSystemPost && !hasBeenDeleted;
+        const canQuote = !isSystemPost && !hasBeenDeleted;
+        const canEditPost = !isSystemPost && isOwnPost && !hasBeenDeleted && canEdit && within2MinFromCreateAt;
+        const canWithdrawPost = isOwnPost && !hasBeenDeleted && canDelete && within2MinFromCreateAt;
+        const canRecallEditPost = isOwnPost && isRecallInferred && within2MinFromCreateAt && Boolean(textMessage) && !isSystemPost;
         const canCopyText = Boolean(textMessage) && !borPost;
-        const canDeletePost = canDelete && !hasBeenDeleted;
 
         const closePopover = () => dismissOverlay(overlayId);
         const closeAndRun = (action: () => void | Promise<void>) => {
@@ -333,40 +341,44 @@ const Post = ({
         };
 
         const items: Array<{key: string; label: string; destructive?: boolean; onPress: () => void}> = [];
-        if (canReply) {
+        if (canQuote) {
             items.push({
-                key: 'reply',
-                label: intl.formatMessage({id: 'mobile.post_info.reply', defaultMessage: 'Reply'}),
-                onPress: closeAndRun(() => fetchAndSwitchToThread(serverUrl, rootIdToOpen)),
+                key: 'quote',
+                label: intl.formatMessage({id: 'mobile.post_info.quote', defaultMessage: '引用'}),
+                onPress: closeAndRun(async () => {
+                    await fetchAndSwitchToThread(serverUrl, rootIdToOpen);
+                    DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
+                }),
             });
         }
-        if (canEdit) {
+        if (canEditPost) {
             items.push({
                 key: 'edit',
                 label: intl.formatMessage({id: 'post_info.edit', defaultMessage: 'Edit'}),
                 onPress: closeAndRun(() => {
                     const title = intl.formatMessage({id: 'mobile.edit_post.title', defaultMessage: 'Editing Message'});
-                    showModal(Screens.EDIT_POST, title, {post, closeButtonId: 'close-edit-post', canDelete});
+                    showModal(Screens.EDIT_POST, title, {post, closeButtonId: 'close-edit-post', canDelete: canWithdrawPost});
                 }),
             });
         }
-        if (canSave) {
+        if (canRecallEditPost) {
             items.push({
-                key: isSaved ? 'unsave' : 'save',
-                label: isSaved ?
-                    intl.formatMessage({id: 'mobile.post_info.unsave', defaultMessage: 'Unsave'}) :
-                    intl.formatMessage({id: 'mobile.post_info.save', defaultMessage: 'Save'}),
-                onPress: closeAndRun(() => {
-                    const action = isSaved ? deleteSavedPost : savePostPreference;
-                    action(serverUrl, post.id);
+                key: 'reedit',
+                label: intl.formatMessage({id: 'mobile.post_info.reedit', defaultMessage: '重新编辑'}),
+                onPress: closeAndRun(async () => {
+                    const draftRootId = post.rootId || '';
+                    const message = textMessage;
+
+                    if (draftRootId) {
+                        DeviceEventEmitter.emit(Events.POST_DRAFT_SET_REPLY_ROOT, {channelId: post.channelId, rootId: draftRootId});
+                    } else {
+                        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+                    }
+
+                    await updateDraftMessage(serverUrl, post.channelId, draftRootId, message);
+
+                    DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
                 }),
-            });
-        }
-        if (canMarkAsUnread) {
-            items.push({
-                key: 'mark_unread',
-                label: intl.formatMessage({id: 'mobile.post_info.mark_unread', defaultMessage: 'Mark as Unread'}),
-                onPress: closeAndRun(() => markPostAsUnread(serverUrl, post.id)),
             });
         }
         if (canCopyText) {
@@ -376,21 +388,21 @@ const Post = ({
                 onPress: closeAndRun(() => Clipboard.setString(textMessage)),
             });
         }
-        if (canDeletePost) {
+        if (canWithdrawPost) {
             items.push({
-                key: 'delete',
-                label: intl.formatMessage({id: 'post_info.del', defaultMessage: 'Delete'}),
+                key: 'withdraw',
+                label: intl.formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: '撤回'}),
                 destructive: true,
                 onPress: () => {
                     closePopover().finally(() => {
                         Alert.alert(
-                            intl.formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
-                            intl.formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
+                            intl.formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: '撤回消息'}),
+                            intl.formatMessage({id: 'mobile.post.withdraw_question', defaultMessage: '确认撤回这条消息吗？'}),
                             [{
                                 text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                                 style: 'cancel',
                             }, {
-                                text: intl.formatMessage({id: 'post_info.del', defaultMessage: 'Delete'}),
+                                text: intl.formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: '撤回'}),
                                 style: 'destructive',
                                 onPress: () => deletePost(serverUrl, post),
                             }],
@@ -416,7 +428,7 @@ const Post = ({
             ),
         }, {overlay: {interceptTouchOutside: false}}, overlayId);
     }, [
-        borPost, canDelete, hasBeenDeleted, intl, isEphemeral, isPendingOrFailed,
+        borPost, canDelete, canEdit, hasBeenDeleted, intl, isEphemeral, isPendingOrFailed,
         isOwnPost, isSaved, isSystemPost, post, serverUrl, theme,
     ]);
 
@@ -597,6 +609,7 @@ const Post = ({
         body = (
             <Body
                 appsEnabled={appsEnabled}
+                author={author}
                 hasFiles={hasFiles}
                 hasReactions={hasReactions}
                 highlight={Boolean(highlightedStyle)}

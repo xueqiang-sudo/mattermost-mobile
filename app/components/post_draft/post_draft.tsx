@@ -15,6 +15,7 @@ import {useDefaultHeaderHeight} from '@hooks/header';
 import Archived from './archived';
 import DraftHandler from './draft_handler';
 import ReadOnly from './read_only';
+import ReplyQuotePreview from './reply_quote_preview';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -135,6 +136,13 @@ function PostDraft({
         />
     );
 
+    const quotePreview = Boolean(effectiveRootId) ? (
+        <ReplyQuotePreview
+            rootId={effectiveRootId}
+            channelId={channelId}
+        />
+    ) : null;
+
     const autoComplete = isFocused ? (
         <Autocomplete
             position={animatedAutocompletePosition}
@@ -158,6 +166,7 @@ function PostDraft({
 
     return (
         <>
+            {quotePreview}
             {draftHandler}
             {autoComplete}
             {Platform.OS !== 'android' && <ExtraKeyboard/>}

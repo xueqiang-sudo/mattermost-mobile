@@ -1,6 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
-
+import {MM_MOBILE_LOG_FETCH} from '@env';
 import {defineMessage} from 'react-intl';
 import {DeviceEventEmitter, Platform} from 'react-native';
 
@@ -22,8 +22,8 @@ import type {APIClientInterface, ClientHeaders, ClientResponse, ClientResponseMe
 
 // eslint-disable-next-line no-negated-condition
 const isEnvFlagEnabled = (value?: string, trueOtherVaue?: string) => (trueOtherVaue !== undefined ? value === trueOtherVaue : (value === 'true' || value === '1'));
-const shouldLogFetchSuccess = () => isEnvFlagEnabled(global.process?.env?.MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
-const shouldLogFetchData = () => isEnvFlagEnabled(global.process?.env?.MM_MOBILE_LOG_FETCH, '2'); // MM_MOBILE_LOG_FETCH = '2'
+const shouldLogFetchSuccess = () => isEnvFlagEnabled(MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
+const shouldLogFetchData = () => isEnvFlagEnabled(MM_MOBILE_LOG_FETCH, '2'); // MM_MOBILE_LOG_FETCH = '2'
 
 type UrlData = {
     count: number;

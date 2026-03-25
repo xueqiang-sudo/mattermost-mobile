@@ -144,3 +144,5 @@ node_modules/@mattermost/intune
 .claude/settings.local.json
 
 .cursor/plans
+
+detox_artifacts_test

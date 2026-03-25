@@ -3,13 +3,13 @@
 
 import React, {useCallback, type ReactNode} from 'react';
 import {useIntl} from 'react-intl';
-import {Platform, StyleSheet, TouchableOpacity, View} from 'react-native';
+import {DeviceEventEmitter, Platform, StyleSheet, TouchableOpacity, View} from 'react-native';
 
 import {buildAbsoluteUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
 import ExpoImage from '@components/expo_image';
 import ProfilePicture from '@components/profile_picture';
-import {View as ViewConstant} from '@constants';
+import {Events, Screens, View as ViewConstant} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -110,6 +110,32 @@ const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, 
         });
     }, [author, intl, location, post.channelId, propsIconUrl, propsUsername, theme]));
 
+    const canMentionOnAvatarLongPress = Boolean(author?.username) && (
+
+        // 仅在聊天列表（CHANNEL）里长按头像@对方
+        location === Screens.CHANNEL
+
+        // 自己头像不需要@自己
+        && author.id !== post.userId
+
+        // Webhook icon 不支持用户引用
+        && !fromWebHook
+    );
+
+    const mentionUser = usePreventDoubleTap(useCallback(() => {
+        if (!canMentionOnAvatarLongPress) {
+            return;
+        }
+
+        const rawUsername = ensureString(author?.username);
+        if (!rawUsername) {
+            return;
+        }
+
+        const mention = rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`;
+        DeviceEventEmitter.emit(Events.SEND_TO_POST_DRAFT, {location: Screens.CHANNEL, text: mention});
+    }, [author?.username, canMentionOnAvatarLongPress]));
+
     let component = (
         <ProfilePicture
             author={author}
@@ -124,7 +150,10 @@ const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, 
 
     if (!fromWebHook) {
         component = (
-            <TouchableOpacity onPress={openUserProfile}>
+            <TouchableOpacity
+                onPress={openUserProfile}
+                onLongPress={mentionUser}
+            >
                 {component}
             </TouchableOpacity>
         );

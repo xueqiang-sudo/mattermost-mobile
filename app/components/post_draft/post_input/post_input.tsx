@@ -331,6 +331,16 @@ export default function PostInput({
     }, [updateValue, channelId, rootId]);
 
     useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(Events.POST_DRAFT_FOCUS, ({location, channelId: targetChannelId}: {location: string; channelId: string}) => {
+            if (location === Screens.CHANNEL && targetChannelId === channelId) {
+                inputRef.current?.focus();
+            }
+        });
+
+        return () => listener.remove();
+    }, [channelId]);
+
+    useEffect(() => {
         if (value !== lastNativeValue.current) {
             propagateValue(value);
             lastNativeValue.current = value;

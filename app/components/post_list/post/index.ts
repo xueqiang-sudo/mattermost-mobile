@@ -98,6 +98,7 @@ const withPost = withObservables(
         const isOwner = currentUser?.id === post.userId;
         const author = post.userId ? observePostAuthor(database, post) : of$(undefined);
         const canDelete = observePermissionForPost(database, post, currentUser, isOwner ? Permissions.DELETE_POST : Permissions.DELETE_OTHERS_POSTS, false);
+        const canEdit = observePermissionForPost(database, post, currentUser, isOwner ? Permissions.EDIT_POST : Permissions.EDIT_OTHERS_POSTS, false);
         const isEphemeral = of$(isPostEphemeral(post));
 
         if (post.props?.add_channel_member && isPostEphemeral(post) && currentUser) {
@@ -144,6 +145,7 @@ const withPost = withObservables(
 
         return {
             canDelete,
+            canEdit,
             differentThreadSequence: of$(differentThreadSequence),
             hasFiles,
             hasReplies,
@@ -155,6 +157,7 @@ const withPost = withObservables(
             isPostAddChannelMember,
             isPostPriorityEnabled: observeIsPostPriorityEnabled(database),
             post: post.observe(),
+            author,
             thread: isCRTEnabled ? observeThreadById(database, post.id) : of$(undefined),
             hasReactions,
             isLastPost: of$(!nextPost),

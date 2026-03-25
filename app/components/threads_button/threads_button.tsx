@@ -37,6 +37,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 type Props = {
+
     /** Reserved for parity with drafts/playbooks entry points. */
     isOnHome?: boolean;
     shouldHighlightActive?: boolean;

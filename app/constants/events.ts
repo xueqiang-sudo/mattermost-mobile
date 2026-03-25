@@ -32,6 +32,12 @@ export default keyMirror({
     /** 在频道屏打开「回复某根帖」草稿（替代独立 Thread 屏） */
     POST_DRAFT_SET_REPLY_ROOT: null,
     POST_DRAFT_CLEAR_REPLY_ROOT: null,
+
+    /**
+     * 聚焦当前输入框（用于从菜单/弹窗回到聊天输入）
+     * 仅由 PostInput 监听并调用 inputRef.current?.focus()
+     */
+    POST_DRAFT_FOCUS: null,
     SWIPEABLE: null,
     ITEM_IN_VIEWPORT: null,
     SEND_TO_POST_DRAFT: null,

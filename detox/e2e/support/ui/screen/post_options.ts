@@ -22,6 +22,7 @@ class PostOptionsScreen {
         unpinPostOption: 'post_options.unpin_post.option',
         editPostOption: 'post_options.edit_post.option',
         deletePostOption: 'post_options.delete_post.option',
+        recallEditOption: 'post_options.recall_edit.option',
     };
 
     postOptionsScreen = element(by.id(this.testID.postOptionsScreen));
@@ -38,6 +39,7 @@ class PostOptionsScreen {
     unpinPostOption = element(by.id(this.testID.unpinPostOption));
     editPostOption = element(by.id(this.testID.editPostOption));
     deletePostOption = element(by.id(this.testID.deletePostOption));
+    recallEditOption = element(by.id(this.testID.recallEditOption));
 
     getReactionEmoji = (emojiName: string) => {
         return element(by.id(`${this.testID.reactionEmojiPrefix}${emojiName}`));

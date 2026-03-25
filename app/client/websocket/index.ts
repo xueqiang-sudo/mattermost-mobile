@@ -1,6 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
-
+import {MM_MOBILE_LOG_WS_IO} from '@env';
 import {type ClientHeaders, getOrCreateWebSocketClient, type WebSocketClientInterface, WebSocketReadyState} from '@mattermost/react-native-network-client';
 import {Platform} from 'react-native';
 
@@ -60,7 +60,7 @@ export default class WebSocketClient {
     private errorCallback?: Function;
     private closeCallback?: (connectFailCount: number) => void;
     private connectingCallback?: () => void;
-    private shouldLogWebSocketIO = () => isEnvFlagEnabled(global.process?.env?.MM_MOBILE_LOG_WS_IO);
+    private shouldLogWebSocketIO = () => isEnvFlagEnabled(MM_MOBILE_LOG_WS_IO);
 
     constructor(serverUrl: string, token: string, preauthSecret?: string) {
         this.token = token;

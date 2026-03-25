@@ -105,6 +105,7 @@ export const STARTUP_LOADING = 'StartupLoading';
 export const TABLE = 'Table';
 export const TEAM_SELECTOR_LIST = 'TeamSelectorList';
 export const TERMS_OF_SERVICE = 'TermsOfService';
+
 /** Channel list threads tab id for Events.ACTIVE_SCREEN (not a standalone RNN screen in this fork). */
 export const THREAD = 'Thread';
 export const USER_PROFILE = 'UserProfile';

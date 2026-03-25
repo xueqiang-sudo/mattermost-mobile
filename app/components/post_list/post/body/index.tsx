@@ -24,11 +24,14 @@ import Message from './message';
 import Reactions from './reactions';
 
 import type PostModel from '@typings/database/models/servers/post';
+import type UserModel from '@typings/database/models/servers/user';
 import type {SearchPattern} from '@typings/global/markdown';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 /** 三角与气泡上沿留白，避免负 margin 参与异常拉伸；略对齐头像侧 */
 const WECHAT_BUBBLE_TAIL_MARGIN_TOP = 6;
+
+const POST_RECALL_TIME_LIMIT_MS = 2 * 60 * 1000;
 
 type BodyProps = {
     appsEnabled: boolean;
@@ -42,6 +45,7 @@ type BodyProps = {
     isJumboEmoji: boolean;
     isLastReply?: boolean;
     isOwnPost?: boolean;
+    author?: UserModel;
     isPendingOrFailed: boolean;
     isPostAcknowledgementEnabled?: boolean;
     isPostAddChannelMember: boolean;
@@ -186,7 +190,7 @@ const useWeChatStyle = (location: AvailableScreens) =>
 
 const Body = ({
     appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
-    isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isOwnPost, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
+    isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isOwnPost, author, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
     location, post, searchPatterns, showAddReaction, theme,
 }: BodyProps) => {
     const style = getStyleSheet(theme);
@@ -289,13 +293,40 @@ const Body = ({
     }, [showBubble, chatBubbleSurface, isMediaOnlyWeChat, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
 
     if (hasBeenDeleted) {
-        body = (
-            <FormattedText
-                style={style.message}
-                id='post_body.deleted'
-                defaultMessage='(message deleted)'
-            />
-        );
+        const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
+        if (isRecallInferred) {
+            if (isOwnPost) {
+                body = (
+                    <FormattedText
+                        style={style.message}
+                        id='mobile.post_body.recalled_self'
+                        defaultMessage='You withdrew a message'
+                    />
+                );
+            } else {
+                const rawUsername = author?.username || '';
+                let username = '';
+                if (rawUsername) {
+                    username = rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`;
+                }
+                body = (
+                    <FormattedText
+                        style={style.message}
+                        id='mobile.post_body.recalled_other'
+                        defaultMessage='{username} withdrew a message'
+                        values={{username}}
+                    />
+                );
+            }
+        } else {
+            body = (
+                <FormattedText
+                    style={style.message}
+                    id='post_body.deleted'
+                    defaultMessage='(message deleted)'
+                />
+            );
+        }
     } else if (post.type === PLAYBOOKS_UPDATE_STATUS_POST_TYPE && post.props != null) {
         message = (
             <StatusUpdatePost

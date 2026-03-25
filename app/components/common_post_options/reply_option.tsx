@@ -3,9 +3,11 @@
 
 import React, {useCallback} from 'react';
 import {defineMessages} from 'react-intl';
+import {DeviceEventEmitter} from 'react-native';
 
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import {BaseOption} from '@components/common_post_options';
+import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {dismissBottomSheet} from '@screens/navigation';
 
@@ -18,9 +20,9 @@ type Props = {
 }
 
 const messages = defineMessages({
-    reply: {
-        id: 'mobile.post_info.reply',
-        defaultMessage: 'Reply',
+    quote: {
+        id: 'mobile.post_info.quote',
+        defaultMessage: '引用',
     },
 });
 const ReplyOption = ({post, bottomSheetId}: Props) => {
@@ -29,12 +31,13 @@ const ReplyOption = ({post, bottomSheetId}: Props) => {
     const handleReply = useCallback(async () => {
         const rootId = post.rootId || post.id;
         await dismissBottomSheet(bottomSheetId);
-        fetchAndSwitchToThread(serverUrl, rootId);
+        await fetchAndSwitchToThread(serverUrl, rootId);
+        DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
     }, [bottomSheetId, post, serverUrl]);
 
     return (
         <BaseOption
-            message={messages.reply}
+            message={messages.quote}
             iconName='reply-outline'
             onPress={handleReply}
             testID='post_options.reply_post.option'

@@ -10,7 +10,7 @@ import {AppBindingLocations} from '@constants/apps';
 import {MAX_ALLOWED_REACTIONS} from '@constants/emoji';
 import AppsManager from '@managers/apps_manager';
 import {observeChannel, observeIsReadOnlyChannel} from '@queries/servers/channel';
-import {observePost, observePostSaved} from '@queries/servers/post';
+import {observePost} from '@queries/servers/post';
 import {observeReactionsForPost} from '@queries/servers/reaction';
 import {observePermissionForChannel, observePermissionForPost} from '@queries/servers/role';
 import {observeConfigIntValue, observeConfigValue, observeLicense} from '@queries/servers/system';
@@ -19,7 +19,7 @@ import {observeCurrentUser} from '@queries/servers/user';
 import {isBoRPost, isUnrevealedBoRPost} from '@utils/bor';
 import {toMilliseconds} from '@utils/datetime';
 import {isMinimumServerVersion} from '@utils/helpers';
-import {isFromWebhook, isSystemMessage} from '@utils/post';
+import {isSystemMessage} from '@utils/post';
 import {getPostIdsForCombinedUserActivityPost} from '@utils/post_list';
 
 import PostOptions from './post_options';
@@ -39,6 +39,8 @@ type EnhancedProps = WithDatabaseArgs & {
     sourceScreen: AvailableScreens;
     serverUrl: string;
 }
+
+const POST_RECALL_TIME_LIMIT_MS = 2 * 60 * 1000;
 
 const observeCanEditPost = (database: Database, isOwner: boolean, post: PostModel, postEditTimeLimit: number, isLicensed: boolean, channel: ChannelModel, user: UserModel) => {
     if (!post || isSystemMessage(post)) {
@@ -76,6 +78,11 @@ const withPost = withObservables([], ({post, database}: {post: Post | PostModel}
 });
 
 const enhanced = withObservables([], ({combinedPost, post, showAddReaction, database, serverUrl}: EnhancedProps) => {
+    const hasBeenDeleted = (post.deleteAt !== 0);
+    const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
+    const textMessage = Boolean(post.messageSource || post.message);
+    const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
+
     const channel = observeChannel(database, post.channelId);
     const channelIsArchived = channel.pipe(switchMap((ch: ChannelModel) => of$(ch.deleteAt !== 0)));
     const currentUser = observeCurrentUser(database);
@@ -111,14 +118,12 @@ const enhanced = withObservables([], ({combinedPost, post, showAddReaction, data
     );
 
     const canReply = borPost ? of$(false) : combineLatest([channelIsArchived, channelIsReadOnly, canPostPermission]).pipe(switchMap(([isArchived, isReadOnly, canPost]) => {
-        return of$(!isArchived && !isReadOnly && !isSystemMessage(post) && canPost);
+        return of$(!isArchived && !isReadOnly && !hasBeenDeleted && !isSystemMessage(post) && canPost);
     }));
 
     const canPin = borPost ? of$(false) : combineLatest([channelIsArchived, channelIsReadOnly]).pipe(switchMap(([isArchived, isReadOnly]) => {
         return of$(!isSystemMessage(post) && !isArchived && !isReadOnly);
     }));
-
-    const isSaved = observePostSaved(database, post.id);
 
     const canEdit = borPost ? of$(false) : combineLatest([postEditTimeLimit, isLicensed, channel, currentUser, channelIsArchived, channelIsReadOnly, canEditUntil, canPostPermission]).pipe(
         switchMap(([lt, ls, c, u, isArchived, isReadOnly, until, canPost]) => {
@@ -127,17 +132,9 @@ const enhanced = withObservables([], ({combinedPost, post, showAddReaction, data
             const timeNotReached = (until === -1) || (until > Date.now());
             return canEditPostPermission.pipe(
                 // eslint-disable-next-line max-nested-callbacks
-                switchMap((canEditPost) => of$(canEditPost && !isArchived && !isReadOnly && timeNotReached && canPost)),
+                switchMap((canEditPost) => of$(canEditPost && !hasBeenDeleted && within2MinFromCreateAt && !isArchived && !isReadOnly && timeNotReached && canPost)),
             );
         }),
-    );
-
-    const canMarkAsUnread = combineLatest([currentUser, channelIsArchived]).pipe(
-        switchMap(([user, isArchived]) => of$(
-            !isArchived && (
-                (user?.id !== post.userId && !isSystemMessage(post)) || isFromWebhook(post)
-            ),
-        )),
     );
 
     const canAddReaction = unrevealedBoRPost ? of$(false) : combineLatest([hasAddReactionPermission, channelIsReadOnly, isUnderMaxAllowedReactions, channelIsArchived]).pipe(
@@ -146,23 +143,42 @@ const enhanced = withObservables([], ({combinedPost, post, showAddReaction, data
         }),
     );
 
-    const canDelete = combineLatest([canDeletePostPermission, channelIsArchived, channelIsReadOnly, canPostPermission]).pipe(switchMap(([permission, isArchived, isReadOnly, canPost]) => {
-        return of$(permission && !isArchived && !isReadOnly && canPost);
-    }));
+    const canDelete = combineLatest([canDeletePostPermission, currentUser, channelIsArchived, channelIsReadOnly, canPostPermission]).pipe(
+        switchMap(([permission, user, isArchived, isReadOnly, canPost]) => {
+            const isOwner = user?.id === post.userId;
+            return of$(permission && isOwner && !isArchived && !isReadOnly && canPost && !hasBeenDeleted && within2MinFromCreateAt);
+        }),
+    );
+
+    const canRecallEdit = combineLatest([currentUser, channelIsArchived, channelIsReadOnly]).pipe(
+        switchMap(([user, isArchived, isReadOnly]) => {
+            const isOwner = user?.id === post.userId;
+            return of$(
+                Boolean(
+                    isOwner &&
+                    !isArchived &&
+                    !isReadOnly &&
+                    within2MinFromCreateAt &&
+                    isRecallInferred &&
+                    !isSystemMessage(post) &&
+                    textMessage,
+                ),
+            );
+        }),
+    );
 
     const thread = observeIsCRTEnabled(database).pipe(
         switchMap((enabled) => (enabled ? observeThreadById(database, post.id) : of$(undefined))),
     );
 
     return {
-        canMarkAsUnread,
         canAddReaction,
         canDelete,
         canReply,
         canPin,
         combinedPost: of$(combinedPost),
-        isSaved,
         canEdit,
+        canRecallEdit,
         post,
         thread,
         bindings,
