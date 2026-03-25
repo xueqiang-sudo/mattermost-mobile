@@ -3,6 +3,10 @@
 
 /* eslint-disable max-lines */
 
+jest.mock('@actions/local/channel', () => ({
+    switchToChannel: jest.fn(() => Promise.resolve({})),
+}));
+
 import {ActionType} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
@@ -20,7 +24,6 @@ import {
     loadEarlierThreads,
     fetchAndSwitchToThread,
     syncThreadsIfNeeded,
-    __setThreadNavigationEnabledForTesting,
 } from './thread';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
@@ -208,9 +211,6 @@ describe('get threads', () => {
     });
 
     describe('fetchAndSwitchToThread', () => {
-        beforeEach(() => __setThreadNavigationEnabledForTesting(true));
-        afterEach(() => __setThreadNavigationEnabledForTesting(false));
-
         it('handle error', async () => {
             const result = await fetchAndSwitchToThread('foo', '');
             expect(result).toBeDefined();

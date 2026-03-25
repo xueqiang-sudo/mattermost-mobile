@@ -21,6 +21,7 @@ import {
 import {Navigation} from 'react-native-navigation';
 import {RTCView} from 'react-native-webrtc';
 
+import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import {muteMyself, unmuteMyself} from '@calls/actions';
 import {leaveCallConfirmation, startCallRecording, stopCallRecording} from '@calls/actions/calls';
 import {
@@ -64,7 +65,6 @@ import {
     bottomSheet,
     dismissAllModalsAndPopToScreen,
     dismissBottomSheet,
-    goToScreen,
     openAsBottomSheet,
     popTopScreen,
     setScreensOrientation,
@@ -482,7 +482,8 @@ const CallScreen = ({
 
         const activeUrl = await DatabaseManager.getActiveServerUrl();
         if (activeUrl === currentCall.serverUrl) {
-            await dismissAllModalsAndPopToScreen(Screens.THREAD, callThreadOptionTitle, {rootId: currentCall.threadId});
+            await dismissAllModalsAndPopToScreen(Screens.CHANNEL, '', undefined, {topBar: {visible: false}});
+            await fetchAndSwitchToThread(currentCall.serverUrl, currentCall.threadId, false, undefined, true);
             return;
         }
 
@@ -490,12 +491,12 @@ const CallScreen = ({
         //  https://mattermost.atlassian.net/browse/MM-45752
         await popTopScreen(componentId);
         if (fromThreadScreen) {
-            await popTopScreen(Screens.THREAD);
+            await popTopScreen(Screens.CHANNEL);
         }
         await DatabaseManager.setActiveServerDatabase(currentCall.serverUrl);
         WebsocketManager.initializeClient(currentCall.serverUrl, 'Server Switch');
-        await goToScreen(Screens.THREAD, callThreadOptionTitle, {rootId: currentCall.threadId});
-    }, [currentCall?.serverUrl, currentCall?.threadId, fromThreadScreen, componentId, callThreadOptionTitle]);
+        await fetchAndSwitchToThread(currentCall.serverUrl, currentCall.threadId, false, undefined, true);
+    }, [currentCall?.serverUrl, currentCall?.threadId, fromThreadScreen, componentId]);
 
     // The user should receive a recording alert if all of the following conditions apply:
     // - Recording has started, recording has not ended

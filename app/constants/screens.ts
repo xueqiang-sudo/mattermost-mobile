@@ -58,7 +58,6 @@ export const GALLERY = 'Gallery';
 export const GENERIC_OVERLAY = 'GenericOverlay';
 export const GLOBAL_DRAFTS = 'GlobalDrafts';
 export const GLOBAL_DRAFTS_AND_SCHEDULED_POSTS = 'GlobalDraftsAndScheduledPosts';
-export const GLOBAL_THREADS = 'GlobalThreads';
 export const HOME = 'Home';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
@@ -68,7 +67,6 @@ export const JOIN_TEAM = 'JoinTeam';
 export const LATEX = 'Latex';
 export const LOGIN = 'Login';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
-export const MENTIONS = 'Mentions';
 export const MFA = 'MFA';
 export const MY_HOMEPAGE = 'MyHomepage';
 export const ONBOARDING = 'Onboarding';
@@ -82,16 +80,13 @@ export const REACTIONS = 'Reactions';
 export const REPORT_PROBLEM = 'ReportProblem';
 export const RESCHEDULE_DRAFT = 'RescheduleDraft';
 export const REVIEW_APP = 'ReviewApp';
-export const SAVED_MESSAGES = 'SavedMessages';
 export const SCHEDULED_POST_OPTIONS = 'ScheduledPostOptions';
-export const SEARCH = 'Search';
 export const SELECT_TEAM = 'SelectTeam';
 export const SERVER = 'Server';
 export const SETTINGS = 'Settings';
 export const SETTINGS_ADVANCED = 'SettingsAdvanced';
 export const SETTINGS_DISPLAY = 'SettingsDisplay';
 export const SETTINGS_DISPLAY_CLOCK = 'SettingsDisplayClock';
-export const SETTINGS_DISPLAY_CRT = 'SettingsDisplayCRT';
 export const SETTINGS_DISPLAY_THEME = 'SettingsDisplayTheme';
 export const SETTINGS_DISPLAY_TIMEZONE = 'SettingsDisplayTimezone';
 export const SETTINGS_DISPLAY_TIMEZONE_SELECT = 'SettingsDisplayTimezoneSelect';
@@ -110,9 +105,8 @@ export const STARTUP_LOADING = 'StartupLoading';
 export const TABLE = 'Table';
 export const TEAM_SELECTOR_LIST = 'TeamSelectorList';
 export const TERMS_OF_SERVICE = 'TermsOfService';
+/** Channel list threads tab id for Events.ACTIVE_SCREEN (not a standalone RNN screen in this fork). */
 export const THREAD = 'Thread';
-export const THREAD_FOLLOW_BUTTON = 'ThreadFollowButton';
-export const THREAD_OPTIONS = 'ThreadOptions';
 export const USER_PROFILE = 'UserProfile';
 
 export default {
@@ -170,7 +164,6 @@ export default {
     GENERIC_OVERLAY,
     GLOBAL_DRAFTS,
     GLOBAL_DRAFTS_AND_SCHEDULED_POSTS,
-    GLOBAL_THREADS,
     HOME,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
@@ -180,7 +173,6 @@ export default {
     LATEX,
     LOGIN,
     MANAGE_CHANNEL_MEMBERS,
-    MENTIONS,
     MFA,
     MY_HOMEPAGE,
     ONBOARDING,
@@ -194,16 +186,13 @@ export default {
     REPORT_PROBLEM,
     RESCHEDULE_DRAFT,
     REVIEW_APP,
-    SAVED_MESSAGES,
     SCHEDULED_POST_OPTIONS,
-    SEARCH,
     SELECT_TEAM,
     SERVER,
     SETTINGS,
     SETTINGS_ADVANCED,
     SETTINGS_DISPLAY,
     SETTINGS_DISPLAY_CLOCK,
-    SETTINGS_DISPLAY_CRT,
     SETTINGS_DISPLAY_THEME,
     SETTINGS_DISPLAY_TIMEZONE,
     SETTINGS_DISPLAY_TIMEZONE_SELECT,
@@ -223,8 +212,6 @@ export default {
     TEAM_SELECTOR_LIST,
     TERMS_OF_SERVICE,
     THREAD,
-    THREAD_FOLLOW_BUTTON,
-    THREAD_OPTIONS,
     USER_PROFILE,
     ...PLAYBOOKS_SCREENS,
 } as const;
@@ -261,7 +248,6 @@ export const SCREENS_AS_BOTTOM_SHEET = new Set<string>([
     EMOJI_PICKER,
     POST_OPTIONS,
     POST_PRIORITY_PICKER,
-    THREAD_OPTIONS,
     REACTIONS,
     USER_PROFILE,
     CALL_PARTICIPANTS,
@@ -269,6 +255,6 @@ export const SCREENS_AS_BOTTOM_SHEET = new Set<string>([
     SCHEDULED_POST_OPTIONS,
 ]);
 
-export const SCREENS_WITH_EXTRA_KEYBOARD = new Set<string>([CHANNEL, THREAD]);
+export const SCREENS_WITH_EXTRA_KEYBOARD = new Set<string>([CHANNEL]);
 
 export const NOT_READY: string[] = [];

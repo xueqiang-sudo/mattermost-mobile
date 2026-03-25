@@ -1,14 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {cacheDirectory, getInfoAsync} from 'expo-file-system';
 import {useCallback, useRef, useState} from 'react';
 import {Platform} from 'react-native';
-import {useSharedValue} from 'react-native-reanimated';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import Permissions from 'react-native-permissions';
-import {cacheDirectory, getInfoAsync} from 'expo-file-system';
-import {generateId} from '@utils/general';
+import {useSharedValue} from 'react-native-reanimated';
+
 import {lookupMimeType} from '@utils/file';
+import {generateId} from '@utils/general';
 import {logError} from '@utils/log';
 
 export type VoiceRecorderState = 'idle' | 'recording';
@@ -16,6 +17,7 @@ export type VoiceRecorderState = 'idle' | 'recording';
 export type VoiceRecorderErrorCode = 'permission_denied' | 'record_failed' | 'process_failed' | 'too_short';
 
 export type UseVoiceRecorderOptions = {
+
     /**
      * After mic permission resolves, return false to abort starting the recorder.
      * Use when the user may have released the hold while the system permission dialog was shown.
@@ -40,6 +42,7 @@ export function useVoiceRecorder(
     optionsRef.current = options;
 
     const [state, setState] = useState<VoiceRecorderState>('idle');
+
     /** 语音 HUD 音量条（dB，约 -160～0）；SharedValue 在 UI 线程驱动动画，避免每帧 setState 卡顿 */
     const meteringShared = useSharedValue(-160);
     const audioRecorderPlayerRef = useRef<AudioRecorderPlayer | null>(null);

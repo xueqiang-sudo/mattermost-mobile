@@ -12,7 +12,6 @@ describe('Quick Actions', () => {
         fileCount: 0,
         isPostPriorityEnabled: true,
         canShowPostPriority: true,
-        canShowSlashCommands: true,
         maxFileCount: 10,
         value: '',
         updateValue: jest.fn(),
@@ -24,21 +23,8 @@ describe('Quick Actions', () => {
         focus: jest.fn(),
     };
 
-    it('Should render slash command if canShowSlashCommands is true', () => {
-        const props = {
-            ...baseProps,
-            canShowSlashCommands: true,
-        };
-        const {queryByTestId} = renderWithIntlAndTheme(<QuickActions {...props}/>);
-        expect(queryByTestId('slash-input-action')).toBeDefined();
-    });
-
-    it('Should not render slash command if canShowSlashCommands is false', () => {
-        const props = {
-            ...baseProps,
-            canShowSlashCommands: false,
-        };
-        const {queryByTestId} = renderWithIntlAndTheme(<QuickActions {...props}/>);
+    it('should render quick actions without slash action', () => {
+        const {queryByTestId} = renderWithIntlAndTheme(<QuickActions {...baseProps}/>);
         expect(queryByTestId('slash-input-action')).toBeNull();
     });
 });

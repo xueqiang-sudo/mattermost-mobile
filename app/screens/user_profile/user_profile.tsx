@@ -64,7 +64,7 @@ const messages = defineMessages({
         defaultMessage: 'Manage member',
     },
 });
-const channelContextScreens: AvailableScreens[] = [Screens.CHANNEL, Screens.THREAD];
+const channelContextScreens: AvailableScreens[] = [Screens.CHANNEL];
 
 const UserProfile = ({
     canChangeMemberRoles,

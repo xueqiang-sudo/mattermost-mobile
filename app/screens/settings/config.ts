@@ -86,10 +86,6 @@ const messages = defineMessages({
         defaultMessage: 'Clock Display',
         id: 'mobile.display_settings.clockDisplay',
     },
-    crt: {
-        defaultMessage: 'Collapsed Reply Threads',
-        id: 'mobile.display_settings.crt',
-    },
     theme: {
         defaultMessage: 'Theme',
         id: 'mobile.display_settings.theme',
@@ -189,12 +185,6 @@ export const DisplayOptionConfig: Record<string, SettingConfigDetails> = {
         i18nId: messages.clock_display.id,
         icon: 'clock-outline',
         testID: messages.clock_display.id,
-    },
-    crt: {
-        defaultMessage: messages.crt.defaultMessage,
-        i18nId: messages.crt.id,
-        icon: 'message-text-outline',
-        testID: messages.crt.id,
     },
     theme: {
         defaultMessage: messages.theme.defaultMessage,

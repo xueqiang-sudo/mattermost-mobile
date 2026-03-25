@@ -84,6 +84,7 @@ const Channel = ({
     const switchingChannels = useChannelSwitch();
     const defaultHeight = useDefaultHeaderHeight();
     const [containerHeight, setContainerHeight] = useState(0);
+
     /** 与 channelId 同步即可；勿用「首帧 false + rAF 再 true」否则刚进频道会长时间只有顶栏、无消息区与输入栏 */
     const shouldRender = !switchingTeam && !switchingChannels && Boolean(channelId);
     const handleBack = useCallback(() => {

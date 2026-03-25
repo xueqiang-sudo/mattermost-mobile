@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {InteractionManager, Text, View} from 'react-native';
 import {useIntl} from 'react-intl';
+import {InteractionManager, Text, View} from 'react-native';
 import Tooltip from 'react-native-walkthrough-tooltip';
 import tinyColor from 'tinycolor2';
 
@@ -54,6 +54,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             width: 250,
             height: 140,
         },
+
         /** 与 draft_input weChatInputShell minHeight 一致，避免「输入框 / 按住说话」与发送键高度不齐 */
         sendButtonWeChat: {
             height: 40,

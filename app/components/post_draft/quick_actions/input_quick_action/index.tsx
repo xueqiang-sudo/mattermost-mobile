@@ -12,7 +12,6 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 type Props = {
     testID?: string;
     disabled?: boolean;
-    inputType: 'at' | 'slash';
     updateValue: React.Dispatch<React.SetStateAction<string>>;
     focus: () => void;
 }
@@ -33,30 +32,25 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
 export default function InputQuickAction({
     testID,
     disabled,
-    inputType,
     updateValue,
     focus,
 }: Props) {
     const theme = useTheme();
     const onPress = useCallback(() => {
         updateValue((v) => {
-            if (inputType === 'at') {
-                // If there's existing text and it doesn't end with a space, add a space before @
-                if (v.length > 0 && !v.endsWith(' ')) {
-                    return `${v} @`;
-                }
-                return `${v}@`;
+            // If there's existing text and it doesn't end with a space, add a space before @
+            if (v.length > 0 && !v.endsWith(' ')) {
+                return `${v} @`;
             }
-            return '/';
+            return `${v}@`;
         });
         focus();
-    }, [inputType, updateValue, focus]);
+    }, [updateValue, focus]);
 
     const actionTestID = disabled ?
         `${testID}.disabled` :
         testID;
     const style = getStyleSheet(theme);
-    const iconName = inputType === 'at' ? inputType : 'slash-forward-box-outline';
     const iconColor = disabled ?
         changeOpacity(theme.centerChannelColor, 0.16) :
         changeOpacity(theme.centerChannelColor, 0.64);
@@ -70,7 +64,7 @@ export default function InputQuickAction({
             type={'opacity'}
         >
             <CompassIcon
-                name={iconName}
+                name='at'
                 color={iconColor}
                 size={ICON_SIZE}
             />

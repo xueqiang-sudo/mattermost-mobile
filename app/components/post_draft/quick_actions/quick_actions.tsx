@@ -16,7 +16,6 @@ type Props = {
     fileCount: number;
     isPostPriorityEnabled: boolean;
     canShowPostPriority?: boolean;
-    canShowSlashCommands?: boolean;
     maxFileCount: number;
 
     // Draft Handler
@@ -44,7 +43,6 @@ export default function QuickActions({
     value,
     fileCount,
     isPostPriorityEnabled,
-    canShowSlashCommands = true,
     canShowPostPriority,
     maxFileCount,
     updateValue,
@@ -54,10 +52,8 @@ export default function QuickActions({
     focus,
 }: Props) {
     const atDisabled = value[value.length - 1] === '@';
-    const slashDisabled = value.length > 0;
 
     const atInputActionTestID = `${testID}.at_input_action`;
-    const slashInputActionTestID = `${testID}.slash_input_action`;
     const fileActionTestID = `${testID}.file_action`;
     const imageActionTestID = `${testID}.image_action`;
     const cameraActionTestID = `${testID}.camera_action`;
@@ -79,19 +75,9 @@ export default function QuickActions({
             <InputAction
                 testID={atInputActionTestID}
                 disabled={atDisabled}
-                inputType='at'
                 updateValue={updateValue}
                 focus={focus}
             />
-            {canShowSlashCommands && (
-                <InputAction
-                    testID={slashInputActionTestID}
-                    disabled={slashDisabled}
-                    inputType='slash'
-                    updateValue={updateValue}
-                    focus={focus}
-                />
-            )}
             <FileAction
                 testID={fileActionTestID}
                 {...uploadProps}

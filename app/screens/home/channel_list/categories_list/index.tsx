@@ -4,7 +4,6 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 
 import {observeIsPlaybooksEnabled} from '@playbooks/database/queries/version';
-import {observeIsCRTEnabled} from '@queries/servers/thread';
 
 import CategoriesList from './categories_list';
 
@@ -12,10 +11,8 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 
 const enchanced = withObservables([], ({database}: WithDatabaseArgs) => {
     const playbooksEnabled = observeIsPlaybooksEnabled(database);
-    const isCRTEnabled = observeIsCRTEnabled(database);
 
     return {
-        isCRTEnabled,
         playbooksEnabled,
     };
 });

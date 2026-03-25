@@ -14,6 +14,7 @@ type JumboEmojiProps = {
     baseTextStyle: StyleProp<TextStyle>;
     isEdited?: boolean;
     value: string;
+
     /** 微信风格会话里缩小巨型表情，避免占满半屏 */
     compactWeChat?: boolean;
 }

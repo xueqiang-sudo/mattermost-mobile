@@ -1,8 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {IntlShape} from 'react-intl';
 import moment from 'moment-timezone';
+
+import type {IntlShape} from 'react-intl';
 
 /**
  * 微信风格：今天仅时间；昨天「昨天」+时间；今年内「M月D日」+时间；跨年带年份。

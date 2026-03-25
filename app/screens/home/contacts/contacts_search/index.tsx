@@ -118,6 +118,7 @@ type Props = {
     departmentId?: number;
     departmentName?: string;
     currentUserId?: string;
+
     /** 通讯录栈内 push 时使用，替代左上角系统返回 */
     onBack?: () => void;
 };
@@ -337,7 +338,7 @@ const ContactsSearchScreen = ({
                 ListHeaderComponent={
                     loading ? (
                         <View style={{paddingVertical: 12, alignItems: 'center'}}>
-                            <ActivityIndicator color={theme.buttonBg} />
+                            <ActivityIndicator color={theme.buttonBg}/>
                         </View>
                     ) : null
                 }

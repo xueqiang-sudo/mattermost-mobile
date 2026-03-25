@@ -2,18 +2,18 @@
 // See LICENSE.txt for license information.
 
 import {Database, Q, Query} from '@nozbe/watermelondb';
-import {combineLatest, of as of$, Observable} from 'rxjs';
-import {map, switchMap, distinctUntilChanged} from 'rxjs/operators';
+import {of as of$, Observable} from 'rxjs';
+import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
 import {Config} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {PostTypes} from '@constants/post';
-import {processIsCRTAllowed, processIsCRTEnabled} from '@utils/thread';
+import {processIsCRTAllowed} from '@utils/thread';
 
 import {observeChannel} from './channel';
 import {observePost} from './post';
 import {queryDisplayNamePreferences} from './preference';
-import {getConfig, observeConfigValue} from './system';
+import {observeConfigValue} from './system';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
 import type Model from '@nozbe/watermelondb/Model';
@@ -23,10 +23,8 @@ import type UserModel from '@typings/database/models/servers/user';
 
 const {SERVER: {CHANNEL, POST, THREAD, THREADS_IN_TEAM, THREAD_PARTICIPANT, TEAM_THREADS_SYNC, USER}} = MM_TABLES;
 
-export const getIsCRTEnabled = async (database: Database): Promise<boolean> => {
-    const config = await getConfig(database);
-    const preferences = await queryDisplayNamePreferences(database).fetch();
-    return processIsCRTEnabled(preferences, config?.CollapsedThreads, config?.FeatureFlagCollapsedThreads, config?.Version);
+export const getIsCRTEnabled = async (_database: Database): Promise<boolean> => {
+    return false;
 };
 
 export const getThreadById = async (database: Database, threadId: string) => {
@@ -49,17 +47,8 @@ export const observeCRTUserPreferenceDisplay = (database: Database) => {
     );
 };
 
-export const observeIsCRTEnabled = (database: Database) => {
-    const cfgValue = observeConfigValue(database, 'CollapsedThreads');
-    const featureFlag = observeConfigValue(database, 'FeatureFlagCollapsedThreads');
-    const version = observeConfigValue(database, 'Version');
-    const preferences = queryDisplayNamePreferences(database).observeWithColumns(['value']);
-    return combineLatest([cfgValue, featureFlag, preferences, version]).pipe(
-        map(
-            ([cfgV, ff, prefs, ver]) => processIsCRTEnabled(prefs, cfgV, ff, ver),
-        ),
-        distinctUntilChanged(),
-    );
+export const observeIsCRTEnabled = (_database: Database) => {
+    return of$(false);
 };
 
 export const observeThreadById = (database: Database, threadId: string) => {

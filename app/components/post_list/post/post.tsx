@@ -3,12 +3,15 @@
 
 import AgentPost from '@agents/components/agent_post';
 import {isAgentPost} from '@agents/utils';
+import Clipboard from '@react-native-clipboard/clipboard';
 import React, {type ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, Platform, type StyleProp, View, type ViewStyle, TouchableHighlight} from 'react-native';
+import {Alert, Keyboard, Platform, type GestureResponderEvent, type StyleProp, View, type ViewStyle, TouchableHighlight} from 'react-native';
 
 import {removePost} from '@actions/local/post';
 import {showPermalink} from '@actions/remote/permalink';
+import {markPostAsUnread, deletePost} from '@actions/remote/post';
+import {deleteSavedPost, savePostPreference} from '@actions/remote/preference';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import CallsCustomMessage from '@calls/components/calls_custom_message';
 import {isCallsCustomMessage} from '@calls/utils';
@@ -20,9 +23,8 @@ import * as Screens from '@constants/screens';
 import {useHideExtraKeyboardIfNeeded} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {useIsTablet} from '@hooks/device';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
-import {openAsBottomSheet} from '@screens/navigation';
+import {dismissOverlay, showModal, showOverlay} from '@screens/navigation';
 import {isBoRPost, isUnrevealedBoRPost} from '@utils/bor';
 import {hasJumboEmojiOnly} from '@utils/emoji/helpers';
 import {fromAutoResponder, isFromWebhook, isPostFailed, isPostPendingOrFailed, isSystemMessage} from '@utils/post';
@@ -32,6 +34,7 @@ import Avatar from './avatar';
 import Body from './body';
 import Footer from './footer';
 import Header from './header';
+import PostOptionsPopover from './post_options_popover';
 import PreHeader from './pre_header';
 import SystemMessage from './system_message';
 import UnreadDot from './unread_dot';
@@ -79,7 +82,7 @@ type PostProps = {
 };
 
 const useWeChatStyle = (location: AvailableScreens) =>
-    location === Screens.CHANNEL || location === Screens.PERMALINK || location === Screens.THREAD;
+    location === Screens.CHANNEL || location === Screens.PERMALINK;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
@@ -114,6 +117,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         pendingPost: {opacity: 0.5},
         postContent: {paddingHorizontal: 16},
+
         /** 微信风格：触摸区域仅限气泡+头像，空白处不触发 */
         postContentOwnWeChat: {alignSelf: 'flex-end'},
         postContentOthersWeChat: {alignSelf: 'flex-start'},
@@ -146,6 +150,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginRight: 10,
             marginTop: 6,
         },
+
         /** 微信风格：相对昵称/时间行略下移 2px，与文字顶边视觉齐平 */
         profilePictureContainerWeChat: {
             marginTop: 4,
@@ -157,6 +162,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginRight: 0,
             marginTop: 6,
         },
+
         /** 微信风格：自己头像与对方一致，略下移与仅时间行齐平 */
         profilePictureContainerOwnWeChat: {
             marginTop: 4,
@@ -173,6 +179,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             maxWidth: '90%',
             flexDirection: 'column',
         },
+
         /** 微信他人消息：右栏随内容收缩，避免整行空白可点 */
         rightColumnOthersWeChat: {
             flexGrow: 0,
@@ -230,7 +237,6 @@ const Post = ({
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const theme = useTheme();
-    const isTablet = useIsTablet();
     const styles = getStyleSheet(theme);
     const isAutoResponder = fromAutoResponder(post);
     const isPendingOrFailed = isPostPendingOrFailed(post);
@@ -262,7 +268,7 @@ const Post = ({
     }, [customEmojiNames, post.message]);
 
     const handlePostPress = useCallback(() => {
-        if ([Screens.SAVED_MESSAGES, Screens.MENTIONS, Screens.SEARCH, Screens.PINNED_MESSAGES].includes(location)) {
+        if (location === Screens.PINNED_MESSAGES) {
             showPermalink(serverUrl, '', post.id);
             return;
         }
@@ -291,7 +297,7 @@ const Post = ({
         }
     }, [handlePostPress, post]);
 
-    const showPostOptions = useHideExtraKeyboardIfNeeded(() => {
+    const showPostOptions = useHideExtraKeyboardIfNeeded((event?: GestureResponderEvent) => {
         if (!post) {
             return;
         }
@@ -305,20 +311,113 @@ const Post = ({
         }
 
         Keyboard.dismiss();
-        const passProps = {sourceScreen: location, post, showAddReaction, serverUrl};
-        const title = isTablet ? intl.formatMessage({id: 'post.options.title', defaultMessage: 'Options'}) : '';
+        const overlayId = `post-options-popover-${post.id}-${Date.now()}`;
+        const rootIdToOpen = post.rootId || post.id;
+        const textMessage = post.messageSource || post.message;
+        const x = event?.nativeEvent.pageX ?? 0;
+        const y = event?.nativeEvent.pageY ?? 0;
+        const canReply = !isSystemPost && !hasBeenDeleted;
+        const canEdit = !isSystemPost && isOwnPost && !hasBeenDeleted;
+        const canMarkAsUnread = !isSystemPost && !hasBeenDeleted;
+        const canSave = !isSystemPost && !hasBeenDeleted;
+        const canCopyText = Boolean(textMessage) && !borPost;
+        const canDeletePost = canDelete && !hasBeenDeleted;
 
-        openAsBottomSheet({
-            closeButtonId: 'close-post-options',
-            screen: Screens.POST_OPTIONS,
-            theme,
-            title,
-            props: passProps,
-        });
+        const closePopover = () => dismissOverlay(overlayId);
+        const closeAndRun = (action: () => void | Promise<void>) => {
+            return () => {
+                closePopover().finally(() => {
+                    void action();
+                });
+            };
+        };
+
+        const items: Array<{key: string; label: string; destructive?: boolean; onPress: () => void}> = [];
+        if (canReply) {
+            items.push({
+                key: 'reply',
+                label: intl.formatMessage({id: 'mobile.post_info.reply', defaultMessage: 'Reply'}),
+                onPress: closeAndRun(() => fetchAndSwitchToThread(serverUrl, rootIdToOpen)),
+            });
+        }
+        if (canEdit) {
+            items.push({
+                key: 'edit',
+                label: intl.formatMessage({id: 'post_info.edit', defaultMessage: 'Edit'}),
+                onPress: closeAndRun(() => {
+                    const title = intl.formatMessage({id: 'mobile.edit_post.title', defaultMessage: 'Editing Message'});
+                    showModal(Screens.EDIT_POST, title, {post, closeButtonId: 'close-edit-post', canDelete});
+                }),
+            });
+        }
+        if (canSave) {
+            items.push({
+                key: isSaved ? 'unsave' : 'save',
+                label: isSaved ?
+                    intl.formatMessage({id: 'mobile.post_info.unsave', defaultMessage: 'Unsave'}) :
+                    intl.formatMessage({id: 'mobile.post_info.save', defaultMessage: 'Save'}),
+                onPress: closeAndRun(() => {
+                    const action = isSaved ? deleteSavedPost : savePostPreference;
+                    action(serverUrl, post.id);
+                }),
+            });
+        }
+        if (canMarkAsUnread) {
+            items.push({
+                key: 'mark_unread',
+                label: intl.formatMessage({id: 'mobile.post_info.mark_unread', defaultMessage: 'Mark as Unread'}),
+                onPress: closeAndRun(() => markPostAsUnread(serverUrl, post.id)),
+            });
+        }
+        if (canCopyText) {
+            items.push({
+                key: 'copy_text',
+                label: intl.formatMessage({id: 'mobile.post_info.copy_text', defaultMessage: 'Copy Text'}),
+                onPress: closeAndRun(() => Clipboard.setString(textMessage)),
+            });
+        }
+        if (canDeletePost) {
+            items.push({
+                key: 'delete',
+                label: intl.formatMessage({id: 'post_info.del', defaultMessage: 'Delete'}),
+                destructive: true,
+                onPress: () => {
+                    closePopover().finally(() => {
+                        Alert.alert(
+                            intl.formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
+                            intl.formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
+                            [{
+                                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                                style: 'cancel',
+                            }, {
+                                text: intl.formatMessage({id: 'post_info.del', defaultMessage: 'Delete'}),
+                                style: 'destructive',
+                                onPress: () => deletePost(serverUrl, post),
+                            }],
+                        );
+                    });
+                },
+            });
+        }
+
+        if (!items.length) {
+            return;
+        }
+
+        showOverlay(Screens.GENERIC_OVERLAY, {
+            children: (
+                <PostOptionsPopover
+                    x={x}
+                    y={y}
+                    theme={theme}
+                    onClose={closePopover}
+                    items={items}
+                />
+            ),
+        }, {overlay: {interceptTouchOutside: false}}, overlayId);
     }, [
-        canDelete, hasBeenDeleted, intl,
-        isEphemeral, isPendingOrFailed, isTablet, isSystemPost,
-        location, post, serverUrl, showAddReaction, theme,
+        borPost, canDelete, hasBeenDeleted, intl, isEphemeral, isPendingOrFailed,
+        isOwnPost, isSaved, isSystemPost, post, serverUrl, theme,
     ]);
 
     const [, rerender] = useState(false);
@@ -385,7 +484,7 @@ const Post = ({
     // If the post is a priority post:
     // 1. Show the priority label in channel screen
     // 2. Show the priority label in thread screen for the root post
-    const showPostPriority = Boolean(isPostPriorityEnabled && post.metadata?.priority?.priority) && (location !== Screens.THREAD || !post.rootId);
+    const showPostPriority = Boolean(isPostPriorityEnabled && post.metadata?.priority?.priority);
 
     const sameSequence = hasReplies ? (hasReplies && post.rootId) : !post.rootId;
     if (!showPostPriority && hasSameRoot && effectiveConsecutivePost && sameSequence && !showOwnLayout) {
@@ -436,7 +535,7 @@ const Post = ({
                     post={post}
                     showPostPriority={showPostPriority}
                     shouldRenderReplyButton={shouldRenderReplyButton}
-                    timeOnly
+                    timeOnly={true}
                 />
             );
         } else {
@@ -522,7 +621,7 @@ const Post = ({
 
     let unreadDot;
     let footer;
-    if (isCRTEnabled && thread && location !== Screens.THREAD && !(rootId && location === Screens.PERMALINK)) {
+    if (isCRTEnabled && thread && !(rootId && location === Screens.PERMALINK)) {
         if (thread.replyCount > 0 || thread.isFollowing) {
             footer = (
                 <Footer
@@ -582,32 +681,32 @@ const Post = ({
                         weChatStyle && !showSystemCentered && styles.containerWeChatAlign,
                     ]}
                 >
-                        {showOwnLayout ? (
-                            <>
-                                <View style={rightColumnStyle}>
-                                    {header}
-                                    {body}
-                                    {footer}
-                                </View>
-                                {postAvatar}
-                                {unreadDot}
-                            </>
-                        ) : showSystemCentered ? (
+                    {showOwnLayout ? (
+                        <>
                             <View style={rightColumnStyle}>
+                                {header}
                                 {body}
+                                {footer}
                             </View>
-                        ) : (
-                            <>
-                                {postAvatar}
-                                <View style={rightColumnStyle}>
-                                    {header}
-                                    {body}
-                                    {footer}
-                                </View>
-                                {unreadDot}
-                            </>
-                        )}
-                    </View>
+                            {postAvatar}
+                            {unreadDot}
+                        </>
+                    ) : showSystemCentered ? (
+                        <View style={rightColumnStyle}>
+                            {body}
+                        </View>
+                    ) : (
+                        <>
+                            {postAvatar}
+                            <View style={rightColumnStyle}>
+                                {header}
+                                {body}
+                                {footer}
+                            </View>
+                            {unreadDot}
+                        </>
+                    )}
+                </View>
             </TouchableHighlight>
         </View>
     );

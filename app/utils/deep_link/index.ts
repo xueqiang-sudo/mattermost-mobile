@@ -42,7 +42,7 @@ import {
 import type {DeepLinkChannel, DeepLinkDM, DeepLinkGM, DeepLinkPermalink, DeepLinkPlaybookRuns, DeepLinkWithData, LaunchProps} from '@typings/launch';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const deepLinkScreens: AvailableScreens[] = [Screens.HOME, Screens.CHANNEL, Screens.GLOBAL_THREADS, Screens.THREAD];
+const deepLinkScreens: AvailableScreens[] = [Screens.HOME, Screens.CHANNEL];
 
 export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: IntlShape, location?: string) {
     try {

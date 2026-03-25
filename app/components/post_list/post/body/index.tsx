@@ -90,6 +90,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignSelf: 'flex-end',
             alignItems: 'flex-start',
         },
+
         // 纯媒体（自己发送）不画尾巴时，补一个与头像的安全间距，避免内容跑到头像下方。
         bubbleWithTailWrapperOwnMediaOnly: {
             marginRight: 52,
@@ -141,6 +142,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignSelf: 'stretch',
             paddingBottom: 4,
         },
+
         // 纯媒体消息（仅图片/视频）不需要气泡内边距，避免出现微信里没有的大面积填充色。
         messageBodyMediaOnlyWeChat: {
             paddingVertical: 0,
@@ -180,7 +182,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 });
 
 const useWeChatStyle = (location: AvailableScreens) =>
-    location === Screens.CHANNEL || location === Screens.PERMALINK || location === Screens.THREAD;
+    location === Screens.CHANNEL || location === Screens.PERMALINK;
 
 const Body = ({
     appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
@@ -224,10 +226,8 @@ const Body = ({
     }, [highlightReplyBar, isCRTEnabled, isFirstReply, isLastReply, isReplyPost, location, style]);
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
-        if (location === Screens.SAVED_MESSAGES) {
-            setLayoutWidth(e.nativeEvent.layout.width);
-        }
-    }, [location]);
+        setLayoutWidth(e.nativeEvent.layout.width);
+    }, []);
 
     const weChatStyleActive = useWeChatStyle(location);
     const weChatBubbleMaxWidth = useMemo(() => Dimensions.get('window').width * 0.86, []);
@@ -239,6 +239,7 @@ const Body = ({
             return null;
         }
         const isLightTheme = tinyColor(theme.centerChannelBg).isLight();
+
         // 主题自适应：弱化高饱和块状色，让气泡与主界面更融合（深色主题尤为明显）。
         const ownBg = isLightTheme ?
             blendColors(theme.centerChannelBg, theme.buttonBg, 0.38, true) :

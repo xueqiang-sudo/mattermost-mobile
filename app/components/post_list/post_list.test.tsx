@@ -21,7 +21,6 @@ jest.mock('@components/post_list/scroll_to_end_view', () => 'ScrollToEndView');
 jest.mock('@actions/remote/post', () => {
     return {
         fetchPosts: jest.fn(),
-        fetchPostThread: jest.fn(),
     };
 });
 jest.mock('@actions/local/post', () => ({
@@ -35,7 +34,6 @@ describe('components/post_list/PostList', () => {
     let database: Database;
     const serverUrl = 'https://server.com';
     const fetchPostsSpy = jest.spyOn(postFunctions, 'fetchPosts');
-    const fetchPostThreadSpy = jest.spyOn(postFunctions, 'fetchPostThread');
     const removePostSpy = jest.spyOn(localPostFunctions, 'removePost');
     const unrelatedNativeEventsAttributes = {
         contentSize: {height: 1000, width: 100},
@@ -142,10 +140,10 @@ describe('components/post_list/PostList', () => {
         expect(fetchPostsSpy).toHaveBeenCalledWith('https://server.com', 'channel-id');
     });
 
-    it('handles refresh in thread', async () => {
+    it('handles refresh in channel when viewing inline thread', async () => {
         const props = {
             ...baseProps,
-            location: Screens.THREAD,
+            location: Screens.CHANNEL,
             rootId: 'root-post-id',
         };
 
@@ -160,7 +158,7 @@ describe('components/post_list/PostList', () => {
             flatList.props.onRefresh();
         });
 
-        expect(fetchPostThreadSpy).toHaveBeenCalledWith(serverUrl, 'root-post-id', expect.any(Object));
+        expect(fetchPostsSpy).toHaveBeenCalledWith(serverUrl, 'channel-id');
     });
 
     it('removes ephemeral posts on refresh', async () => {
@@ -211,10 +209,10 @@ describe('components/post_list/PostList', () => {
         expect(post.props.highlight).toBe(true);
     });
 
-    it('renders thread overview in thread screen', () => {
+    it('renders thread overview when channel shows inline thread', () => {
         const props = {
             ...baseProps,
-            location: Screens.THREAD,
+            location: Screens.CHANNEL,
             rootId: 'root-post-id',
         };
         const {getByTestId} = renderWithEverything(

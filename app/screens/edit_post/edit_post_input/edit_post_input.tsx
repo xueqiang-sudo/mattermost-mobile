@@ -143,7 +143,6 @@ const EditPostInput = ({
                         updatePostPriority={emptyFunction}
                         canShowPostPriority={false}
                         postPriority={INITIAL_PRIORITY}
-                        canShowSlashCommands={false}
                         focus={focus}
                     />
                 </>

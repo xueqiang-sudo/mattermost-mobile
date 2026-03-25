@@ -126,7 +126,6 @@ const PostOptions = ({
                 <MarkAsUnreadOption
                     bottomSheetId={Screens.POST_OPTIONS}
                     post={post}
-                    sourceScreen={sourceScreen}
                 />
                 }
                 {canCopyPermalink &&

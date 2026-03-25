@@ -7,17 +7,17 @@ import {Alert, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
-import TouchableWithFeedback from '@components/touchable_with_feedback';
-import {ICON_SIZE} from '@constants/post_draft';
-import {Screens} from '@constants';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
-import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
+import TouchableWithFeedback from '@components/touchable_with_feedback';
+import {Screens} from '@constants';
+import {ICON_SIZE} from '@constants/post_draft';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
+import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import {bottomSheet, openAsBottomSheet} from '@screens/navigation';
-import {bottomSheetSnapPoint} from '@utils/helpers';
 import {fileMaxWarning} from '@utils/file';
 import PickerUtil from '@utils/file/file_picker';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import CameraType from './camera_quick_action/camera_type';
@@ -99,7 +99,6 @@ type Props = {
     fileCount: number;
     isPostPriorityEnabled: boolean;
     canShowPostPriority?: boolean;
-    canShowSlashCommands?: boolean;
     maxFileCount: number;
     value: string;
     updateValue: (value: string) => void;
@@ -118,7 +117,6 @@ export default function QuickActionsSheet({
     fileCount,
     isPostPriorityEnabled,
     canShowPostPriority = true,
-    canShowSlashCommands = true,
     maxFileCount,
     value,
     updateValue,
@@ -132,7 +130,6 @@ export default function QuickActionsSheet({
     const theme = useTheme();
     const isTablet = useIsTablet();
     const atDisabled = value[value.length - 1] === '@';
-    const slashDisabled = value.length > 0;
     const maxFilesReached = fileCount >= maxFileCount;
 
     const wrapWithDismiss = useCallback((fn: () => void) => {
@@ -149,11 +146,6 @@ export default function QuickActionsSheet({
 
     const handleAtPress = useCallback(() => {
         updateValue((v) => (v.length > 0 && !v.endsWith(' ') ? `${v} @` : `${v}@`));
-        focus();
-    }, [updateValue, focus]);
-
-    const handleSlashPress = useCallback(() => {
-        updateValue((v) => `${v}/`);
         focus();
     }, [updateValue, focus]);
 
@@ -213,33 +205,6 @@ export default function QuickActionsSheet({
 
     const items: Array<{key: string; icon: string; labelId: string; labelDefault: string; disabled: boolean; onPress: () => void; testID: string}> = [
         {
-            key: 'at',
-            icon: 'at',
-            labelId: 'post_draft.quick_action.at_mention',
-            labelDefault: '@ Mention',
-            disabled: atDisabled,
-            onPress: wrapWithDismiss(handleAtPress),
-            testID: `${baseTestID}.at_action`,
-        },
-        ...(canShowSlashCommands ? [{
-            key: 'slash',
-            icon: 'slash-forward-box-outline',
-            labelId: 'post_draft.quick_action.slash_command',
-            labelDefault: '/ Command',
-            disabled: slashDisabled,
-            onPress: wrapWithDismiss(handleSlashPress),
-            testID: `${baseTestID}.slash_action`,
-        }] : []),
-        {
-            key: 'file',
-            icon: 'paperclip',
-            labelId: 'post_draft.quick_action.file',
-            labelDefault: 'File',
-            disabled: fileDisabled,
-            onPress: wrapWithDismiss(handleFilePress),
-            testID: `${baseTestID}.file_action`,
-        },
-        {
             key: 'gallery',
             icon: 'image-outline',
             labelId: 'post_draft.quick_action.gallery',
@@ -257,13 +222,22 @@ export default function QuickActionsSheet({
             onPress: wrapWithDismiss(() => {
                 bottomSheet({
                     title: intl.formatMessage({id: 'mobile.camera_type.title', defaultMessage: 'Camera options'}),
-                    renderContent: () => <CameraType onPress={handleCameraPress} />,
+                    renderContent: () => <CameraType onPress={handleCameraPress}/>,
                     snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT) + TITLE_HEIGHT],
                     theme,
                     closeButtonId: 'camera-close-sheet',
                 });
             }),
             testID: `${baseTestID}.camera_action`,
+        },
+        {
+            key: 'file',
+            icon: 'paperclip',
+            labelId: 'post_draft.quick_action.file',
+            labelDefault: 'File',
+            disabled: fileDisabled,
+            onPress: wrapWithDismiss(handleFilePress),
+            testID: `${baseTestID}.file_action`,
         },
         ...(isPostPriorityEnabled && canShowPostPriority ? [{
             key: 'priority',
@@ -274,10 +248,22 @@ export default function QuickActionsSheet({
             onPress: wrapWithDismiss(handlePriorityPress),
             testID: `${baseTestID}.post_priority_action`,
         }] : []),
+        {
+            key: 'at',
+            icon: 'at',
+            labelId: 'post_draft.quick_action.at_mention',
+            labelDefault: '@ Mention',
+            disabled: atDisabled,
+            onPress: wrapWithDismiss(handleAtPress),
+            testID: `${baseTestID}.at_action`,
+        },
     ];
 
     return (
-        <View style={getStyleSheet(theme).grid} testID={baseTestID}>
+        <View
+            style={getStyleSheet(theme).grid}
+            testID={baseTestID}
+        >
             {items.map((item) => (
                 <SheetItem
                     key={item.key}

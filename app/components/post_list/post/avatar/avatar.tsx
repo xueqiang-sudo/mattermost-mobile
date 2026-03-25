@@ -38,6 +38,7 @@ const style = StyleSheet.create({
 });
 
 const CHAT_AVATAR_BORDER_RADIUS = 6;
+
 /** 微信风格：状态指示器也用方角 */
 const CHAT_STATUS_BORDER_RADIUS = 4;
 

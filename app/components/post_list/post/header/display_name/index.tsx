@@ -60,6 +60,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexShrink: 1,
             minWidth: 0,
         },
+
         /** 微信：Body/200 默认 lineHeight 24，行上方留白多；收紧行高以贴近头像顶边（略大于 16px 字号以免裁切） */
         displayNameWeChat: {
             lineHeight: 18,

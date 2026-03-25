@@ -6,13 +6,11 @@ import {useIntl} from 'react-intl';
 import {Alert, FlatList, type ListRenderItemInfo, Platform, StyleSheet, View} from 'react-native';
 import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 
-import {switchToGlobalThreads} from '@actions/local/thread';
 import {joinChannelIfNeeded, makeDirectChannel, searchAllChannels, switchToChannelById} from '@actions/remote/channel';
 import {searchProfiles} from '@actions/remote/user';
 import ChannelItem from '@components/channel_item';
 import Loading from '@components/loading';
 import NoResultsWithTerm from '@components/no_results_with_term';
-import ThreadsButton from '@components/threads_button';
 import UserItem from '@components/user_item';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -25,7 +23,7 @@ import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type UserModel from '@typings/database/models/servers/user';
 
-type ResultItem = ChannelModel|Channel|UserModel|'thread';
+type ResultItem = ChannelModel|Channel|UserModel;
 
 type RemoteChannels = {
     archived: Channel[];
@@ -45,7 +43,6 @@ type Props = {
     channelsMatch: ChannelModel[];
     channelsMatchStart: ChannelModel[];
     currentTeamId: string;
-    isCRTEnabled: boolean;
     keyboardOverlap: number;
     loading: boolean;
     onLoading: (loading: boolean) => void;
@@ -83,7 +80,7 @@ const sortByUserOrChannel = <T extends Channel |UserModel>(locale: string, teamm
 
 const FilteredList = ({
     archivedChannels, category, close, channelsMatch, channelsMatchStart, currentTeamId,
-    isCRTEnabled, keyboardOverlap, loading, onLoading, restrictDirectMessage, showTeamName,
+    keyboardOverlap, loading, onLoading, restrictDirectMessage, showTeamName,
     teamIds, teammateDisplayNameSetting, term, usersMatch, usersMatchStart, testID,
 }: Props) => {
     const mounted = useRef(false);
@@ -190,11 +187,6 @@ const FilteredList = ({
         switchToChannelById(serverUrl, c.id);
     }, [serverUrl, close]);
 
-    const onSwitchToThreads = useCallback(async () => {
-        await close();
-        switchToGlobalThreads(serverUrl);
-    }, [serverUrl, close]);
-
     const renderEmpty = useCallback(() => {
         if (loading) {
             return (
@@ -218,15 +210,6 @@ const FilteredList = ({
     }, [term, loading, theme]);
 
     const renderItem = useCallback(({item}: ListRenderItemInfo<ResultItem>) => {
-        if (item === 'thread') {
-            return (
-                <ThreadsButton
-                    onCenterBg={true}
-                    onPress={onSwitchToThreads}
-                />
-            );
-        }
-
         if ('teamId' in item) {
             return (
                 <ChannelItem
@@ -261,28 +244,12 @@ const FilteredList = ({
                 testID='find_channels.filtered_list.remote_channel_item'
             />
         );
-    }, [onJoinChannel, onOpenDirectMessage, onSwitchToChannel, onSwitchToThreads, showTeamName]);
-
-    const threadLabel = useMemo(
-        () => formatMessage({
-            id: 'threads',
-            defaultMessage: 'Threads',
-        }).toLowerCase(),
-        [formatMessage],
-    );
+    }, [onJoinChannel, onOpenDirectMessage, onSwitchToChannel, showTeamName]);
 
     const data = useMemo(() => {
         const items: ResultItem[] = [];
         const showChannels = category === 'all' || category === 'channels';
         const showUsers = category === 'all' || category === 'contacts';
-
-        // Add threads item to show it on the top of the list
-        if (showChannels && isCRTEnabled) {
-            const isThreadTerm = threadLabel.indexOf(term.toLowerCase()) === 0;
-            if (isThreadTerm) {
-                items.push('thread');
-            }
-        }
 
         if (showChannels) {
             const groupChannelsStart = category === 'channels' ?
@@ -346,7 +313,7 @@ const FilteredList = ({
         }
 
         return [...new Set(items)].slice(0, MAX_RESULTS + 1);
-    }, [archivedChannels, category, channelsMatchStart, channelsMatch, isCRTEnabled, remoteChannels, usersMatch, usersMatchStart, locale, teammateDisplayNameSetting, term, threadLabel]);
+    }, [archivedChannels, category, channelsMatchStart, channelsMatch, remoteChannels, usersMatch, usersMatchStart, locale, teammateDisplayNameSetting, term]);
 
     useEffect(() => {
         mounted.current = true;

@@ -2,10 +2,10 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {DeviceEventEmitter, type StyleProp, Text, type TextStyle} from 'react-native';
+import {type StyleProp, Text, type TextStyle} from 'react-native';
 
-import {Navigation, Screens} from '@constants';
-import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
+import {dismissAllModalsAndPopToRoot, findChannels} from '@screens/navigation';
+import EphemeralStore from '@store/ephemeral_store';
 
 type HashtagProps = {
     hashtag: string;
@@ -14,15 +14,11 @@ type HashtagProps = {
 
 const Hashtag = ({hashtag, linkStyle}: HashtagProps) => {
     const handlePress = async () => {
-        // Close thread view, permalink view, etc
         await dismissAllModalsAndPopToRoot();
-
-        DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {
-            screen: Screens.SEARCH,
-            params: {
-                searchTerm: `#${hashtag}`,
-            },
-        });
+        const theme = EphemeralStore.theme;
+        if (theme) {
+            void findChannels(`#${hashtag}`, theme);
+        }
     };
 
     return (

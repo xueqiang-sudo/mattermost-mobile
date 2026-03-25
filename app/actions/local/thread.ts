@@ -1,81 +1,27 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {defineMessages} from 'react-intl';
 import {DeviceEventEmitter} from 'react-native';
 
-import {ActionType, General, Navigation, Screens} from '@constants';
+import {switchToChannel} from '@actions/local/channel';
+import {ActionType, Events, Navigation, Screens} from '@constants';
 import DatabaseManager from '@database/manager';
-import {getTranslations} from '@i18n';
 import {getChannelById} from '@queries/servers/channel';
 import {getPostById} from '@queries/servers/post';
-import {getCurrentTeamId, getCurrentUserId, prepareCommonSystemValues, type PrepareCommonSystemValuesArgs, setCurrentTeamAndChannelId} from '@queries/servers/system';
-import {addChannelToTeamHistory, addTeamToTeamHistory} from '@queries/servers/team';
+import {getCurrentTeamId, getCurrentUserId, prepareCommonSystemValues, type PrepareCommonSystemValuesArgs} from '@queries/servers/system';
+import {addTeamToTeamHistory} from '@queries/servers/team';
 import {getThreadById, prepareThreadsFromReceivedPosts, queryThreadsInTeam} from '@queries/servers/thread';
-import {getCurrentUser} from '@queries/servers/user';
-import {dismissAllModals, dismissAllModalsAndPopToRoot, dismissAllOverlays, goToScreen} from '@screens/navigation';
+import {dismissAllModals, dismissAllModalsAndPopToRoot, dismissAllOverlays} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {isTablet} from '@utils/helpers';
 import {logError} from '@utils/log';
-import {changeOpacity} from '@utils/theme';
 
 import type Model from '@nozbe/watermelondb/Model';
-
-export const switchToGlobalThreads = async (serverUrl: string, teamId?: string, prepareRecordsOnly = false) => {
-    try {
-        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const models: Model[] = [];
-
-        let teamIdToUse = teamId;
-        if (!teamId) {
-            teamIdToUse = await getCurrentTeamId(database);
-        }
-
-        if (!teamIdToUse) {
-            throw new Error('no team to switch to');
-        }
-
-        await setCurrentTeamAndChannelId(operator, teamIdToUse, '');
-        const history = await addChannelToTeamHistory(operator, teamIdToUse, Screens.GLOBAL_THREADS, true);
-        models.push(...history);
-
-        if (!prepareRecordsOnly) {
-            await operator.batchRecords(models, 'switchToGlobalThreads');
-        }
-
-        const isTabletDevice = isTablet();
-        if (isTabletDevice) {
-            DeviceEventEmitter.emit(Navigation.NAVIGATION_HOME, Screens.GLOBAL_THREADS);
-        } else {
-            goToScreen(Screens.GLOBAL_THREADS, '', {}, {topBar: {visible: false}});
-        }
-
-        return {models};
-    } catch (error) {
-        logError('Failed switchToGlobalThreads', error);
-        return {error};
-    }
-};
-
-const threadMessages = defineMessages({
-    thread: {
-        id: 'thread.header.thread',
-        defaultMessage: 'Thread',
-    },
-    threadIn: {
-        id: 'thread.header.thread_in',
-        defaultMessage: 'in {channelName}',
-    },
-});
 
 export const switchToThread = async (serverUrl: string, rootId: string, isFromNotification = false) => {
     try {
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const user = await getCurrentUser(database);
-        if (!user) {
-            throw new Error('User not found');
-        }
 
         const post = await getPostById(database, rootId);
         if (!post) {
@@ -93,7 +39,7 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
 
         EphemeralStore.setCurrentThreadId(rootId);
         if (isFromNotification) {
-            if (currentThreadId && currentThreadId === rootId && NavigationStore.getScreensInStack().includes(Screens.THREAD)) {
+            if (currentThreadId && currentThreadId === rootId && NavigationStore.getScreensInStack().includes(Screens.CHANNEL)) {
                 await dismissAllModals();
                 await dismissAllOverlays();
                 return {};
@@ -102,7 +48,7 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
             await dismissAllModalsAndPopToRoot();
             await NavigationStore.waitUntilScreenIsTop(Screens.HOME);
             if (currentTeamId !== teamId && isTabletDevice) {
-                DeviceEventEmitter.emit(Navigation.NAVIGATION_HOME, Screens.GLOBAL_THREADS);
+                DeviceEventEmitter.emit(Navigation.NAVIGATION_HOME, Screens.CHANNEL);
             }
         }
 
@@ -120,37 +66,8 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
             }
         }
 
-        // Get translation by user locale
-        const translations = getTranslations(user.locale);
-
-        // Get title translation or default title message
-        const title = translations[threadMessages.thread.id] || 'Thread';
-
-        let subtitle = '';
-        if (channel?.type === General.DM_CHANNEL) {
-            subtitle = channel.displayName;
-        } else {
-            // Get translation or default message
-            subtitle = translations[threadMessages.threadIn.id] || 'in {channelName}';
-            subtitle = subtitle.replace('{channelName}', channel.displayName);
-        }
-
-        goToScreen(Screens.THREAD, '', {rootId}, {
-            topBar: {
-                title: {
-                    text: title,
-                },
-                subtitle: {
-                    color: changeOpacity(EphemeralStore.theme!.sidebarHeaderTextColor, 0.72),
-                    text: subtitle,
-                },
-                noBorder: true,
-                scrollEdgeAppearance: {
-                    noBorder: true,
-                    active: true,
-                },
-            },
-        });
+        DeviceEventEmitter.emit(Events.POST_DRAFT_SET_REPLY_ROOT, {channelId: post.channelId, rootId});
+        await switchToChannel(serverUrl, post.channelId, teamId);
 
         return {};
     } catch (error) {

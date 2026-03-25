@@ -6,8 +6,8 @@ import {useIntl} from 'react-intl';
 import {DeviceEventEmitter} from 'react-native';
 
 import {addFilesToDraft, removeDraft} from '@actions/local/draft';
-import {createPost} from '@actions/remote/post';
 import {uploadFile} from '@actions/remote/file';
+import {createPost} from '@actions/remote/post';
 import {Events, Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
@@ -148,7 +148,7 @@ export default function DraftHandler(props: Props) {
                 message: '',
             } as Post;
             await createPost(serverUrl, post, [uploaded]);
-            DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, rootId ? Screens.THREAD : Screens.CHANNEL);
+            DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
         } catch (err) {
             logError('[sendStandaloneStickerImage]', err);
             showSnackBar({

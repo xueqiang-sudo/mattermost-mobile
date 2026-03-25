@@ -8,7 +8,6 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
-import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {useIsTablet, useKeyboardHeight, useViewPosition} from '@hooks/device';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -62,6 +61,9 @@ type Props = {
     isNewMessage: boolean;
     showScrollToEndBtn: boolean;
     location: string;
+
+    /** Inline thread in channel: use thread wording and tablet inset behavior */
+    isThreadReply?: boolean;
     testID?: string;
 };
 
@@ -70,6 +72,7 @@ const ScrollToEndView = ({
     isNewMessage,
     showScrollToEndBtn,
     location,
+    isThreadReply = false,
     testID = 'scroll-to-end-view',
 }: Props) => {
     const intl = useIntl();
@@ -86,12 +89,12 @@ const ScrollToEndView = ({
     const bottomSpace = (dimensions.height - viewPosition);
     const keyboardOverlap = Platform.select({ios: Math.max(0, keyboardHeight - bottomSpace), default: 0});
 
-    // Thread view on iPads has to take into account the insets
+    // Inline thread on iPad: account for safe area when keyboard is hidden
     const insets = useSafeAreaInsets();
-    const shouldAdjustBottom = (Platform.OS === 'ios') && isTablet && (location === Screens.THREAD) && !keyboardHeight;
+    const shouldAdjustBottom = (Platform.OS === 'ios') && isTablet && isThreadReply && !keyboardHeight;
     const bottomAdjustment = shouldAdjustBottom ? insets.bottom : 0;
 
-    const message = location === Screens.THREAD ? intl.formatMessage({id: 'postList.scrollToBottom.newReplies', defaultMessage: 'New replies'}) : intl.formatMessage({id: 'postList.scrollToBottom.newMessages', defaultMessage: 'New messages'});
+    const message = isThreadReply ? intl.formatMessage({id: 'postList.scrollToBottom.newReplies', defaultMessage: 'New replies'}) : intl.formatMessage({id: 'postList.scrollToBottom.newMessages', defaultMessage: 'New messages'});
 
     // 显示时缓入；隐藏时 duration 0，避免点击回到底部后列表已就位但按钮仍缓慢消失
     const animatedStyle = useAnimatedStyle(

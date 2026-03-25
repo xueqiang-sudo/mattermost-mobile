@@ -21,8 +21,8 @@ import {postUserDisplayName} from '@utils/post';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {ensureString} from '@utils/types';
 import {typography} from '@utils/typography';
-import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 import {displayUsername, getUserCustomStatus, getUserTimezone, isCustomStatusExpired} from '@utils/user';
+import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 
 import HeaderCommentedOn from './commented_on';
 import HeaderDisplayName from './display_name';
@@ -69,6 +69,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 1,
             marginTop: 10,
         },
+
         /** 微信风格：覆盖 container 的 flex:1；与下方气泡略留间距（他人消息） */
         containerAlignAvatar: {
             marginTop: 0,
@@ -85,6 +86,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'center',
             gap: 5,
         },
+
         /** 微信风格：昵称、标签、时间与头像顶部齐平（横轴为顶对齐） */
         wrapperWeChat: {
             alignItems: 'flex-start',
@@ -92,6 +94,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexShrink: 1,
             alignSelf: 'stretch',
         },
+
         /** 微信风格：本人消息仅显示时间；与气泡间距略紧 */
         containerTimeOnly: {
             marginTop: 0,
@@ -100,6 +103,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             minHeight: 20,
             flex: 0,
         },
+
         /** 私聊中对方消息：仅时间，左对齐；与他人昵称行一致略留空 */
         containerOthersDmTime: {
             marginTop: 0,
@@ -118,6 +122,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
                 default: {},
             }),
         },
+
         /**
          * 微信相对时间：Body/75 默认 lineHeight 16，行框偏高易显得比头像低；
          * 略收紧行高（仍略大于字号，避免中文/英文裁切）。
@@ -181,7 +186,10 @@ const Header = (props: HeaderProps) => {
     );
 
     const timeEl = useWeChatRelativeTime ? (
-        <Text style={[style.time, style.timeWeChat]} testID='post_header.date_time'>
+        <Text
+            style={[style.time, style.timeWeChat]}
+            testID='post_header.date_time'
+        >
             {formatWeChatPostHeaderTime(intl, post.createAt, getUserTimezone(currentUser))}
         </Text>
     ) : (

@@ -10,6 +10,7 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Screens} from '@constants';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -18,8 +19,9 @@ import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_re
 import {usePreventDoubleTap} from '@hooks/utils';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
-import {persistentNotificationsConfirmation} from '@utils/post';
 import {emojiShortNameToMarkdownToken, emojiShortNameToUnicodeString} from '@utils/emoji/helpers';
+import {persistentNotificationsConfirmation} from '@utils/post';
+import {showSnackBar} from '@utils/snack_bar';
 import {
     changeOpacity,
     getChatBubbleBackground,
@@ -27,8 +29,6 @@ import {
     getChatListBackdropColor,
     makeStyleSheetFromTheme,
 } from '@utils/theme';
-import {showSnackBar} from '@utils/snack_bar';
-import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 
 import DraftEmojiPanel from '../draft_emoji_panel';
 import PostInput from '../post_input';
@@ -670,6 +670,7 @@ function DraftInput({
     const hasVoiceRecording = Boolean(sendVoiceAsr);
     const [voiceMode, setVoiceMode] = useState(false);
     const [voiceCancelZone, setVoiceCancelZone] = useState(false);
+
     /** 手指按下即 true，用于在 native 录音尚未进入 recording 时仍显示中央 HUD */
     const [voicePressActive, setVoicePressActive] = useState(false);
 
@@ -959,9 +960,17 @@ function DraftInput({
                     >
                         <View style={{justifyContent: 'center', alignItems: 'center'}}>
                             {voiceMode ? (
-                                <CompassIcon name='keyboard-outline' size={22} color={weChatFooterIconColor} />
+                                <CompassIcon
+                                    name='keyboard-outline'
+                                    size={22}
+                                    color={weChatFooterIconColor}
+                                />
                             ) : (
-                                <CompassIcon name='volume-high' size={22} color={weChatFooterIconColor} />
+                                <CompassIcon
+                                    name='volume-high'
+                                    size={22}
+                                    color={weChatFooterIconColor}
+                                />
                             )}
                         </View>
                     </TouchableWithFeedback>

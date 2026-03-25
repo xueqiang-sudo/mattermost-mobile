@@ -7,7 +7,7 @@ import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, S
 import Animated, {type AnimatedStyle} from 'react-native-reanimated';
 
 import {removePost} from '@actions/local/post';
-import {fetchPosts, fetchPostThread} from '@actions/remote/post';
+import {fetchPosts} from '@actions/remote/post';
 import CombinedUserActivity from '@components/post_list/combined_user_activity';
 import DateSeparator from '@components/post_list/date_separator';
 import NewMessagesLine from '@components/post_list/new_message_line';
@@ -120,12 +120,13 @@ const PostList = ({
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const listContentStyle = useMemo(() => {
-        const isChatStyle = location === Screens.CHANNEL || location === Screens.PERMALINK || location === Screens.THREAD;
+        const isChatStyle = location === Screens.CHANNEL || location === Screens.PERMALINK;
         return isChatStyle ? {backgroundColor: getChatListBackdropColor(theme), flexGrow: 1} : undefined;
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
-        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, location === Screens.THREAD, savedPostIds);
-    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, location, savedPostIds]);
+        const isThreadView = Boolean(rootId);
+        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
+    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
 
     const initialIndex = useMemo(() => {
         return orderedPosts.findIndex((i) => i.type === 'start-of-new-messages');
@@ -169,22 +170,13 @@ const PostList = ({
         setRefreshing(true);
         if (location === Screens.CHANNEL && channelId) {
             await fetchPosts(serverUrl, channelId);
-        } else if (location === Screens.THREAD && rootId) {
-            const options: FetchPaginatedThreadOptions = {};
-            const lastPost = posts[0];
-            if (lastPost) {
-                options.fromCreateAt = lastPost.createAt;
-                options.fromPost = lastPost.id;
-                options.direction = 'down';
-            }
-            await fetchPostThread(serverUrl, rootId, options);
         }
         const removalPromises = posts.
             filter((post) => post.type === PostTypes.EPHEMERAL).
             map((post) => removePost(serverUrl, post));
         await Promise.all(removalPromises);
         setRefreshing(false);
-    }, [disablePullToRefresh, location, channelId, rootId, posts, serverUrl]);
+    }, [disablePullToRefresh, location, channelId, posts, serverUrl]);
 
     const scrollToIndex = useCallback((index: number, animated = true, applyOffset = true) => {
         listRef.current?.scrollToIndex({
@@ -270,7 +262,7 @@ const PostList = ({
                 return (
                     <DateSeparator
                         key={item.value}
-                        compact={location === Screens.CHANNEL || location === Screens.PERMALINK || location === Screens.THREAD}
+                        compact={location === Screens.CHANNEL || location === Screens.PERMALINK}
                         date={getDateForDateLine(item.value)}
                         timezone={currentTimezone}
                     />
@@ -303,7 +295,7 @@ const PostList = ({
             default: {
                 const post = item.value.currentPost;
                 const {isSaved, nextPost, previousPost} = item.value;
-                const skipSaveddHeader = (location === Screens.THREAD && post.id === rootId);
+                const skipSaveddHeader = false;
                 const postProps = {
                     appsEnabled,
                     customEmojiNames,
@@ -388,6 +380,7 @@ const PostList = ({
                 isNewMessage={isNewMessage}
                 showScrollToEndBtn={showScrollToEndBtn}
                 location={location}
+                isThreadReply={Boolean(rootId)}
                 testID={'scroll-to-end-view'}
             />
             }

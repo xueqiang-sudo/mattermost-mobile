@@ -187,9 +187,6 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.GLOBAL_DRAFTS:
             screen = withServerDatabase(require('@screens/global_drafts').default);
             break;
-        case Screens.GLOBAL_THREADS:
-            screen = withServerDatabase(require('@screens/global_threads').default);
-            break;
         case Screens.INTERACTIVE_DIALOG:
             screen = withServerDatabase(require('@screens/interactive_dialog').default);
             break;
@@ -281,9 +278,6 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SETTINGS_DISPLAY_CLOCK:
             screen = withServerDatabase(require('@screens/settings/display_clock').default);
             break;
-        case Screens.SETTINGS_DISPLAY_CRT:
-            screen = withServerDatabase(require('@screens/settings/display_crt').default);
-            break;
         case Screens.SETTINGS_DISPLAY_THEME:
             screen = withServerDatabase(require('@screens/settings/display_theme').default);
             break;
@@ -344,17 +338,6 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.TERMS_OF_SERVICE:
             screen = withServerDatabase(require('@screens/terms_of_service').default);
-            break;
-        case Screens.THREAD:
-            screen = withServerDatabase(require('@screens/thread').default);
-            break;
-        case Screens.THREAD_FOLLOW_BUTTON:
-            Navigation.registerComponent(Screens.THREAD_FOLLOW_BUTTON, () => withServerDatabase(
-                require('@screens/thread/thread_follow_button').default,
-            ));
-            break;
-        case Screens.THREAD_OPTIONS:
-            screen = withServerDatabase(require('@screens/thread_options').default);
             break;
         case Screens.USER_PROFILE:
             screen = withServerDatabase(require('@screens/user_profile').default);

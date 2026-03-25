@@ -44,8 +44,10 @@ type Props = {
     sendMessage: () => void;
     inputRef: React.MutableRefObject<PasteInputRef | undefined>;
     setIsFocused: (isFocused: boolean) => void;
+
     /** 可选：blur 时额外回调（如结束语音转文字） */
     onBlurExtra?: () => void;
+
     /** 微信底栏单行：输入区撑满白底高度，便于光标与文字垂直对齐 */
     weChatCompactRow?: boolean;
 }
@@ -90,6 +92,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 15,
         lineHeight: 20,
         paddingHorizontal: 12,
+
         /** 上下对称，避免 Android 原先 paddingTop 8 / paddingBottom 2 导致光标与占位偏下 */
         paddingVertical: Platform.select({
             ios: 8,
@@ -254,9 +257,7 @@ export default function PostInput({
     const handleHardwareEnterPress = useCallback(() => {
         const topScreen = NavigationStore.getVisibleScreen();
         let sourceScreen: AvailableScreens = Screens.CHANNEL;
-        if (rootId) {
-            sourceScreen = Screens.THREAD;
-        } else if (isTablet) {
+        if (!rootId && isTablet) {
             sourceScreen = Screens.HOME;
         }
         if (topScreen === sourceScreen) {
@@ -267,9 +268,7 @@ export default function PostInput({
     const handleHardwareShiftEnter = useCallback(() => {
         const topScreen = NavigationStore.getVisibleScreen();
         let sourceScreen: AvailableScreens = Screens.CHANNEL;
-        if (rootId) {
-            sourceScreen = Screens.THREAD;
-        } else if (isTablet) {
+        if (!rootId && isTablet) {
             sourceScreen = Screens.HOME;
         }
 
@@ -316,7 +315,7 @@ export default function PostInput({
 
     useEffect(() => {
         const listener = DeviceEventEmitter.addListener(Events.SEND_TO_POST_DRAFT, ({text, location}: {text: string; location: string}) => {
-            const sourceScreen = channelId && rootId ? Screens.THREAD : Screens.CHANNEL;
+            const sourceScreen = Screens.CHANNEL;
             if (location === sourceScreen) {
                 const draft = value ? `${value} ${text} ` : `${text} `;
                 updateValue(draft);

@@ -207,7 +207,7 @@ export async function entryInitialChannelId(database: Database, requestedChannel
     // Check if we are still members of any channel on the history
     const teamChannelHistory = await getTeamChannelHistory(database, initialTeamId);
     for (const c of teamChannelHistory) {
-        if (membershipIds.has(c) || c === Screens.GLOBAL_THREADS || c === Screens.GLOBAL_DRAFTS) {
+        if (membershipIds.has(c) || c === Screens.GLOBAL_DRAFTS) {
             return c;
         }
     }
@@ -304,7 +304,6 @@ export async function handleEntryAfterLoadNavigation(
         const currentChannelIdAfterLoad = await getCurrentChannelId(database);
         const mountedScreens = NavigationStore.getScreensInStack();
         const isChannelScreenMounted = mountedScreens.includes(Screens.CHANNEL);
-        const isThreadsMounted = mountedScreens.includes(Screens.THREAD);
         const tabletDevice = isTablet();
 
         if (!currentTeamIdAfterLoad) {
@@ -328,14 +327,14 @@ export async function handleEntryAfterLoadNavigation(
         } else if (currentChannelIdAfterLoad !== currentChannelId) {
             // Switched channels while loading
             if (!channelMembers.find((m) => m.channel_id === currentChannelIdAfterLoad)) {
-                if (tabletDevice || isChannelScreenMounted || isThreadsMounted) {
+                if (tabletDevice || isChannelScreenMounted) {
                     await handleKickFromChannel(serverUrl, currentChannelIdAfterLoad);
                 } else {
                     await setCurrentTeamAndChannelId(operator, initialTeamId, initialChannelId);
                 }
             }
         } else if (currentChannelIdAfterLoad && currentChannelIdAfterLoad !== initialChannelId) {
-            if (tabletDevice || isChannelScreenMounted || isThreadsMounted) {
+            if (tabletDevice || isChannelScreenMounted) {
                 await handleKickFromChannel(serverUrl, currentChannelIdAfterLoad);
             } else {
                 await setCurrentTeamAndChannelId(operator, initialTeamId, initialChannelId);

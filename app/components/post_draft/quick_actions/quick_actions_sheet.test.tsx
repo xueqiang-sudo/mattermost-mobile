@@ -26,7 +26,6 @@ describe('QuickActionsSheet', () => {
                 fileCount={0}
                 isPostPriorityEnabled={true}
                 canShowPostPriority={true}
-                canShowSlashCommands={true}
                 maxFileCount={10}
                 value=''
                 updateValue={updateValue}

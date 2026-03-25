@@ -5,7 +5,6 @@ import React, {useEffect, useRef, useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 
 import Badge from '@components/badge';
-import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {subscribeAllServers} from '@database/subscription/servers';
 import {subscribeMentionsByServer} from '@database/subscription/unreads';
@@ -52,10 +51,7 @@ const OtherMentionsBadge = ({channelId}: Props) => {
                 }
             }
 
-            unreads.mentions = mentions;
-            if (serverUrl !== currentServerUrl || channelId !== Screens.GLOBAL_THREADS) {
-                unreads.mentions += threadMentionCount;
-            }
+            unreads.mentions = mentions + threadMentionCount;
             subscriptions.set(serverUrl, unreads);
             updateCount();
         }

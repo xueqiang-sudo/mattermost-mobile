@@ -1,6 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+jest.mock('@actions/local/channel', () => ({
+    switchToChannel: jest.fn(() => Promise.resolve({})),
+}));
+
 import {ActionType} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import Preferences from '@constants/preferences';
@@ -9,7 +13,6 @@ import EphemeralStore from '@store/ephemeral_store';
 import TestHelper from '@test/test_helper';
 
 import {
-    switchToGlobalThreads,
     switchToThread,
     createThreadFromNewPost,
     processReceivedThreads,
@@ -82,58 +85,15 @@ const threads = [
     },
 ] as ThreadWithLastFetchedAt[];
 
-describe('switchToGlobalThreads', () => {
-    it('handle not found database', async () => {
-        const {models, error} = await switchToGlobalThreads('foo', undefined, false);
-        expect(models).toBeUndefined();
-        expect(error).toBeDefined();
-    });
-
-    it('handle no team', async () => {
-        const {models, error} = await switchToGlobalThreads(serverUrl, undefined, false);
-        expect(models).toBeUndefined();
-        expect(error).toBeDefined();
-        expect((error as Error).message).toBe('no team to switch to');
-    });
-
-    it('base case', async () => {
-        await operator.handleTeam({teams: [team], prepareRecordsOnly: false});
-        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_TEAM_ID, value: teamId}], prepareRecordsOnly: false});
-
-        const {models, error} = await switchToGlobalThreads(serverUrl, undefined);
-        expect(error).toBeUndefined();
-        expect(models).toBeDefined();
-        expect(models?.length).toBe(1); // history
-    });
-
-    it('base case - provided team id', async () => {
-        let mockIsTablet: jest.Mock;
-        jest.mock('@utils/helpers', () => {
-            const original = jest.requireActual('@utils/helpers');
-            mockIsTablet = jest.fn(() => true);
-            return {
-                ...original,
-                isTablet: mockIsTablet,
-            };
-        });
-        await operator.handleTeam({teams: [team], prepareRecordsOnly: false});
-
-        const {models, error} = await switchToGlobalThreads(serverUrl, team.id);
-        expect(error).toBeUndefined();
-        expect(models).toBeDefined();
-        expect(models?.length).toBe(1); // history
-    });
-});
-
 describe('switchToThread', () => {
     it('handle not found database', async () => {
         const {error} = await switchToThread('foo', '', false);
         expect(error).toBeDefined();
     });
 
-    it('handle no user', async () => {
+    it('handle empty root id', async () => {
         const {error} = await switchToThread(serverUrl, '', false);
-        expect((error as Error).message).toBe('User not found');
+        expect((error as Error).message).toBe('Post not found');
     });
 
     it('handle no post', async () => {

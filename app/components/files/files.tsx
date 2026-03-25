@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         marginTop: 5,
         flexShrink: 0,
+
         // 仅媒体消息时不要横向拉满，按内容自然宽度展示（对齐微信效果）。
         alignSelf: 'flex-start',
     },
@@ -78,6 +79,7 @@ const Files = ({
 
     const attachmentIndex = (fileId: string) => {
         const index = filesForGallery.findIndex((file) => file.id === fileId);
+
         // 找不到时回退到 0，避免把 -1 传给 Gallery 导致初始页错误（视频不会自动播放）。
         return index >= 0 ? index : 0;
     };
@@ -94,6 +96,7 @@ const Files = ({
     }, [filesForGallery]);
 
     const isSingleImage = useMemo(() => filesInfo.filter((f) => isImage(f) || isVideo(f)).length === 1, [filesInfo]);
+
     // 纯媒体消息不需要额外上边距，避免与时间行之间出现过大的空隙。
     const compactTopSpacing = isMediaOnlyMessage && !isPermalinkPreview;
 

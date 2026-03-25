@@ -6,13 +6,10 @@ import {useIntl} from 'react-intl';
 import {DeviceEventEmitter} from 'react-native';
 
 import {getChannelTimezones} from '@actions/remote/channel';
-import {executeCommand, handleGotoLocation} from '@actions/remote/command';
 import {uploadFile} from '@actions/remote/file';
 import {createPost} from '@actions/remote/post';
 import {handleReactionToLatestPost} from '@actions/remote/reactions';
 import {createScheduledPost} from '@actions/remote/scheduled_post';
-import {setStatus} from '@actions/remote/user';
-import {handleCallsSlashCommand} from '@calls/actions';
 import {Events, PostTypes, Screens} from '@constants';
 import {NOTIFY_ALL_MEMBERS} from '@constants/post_draft';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
@@ -20,11 +17,10 @@ import {useServerUrl} from '@context/server';
 import DraftUploadManager from '@managers/draft_upload_manager';
 import * as DraftUtils from '@utils/draft';
 import {isReactionMatch} from '@utils/emoji/helpers';
-import {getErrorMessage, getFullErrorMessage} from '@utils/errors';
+import {getErrorMessage} from '@utils/errors';
 import {scheduledPostFromPost} from '@utils/post';
 import {canPostDraftInChannelOrThread} from '@utils/scheduled_post';
 import {showSnackBar} from '@utils/snack_bar';
-import {confirmOutOfOfficeDisabled} from '@utils/user';
 
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 
@@ -66,9 +62,7 @@ export const useHandleSendMessage = ({
     enableConfirmNotificationsToChannel,
     useChannelMentions,
     membersCount = 0,
-    userIsOutOfOffice,
     currentUserId,
-    channelType,
     postPriority,
     isFromDraftView,
     canPost,
@@ -165,7 +159,8 @@ export const useHandleSendMessage = ({
         }
 
         setSendingMessage(false);
-        DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, rootId ? Screens.THREAD : Screens.CHANNEL);
+        DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
+        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
     }, [files, currentUserId, channelId, rootId, value, postPriority, isFromDraftView, serverUrl, intl, canPost, channelIsArchived, channelIsReadOnly, deactivatedChannel, clearDraft]);
 
     const showSendToAllOrChannelOrHereAlert = useCallback((calculatedMembersCount: number, atHere: boolean, schedulingInfo?: SchedulingInfo) => {
@@ -181,68 +176,19 @@ export const useHandleSendMessage = ({
         DraftUtils.alertChannelWideMention(intl, notifyAllMessage, doSubmitMessageScheduledPostWrapper, cancel);
     }, [intl, channelTimezoneCount, doSubmitMessage]);
 
-    const sendCommand = useCallback(async () => {
-        if (value.trim().startsWith('/call')) {
-            const {handled, error} = await handleCallsSlashCommand(value.trim(), serverUrl, channelId, channelType ?? '', rootId, currentUserId, intl);
-            if (handled) {
-                setSendingMessage(false);
-                clearDraft();
-                return;
-            }
-            if (error) {
-                setSendingMessage(false);
-                DraftUtils.alertSlashCommandFailed(intl, error);
-                return;
-            }
-        }
-
-        const status = DraftUtils.getStatusFromSlashCommand(value);
-        if (userIsOutOfOffice && status) {
-            const updateStatus = (newStatus: string) => {
-                setStatus(serverUrl, {
-                    status: newStatus,
-                    last_activity_at: Date.now(),
-                    manual: true,
-                    user_id: currentUserId,
-                });
-            };
-            confirmOutOfOfficeDisabled(intl, status, updateStatus);
-            setSendingMessage(false);
-            return;
-        }
-
-        const {data, error} = await executeCommand(serverUrl, intl, value, channelId, rootId);
-        setSendingMessage(false);
-
-        if (error) {
-            const errorMessage = getFullErrorMessage(error);
-            DraftUtils.alertSlashCommandFailed(intl, errorMessage);
-            return;
-        }
-
-        clearDraft();
-
-        if (data?.goto_location && !value.startsWith('/leave')) {
-            handleGotoLocation(serverUrl, intl, data.goto_location);
-        }
-    }, [value, userIsOutOfOffice, serverUrl, intl, channelId, rootId, clearDraft, channelType, currentUserId]);
-
     const sendMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
         const notificationsToChannel = enableConfirmNotificationsToChannel && useChannelMentions;
         const toAllOrChannel = DraftUtils.textContainsAtAllAtChannel(value);
         const toHere = DraftUtils.textContainsAtHere(value);
 
-        if (value.indexOf('/') === 0 && !schedulingInfo) {
-            // Don't execute slash command when scheduling message
-            sendCommand();
-        } else if (notificationsToChannel && membersCount > NOTIFY_ALL_MEMBERS && (toAllOrChannel || toHere)) {
+        if (notificationsToChannel && membersCount > NOTIFY_ALL_MEMBERS && (toAllOrChannel || toHere)) {
             showSendToAllOrChannelOrHereAlert(membersCount, toHere && !toAllOrChannel, schedulingInfo);
         } else {
             return doSubmitMessage(schedulingInfo);
         }
 
         return Promise.resolve();
-    }, [enableConfirmNotificationsToChannel, useChannelMentions, value, membersCount, sendCommand, showSendToAllOrChannelOrHereAlert, doSubmitMessage]);
+    }, [enableConfirmNotificationsToChannel, useChannelMentions, value, membersCount, showSendToAllOrChannelOrHereAlert, doSubmitMessage]);
 
     const handleSendMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
         if (!canSend) {
@@ -307,6 +253,7 @@ export const useHandleSendMessage = ({
                 });
                 uploadedFiles.push(uploaded);
             }
+
             // Server should create a separate normal post with transcript; this post stays hidden in the list (see selectOrderedPosts).
             const post = {
                 user_id: currentUserId,
@@ -316,7 +263,8 @@ export const useHandleSendMessage = ({
                 type: PostTypes.CUSTOM_VOICE_ASR,
             } as Post;
             createPost(serverUrl, post, uploadedFiles);
-            DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, rootId ? Screens.THREAD : Screens.CHANNEL);
+            DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
+            DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
         } catch (err) {
             showSnackBar({
                 barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,

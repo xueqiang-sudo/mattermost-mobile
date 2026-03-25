@@ -9,7 +9,6 @@ import {General} from '@constants';
 import {observeArchiveChannelsByTerm, observeDirectChannelsByTerm, observeJoinedChannelsByTerm, observeNotDirectChannelsByTerm} from '@queries/servers/channel';
 import {observeConfigValue, observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams} from '@queries/servers/team';
-import {observeIsCRTEnabled} from '@queries/servers/thread';
 import {observeTeammateNameDisplay} from '@queries/servers/user';
 import {removeChannelsFromArchivedTeams, retrieveChannels} from '@screens/find_channels/utils';
 
@@ -65,7 +64,6 @@ const enhanced = withObservables(['term'], ({database, term}: EnhanceProps) => {
         channelsMatch,
         channelsMatchStart,
         currentTeamId: observeCurrentTeamId(database),
-        isCRTEnabled: observeIsCRTEnabled(database),
         restrictDirectMessage,
         showTeamName: teamIds.pipe(switchMap((ids) => of$(ids.size > 1))),
         teamIds,

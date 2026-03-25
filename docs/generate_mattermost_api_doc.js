@@ -1,8 +1,10 @@
-/* eslint-disable no-console */
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 const {execFile} = require('child_process');
-const {promisify} = require('util');
 const fs = require('fs/promises');
 const path = require('path');
+const {promisify} = require('util');
+
 const YAML = require('yaml');
 
 const execFileAsync = promisify(execFile);
@@ -222,7 +224,7 @@ function groupOperations(spec) {
                 summary: operation.summary || '',
                 description: operation.description || '',
                 operationId: operation.operationId || '',
-                deprecated: !!operation.deprecated,
+                deprecated: Boolean(operation.deprecated),
                 parameters: mergedParams,
                 requestBody: operation.requestBody,
                 responses: operation.responses || {},

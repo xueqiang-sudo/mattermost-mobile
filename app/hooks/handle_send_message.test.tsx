@@ -8,10 +8,8 @@ import {IntlProvider} from 'react-intl';
 import {Alert, DeviceEventEmitter} from 'react-native';
 
 import {getChannelTimezones} from '@actions/remote/channel';
-import {executeCommand, handleGotoLocation} from '@actions/remote/command';
 import {createPost} from '@actions/remote/post';
 import {createScheduledPost} from '@actions/remote/scheduled_post';
-import {handleCallsSlashCommand} from '@calls/actions';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import DatabaseManager from '@database/manager';
@@ -30,10 +28,7 @@ jest.mock('@actions/remote/scheduled_post');
 jest.mock('@actions/remote/channel', () => ({
     getChannelTimezones: jest.fn().mockResolvedValue({channelTimezones: []}),
 }));
-jest.mock('@actions/remote/command');
 jest.mock('@actions/remote/reactions');
-jest.mock('@actions/remote/user');
-jest.mock('@calls/actions');
 jest.mock('@context/server', () => ({
     useServerUrl: jest.fn().mockReturnValue('https://server.com'),
 }));
@@ -162,7 +157,7 @@ describe('useHandleSendMessage', () => {
             result.current.handleSendMessage();
         });
 
-        expect(DeviceEventEmitter.emit).toHaveBeenCalledWith(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.THREAD);
+        expect(DeviceEventEmitter.emit).toHaveBeenCalledWith(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
     });
 
     it('should not allow sending with uploading files', () => {
@@ -217,154 +212,6 @@ describe('useHandleSendMessage', () => {
         });
 
         expect(createPost).not.toHaveBeenCalled();
-    });
-
-    it('should handle slash commands', async () => {
-        const mockExecuteCommand = jest.mocked(executeCommand);
-        mockExecuteCommand.mockResolvedValueOnce({data: {}, error: null});
-
-        const props = {
-            ...defaultProps,
-            value: '/away',
-        };
-
-        const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
-
-        await act(async () => {
-            result.current.handleSendMessage();
-        });
-
-        expect(executeCommand).toHaveBeenCalledWith(
-            'https://server.com',
-            expect.anything(),
-            '/away',
-            'channel-id',
-            '',
-        );
-        expect(defaultProps.clearDraft).toHaveBeenCalled();
-    });
-
-    it('should handle slash command errors', async () => {
-        const mockExecuteCommand = jest.mocked(executeCommand);
-        mockExecuteCommand.mockResolvedValueOnce({data: undefined, error: new Error('Command failed')});
-        jest.spyOn(DraftUtils, 'alertSlashCommandFailed');
-
-        const props = {
-            ...defaultProps,
-            value: '/invalid-command',
-        };
-
-        const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
-
-        await act(async () => {
-            result.current.handleSendMessage();
-        });
-
-        expect(executeCommand).toHaveBeenCalled();
-        expect(DraftUtils.alertSlashCommandFailed).toHaveBeenCalledWith(
-            expect.anything(),
-            'Command failed',
-        );
-        expect(defaultProps.clearDraft).not.toHaveBeenCalled();
-    });
-
-    it('should handle call command', async () => {
-        const mockHandleCallsSlashCommand = jest.mocked(handleCallsSlashCommand);
-        mockHandleCallsSlashCommand.mockResolvedValueOnce({handled: true});
-
-        const props = {
-            ...defaultProps,
-            value: '/call start',
-        };
-
-        const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
-
-        await act(async () => {
-            result.current.handleSendMessage();
-        });
-
-        expect(handleCallsSlashCommand).toHaveBeenCalledWith(
-            '/call start',
-            'https://server.com',
-            'channel-id',
-            'O',
-            '',
-            'current-user',
-            expect.anything(),
-        );
-        expect(defaultProps.clearDraft).toHaveBeenCalled();
-    });
-
-    it('should handle call command error', async () => {
-        const mockHandleCallsSlashCommand = jest.mocked(handleCallsSlashCommand);
-        mockHandleCallsSlashCommand.mockResolvedValueOnce({handled: false, error: 'Call error'});
-
-        const props = {
-            ...defaultProps,
-            value: '/call invalid',
-        };
-
-        const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
-
-        await act(async () => {
-            result.current.handleSendMessage();
-        });
-
-        expect(handleCallsSlashCommand).toHaveBeenCalled();
-        expect(DraftUtils.alertSlashCommandFailed).toHaveBeenCalledWith(
-            expect.anything(),
-            'Call error',
-        );
-    });
-
-    it('should handle status command for out-of-office user', async () => {
-        jest.spyOn(DraftUtils, 'getStatusFromSlashCommand').mockReturnValue('online');
-        const mockConfirmOutOfOffice = jest.fn();
-        jest.spyOn(require('@utils/user'), 'confirmOutOfOfficeDisabled').mockImplementation(mockConfirmOutOfOffice);
-
-        const props = {
-            ...defaultProps,
-            value: '/online',
-            userIsOutOfOffice: true,
-        };
-
-        const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
-
-        await act(async () => {
-            result.current.handleSendMessage();
-        });
-
-        expect(mockConfirmOutOfOffice).toHaveBeenCalledWith(
-            expect.anything(),
-            'online',
-            expect.any(Function),
-        );
-        expect(executeCommand).not.toHaveBeenCalled();
-    });
-
-    it('should handle goto location from command', async () => {
-        const mockExecuteCommand = jest.mocked(executeCommand);
-        mockExecuteCommand.mockResolvedValueOnce({
-            data: {goto_location: 'http://example.com'},
-            error: null,
-        });
-
-        const props = {
-            ...defaultProps,
-            value: '/goto command',
-        };
-
-        const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
-
-        await act(async () => {
-            result.current.handleSendMessage();
-        });
-
-        expect(handleGotoLocation).toHaveBeenCalledWith(
-            'https://server.com',
-            expect.anything(),
-            'http://example.com',
-        );
     });
 
     it('should handle scheduled post creation', async () => {
@@ -586,35 +433,6 @@ describe('useHandleSendMessage', () => {
 
             expect(createPost).toHaveBeenCalled();
             expect(DraftUtils.alertChannelWideMention).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('command handling', () => {
-        beforeEach(() => {
-            jest.mocked(createScheduledPost).mockResolvedValueOnce({
-                data: true,
-            });
-        });
-
-        it('should bypass command handling for scheduled messages', async () => {
-            const props = {
-                ...defaultProps,
-                value: '/away',
-            };
-
-            const schedulingInfo = {
-                scheduled_at: 1234567890,
-                timezone: 'UTC',
-            };
-
-            const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
-
-            await act(async () => {
-                await result.current.handleSendMessage(schedulingInfo);
-            });
-
-            expect(executeCommand).not.toHaveBeenCalled();
-            expect(createScheduledPost).toHaveBeenCalled();
         });
     });
 

@@ -125,10 +125,10 @@ export function ContactsStack({currentUser, currentTeamId, database, rnnHomeComp
                     )}
                 </Stack.Screen>
                 <Stack.Screen name={Screens.CONTACTS_DEPARTMENT_DETAIL}>
-                    {() => <DepartmentDetailWrapper currentUserId={currentUser?.id} />}
+                    {() => <DepartmentDetailWrapper currentUserId={currentUser?.id}/>}
                 </Stack.Screen>
                 <Stack.Screen name={Screens.CONTACTS_SEARCH}>
-                    {() => <ContactsSearchWrapper currentUserId={currentUser?.id} />}
+                    {() => <ContactsSearchWrapper currentUserId={currentUser?.id}/>}
                 </Stack.Screen>
             </Stack.Navigator>
         </ContactsRnnHomeComponentIdContext.Provider>

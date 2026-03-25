@@ -28,6 +28,10 @@ export default keyMirror({
     USER_TYPING: null,
     USER_STOP_TYPING: null,
     POST_LIST_SCROLL_TO_BOTTOM: null,
+
+    /** 在频道屏打开「回复某根帖」草稿（替代独立 Thread 屏） */
+    POST_DRAFT_SET_REPLY_ROOT: null,
+    POST_DRAFT_CLEAR_REPLY_ROOT: null,
     SWIPEABLE: null,
     ITEM_IN_VIEWPORT: null,
     SEND_TO_POST_DRAFT: null,

@@ -5,7 +5,7 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {combineLatest, of as of$, Observable} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
-import {Permissions, Post, Screens} from '@constants';
+import {Permissions, Post} from '@constants';
 import {AppBindingLocations} from '@constants/apps';
 import {MAX_ALLOWED_REACTIONS} from '@constants/emoji';
 import AppsManager from '@managers/apps_manager';
@@ -75,7 +75,7 @@ const withPost = withObservables([], ({post, database}: {post: Post | PostModel}
     };
 });
 
-const enhanced = withObservables([], ({combinedPost, post, showAddReaction, sourceScreen, database, serverUrl}: EnhancedProps) => {
+const enhanced = withObservables([], ({combinedPost, post, showAddReaction, database, serverUrl}: EnhancedProps) => {
     const channel = observeChannel(database, post.channelId);
     const channelIsArchived = channel.pipe(switchMap((ch: ChannelModel) => of$(ch.deleteAt !== 0)));
     const currentUser = observeCurrentUser(database);
@@ -111,7 +111,7 @@ const enhanced = withObservables([], ({combinedPost, post, showAddReaction, sour
     );
 
     const canReply = borPost ? of$(false) : combineLatest([channelIsArchived, channelIsReadOnly, canPostPermission]).pipe(switchMap(([isArchived, isReadOnly, canPost]) => {
-        return of$(!isArchived && !isReadOnly && sourceScreen !== Screens.THREAD && !isSystemMessage(post) && canPost);
+        return of$(!isArchived && !isReadOnly && !isSystemMessage(post) && canPost);
     }));
 
     const canPin = borPost ? of$(false) : combineLatest([channelIsArchived, channelIsReadOnly]).pipe(switchMap(([isArchived, isReadOnly]) => {

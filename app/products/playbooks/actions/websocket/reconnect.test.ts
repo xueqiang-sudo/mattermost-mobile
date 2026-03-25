@@ -71,7 +71,7 @@ describe('handlePlaybookReconnect', () => {
 
     describe('on phone device', () => {
         it('should not fetch playbook runs when not on channel screen', async () => {
-            const getScreensSpy = jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.HOME, Screens.THREAD]);
+            const getScreensSpy = jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.HOME]);
 
             await handlePlaybookReconnect(serverUrl);
 
@@ -82,7 +82,7 @@ describe('handlePlaybookReconnect', () => {
         });
 
         it('should not fetch playbook runs when playbooks are disabled', async () => {
-            const getScreensSpy = jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.HOME, Screens.CHANNEL, Screens.THREAD]);
+            const getScreensSpy = jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.HOME, Screens.CHANNEL]);
             jest.mocked(fetchIsPlaybooksEnabled).mockResolvedValue(false);
 
             await handlePlaybookReconnect(serverUrl);

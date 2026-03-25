@@ -45,7 +45,7 @@ const SNACK_BAR_WIDTH = 96;
 const SNACK_BAR_HEIGHT = 56;
 const SNACK_BAR_BOTTOM_RATIO = 0.04;
 
-const caseScreens: AvailableScreens[] = [Screens.PERMALINK, Screens.MANAGE_CHANNEL_MEMBERS, Screens.MENTIONS, Screens.SAVED_MESSAGES];
+const caseScreens: AvailableScreens[] = [Screens.PERMALINK, Screens.MANAGE_CHANNEL_MEMBERS];
 
 const DEFAULT_ICON = 'alert-outline';
 
@@ -139,12 +139,6 @@ const SnackBar = ({
         let tabletStyle: Partial<ViewStyle>;
 
         switch (true) {
-            case sourceScreen === Screens.THREAD:
-                tabletStyle = {
-                    marginLeft: 0,
-                    width: `${SNACK_BAR_WIDTH}%`,
-                };
-                break;
             case sourceScreen === Screens.CHANNEL_INFO:
                 tabletStyle = {
                     marginBottom: 40,

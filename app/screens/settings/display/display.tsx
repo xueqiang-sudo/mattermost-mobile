@@ -17,17 +17,6 @@ import {getUserTimezoneProps} from '@utils/user';
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const CRT_FORMAT = [
-    defineMessage({
-        id: 'display_settings.crt.on',
-        defaultMessage: 'On',
-    }),
-    defineMessage({
-        id: 'display_settings.crt.off',
-        defaultMessage: 'Off',
-    }),
-];
-
 const TIME_FORMAT = [
     defineMessage({
         id: 'display_settings.clock.standard',
@@ -54,12 +43,10 @@ type DisplayProps = {
     componentId: AvailableScreens;
     currentUser?: UserModel;
     hasMilitaryTimeFormat: boolean;
-    isCRTEnabled: boolean;
-    isCRTSwitchEnabled: boolean;
     isThemeSwitchingEnabled: boolean;
 }
 
-const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled, isCRTSwitchEnabled, isThemeSwitchingEnabled}: DisplayProps) => {
+const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isThemeSwitchingEnabled}: DisplayProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const timezone = useMemo(() => getUserTimezoneProps(currentUser), [currentUser?.timezone]);
@@ -79,12 +66,6 @@ const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled,
     const goToTimezoneSettings = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.SETTINGS_DISPLAY_TIMEZONE;
         const title = intl.formatMessage({id: 'display_settings.timezone', defaultMessage: 'Timezone'});
-        gotoSettingsScreen(screen, title);
-    }, [intl]));
-
-    const goToCRTSettings = usePreventDoubleTap(useCallback(() => {
-        const screen = Screens.SETTINGS_DISPLAY_CRT;
-        const title = intl.formatMessage({id: 'display_settings.crt', defaultMessage: 'Collapsed Reply Threads'});
         gotoSettingsScreen(screen, title);
     }, [intl]));
 
@@ -116,14 +97,6 @@ const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled,
                 info={intl.formatMessage(timezone.useAutomaticTimezone ? TIMEZONE_FORMAT[0] : TIMEZONE_FORMAT[1])}
                 testID='display_settings.timezone.option'
             />
-            {isCRTSwitchEnabled && (
-                <SettingItem
-                    optionName='crt'
-                    onPress={goToCRTSettings}
-                    info={intl.formatMessage(isCRTEnabled ? CRT_FORMAT[0] : CRT_FORMAT[1])}
-                    testID='display_settings.crt.option'
-                />
-            )}
         </SettingContainer>
     );
 };

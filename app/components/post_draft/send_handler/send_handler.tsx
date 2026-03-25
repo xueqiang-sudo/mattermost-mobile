@@ -45,6 +45,7 @@ type Props = {
     updateCursorPosition: React.Dispatch<React.SetStateAction<number>>;
     updatePostInputTop: (top: number) => void;
     addFiles: (file: FileInfo[]) => void;
+
     /** Immediate image-only post (local sticker); does not modify draft. */
     sendStandaloneStickerImage: (file: FileInfo) => Promise<void>;
     uploadFileError: React.ReactNode;

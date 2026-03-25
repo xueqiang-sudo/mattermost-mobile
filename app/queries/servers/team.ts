@@ -41,15 +41,14 @@ export const getCurrentTeam = async (database: Database) => {
     return undefined;
 };
 
-// Saves channels to team history & excludes & GLOBAL_THREADS from it
+// Saves channels to team history; excludes synthetic ids (e.g. drafts screen) from membership check
 export const addChannelToTeamHistory = async (operator: ServerDataOperator, teamId: string, channelId: string, prepareRecordsOnly = false) => {
     let tch: TeamChannelHistory|undefined;
 
     try {
         const {database} = operator;
 
-        // Exlude GLOBAL_THREADS from channel check
-        if (channelId !== Screens.GLOBAL_THREADS && channelId !== Screens.GLOBAL_DRAFTS) {
+        if (channelId !== Screens.GLOBAL_DRAFTS) {
             const myChannel = (await database.get<MyChannelModel>(MY_CHANNEL).find(channelId));
             if (!myChannel) {
                 return [];

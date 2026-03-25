@@ -361,7 +361,7 @@ describe('switchToGlobalDrafts', () => {
     it('should call popto from navigation store if Global draft is alreay present', async () => {
         NavigationStore.addScreenToStack(Screens.GLOBAL_DRAFTS);
         NavigationStore.addScreenToStack(Screens.CHANNEL);
-        NavigationStore.addScreenToStack(Screens.THREAD);
+        NavigationStore.addScreenToStack(Screens.PERMALINK);
 
         await switchToGlobalDrafts(serverUrl, teamId, DRAFT_SCREEN_TAB_SCHEDULED_POSTS);
 

@@ -271,6 +271,7 @@ export function getWeChatCompactSendButtonBackground(theme: Theme): string {
         // 主流配色：浅色主题使用主色本身，确保与全局按钮体系一致。
         return base.toHexString();
     }
+
     // 深色主题下轻微提亮主色，维持对比度与可点击感。
     return base.lighten(8).toHexString();
 }

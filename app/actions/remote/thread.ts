@@ -11,7 +11,7 @@ import AppsManager from '@managers/apps_manager';
 import NetworkManager from '@managers/network_manager';
 import {getPostById} from '@queries/servers/post';
 import {getConfigValue, getCurrentChannelId, getCurrentTeamId} from '@queries/servers/system';
-import {getIsCRTEnabled, getThreadById, getTeamThreadsSyncData} from '@queries/servers/thread';
+import {getThreadById, getTeamThreadsSyncData} from '@queries/servers/thread';
 import {getCurrentUser} from '@queries/servers/user';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug, logError} from '@utils/log';
@@ -39,44 +39,30 @@ enum Direction {
     Down,
 }
 
-// 当 CRT 开启时，允许频道内点击消息进入话题；测试中通过 __setThreadNavigationEnabledForTesting 覆盖。
-let _threadNavigationEnabledOverride: boolean | null = null;
-export const __setThreadNavigationEnabledForTesting = (enabled: boolean) => {
-    _threadNavigationEnabledOverride = enabled;
-};
-
 export const fetchAndSwitchToThread = async (
     serverUrl: string,
     rootId: string,
     isFromNotification = false,
     groupLabel?: RequestGroupLabel,
 
-    /** 为 true 时忽略频道内禁用策略（主题 modal、推送、冷启动恢复话题等） */
-    bypassChannelThreadDisable = false,
+    /** @deprecated 保留签名以兼容调用方；已不再使用 */
+    _bypassChannelThreadDisable = false,
 ) => {
     const database = DatabaseManager.serverDatabases[serverUrl]?.database;
     if (!database) {
         return {error: `${serverUrl} database not found`};
     }
 
-    const isCRTEnabled = _threadNavigationEnabledOverride !== null
-        ? _threadNavigationEnabledOverride
-        : await getIsCRTEnabled(database);
-    if (!isCRTEnabled && !bypassChannelThreadDisable) {
-        return {};
-    }
+    void _bypassChannelThreadDisable;
 
-    // Load thread before we open to the thread modal
+    // Load thread before we open the channel view
     fetchPostThread(serverUrl, rootId, undefined, false, groupLabel);
 
-    // Mark thread as read
-    if (isCRTEnabled) {
-        const post = await getPostById(database, rootId);
-        if (post) {
-            const thread = await getThreadById(database, rootId);
-            if (thread?.isFollowing) {
-                markThreadAsViewed(serverUrl, thread.id);
-            }
+    const post = await getPostById(database, rootId);
+    if (post) {
+        const thread = await getThreadById(database, rootId);
+        if (thread?.isFollowing) {
+            markThreadAsViewed(serverUrl, thread.id);
         }
     }
 
@@ -151,14 +137,9 @@ export const markThreadAsRead = async (serverUrl: string, teamId: string | undef
             unread_mentions: 0,
         });
 
-        const isCRTEnabled = await getIsCRTEnabled(database);
         const post = await getPostById(database, threadId);
         if (post) {
-            if (isCRTEnabled) {
-                PushNotifications.removeThreadNotifications(serverUrl, threadId);
-            } else {
-                PushNotifications.removeChannelNotifications(serverUrl, post.channelId);
-            }
+            PushNotifications.removeChannelNotifications(serverUrl, post.channelId);
         }
 
         return {data};

@@ -8,8 +8,9 @@ import {getDefaultThemeByAppearance} from '@context/theme';
 import {renderWithIntlAndTheme} from '@test/intl-test-helper';
 import TestHelper from '@test/test_helper';
 
-import Body from './index';
 import Message from './message';
+
+import Body from './index';
 
 import type PostModel from '@typings/database/models/servers/post';
 
