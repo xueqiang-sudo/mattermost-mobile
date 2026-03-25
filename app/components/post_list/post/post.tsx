@@ -6,7 +6,7 @@ import {isAgentPost} from '@agents/utils';
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {type ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, Keyboard, Platform, type GestureResponderEvent, type StyleProp, View, type ViewStyle, TouchableHighlight} from 'react-native';
+import {Alert, DeviceEventEmitter, Platform, type GestureResponderEvent, type StyleProp, TouchableOpacity, View, type ViewStyle} from 'react-native';
 
 import {updateDraftMessage} from '@actions/local/draft';
 import {removePost} from '@actions/local/post';
@@ -304,7 +304,7 @@ const Post = ({
         }
     }, [handlePostPress, post]);
 
-    const showPostOptions = useHideExtraKeyboardIfNeeded((event?: GestureResponderEvent) => {
+    const showPostOptions = useCallback((event?: GestureResponderEvent) => {
         if (!post) {
             return;
         }
@@ -317,9 +317,7 @@ const Post = ({
             return;
         }
 
-        Keyboard.dismiss();
         const overlayId = `post-options-popover-${post.id}-${Date.now()}`;
-        const rootIdToOpen = post.rootId || post.id;
         const textMessage = post.messageSource || post.message;
         const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
         const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
@@ -340,13 +338,15 @@ const Post = ({
             };
         };
 
-        const items: Array<{key: string; label: string; destructive?: boolean; onPress: () => void}> = [];
+        const items: Array<{key: string; label: string; iconName: string; destructive?: boolean; onPress: () => void}> = [];
         if (canQuote) {
             items.push({
                 key: 'quote',
-                label: intl.formatMessage({id: 'mobile.post_info.quote', defaultMessage: '引用'}),
+                label: intl.formatMessage({id: 'mobile.post_info.quote', defaultMessage: 'Quote'}),
+                iconName: 'format-quote-open',
                 onPress: closeAndRun(async () => {
-                    await fetchAndSwitchToThread(serverUrl, rootIdToOpen);
+                    DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+                    DeviceEventEmitter.emit(Events.POST_DRAFT_SET_QUOTED_POST, {channelId: post.channelId, postId: post.id});
                     DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
                 }),
             });
@@ -355,6 +355,7 @@ const Post = ({
             items.push({
                 key: 'edit',
                 label: intl.formatMessage({id: 'post_info.edit', defaultMessage: 'Edit'}),
+                iconName: 'pencil-outline',
                 onPress: closeAndRun(() => {
                     const title = intl.formatMessage({id: 'mobile.edit_post.title', defaultMessage: 'Editing Message'});
                     showModal(Screens.EDIT_POST, title, {post, closeButtonId: 'close-edit-post', canDelete: canWithdrawPost});
@@ -365,6 +366,7 @@ const Post = ({
             items.push({
                 key: 'reedit',
                 label: intl.formatMessage({id: 'mobile.post_info.reedit', defaultMessage: '重新编辑'}),
+                iconName: 'pencil',
                 onPress: closeAndRun(async () => {
                     const draftRootId = post.rootId || '';
                     const message = textMessage;
@@ -385,24 +387,27 @@ const Post = ({
             items.push({
                 key: 'copy_text',
                 label: intl.formatMessage({id: 'mobile.post_info.copy_text', defaultMessage: 'Copy Text'}),
+                iconName: 'content-copy',
                 onPress: closeAndRun(() => Clipboard.setString(textMessage)),
             });
         }
         if (canWithdrawPost) {
+            const withdrawText = intl.locale.startsWith('zh') ? '撤回' : 'Withdraw';
             items.push({
                 key: 'withdraw',
-                label: intl.formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: '撤回'}),
+                label: withdrawText,
+                iconName: 'trash-can-outline',
                 destructive: true,
                 onPress: () => {
                     closePopover().finally(() => {
                         Alert.alert(
-                            intl.formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: '撤回消息'}),
-                            intl.formatMessage({id: 'mobile.post.withdraw_question', defaultMessage: '确认撤回这条消息吗？'}),
+                            intl.formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
+                            intl.formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
                             [{
                                 text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                                 style: 'cancel',
                             }, {
-                                text: intl.formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: '撤回'}),
+                                text: withdrawText,
                                 style: 'destructive',
                                 onPress: () => deletePost(serverUrl, post),
                             }],
@@ -421,7 +426,6 @@ const Post = ({
                 <PostOptionsPopover
                     x={x}
                     y={y}
-                    theme={theme}
                     onClose={closePopover}
                     items={items}
                 />
@@ -429,7 +433,7 @@ const Post = ({
         }, {overlay: {interceptTouchOutside: false}}, overlayId);
     }, [
         borPost, canDelete, canEdit, hasBeenDeleted, intl, isEphemeral, isPendingOrFailed,
-        isOwnPost, isSaved, isSystemPost, post, serverUrl, theme,
+        isOwnPost, isSaved, isSystemPost, post, serverUrl,
     ]);
 
     const [, rerender] = useState(false);
@@ -628,6 +632,7 @@ const Post = ({
                 searchPatterns={searchPatterns}
                 showAddReaction={showAddReaction}
                 theme={theme}
+                onLongPress={showPostOptions}
             />
         );
     }
@@ -677,12 +682,12 @@ const Post = ({
                 skipSavedHeader={skipSavedHeader}
                 skipPinnedHeader={skipPinnedHeader}
             />
-            <TouchableHighlight
+            <TouchableOpacity
                 testID={itemTestID}
                 onPress={handlePress}
                 onLongPress={showPostOptions}
                 delayLongPress={200}
-                underlayColor={changeOpacity(theme.centerChannelColor, 0.1)}
+                activeOpacity={1}
                 style={touchableStyle}
             >
                 <View
@@ -720,7 +725,7 @@ const Post = ({
                         </>
                     )}
                 </View>
-            </TouchableHighlight>
+            </TouchableOpacity>
         </View>
     );
 };

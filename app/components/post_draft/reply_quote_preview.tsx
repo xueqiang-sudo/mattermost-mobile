@@ -20,7 +20,7 @@ import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
 
 type Props = {
-    rootId: string;
+    quotedPostId: string;
     channelId: string;
     post?: PostModel;
     author?: UserModel;
@@ -74,8 +74,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const enhance = withObservables(['rootId'], ({database, rootId}: WithDatabaseArgs & {rootId: string}) => {
-    const post$ = rootId ? observePost(database, rootId) : of$(undefined);
+const enhance = withObservables(['quotedPostId'], ({database, quotedPostId}: WithDatabaseArgs & {quotedPostId: string}) => {
+    const post$ = quotedPostId ? observePost(database, quotedPostId) : of$(undefined);
     const author$ = post$.pipe(switchMap((post) => (post ? observePostAuthor(database, post) : of$(undefined))));
 
     return {
@@ -90,7 +90,7 @@ const ReplyQuotePreview = ({post, author}: Props) => {
     const styles = getStyleSheet(theme);
 
     const onClose = useCallback(() => {
-        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
     }, []);
 
     const onJump = useCallback(() => {

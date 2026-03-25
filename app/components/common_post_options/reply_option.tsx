@@ -22,7 +22,7 @@ type Props = {
 const messages = defineMessages({
     quote: {
         id: 'mobile.post_info.quote',
-        defaultMessage: '引用',
+        defaultMessage: 'Quote',
     },
 });
 const ReplyOption = ({post, bottomSheetId}: Props) => {

@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {StyleSheet, TouchableWithoutFeedback, View} from 'react-native';
+import {StyleSheet, type GestureResponderEvent, Pressable, View} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {getRedirectLocation} from '@actions/remote/general';
@@ -30,6 +30,7 @@ type ImagePreviewProps = {
     layoutWidth?: number;
     location: string;
     metadata: PostMetadata | undefined | null;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     postId: string;
     theme: Theme;
 }
@@ -49,7 +50,7 @@ const style = StyleSheet.create({
     },
 });
 
-const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, metadata, postId, theme}: ImagePreviewProps) => {
+const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, metadata, onLongPress, postId, theme}: ImagePreviewProps) => {
     const galleryIdentifier = `${postId}-ImagePreview-${location}`;
     const [error, setError] = useState(false);
     const serverUrl = useServerUrl();
@@ -129,7 +130,11 @@ const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, m
     return (
         <GalleryInit galleryIdentifier={galleryIdentifier}>
             <Animated.View style={[styles, style.imageContainer, {height: dimensions.height}]}>
-                <TouchableWithoutFeedback onPress={onGestureEvent}>
+                <Pressable
+                    onPress={onGestureEvent}
+                    onLongPress={onLongPress}
+                    delayLongPress={200}
+                >
                     <Animated.View testID={`ImagePreview-${fileId}`}>
                         <ProgressiveImage
                             forwardRef={ref}
@@ -141,7 +146,7 @@ const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, m
                             theme={theme}
                         />
                     </Animated.View>
-                </TouchableWithoutFeedback>
+                </Pressable>
             </Animated.View>
         </GalleryInit>
     );

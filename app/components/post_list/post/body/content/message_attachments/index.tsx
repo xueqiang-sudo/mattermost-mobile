@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {StyleSheet, View} from 'react-native';
+import {type GestureResponderEvent, StyleSheet, View} from 'react-native';
 
 import MessageAttachment from './message_attachment';
 
@@ -14,6 +14,7 @@ type Props = {
     layoutWidth?: number;
     location: AvailableScreens;
     metadata?: PostMetadata | undefined | null;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     postId: string;
     theme: Theme;
 }
@@ -25,7 +26,7 @@ const styles = StyleSheet.create({
     },
 });
 
-const MessageAttachments = ({attachments, channelId, layoutWidth, location, metadata, postId, theme}: Props) => {
+const MessageAttachments = ({attachments, channelId, layoutWidth, location, metadata, onLongPress, postId, theme}: Props) => {
     const content: React.ReactNode[] = [];
 
     attachments.forEach((attachment, i) => {
@@ -37,6 +38,7 @@ const MessageAttachments = ({attachments, channelId, layoutWidth, location, meta
                 layoutWidth={layoutWidth}
                 location={location}
                 metadata={metadata}
+                onLongPress={onLongPress}
                 postId={postId}
                 theme={theme}
             />,

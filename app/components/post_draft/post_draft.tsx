@@ -58,6 +58,7 @@ function PostDraft({
     const [postInputTop, setPostInputTop] = useState(0);
     const [isFocused, setIsFocused] = useState(false);
     const [channelReplyRootId, setChannelReplyRootId] = useState('');
+    const [channelQuotedPostId, setChannelQuotedPostId] = useState('');
     const keyboardHeight = useKeyboardHeight();
     const kbHeight = Platform.OS === 'ios' ? keyboardHeight : 0; // useKeyboardHeight is already deducting the keyboard height on Android
     const headerHeight = useDefaultHeaderHeight();
@@ -71,6 +72,7 @@ function PostDraft({
 
     useEffect(() => {
         setChannelReplyRootId('');
+        setChannelQuotedPostId('');
     }, [channelId]);
 
     useEffect(() => {
@@ -85,13 +87,27 @@ function PostDraft({
         const clearSub = DeviceEventEmitter.addListener(Events.POST_DRAFT_CLEAR_REPLY_ROOT, () => {
             setChannelReplyRootId('');
         });
+        const setQuotedSub = DeviceEventEmitter.addListener(
+            Events.POST_DRAFT_SET_QUOTED_POST,
+            (payload: {channelId: string; postId: string}) => {
+                if (isChannelScreen && location === Screens.CHANNEL && payload.channelId === channelId) {
+                    setChannelQuotedPostId(payload.postId);
+                }
+            },
+        );
+        const clearQuotedSub = DeviceEventEmitter.addListener(Events.POST_DRAFT_CLEAR_QUOTED_POST, () => {
+            setChannelQuotedPostId('');
+        });
         return () => {
             setSub.remove();
             clearSub.remove();
+            setQuotedSub.remove();
+            clearQuotedSub.remove();
         };
     }, [channelId, isChannelScreen, location]);
 
     const effectiveRootId = isChannelScreen && location === Screens.CHANNEL ? (channelReplyRootId || rootId) : rootId;
+    const effectiveQuotedPostId = isChannelScreen && location === Screens.CHANNEL ? channelQuotedPostId : '';
 
     const autocompletePosition = AUTOCOMPLETE_ADJUST + kbHeight + postInputTop;
     const autocompleteAvailableSpace = containerHeight - autocompletePosition - (isChannelScreen ? headerHeight : 0);
@@ -126,6 +142,7 @@ function PostDraft({
             cursorPosition={cursorPosition}
             files={files}
             rootId={effectiveRootId}
+            quotedPostId={effectiveQuotedPostId}
             canShowPostPriority={canShowPostPriority}
             updateCursorPosition={setCursorPosition}
             updatePostInputTop={setPostInputTop}
@@ -136,9 +153,9 @@ function PostDraft({
         />
     );
 
-    const quotePreview = Boolean(effectiveRootId) ? (
+    const quotePreview = Boolean(effectiveQuotedPostId) ? (
         <ReplyQuotePreview
-            rootId={effectiveRootId}
+            quotedPostId={effectiveQuotedPostId}
             channelId={channelId}
         />
     ) : null;

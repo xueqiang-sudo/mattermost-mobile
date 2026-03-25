@@ -894,6 +894,7 @@
   "mobile.post_info.unpin": "Unpin from Channel",
   "mobile.post_info.unsave": "Unsave",
   "mobile.post_info.reedit": "Re-edit",
+  "mobile.post_body.quoted_jump_a11y": "Jump to quoted message",
   "mobile.post_pre_header.pinned": "Pinned",
   "mobile.post_pre_header.pinned_saved": "Pinned and Saved",
   "mobile.post_pre_header.saved": "Saved",

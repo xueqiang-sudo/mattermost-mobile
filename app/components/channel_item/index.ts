@@ -84,9 +84,12 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
             distinctUntilChanged(),
         ) : of$('');
 
-    const membersCount = channel.type === General.GM_CHANNEL ?
-        queryChannelMembers(database, channel.id).observeCount(false) :
-        of$(0);
+    const membersCount =
+        channel.type === General.GM_CHANNEL ||
+        channel.type === General.OPEN_CHANNEL ||
+        channel.type === General.PRIVATE_CHANNEL ?
+            queryChannelMembers(database, channel.id).observeCount(false) :
+            of$(0);
 
     const isUnread = shouldHighlightState ?
         myChannel.pipe(

@@ -3,7 +3,8 @@
 
 import React, {useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {Platform, Pressable, Text, useWindowDimensions, View, type ViewStyle} from 'react-native';
+import {Platform, Text, useWindowDimensions, View, type ViewStyle} from 'react-native';
+import {Pressable} from 'react-native-gesture-handler';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -21,6 +22,13 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
         alignItems: 'center',
     };
     return {
+        guidingWrap: {
+            ...Platform.select({
+                ios: {zIndex: 50},
+                default: {elevation: 50, zIndex: 50},
+            }),
+            pointerEvents: 'box-none',
+        },
         buttonStyle: {
             position: 'absolute',
             alignSelf: 'center',
@@ -120,11 +128,14 @@ const ScrollToEndView = ({
     return (
         <View
             ref={guidingViewRef}
+            style={styles.guidingWrap}
             testID={testID}
+            collapsable={false}
         >
             <Animated.View style={[animatedStyle, styles.buttonStyle]}>
                 <Pressable
                     onPress={onPress}
+                    delayPressIn={0}
                     style={[scrollButtonStyles, styles.shadow]}
                 >
                     <CompassIcon

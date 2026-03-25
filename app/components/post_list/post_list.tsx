@@ -3,7 +3,7 @@
 
 import {FlatList} from '@stream-io/flat-list-mvcp';
 import React, {type ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
+import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
 import Animated, {type AnimatedStyle} from 'react-native-reanimated';
 
 import {removePost} from '@actions/local/post';
@@ -114,6 +114,8 @@ const PostList = ({
     const onScrollEndIndexListener = useRef<onScrollEndIndexListenerEvent>();
     const onViewableItemsChangedListener = useRef<ViewableItemsChangedListenerEvent>();
     const scrolledToHighlighted = useRef(false);
+    const [jumpHighlightPostId, setJumpHighlightPostId] = useState<string | undefined>();
+    const effectiveHighlightedId = jumpHighlightPostId || highlightedId;
     const [refreshing, setRefreshing] = useState(false);
     const [showScrollToEndBtn, setShowScrollToEndBtn] = useState(false);
     const [lastPostId, setLastPostId] = useState<string | undefined>(firstIdInPosts);
@@ -163,6 +165,36 @@ const PostList = ({
         };
     }, [location, scrollToEnd]);
 
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener(
+            Events.POST_LIST_JUMP_TO_POST,
+            ({postId, channelId: eventChannelId, location: eventLocation}: {postId: string; channelId: string; location: AvailableScreens}) => {
+                if (eventChannelId === channelId && eventLocation === location) {
+                    setJumpHighlightPostId(postId);
+                }
+            },
+        );
+        return () => sub.remove();
+    }, [channelId, location]);
+
+    useEffect(() => {
+        if (!jumpHighlightPostId) {
+            return undefined;
+        }
+        const t = setTimeout(() => setJumpHighlightPostId(undefined), 2500);
+        return () => clearTimeout(t);
+    }, [jumpHighlightPostId]);
+
+    useEffect(() => {
+        if (jumpHighlightPostId) {
+            scrolledToHighlighted.current = false;
+        }
+    }, [jumpHighlightPostId]);
+
+    useEffect(() => {
+        scrolledToHighlighted.current = false;
+    }, [highlightedId]);
+
     const onRefresh = useCallback(async () => {
         if (disablePullToRefresh) {
             return;
@@ -203,13 +235,13 @@ const PostList = ({
     const onScrollToIndexFailed = useCallback((info: ScrollIndexFailed) => {
         const index = Math.min(info.highestMeasuredFrameIndex, info.index);
 
-        if (!highlightedId) {
+        if (!effectiveHighlightedId) {
             if (onScrollEndIndexListener.current) {
                 onScrollEndIndexListener.current(index);
             }
             scrollToIndex(index);
         }
-    }, [highlightedId, scrollToIndex]);
+    }, [effectiveHighlightedId, scrollToIndex]);
 
     const onViewableItemsChanged = useCallback(({viewableItems}: ViewableItemsChanged) => {
         if (!viewableItems.length) {
@@ -301,7 +333,7 @@ const PostList = ({
                     customEmojiNames,
                     isCRTEnabled,
                     isPostAcknowledgementEnabled,
-                    highlight: highlightedId === post.id,
+                    highlight: effectiveHighlightedId === post.id,
                     highlightPinnedOrSaved,
                     isSaved,
                     location,
@@ -322,14 +354,14 @@ const PostList = ({
                 );
             }
         }
-    }, [appsEnabled, currentTimezone, currentUsername, customEmojiNames, highlightPinnedOrSaved, highlightedId, isCRTEnabled, isPostAcknowledgementEnabled, location, rootId, shouldRenderReplyButton, shouldShowJoinLeaveMessages, testID, theme]);
+    }, [appsEnabled, currentTimezone, currentUsername, customEmojiNames, highlightPinnedOrSaved, effectiveHighlightedId, isCRTEnabled, isPostAcknowledgementEnabled, location, rootId, shouldRenderReplyButton, shouldShowJoinLeaveMessages, testID, theme]);
 
     useEffect(() => {
         const t = setTimeout(() => {
-            if (highlightedId && orderedPosts && !scrolledToHighlighted.current) {
+            if (effectiveHighlightedId && orderedPosts && !scrolledToHighlighted.current) {
                 scrolledToHighlighted.current = true;
                 // eslint-disable-next-line max-nested-callbacks
-                const index = orderedPosts.findIndex((p) => p.type === 'post' && p.value.currentPost.id === highlightedId);
+                const index = orderedPosts.findIndex((p) => p.type === 'post' && p.value.currentPost.id === effectiveHighlightedId);
                 if (index >= 0 && listRef.current) {
                     listRef.current?.scrollToIndex({
                         animated: true,
@@ -342,10 +374,10 @@ const PostList = ({
         }, 500);
 
         return () => clearTimeout(t);
-    }, [orderedPosts, highlightedId]);
+    }, [orderedPosts, effectiveHighlightedId]);
 
     return (
-        <>
+        <View style={styles.container}>
             <Animated.FlatList
                 contentContainerStyle={[listContentStyle, contentContainerStyle]}
                 data={orderedPosts}
@@ -398,7 +430,7 @@ const PostList = ({
                 testID={`${testID}.more_messages_button`}
             />
             }
-        </>
+        </View>
     );
 };
 

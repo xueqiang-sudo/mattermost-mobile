@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useRef, useState} from 'react';
-import {TouchableWithoutFeedback, View} from 'react-native';
+import {type GestureResponderEvent, Pressable, View} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import FileIcon from '@components/files/file_icon';
@@ -48,11 +48,12 @@ export type Props = {
     imageUrl: string;
     layoutWidth?: number;
     location: string;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     postId: string;
     theme: Theme;
 }
 
-const AttachmentImage = ({imageUrl, imageMetadata, layoutWidth, location, postId, theme}: Props) => {
+const AttachmentImage = ({imageUrl, imageMetadata, layoutWidth, location, onLongPress, postId, theme}: Props) => {
     const galleryIdentifier = `${postId}-AttachmentImage-${location}`;
     const [error, setError] = useState(false);
     const fileId = useRef<string | null>(null);
@@ -105,7 +106,11 @@ const AttachmentImage = ({imageUrl, imageMetadata, layoutWidth, location, postId
     return (
         <GalleryInit galleryIdentifier={galleryIdentifier}>
             <Animated.View style={[styles, style.container, {width}]}>
-                <TouchableWithoutFeedback onPress={onGestureEvent}>
+                <Pressable
+                    onPress={onGestureEvent}
+                    onLongPress={onLongPress}
+                    delayLongPress={200}
+                >
                     <Animated.View testID={`attachmentImage-${fileId}`}>
                         <ProgressiveImage
                             forwardRef={ref}
@@ -118,7 +123,7 @@ const AttachmentImage = ({imageUrl, imageMetadata, layoutWidth, location, postId
                             theme={theme}
                         />
                     </Animated.View>
-                </TouchableWithoutFeedback>
+                </Pressable>
             </Animated.View>
         </GalleryInit>
     );

@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {type ReactNode, useCallback, useMemo, useState} from 'react';
-import {Dimensions, type LayoutChangeEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {Dimensions, type GestureResponderEvent, type LayoutChangeEvent, Pressable, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import tinyColor from 'tinycolor2';
 
 import Files from '@components/files';
@@ -21,6 +21,7 @@ import AddMembers from './add_members';
 import Content from './content';
 import Failed from './failed';
 import Message from './message';
+import QuotedPostPreview from './quoted_post_preview';
 import Reactions from './reactions';
 
 import type PostModel from '@typings/database/models/servers/post';
@@ -54,6 +55,7 @@ type BodyProps = {
     searchPatterns?: SearchPattern[];
     showAddReaction?: boolean;
     theme: Theme;
+    onLongPress?: (event?: GestureResponderEvent) => void;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -191,7 +193,7 @@ const useWeChatStyle = (location: AvailableScreens) =>
 const Body = ({
     appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
     isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isOwnPost, author, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
-    location, post, searchPatterns, showAddReaction, theme,
+    location, post, searchPatterns, showAddReaction, theme, onLongPress,
 }: BodyProps) => {
     const style = getStyleSheet(theme);
     const isEdited = postEdited(post);
@@ -265,6 +267,7 @@ const Body = ({
     }, [theme, weChatStyleActive]);
 
     const displayMessage = post.message || post.messageSource;
+    const quotedPostId = post.props?.quoted_post_id;
     const hasTextMessage = Boolean(displayMessage.length || isEdited);
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
     const showBubble = weChatStyleActive && !hasBeenDeleted;
@@ -384,12 +387,21 @@ const Body = ({
                     isMediaOnlyWeChat && style.messageBodyMediaOnlyWeChat,
                 ]}
             >
+                {Boolean(quotedPostId) && (
+                    <QuotedPostPreview
+                        quotedPostId={quotedPostId}
+                        channelId={post.channelId}
+                        location={location}
+                        isOwnPost={isOwnPost}
+                    />
+                )}
                 {message}
                 {hasContent &&
                 <Content
                     isReplyPost={isReplyPost}
                     layoutWidth={weChatStyleActive ? weChatContentMaxWidth : layoutWidth}
                     location={location}
+                    onLongPress={onLongPress}
                     post={post}
                     theme={theme}
                 />
@@ -469,10 +481,19 @@ const Body = ({
         );
     }
 
+    const bubbleContent = (
+        <Pressable
+            onLongPress={onLongPress}
+            delayLongPress={200}
+        >
+            {bubbleSection}
+        </Pressable>
+    );
+
     const content = (
         <>
             <View style={replyBarStyle}/>
-            {bubbleSection}
+            {bubbleContent}
             {isFailed &&
             <Failed
                 post={post}

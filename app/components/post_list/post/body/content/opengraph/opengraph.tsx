@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {Text, TouchableOpacity, View} from 'react-native';
+import {type GestureResponderEvent, Text, TouchableOpacity, View} from 'react-native';
 
 import {useExternalLinkHandler} from '@hooks/use_external_link_handler';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -16,6 +16,7 @@ type OpengraphProps = {
     layoutWidth?: number;
     location: string;
     metadata: PostMetadata | undefined | null;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     postId: string;
     showLinkPreviews: boolean;
     theme: Theme;
@@ -61,7 +62,7 @@ const selectOpenGraphData = (url: string, metadata: PostMetadata | undefined | n
     })?.data;
 };
 
-const Opengraph = ({isReplyPost, layoutWidth, location, metadata, postId, showLinkPreviews, theme, isEmbedded}: OpengraphProps) => {
+const Opengraph = ({isReplyPost, layoutWidth, location, metadata, onLongPress, postId, showLinkPreviews, theme, isEmbedded}: OpengraphProps) => {
     const link = metadata?.embeds?.[0]?.url || '';
     const openGraphData = selectOpenGraphData(link, metadata);
 
@@ -145,6 +146,7 @@ const Opengraph = ({isReplyPost, layoutWidth, location, metadata, postId, showLi
                         location={location}
                         openGraphImages={openGraphData.images as never[]}
                         metadata={metadata}
+                        onLongPress={onLongPress}
                         postId={postId}
                         theme={theme}
                     />

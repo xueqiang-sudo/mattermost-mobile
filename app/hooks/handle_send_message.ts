@@ -34,6 +34,7 @@ type Props = {
     value: string;
     channelId: string;
     rootId: string;
+    quotedPostId?: string;
     maxMessageLength: number;
     files: FileInfo[];
     customEmojis: CustomEmojiModel[];
@@ -56,6 +57,7 @@ export const useHandleSendMessage = ({
     value,
     channelId,
     rootId,
+    quotedPostId = '',
     files,
     maxMessageLength,
     customEmojis,
@@ -110,6 +112,13 @@ export const useHandleSendMessage = ({
             message: value,
         } as Post;
 
+        if (quotedPostId) {
+            post.props = {
+                ...(post.props || {}),
+                quoted_post_id: quotedPostId,
+            };
+        }
+
         if (!rootId && (
             postPriority.priority ||
             postPriority.requested_ack ||
@@ -161,7 +170,8 @@ export const useHandleSendMessage = ({
         setSendingMessage(false);
         DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
         DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
-    }, [files, currentUserId, channelId, rootId, value, postPriority, isFromDraftView, serverUrl, intl, canPost, channelIsArchived, channelIsReadOnly, deactivatedChannel, clearDraft]);
+        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
+    }, [files, currentUserId, channelId, rootId, quotedPostId, value, postPriority, isFromDraftView, serverUrl, intl, canPost, channelIsArchived, channelIsReadOnly, deactivatedChannel, clearDraft]);
 
     const showSendToAllOrChannelOrHereAlert = useCallback((calculatedMembersCount: number, atHere: boolean, schedulingInfo?: SchedulingInfo) => {
         const notifyAllMessage = DraftUtils.buildChannelWideMentionMessage(intl, calculatedMembersCount, channelTimezoneCount, atHere);
@@ -265,6 +275,7 @@ export const useHandleSendMessage = ({
             createPost(serverUrl, post, uploadedFiles);
             DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
             DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+            DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
         } catch (err) {
             showSnackBar({
                 barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,

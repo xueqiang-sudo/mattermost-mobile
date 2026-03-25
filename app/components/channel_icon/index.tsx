@@ -212,6 +212,8 @@ const ChannelIcon = ({
                 <View style={[commonStyles, {width: size, height: size, borderRadius: roundedSquareRadius, overflow: 'hidden'}]}>
                     <GmAvatarGrid
                         channelId={channelId}
+                        channelName={name}
+                        expectedCount={Math.max(0, membersCount)}
                         size={size}
                         isOnCenterBg={isOnCenterBg}
                         isUnread={isUnread && !isMuted}
@@ -236,6 +238,8 @@ const ChannelIcon = ({
                 <View style={[commonStyles, {width: size, height: size, borderRadius: roundedSquareRadius, overflow: 'hidden'}]}>
                     <GmAvatarGrid
                         channelId={channelId}
+                        channelName={name}
+                        expectedCount={Math.max(0, membersCount)}
                         size={size}
                         isOnCenterBg={isOnCenterBg}
                         isUnread={isUnread && !isMuted}
@@ -263,6 +267,8 @@ const ChannelIcon = ({
                 <View style={[commonStyles, {width: size, height: size, borderRadius: groupBoxBorderRadius, overflow: 'hidden'}]}>
                     <GmAvatarGrid
                         channelId={channelId}
+                        channelName={name}
+                        expectedCount={Math.max(0, membersCount)}
                         size={size}
                         isOnCenterBg={isOnCenterBg}
                         isUnread={isUnread && !isMuted}

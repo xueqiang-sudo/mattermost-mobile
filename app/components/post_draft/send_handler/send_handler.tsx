@@ -20,6 +20,7 @@ type Props = {
     channelType?: ChannelType;
     channelName?: string;
     rootId: string;
+    quotedPostId?: string;
     canShowPostPriority?: boolean;
     useChatInputStyle?: boolean;
     setIsFocused: (isFocused: boolean) => void;
@@ -80,6 +81,7 @@ export default function SendHandler({
     membersCount = 0,
     cursorPosition,
     rootId,
+    quotedPostId = '',
     canShowPostPriority,
     useChatInputStyle,
     useChannelMentions,
@@ -116,6 +118,7 @@ export default function SendHandler({
         value,
         channelId,
         rootId,
+        quotedPostId,
         files,
         maxMessageLength,
         customEmojis,
@@ -134,6 +137,7 @@ export default function SendHandler({
             <SendDraft
                 channelId={channelId}
                 rootId={rootId}
+                quotedPostId={quotedPostId}
                 channelType={channelType}
                 currentUserId={currentUserId}
                 channelName={channelName}
