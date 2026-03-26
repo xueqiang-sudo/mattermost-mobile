@@ -89,6 +89,9 @@ const CreateOrEditChannel = ({
 
     const editing = Boolean(channel);
 
+    const isDefaultTownSquare = channel?.name === General.DEFAULT_CHANNEL;
+    const displayNameReadOnly = Boolean(editing && isDefaultTownSquare);
+
     const [type, setType] = useState<ChannelType>(channel?.type || General.OPEN_CHANNEL);
     const [canSave, setCanSave] = useState(false);
 
@@ -151,15 +154,16 @@ const CreateOrEditChannel = ({
     }, [theme, isModal]);
 
     useEffect(() => {
+        const displayNameChanged = displayNameReadOnly ? false : displayName !== channel?.displayName;
         setCanSave(
             displayName.length >= MIN_CHANNEL_NAME_LENGTH && (
-                displayName !== channel?.displayName ||
+                displayNameChanged ||
                 purpose !== channelInfo?.purpose ||
                 header !== channelInfo?.header ||
                 type !== channel.type
             ),
         );
-    }, [channel, displayName, purpose, header, type]);
+    }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly]);
 
     const isValidDisplayName = useCallback((): boolean => {
         // DM 不需要验证 displayName；GM 群聊需要验证
@@ -213,10 +217,15 @@ const CreateOrEditChannel = ({
         const patchChannel: ChannelPatch = {
             header,
         };
+        const allowDisplayNamePatch = channel.name !== General.DEFAULT_CHANNEL;
         if (channel.type === General.GM_CHANNEL) {
-            patchChannel.display_name = displayName;
+            if (allowDisplayNamePatch) {
+                patchChannel.display_name = displayName;
+            }
         } else if (!isDirect(channel)) {
-            patchChannel.display_name = displayName;
+            if (allowDisplayNamePatch) {
+                patchChannel.display_name = displayName;
+            }
             patchChannel.purpose = purpose;
         }
 
@@ -231,7 +240,7 @@ const CreateOrEditChannel = ({
         }
         dispatch({type: RequestActions.COMPLETE});
         close(componentId, isModal);
-    }, [channel?.id, channel?.type, displayName, header, isModal, purpose, isValidDisplayName]);
+    }, [channel, componentId, displayName, header, isModal, purpose, isValidDisplayName, serverUrl]);
 
     const handleClose = useCallback(() => {
         close(componentId, isModal);
@@ -255,6 +264,7 @@ const CreateOrEditChannel = ({
                 onTypeChange={setType}
                 type={type}
                 displayName={displayName}
+                displayNameReadOnly={displayNameReadOnly}
                 onDisplayNameChange={setDisplayName}
                 header={header}
                 headerOnly={headerOnly}

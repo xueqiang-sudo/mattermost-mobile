@@ -361,30 +361,21 @@ describe('Role Queries', () => {
     });
 
     describe('observeCanManageChannelSettings', () => {
-        it('should observe manage settings permission', (done) => {
+        it('should allow system admins to manage channel settings', (done) => {
             const mockUser = TestHelper.fakeUserModel({
                 id: 'user1',
                 roles: 'system_admin',
             });
 
-            Promise.all([
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.OPEN_CHANNEL,
-                        delete_at: 0,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleRole({
-                    roles: [{
-                        id: 'system_admin',
-                        name: 'system_admin',
-                        permissions: [Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES],
-                    }],
-                    prepareRecordsOnly: false,
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.OPEN_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'someone_else',
                 })],
-            ).then(() => {
+                prepareRecordsOnly: false,
+            }).then(() => {
                 observeCanManageChannelSettings(
                     database,
                     'channel1',
@@ -392,6 +383,64 @@ describe('Role Queries', () => {
                 ).subscribe({
                     next: (canManage) => {
                         expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
+
+        it('should allow channel creator to manage settings', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.OPEN_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'user1',
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelSettings(
+                    database,
+                    'channel1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
+
+        it('should not allow manage settings when user is not creator or admin', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.OPEN_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'someone_else',
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelSettings(
+                    database,
+                    'channel1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(false);
                         done();
                     },
                     error: done,

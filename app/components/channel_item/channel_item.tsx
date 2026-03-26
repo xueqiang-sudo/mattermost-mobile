@@ -103,6 +103,27 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: theme.sidebarBg,
         marginLeft: 0,
     },
+    // 已静音：头像角标（群/频道右下；私聊左下，避免与在线状态点重叠）
+    muteIndicator: {
+        position: 'absolute' as const,
+        bottom: -2,
+        right: -2,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.buttonBg,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.buttonColor, 0.2),
+    },
+    muteIndicatorDm: {
+        right: undefined,
+        left: -2,
+    },
+    muteIndicatorIcon: {
+        color: theme.buttonColor,
+    },
     timestamp: {
         ...typography('Body', 75),
         color: changeOpacity(theme.sidebarText, 0.64),
@@ -177,12 +198,12 @@ const ChannelItem = ({
 
     let displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
     if (channel.name === General.DEFAULT_CHANNEL) {
-        /** 首页顶栏已展示企业名，列表再用 teamDisplayName 会重复；侧栏等非首页仍可用团队名区分多团队 */
+        /** 列表统一「企业总群」；会话内顶栏企业名由 getChannelTitleDisplayName 处理 */
         const townSquareLabel = formatMessage({
             id: 'channel_list.town_square.display_name',
             defaultMessage: 'Enterprise main channel',
         });
-        displayName = isOnHome ? townSquareLabel : (teamDisplayName || townSquareLabel);
+        displayName = townSquareLabel;
     } else if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
@@ -226,6 +247,11 @@ const ChannelItem = ({
     // 传入实际数量，Badge 组件会在 >99 时显示 "99+"
     const badgeValue = mentionsCount > 0 ? mentionsCount : (isUnread && messageCount > 0 ? messageCount : -1);
     const subtitle = formatMessagePreview(lastPostPreview);
+    const mutedIndicatorA11yLabel = formatMessage({
+        id: 'mobile.channel_list.muted_indicator_a11y',
+        defaultMessage: 'Muted',
+    });
+    const isDmChannel = channel.type === General.DM_CHANNEL;
 
     return (
         <TouchableOpacity onPress={handleOnPress}>
@@ -250,6 +276,21 @@ const ChannelItem = ({
                         isMuted={isMuted}
                         style={!isOnHome ? styles.icon : undefined}
                     />
+                    {isOnHome && isMuted && (
+                        <View
+                            accessibilityLabel={mutedIndicatorA11yLabel}
+                            accessibilityRole='image'
+                            accessible={true}
+                            style={[styles.muteIndicator, isDmChannel && styles.muteIndicatorDm]}
+                            testID={`${channelItemTestId}.muted_indicator`}
+                        >
+                            <CompassIcon
+                                name='bell-off-outline'
+                                size={11}
+                                style={styles.muteIndicatorIcon}
+                            />
+                        </View>
+                    )}
                     {showIconBadge && (
                         <Badge
                             visible={true}

@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, Platform, View} from 'react-native';
+import {Keyboard, type LayoutChangeEvent, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
@@ -34,7 +34,7 @@ const messages = defineMessages({
     },
     gm: {
         id: 'mobile.open_gm.error',
-        defaultMessage: "We couldn't open a group message with those users. Please check your connection and try again.",
+        defaultMessage: "We couldn't open a discussion group with those users. Please check your connection and try again.",
     },
     buttonText: {
         id: 'mobile.create_direct_message.start',
@@ -47,10 +47,6 @@ const messages = defineMessages({
     doneWithCount: {
         id: 'create_direct_message.done_with_count',
         defaultMessage: 'Done ({count})',
-    },
-    toastMessage: {
-        id: 'mobile.create_direct_message.max_limit_reached',
-        defaultMessage: 'Group messages have reached the maximum number of members',
     },
 });
 
@@ -191,26 +187,25 @@ export default function CreateDirectMessage({
 
     const handleSelectProfile = useCallback((user: UserProfile) => {
         if (user.id === currentUserId) {
-            startConversation(currentUserId);
-        } else {
-            clearSearch();
-            setSelectedIds((current) => {
-                if (current.has(user.id)) {
-                    return removeProfileFromList(current, user.id);
-                }
-
-                if (selectedCount >= General.MAX_USERS_IN_GM) {
-                    setShowToast(true);
-                    return current;
-                }
-
-                const newSelectedIds = new Set(current);
-                newSelectedIds.add(user.id);
-
-                return newSelectedIds;
-            });
+            return;
         }
-    }, [currentUserId, startConversation, clearSearch, selectedCount]);
+        clearSearch();
+        setSelectedIds((current) => {
+            if (current.has(user.id)) {
+                return removeProfileFromList(current, user.id);
+            }
+
+            if (selectedCount >= General.MAX_USERS_IN_GM) {
+                setShowToast(true);
+                return current;
+            }
+
+            const newSelectedIds = new Set(current);
+            newSelectedIds.add(user.id);
+
+            return newSelectedIds;
+        });
+    }, [currentUserId, clearSearch, selectedCount]);
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
         setContainerHeight(e.nativeEvent.layout.height);
@@ -265,7 +260,7 @@ export default function CreateDirectMessage({
 
     const createUserFilter = useCallback((exactMatches: UserProfile[], searchTerm: string) => {
         return (p: UserProfile) => {
-            if (selectedCount > 0 && p.id === currentUserId) {
+            if (p.id === currentUserId) {
                 return false;
             }
 
@@ -276,7 +271,7 @@ export default function CreateDirectMessage({
 
             return true;
         };
-    }, [currentUserId, selectedCount]);
+    }, [currentUserId]);
 
     useNavButtonPressed(CLOSE_BUTTON, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
@@ -335,7 +330,13 @@ export default function CreateDirectMessage({
                 showToast={showToast}
                 setShowToast={setShowToast}
                 toastIcon={'check'}
-                toastMessage={formatMessage(messages.toastMessage)}
+                toastMessage={formatMessage(
+                    {
+                        id: 'mobile.create_direct_message.max_limit_reached',
+                        defaultMessage: 'A discussion group can include up to {max, number} people besides you',
+                    },
+                    {max: General.MAX_USERS_IN_GM},
+                )}
                 selectedIds={selectedIds}
                 onRemove={handleRemoveProfile}
                 teammateNameDisplay={Preferences.DISPLAY_PREFER_NICKNAME}

@@ -155,7 +155,7 @@ const ChannelHeader = ({
                 title = intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'});
                 break;
             case General.GM_CHANNEL:
-                title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Group message info'});
+                title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
                 break;
             default:
                 title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});

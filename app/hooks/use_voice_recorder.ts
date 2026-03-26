@@ -85,7 +85,7 @@ export function useVoiceRecorder(
             }
 
             const cacheDir = cacheDirectory?.replace(/^file:\/\//, '') ?? '';
-            const ext = Platform.OS === 'ios' ? 'acc' : 'amr';
+            const ext = Platform.OS === 'ios' ? 'aac' : 'amr';
             const path = `${cacheDir}/voice_${generateId()}.${ext}`;
 
             const audioRecorderPlayer = getAudioRecorderPlayer();

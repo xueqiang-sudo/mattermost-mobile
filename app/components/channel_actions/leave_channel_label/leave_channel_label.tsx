@@ -30,7 +30,7 @@ const messages = defineMessages({
     },
     closeGroupMessage: {
         id: 'channel_info.close_gm',
-        defaultMessage: 'Close group message',
+        defaultMessage: 'Close discussion group',
     },
     closeDirectMessageChannel: {
         id: 'channel_info.close_dm_channel',
@@ -38,7 +38,7 @@ const messages = defineMessages({
     },
     closeGroupMessageChannel: {
         id: 'channel_info.close_gm_channel',
-        defaultMessage: 'Are you sure you want to close this group message? This will remove it from your home screen, but you can always open it again.',
+        defaultMessage: 'Are you sure you want to close this discussion group? This will remove it from your home screen, but you can always open it again.',
     },
     leaveChannel: {
         id: 'channel_info.leave_channel',

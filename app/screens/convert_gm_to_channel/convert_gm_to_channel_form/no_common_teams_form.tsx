@@ -33,7 +33,7 @@ export const NoCommonTeamForm = ({
 
     const body = formatMessage({
         id: 'channel_info.convert_gm_to_channel.warning.no_teams.body',
-        defaultMessage: 'Group Message cannot be converted to a channel because members are not a part of the same team. Add all members to a single team to convert this group message to a channel.',
+        defaultMessage: 'A discussion group cannot be converted to a channel because members are not part of the same team. Add all members to a single team to convert this discussion group to a channel.',
     });
 
     const buttonText = formatMessage({

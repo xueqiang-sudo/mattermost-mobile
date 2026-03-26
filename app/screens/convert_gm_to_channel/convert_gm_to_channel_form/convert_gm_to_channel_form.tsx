@@ -84,7 +84,7 @@ export const ConvertGMToChannelForm = ({
             } else if (isErrorWithMessage(error)) {
                 setErrorMessage(error.message);
             } else {
-                setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert Group Message to Private Channel.'}));
+                setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a private channel.'}));
             }
 
             setConversionInProgress(false);
@@ -93,7 +93,7 @@ export const ConvertGMToChannelForm = ({
 
         if (!updatedChannel) {
             logError('No updated channel received from server when converting GM to private channel');
-            setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert Group Message to Private Channel.'}));
+            setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a private channel.'}));
             setConversionInProgress(false);
             return;
         }
@@ -129,7 +129,7 @@ export const ConvertGMToChannelForm = ({
     const memberNames = profiles.length > 0 ? formatList(userDisplayNames) : defaultUserDisplayNames;
     const messageBoxBody = formatMessage({
         id: 'channel_info.convert_gm_to_channel.warning.bodyXXXX',
-        defaultMessage: 'You are about to convert the Group Message with {memberNames} to a Channel. This cannot be undone.',
+        defaultMessage: 'You are about to convert the discussion group with {memberNames} to a channel. This cannot be undone.',
     }, {
         memberNames,
     });

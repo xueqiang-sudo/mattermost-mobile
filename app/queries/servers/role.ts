@@ -8,9 +8,11 @@ import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 import {Database as DatabaseConstants, General, Permissions} from '@constants';
 import {isDefaultChannel, isDMorGM} from '@utils/channel';
 import {hasPermission} from '@utils/role';
+import {isSystemAdmin} from '@utils/user';
 
 import {observeChannel, observeMyChannelRoles} from './channel';
 import {observeMyTeam, observeMyTeamRoles} from './team';
+import {observeUserIsChannelAdmin, observeUserIsTeamAdmin} from './user';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type PostModel from '@typings/database/models/servers/post';
@@ -105,12 +107,23 @@ export function observeCanManageChannelMembers(database: Database, channelId: st
 export function observeCanManageChannelSettings(database: Database, channelId: string, user: UserModel) {
     return observeChannel(database, channelId).pipe(
         switchMap((c) => {
-            if (!c || c.deleteAt !== 0 || isDMorGM(c)) {
+            if (!c || c.deleteAt !== 0) {
+                return of$(false);
+            }
+            if (c.type === General.DM_CHANNEL) {
                 return of$(false);
             }
 
-            const permission = c.type === General.OPEN_CHANNEL ? Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES : Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES;
-            return observePermissionForChannel(database, c, user, permission, true);
+            const isCreator = c.creatorId === user.id;
+            const channelAdmin$ = observeUserIsChannelAdmin(database, user.id, channelId);
+            const teamAdmin$ = c.teamId ? observeUserIsTeamAdmin(database, user.id, c.teamId) : of$(false);
+
+            return combineLatest([channelAdmin$, teamAdmin$, of$(isCreator), of$(isSystemAdmin(user.roles || ''))]).pipe(
+                switchMap(([chAdm, teamAdm, creator, sysAdm]) =>
+                    of$(Boolean(creator || chAdm || teamAdm || sysAdm)),
+                ),
+                distinctUntilChanged(),
+            );
         }),
         distinctUntilChanged(),
     );

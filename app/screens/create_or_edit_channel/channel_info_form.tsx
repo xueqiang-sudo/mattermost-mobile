@@ -72,6 +72,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
 type Props = {
     channelType?: string;
     displayName: string;
+    displayNameReadOnly?: boolean;
     onDisplayNameChange: (text: string) => void;
     editing: boolean;
     error?: string | object;
@@ -88,6 +89,7 @@ type Props = {
 export default function ChannelInfoForm({
     channelType,
     displayName,
+    displayNameReadOnly = false,
     onDisplayNameChange,
     editing,
     error,
@@ -307,6 +309,7 @@ export default function ChannelInfoForm({
                                 <FloatingTextInput
                                     blurOnSubmit={false}
                                     disableFullscreenUI={true}
+                                    editable={!displayNameReadOnly}
                                     enablesReturnKeyAutomatically={true}
                                     label={labelDisplayName}
                                     placeholder={placeholderDisplayName}
@@ -319,6 +322,14 @@ export default function ChannelInfoForm({
                                     theme={theme}
                                     onLayout={onLayoutDisplayName}
                                 />
+                                {displayNameReadOnly && (
+                                    <FormattedText
+                                        style={styles.helpText}
+                                        id='mobile.channel.town_square_display_name_readonly'
+                                        defaultMessage='The default channel display name cannot be changed here.'
+                                        testID='channel_info_form.display_name.readonly_help'
+                                    />
+                                )}
                                 <View
                                     onLayout={onLayoutPurpose}
                                 >
