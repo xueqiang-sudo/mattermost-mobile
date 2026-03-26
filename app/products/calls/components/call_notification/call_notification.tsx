@@ -23,7 +23,7 @@ import {getServerDisplayName} from '@queries/app/servers';
 import ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type ServersModel from '@typings/database/models/app/servers';
 
@@ -120,7 +120,7 @@ export const CallNotification = ({
     incomingCall,
     currentUserId,
     userStatus,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     members,
     onCallsScreen,
 }: Props) => {
@@ -175,7 +175,7 @@ export const CallNotification = ({
                 defaultMessage={'<b>{name}</b> is inviting you to a call'}
                 values={{
                     b: (text: string) => <Text style={style.boldText}>{text}</Text>,
-                    name: displayUsername(incomingCall.callerModel, intl.locale, teammateNameDisplay),
+                    name: username2Nickname(incomingCall.callerModel, {locale: intl.locale}),
                 }}
                 style={style.text}
                 numberOfLines={1}
@@ -189,7 +189,7 @@ export const CallNotification = ({
                 defaultMessage={'<b>{name}</b> is inviting you to a call with  <b>{num, plural, one {# other} other {# others}}</b>'}
                 values={{
                     b: (text: string) => <Text style={style.boldText}>{text}</Text>,
-                    name: displayUsername(incomingCall.callerModel, intl.locale, teammateNameDisplay),
+                    name: username2Nickname(incomingCall.callerModel, {locale: intl.locale}),
                     num: (members?.length || 2) - 1,
                 }}
                 style={style.text}

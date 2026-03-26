@@ -23,6 +23,50 @@ const displayUsernameMessages = defineMessages({
     },
 });
 
+/** 用户可见昵称展示：始终昵称优先，不跟随服务器「队友姓名显示」设置。 */
+export type UsernameToNicknameOptions = {
+    /**
+     * 当昵称与真实姓名都存在时，是否在展示中附带姓名（如「昵称（姓名）」）。
+     * 默认 true；为 false 时仅返回昵称，无昵称时依次为姓名、username。
+     */
+    includeFullName?: boolean;
+    /** 无用户时的兜底文案 locale（与 displayUsername 的 Someone 一致） */
+    locale?: string;
+    useFallbackUsername?: boolean;
+};
+
+/**
+ * 将用户展示名统一为昵称优先（可选附带姓名），不跟随 TeammateNameDisplay。
+ * 无可用信息时回退到 username；无 user 时依 locale 返回「Someone」或空串。
+ */
+export function username2Nickname(user?: UserProfile | UserModel | null, opts?: UsernameToNicknameOptions): string {
+    const {
+        includeFullName = true,
+        locale = DEFAULT_LOCALE,
+        useFallbackUsername = true,
+    } = opts ?? {};
+
+    if (!user) {
+        return useFallbackUsername ? getLocalizedMessage(locale, displayUsernameMessages.someone.id, displayUsernameMessages.someone.defaultMessage) : '';
+    }
+
+    const fullName = getFullName(user);
+    const nickname = (user.nickname || '').trim();
+
+    let name: string;
+    if (includeFullName !== false && nickname && fullName) {
+        name = `${nickname} (${fullName})`;
+    } else {
+        name = nickname || fullName || user.username;
+    }
+
+    if (!name.trim()) {
+        name = user.username;
+    }
+
+    return name;
+}
+
 export function displayUsername(user?: UserProfile | UserModel | null, locale?: string, teammateDisplayNameSetting?: string, useFallbackUsername = true) {
     let name = useFallbackUsername ? getLocalizedMessage(locale || DEFAULT_LOCALE, displayUsernameMessages.someone.id, displayUsernameMessages.someone.defaultMessage) : '';
 
@@ -57,7 +101,7 @@ export function displayUsername(user?: UserProfile | UserModel | null, locale?: 
     return name;
 }
 
-export function displayGroupMessageName(users: Array<UserProfile | UserModel>, locale?: string, teammateDisplayNameSetting?: string, excludeUserId?: string) {
+export function displayGroupMessageName(users: Array<UserProfile | UserModel>, locale?: string, _teammateDisplayNameSetting?: string, excludeUserId?: string) {
     const names: string[] = [];
     const sortUsernames = (a: string, b: string) => {
         return a.localeCompare(b, locale || DEFAULT_LOCALE, {numeric: true});
@@ -65,7 +109,7 @@ export function displayGroupMessageName(users: Array<UserProfile | UserModel>, l
 
     users.forEach((u) => {
         if (u.id !== excludeUserId) {
-            names.push(displayUsername(u, locale, teammateDisplayNameSetting, false) || u.username);
+            names.push(username2Nickname(u, {locale, useFallbackUsername: false}) || u.username);
         }
     });
 

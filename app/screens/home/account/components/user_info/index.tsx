@@ -10,6 +10,15 @@ import {useUserLocale} from '@context/user_locale';
 import {formatFullName} from '@utils/display_name';
 import {blendColors, changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {username2Nickname} from '@utils/user';
+
+import type UserModel from '@typings/database/models/servers/user';
+
+type Props = {
+    user: UserModel;
+    showFullName: boolean;
+    theme: Theme;
+};
 
 const GRADIENT_TINT = 0.65;
 
@@ -54,7 +63,7 @@ const AccountUserInfo = ({user, showFullName, theme}: Props) => {
     const fullName = formatFullName(locale, user.lastName ?? '', user.firstName ?? '');
     const nickName = user.nickname && fullName ? ` (${user.nickname})` : (user.nickname || '');
     const title = `${fullName}${nickName}`;
-    const userName = `@${user.username}`;
+    const userName = `@${username2Nickname(user, {locale, includeFullName: false})}`;
     const accountUserInfoTestId = `account.user_info.${user.id}`;
 
     return (

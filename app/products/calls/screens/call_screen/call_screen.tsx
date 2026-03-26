@@ -74,7 +74,7 @@ import {bottomSheetSnapPoint} from '@utils/helpers';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {CallSession, CallsTheme, CurrentCall} from '@calls/types/calls';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -660,7 +660,7 @@ const CallScreen = ({
                     <FormattedText
                         id={'mobile.calls_viewing_screen'}
                         defaultMessage={'You are viewing {name}\'s screen'}
-                        values={{name: displayUsername(sessionsDict[currentCall.screenOn].userModel, intl.locale, teammateNameDisplay)}}
+                        values={{name: username2Nickname(sessionsDict[currentCall.screenOn].userModel, {locale: intl.locale})}}
                         style={style.screenShareText}
                     />
                 }

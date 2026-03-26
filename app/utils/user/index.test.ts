@@ -15,6 +15,7 @@ import {
     convertToAttributesMap,
     displayGroupMessageName,
     displayUsername,
+    username2Nickname,
     filterProfilesMatchingTerm,
     getEmailInterval,
     getEmailIntervalTexts,
@@ -127,6 +128,36 @@ describe('displayUsername', () => {
         });
         const result = displayUsername(userWithEmptyName, 'en', Preferences.DISPLAY_PREFER_FULL_NAME);
         expect(result).toBe('johndoe');
+    });
+});
+
+describe('username2Nickname', () => {
+    it('should prefer nickname with full name in parentheses when both exist', () => {
+        const u = TestHelper.fakeUser({
+            username: 'jd',
+            first_name: 'John',
+            last_name: 'Doe',
+            nickname: 'Johnny',
+        });
+        expect(username2Nickname(u, {locale: 'en'})).toBe('Johnny (John Doe)');
+    });
+
+    it('should return short form when includeFullName is false', () => {
+        const u = TestHelper.fakeUser({
+            username: 'jd',
+            first_name: 'John',
+            last_name: 'Doe',
+            nickname: 'Johnny',
+        });
+        expect(username2Nickname(u, {locale: 'en', includeFullName: false})).toBe('Johnny');
+    });
+
+    it('should return Someone when no user and useFallbackUsername is true', () => {
+        expect(username2Nickname(undefined, {locale: 'en'})).toBe('Someone');
+    });
+
+    it('should return empty string when no user and useFallbackUsername is false', () => {
+        expect(username2Nickname(undefined, {locale: 'en', useFallbackUsername: false})).toBe('');
     });
 });
 

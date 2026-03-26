@@ -20,7 +20,7 @@ import {useIsTablet, useWindowDimensions} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getUserTimezone} from '@utils/user';
+import {getUserTimezone, username2Nickname} from '@utils/user';
 
 import Opengraph from '../opengraph';
 
@@ -124,7 +124,7 @@ const PermalinkPreview = ({
     author,
     currentUser,
     isMilitaryTime,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     post,
     isOriginPostDeleted,
     location,
@@ -188,8 +188,8 @@ const PermalinkPreview = ({
     const isEdited = useMemo(() => embedData && embedData.post && embedData.post.edit_at > 0, [embedData]);
 
     const authorDisplayName = useMemo(() => {
-        return displayUsername(author, locale, teammateNameDisplay);
-    }, [author, locale, teammateNameDisplay]);
+        return username2Nickname(author, {locale});
+    }, [author, locale]);
 
     const channelContextText = useMemo(() => {
         const displayName = channel_type === 'D' ? authorDisplayName : channel_display_name;

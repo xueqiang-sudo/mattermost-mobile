@@ -16,7 +16,7 @@ import {openGalleryAtIndex} from '@utils/gallery';
 import {urlSafeBase64Encode} from '@utils/security';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import UserProfileAvatar from './avatar';
 import UserProfileTag from './tag';
@@ -75,7 +75,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const UserProfileTitle = ({
     enablePostIconOverride, enablePostUsernameOverride, headerText,
     imageSize, isChannelAdmin, isSystemAdmin, isTeamAdmin,
-    teammateDisplayName, user, userIconOverride, usernameOverride, hideGuestTags,
+    teammateDisplayName: _teammateNameDisplay, user, userIconOverride, usernameOverride, hideGuestTags,
 }: Props) => {
     const galleryIdentifier = `${user.id}-avatarPreview`;
     const intl = useIntl();
@@ -89,7 +89,7 @@ const UserProfileTitle = ({
     if (override) {
         displayName = usernameOverride;
     } else {
-        displayName = displayUsername(user, intl.locale, teammateDisplayName, false);
+        displayName = username2Nickname(user, {locale: intl.locale, useFallbackUsername: false});
     }
 
     const onPress = () => {
@@ -132,7 +132,8 @@ const UserProfileTitle = ({
         onPress,
     );
 
-    const hideUsername = override || (displayName && displayName === user.username);
+    const shortDisplay = username2Nickname(user, {locale: intl.locale, includeFullName: false, useFallbackUsername: false});
+    const hideUsername = override || (Boolean(displayName) && Boolean(shortDisplay) && displayName === shortDisplay);
     const prefix = hideUsername ? '@' : '';
 
     return (
@@ -180,7 +181,7 @@ const UserProfileTitle = ({
                         style={styles.username}
                         testID='user_profile.username'
                     >
-                        {`@${user.username}`}
+                        {`@${shortDisplay}`}
                     </Text>
                     }
                 </View>

@@ -32,19 +32,16 @@ import {
 } from '@calls/state';
 import {type AudioDevice, type Call, type CallSession, type CallsConnection, EndCallReturn} from '@calls/types/calls';
 import {areGroupCallsAllowed} from '@calls/utils';
-import {General, Preferences} from '@constants';
+import {General} from '@constants';
 import Calls from '@constants/calls';
 import DatabaseManager from '@database/manager';
-import {getTeammateNameDisplaySetting} from '@helpers/api/preference';
 import NetworkManager from '@managers/network_manager';
 import {getChannelById} from '@queries/servers/channel';
-import {queryDisplayNamePreferences} from '@queries/servers/preference';
-import {getConfig, getLicense} from '@queries/servers/system';
 import {getThreadById} from '@queries/servers/thread';
 import {getCurrentUser, getUserById} from '@queries/servers/user';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
-import {displayUsername, getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
+import {getUserIdFromChannelName, isSystemAdmin, username2Nickname} from '@utils/user';
 
 import {newConnection} from '../connection/connection';
 
@@ -405,14 +402,10 @@ export const getEndCallMessage = async (serverUrl: string, channelId: string, cu
     if (channel.type === General.DM_CHANNEL) {
         const otherID = getUserIdFromChannelName(currentUserId, channel.name);
         const otherUser = await getUserById(database, otherID);
-        const license = await getLicense(database);
-        const config = await getConfig(database);
-        const preferences = await queryDisplayNamePreferences(database, Preferences.NAME_NAME_FORMAT).fetch();
-        const displaySetting = getTeammateNameDisplaySetting(preferences, config.LockTeammateNameDisplay, config.TeammateNameDisplay, license);
         msg = intl.formatMessage({
             id: 'mobile.calls_end_msg_dm',
             defaultMessage: 'Are you sure you want to end the call with {displayName}?',
-        }, {displayName: displayUsername(otherUser, intl.locale, displaySetting)});
+        }, {displayName: username2Nickname(otherUser, {locale: intl.locale})});
     }
 
     return msg;

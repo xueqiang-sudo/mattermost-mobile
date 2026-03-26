@@ -13,7 +13,7 @@ import Tag from '@components/tag';
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {CallSession} from '@calls/types/calls';
 
@@ -78,7 +78,7 @@ const hostMessage = defineMessage({
     defaultMessage: 'host',
 });
 
-export const Participant = ({sess, teammateNameDisplay, onPress}: Props) => {
+export const Participant = ({sess, teammateNameDisplay: _teammateNameDisplay, onPress}: Props) => {
     const intl = useIntl();
     const currentCall = useCurrentCall();
     const theme = useTheme();
@@ -115,7 +115,7 @@ export const Participant = ({sess, teammateNameDisplay, onPress}: Props) => {
                     style={styles.name}
                     numberOfLines={1}
                 >
-                    {displayUsername(sess.userModel, intl.locale, teammateNameDisplay)}
+                    {username2Nickname(sess.userModel, {locale: intl.locale})}
                 </Text>
                 {sess.sessionId === currentCall.mySessionId &&
                     <Text style={styles.you}>

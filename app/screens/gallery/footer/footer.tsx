@@ -11,7 +11,7 @@ import {useServerUrl} from '@context/server';
 import SecurityManager from '@managers/security_manager';
 import {changeOpacity} from '@utils/theme';
 import {ensureString} from '@utils/types';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import Actions from './actions';
 import Avatar from './avatar';
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
 const Footer = ({
     author, canDownloadFiles, channelName, currentUserId,
     enablePostIconOverride, enablePostUsernameOverride, enablePublicLink, enableSecureFilePreview,
-    hideActions, isDirectChannel, item, post, style, teammateNameDisplay,
+    hideActions, isDirectChannel, item, post, style, teammateNameDisplay: _teammateNameDisplay,
 }: Props) => {
     const serverUrl = useServerUrl();
     const showActions = !hideActions && Boolean(item.id) && !item.id?.startsWith('uid');
@@ -75,7 +75,7 @@ const Footer = ({
     } else if (enablePostUsernameOverride && post?.props?.override_username) {
         userDisplayName = ensureString(post.props.override_username);
     } else {
-        userDisplayName = displayUsername(author, undefined, teammateNameDisplay);
+        userDisplayName = username2Nickname(author, {});
     }
 
     const handleCopyLink = useCallback(() => {

@@ -17,7 +17,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useDebounce} from '@hooks/utils';
 import {sortChannelsByDisplayName} from '@utils/channel';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
 import type ChannelModel from '@typings/database/models/servers/channel';
@@ -71,9 +71,9 @@ const sortByLastPostAt = (a: Channel, b: Channel) => {
     return a.last_post_at > b.last_post_at ? 1 : -1;
 };
 
-const sortByUserOrChannel = <T extends Channel |UserModel>(locale: string, teammateDisplayNameSetting: string, a: T, b: T): number => {
-    const aDisplayName = 'display_name' in a ? a.display_name : displayUsername(a, locale, teammateDisplayNameSetting);
-    const bDisplayName = 'display_name' in b ? b.display_name : displayUsername(b, locale, teammateDisplayNameSetting);
+const sortByUserOrChannel = <T extends Channel |UserModel>(locale: string, a: T, b: T): number => {
+    const aDisplayName = 'display_name' in a ? a.display_name : username2Nickname(a, {locale});
+    const bDisplayName = 'display_name' in b ? b.display_name : username2Nickname(b, {locale});
 
     return aDisplayName.toLowerCase().localeCompare(bDisplayName.toLowerCase(), locale, {numeric: true});
 };
@@ -81,7 +81,7 @@ const sortByUserOrChannel = <T extends Channel |UserModel>(locale: string, teamm
 const FilteredList = ({
     archivedChannels, category, close, channelsMatch, channelsMatchStart, currentTeamId,
     keyboardOverlap, loading, onLoading, restrictDirectMessage, showTeamName,
-    teamIds, teammateDisplayNameSetting, term, usersMatch, usersMatchStart, testID,
+    teamIds, teammateDisplayNameSetting: _teammateDisplayNameSetting, term, usersMatch, usersMatchStart, testID,
 }: Props) => {
     const mounted = useRef(false);
     const serverUrl = useServerUrl();
@@ -165,7 +165,7 @@ const FilteredList = ({
     }, [serverUrl, close, formatMessage]);
 
     const onOpenDirectMessage = useCallback(async (u: UserProfile | UserModel) => {
-        const displayName = displayUsername(u, locale, teammateDisplayNameSetting);
+        const displayName = username2Nickname(u, {locale});
         const {data, error} = await makeDirectChannel(serverUrl, u.id, displayName, false);
         if (error || !data) {
             Alert.alert(
@@ -180,7 +180,7 @@ const FilteredList = ({
 
         await close();
         switchToChannelById(serverUrl, data.id);
-    }, [locale, teammateDisplayNameSetting, serverUrl, close, formatMessage]);
+    }, [locale, serverUrl, close, formatMessage]);
 
     const onSwitchToChannel = useCallback(async (c: Channel | ChannelModel) => {
         await close();
@@ -292,7 +292,7 @@ const FilteredList = ({
                 const matches = category === 'channels' ?
                     remoteChannels.matches.filter((c) => isGroupChannel(c)) : remoteChannels.matches;
                 const toSort = showUsers ? [...usersMatch, ...matches] : [...matches];
-                const sortedByAlpha = toSort.sort(sortByUserOrChannel.bind(null, locale, teammateDisplayNameSetting));
+                const sortedByAlpha = toSort.sort(sortByUserOrChannel.bind(null, locale));
                 items.push(...sortedByAlpha.slice(0, MAX_RESULTS + 1));
             }
 
@@ -313,7 +313,7 @@ const FilteredList = ({
         }
 
         return [...new Set(items)].slice(0, MAX_RESULTS + 1);
-    }, [archivedChannels, category, channelsMatchStart, channelsMatch, remoteChannels, usersMatch, usersMatchStart, locale, teammateDisplayNameSetting, term]);
+    }, [archivedChannels, category, channelsMatchStart, channelsMatch, remoteChannels, usersMatch, usersMatchStart, locale, term]);
 
     useEffect(() => {
         mounted.current = true;

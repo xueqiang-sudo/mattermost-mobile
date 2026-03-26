@@ -14,7 +14,7 @@ import GroupModel from '@database/models/server/group';
 import {useMemoMentionedGroup, useMemoMentionedUser} from '@hooks/markdown';
 import {bottomSheet, dismissBottomSheet, openUserProfileModal} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type GroupMembershipModel from '@typings/database/models/servers/group_membership';
 import type UserModelType from '@typings/database/models/servers/user';
@@ -50,7 +50,7 @@ const AtMention = ({
     mentionName,
     mentionKeys,
     mentionStyle,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     textStyle,
     users,
     groups,
@@ -169,7 +169,7 @@ const AtMention = ({
     if (user?.username) {
         suffix = mentionName.substring(user.username.length);
         highlighted = userMentionKeys.some((item) => item.key.includes(user.username));
-        mention = displayUsername(user, user.locale, teammateNameDisplay);
+        mention = username2Nickname(user, {locale: user.locale});
         isMention = true;
         canPress = true;
     } else if (group?.name) {

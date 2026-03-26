@@ -11,7 +11,7 @@ import {Calls, Post} from '@constants';
 import {NOTIFICATION_SUB_TYPE} from '@constants/push_notification';
 import {isMinimumServerVersion} from '@utils/helpers';
 import {ensureNumber, ensureString, isArrayOf, isRecordOf, isStringArray} from '@utils/types';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {
     CallsConfigState,
@@ -23,20 +23,20 @@ import type UserModel from '@typings/database/models/servers/user';
 import type {IntlShape} from 'react-intl';
 import type {RTCIceServer} from 'react-native-webrtc';
 
-export function sortSessions(locale: string, teammateNameDisplay: string, sessions?: Dictionary<CallSession>, presenterID?: string): CallSession[] {
+export function sortSessions(locale: string, _teammateNameDisplay: string, sessions?: Dictionary<CallSession>, presenterID?: string): CallSession[] {
     if (!sessions) {
         return [];
     }
 
     const sessns = Object.values(sessions);
 
-    return sessns.sort(sortByName(locale, teammateNameDisplay)).sort(sortByState(presenterID));
+    return sessns.sort(sortByName(locale)).sort(sortByState(presenterID));
 }
 
-const sortByName = (locale: string, teammateNameDisplay: string) => {
+const sortByName = (locale: string) => {
     return (a: CallSession, b: CallSession) => {
-        const nameA = displayUsername(a.userModel, locale, teammateNameDisplay);
-        const nameB = displayUsername(b.userModel, locale, teammateNameDisplay);
+        const nameA = username2Nickname(a.userModel, {locale});
+        const nameB = username2Nickname(b.userModel, {locale});
         return nameA.localeCompare(nameB);
     };
 };
@@ -71,12 +71,12 @@ export function getHandsRaised(sessions: Dictionary<CallSession>) {
     return Object.values(sessions).filter((s) => s.raisedHand);
 }
 
-export function getHandsRaisedNames(sessions: CallSession[], sessionId: string, locale: string, teammateNameDisplay: string, intl: IntlShape) {
+export function getHandsRaisedNames(sessions: CallSession[], sessionId: string, locale: string, _teammateNameDisplay: string, intl: IntlShape) {
     return sessions.sort((a, b) => a.raisedHand - b.raisedHand).map((p) => {
         if (p.sessionId === sessionId) {
             return intl.formatMessage({id: 'mobile.calls_you_2', defaultMessage: 'You'});
         }
-        return displayUsername(p.userModel, locale, teammateNameDisplay);
+        return username2Nickname(p.userModel, {locale});
     });
 }
 

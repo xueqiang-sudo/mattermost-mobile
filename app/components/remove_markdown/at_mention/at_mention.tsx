@@ -8,7 +8,7 @@ import {fetchUserOrGroupsByMentionsInBatch} from '@actions/remote/user';
 import {useServerUrl} from '@context/server';
 import GroupModel from '@database/models/server/group';
 import {useMemoMentionedGroup, useMemoMentionedUser} from '@hooks/markdown';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type UserModelType from '@typings/database/models/servers/user';
 
@@ -22,7 +22,7 @@ type AtMentionProps = {
 
 const AtMention = ({
     mentionName,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     textStyle,
     users,
     groups,
@@ -46,7 +46,7 @@ const AtMention = ({
     let mention;
 
     if (user?.username) {
-        mention = displayUsername(user, user.locale, teammateNameDisplay);
+        mention = username2Nickname(user, {locale: user.locale});
     } else if (group?.name) {
         mention = group.name;
     } else {

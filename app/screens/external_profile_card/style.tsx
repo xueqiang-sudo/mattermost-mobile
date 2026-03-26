@@ -16,7 +16,7 @@ import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/u
 import {dismissModal, setButtons} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getFullName} from '@utils/user';
+import {getFullName, username2Nickname} from '@utils/user';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
@@ -106,17 +106,18 @@ const ExternalProfileCardStyleScreen = ({
     componentId,
     closeButtonId,
     currentUser,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
 }: ExternalProfileCardStyleProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const [selectedLayoutIndex, setSelectedLayoutIndex] = useState(0);
 
+    const locale = currentUser?.locale || intl.locale;
     const primaryName = currentUser
-        ? displayUsername(currentUser, currentUser.locale, teammateNameDisplay, false) || getFullName(currentUser) || currentUser.username
+        ? username2Nickname(currentUser, {locale, useFallbackUsername: false}) || getFullName(currentUser) || currentUser.username
         : '';
-    const secondaryName = currentUser?.nickname || (currentUser ? `@${currentUser.username}` : '');
+    const secondaryName = currentUser ? `@${username2Nickname(currentUser, {locale, includeFullName: false})}` : '';
 
     const onClosePressed = useCallback(() => {
         dismissModal({componentId});
@@ -167,12 +168,12 @@ const ExternalProfileCardStyleScreen = ({
                     >
                         {primaryName || getFullName(currentUser) || currentUser.username}
                     </Text>
-                    {(secondaryName || currentUser.nickname) ? (
+                    {secondaryName ? (
                         <Text
                             style={styles.secondaryName}
                             numberOfLines={1}
                         >
-                            {currentUser.nickname || secondaryName}
+                            {secondaryName}
                         </Text>
                     ) : null}
                 </View>

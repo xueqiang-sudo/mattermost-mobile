@@ -17,7 +17,7 @@ import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/u
 import {dismissModal, setButtons, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getFullName} from '@utils/user';
+import {getFullName, username2Nickname} from '@utils/user';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
@@ -85,7 +85,7 @@ const ExternalProfileCardExternalInfoScreen = ({
     componentId,
     closeButtonId,
     currentUser,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
 }: ExternalProfileCardExternalInfoProps) => {
     const intl = useIntl();
     const theme = useTheme();
@@ -97,7 +97,8 @@ const ExternalProfileCardExternalInfoScreen = ({
     const [showAddress, setShowAddress] = useState(false);
     const [showVideoAccount, setShowVideoAccount] = useState(false);
 
-    const primaryName = currentUser? displayUsername(currentUser, currentUser.locale, teammateNameDisplay, false) || getFullName(currentUser) || currentUser.username: '';
+    const locale = currentUser?.locale || intl.locale;
+    const primaryName = currentUser ? username2Nickname(currentUser, {locale, useFallbackUsername: false}) || getFullName(currentUser) || currentUser.username : '';
     const companyAbbr = currentUser?.nickname || primaryName;
 
     const onClosePressed = useCallback(() => {

@@ -5,7 +5,7 @@ import React, {useMemo} from 'react';
 import {useIntl} from 'react-intl';
 
 import ProfilePicture from '@components/profile_picture';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import BaseChip from './base_chip';
 
@@ -29,7 +29,7 @@ const CHIP_AVATAR_SIZE = 20;
 export default function UserChip({
     testID,
     user,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     onPress: receivedOnPress,
     action: receivedAction,
     showAnimation,
@@ -52,7 +52,7 @@ export default function UserChip({
         return {icon: receivedAction.icon, onPress: onActionPress};
     }, [receivedAction, user.id]);
 
-    const name = displayUsername(user, intl.locale, teammateNameDisplay);
+    const name = username2Nickname(user, {locale: intl.locale});
     const picture = useMemo(() => (
         <ProfilePicture
             author={user}

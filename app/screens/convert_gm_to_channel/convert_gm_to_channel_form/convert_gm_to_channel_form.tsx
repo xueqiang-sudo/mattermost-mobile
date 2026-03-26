@@ -14,7 +14,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {isErrorWithMessage, isServerError} from '@utils/errors';
 import {logError} from '@utils/log';
 import {makeStyleSheetFromTheme} from '@utils/theme';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import {ChannelNameInput} from '../channel_name_input';
 import MessageBox from '../message_box/message_box';
@@ -54,7 +54,7 @@ export const ConvertGMToChannelForm = ({
     commonTeams,
     profiles,
     locale,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
 }: Props) => {
     const theme = useTheme();
     const styles = getStyleFromTheme(theme);
@@ -67,7 +67,7 @@ export const ConvertGMToChannelForm = ({
     const [channelNameErrorMessage, setChannelNameErrorMessage] = useState<string>('');
     const [conversionInProgress, setConversionInProgress] = useState(false);
 
-    const userDisplayNames = useMemo(() => profiles.map((profile) => displayUsername(profile, locale, teammateNameDisplay)), [profiles, teammateNameDisplay, locale]);
+    const userDisplayNames = useMemo(() => profiles.map((profile) => username2Nickname(profile, {locale})), [profiles, locale]);
     const submitButtonEnabled = !conversionInProgress && selectedTeam && newChannelName.trim();
 
     const handleOnPress = usePreventDoubleTap(useCallback(async () => {

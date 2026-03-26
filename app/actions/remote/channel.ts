@@ -29,7 +29,7 @@ import {getFullErrorMessage} from '@utils/errors';
 import {isTablet} from '@utils/helpers';
 import {logDebug, logError, logInfo} from '@utils/log';
 import {showMuteChannelSnackbar} from '@utils/snack_bar';
-import {displayGroupMessageName, displayUsername} from '@utils/user';
+import {displayGroupMessageName, username2Nickname} from '@utils/user';
 
 import {fetchChannelBookmarks} from './channel_bookmark';
 import {fetchGroupsForChannelIfConstrained} from './groups';
@@ -605,7 +605,7 @@ export async function fetchMissingDirectChannelsInfo(
                     if (data.users.length > 1) {
                         displayNameByChannel[data.channelId] = displayGroupMessageName(data.users, locale, teammateDisplayNameSetting, currentUserId);
                     } else {
-                        displayNameByChannel[data.channelId] = displayUsername(data.users[0], locale, teammateDisplayNameSetting, false);
+                        displayNameByChannel[data.channelId] = username2Nickname(data.users[0], {locale, useFallbackUsername: false});
                     }
                 }
             });
@@ -622,7 +622,7 @@ export async function fetchMissingDirectChannelsInfo(
             if (currentUserId) {
                 const ownDirectChannel = dms.find((dm) => dm.name === getDirectChannelName(currentUserId, currentUserId));
                 if (ownDirectChannel) {
-                    ownDirectChannel.display_name = displayUsername(currentUser, locale, teammateDisplayNameSetting, false);
+                    ownDirectChannel.display_name = username2Nickname(currentUser, {locale, useFallbackUsername: false});
                     ownDirectChannel.fake = true;
                     updatedChannels.add(ownDirectChannel);
                 }

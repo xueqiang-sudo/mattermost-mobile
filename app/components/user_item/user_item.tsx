@@ -9,12 +9,11 @@ import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import ProfilePicture from '@components/profile_picture';
 import {BotTag, GuestTag} from '@components/tag';
-import {Preferences} from '@constants';
 import {useTheme} from '@context/theme';
 import {nonBreakingString} from '@utils/strings';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getUserCustomStatus, isBot, isCustomStatusExpired, isDeactivated, isGuest, isShared} from '@utils/user';
+import {getUserCustomStatus, isBot, isCustomStatusExpired, isDeactivated, isGuest, isShared, username2Nickname} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -104,8 +103,8 @@ const UserItem = ({
     isCustomStatusEnabled,
     showBadges = false,
     locale,
-    teammateNameDisplay: teammateNameDisplayProp,
-    teammateNameDisplayOverride,
+    teammateNameDisplay: _teammateNameDisplay,
+    teammateNameDisplayOverride: _teammateNameDisplayOverride,
     leftDecorator,
     rightDecorator,
     avatarBorderRadius,
@@ -131,13 +130,16 @@ const UserItem = ({
     const customStatus = getUserCustomStatus(user);
     const customStatusExpired = isCustomStatusExpired(user);
 
-    const teammateNameDisplay = teammateNameDisplayOverride ?? teammateNameDisplayProp;
-    let displayName = displayUsername(user, locale, teammateNameDisplay);
-    const showUsernameSuffix = displayName !== user?.username &&
-        teammateNameDisplay !== Preferences.DISPLAY_PREFER_NICKNAME &&
-        teammateNameDisplay !== Preferences.DISPLAY_PREFER_FULL_NAME;
+    const fullDisplay = username2Nickname(user, {locale});
+    const shortDisplay = username2Nickname(user, {locale, includeFullName: false});
+    const showUsernameSuffix = Boolean(
+        user &&
+        fullDisplay !== shortDisplay &&
+        !fullDisplay.startsWith(`${shortDisplay} (`),
+    );
+    let displayName = fullDisplay;
     if (isCurrentUser) {
-        displayName = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
+        displayName = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName: fullDisplay});
     }
 
     const userItemTestId = `${testID}.${user?.id}`;
@@ -198,12 +200,12 @@ const UserItem = ({
                             testID={`${userItemTestId}.display_name`}
                         >
                             {nonBreakingString(displayName)}
-                            {Boolean(showUsernameSuffix) && Boolean(user?.username) && (
+                            {Boolean(showUsernameSuffix) && Boolean(shortDisplay) && (
                                 <Text
                                     style={style.rowUsername}
                                     testID={`${userItemTestId}.username`}
                                 >
-                                    {nonBreakingString(` @${user?.username}`)}
+                                    {nonBreakingString(` @${shortDisplay}`)}
                                 </Text>
                             )}
                             {deactivated && (

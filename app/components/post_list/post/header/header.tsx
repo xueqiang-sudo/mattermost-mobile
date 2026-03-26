@@ -21,7 +21,7 @@ import {postUserDisplayName} from '@utils/post';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {ensureString} from '@utils/types';
 import {typography} from '@utils/typography';
-import {displayUsername, getUserCustomStatus, getUserTimezone, isCustomStatusExpired} from '@utils/user';
+import {getUserCustomStatus, getUserTimezone, isCustomStatusExpired, username2Nickname} from '@utils/user';
 import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 
 import HeaderCommentedOn from './commented_on';
@@ -147,7 +147,7 @@ const Header = (props: HeaderProps) => {
         alignWithAvatar,
         author, channel, commentCount = 0, currentUser, enablePostUsernameOverride, isAutoResponse, isCRTEnabled, isCustomStatusEnabled,
         isEphemeral, isMilitaryTime, isPendingOrFailed, isSystemPost, isWebHook,
-        location, post, rootPostAuthor, showPostPriority, shouldRenderReplyButton, teammateNameDisplay, hideGuestTags,
+        location, post, rootPostAuthor, showPostPriority, shouldRenderReplyButton, teammateNameDisplay: _teammateNameDisplay, hideGuestTags,
         timeOnly,
     } = props;
     const intl = useIntl();
@@ -156,8 +156,8 @@ const Header = (props: HeaderProps) => {
     const pendingPostStyle = isPendingOrFailed ? style.pendingPost : undefined;
     const isReplyPost = Boolean(post.rootId && !isEphemeral);
     const showReply = !isReplyPost && (location !== THREAD) && (shouldRenderReplyButton && (!rootPostAuthor && commentCount > 0));
-    const displayName = postUserDisplayName(post, author, teammateNameDisplay, enablePostUsernameOverride);
-    const rootAuthorDisplayName = rootPostAuthor ? displayUsername(rootPostAuthor, currentUser?.locale, teammateNameDisplay, true) : undefined;
+    const displayName = postUserDisplayName(post, author, undefined, enablePostUsernameOverride);
+    const rootAuthorDisplayName = rootPostAuthor ? username2Nickname(rootPostAuthor, {locale: currentUser?.locale}) : undefined;
     const customStatus = getUserCustomStatus(author);
     const showCustomStatusEmoji = Boolean(
         isCustomStatusEnabled && displayName && customStatus &&

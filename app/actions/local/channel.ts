@@ -22,7 +22,7 @@ import {dismissAllModalsAndPopToRoot, dismissAllModalsAndPopToScreen} from '@scr
 import EphemeralStore from '@store/ephemeral_store';
 import {isTablet} from '@utils/helpers';
 import {logDebug, logError, logInfo} from '@utils/log';
-import {displayGroupMessageName, displayUsername, getUserIdFromChannelName} from '@utils/user';
+import {displayGroupMessageName, getUserIdFromChannelName, username2Nickname} from '@utils/user';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
 import type {Model} from '@nozbe/watermelondb';
@@ -405,7 +405,7 @@ export async function updateChannelsDisplayName(serverUrl: string, channels: Cha
             if (channel.type === General.DM_CHANNEL) {
                 const otherUserId = getUserIdFromChannelName(currentUser.id, channel.name);
                 const user = users.find((u) => u.id === otherUserId);
-                newDisplayName = displayUsername(user, currentUser.locale, displaySettings, false);
+                newDisplayName = username2Nickname(user, {locale: currentUser.locale, useFallbackUsername: false});
             } else {
                 const dbProfiles = await queryUsersOnChannel(database, channel.id).fetch();
                 const profileIds = new Set(dbProfiles.map((p) => p.id));

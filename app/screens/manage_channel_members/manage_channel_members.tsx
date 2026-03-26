@@ -23,7 +23,7 @@ import {openAsBottomSheet, popTopScreen, setButtons} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {showRemoveChannelUserSnackbar} from '@utils/snack_bar';
 import {changeOpacity, getKeyboardAppearanceFromTheme} from '@utils/theme';
-import {displayUsername, filterProfilesMatchingTerm} from '@utils/user';
+import {filterProfilesMatchingTerm, username2Nickname} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -64,9 +64,9 @@ const messages = defineMessages({
     },
 });
 
-const sortUsers = (a: UserProfile, b: UserProfile, locale: string, teammateDisplayNameSetting: string) => {
-    const aName = displayUsername(a, locale, teammateDisplayNameSetting);
-    const bName = displayUsername(b, locale, teammateDisplayNameSetting);
+const sortUsers = (a: UserProfile, b: UserProfile, locale: string) => {
+    const aName = username2Nickname(a, {locale});
+    const bName = username2Nickname(b, {locale});
     return aName.localeCompare(bName, locale);
 };
 
@@ -85,7 +85,7 @@ export default function ManageChannelMembers({
     currentTeamId,
     currentUserId,
     tutorialWatched,
-    teammateDisplayNameSetting,
+    teammateDisplayNameSetting: _teammateDisplayNameSetting,
     channelAbacPolicyEnforced,
 }: Props) {
     const serverUrl = useServerUrl();
@@ -154,9 +154,9 @@ export default function ManageChannelMembers({
         const options: SearchUserOptions = {team_id: currentTeamId, in_channel_id: channelId, allow_inactive: false};
         const {data = EMPTY} = await searchProfiles(serverUrl, lowerCasedTerm, options);
 
-        setSearchResults(data.sort((a, b) => sortUsers(a, b, locale, teammateDisplayNameSetting)));
+        setSearchResults(data.sort((a, b) => sortUsers(a, b, locale)));
         setLoading(false);
-    }, [serverUrl, channelId, currentTeamId, locale, teammateDisplayNameSetting]);
+    }, [serverUrl, channelId, currentTeamId, locale]);
 
     const search = useCallback(() => {
         searchUsers(term);
@@ -226,8 +226,8 @@ export default function ManageChannelMembers({
     }, [channelMembers]);
 
     const sortedProfiles = useMemo(() => [...profiles].sort((a, b) => {
-        return sortUsers(a, b, locale, teammateDisplayNameSetting);
-    }), [profiles, locale, teammateDisplayNameSetting]);
+        return sortUsers(a, b, locale);
+    }), [profiles, locale]);
 
     const data = useMemo(() => {
         const isSearch = Boolean(searchedTerm);

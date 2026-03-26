@@ -23,7 +23,7 @@ import {useTheme} from '@context/theme';
 import {allOrientations, dismissAllModalsAndPopToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {CallSession, CallsTheme, CurrentCall} from '@calls/types/calls';
 import type {Options} from 'react-native-navigation';
@@ -140,7 +140,7 @@ const CurrentCallBar = ({
     displayName,
     currentCall,
     sessionsDict,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     micPermissionsGranted,
     threadScreen,
     otherParticipants,
@@ -198,7 +198,7 @@ const CurrentCallBar = ({
                 numberOfLines={1}
                 ellipsizeMode='middle'
             >
-                {displayUsername(sessionsDict[speaker].userModel, intl.locale, teammateNameDisplay)}
+                {username2Nickname(sessionsDict[speaker].userModel, {locale: intl.locale})}
                 {' '}
                 <Text style={style.speakingPostfix}>{
                     formatMessage({

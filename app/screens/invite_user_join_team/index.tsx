@@ -22,6 +22,7 @@ import {getCurrentUserId} from '@queries/servers/system';
 import {dismissModal} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {username2Nickname} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -174,12 +175,8 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid, contactTargetDepar
         if (!targetUser) {
             return '';
         }
-
-        const nickname = targetUser.nickname?.trim();
-        const fullName = `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim();
-
-        return nickname || fullName || targetUser.username;
-    }, [targetUser]);
+        return username2Nickname(targetUser, {locale: intl.locale});
+    }, [targetUser, intl.locale]);
 
     const onClosePressed = useCallback(() => {
         dismissModal({componentId});
@@ -402,7 +399,7 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid, contactTargetDepar
                             style={styles.userAccount}
                             numberOfLines={1}
                         >
-                            {`@${targetUser.username}`}
+                            {`@${username2Nickname(targetUser, {locale: intl.locale, includeFullName: false})}`}
                         </Text>
                     </View>
                 </View>
