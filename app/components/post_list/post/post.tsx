@@ -19,7 +19,7 @@ import UnrevealedBurnOnReadPost from '@components/post_list/post/burn_on_read/un
 import SystemAvatar from '@components/system_avatar';
 import SystemHeader from '@components/system_header';
 import {Events} from '@constants';
-import {POST_TIME_TO_FAIL} from '@constants/post';
+import {POST_TIME_TO_FAIL, PostPriorityType} from '@constants/post';
 import * as Screens from '@constants/screens';
 import {useHideExtraKeyboardIfNeeded} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
@@ -224,7 +224,6 @@ const Post = ({
     isLastReply,
     isPostAcknowledgementEnabled,
     isPostAddChannelMember,
-    isPostPriorityEnabled,
     location,
     post,
     rootId,
@@ -500,7 +499,10 @@ const Post = ({
     // If the post is a priority post:
     // 1. Show the priority label in channel screen
     // 2. Show the priority label in thread screen for the root post
-    const showPostPriority = Boolean(isPostPriorityEnabled && post.metadata?.priority?.priority);
+    const showPostPriority = Boolean(
+        post.metadata?.priority?.priority &&
+        post.metadata.priority.priority !== PostPriorityType.STANDARD,
+    );
 
     const sameSequence = hasReplies ? (hasReplies && post.rootId) : !post.rootId;
     if (!showPostPriority && hasSameRoot && effectiveConsecutivePost && sameSequence && !showOwnLayout) {

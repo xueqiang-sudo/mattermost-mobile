@@ -3,7 +3,7 @@
 
 import {renderHook, act, waitFor} from '@testing-library/react-native';
 
-import {useConnectionBanner} from './use_connection_banner';
+import {resetConnectionBannerSessionForTests, useConnectionBanner} from './use_connection_banner';
 
 import type {NetworkPerformanceState} from '@managers/network_performance_manager';
 import type {NetInfoState} from '@react-native-community/netinfo';
@@ -19,9 +19,9 @@ const createMockIntl = (): IntlShape => ({
     formatDisplayName: jest.fn(),
 } as unknown as IntlShape);
 
-const createMockNetInfo = (isInternetReachable: boolean | null = true): NetInfoState => ({
+const createMockNetInfo = ({isConnected = true, isInternetReachable = true}: {isConnected?: boolean; isInternetReachable?: boolean | null} = {}): NetInfoState => ({
     type: 'wifi',
-    isConnected: true,
+    isConnected,
     isInternetReachable,
     details: {
         ssid: 'test-network',
@@ -42,6 +42,7 @@ describe('useConnectionBanner', () => {
 
     beforeEach(() => {
         mockIntl = createMockIntl();
+        resetConnectionBannerSessionForTests();
     });
 
     describe('initial session behavior', () => {
@@ -78,14 +79,14 @@ describe('useConnectionBanner', () => {
             const {result} = renderHook(() => useConnectionBanner({
                 websocketState: 'not_connected' as WebsocketConnectedState,
                 networkPerformanceState: 'normal' as NetworkPerformanceState,
-                netInfo: createMockNetInfo(false),
+                netInfo: createMockNetInfo({isConnected: false}),
                 appState: 'active',
                 intl: mockIntl,
             }));
 
             await waitFor(() => {
                 expect(result.current.visible).toBe(true);
-                expect(result.current.bannerText).toBe('The server is not reachable');
+                expect(result.current.bannerText).toBe('No network connection');
             });
         });
     });
@@ -137,7 +138,7 @@ describe('useConnectionBanner', () => {
 
             await waitFor(() => {
                 expect(result.current.visible).toBe(true);
-                expect(result.current.bannerText).toBe('Unable to connect to network');
+                expect(result.current.bannerText).toBe('Unable to reach server. Reconnecting...');
             });
         });
 
@@ -236,7 +237,7 @@ describe('useConnectionBanner', () => {
 
             await waitFor(() => {
                 expect(result.current.visible).toBe(true);
-                expect(result.current.bannerText).toBe('Unable to connect to network');
+                expect(result.current.bannerText).toBe('Unable to reach server. Reconnecting...');
             });
 
             // Reconnect - should show "Connection restored"
@@ -335,14 +336,14 @@ describe('useConnectionBanner', () => {
             const {result} = renderHook(() => useConnectionBanner({
                 websocketState: 'not_connected' as WebsocketConnectedState,
                 networkPerformanceState: 'normal' as NetworkPerformanceState,
-                netInfo: createMockNetInfo(false),
+                netInfo: createMockNetInfo({isInternetReachable: false}),
                 appState: 'active',
                 intl: mockIntl,
             }));
 
             await waitFor(() => {
                 expect(result.current.visible).toBe(true);
-                expect(result.current.bannerText).toBe('The server is not reachable');
+                expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');
             });
         });
 
@@ -353,7 +354,7 @@ describe('useConnectionBanner', () => {
                     initialProps: {
                         websocketState: 'connected' as WebsocketConnectedState,
                         networkPerformanceState: 'normal' as NetworkPerformanceState,
-                        netInfo: createMockNetInfo(false),
+                        netInfo: createMockNetInfo({isInternetReachable: false}),
                         appState: 'active',
                         intl: mockIntl,
                     },
@@ -362,7 +363,7 @@ describe('useConnectionBanner', () => {
 
             await waitFor(() => {
                 expect(result.current.visible).toBe(true);
-                expect(result.current.bannerText).toBe('The server is not reachable');
+                expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');
             });
 
             // Try to trigger slow network while banner is visible
@@ -370,7 +371,7 @@ describe('useConnectionBanner', () => {
                 rerender({
                     websocketState: 'connected' as WebsocketConnectedState,
                     networkPerformanceState: 'slow' as NetworkPerformanceState,
-                    netInfo: createMockNetInfo(false),
+                    netInfo: createMockNetInfo({isInternetReachable: false}),
                     appState: 'active',
                     intl: mockIntl,
                 });
@@ -378,7 +379,7 @@ describe('useConnectionBanner', () => {
 
             // Should still show internet unreachable
             await waitFor(() => {
-                expect(result.current.bannerText).toBe('The server is not reachable');
+                expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');
             });
         });
     });
@@ -394,7 +395,7 @@ describe('useConnectionBanner', () => {
                     initialProps: {
                         websocketState: 'connected' as WebsocketConnectedState,
                         networkPerformanceState: 'normal' as NetworkPerformanceState,
-                        netInfo: createMockNetInfo(false),
+                        netInfo: createMockNetInfo({isInternetReachable: false}),
                         appState: 'active',
                         intl: mockIntl,
                     },
@@ -410,7 +411,7 @@ describe('useConnectionBanner', () => {
                 rerender({
                     websocketState: 'connected' as WebsocketConnectedState,
                     networkPerformanceState: 'normal' as NetworkPerformanceState,
-                    netInfo: createMockNetInfo(false),
+                    netInfo: createMockNetInfo({isInternetReachable: false}),
                     appState: 'background',
                     intl: mockIntl,
                 });
@@ -543,7 +544,7 @@ describe('useConnectionBanner', () => {
                     initialProps: {
                         websocketState: 'connected' as WebsocketConnectedState,
                         networkPerformanceState: 'normal' as NetworkPerformanceState,
-                        netInfo: createMockNetInfo(false),
+                        netInfo: createMockNetInfo({isInternetReachable: false}),
                         appState: 'active',
                         intl: mockIntl,
                     },
@@ -551,7 +552,7 @@ describe('useConnectionBanner', () => {
             );
 
             expect(result.current.visible).toBe(true);
-            expect(result.current.bannerText).toBe('The server is not reachable');
+            expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');
 
             // Internet becomes reachable again, then wait for timeout
             act(() => {
@@ -647,7 +648,7 @@ describe('useConnectionBanner', () => {
             });
 
             expect(result.current.visible).toBe(true);
-            expect(result.current.bannerText).toBe('Unable to connect to network');
+            expect(result.current.bannerText).toBe('Unable to reach server. Reconnecting...');
 
             // Reconnect - should show "Connection restored"
             act(() => {
@@ -673,6 +674,36 @@ describe('useConnectionBanner', () => {
             expect(result.current.isShowingConnectedBanner).toBe(false);
 
             jest.useRealTimers();
+        });
+    });
+
+    describe('session carry-over across mounts', () => {
+        it('should show disconnected banner when component mounts after app has connected once', async () => {
+            const connectedMount = renderHook(() => useConnectionBanner({
+                websocketState: 'connected' as WebsocketConnectedState,
+                networkPerformanceState: 'normal' as NetworkPerformanceState,
+                netInfo: createMockNetInfo(),
+                appState: 'active',
+                intl: mockIntl,
+            }));
+
+            await waitFor(() => {
+                expect(connectedMount.result.current.visible).toBe(false);
+            });
+            connectedMount.unmount();
+
+            const disconnectedMount = renderHook(() => useConnectionBanner({
+                websocketState: 'not_connected' as WebsocketConnectedState,
+                networkPerformanceState: 'normal' as NetworkPerformanceState,
+                netInfo: createMockNetInfo(),
+                appState: 'active',
+                intl: mockIntl,
+            }));
+
+            await waitFor(() => {
+                expect(disconnectedMount.result.current.visible).toBe(true);
+                expect(disconnectedMount.result.current.bannerText).toBe('Unable to reach server. Reconnecting...');
+            });
         });
     });
 });

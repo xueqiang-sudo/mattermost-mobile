@@ -5,9 +5,11 @@
 
 import {ActionType, Post, ServerErrors} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
+import {PostPriorityType} from '@constants/post';
 import DatabaseManager from '@database/manager';
 import PostModel from '@database/models/server/post';
 import NetworkManager from '@managers/network_manager';
+import {getPostById} from '@queries/servers/post';
 import TestHelper from '@test/test_helper';
 
 import {
@@ -273,6 +275,48 @@ describe('create, update & delete posts', () => {
         expect(result).toBeDefined();
         expect(result.error).toBeUndefined();
         expect(result.data).toBeTruthy();
+    });
+
+    it('createPost - keeps priority metadata when create response omits metadata', async () => {
+        mockClient.createPost.mockImplementationOnce((post: Post) => {
+            return {
+                id: 'newid-without-metadata',
+                create_at: post.create_at,
+                update_at: post.update_at,
+                edit_at: post.edit_at,
+                delete_at: post.delete_at,
+                is_pinned: post.is_pinned,
+                user_id: post.user_id,
+                channel_id: post.channel_id,
+                root_id: post.root_id,
+                original_id: post.original_id,
+                message: post.message,
+                message_source: post.message_source,
+                type: post.type,
+                props: post.props,
+                pending_post_id: post.pending_post_id,
+                file_ids: post.file_ids,
+            } as Post;
+        });
+        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_USER_ID, value: user1.id}], prepareRecordsOnly: false});
+
+        const postWithPriority: Post = {
+            ...post1,
+            metadata: {
+                priority: {
+                    priority: PostPriorityType.IMPORTANT,
+                    requested_ack: false,
+                    persistent_notifications: false,
+                },
+            },
+        };
+
+        const result = await createPost(serverUrl, postWithPriority);
+        expect(result.error).toBeUndefined();
+        expect(result.data).toBeTruthy();
+
+        const createdPost = await getPostById(operator.database, 'newid-without-metadata');
+        expect(createdPost?.metadata?.priority?.priority).toBe(PostPriorityType.IMPORTANT);
     });
 
     it('retryFailedPost - handle database not found', async () => {

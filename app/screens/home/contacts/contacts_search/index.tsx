@@ -18,6 +18,7 @@ import {fetchSearchContactEmployees} from '@actions/remote/contact';
 import {type ContactEmployeeSearchItem} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
+import GlobalErrorBoundary from '@components/global_error_fallback';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -33,6 +34,14 @@ function cascadePathLabel(item: ContactEmployeeSearchItem): string {
         return '';
     }
     return paths[0].map((d) => d.name).join(' / ');
+}
+
+function isValidSearchItem(item: ContactEmployeeSearchItem | undefined): item is ContactEmployeeSearchItem {
+    return Boolean(item?.employee?.id);
+}
+
+export function filterValidSearchItems(items: ContactEmployeeSearchItem[] = []) {
+    return items.filter(isValidSearchItem);
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -123,7 +132,7 @@ type Props = {
     onBack?: () => void;
 };
 
-const ContactsSearchScreen = ({
+const ContactsSearchContent = ({
     componentId,
     closeButtonId,
     companyId,
@@ -144,6 +153,24 @@ const ContactsSearchScreen = ({
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
 
+    const runSearch = useCallback(async (kw: string) => {
+        const res = await fetchSearchContactEmployees(companyId, kw, {
+            departmentId,
+        });
+        if (!mounted.current) {
+            return;
+        }
+
+        setLoading(false);
+        setSearched(true);
+        if (res.data) {
+            setResults(filterValidSearchItems(res.data));
+            return;
+        }
+
+        setResults([]);
+    }, [companyId, departmentId]);
+
     useEffect(() => {
         mounted.current = true;
         return () => {
@@ -156,36 +183,23 @@ const ContactsSearchScreen = ({
             clearTimeout(debounceRef.current);
         }
         const kw = query.trim();
-        if (!kw) {
+        if (kw) {
+            setLoading(true);
+            debounceRef.current = setTimeout(() => {
+                runSearch(kw);
+            }, 300);
+        } else {
             setResults([]);
             setSearched(false);
             setLoading(false);
-            return;
         }
-        setLoading(true);
-        debounceRef.current = setTimeout(() => {
-            void (async () => {
-                const res = await fetchSearchContactEmployees(companyId, kw, {
-                    departmentId,
-                });
-                if (!mounted.current) {
-                    return;
-                }
-                setLoading(false);
-                setSearched(true);
-                if (res.data) {
-                    setResults(res.data);
-                } else {
-                    setResults([]);
-                }
-            })();
-        }, 300);
+
         return () => {
             if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
             }
         };
-    }, [query, companyId, departmentId]);
+    }, [query, runSearch]);
 
     const title = intl.formatMessage({id: 'contacts.search.title', defaultMessage: 'Search contacts'});
 
@@ -223,24 +237,27 @@ const ContactsSearchScreen = ({
         );
     }, [companyId, companyName, currentUserId, departmentName, intl]);
 
-    const scopeHint =
-        typeof departmentId === 'number' && departmentName
-            ? intl.formatMessage(
-                {id: 'contacts.search.scope_department', defaultMessage: 'Searching in: {name}'},
-                {name: departmentName},
-            )
-            : companyName
-                ? intl.formatMessage(
-                    {id: 'contacts.search.scope_company', defaultMessage: 'Searching in: {name}'},
-                    {name: companyName},
-                )
-                : null;
+    let scopeHint: string | null = null;
+    if (typeof departmentId === 'number' && departmentName) {
+        scopeHint = intl.formatMessage(
+            {id: 'contacts.search.scope_department', defaultMessage: 'Searching in: {name}'},
+            {name: departmentName},
+        );
+    } else if (companyName) {
+        scopeHint = intl.formatMessage(
+            {id: 'contacts.search.scope_company', defaultMessage: 'Searching in: {name}'},
+            {name: companyName},
+        );
+    }
 
-    const emptyMessage = !query.trim()
-        ? intl.formatMessage({id: 'contacts.search.hint', defaultMessage: 'Enter a name to search'})
-        : searched && !loading
-            ? intl.formatMessage({id: 'contacts.search.no_results', defaultMessage: 'No matching contacts'})
-            : null;
+    let emptyMessage: string | null = null;
+    if (query.trim()) {
+        if (searched && !loading) {
+            emptyMessage = intl.formatMessage({id: 'contacts.search.no_results', defaultMessage: 'No matching contacts'});
+        }
+    } else {
+        emptyMessage = intl.formatMessage({id: 'contacts.search.hint', defaultMessage: 'Enter a name to search'});
+    }
 
     const renderItem = useCallback(
         ({item}: {item: ContactEmployeeSearchItem}) => {
@@ -316,7 +333,7 @@ const ContactsSearchScreen = ({
                     onChangeText={setQuery}
                     placeholder={intl.formatMessage({
                         id: 'contacts.search.placeholder',
-                        defaultMessage: 'Name, email…',
+                        defaultMessage: 'Name, email, phone…',
                     })}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
                     style={styles.searchInput}
@@ -329,7 +346,7 @@ const ContactsSearchScreen = ({
             </View>
             <FlatList
                 data={results}
-                keyExtractor={(item) => item.employee.id}
+                keyExtractor={(item, index) => item.employee?.id ?? `invalid-contact-${index}`}
                 renderItem={renderItem}
                 contentContainerStyle={[
                     styles.listContent,
@@ -350,6 +367,14 @@ const ContactsSearchScreen = ({
                 keyboardShouldPersistTaps='handled'
             />
         </SafeAreaView>
+    );
+};
+
+const ContactsSearchScreen = (props: Props) => {
+    return (
+        <GlobalErrorBoundary>
+            <ContactsSearchContent {...props}/>
+        </GlobalErrorBoundary>
     );
 };
 

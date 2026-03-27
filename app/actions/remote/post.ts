@@ -142,6 +142,12 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     let created;
     try {
         created = await client.createPost({...newPost, create_at: 0});
+        if (!created.metadata && newPost.metadata) {
+            created = {
+                ...created,
+                metadata: newPost.metadata,
+            };
+        }
     } catch (error) {
         logDebug('Error sending a post', getFullErrorMessage(error));
         const errorPost = {

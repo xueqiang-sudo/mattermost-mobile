@@ -86,6 +86,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'center',
             gap: 5,
         },
+        timeOnlyWrapper: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+        },
 
         /** 微信风格：昵称、标签、时间与头像顶部齐平（横轴为顶对齐） */
         wrapperWeChat: {
@@ -205,7 +210,14 @@ const Header = (props: HeaderProps) => {
     if (timeOnly) {
         return (
             <View style={[style.container, style.containerTimeOnly, pendingPostStyle]}>
-                {timeEl}
+                <View style={style.timeOnlyWrapper}>
+                    {showPostPriority && post.metadata?.priority?.priority && (
+                        <PostPriorityLabel
+                            label={post.metadata.priority.priority}
+                        />
+                    )}
+                    {timeEl}
+                </View>
             </View>
         );
     }
@@ -244,6 +256,11 @@ const Header = (props: HeaderProps) => {
                         showGuestTag={author?.isGuest && !hideGuestTags}
                     />
                     }
+                    {showPostPriority && post.metadata?.priority?.priority && (
+                        <PostPriorityLabel
+                            label={post.metadata.priority.priority}
+                        />
+                    )}
                     {timeEl}
                     {isEphemeral && (
                         <FormattedText
@@ -251,11 +268,6 @@ const Header = (props: HeaderProps) => {
                             defaultMessage='(Only visible to you)'
                             style={style.visibleToYou}
                             testID='post_header.visible_message'
-                        />
-                    )}
-                    {showPostPriority && post.metadata?.priority?.priority && (
-                        <PostPriorityLabel
-                            label={post.metadata.priority.priority}
                         />
                     )}
                     {showBoRIcon &&
