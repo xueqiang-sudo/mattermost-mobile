@@ -3,7 +3,7 @@
 
 import {useCallback, useMemo, useRef} from 'react';
 
-const DELAY = 750;
+const DELAY = 300;
 
 export const usePreventDoubleTap = <T extends Function>(callback: T) => {
     const lastTapRef = useRef<number | null>(null);

@@ -115,7 +115,7 @@ const HUD_SMOOTH_WAVE_COUNT = 8;
 /** 中央 HUD 与底部按住条共用：单一相位正弦波，整排连续流动（周期一致） */
 const VOICE_WAVE_LOOP_MS = 1400;
 
-function SmoothWaveBar({
+const SmoothWaveBar = React.memo(function SmoothWaveBar({
     index,
     phase,
     width,
@@ -141,9 +141,9 @@ function SmoothWaveBar({
         };
     }, [color, index, maxHeightPx, phase, width]);
     return <Animated.View style={barStyle}/>;
-}
+});
 
-function SmoothWaveformStrip({
+const SmoothWaveformStrip = React.memo(function SmoothWaveformStrip({
     barWidth,
     maxBarHeightPx,
     gap,
@@ -188,10 +188,10 @@ function SmoothWaveformStrip({
             ))}
         </View>
     );
-}
+});
 
 /** 微信式中央 HUD：Modal 根层 pointerEvents=none 不挡底部按住条 */
-function VoiceRecordingHud({inCancelZone, slideToCancelHint, releaseToCancelHint}: VoiceRecordingHudProps) {
+const VoiceRecordingHud = React.memo(function VoiceRecordingHud({inCancelZone, slideToCancelHint, releaseToCancelHint}: VoiceRecordingHudProps) {
     return (
         <Modal
             visible={true}
@@ -245,7 +245,7 @@ function VoiceRecordingHud({inCancelZone, slideToCancelHint, releaseToCancelHint
             </View>
         </Modal>
     );
-}
+});
 
 type HoldToSpeakButtonProps = {
     recording: boolean;
@@ -259,7 +259,7 @@ type HoldToSpeakButtonProps = {
 };
 
 /** 千问风格：PanResponder 跟踪上移，松手时取消或发送；embedded 时贴在外壳内 */
-function HoldToSpeakButton({
+const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
     recording,
     holdLabel,
     recordingBarHint,
@@ -277,51 +277,54 @@ function HoldToSpeakButton({
     const [isHolding, setIsHolding] = useState(false);
     const [inCancelZone, setInCancelZone] = useState(false);
     const inCancelZoneRef = useRef(false);
+    const isHoldingRef = useRef(false);
     const handlersRef = useRef({onGestureStart, onGestureEnd, onCancelZoneChange});
+    
     useEffect(() => {
         handlersRef.current = {onGestureStart, onGestureEnd, onCancelZoneChange};
     }, [onGestureStart, onGestureEnd, onCancelZoneChange]);
 
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onStartShouldSetPanResponderCapture: () => true,
-            onMoveShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponderCapture: () => true,
-            onPanResponderTerminationRequest: () => false,
-            onPanResponderGrant: () => {
-                inCancelZoneRef.current = false;
-                setInCancelZone(false);
-                handlersRef.current.onCancelZoneChange(false);
-                setIsHolding(true);
-                handlersRef.current.onGestureStart();
-            },
-            onPanResponderMove: (_, gestureState) => {
-                const cancel = gestureState.dy < -VOICE_CANCEL_THRESHOLD_PX;
-                if (cancel !== inCancelZoneRef.current) {
-                    inCancelZoneRef.current = cancel;
-                    setInCancelZone(cancel);
-                    handlersRef.current.onCancelZoneChange(cancel);
-                }
-            },
-            onPanResponderRelease: () => {
-                const shouldCancel = inCancelZoneRef.current;
-                inCancelZoneRef.current = false;
-                setInCancelZone(false);
-                setIsHolding(false);
-                handlersRef.current.onCancelZoneChange(false);
-                handlersRef.current.onGestureEnd(shouldCancel);
-            },
-            onPanResponderTerminate: () => {
-                const shouldCancel = inCancelZoneRef.current;
-                inCancelZoneRef.current = false;
-                setInCancelZone(false);
-                setIsHolding(false);
-                handlersRef.current.onCancelZoneChange(false);
-                handlersRef.current.onGestureEnd(shouldCancel);
-            },
-        }),
-    ).current;
+    const panResponder = useMemo(() => PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponderCapture: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+            inCancelZoneRef.current = false;
+            isHoldingRef.current = true;
+            setInCancelZone(false);
+            setIsHolding(true);
+            handlersRef.current.onCancelZoneChange(false);
+            handlersRef.current.onGestureStart();
+        },
+        onPanResponderMove: (_, gestureState) => {
+            const cancel = gestureState.dy < -VOICE_CANCEL_THRESHOLD_PX;
+            if (cancel !== inCancelZoneRef.current) {
+                inCancelZoneRef.current = cancel;
+                setInCancelZone(cancel);
+                handlersRef.current.onCancelZoneChange(cancel);
+            }
+        },
+        onPanResponderRelease: () => {
+            const shouldCancel = inCancelZoneRef.current;
+            inCancelZoneRef.current = false;
+            isHoldingRef.current = false;
+            setInCancelZone(false);
+            setIsHolding(false);
+            handlersRef.current.onCancelZoneChange(false);
+            handlersRef.current.onGestureEnd(shouldCancel);
+        },
+        onPanResponderTerminate: () => {
+            const shouldCancel = inCancelZoneRef.current;
+            inCancelZoneRef.current = false;
+            isHoldingRef.current = false;
+            setInCancelZone(false);
+            setIsHolding(false);
+            handlersRef.current.onCancelZoneChange(false);
+            handlersRef.current.onGestureEnd(shouldCancel);
+        },
+    }), []);
 
     const showRecordUi = isHolding || recording;
     const barBg = !showRecordUi
@@ -379,7 +382,7 @@ function HoldToSpeakButton({
             </View>
         </View>
     );
-}
+});
 
 export type Props = {
     testID?: string;
