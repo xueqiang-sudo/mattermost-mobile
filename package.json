@@ -29,6 +29,7 @@
     "@mattermost/rnshare": "file:./libraries/@mattermost/rnshare",
     "@mattermost/rnutils": "file:./libraries/@mattermost/rnutils",
     "@mattermost/secure-pdf-viewer": "file:./libraries/@mattermost/secure-pdf-viewer",
+    "@mattermost/voice-recorder": "file:./libraries/@mattermost/voice-recorder",
     "@msgpack/msgpack": "3.1.1",
     "@nozbe/watermelondb": "0.28.0",
     "@react-native-camera-roll/camera-roll": "7.10.0",

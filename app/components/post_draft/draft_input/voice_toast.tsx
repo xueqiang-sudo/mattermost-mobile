@@ -55,7 +55,7 @@ const VoiceToast = React.memo(function VoiceToast({
             case 'process_failed':
             case 'permission_denied':
             default:
-                return 'close-outline';
+                return 'close';
         }
     };
 
