@@ -10,7 +10,6 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Screens} from '@constants';
-import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -21,7 +20,6 @@ import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
 import {emojiShortNameToMarkdownToken, emojiShortNameToUnicodeString} from '@utils/emoji/helpers';
 import {persistentNotificationsConfirmation} from '@utils/post';
-import {showSnackBar} from '@utils/snack_bar';
 import {
     changeOpacity,
     getChatBubbleBackground,
@@ -38,6 +36,7 @@ import Typing from '../typing';
 import Uploads from '../uploads';
 
 import Header from './header';
+import VoiceToast from './voice_toast';
 
 import type {PasteInputRef} from '@mattermost/react-native-paste-input';
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
@@ -645,6 +644,10 @@ function DraftInput({
         sendVoiceAsr?.(voiceFiles);
     }, [sendVoiceAsr]);
 
+    const [voiceToastVisible, setVoiceToastVisible] = useState(false);
+    const [voiceToastType, setVoiceToastType] = useState<VoiceRecorderErrorCode>('too_short');
+    const [voiceToastMessage, setVoiceToastMessage] = useState('');
+
     const handleVoiceError = useCallback((code: VoiceRecorderErrorCode) => {
         const ids: Record<VoiceRecorderErrorCode, string> = {
             permission_denied: intl.formatMessage({id: 'post_draft.voice.permission_denied', defaultMessage: 'Microphone permission denied'}),
@@ -652,12 +655,14 @@ function DraftInput({
             process_failed: intl.formatMessage({id: 'post_draft.voice.process_failed', defaultMessage: 'Failed to process recording'}),
             too_short: intl.formatMessage({id: 'post_draft.voice.too_short', defaultMessage: 'Recording too short'}),
         };
-        showSnackBar({
-            barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
-            customMessage: ids[code],
-            type: MESSAGE_TYPE.ERROR,
-        });
+        setVoiceToastType(code);
+        setVoiceToastMessage(ids[code]);
+        setVoiceToastVisible(true);
     }, [intl]);
+
+    const handleVoiceToastDismiss = useCallback(() => {
+        setVoiceToastVisible(false);
+    }, []);
 
     /** 手指仍按住；权限弹窗期间松手会置 false，避免权限通过后仍进入录音导致 HUD/波形无法关闭 */
     const voiceFingerDownRef = useRef(false);
@@ -1075,6 +1080,12 @@ function DraftInput({
                     releaseToCancelHint={voiceHudReleaseCancelHint}
                 />
             )}
+            <VoiceToast
+                visible={voiceToastVisible}
+                type={voiceToastType}
+                message={voiceToastMessage}
+                onDismiss={handleVoiceToastDismiss}
+            />
             <Typing
                 channelId={channelId}
                 channelType={channelType}

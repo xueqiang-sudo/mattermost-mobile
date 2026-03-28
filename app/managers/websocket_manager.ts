@@ -7,6 +7,12 @@ import BackgroundTimer from 'react-native-background-timer';
 import {BehaviorSubject} from 'rxjs';
 import {distinctUntilChanged} from 'rxjs/operators';
 
+/**
+ * 导入全局录音状态检查函数
+ * 用于在录音期间忽略 AppState 变化，避免 WebSocket 意外断开
+ */
+import {getIsRecordingGlobally} from '@hooks/use_voice_recorder';
+
 import {setCurrentUserStatus} from '@actions/local/user';
 import {fetchStatusByIds} from '@actions/remote/user';
 import {handleFirstConnect, handleReconnect} from '@actions/websocket';
@@ -244,7 +250,30 @@ class WebsocketManagerSingleton {
         this.handleStateChange(newState, netState.type, this.previousActiveState);
     };
 
+    /**
+     * 处理应用状态和网络状态变化
+     * 
+     * 【关键修复】在录音期间忽略 AppState 变化
+     * 原因：音频会话切换时可能触发 AppState 短暂波动，导致误判为应用进入后台
+     * 
+     * @param currentIsConnected - 当前网络是否连接
+     * @param currentNetType - 当前网络类型
+     * @param currentIsActive - 应用当前是否在前台活跃
+     */
     private handleStateChange = (currentIsConnected: boolean, currentNetType: NetInfoStateType, currentIsActive: boolean) => {
+        /**
+         * 【关键修复】如果正在录音，立即返回，忽略任何状态变化
+         * 
+         * 为什么这样做：
+         * 1. 录音时音频会话切换可能触发 AppState 短暂变化
+         * 2. 这种短暂变化不是用户真正的操作
+         * 3. 如果不忽略，WebSocket 管理器会误判并断开连接
+         * 4. 通过 getIsRecordingGlobally() 检查全局录音状态
+         */
+        if (getIsRecordingGlobally()) {
+            return;
+        }
+
         if (currentIsActive === this.previousActiveState && currentIsConnected === this.netConnected && currentNetType === this.netType) {
             return;
         }
