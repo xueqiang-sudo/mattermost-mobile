@@ -34,10 +34,14 @@ class VoiceRecorderModuleImpl(
     fun startRecording(format: String?, promise: Promise) {
         Log.d(TAG, "========== 开始录音流程 ==========")
         Log.d(TAG, "请求参数 - format: $format")
+        // qgstest
+        //return promise.resolve(true)
         
         try {
-            Log.d(TAG, "步骤1：停止之前的录音（如果有）")
-            stopRecordingInternal()
+            if (mediaRecorder !== null) {
+                Log.d(TAG, "步骤1：停止之前的录音（如果有）")
+                stopRecordingInternal()
+            }
 
             Log.d(TAG, "步骤2：创建录音文件")
             val outputDir = reactContext.cacheDir

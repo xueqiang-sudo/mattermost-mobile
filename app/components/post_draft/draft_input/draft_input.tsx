@@ -14,7 +14,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {usePersistentNotificationProps} from '@hooks/persistent_notification_props';
-import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
+import {useVoiceRecorder, type VoiceRecorderErrorCode, getIsRecordingGlobally} from '@hooks/use_voice_recorder';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
@@ -107,6 +107,7 @@ type VoiceRecordingHudProps = {
     inCancelZone: boolean;
     slideToCancelHint: string;
     releaseToCancelHint: string;
+    visible?: boolean;
 };
 
 const HUD_SMOOTH_WAVE_COUNT = 8;
@@ -114,7 +115,7 @@ const HUD_SMOOTH_WAVE_COUNT = 8;
 /** 中央 HUD 与底部按住条共用：单一相位正弦波，整排连续流动（周期一致） */
 const VOICE_WAVE_LOOP_MS = 1400;
 
-const SmoothWaveBar = React.memo(function SmoothWaveBar({
+const SmoothWaveBar = React.memo(({
     index,
     phase,
     width,
@@ -126,7 +127,7 @@ const SmoothWaveBar = React.memo(function SmoothWaveBar({
     width: number;
     maxHeightPx: number;
     color: string;
-}) {
+}) => {
     const barStyle = useAnimatedStyle(() => {
         const p = phase.value;
         const w = Math.sin(p * Math.PI * 2 + index * 0.72);
@@ -142,7 +143,7 @@ const SmoothWaveBar = React.memo(function SmoothWaveBar({
     return <Animated.View style={barStyle}/>;
 });
 
-const SmoothWaveformStrip = React.memo(function SmoothWaveformStrip({
+const SmoothWaveformStrip = React.memo(({
     barWidth,
     maxBarHeightPx,
     gap,
@@ -152,7 +153,7 @@ const SmoothWaveformStrip = React.memo(function SmoothWaveformStrip({
     maxBarHeightPx: number;
     gap: number;
     barColor: string;
-}) {
+}) => {
     const phase = useSharedValue(0);
     useEffect(() => {
         phase.value = 0;
@@ -190,9 +191,14 @@ const SmoothWaveformStrip = React.memo(function SmoothWaveformStrip({
 });
 
 /** 微信式中央 HUD：Modal 根层 pointerEvents=none 不挡底部按住条 */
-const VoiceRecordingHud = React.memo(function VoiceRecordingHud({inCancelZone, slideToCancelHint, releaseToCancelHint}: VoiceRecordingHudProps) {
+const VoiceRecordingHud = React.memo(({inCancelZone, slideToCancelHint, releaseToCancelHint, visible}: VoiceRecordingHudProps) => {
+    // 不渲染时直接返回 null，避免 Modal 干扰其他 UI
+    if (!visible) {
+        return null;
+    }
     return (
         <Modal
+            key='voice-recording-hud'
             visible={true}
             transparent={true}
             animationType={'fade'}
@@ -255,10 +261,11 @@ type HoldToSpeakButtonProps = {
     onGestureEnd: (shouldCancel: boolean) => void;
     onCancelZoneChange: (inCancel: boolean) => void;
     embedded?: boolean;
+    disabled?: boolean;
 };
 
 /** 千问风格：PanResponder 跟踪上移，松手时取消或发送；embedded 时贴在外壳内 */
-const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
+const HoldToSpeakButton = React.memo(({
     recording,
     holdLabel,
     recordingBarHint,
@@ -267,21 +274,32 @@ const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
     onGestureEnd,
     onCancelZoneChange,
     embedded,
-}: HoldToSpeakButtonProps) {
+    disabled = false,
+}: HoldToSpeakButtonProps) => {
     const theme = useTheme();
     const idleShellBg = embedded ? 'transparent' : getChatBubbleBackground(theme, 'others');
     const idleBorderColor = getChatBubbleBorderColor(theme);
     const holdLabelColor = changeOpacity(theme.centerChannelColor, 0.52);
+    const disabledHoldLabelColor = changeOpacity(theme.centerChannelColor, 0.2);
 
     const [isHolding, setIsHolding] = useState(false);
     const [inCancelZone, setInCancelZone] = useState(false);
     const inCancelZoneRef = useRef(false);
     const isHoldingRef = useRef(false);
     const handlersRef = useRef({onGestureStart, onGestureEnd, onCancelZoneChange});
-    
+
     useEffect(() => {
         handlersRef.current = {onGestureStart, onGestureEnd, onCancelZoneChange};
     }, [onGestureStart, onGestureEnd, onCancelZoneChange]);
+
+    useEffect(() => {
+        if (!recording) {
+            setIsHolding(false);
+            setInCancelZone(false);
+            inCancelZoneRef.current = false;
+            isHoldingRef.current = false;
+        }
+    }, [recording]);
 
     const panResponder = useMemo(() => PanResponder.create({
         onStartShouldSetPanResponder: () => true,
@@ -290,6 +308,10 @@ const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
         onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: () => {
+            // 禁用状态下忽略新的按压
+            if (disabled) {
+                return;
+            }
             inCancelZoneRef.current = false;
             isHoldingRef.current = true;
             setInCancelZone(false);
@@ -298,6 +320,10 @@ const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
             handlersRef.current.onGestureStart();
         },
         onPanResponderMove: (_, gestureState) => {
+            // 禁用状态下忽略移动
+            if (disabled) {
+                return;
+            }
             const cancel = gestureState.dy < -VOICE_CANCEL_THRESHOLD_PX;
             if (cancel !== inCancelZoneRef.current) {
                 inCancelZoneRef.current = cancel;
@@ -306,6 +332,7 @@ const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
             }
         },
         onPanResponderRelease: () => {
+            // 无论是否禁用，都要清理状态并触发结束回调
             const shouldCancel = inCancelZoneRef.current;
             inCancelZoneRef.current = false;
             isHoldingRef.current = false;
@@ -315,6 +342,7 @@ const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
             handlersRef.current.onGestureEnd(shouldCancel);
         },
         onPanResponderTerminate: () => {
+            // 无论是否禁用，都要清理状态并触发结束回调
             const shouldCancel = inCancelZoneRef.current;
             inCancelZoneRef.current = false;
             isHoldingRef.current = false;
@@ -323,18 +351,20 @@ const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
             handlersRef.current.onCancelZoneChange(false);
             handlersRef.current.onGestureEnd(shouldCancel);
         },
-    }), []);
+    }), [disabled]);
 
     const showRecordUi = isHolding || recording;
+    const isDisabled = disabled || recording;
     const barBg = !showRecordUi
         ? idleShellBg
         : inCancelZone
             ? '#8A8A8A'
             : '#5D89EA';
+    const barOpacity = isDisabled ? 0.5 : 1;
 
     return (
         <View
-            style={{flex: 1, minHeight: 40}}
+            style={{flex: 1, minHeight: 40, opacity: barOpacity}}
             collapsable={false}
             {...panResponder.panHandlers}
         >
@@ -376,7 +406,7 @@ const HoldToSpeakButton = React.memo(function HoldToSpeakButton({
                         />
                     </View>
                 ) : (
-                    <Text style={{color: holdLabelColor, fontSize: 15}}>{holdLabel}</Text>
+                    <Text style={{color: isDisabled ? disabledHoldLabelColor : holdLabelColor, fontSize: 15}}>{holdLabel}</Text>
                 )}
             </View>
         </View>
@@ -510,6 +540,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             alignItems: 'center',
             minWidth: 36,
             minHeight: 40,
+        },
+        weChatLeftModeToggleDisabled: {
+            opacity: 0.5,
         },
         weChatInputShell: {
             flex: 1,
@@ -685,6 +718,7 @@ function DraftInput({
     useEffect(() => {
         if (voiceState !== 'recording') {
             setVoiceCancelZone(false);
+            setVoicePressActive(false);
         }
     }, [voiceState]);
 
@@ -733,6 +767,9 @@ function DraftInput({
         setVoiceMode(false);
         setTimeout(() => inputRef.current?.focus(), 100);
     }, [stopVoiceIfRecording]));
+
+    // 按钮禁用状态：录音中或防抖期间
+    const isModeButtonDisabled = voiceState === 'recording' || switchToVoiceMode.isDisabled || switchToTextMode.isDisabled;
 
     useEffect(() => {
         if (voiceMode) {
@@ -785,12 +822,19 @@ function DraftInput({
 
     const handleVoiceGestureStart = useCallback(() => {
         voiceFingerDownRef.current = true;
-        setVoicePressActive(true);
-        startRecording();
+
+        // 只有在录音器空闲时才设置 voicePressActive，避免频繁点击时状态错乱
+        const isRecording = getIsRecordingGlobally();
+        if (!isRecording) {
+            setVoicePressActive(true);
+            startRecording();
+        }
     }, [startRecording]);
 
     const handleVoiceGestureEnd = useCallback((shouldCancel: boolean) => {
         voiceFingerDownRef.current = false;
+
+        // 立即重置 voicePressActive，让 UI 状态与手势状态保持一致
         setVoicePressActive(false);
         if (shouldCancel) {
             cancelRecording();
@@ -961,8 +1005,9 @@ function DraftInput({
                 {hasVoiceRecording && (
                     <TouchableWithFeedback
                         borderlessRipple={true}
+                        disabled={isModeButtonDisabled}
                         onPress={voiceMode ? switchToTextMode : switchToVoiceMode}
-                        style={style.weChatLeftModeToggle}
+                        style={[style.weChatLeftModeToggle, isModeButtonDisabled && style.weChatLeftModeToggleDisabled]}
                         type='opacity'
                         testID={voiceMode ? `${quickActionsTestID}.keyboard.button` : `${quickActionsTestID}.voice.button`}
                     >
@@ -971,13 +1016,13 @@ function DraftInput({
                                 <CompassIcon
                                     name='keyboard-outline'
                                     size={22}
-                                    color={weChatFooterIconColor}
+                                    color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             ) : (
                                 <CompassIcon
                                     name='volume-high'
                                     size={22}
-                                    color={weChatFooterIconColor}
+                                    color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             )}
                         </View>
@@ -987,6 +1032,7 @@ function DraftInput({
                     {voiceMode && hasVoiceRecording ? (
                         <HoldToSpeakButton
                             embedded={true}
+                            disabled={isModeButtonDisabled}
                             recording={voiceState === 'recording'}
                             holdLabel={intl.formatMessage({id: 'post_draft.voice.hold_to_speak', defaultMessage: 'Hold to speak'})}
                             recordingBarHint={voiceRecordingBarHint}
@@ -1073,13 +1119,12 @@ function DraftInput({
 
     return (
         <>
-            {showVoiceRecordingHud && (
-                <VoiceRecordingHud
-                    inCancelZone={voiceCancelZone}
-                    slideToCancelHint={voiceHudSlideHint}
-                    releaseToCancelHint={voiceHudReleaseCancelHint}
-                />
-            )}
+            <VoiceRecordingHud
+                inCancelZone={voiceCancelZone}
+                slideToCancelHint={voiceHudSlideHint}
+                releaseToCancelHint={voiceHudReleaseCancelHint}
+                visible={showVoiceRecordingHud}
+            />
             <VoiceToast
                 visible={voiceToastVisible}
                 type={voiceToastType}

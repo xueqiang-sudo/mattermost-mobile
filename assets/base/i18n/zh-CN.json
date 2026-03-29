@@ -1293,7 +1293,7 @@
   "contacts.title": "通讯录",
   "contacts.search.title": "搜索联系人",
   "contacts.search.placeholder": "姓名、邮箱、电话…",
-  "contacts.search.hint": "输入姓名开始搜索",
+  "contacts.search.hint": "请输入姓名、邮箱或电话进行搜索",
   "contacts.search.no_results": "未找到匹配的联系人",
   "contacts.search.scope_company": "搜索范围：{name}",
   "contacts.search.scope_department": "搜索范围：{name}",

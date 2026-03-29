@@ -48,6 +48,13 @@ export function isPostEphemeral(post: PostModel): boolean {
     return post.type === Post.POST_TYPES.EPHEMERAL || post.type === Post.POST_TYPES.EPHEMERAL_ADD_TO_CHANNEL || post.deleteAt > 0;
 }
 
+export function isInvalidEphemeralTipPost(post: PostModel | Post): boolean {
+    if (post.type !== Post.POST_TYPES.EPHEMERAL) {
+        return false;
+    }
+    return post.props?.invalid === true;
+}
+
 export function isPostFailed(post: PostModel): boolean {
     return Boolean(post.props?.failed) || ((post.pendingPostId === post.id) && (Date.now() > post.updateAt + POST_TIME_TO_FAIL));
 }

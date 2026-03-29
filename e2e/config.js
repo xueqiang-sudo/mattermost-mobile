@@ -1,7 +1,5 @@
-// Temporary Jest config shim for Detox when executed from the repo root.
-// Detox expects this file at "e2e/config.js" (see detox/.detoxrc.json -> testRunner args.config).
-//
-// NOTE: This file is intentionally local to this environment; it is not part of the app code.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 const platform = process.env.IOS === 'true' ? 'ios' : 'android';
 const shard = process.env.CI_NODE_INDEX ? process.env.CI_NODE_INDEX : '';
 const artifactsRoot = process.env.DETOX_ARTIFACTS_LOCATION ?? './detox_artifacts_test';
@@ -11,6 +9,7 @@ module.exports = {
     maxWorkers: 1,
     testSequencer: '<rootDir>/e2e/custom_sequencer.js',
     testTimeout: 180000,
+
     // This config file lives under the repo's `e2e/` directory.
     // When using a relative `rootDir`, Jest resolves it relative to this file's directory.
     // We need to point back to the real Detox package directory.

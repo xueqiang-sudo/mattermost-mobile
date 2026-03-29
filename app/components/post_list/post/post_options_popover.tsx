@@ -190,7 +190,7 @@ export default function PostOptionsPopover({x, y, onClose, items}: Props) {
             >
                 {!layout.arrowBelowMenu && (
                     <View style={[styles.arrowRow, {width: layout.w, paddingLeft: layout.arrowOffset}]}>
-                        <View style={styles.arrowUp} />
+                        <View style={styles.arrowUp}/>
                     </View>
                 )}
                 <Pressable
@@ -233,7 +233,7 @@ export default function PostOptionsPopover({x, y, onClose, items}: Props) {
                 </Pressable>
                 {layout.arrowBelowMenu && (
                     <View style={[styles.arrowRow, {width: layout.w, paddingLeft: layout.arrowOffset}]}>
-                        <View style={styles.arrowDown} />
+                        <View style={styles.arrowDown}/>
                     </View>
                 )}
             </View>

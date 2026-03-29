@@ -73,6 +73,11 @@ type MarkdownProps = {
     searchPatterns?: SearchPattern[];
     theme: Theme;
     value?: string;
+    /**
+     * 段落用 column + alignSelf 收缩宽度，避免默认 row/flexWrap 在窄父级下错误折行。
+     * 用于短系统提示等仍以 Markdown 渲染、但需随内容变宽的场景。
+     */
+    paragraphShrinkWrapAlign?: 'center' | 'end';
     onLinkLongPress?: (url?: string) => void;
     isUnsafeLinksPost?: boolean;
 }
@@ -173,6 +178,7 @@ const Markdown = ({
     baseParagraphStyle,
     onLinkLongPress,
     isUnsafeLinksPost,
+    paragraphShrinkWrapAlign,
 }: MarkdownProps) => {
     const style = getStyleSheet(theme);
     const blockStyles = useMemo<MarkdownBlockStyles>(() => getMarkdownBlockStyles(theme), [theme]);
@@ -507,7 +513,14 @@ const Markdown = ({
             return null;
         }
 
-        const blockStyle: StyleProp<ViewStyle> = [style.block];
+        const blockStyle: StyleProp<ViewStyle> = paragraphShrinkWrapAlign ?
+            [
+                {
+                    flexDirection: 'column',
+                    alignSelf: paragraphShrinkWrapAlign === 'end' ? 'flex-end' : 'center',
+                },
+            ] :
+            [style.block];
         if (!first) {
             blockStyle.push(blockStyles?.adjacentParagraph);
         }
@@ -522,7 +535,7 @@ const Markdown = ({
                 </Text>
             </View>
         );
-    }, [baseParagraphStyle, blockStyles?.adjacentParagraph, style.block]);
+    }, [baseParagraphStyle, blockStyles?.adjacentParagraph, paragraphShrinkWrapAlign, style.block]);
 
     const renderTable = useCallback(({children, numColumns}: {children: ReactElement; numColumns: number}) => {
         if (disableTables) {

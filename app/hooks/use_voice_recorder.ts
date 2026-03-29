@@ -1,13 +1,13 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import VoiceRecorder from '@mattermost/voice-recorder';
 import {getInfoAsync} from 'expo-file-system';
-import {Platform} from 'react-native';
 import {useCallback, useRef, useState} from 'react';
+import {Platform} from 'react-native';
 import Permissions from 'react-native-permissions';
 import {useSharedValue} from 'react-native-reanimated';
 
-import VoiceRecorder from '@mattermost/voice-recorder';
 import {lookupMimeType} from '@utils/file';
 import {generateId} from '@utils/general';
 import {logError, logDebug} from '@utils/log';
@@ -58,7 +58,7 @@ export function useVoiceRecorder(
 
     const meteringShared = useSharedValue(DEFAULT_METERING);
 
-    const isStartingRef = useRef(false);
+    const startingTsRef = useRef<number | null>(null);
     const recordStartTimeRef = useRef<number>(0);
     const startTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,7 +75,7 @@ export function useVoiceRecorder(
     const startRecording = useCallback(async () => {
         logDebug('[useVoiceRecorder.startRecording] ========== 开始录音流程 ==========');
 
-        if (isStartingRef.current) {
+        if (startingTsRef.current) {
             logDebug('[useVoiceRecorder.startRecording] 正在启动中，忽略此次请求');
             return;
         }
@@ -84,8 +84,9 @@ export function useVoiceRecorder(
             return;
         }
 
-        logDebug('[useVoiceRecorder.startRecording] 设置启动标记');
-        isStartingRef.current = true;
+        let startingTs = Date.now();
+        logDebug('[useVoiceRecorder.startRecording] 设置启动标记, startingTs:', startingTs);
+        startingTsRef.current = startingTs;
         isGlobalRecorderBusy = true;
 
         const safeCleanup = async () => {
@@ -98,7 +99,7 @@ export function useVoiceRecorder(
         startTimeoutRef.current = setTimeout(async () => {
             logDebug('[useVoiceRecorder.startRecording] 超时，强制重置状态');
             await safeResetRecordingState();
-            isStartingRef.current = false;
+            startingTsRef.current = null;
             setState('idle');
             meteringShared.value = DEFAULT_METERING;
         }, 10000);
@@ -109,30 +110,47 @@ export function useVoiceRecorder(
             if (!hasPermission) {
                 logDebug('[useVoiceRecorder.startRecording] 麦克风权限被拒绝');
                 await safeCleanup();
+                startingTsRef.current = null;
                 await safeResetRecordingState();
                 onError?.('permission_denied');
                 return;
             }
             logDebug('[useVoiceRecorder.startRecording] 麦克风权限获取成功');
 
+            if (startingTsRef.current !== startingTs) {
+                logDebug('[useVoiceRecorder.startRecording] 启动标记丢失，忽略此次请求, startingTs:', startingTs);
+                return;
+            }
+
             logDebug('[useVoiceRecorder.startRecording] 步骤2：检查是否继续（权限对话框期间用户是否松开）');
             const proceed = optionsRef.current?.shouldProceedAfterPermission?.() ?? true;
             if (!proceed) {
                 logDebug('[useVoiceRecorder.startRecording] 用户已松开，不继续录音');
                 await safeCleanup();
+                startingTsRef.current = null;
                 await safeResetRecordingState();
                 return;
             }
 
-            logDebug('[useVoiceRecorder.startRecording] 步骤3：调用原生模块开始录音');
+            if (startingTsRef.current !== startingTs) {
+                logDebug('[useVoiceRecorder.startRecording] 启动标记丢失，忽略此次请求, startingTs:', startingTs);
+                return;
+            }
+
+            const replaceBeforeTs = startingTsRef.current;
+            startingTs = Date.now();
+            startingTsRef.current = startingTs;
+
+            logDebug('[useVoiceRecorder.startRecording] 步骤3：调用原生模块开始录音, replaceBeforeTs:', replaceBeforeTs, ' ,startingTs:', startingTs);
             const format = Platform.select({
-                ios: 'aac',
-                android: 'amr',
+                ios: IOS_RECORDING_EXTENSION,
+                android: ANDROID_RECORDING_EXTENSION,
             });
             const success = await VoiceRecorder.startRecording(format);
             if (!success) {
                 logDebug('[useVoiceRecorder.startRecording] 原生录音启动失败');
                 await safeCleanup();
+                startingTsRef.current = null;
                 await safeResetRecordingState();
                 onError?.('record_failed');
                 return;
@@ -153,41 +171,42 @@ export function useVoiceRecorder(
             await safeCleanup();
             setState('idle');
             meteringShared.value = DEFAULT_METERING;
+            startingTsRef.current = null;
             await safeResetRecordingState();
             onError?.('record_failed');
         } finally {
             logDebug('[useVoiceRecorder.startRecording] 清除启动标记');
-            isStartingRef.current = false;
+            startingTsRef.current = null;
         }
     }, [requestPermission, onError, meteringShared]);
 
     const stopRecordingAndSend = useCallback(async () => {
         logDebug('[useVoiceRecorder.stopRecordingAndSend] ========== 停止录音并发送 ==========');
-
-        setState('idle');
-        meteringShared.value = DEFAULT_METERING;
-
-        logDebug('[useVoiceRecorder.stopRecordingAndSend] 更新全局录音状态为 false');
-        isRecordingGlobally = false;
-
+        const startingTs = startingTsRef.current;
         try {
-            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤1：调用原生模块停止录音');
+            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤 1：调用原生模块停止录音');
             const result = await VoiceRecorder.stopRecording();
 
+            // 停止录音后，立即更新 UI 状态
+            setState('idle');
+            meteringShared.value = DEFAULT_METERING;
+
+            logDebug('[useVoiceRecorder.stopRecordingAndSend] 更新全局录音状态为 false');
+            isRecordingGlobally = false;
+            isGlobalRecorderBusy = false;
+
             if (!result.success || !result.filePath) {
-                logDebug('[useVoiceRecorder.stopRecordingAndSend] 录音失败或无文件路径', result.error);
-                isGlobalRecorderBusy = false;
-                onError?.('process_failed');
+                logDebug('[useVoiceRecorder.stopRecordingAndSend] 录音失败或无文件路径', result.error, ',startingTs:', startingTs, ',diff:', startingTs && (Date.now() - startingTs));
+                onError?.(startingTs && (Date.now() - startingTs) < MIN_RECORDING_DURATION_MS ? 'too_short' : 'process_failed');
                 return;
             }
 
             logDebug('[useVoiceRecorder.stopRecordingAndSend] 录音结果:', result);
 
             const durationMs = result.durationMs ?? (Date.now() - recordStartTimeRef.current);
-            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤2：检查录音时长');
+            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤 2：检查录音时长');
             if (durationMs < MIN_RECORDING_DURATION_MS) {
                 logDebug('[useVoiceRecorder.stopRecordingAndSend] 录音太短:', durationMs, 'ms，最小要求:', MIN_RECORDING_DURATION_MS, 'ms');
-                isGlobalRecorderBusy = false;
                 try {
                     await VoiceRecorder.cancelRecording();
                 } catch (e) {
@@ -197,7 +216,7 @@ export function useVoiceRecorder(
                 return;
             }
 
-            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤3：准备文件信息');
+            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤 3：准备文件信息');
             const path = result.filePath;
             const localPath = toFileUri(path);
             const name = localPath.substring(localPath.lastIndexOf('/') + 1);
@@ -220,13 +239,17 @@ export function useVoiceRecorder(
                 width: 0,
             };
 
-            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤4：回调 onRecorded');
+            logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤 4：回调 onRecorded');
             onRecorded([file]);
-            isGlobalRecorderBusy = false;
 
             logDebug('[useVoiceRecorder.stopRecordingAndSend] ========== 录音发送成功 ==========');
         } catch (err) {
             logError('[useVoiceRecorder.stopRecordingAndSend] 处理失败', err);
+
+            // 发生异常时也要确保状态被重置
+            setState('idle');
+            meteringShared.value = DEFAULT_METERING;
+            isRecordingGlobally = false;
             isGlobalRecorderBusy = false;
             onError?.('process_failed');
         }
@@ -236,7 +259,7 @@ export function useVoiceRecorder(
         logDebug('[useVoiceRecorder.cancelRecording] ========== 取消录音 ==========');
 
         logDebug('[useVoiceRecorder.cancelRecording] 清除启动标记');
-        isStartingRef.current = false;
+        startingTsRef.current = null;
         isGlobalRecorderBusy = false;
 
         logDebug('[useVoiceRecorder.cancelRecording] 清理引用');

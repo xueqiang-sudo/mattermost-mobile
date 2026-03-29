@@ -1293,7 +1293,7 @@
   "contacts.title": "Contacts",
   "contacts.search.title": "搜尋聯絡人",
   "contacts.search.placeholder": "姓名、郵箱、電話…",
-  "contacts.search.hint": "輸入姓名開始搜尋",
+  "contacts.search.hint": "請輸入姓名、郵箱或電話進行搜尋",
   "contacts.search.no_results": "找不到符合的聯絡人",
   "contacts.search.scope_company": "搜尋範圍：{name}",
   "contacts.search.scope_department": "搜尋範圍：{name}",

@@ -27,6 +27,9 @@ type AvatarProps = {
     location: AvailableScreens;
     post: PostModel;
 
+    /** 由 avatar/index HOC 从父级传入并解析为 author，内层不直接使用 */
+    forcedAuthor?: UserModel;
+
     /** When true, use rounded square (WeChat/WeCom style) instead of circle */
     useRoundedSquare?: boolean;
 }
@@ -42,7 +45,7 @@ const CHAT_AVATAR_BORDER_RADIUS = 6;
 /** 微信风格：状态指示器也用方角 */
 const CHAT_STATUS_BORDER_RADIUS = 4;
 
-const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, useRoundedSquare}: AvatarProps) => {
+const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, useRoundedSquare, forcedAuthor: _forcedAuthor}: AvatarProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();

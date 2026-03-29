@@ -22,13 +22,13 @@ const DEFAULT_DURATION = 1500;
  * 微信风格的语音提示组件
  * 在屏幕中央显示带有图标的提示信息
  */
-const VoiceToast = React.memo(function VoiceToast({
+const VoiceToast = React.memo(({
     visible,
     type,
     message,
     onDismiss,
     duration = DEFAULT_DURATION,
-}: VoiceToastProps) {
+}: VoiceToastProps) => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {

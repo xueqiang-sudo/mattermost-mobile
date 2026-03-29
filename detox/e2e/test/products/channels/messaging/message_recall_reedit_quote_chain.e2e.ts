@@ -8,6 +8,7 @@
 // *******************************************************************
 
 import {Channel, Post, Setup, Team, User} from '@support/server_api';
+import {serverOneUrl, siteOneUrl} from '@support/test_config';
 import {
     ChannelListScreen,
     ChannelScreen,
@@ -18,7 +19,6 @@ import {
     ServerScreen,
     UserProfileScreen,
 } from '@support/ui/screen';
-import {serverOneUrl, siteOneUrl} from '@support/test_config';
 import {getRandomId, isIos} from '@support/utils';
 import {expect} from 'detox';
 

@@ -28,13 +28,14 @@ import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {dismissOverlay, showModal, showOverlay} from '@screens/navigation';
 import {isBoRPost, isUnrevealedBoRPost} from '@utils/bor';
 import {hasJumboEmojiOnly} from '@utils/emoji/helpers';
-import {fromAutoResponder, isFromWebhook, isPostFailed, isPostPendingOrFailed, isSystemMessage} from '@utils/post';
+import {fromAutoResponder, isFromWebhook, isInvalidEphemeralTipPost, isPostFailed, isPostPendingOrFailed, isSystemMessage} from '@utils/post';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Avatar from './avatar';
 import Body from './body';
 import Footer from './footer';
 import Header from './header';
+import InvalidEphemeralTip from './invalid_ephemeral_tip';
 import PostOptionsPopover from './post_options_popover';
 import PreHeader from './pre_header';
 import SystemMessage from './system_message';
@@ -465,17 +466,33 @@ const Post = ({
     const itemTestID = `${testID}.${post.id}`;
 
     const weChatStyle = useWeChatStyle(location);
+    const showInvalidTip = isInvalidEphemeralTipPost(post);
     const showSystemCentered = weChatStyle && isSystemPost && !isAutoResponder;
-    const showOwnLayout = weChatStyle && isOwnPost;
+
+    /**
+     * 语音转文字失败等 invalid ephemeral 仅推给操作者，但 post.userId 可能与 currentUser 不一致，
+     * 不能依赖 isOwnPost。微信频道下一律按本人右侧行展示（与「你撤回了一条消息」一致）。
+     */
+    const invalidTipWeChatOwnRow = showInvalidTip && weChatStyle;
+
+    /**
+     * system_ephemeral 会满足 showSystemCentered，若与 invalid 本人行同时成立，
+     * 原逻辑会先命中 useCenteredNoAvatarLayout 而清空头像且跳过 Header，导致无时间、无头像（图1）。
+     * 微信 invalid 提示必须与「撤回」一致走下方分支，故排除 invalidTipWeChatOwnRow。
+     */
+    const useCenteredNoAvatarLayout =
+        !invalidTipWeChatOwnRow &&
+        (showSystemCentered || (showInvalidTip && !weChatStyle));
+    const showOwnLayout = weChatStyle && (isOwnPost || invalidTipWeChatOwnRow);
     const effectiveConsecutivePost = weChatStyle ? false : isConsecutivePost;
 
     const rightColumnStyle: StyleProp<ViewStyle> = [
         showOwnLayout ? styles.rightColumnOwnSizing : (
-            weChatStyle && !showSystemCentered ? styles.rightColumnOthersWeChat : styles.rightColumn
+            weChatStyle && !useCenteredNoAvatarLayout ? styles.rightColumnOthersWeChat : styles.rightColumn
         ),
         (Boolean(post.rootId) && isLastReply && styles.rightColumnPadding),
         showOwnLayout && styles.rightColumnOwn,
-        showSystemCentered && styles.rightColumnSystem,
+        useCenteredNoAvatarLayout && styles.rightColumnSystem,
     ];
     const pendingPostStyle: StyleProp<ViewStyle> | undefined = isPendingOrFailed ? styles.pendingPost : undefined;
 
@@ -499,10 +516,10 @@ const Post = ({
     );
 
     const sameSequence = hasReplies ? (hasReplies && post.rootId) : !post.rootId;
-    if (!showPostPriority && hasSameRoot && effectiveConsecutivePost && sameSequence && !showOwnLayout) {
+    if (!showPostPriority && hasSameRoot && effectiveConsecutivePost && sameSequence && !showOwnLayout && !useCenteredNoAvatarLayout) {
         consecutiveStyle = styles.consecutive;
         postAvatar = <View style={styles.consecutivePostContainer}/>;
-    } else if (showSystemCentered) {
+    } else if (useCenteredNoAvatarLayout) {
         postAvatar = null;
     } else {
         const avatarContainerStyle = [
@@ -511,10 +528,11 @@ const Post = ({
         ];
         postAvatar = (
             <View style={[avatarContainerStyle, pendingPostStyle]}>
-                {(isAutoResponder || isSystemPost) ? (
+                {(isAutoResponder || isSystemPost) && !showOwnLayout ? (
                     <SystemAvatar theme={theme}/>
                 ) : (
                     <Avatar
+                        forcedAuthor={invalidTipWeChatOwnRow && currentUser ? currentUser : undefined}
                         isAutoReponse={isAutoResponder}
                         location={location}
                         post={post}
@@ -524,15 +542,7 @@ const Post = ({
             </View>
         );
 
-        if (isSystemPost && !isAutoResponder && !showSystemCentered) {
-            header = (
-                <SystemHeader
-                    createAt={post.createAt}
-                    theme={theme}
-                    isEphemeral={isEphemeral}
-                />
-            );
-        } else if (showOwnLayout) {
+        if (showOwnLayout) {
             header = (
                 <Header
                     currentUser={currentUser}
@@ -548,6 +558,14 @@ const Post = ({
                     showPostPriority={showPostPriority}
                     shouldRenderReplyButton={shouldRenderReplyButton}
                     timeOnly={true}
+                />
+            );
+        } else if (isSystemPost && !isAutoResponder && !useCenteredNoAvatarLayout) {
+            header = (
+                <SystemHeader
+                    createAt={post.createAt}
+                    theme={theme}
+                    isEphemeral={isEphemeral}
                 />
             );
         } else {
@@ -572,7 +590,15 @@ const Post = ({
     }
 
     let body;
-    if (isSystemPost && !isEphemeral && !isAutoResponder) {
+    if (showInvalidTip) {
+        body = (
+            <InvalidEphemeralTip
+                location={location}
+                post={post}
+                weChatOwnRightAlign={invalidTipWeChatOwnRow}
+            />
+        );
+    } else if (isSystemPost && !isEphemeral && !isAutoResponder) {
         body = (
             <SystemMessage
                 compact={showSystemCentered}
@@ -655,8 +681,8 @@ const Post = ({
     const touchableStyle = [
         styles.postContent,
         weChatStyle && showOwnLayout && styles.postContentOwnWeChat,
-        weChatStyle && !showOwnLayout && !showSystemCentered && styles.postContentOthersWeChat,
-        weChatStyle && !showSystemCentered && {alignSelf: showOwnLayout ? 'flex-end' : 'flex-start'},
+        weChatStyle && !showOwnLayout && !useCenteredNoAvatarLayout && styles.postContentOthersWeChat,
+        weChatStyle && !useCenteredNoAvatarLayout && {alignSelf: showOwnLayout ? 'flex-end' : 'flex-start'},
     ];
 
     return (
@@ -691,8 +717,8 @@ const Post = ({
                         styles.container,
                         consecutiveStyle,
                         showOwnLayout && styles.containerOwn,
-                        showSystemCentered && styles.containerSystem,
-                        weChatStyle && !showSystemCentered && styles.containerWeChatAlign,
+                        useCenteredNoAvatarLayout && styles.containerSystem,
+                        weChatStyle && !useCenteredNoAvatarLayout && styles.containerWeChatAlign,
                     ]}
                 >
                     {showOwnLayout ? (
@@ -705,7 +731,7 @@ const Post = ({
                             {postAvatar}
                             {unreadDot}
                         </>
-                    ) : showSystemCentered ? (
+                    ) : useCenteredNoAvatarLayout ? (
                         <View style={rightColumnStyle}>
                             {body}
                         </View>

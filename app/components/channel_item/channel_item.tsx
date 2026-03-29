@@ -103,6 +103,7 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: theme.sidebarBg,
         marginLeft: 0,
     },
+
     // 已静音：头像角标（群/频道右下；私聊左下，避免与在线状态点重叠）
     muteIndicator: {
         position: 'absolute' as const,

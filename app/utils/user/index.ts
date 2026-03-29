@@ -25,11 +25,13 @@ const displayUsernameMessages = defineMessages({
 
 /** 用户可见昵称展示：始终昵称优先，不跟随服务器「队友姓名显示」设置。 */
 export type UsernameToNicknameOptions = {
+
     /**
      * 当昵称与真实姓名都存在时，是否在展示中附带姓名（如「昵称（姓名）」）。
      * 默认 true；为 false 时仅返回昵称，无昵称时依次为姓名、username。
      */
     includeFullName?: boolean;
+
     /** 无用户时的兜底文案 locale（与 displayUsername 的 Someone 一致） */
     locale?: string;
     useFallbackUsername?: boolean;

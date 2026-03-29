@@ -2,7 +2,6 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import type {GestureResponderEvent} from 'react-native';
 
 import {isMessageAttachmentArray} from '@utils/message_attachment';
 import {isYoutubeLink} from '@utils/url';
@@ -16,6 +15,7 @@ import YouTube from './youtube';
 
 import type PostModel from '@typings/database/models/servers/post';
 import type {AvailableScreens} from '@typings/screens/navigation';
+import type {GestureResponderEvent} from 'react-native';
 
 type ContentProps = {
     isReplyPost: boolean;
@@ -80,7 +80,7 @@ const Content = ({isReplyPost, layoutWidth, location, onLongPress, post, theme, 
                     layoutWidth={layoutWidth}
                     location={location}
                     metadata={post.metadata}
-                        onLongPress={onLongPress}
+                    onLongPress={onLongPress}
                     postId={post.id}
                     removeLinkPreview={post.props?.remove_link_preview === 'true'}
                     theme={theme}

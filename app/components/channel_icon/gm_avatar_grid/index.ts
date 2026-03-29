@@ -52,23 +52,23 @@ const enhanced = withObservables(['channelId', 'channelName'], ({channelId, chan
                     const usersFromRecentPosts = postUserIds.length ? queryUsersById(database, postUserIds).observeWithColumns(['last_picture_update']) : of$([]);
                     return usersFromRecentPosts.pipe(
                         map((recentUsers) => {
-                    const mergedUsers = [...membershipUsers];
-                    const seenIds = new Set(mergedUsers.map((u) => u.id));
-                    for (const user of fallbackUsers) {
-                        if (!seenIds.has(user.id)) {
-                            mergedUsers.push(user);
-                            seenIds.add(user.id);
-                        }
-                    }
-                    for (const user of recentUsers) {
-                        if (!seenIds.has(user.id)) {
-                            mergedUsers.push(user);
-                            seenIds.add(user.id);
-                        }
-                    }
+                            const mergedUsers = [...membershipUsers];
+                            const seenIds = new Set(mergedUsers.map((u) => u.id));
+                            for (const user of fallbackUsers) {
+                                if (!seenIds.has(user.id)) {
+                                    mergedUsers.push(user);
+                                    seenIds.add(user.id);
+                                }
+                            }
+                            for (const user of recentUsers) {
+                                if (!seenIds.has(user.id)) {
+                                    mergedUsers.push(user);
+                                    seenIds.add(user.id);
+                                }
+                            }
 
-                    const sorted = [...mergedUsers].sort((a, b) => (a.id === userId ? -1 : 0) - (b.id === userId ? -1 : 0));
-                    return sorted.slice(0, 9);
+                            const sorted = [...mergedUsers].sort((a, b) => (a.id === userId ? -1 : 0) - (b.id === userId ? -1 : 0));
+                            return sorted.slice(0, 9);
                         }),
                     );
                 }),
