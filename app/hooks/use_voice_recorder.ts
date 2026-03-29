@@ -30,6 +30,10 @@ export function getIsRecordingGlobally(): boolean {
     return isRecordingGlobally;
 }
 
+export function getIsRecorderBusy(): boolean {
+    return isGlobalRecorderBusy;
+}
+
 const toFileUri = (path: string) => (path.startsWith('file://') ? path : `file://${path}`);
 
 const DEFAULT_METERING = -160;
@@ -76,6 +80,8 @@ export function useVoiceRecorder(
 
     const startRecording = useCallback(async () => {
         logDebug('[useVoiceRecorder.startRecording] ========== 开始录音流程 ==========');
+        logDebug('[useVoiceRecorder.startRecording] 当前 startingTsRef.current:', startingTsRef.current);
+        logDebug('[useVoiceRecorder.startRecording] 当前 isGlobalRecorderBusy:', isGlobalRecorderBusy);
 
         if (startingTsRef.current) {
             logDebug('[useVoiceRecorder.startRecording] 正在启动中，忽略此次请求');
@@ -87,7 +93,7 @@ export function useVoiceRecorder(
         }
 
         let startingTs = Date.now();
-        logDebug('[useVoiceRecorder.startRecording] 设置启动标记, startingTs:', startingTs);
+        logDebug('[useVoiceRecorder.startRecording] 设置启动标记，startingTs:', startingTs);
         startingTsRef.current = startingTs;
         isGlobalRecorderBusy = true;
 
@@ -148,7 +154,7 @@ export function useVoiceRecorder(
                 ios: IOS_RECORDING_EXTENSION,
                 android: ANDROID_RECORDING_EXTENSION,
             });
-            const success = await VoiceRecorder.startRecording({ format, prefix: CVA_FILE_PREFIX });
+            const success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
             if (!success) {
                 logDebug('[useVoiceRecorder.startRecording] 原生录音启动失败');
                 await safeCleanup();
@@ -184,9 +190,12 @@ export function useVoiceRecorder(
 
     const stopRecordingAndSend = useCallback(async () => {
         logDebug('[useVoiceRecorder.stopRecordingAndSend] ========== 停止录音并发送 ==========');
+        logDebug('[useVoiceRecorder.stopRecordingAndSend] 当前 startingTsRef.current:', startingTsRef.current);
+        logDebug('[useVoiceRecorder.stopRecordingAndSend] 当前 isRecordingGlobally:', isRecordingGlobally);
+        logDebug('[useVoiceRecorder.stopRecordingAndSend] 当前 isGlobalRecorderBusy:', isGlobalRecorderBusy);
         const startingTs = startingTsRef.current;
         let filePathToClean: string | null = null;
-        
+
         try {
             logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤 1：调用原生模块停止录音');
             const result = await VoiceRecorder.stopRecording();
@@ -277,6 +286,9 @@ export function useVoiceRecorder(
 
     const cancelRecording = useCallback(async () => {
         logDebug('[useVoiceRecorder.cancelRecording] ========== 取消录音 ==========');
+        logDebug('[useVoiceRecorder.cancelRecording] 当前 startingTsRef.current:', startingTsRef.current);
+        logDebug('[useVoiceRecorder.cancelRecording] 当前 isRecordingGlobally:', isRecordingGlobally);
+        logDebug('[useVoiceRecorder.cancelRecording] 当前 isGlobalRecorderBusy:', isGlobalRecorderBusy);
 
         logDebug('[useVoiceRecorder.cancelRecording] 清除启动标记');
         startingTsRef.current = null;

@@ -20,7 +20,6 @@ import ClientError from './error';
 
 import type {APIClientInterface, ClientHeaders, ClientResponse, ClientResponseMetrics, RequestOptions} from '@mattermost/react-native-network-client';
 
-console.info('qgstest MM_MOBILE_LOG_FETCH', MM_MOBILE_LOG_FETCH)
 // eslint-disable-next-line no-negated-condition
 const isEnvFlagEnabled = (value?: string, trueOtherVaue?: string) => (trueOtherVaue !== undefined ? value === trueOtherVaue : (value === 'true' || value === '1'));
 const shouldLogFetchSuccess = () => isEnvFlagEnabled(MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
@@ -438,7 +437,6 @@ export default class ClientTracking {
         }
 
         if (response.ok) {
-
             if (shouldLogFetchData()) {
                 logInfo(
                     new Date().toISOString() + ' -- request data, url:',

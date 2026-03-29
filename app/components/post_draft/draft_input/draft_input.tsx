@@ -14,7 +14,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {usePersistentNotificationProps} from '@hooks/persistent_notification_props';
-import {useVoiceRecorder, type VoiceRecorderErrorCode, getIsRecordingGlobally} from '@hooks/use_voice_recorder';
+import {useVoiceRecorder, type VoiceRecorderErrorCode, getIsRecordingGlobally, getIsRecorderBusy} from '@hooks/use_voice_recorder';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
@@ -312,14 +312,20 @@ const HoldToSpeakButton = React.memo(({
             if (disabled) {
                 return;
             }
+            console.log('[PanResponder.onPanResponderGrant] ========== 手势开始 ==========');
+            console.log('[PanResponder.onPanResponderGrant] 当前 recording:', recording);
+            console.log('[PanResponder.onPanResponderGrant] 当前 isHolding:', isHolding);
+            console.log('[PanResponder.onPanResponderGrant] 当前 getIsRecordingGlobally():', getIsRecordingGlobally());
             inCancelZoneRef.current = false;
             isHoldingRef.current = true;
             setInCancelZone(false);
             setIsHolding(true);
             handlersRef.current.onCancelZoneChange(false);
+            console.log('[PanResponder.onPanResponderGrant] 准备调用 handlersRef.current.onGestureStart');
             handlersRef.current.onGestureStart();
+            console.log('[PanResponder.onPanResponderGrant] 手势开始处理完成');
         },
-        onPanResponderMove: (_, gestureState) => {
+        onPanResponderMove: (gestureState: any) => {
             // 禁用状态下忽略移动
             if (disabled) {
                 return;
@@ -333,23 +339,33 @@ const HoldToSpeakButton = React.memo(({
         },
         onPanResponderRelease: () => {
             // 无论是否禁用，都要清理状态并触发结束回调
+            console.log('[PanResponder.onPanResponderRelease] ========== 手势释放 ==========');
+            console.log('[PanResponder.onPanResponderRelease] 当前 inCancelZoneRef:', inCancelZoneRef.current);
+            console.log('[PanResponder.onPanResponderRelease] 当前 isHoldingRef:', isHoldingRef.current);
             const shouldCancel = inCancelZoneRef.current;
             inCancelZoneRef.current = false;
             isHoldingRef.current = false;
             setInCancelZone(false);
             setIsHolding(false);
+            console.log('[PanResponder.onPanResponderRelease] 状态已重置，准备调用 onGestureEnd');
             handlersRef.current.onCancelZoneChange(false);
+            console.log('[PanResponder.onPanResponderRelease] 准备调用 handlersRef.current.onGestureEnd');
             handlersRef.current.onGestureEnd(shouldCancel);
+            console.log('[PanResponder.onPanResponderRelease] 手势释放处理完成');
         },
         onPanResponderTerminate: () => {
             // 无论是否禁用，都要清理状态并触发结束回调
+            console.log('[PanResponder.onPanResponderTerminate] ========== 手势终止 ==========');
             const shouldCancel = inCancelZoneRef.current;
             inCancelZoneRef.current = false;
             isHoldingRef.current = false;
             setInCancelZone(false);
             setIsHolding(false);
+            console.log('[PanResponder.onPanResponderTerminate] 状态已重置，准备调用 onGestureEnd');
             handlersRef.current.onCancelZoneChange(false);
+            console.log('[PanResponder.onPanResponderTerminate] 准备调用 handlersRef.current.onGestureEnd');
             handlersRef.current.onGestureEnd(shouldCancel);
+            console.log('[PanResponder.onPanResponderTerminate] 手势终止处理完成');
         },
     }), [disabled]);
 
@@ -688,18 +704,10 @@ function DraftInput({
             too_short: intl.formatMessage({id: 'post_draft.voice.too_short', defaultMessage: 'Recording too short'}),
             upload_failed: intl.formatMessage({id: 'post_draft.voice.upload_failed', defaultMessage: 'Failed to upload voice'}),
         };
-        // 如果还在录制中，先取消录制
-        if (getIsRecordingGlobally()) {
-            cancelRecording();
-        }
-        // 重置所有录音相关状态
-        setVoicePressActive(false);
-        setVoiceCancelZone(false);
-        voiceFingerDownRef.current = false;
         setVoiceToastType(code);
         setVoiceToastMessage(ids[code]);
         setVoiceToastVisible(true);
-    }, [intl, cancelRecording]);
+    }, [intl]);
 
     const handleVoiceToastDismiss = useCallback(() => {
         setVoiceToastVisible(false);
@@ -832,44 +840,101 @@ function DraftInput({
     }, [emojiPanelOpen, voiceMode, hasVoiceRecording, cancelVoiceIfRecording]));
 
     const handleVoiceGestureStart = useCallback(() => {
+        console.log('[handleVoiceGestureStart] ========== 开始录音 ==========');
+        console.log('[handleVoiceGestureStart] 当前 voiceFingerDownRef:', voiceFingerDownRef.current);
+        console.log('[handleVoiceGestureStart] 当前 getIsRecordingGlobally():', getIsRecordingGlobally());
         voiceFingerDownRef.current = true;
 
         // 只有在录音器空闲时才设置 voicePressActive，避免频繁点击时状态错乱
         const isRecording = getIsRecordingGlobally();
         if (!isRecording) {
+            console.log('[handleVoiceGestureStart] 录音器空闲，设置 voicePressActive 并调用 startRecording');
             setVoicePressActive(true);
             startRecording();
+        } else {
+            console.log('[handleVoiceGestureStart] 录音器忙碌，跳过');
         }
+        console.log('[handleVoiceGestureStart] 开始录音处理完成');
     }, [startRecording]);
 
-    const handleVoiceGestureEnd = useCallback((shouldCancel: boolean) => {
+    // 通用的重置所有录音相关状态的函数
+    const resetAllVoiceStates = useCallback(() => {
+        console.log('[resetAllVoiceStates] 重置所有录音状态');
         voiceFingerDownRef.current = false;
-
-        // 立即重置 voicePressActive，让 UI 状态与手势状态保持一致
         setVoicePressActive(false);
+        setVoiceCancelZone(false);
+    }, []);
+
+    const handleVoiceGestureEnd = useCallback((shouldCancel: boolean) => {
+        console.log('[handleVoiceGestureEnd] ========== 结束录音 ==========');
+        console.log('[handleVoiceGestureEnd] shouldCancel:', shouldCancel);
+        console.log('[handleVoiceGestureEnd] 当前 voiceFingerDownRef:', voiceFingerDownRef.current);
+        console.log('[handleVoiceGestureEnd] 当前 getIsRecordingGlobally():', getIsRecordingGlobally());
+        console.log('[handleVoiceGestureEnd] 当前 getIsRecorderBusy():', getIsRecorderBusy());
+        
+        // 立即重置所有状态，让 UI 状态与手势状态保持一致
+        resetAllVoiceStates();
+        
+        // 如果录音器正在忙（可能是正在启动中），需要等待启动完成
+        if (getIsRecorderBusy()) {
+            console.log('[handleVoiceGestureEnd] 录音器正在启动中，等待启动完成后再停止');
+            // 等待一小段时间让录音启动完成
+            setTimeout(() => {
+                console.log('[handleVoiceGestureEnd] 等待完成，准备停止录音');
+                if (shouldCancel) {
+                    console.log('[handleVoiceGestureEnd] 取消录音');
+                    cancelRecording();
+                } else {
+                    console.log('[handleVoiceGestureEnd] 停止录音并发送');
+                    stopRecordingAndSend();
+                }
+            }, 200);
+            return;
+        }
+        
         if (shouldCancel) {
+            console.log('[handleVoiceGestureEnd] 取消录音');
             cancelRecording();
             return;
         }
+        console.log('[handleVoiceGestureEnd] 停止录音并发送');
         stopRecordingAndSend();
-    }, [cancelRecording, stopRecordingAndSend]);
+        console.log('[handleVoiceGestureEnd] 结束录音处理完成');
+    }, [cancelRecording, stopRecordingAndSend, resetAllVoiceStates]);
 
     useEffect(() => {
         const sub = AppState.addEventListener('change', (nextAppState) => {
             if (nextAppState === 'background') {
-                setVoicePressActive(false);
+                resetAllVoiceStates();
                 cancelRecording();
             }
         });
         return () => sub.remove();
-    }, [cancelRecording]);
+    }, [cancelRecording, resetAllVoiceStates]);
 
     useEffect(() => {
         return () => {
-            setVoicePressActive(false);
+            resetAllVoiceStates();
             cancelRecording();
         };
-    }, [cancelRecording]);
+    }, [cancelRecording, resetAllVoiceStates]);
+
+    // 安全措施：当 voiceState 变为非 recording 时，重置所有 UI 状态
+    useEffect(() => {
+        if (voiceState !== 'recording') {
+            resetAllVoiceStates();
+        }
+    }, [voiceState, resetAllVoiceStates]);
+
+    // 安全措施：当显示 VoiceToast 时，强制重置所有录音相关状态
+    useEffect(() => {
+        if (voiceToastVisible) {
+            resetAllVoiceStates();
+            if (getIsRecordingGlobally()) {
+                cancelRecording();
+            }
+        }
+    }, [voiceToastVisible, cancelRecording, resetAllVoiceStates]);
 
     const renderQuickActionsForSheet = useCallback(() => (
         <QuickActionsSheet
