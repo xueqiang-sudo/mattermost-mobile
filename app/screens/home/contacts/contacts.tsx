@@ -38,8 +38,6 @@ import type {Database} from '@nozbe/watermelondb';
 import type UserModel from '@typings/database/models/servers/user';
 
 const edges: Edge[] = ['left', 'right'];
-const CLOSE_CUSTOMERS = 'close-contacts-customers';
-const CLOSE_SUPPLIERS = 'close-contacts-suppliers';
 
 type Props = {
     currentUser?: UserModel;
@@ -94,57 +92,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 16,
         paddingTop: 4,
         paddingBottom: 6,
-    },
-    businessRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 5,
-        paddingHorizontal: 16,
-        backgroundColor: theme.centerChannelBg,
-        borderRadius: 12,
-        marginBottom: 2,
-    },
-    businessRowLast: {
-        marginBottom: 0,
-    },
-    iconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 14,
-    },
-    iconBoxCustomer: {
-        backgroundColor: changeOpacity('#34C759', 0.15),
-    },
-    iconBoxSupplier: {
-        backgroundColor: changeOpacity('#007AFF', 0.12),
-    },
-    sectionRowText: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-        flex: 1,
-    },
-    addButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    addButtonCustomer: {
-        backgroundColor: changeOpacity('#34C759', 0.15),
-    },
-    addButtonSupplier: {
-        backgroundColor: changeOpacity('#007AFF', 0.12),
-    },
-    sectionDivider: {
-        height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        marginHorizontal: 16,
-        marginTop: 8,
-        marginBottom: 8,
     },
     enterpriseSection: {
         marginTop: 0,
@@ -293,28 +240,6 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
             {topBar: {visible: false}, componentId: closeButtonId},
         );
     }, [companyName, currentTeamId]));
-
-    const handleAddCustomer = usePreventDoubleTap(useCallback(() => {
-        Alert.alert(
-            intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}),
-        );
-    }, [intl]));
-
-    const handleAddSupplier = usePreventDoubleTap(useCallback(() => {
-        Alert.alert(
-            intl.formatMessage({id: 'contacts.add_feature_coming', defaultMessage: 'Feature coming soon'}),
-        );
-    }, [intl]));
-
-    const handleOpenCustomersList = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_CUSTOMERS, {type: 'customer', closeButtonId: CLOSE_CUSTOMERS}, {useBackIcon: true});
-    }, [intl]));
-
-    const handleOpenSuppliersList = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'});
-        showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_LIST, title, CLOSE_SUPPLIERS, {type: 'supplier', closeButtonId: CLOSE_SUPPLIERS}, {useBackIcon: true});
-    }, [intl]));
 
     const bumpHomeReappearTick = useCallback(() => {
         if (!isFocusedRef.current) {
@@ -608,72 +533,6 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                     )}
                 </View>
             </View>
-
-            {/* <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                    {intl.formatMessage({id: 'contacts.business_contacts', defaultMessage: 'Business Contacts'})}
-                </Text>
-                <TouchableOpacity
-                    style={styles.businessRow}
-                    onPress={handleOpenCustomersList}
-                    activeOpacity={0.7}
-                    testID='contacts.my_customers.row'
-                >
-                    <View style={[styles.iconBox, styles.iconBoxCustomer]}>
-                        <CompassIcon
-                            name='account-multiple-outline'
-                            size={22}
-                            color='#34C759'
-                        />
-                    </View>
-                    <Text style={styles.sectionRowText}>
-                        {intl.formatMessage({id: 'contacts.my_customers', defaultMessage: 'My Customers'})}
-                    </Text>
-                    <TouchableOpacity
-                        style={[styles.addButton, styles.addButtonCustomer]}
-                        onPress={handleAddCustomer}
-                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                        testID='contacts.add_customer'
-                    >
-                        <CompassIcon
-                            name='plus'
-                            size={18}
-                            color='#34C759'
-                        />
-                    </TouchableOpacity>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.businessRow, styles.businessRowLast]}
-                    onPress={handleOpenSuppliersList}
-                    activeOpacity={0.7}
-                    testID='contacts.my_suppliers.row'
-                >
-                    <View style={[styles.iconBox, styles.iconBoxSupplier]}>
-                        <CompassIcon
-                            name='account-multiple-outline'
-                            size={22}
-                            color='#007AFF'
-                        />
-                    </View>
-                    <Text style={styles.sectionRowText}>
-                        {intl.formatMessage({id: 'contacts.my_suppliers', defaultMessage: 'My Suppliers'})}
-                    </Text>
-                    <TouchableOpacity
-                        style={[styles.addButton, styles.addButtonSupplier]}
-                        onPress={handleAddSupplier}
-                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                        testID='contacts.add_supplier'
-                    >
-                        <CompassIcon
-                            name='plus'
-                            size={18}
-                            color='#007AFF'
-                        />
-                    </TouchableOpacity>
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.sectionDivider}/> */}
 
             <View style={styles.enterpriseSection}>
                 <View style={styles.enterpriseHeader}>

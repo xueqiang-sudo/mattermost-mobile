@@ -73,7 +73,7 @@ const TabComponents: Record<string, any> = {
 const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
     [Screens.AI_AGENT]: {id: 'tab_bar.ai_agent.label', defaultMessage: 'AI Agent'},
     [Screens.CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
-    [Screens.HOME]: {id: 'tab_bar.home.label', defaultMessage: 'Home'},
+    [Screens.HOME]: {id: 'tab_bar.home.label', defaultMessage: 'Chat'},
     [Screens.MY_HOMEPAGE]: {id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'},
 };
 

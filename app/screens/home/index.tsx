@@ -29,6 +29,8 @@ import {notificationError} from '@utils/notification';
 import ChannelList from './channel_list';
 import Contacts from './contacts';
 import TabBar from './tab_bar';
+import AIAgent from './ai_agent';
+import MyHomepage from './my_homepage';
 import UnderDevelopment from './under_development';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
@@ -183,13 +185,13 @@ export function HomeScreen(props: HomeProps) {
                             name={Screens.AI_AGENT}
                             options={{tabBarButtonTestID: 'tab_bar.ai_agent.tab', freezeOnBlur: true, lazy: true}}
                         >
-                            {() => <UnderDevelopment pageName={intl.formatMessage({id: 'tab_bar.ai_agent.label', defaultMessage: 'AI Agent'})}/>}
+                            {() => <AIAgent/>}
                         </Tab.Screen>
                         <Tab.Screen
                             name={Screens.MY_HOMEPAGE}
                             options={{tabBarButtonTestID: 'tab_bar.my_homepage.tab', freezeOnBlur: true, lazy: true}}
                         >
-                            {() => <UnderDevelopment pageName={intl.formatMessage({id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'})}/>}
+                            {() => <MyHomepage/>}
                         </Tab.Screen>
                         <Tab.Screen
                             name={Screens.CONTACTS}

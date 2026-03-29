@@ -8,7 +8,8 @@ const https = require('https');
 const path = require('path');
 
 const PORT = 3456;
-const HTML_FILE = path.join(__dirname, 'contact-api-tester.html');
+const CONTACT_HTML_FILE = path.join(__dirname, 'contact-api-tester.html');
+const SUPPLIER_CUSTOMER_HTML_FILE = path.join(__dirname, 'supplier-customer-api-tester.html');
 
 function formatTime() {
     const now = new Date();
@@ -121,7 +122,20 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === '/' || url.pathname === '/contact-api-tester.html') {
-        fs.readFile(HTML_FILE, 'utf8', (err, data) => {
+        fs.readFile(CONTACT_HTML_FILE, 'utf8', (err, data) => {
+            if (err) {
+                res.writeHead(500);
+                res.end('500 - Failed to read HTML');
+                return;
+            }
+            res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
+            res.end(data);
+        });
+        return;
+    }
+
+    if (url.pathname === '/supplier-customer-api-tester.html') {
+        fs.readFile(SUPPLIER_CUSTOMER_HTML_FILE, 'utf8', (err, data) => {
             if (err) {
                 res.writeHead(500);
                 res.end('500 - Failed to read HTML');
@@ -140,4 +154,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
     console.log('\n  Contact API 测试工具代理已启动');
     console.log(`  请在浏览器访问: http://localhost:${PORT}/contact-api-tester.html\n`);
+    console.log(`  请在浏览器访问: http://localhost:${PORT}/supplier-customer-api-tester.html\n`);
 });
