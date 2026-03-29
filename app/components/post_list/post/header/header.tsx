@@ -64,50 +64,50 @@ type HeaderProps = {
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
-    return {
-        container: {
-            flex: 1,
-            marginTop: 10,
-        },
+        return {
+            container: {
+                flex: 1,
+                marginTop: 10,
+            },
 
-        /** 微信风格：覆盖 container 的 flex:1；与下方气泡略留间距（他人消息） */
-        containerAlignAvatar: {
-            marginTop: 0,
-            marginBottom: 4,
-            flex: 0,
-            alignSelf: 'stretch',
-        },
-        pendingPost: {
-            opacity: 0.5,
-        },
-        wrapper: {
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 5,
-        },
-        timeOnlyWrapper: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 5,
-        },
+            /** 微信风格：覆盖 container 的 flex:1；与下方气泡略留间距（他人消息） */
+            containerAlignAvatar: {
+                marginTop: 0,
+                marginBottom: 4,
+                flex: 0,
+                alignSelf: 'stretch',
+            },
+            pendingPost: {
+                opacity: 0.5,
+            },
+            wrapper: {
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+            },
+            timeOnlyWrapper: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+            },
 
-        /** 微信风格：昵称、标签、时间与头像顶部齐平（横轴为顶对齐） */
-        wrapperWeChat: {
-            alignItems: 'flex-start',
-            flex: 0,
-            flexShrink: 1,
-            alignSelf: 'stretch',
-        },
+            /** 微信风格：昵称、标签、时间与头像顶部齐平（横轴为顶对齐） */
+            wrapperWeChat: {
+                alignItems: 'center',
+                flex: 0,
+                flexShrink: 1,
+                alignSelf: 'stretch',
+            },
 
-        /** 微信风格：本人消息仅显示时间；与气泡间距略紧 */
-        containerTimeOnly: {
-            marginTop: 0,
-            marginBottom: 0,
-            alignSelf: 'flex-end',
-            minHeight: 20,
-            flex: 0,
-        },
+            /** 微信风格：本人消息仅显示时间；与气泡间距略紧 */
+            containerTimeOnly: {
+                marginTop: 0,
+                marginBottom: 3,
+                alignSelf: 'flex-end',
+                minHeight: 20,
+                flex: 0,
+            },
 
         /** 私聊中对方消息：仅时间，左对齐；与他人昵称行一致略留空 */
         containerOthersDmTime: {

@@ -318,6 +318,7 @@
   "post_draft.voice.record_failed": "Failed to record voice",
   "post_draft.voice.process_failed": "Failed to process recording",
   "post_draft.voice.too_short": "Recording too short",
+  "post_draft.voice.upload_failed": "Failed to upload voice",
   "post_draft.voice.hold_to_speak": "Hold to speak",
   "post_draft.voice.recording_bar_hint": "Release to send — slide up to cancel",
   "post_draft.voice.cancel_bar_hint": "Release to cancel sending",

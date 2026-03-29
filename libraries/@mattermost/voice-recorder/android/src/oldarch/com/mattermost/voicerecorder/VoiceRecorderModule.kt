@@ -4,6 +4,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableMap
 
 class VoiceRecorderModule(context: ReactApplicationContext) :
     ReactContextBaseJavaModule(context) {
@@ -23,12 +24,12 @@ class VoiceRecorderModule(context: ReactApplicationContext) :
 
     /**
      * 开始录音
-     * @param format - 录音格式，可选：'aac' 或 'amr' (默认)
+     * @param options - 录音配置选项对象
      * @param promise - Promise 回调
      */
     @ReactMethod
-    fun startRecording(format: String?, promise: Promise) {
-        implementation.startRecording(format, promise)
+    fun startRecording(options: ReadableMap?, promise: Promise) {
+        implementation.startRecording(options, promise)
     }
 
     @ReactMethod

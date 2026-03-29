@@ -107,6 +107,7 @@ type Props = {
     updatePostPriority: (postPriority: PostPriority) => void;
     focus: () => void;
     onDismiss: () => void | Promise<void>;
+    showAtMention?: boolean;
 };
 
 const POST_PRIORITY_PICKER_BUTTON = 'close-post-priority-picker-sheet';
@@ -125,6 +126,7 @@ export default function QuickActionsSheet({
     updatePostPriority,
     focus,
     onDismiss,
+    showAtMention = true,
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
@@ -248,7 +250,7 @@ export default function QuickActionsSheet({
             onPress: wrapWithDismiss(handlePriorityPress),
             testID: `${baseTestID}.post_priority_action`,
         }] : []),
-        {
+        ...(showAtMention ? [{
             key: 'at',
             icon: 'at',
             labelId: 'post_draft.quick_action.at_mention',
@@ -256,7 +258,7 @@ export default function QuickActionsSheet({
             disabled: atDisabled,
             onPress: wrapWithDismiss(handleAtPress),
             testID: `${baseTestID}.at_action`,
-        },
+        }] : []),
     ];
 
     return (

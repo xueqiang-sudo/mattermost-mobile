@@ -318,6 +318,7 @@
   "post_draft.voice.record_failed": "录音失败",
   "post_draft.voice.process_failed": "处理录音失败",
   "post_draft.voice.too_short": "录音时间太短",
+  "post_draft.voice.upload_failed": "上传语音文件失败",
   "post_draft.voice.hold_to_speak": "按住 说话",
   "post_draft.voice.recording_bar_hint": "松手发送",
   "post_draft.voice.cancel_bar_hint": "松开手指，取消发送",

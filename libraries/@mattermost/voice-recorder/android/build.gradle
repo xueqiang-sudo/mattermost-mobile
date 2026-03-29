@@ -55,6 +55,7 @@ repositories {
 
 dependencies {
     implementation 'com.facebook.react:react-native'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 }
 
 if (isNewArchitectureEnabled()) {

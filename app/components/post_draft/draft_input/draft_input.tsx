@@ -447,14 +447,12 @@ export type Props = {
     uploadFileError: React.ReactNode;
     updateValue: React.Dispatch<React.SetStateAction<string>>;
     addFiles: (files: FileInfo[]) => void;
-    sendStandaloneStickerImage: (file: FileInfo) => Promise<void>;
     updatePostInputTop: (top: number) => void;
     setIsFocused: (isFocused: boolean) => void;
     scheduledPostsEnabled: boolean;
 
     /** Inline emoji panel (WeChat-style footer) */
     customEmojis?: CustomEmojiModel[];
-    customEmojisEnabled?: boolean;
     recentEmojis?: string[];
     skinTone?: string;
 }
@@ -594,7 +592,6 @@ function DraftInput({
     canSend,
     updateValue,
     addFiles,
-    sendStandaloneStickerImage,
     updateCursorPosition,
     cursorPosition,
     updatePostInputTop,
@@ -606,7 +603,6 @@ function DraftInput({
     scheduledPostsEnabled,
     useChatInputStyle = false,
     customEmojis = [],
-    customEmojisEnabled = false,
     recentEmojis = [],
     skinTone = 'default',
 }: Props) {
@@ -673,9 +669,12 @@ function DraftInput({
 
     const weChatPhoneFooter = useChatInputStyle;
 
-    const handleVoiceRecorded = useCallback((voiceFiles: FileInfo[]) => {
-        sendVoiceAsr?.(voiceFiles);
-    }, [sendVoiceAsr]);
+    const handleVoiceRecorded = useCallback(async (voiceFiles: FileInfo[]) => {
+        await sendVoiceAsr?.(voiceFiles, () => {
+            // 显示上传失败的提示，与录音时间太短等提示一样
+            handleVoiceError('upload_failed')
+        });
+    }, [sendVoiceAsr, intl]);
 
     const [voiceToastVisible, setVoiceToastVisible] = useState(false);
     const [voiceToastType, setVoiceToastType] = useState<VoiceRecorderErrorCode>('too_short');
@@ -687,11 +686,20 @@ function DraftInput({
             record_failed: intl.formatMessage({id: 'post_draft.voice.record_failed', defaultMessage: 'Failed to record voice'}),
             process_failed: intl.formatMessage({id: 'post_draft.voice.process_failed', defaultMessage: 'Failed to process recording'}),
             too_short: intl.formatMessage({id: 'post_draft.voice.too_short', defaultMessage: 'Recording too short'}),
+            upload_failed: intl.formatMessage({id: 'post_draft.voice.upload_failed', defaultMessage: 'Failed to upload voice'}),
         };
+        // 如果还在录制中，先取消录制
+        if (getIsRecordingGlobally()) {
+            cancelRecording();
+        }
+        // 重置所有录音相关状态
+        setVoicePressActive(false);
+        setVoiceCancelZone(false);
+        voiceFingerDownRef.current = false;
         setVoiceToastType(code);
         setVoiceToastMessage(ids[code]);
         setVoiceToastVisible(true);
-    }, [intl]);
+    }, [intl, cancelRecording]);
 
     const handleVoiceToastDismiss = useCallback(() => {
         setVoiceToastVisible(false);
@@ -809,16 +817,19 @@ function DraftInput({
             return;
         }
         if (voiceMode && hasVoiceRecording) {
-            switchToTextMode();
-            setTimeout(() => {
-                Keyboard.dismiss();
-                setEmojiPanelOpen(true);
-            }, 120);
+            // 先取消语音录制
+            cancelVoiceIfRecording();
+            // 从语音模式切换到文本模式，并打开表情面板
+            setVoiceMode(false);
+            // 关闭键盘，打开表情面板
+            Keyboard.dismiss();
+            setEmojiPanelOpen(true);
             return;
         }
+        // 普通文本模式：关闭键盘，打开表情面板
         Keyboard.dismiss();
         setEmojiPanelOpen(true);
-    }, [emojiPanelOpen, voiceMode, hasVoiceRecording, switchToTextMode]));
+    }, [emojiPanelOpen, voiceMode, hasVoiceRecording, cancelVoiceIfRecording]));
 
     const handleVoiceGestureStart = useCallback(() => {
         voiceFingerDownRef.current = true;
@@ -872,8 +883,9 @@ function DraftInput({
             updateValue={updateValue}
             value={value}
             onDismiss={() => dismissBottomSheet()}
+            showAtMention={!voiceMode}
         />
-    ), [addFiles, canShowPostPriority, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value]);
+    ), [addFiles, canShowPostPriority, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value, voiceMode]);
 
     const openDraftMoreSheet = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
@@ -1062,6 +1074,7 @@ function DraftInput({
                         </View>
                     )}
                 </View>
+                {/* 在按住说话模式下也显示表情和加号按钮，但隐藏发送按钮 */}
                 <TouchableWithFeedback
                     borderlessRipple={true}
                     hitSlop={sideHitSlop}
@@ -1093,14 +1106,16 @@ function DraftInput({
                         />
                     </View>
                 </TouchableWithFeedback>
-                <SendAction
-                    testID={sendActionTestID}
-                    disabled={sendActionDisabled}
-                    sendMessage={handleSendMessageWithVoiceCleanup}
-                    showScheduledPostOptions={handleShowScheduledPostOptions}
-                    scheduledPostEnabled={scheduledPostsEnabled}
-                    weChatCompact={true}
-                />
+                {!(voiceMode && hasVoiceRecording) && (
+                    <SendAction
+                        testID={sendActionTestID}
+                        disabled={sendActionDisabled}
+                        sendMessage={handleSendMessageWithVoiceCleanup}
+                        showScheduledPostOptions={handleShowScheduledPostOptions}
+                        scheduledPostEnabled={scheduledPostsEnabled}
+                        weChatCompact={true}
+                    />
+                )}
             </View>
             {emojiPanelOpen && (
                 <DraftEmojiPanel
@@ -1114,7 +1129,7 @@ function DraftInput({
     );
 
     const showVoiceRecordingHud = Boolean(
-        weChatPhoneFooter && voiceMode && hasVoiceRecording && (voiceState === 'recording' || voicePressActive),
+        weChatPhoneFooter && voiceMode && hasVoiceRecording && (voiceState === 'recording' || voicePressActive) && !voiceToastVisible,
     );
 
     return (

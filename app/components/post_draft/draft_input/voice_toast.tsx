@@ -6,7 +6,7 @@ import {Modal, StyleSheet, Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 
-type VoiceToastType = 'too_short' | 'record_failed' | 'process_failed' | 'permission_denied';
+type VoiceToastType = 'too_short' | 'record_failed' | 'process_failed' | 'permission_denied' | 'upload_failed';
 
 type VoiceToastProps = {
     visible: boolean;
@@ -54,6 +54,7 @@ const VoiceToast = React.memo(({
             case 'record_failed':
             case 'process_failed':
             case 'permission_denied':
+            case 'upload_failed':
             default:
                 return 'close';
         }

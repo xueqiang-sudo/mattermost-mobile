@@ -12,6 +12,8 @@ import {hasReliableWebsocket} from '@utils/config';
 import {toMilliseconds} from '@utils/datetime';
 import {logDebug, logError, logInfo, logWarning} from '@utils/log';
 
+console.info('qgstest MM_MOBILE_LOG_WS_IO', MM_MOBILE_LOG_WS_IO)
+
 const MAX_WEBSOCKET_FAILS = 7;
 const WEBSOCKET_TIMEOUT = toMilliseconds({seconds: 30});
 const MIN_WEBSOCKET_RETRY_TIME = toMilliseconds({seconds: 3});

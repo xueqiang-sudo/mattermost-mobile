@@ -8,6 +8,7 @@ import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area
 import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
 import FloatingCallContainer from '@calls/components/floating_call_container';
 import FreezeScreen from '@components/freeze_screen';
+import ConnectionBanner from '@components/connection_banner';
 import PostDraft from '@components/post_draft';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
 import {Screens} from '@constants';
@@ -134,6 +135,7 @@ const Channel = ({
                     shouldRenderBookmarks={shouldRender}
                     shouldRenderChannelBanner={includeChannelBanner}
                 />
+                <ConnectionBanner/>
                 {shouldRender &&
                 <ExtraKeyboardProvider>
                     <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>

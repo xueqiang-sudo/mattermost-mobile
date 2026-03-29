@@ -6,6 +6,8 @@ import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {observeChannel} from '@queries/servers/channel';
+import {observeCurrentTeam} from '@queries/servers/team';
+import {getChannelTitleDisplayName} from '@utils/channel';
 
 import Title from './title';
 
@@ -17,7 +19,17 @@ type Props = WithDatabaseArgs & {
 
 const enhanced = withObservables(['channelId'], ({channelId, database}: Props) => {
     const channel = observeChannel(database, channelId);
-    const displayName = channel.pipe(switchMap((c) => of$(c?.displayName)));
+    const currentTeam = observeCurrentTeam(database);
+    
+    const displayName = channel.pipe(
+        switchMap((c) => 
+            currentTeam.pipe(
+                switchMap((team) => 
+                    of$(getChannelTitleDisplayName(c, team?.displayName))
+                )
+            )
+        )
+    );
 
     return {
         displayName,

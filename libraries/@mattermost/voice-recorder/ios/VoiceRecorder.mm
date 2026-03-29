@@ -10,15 +10,15 @@ RCT_EXPORT_MODULE(VoiceRecorder);
     return dispatch_get_main_queue();
 }
 
-RCT_EXPORT_METHOD(startRecording:(NSString *)format
+RCT_EXPORT_METHOD(startRecording:(NSDictionary *)options
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
     NSLog(@"========== iOS 开始录音流程 ==========");
-    NSLog(@"请求参数 - format: %@", format);
+    NSLog(@"请求参数 - options: %@", options);
     
     VoiceRecorderWrapper *wrapper = [[VoiceRecorderWrapper alloc] init];
-    [wrapper startRecording:format completion:^(BOOL success) {
+    [wrapper startRecording:options completion:^(BOOL success) {
         if (success) {
             NSLog(@"========== iOS 录音启动成功 ==========");
             resolve(@(success));

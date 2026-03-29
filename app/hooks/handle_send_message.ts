@@ -23,6 +23,7 @@ import {canPostDraftInChannelOrThread} from '@utils/scheduled_post';
 import {showSnackBar} from '@utils/snack_bar';
 
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
+import { logDebug, logError } from '@utils/log';
 
 export type CreateResponse = {
     data?: boolean;
@@ -231,14 +232,16 @@ export const useHandleSendMessage = ({
         return Promise.resolve();
     }, [canSend, value, customEmojis, files, handleReaction, intl, sendMessage]);
 
-    const sendVoiceAsr = useCallback(async (voiceFiles: FileInfo[]) => {
+    const sendVoiceAsr = useCallback(async (voiceFiles: FileInfo[], onError?: (message: string) => void) => {
         if (!voiceFiles.length) {
             return;
         }
+        logDebug('[sendVoiceAsr] 开始上传语音文件');
         setSendingMessage(true);
         try {
             const uploadedFiles: FileInfo[] = [];
             for (const file of voiceFiles) {
+                logDebug(`[sendVoiceAsr] 开始上传语音文件 ${file.clientId}, 大小 ${file.size}, 路径 ${file.localPath}`);
                 const uploaded = await new Promise<FileInfo>((resolve, reject) => {
                     const {error, cancel} = uploadFile(
                         serverUrl,
@@ -272,20 +275,40 @@ export const useHandleSendMessage = ({
                 message: '',
                 type: PostTypes.CUSTOM_VOICE_ASR,
             } as Post;
-            createPost(serverUrl, post, uploadedFiles);
+            
+            // 添加优先级信息
+            if (!rootId && (
+                postPriority.priority ||
+                postPriority.requested_ack ||
+                postPriority.persistent_notifications)
+            ) {
+                post.metadata = {
+                    priority: postPriority,
+                };
+            }
+
+            logDebug('[[sendVoiceAsr] 开始创建帖子');
+            await createPost(serverUrl, post, uploadedFiles);
+            logDebug('[[sendVoiceAsr] 帖子创建完成');
             DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
             DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
             DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
         } catch (err) {
-            showSnackBar({
-                barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
-                customMessage: getErrorMessage(err),
-                type: MESSAGE_TYPE.ERROR,
-            });
+            logError('[[sendVoiceAsr] 创建帖子失败]', err);
+            const errorMessage = getErrorMessage(err);
+            if (onError) {
+                onError(errorMessage as string);
+            } else {
+                showSnackBar({
+                    barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
+                    customMessage: errorMessage as string,
+                    type: MESSAGE_TYPE.ERROR,
+                });
+            }
         } finally {
             setSendingMessage(false);
         }
-    }, [serverUrl, channelId, rootId, currentUserId]);
+    }, [serverUrl, channelId, rootId, currentUserId, postPriority, createPost, showSnackBar]);
 
     useEffect(() => {
         getChannelTimezones(serverUrl, channelId).then(({channelTimezones}) => {

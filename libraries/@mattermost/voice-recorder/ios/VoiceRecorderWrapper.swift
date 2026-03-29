@@ -20,9 +20,11 @@ import os.log
         os_log("%{public}@", log: logger, type: type, message)
     }
     
-    @objc public func startRecording(format: String?, completion: @escaping StartRecordingCompletion) {
+    @objc public func startRecording(options: [String: Any]?, completion: @escaping StartRecordingCompletion) {
         log("========== Swift 开始录音流程 ==========")
-        log("请求参数 - format: \(format ?? "nil")")
+        let format = options?["format"] as? String
+        let prefix = options?["prefix"] as? String
+        log("请求参数 - format: \(format ?? "nil"), prefix: \(prefix ?? "nil")")
         
         let audioSession = AVAudioSession.sharedInstance()
         
@@ -35,7 +37,8 @@ import os.log
             log("步骤2：创建录音文件")
             let tempDir = NSTemporaryDirectory()
             let fileExtension = format ?? "m4a"
-            let fileName = "voice_\(UUID().uuidString).\(fileExtension)"
+            let filePrefix = prefix ?? "voice_"
+            let fileName = "\(filePrefix)\(UUID().uuidString).\(fileExtension)"
             let filePath = (tempDir as NSString).appendingPathComponent(fileName)
             recordingURL = URL(fileURLWithPath: filePath)
             log("录音文件路径: \(filePath)")

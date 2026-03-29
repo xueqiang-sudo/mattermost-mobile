@@ -12,11 +12,16 @@ export type RecordingResult = Readonly<{
   error?: string | null;
 }>
 
+export type StartRecordingOptions = Readonly<{
+  format?: string;
+  prefix?: string;
+}>
+
 export interface Spec extends TurboModule {
   addListener: (eventType: string) => void;
   removeListeners: (count: number) => void;
 
-  startRecording: (format?: string) => Promise<boolean>;
+  startRecording: (options?: StartRecordingOptions) => Promise<boolean>;
 
   stopRecording: () => Promise<RecordingResult>;
 

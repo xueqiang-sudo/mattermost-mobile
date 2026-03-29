@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 import {NativeModules, Platform} from 'react-native';
 
-import type {Spec, RecordingResult} from './NativeVoiceRecorder';
+import type {Spec, RecordingResult, StartRecordingOptions} from './NativeVoiceRecorder';
 
 const LINKING_ERROR =
   'The package \'@mattermost/voice-recorder\' doesn\'t seem to be linked. Make sure: \n\n' +
@@ -25,5 +25,6 @@ const VoiceRecorder = VoiceRecorderModule || new Proxy(
 );
 
 export type RecordingResultType = RecordingResult;
+export type StartRecordingOptionsType = StartRecordingOptions;
 
 export default VoiceRecorder;

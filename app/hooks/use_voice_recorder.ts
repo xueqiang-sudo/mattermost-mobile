@@ -14,7 +14,7 @@ import {logError, logDebug} from '@utils/log';
 
 export type VoiceRecorderState = 'idle' | 'recording';
 
-export type VoiceRecorderErrorCode = 'permission_denied' | 'record_failed' | 'process_failed' | 'too_short';
+export type VoiceRecorderErrorCode = 'permission_denied' | 'record_failed' | 'process_failed' | 'too_short' | 'upload_failed';
 
 export type UseVoiceRecorderOptions = {
     shouldProceedAfterPermission?: () => boolean;
@@ -38,6 +38,8 @@ const IOS_RECORDING_EXTENSION = 'aac';
 
 const ANDROID_RECORDING_EXTENSION = 'amr';
 
+export const CVA_FILE_PREFIX = 'c_voice_asr';
+
 const DEFAULT_RECORDING_EXTENSION = IOS_RECORDING_EXTENSION;
 
 const safeResetRecordingState = async () => {
@@ -47,7 +49,7 @@ const safeResetRecordingState = async () => {
 };
 
 export function useVoiceRecorder(
-    onRecorded: (files: FileInfo[]) => void,
+    onRecorded: (files: FileInfo[]) => void | Promise<void>,
     onError?: (code: VoiceRecorderErrorCode) => void,
     options?: UseVoiceRecorderOptions,
 ) {
@@ -146,7 +148,7 @@ export function useVoiceRecorder(
                 ios: IOS_RECORDING_EXTENSION,
                 android: ANDROID_RECORDING_EXTENSION,
             });
-            const success = await VoiceRecorder.startRecording(format);
+            const success = await VoiceRecorder.startRecording({ format, prefix: CVA_FILE_PREFIX });
             if (!success) {
                 logDebug('[useVoiceRecorder.startRecording] 原生录音启动失败');
                 await safeCleanup();
@@ -183,6 +185,8 @@ export function useVoiceRecorder(
     const stopRecordingAndSend = useCallback(async () => {
         logDebug('[useVoiceRecorder.stopRecordingAndSend] ========== 停止录音并发送 ==========');
         const startingTs = startingTsRef.current;
+        let filePathToClean: string | null = null;
+        
         try {
             logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤 1：调用原生模块停止录音');
             const result = await VoiceRecorder.stopRecording();
@@ -201,6 +205,7 @@ export function useVoiceRecorder(
                 return;
             }
 
+            filePathToClean = result.filePath;
             logDebug('[useVoiceRecorder.stopRecordingAndSend] 录音结果:', result);
 
             const durationMs = result.durationMs ?? (Date.now() - recordStartTimeRef.current);
@@ -240,7 +245,12 @@ export function useVoiceRecorder(
             };
 
             logDebug('[useVoiceRecorder.stopRecordingAndSend] 步骤 4：回调 onRecorded');
-            onRecorded([file]);
+
+            // 只有当 onRecorded 是异步函数时才 await
+            const recedFnResult = onRecorded([file]);
+            if (recedFnResult instanceof Promise) {
+                await recedFnResult;
+            }
 
             logDebug('[useVoiceRecorder.stopRecordingAndSend] ========== 录音发送成功 ==========');
         } catch (err) {
@@ -252,6 +262,16 @@ export function useVoiceRecorder(
             isRecordingGlobally = false;
             isGlobalRecorderBusy = false;
             onError?.('process_failed');
+        } finally {
+            // 清理临时录音文件，无论成功或失败
+            if (filePathToClean) {
+                try {
+                    logDebug('[useVoiceRecorder.stopRecordingAndSend] 清理临时录音文件:', filePathToClean);
+                    await VoiceRecorder.deleteRecordingFile(filePathToClean);
+                } catch (e) {
+                    logError('[useVoiceRecorder.stopRecordingAndSend] 清理临时录音文件失败', e);
+                }
+            }
         }
     }, [onRecorded, onError, meteringShared]);
 
