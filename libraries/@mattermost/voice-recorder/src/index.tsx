@@ -4,6 +4,8 @@ import {NativeModules, Platform} from 'react-native';
 
 import type {Spec, RecordingResult, StartRecordingOptions} from './NativeVoiceRecorder';
 
+export {VOICE_RECORDER_PERMISSION_DENIED_CODE} from './NativeVoiceRecorder';
+
 const LINKING_ERROR =
   'The package \'@mattermost/voice-recorder\' doesn\'t seem to be linked. Make sure: \n\n' +
   Platform.select({ios: "- You have run 'pod install'\n", default: ''}) +

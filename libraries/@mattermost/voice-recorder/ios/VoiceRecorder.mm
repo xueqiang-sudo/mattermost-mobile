@@ -2,6 +2,9 @@
 #import "VoiceRecorder-Swift.h"
 
 @implementation VoiceRecorder
+{
+    VoiceRecorderWrapper *_recorderWrapper;
+}
 
 RCT_EXPORT_MODULE(VoiceRecorder);
 
@@ -10,20 +13,31 @@ RCT_EXPORT_MODULE(VoiceRecorder);
     return dispatch_get_main_queue();
 }
 
+- (VoiceRecorderWrapper *)recorderWrapper
+{
+    if (_recorderWrapper == nil) {
+        _recorderWrapper = [[VoiceRecorderWrapper alloc] init];
+    }
+    return _recorderWrapper;
+}
+
 RCT_EXPORT_METHOD(startRecording:(NSDictionary *)options
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
     NSLog(@"========== iOS 开始录音流程 ==========");
     NSLog(@"请求参数 - options: %@", options);
-    
-    VoiceRecorderWrapper *wrapper = [[VoiceRecorderWrapper alloc] init];
-    [wrapper startRecording:options completion:^(BOOL success) {
+
+    [[self recorderWrapper] startRecording:options completion:^(BOOL success, NSString *_Nullable errorCode) {
         if (success) {
             NSLog(@"========== iOS 录音启动成功 ==========");
             resolve(@(success));
+            return;
+        }
+        NSLog(@"========== iOS 录音启动失败 ==========");
+        if (errorCode != nil && [errorCode isEqualToString:@"PERMISSION_DENIED"]) {
+            reject(@"PERMISSION_DENIED", @"Microphone permission not granted", nil);
         } else {
-            NSLog(@"========== iOS 录音启动失败 ==========");
             reject(@"RECORD_ERROR", @"Failed to start recording", nil);
         }
     }];
@@ -33,9 +47,8 @@ RCT_EXPORT_METHOD(stopRecording:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
     NSLog(@"========== iOS 停止录音流程 ==========");
-    
-    VoiceRecorderWrapper *wrapper = [[VoiceRecorderWrapper alloc] init];
-    [wrapper stopRecording:^(NSDictionary *result) {
+
+    [[self recorderWrapper] stopRecording:^(NSDictionary *result) {
         NSLog(@"iOS 停止录音结果: %@", result);
         NSLog(@"========== iOS 停止录音完成 ==========");
         resolve(result);
@@ -46,10 +59,9 @@ RCT_EXPORT_METHOD(cancelRecording:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
     NSLog(@"========== iOS 取消录音流程 ==========");
-    
-    VoiceRecorderWrapper *wrapper = [[VoiceRecorderWrapper alloc] init];
-    [wrapper cancelRecording];
-    
+
+    [[self recorderWrapper] cancelRecording];
+
     NSLog(@"========== iOS 取消录音完成 ==========");
     resolve(nil);
 }
@@ -62,34 +74,20 @@ RCT_EXPORT_METHOD(removeListeners:(double)count)
 {
 }
 
-/**
- * 删除指定的录音文件
- * @param filePath - 要删除的文件路径
- * @param resolve - Promise 成功回调
- * @param reject - Promise 失败回调
- */
 RCT_EXPORT_METHOD(deleteRecordingFile:(NSString *)filePath
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
     NSLog(@"========== iOS 删除指定录音文件 ==========");
     NSLog(@"文件路径: %@", filePath);
-    
-    VoiceRecorderWrapper *wrapper = [[VoiceRecorderWrapper alloc] init];
-    BOOL success = [wrapper deleteRecordingFile:filePath];
-    
+
+    BOOL success = [[self recorderWrapper] deleteRecordingFile:filePath];
+
     NSLog(@"文件删除%@", success ? @"成功" : @"失败");
     NSLog(@"========== iOS 删除文件完成 ==========");
     resolve(@(success));
 }
 
-/**
- * 清理指定前缀的过期临时录音文件
- * @param prefix - 文件前缀
- * @param maxAgeMs - 文件最大保留时间（毫秒）
- * @param resolve - Promise 成功回调
- * @param reject - Promise 失败回调
- */
 RCT_EXPORT_METHOD(cleanExpiredRecordingFiles:(NSString *)prefix
                   maxAgeMs:(double)maxAgeMs
                   resolve:(RCTPromiseResolveBlock)resolve
@@ -98,10 +96,9 @@ RCT_EXPORT_METHOD(cleanExpiredRecordingFiles:(NSString *)prefix
     NSLog(@"========== iOS 清理过期录音文件 ==========");
     NSLog(@"文件前缀: %@", prefix);
     NSLog(@"最大保留时间: %.0fms", maxAgeMs);
-    
-    VoiceRecorderWrapper *wrapper = [[VoiceRecorderWrapper alloc] init];
-    NSInteger deletedCount = [wrapper cleanExpiredRecordingFiles:prefix maxAgeMs:maxAgeMs];
-    
+
+    NSInteger deletedCount = [[self recorderWrapper] cleanExpiredRecordingFiles:prefix maxAgeMs:maxAgeMs];
+
     NSLog(@"总共删除了 %ld 个过期文件", (long)deletedCount);
     NSLog(@"========== iOS 清理完成 ==========");
     resolve(@(deletedCount));

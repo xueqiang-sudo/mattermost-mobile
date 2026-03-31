@@ -12,6 +12,11 @@ class VoiceRecorderModule(context: ReactApplicationContext) :
 
     override fun getName(): String = VoiceRecorderModuleImpl.NAME
 
+    override fun invalidate() {
+        implementation.invalidate()
+        super.invalidate()
+    }
+
     override fun getTypedExportedConstants(): MutableMap<String, Any> = implementation.getTypedExportedConstants()
 
     override fun addListener(eventType: String?) {

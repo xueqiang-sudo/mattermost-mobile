@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import VoiceRecorder from '@mattermost/voice-recorder';
+import VoiceRecorder, {VOICE_RECORDER_PERMISSION_DENIED_CODE} from '@mattermost/voice-recorder';
 import {getInfoAsync} from 'expo-file-system';
 import {useCallback, useRef, useState} from 'react';
 import {Platform} from 'react-native';
@@ -45,6 +45,15 @@ const ANDROID_RECORDING_EXTENSION = 'amr';
 export const CVA_FILE_PREFIX = 'c_voice_asr';
 
 const DEFAULT_RECORDING_EXTENSION = IOS_RECORDING_EXTENSION;
+
+function isNativePermissionDenied(err: unknown): boolean {
+    return (
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as {code?: string}).code === VOICE_RECORDER_PERMISSION_DENIED_CODE
+    );
+}
 
 const safeResetRecordingState = async () => {
     logDebug('[useVoiceRecorder.safeResetRecordingState] 安全重置所有录音状态');
@@ -181,7 +190,7 @@ export function useVoiceRecorder(
             meteringShared.value = DEFAULT_METERING;
             startingTsRef.current = null;
             await safeResetRecordingState();
-            onError?.('record_failed');
+            onError?.(isNativePermissionDenied(err) ? 'permission_denied' : 'record_failed');
         } finally {
             logDebug('[useVoiceRecorder.startRecording] 清除启动标记');
             startingTsRef.current = null;
