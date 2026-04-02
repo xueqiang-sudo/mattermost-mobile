@@ -4,6 +4,7 @@
 import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';
 import {ContactService} from '@client/rest';
+import EmployeeContactService from '@client/rest/employee_contact';
 import DatabaseManager from '@database/manager';
 import {getAllServerCredentials} from '@init/credentials';
 import {initialLaunch} from '@init/launch';
@@ -46,6 +47,7 @@ export async function initialize() {
         baseAppInitialized = true;
 
         await ContactService.init(LocalConfig.ContactServiceUrl, LocalConfig.ContactServiceApiKey);
+        await EmployeeContactService.init(LocalConfig.ContactServiceUrl, LocalConfig.ContactServiceApiKey);
 
         serverCredentials = await getAllServerCredentials();
         const serverUrls = serverCredentials.map((credential) => credential.serverUrl);

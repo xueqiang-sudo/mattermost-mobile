@@ -71,7 +71,7 @@ export const MFA = 'MFA';
 export const MY_HOMEPAGE = 'MyHomepage';
 export const MY_SUPPLIERS = 'MySuppliers';
 export const MY_CUSTOMERS = 'MyCustomers';
-export const ADD_EMPLOYEE_CONTACT = 'AddEmployeeContact';
+export const SUPPLIER_CUSTOMER_FORM = 'SupplierCustomerForm';
 export const ONBOARDING = 'Onboarding';
 export const PDF_VIEWER = 'PdfViewer';
 export const PERMALINK = 'Permalink';
@@ -181,7 +181,7 @@ export default {
     MY_HOMEPAGE,
     MY_SUPPLIERS,
     MY_CUSTOMERS,
-    ADD_EMPLOYEE_CONTACT,
+    SUPPLIER_CUSTOMER_FORM,
     ONBOARDING,
     PDF_VIEWER,
     PERMALINK,

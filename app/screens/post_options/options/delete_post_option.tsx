@@ -22,7 +22,7 @@ type Props = {
 const messages = defineMessages({
     withdraw: {
         id: 'mobile.post_info.withdraw',
-        defaultMessage: '撤回',
+        defaultMessage: 'Withdraw',
     },
 });
 
@@ -32,16 +32,16 @@ const DeletePostOption = ({bottomSheetId, combinedPost, post}: Props) => {
 
     const onPress = useCallback(() => {
         Alert.alert(
-            formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: '撤回消息'}),
+            formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: 'Withdraw Message'}),
             formatMessage({
                 id: 'mobile.post.withdraw_question',
-                defaultMessage: '确认撤回这条消息吗？',
+                defaultMessage: 'Are you sure you want to withdraw this message?',
             }),
             [{
                 text: formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
             }, {
-                text: formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: '撤回'}),
+                text: formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: 'Withdraw'}),
                 style: 'destructive',
                 onPress: async () => {
                     await dismissBottomSheet(bottomSheetId);

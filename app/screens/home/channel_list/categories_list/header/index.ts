@@ -22,11 +22,6 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 
     const enableOpenServer = observeConfigBooleanValue(database, 'EnableOpenServer');
 
-    const canJoinChannels = combineLatest([currentUser, team]).pipe(
-        switchMap(([u, t]) => observePermissionForTeam(database, t, u, Permissions.JOIN_PUBLIC_CHANNELS, true)),
-        distinctUntilChanged(),
-    );
-
     const canCreatePublicChannels = combineLatest([currentUser, team]).pipe(
         switchMap(([u, t]) => observePermissionForTeam(database, t, u, Permissions.CREATE_PUBLIC_CHANNEL, true)),
     );
@@ -46,7 +41,6 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 
     return {
         canCreateChannels,
-        canJoinChannels,
         canInvitePeople: combineLatest([enableOpenServer, canAddUserToTeam]).pipe(
             switchMap(([openServer, addUser]) => of$(openServer && addUser)),
             distinctUntilChanged(),

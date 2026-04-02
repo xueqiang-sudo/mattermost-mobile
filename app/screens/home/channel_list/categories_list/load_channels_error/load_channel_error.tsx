@@ -39,7 +39,7 @@ const LoadChannelsError = ({teamDisplayName, teamId}: Props) => {
     return (
         <LoadingError
             loading={loading}
-            message={formatMessage({id: 'load_channels_error.message', defaultMessage: 'There was a problem loading content for this team.'})}
+            message={formatMessage({id: 'load_channels_error.message', defaultMessage: 'There was a problem loading content for this enterprise.'})}
             onRetry={onRetryTeams}
             title={formatMessage({id: 'load_channels_error.title', defaultMessage: "Couldn't load {teamDisplayName}"}, {teamDisplayName})}
         />

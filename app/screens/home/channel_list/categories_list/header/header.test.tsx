@@ -16,7 +16,6 @@ describe('components/channel_list/header', () => {
             <Header
                 pushProxyStatus={PUSH_PROXY_STATUS_VERIFIED}
                 canCreateChannels={true}
-                canJoinChannels={true}
                 canInvitePeople={true}
                 displayName={'Test!'}
             />,
@@ -30,7 +29,6 @@ describe('components/channel_list/header', () => {
             <Header
                 pushProxyStatus={PUSH_PROXY_RESPONSE_NOT_AVAILABLE}
                 canCreateChannels={true}
-                canJoinChannels={true}
                 canInvitePeople={true}
                 displayName={'Test!'}
             />,

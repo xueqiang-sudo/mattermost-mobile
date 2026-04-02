@@ -42,11 +42,9 @@ export const CONTACT_ENABLE_COMPANY_PROXY_CACHE = true;
 /** 用于识别默认部门的名称约定，与后端一致 */
 export const DEFAULT_DEPARTMENT_NAME = 'FORCE_DEFAULT_DEPARTMENT';
 
-/** 公司类型枚举：team=本公司/团队，supplier=供应商，customer=客户 */
+/** 公司类型枚举：team=本公司/团队 */
 export const ContactCompanyTypes = {
     Team: 'team',
-    Supplier: 'supplier',
-    Customer: 'customer',
 } as const;
 export type ContactCompanyType = typeof ContactCompanyTypes[keyof typeof ContactCompanyTypes];
 
@@ -221,7 +219,7 @@ export interface ClientContactMix {
     /** POST /api/v1/employees - 创建员工 */
     createEmployee: (employee: CreateEmployeeRequest) => Promise<ContactEmployee>;
 
-    /** GET /api/v1/employees/:id - 获取单个员工 */
+    /** GET /api/v1/employees/:id - 获取单个员工（id 与 Mattermost user id 对齐时可与 MM 资料合并，见 fetchMergedUserProfileForQrCard） */
     getEmployee: (employeeId: string) => Promise<ContactEmployee>;
 
     /** PUT /api/v1/employees/:id - 更新员工 */
@@ -291,6 +289,13 @@ export interface ClientContactMix {
 
     /** POST /api/v1/users/:userId/transfer-ownership/:companyId - 转移企业所有权 */
     transferUserCompanyOwnership: (userId: string, companyId: string, body: TransferContactOwnershipRequest) => Promise<unknown>;
+
+    /**
+     * 通过查询字符串搜索联系人，也就是搜索员工
+     * 查询字符串可以是员工的昵称、手机号、邮箱等【精准匹配】
+     * TODO qgs 后端实现后，这里再替换为后端接口调用
+     */
+    searchExactEmployees: (searchQuery: string) => Promise<ContactEmployee[]>;
 }
 
 /**
@@ -802,6 +807,29 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
 
     transferUserCompanyOwnership = (userId: string, companyId: string, body: TransferContactOwnershipRequest) =>
         this.doRequestDirect<unknown>(contactRoutes.userTransferOwnership(userId, companyId), 'post', body);
+
+    /**
+     * 通过查询字符串搜索联系人，也就是搜索员工
+     * 查询字符串可以是员工的昵称、手机号、邮箱等【精准匹配】
+     */
+    searchExactEmployees = async (searchQuery: string): Promise<ContactEmployee[]> => {
+        if (!searchQuery) {
+            return [];
+        }
+        const normalizedQuery = searchQuery.trim();
+        if (!normalizedQuery) {
+            return [];
+        }
+
+        // TODO qgs 因为后端还没有实现接口，这里先利用现有 contact 接口进行临时实现
+        // 1. 获取所有企业
+        // 2. 获取全部企业所有员工联系人
+        // 3. 按昵称/手机号/邮箱做包含匹配，返回命中员工联系人
+        // 4. 返回筛选结果员工联系人列表
+        const companies = await this.getCompanies();
+        const employees = await Promise.all(companies.map((company) => this.getEmployeesOfCompany(company.id)));
+        return employees.flat().filter((employee) => employee.name === normalizedQuery || employee.phone === normalizedQuery || employee.email === normalizedQuery);
+    };
 }
 
 const ContactService = new ContactServiceClass();

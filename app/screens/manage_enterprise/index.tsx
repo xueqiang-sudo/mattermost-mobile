@@ -60,10 +60,10 @@ function getSourceLabel(
     formatMessage: (descriptor: {id: string; defaultMessage: string}) => string,
 ): string {
     if (entry.isMattermostTeam && entry.hasContactCompanyRecord) {
-        return formatMessage({id: 'enterprise.manage.source.mm_and_contact', defaultMessage: 'Mattermost team · Contact directory'});
+        return formatMessage({id: 'enterprise.manage.source.mm_and_contact', defaultMessage: 'Mattermost enterprise · Contact directory'});
     }
     if (entry.isMattermostTeam) {
-        return formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost team only'});
+        return formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost enterprise only'});
     }
     return formatMessage({id: 'enterprise.manage.source.contact_only', defaultMessage: 'Contact directory'});
 }
@@ -451,7 +451,7 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                 <Text style={styles.headerSubtitle}>
                     {intl.formatMessage({
                         id: 'enterprise.manage.subtitle_merged',
-                        defaultMessage: 'Includes your Mattermost teams (mapped to contact companies) and enterprises in the contact directory. Create or join additional enterprises below.',
+                        defaultMessage: 'Includes your Mattermost enterprises (mapped to contact companies) and enterprises in the contact directory. Create or join more above.',
                     })}
                 </Text>
             </View>

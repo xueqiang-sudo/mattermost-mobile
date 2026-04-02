@@ -15,7 +15,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchSearchContactEmployees} from '@actions/remote/contact';
-import {type ContactEmployeeSearchItem} from '@client/rest/contact';
+import {DEFAULT_DEPARTMENT_NAME, type ContactEmployeeSearchItem} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import GlobalErrorBoundary from '@components/global_error_fallback';
@@ -23,17 +23,39 @@ import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-function cascadePathLabel(item: ContactEmployeeSearchItem): string {
+function normalizeDepartmentName(name: string, defaultDepartmentLabel: string): string {
+    return name === DEFAULT_DEPARTMENT_NAME ? defaultDepartmentLabel : name;
+}
+
+function cascadePathParts(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string): string[] {
     const paths = item.cascade_departments;
     if (!paths?.length) {
+        return [];
+    }
+    return paths[0].map((d) => normalizeDepartmentName(d.name, defaultDepartmentLabel));
+}
+
+function cascadePathLabel(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string, enterpriseLabel: string): string {
+    const parts = cascadePathParts(item, defaultDepartmentLabel);
+    if (!parts.length) {
         return '';
     }
-    return paths[0].map((d) => d.name).join(' / ');
+
+    const leaf = parts[parts.length - 1];
+    const parentPath = formatPathForDisplay(
+        parts.slice(0, -1),
+        DEPARTMENT_PATH_DISPLAY_MAX_LENGTH,
+        '/',
+        enterpriseLabel,
+    );
+
+    return parentPath ? `${leaf}\n${parentPath}` : leaf;
 }
 
 function isValidSearchItem(item: ContactEmployeeSearchItem | undefined): item is ContactEmployeeSearchItem {
@@ -202,6 +224,8 @@ const ContactsSearchContent = ({
     }, [query, runSearch]);
 
     const title = intl.formatMessage({id: 'contacts.search.title', defaultMessage: 'Search contacts'});
+    const defaultDepartmentLabel = intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});
+    const enterpriseLabel = intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'});
 
     const effectiveScreenId = (closeButtonId ?? componentId) as AvailableScreens;
 
@@ -217,8 +241,10 @@ const ContactsSearchContent = ({
 
     const handleEmployeePress = useCallback((item: ContactEmployeeSearchItem) => {
         const emp = item.employee;
-        const path = cascadePathLabel(item);
-        const deptDisplay = path || departmentName;
+        const pathParts = cascadePathParts(item, defaultDepartmentLabel);
+        const fallbackDepartmentName = departmentName ? normalizeDepartmentName(departmentName, defaultDepartmentLabel) : undefined;
+        const leafDepartment = pathParts[pathParts.length - 1] || fallbackDepartmentName;
+        const parentPath = pathParts.slice(0, -1).join('/');
         const titleProfile = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         const cid = `close-employee-search-${emp.id}`;
         showModalWithBackButton(
@@ -227,7 +253,8 @@ const ContactsSearchContent = ({
             cid,
             {
                 employee: emp,
-                departmentName: deptDisplay,
+                departmentName: leafDepartment,
+                departmentParentPath: parentPath,
                 companyName,
                 companyId,
                 currentUserId,
@@ -235,13 +262,14 @@ const ContactsSearchContent = ({
             },
             {useBackIcon: true},
         );
-    }, [companyId, companyName, currentUserId, departmentName, intl]);
+    }, [companyId, companyName, currentUserId, defaultDepartmentLabel, departmentName, intl]);
 
     let scopeHint: string | null = null;
     if (typeof departmentId === 'number' && departmentName) {
+        const scopeDepartmentName = normalizeDepartmentName(departmentName, defaultDepartmentLabel);
         scopeHint = intl.formatMessage(
             {id: 'contacts.search.scope_department', defaultMessage: 'Searching in: {name}'},
-            {name: departmentName},
+            {name: scopeDepartmentName},
         );
     } else if (companyName) {
         scopeHint = intl.formatMessage(
@@ -256,12 +284,12 @@ const ContactsSearchContent = ({
             emptyMessage = intl.formatMessage({id: 'contacts.search.no_results', defaultMessage: 'No matching contacts'});
         }
     } else {
-        emptyMessage = intl.formatMessage({id: 'contacts.search.hint', defaultMessage: 'Enter a name to search'});
+        emptyMessage = intl.formatMessage({id: 'contacts.search.hint', defaultMessage: 'Enter a nickname, email, or phone number to search'});
     }
 
     const renderItem = useCallback(
         ({item}: {item: ContactEmployeeSearchItem}) => {
-            const path = cascadePathLabel(item);
+            const path = cascadePathLabel(item, defaultDepartmentLabel, enterpriseLabel);
             return (
                 <TouchableOpacity
                     style={styles.row}
@@ -294,7 +322,7 @@ const ContactsSearchContent = ({
                 </TouchableOpacity>
             );
         },
-        [handleEmployeePress, styles],
+        [defaultDepartmentLabel, enterpriseLabel, handleEmployeePress, styles],
     );
 
     return (
@@ -333,7 +361,7 @@ const ContactsSearchContent = ({
                     onChangeText={setQuery}
                     placeholder={intl.formatMessage({
                         id: 'contacts.search.placeholder',
-                        defaultMessage: 'Name, email, phone…',
+                        defaultMessage: 'Nickname, email, phone number…',
                     })}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
                     style={styles.searchInput}

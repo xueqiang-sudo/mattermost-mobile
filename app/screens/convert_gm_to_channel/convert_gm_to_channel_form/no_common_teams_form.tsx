@@ -28,12 +28,12 @@ export const NoCommonTeamForm = ({
 
     const header = formatMessage({
         id: 'channel_info.convert_gm_to_channel.warning.no_teams.header',
-        defaultMessage: 'Unable to convert to a channel because group members are part of different teams',
+        defaultMessage: 'Unable to convert to a channel because group members are part of different enterprises',
     });
 
     const body = formatMessage({
         id: 'channel_info.convert_gm_to_channel.warning.no_teams.body',
-        defaultMessage: 'A discussion group cannot be converted to a channel because members are not part of the same team. Add all members to a single team to convert this discussion group to a channel.',
+        defaultMessage: 'A discussion group cannot be converted to a channel because members are not part of the same enterprise. Add all members to a single enterprise to convert this discussion group to a channel.',
     });
 
     const buttonText = formatMessage({

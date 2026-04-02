@@ -140,13 +140,13 @@ export default function JoinTeam({
                 <Empty theme={theme}/>
                 <FormattedText
                     id='team_list.no_other_teams.title'
-                    defaultMessage='No additional teams to join'
+                    defaultMessage='No additional enterprises to join'
                     style={styles.title}
                     testID='team_sidebar.add_team_slide_up.no_other_teams.title'
                 />
                 <FormattedText
                     id='team_list.no_other_teams.description'
-                    defaultMessage='To join another team, ask a Team Admin for an invitation, or create your own team.'
+                    defaultMessage='To join another enterprise, ask an Enterprise Admin for an invitation, or create your own enterprise.'
                     style={styles.description}
                     testID='team_sidebar.add_team_slide_up.no_other_teams.description'
                 />

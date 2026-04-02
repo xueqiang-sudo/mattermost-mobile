@@ -86,73 +86,73 @@ export const postTypeMessages = {
     [JOIN_TEAM]: defineMessages({
         one: {
             id: 'combined_system_message.joined_team.one',
-            defaultMessage: '{firstUser} **joined the team**.',
+            defaultMessage: '{firstUser} **joined the enterprise**.',
         },
         one_you: {
             id: 'combined_system_message.joined_team.one_you',
-            defaultMessage: 'You **joined the team**.',
+            defaultMessage: 'You **joined the enterprise**.',
         },
         two: {
             id: 'combined_system_message.joined_team.two',
-            defaultMessage: '{firstUser} and {secondUser} **joined the team**.',
+            defaultMessage: '{firstUser} and {secondUser} **joined the enterprise**.',
         },
         many_expanded: {
             id: 'combined_system_message.joined_team.many_expanded',
-            defaultMessage: '{users} and {lastUser} **joined the team**.',
+            defaultMessage: '{users} and {lastUser} **joined the enterprise**.',
         },
     }),
     [ADD_TO_TEAM]: defineMessages({
         one: {
             id: 'combined_system_message.added_to_team.one',
-            defaultMessage: '{firstUser} **added to the team** by {actor}.',
+            defaultMessage: '{firstUser} **added to the enterprise** by {actor}.',
         },
         one_you: {
             id: 'combined_system_message.added_to_team.one_you',
-            defaultMessage: 'You were **added to the team** by {actor}.',
+            defaultMessage: 'You were **added to the enterprise** by {actor}.',
         },
         two: {
             id: 'combined_system_message.added_to_team.two',
-            defaultMessage: '{firstUser} and {secondUser} **added to the team** by {actor}.',
+            defaultMessage: '{firstUser} and {secondUser} **added to the enterprise** by {actor}.',
         },
         many_expanded: {
             id: 'combined_system_message.added_to_team.many_expanded',
-            defaultMessage: '{users} and {lastUser} were **added to the team** by {actor}.',
+            defaultMessage: '{users} and {lastUser} were **added to the enterprise** by {actor}.',
         },
     }),
     [REMOVE_FROM_TEAM]: defineMessages({
         one: {
             id: 'combined_system_message.removed_from_team.one',
-            defaultMessage: '{firstUser} was **removed from the team**.',
+            defaultMessage: '{firstUser} was **removed from the enterprise**.',
         },
         one_you: {
             id: 'combined_system_message.removed_from_team.one_you',
-            defaultMessage: 'You were **removed from the team**.',
+            defaultMessage: 'You were **removed from the enterprise**.',
         },
         two: {
             id: 'combined_system_message.removed_from_team.two',
-            defaultMessage: '{firstUser} and {secondUser} were **removed from the team**.',
+            defaultMessage: '{firstUser} and {secondUser} were **removed from the enterprise**.',
         },
         many_expanded: {
             id: 'combined_system_message.removed_from_team.many_expanded',
-            defaultMessage: '{users} and {lastUser} were **removed from the team**.',
+            defaultMessage: '{users} and {lastUser} were **removed from the enterprise**.',
         },
     }),
     [LEAVE_TEAM]: defineMessages({
         one: {
             id: 'combined_system_message.left_team.one',
-            defaultMessage: '{firstUser} **left the team**.',
+            defaultMessage: '{firstUser} **left the enterprise**.',
         },
         one_you: {
             id: 'combined_system_message.left_team.one_you',
-            defaultMessage: 'You **left the team**.',
+            defaultMessage: 'You **left the enterprise**.',
         },
         two: {
             id: 'combined_system_message.left_team.two',
-            defaultMessage: '{firstUser} and {secondUser} **left the team**.',
+            defaultMessage: '{firstUser} and {secondUser} **left the enterprise**.',
         },
         many_expanded: {
             id: 'combined_system_message.left_team.many_expanded',
-            defaultMessage: '{users} and {lastUser} **left the team**.',
+            defaultMessage: '{users} and {lastUser} **left the enterprise**.',
         },
     }),
 };
@@ -176,18 +176,18 @@ export const systemMessages = defineMessages({
     },
     [ADD_TO_TEAM]: {
         id: 'last_users_message.added_to_team.type',
-        defaultMessage: 'were **added to the team** by {actor}.',
+        defaultMessage: 'were **added to the enterprise** by {actor}.',
     },
     [JOIN_TEAM]: {
         id: 'last_users_message.joined_team.type',
-        defaultMessage: '**joined the team**.',
+        defaultMessage: '**joined the enterprise**.',
     },
     [LEAVE_TEAM]: {
         id: 'last_users_message.left_team.type',
-        defaultMessage: '**left the team**.',
+        defaultMessage: '**left the enterprise**.',
     },
     [REMOVE_FROM_TEAM]: {
         id: 'last_users_message.removed_from_team.type',
-        defaultMessage: 'were **removed from the team**.',
+        defaultMessage: 'were **removed from the enterprise**.',
     },
 });

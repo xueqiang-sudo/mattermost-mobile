@@ -1,10 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {ChannelListScreen} from '@support/ui/screen';
+import FindChannelsScreen from './find_channels';
 import {timeouts, wait} from '@support/utils';
 import {expect} from 'detox';
 
+/**
+ * Browse-channels entry was removed from the home + menu; E2E flows use Find Channels (search) instead.
+ * Dropdown/archived-only flows still reference browse_channels testIDs and are skipped in specs.
+ */
 class BrowseChannelsScreen {
     testID = {
         channelItemPrefix: 'browse_channels.custom_list.channel_item.',
@@ -23,44 +27,36 @@ class BrowseChannelsScreen {
     };
 
     scheduledPostTooltipCloseButton = element(by.id(this.testID.scheduledPostTooltipCloseButton));
-    browseChannelsScreen = element(by.id(this.testID.browseChannelsScreen));
-    closeButton = element(by.id(this.testID.closeButton));
+    browseChannelsScreen = FindChannelsScreen.findChannelsScreen;
+    closeButton = FindChannelsScreen.closeButton;
     createButton = element(by.id(this.testID.createButton));
-    searchInput = element(by.id(this.testID.searchInput));
-    searchClearButton = element(by.id(this.testID.searchClearButton));
-    searchCancelButton = element(by.id(this.testID.searchCancelButton));
+    searchInput = FindChannelsScreen.searchInput;
+    searchClearButton = FindChannelsScreen.clearButton;
+    searchCancelButton = FindChannelsScreen.cancelButton;
     channelDropdown = element(by.id(this.testID.channelDropdown));
     channelDropdownTextPublic = element(by.id(this.testID.channelDropdownTextPublic));
     channelDropdownTextArchived = element(by.id(this.testID.channelDropdownTextArchived));
     channelDropdownTextShared = element(by.id(this.testID.channelDropdownTextShared));
-    flatChannelList = element(by.id(this.testID.flatChannelList));
+    flatChannelList = FindChannelsScreen.sectionUnfilteredChannelList;
 
     getChannelItem = (channelName: string) => {
-        return element(by.id(`${this.testID.channelItemPrefix}${channelName}`));
+        return FindChannelsScreen.getFilteredChannelItem(channelName);
     };
 
     getChannelItemDisplayName = (channelName: string) => {
-        return element(by.id(`${this.testID.channelItemPrefix}${channelName}.display_name`));
+        return FindChannelsScreen.getFilteredChannelItemDisplayName(channelName);
     };
 
     toBeVisible = async () => {
-        await waitFor(this.browseChannelsScreen).toExist().withTimeout(timeouts.TEN_SEC);
-
-        return this.browseChannelsScreen;
+        return FindChannelsScreen.toBeVisible();
     };
 
     open = async () => {
-        // # Open browse channels screen
-        await ChannelListScreen.headerPlusButton.tap();
-        await wait(timeouts.ONE_SEC);
-        await ChannelListScreen.browseChannelsItem.tap();
-
-        return this.toBeVisible();
+        return FindChannelsScreen.open();
     };
 
     close = async () => {
-        await this.closeButton.tap();
-        await expect(this.browseChannelsScreen).not.toBeVisible();
+        await FindChannelsScreen.close();
     };
 
     dismissScheduledPostTooltip = async () => {

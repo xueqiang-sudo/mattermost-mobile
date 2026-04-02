@@ -281,7 +281,7 @@ const ChannelHeader = ({
         subtitle = undefined;
     } else if (memberCount) {
         subtitle = intl.formatMessage({id: 'channel_header.member_count', defaultMessage: '{count, plural, one {# member} other {# members}}'}, {count: memberCount});
-    } else if (!customStatus || !customStatus.text || isCustomStatusExpired) {
+    } else if (channelType !== General.DM_CHANNEL && (!customStatus || !customStatus.text || isCustomStatusExpired)) {
         subtitle = intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
     }
 
@@ -289,7 +289,7 @@ const ChannelHeader = ({
         if (weChatPhoneTitle) {
             return undefined;
         }
-        if (memberCount || !customStatus || !customStatus.text || isCustomStatusExpired) {
+        if (memberCount) {
             return (
                 <CompassIcon
                     color={changeOpacity(theme.sidebarHeaderTextColor, 0.72)}
@@ -297,7 +297,8 @@ const ChannelHeader = ({
                     size={14}
                 />
             );
-        } else if (customStatus && customStatus.text) {
+        }
+        if (customStatus?.text && !isCustomStatusExpired) {
             return (
                 <View style={styles.customStatusContainer}>
                     {isCustomStatusEnabled && Boolean(customStatus.emoji) &&
@@ -320,9 +321,17 @@ const ChannelHeader = ({
                 </View>
             );
         }
-
-        return undefined;
-    }, [weChatPhoneTitle, memberCount, customStatus, isCustomStatusExpired, theme.sidebarHeaderTextColor, styles.customStatusContainer, styles.customStatusEmoji, styles.customStatusText, styles.subtitle, isCustomStatusEnabled]);
+        if (channelType === General.DM_CHANNEL) {
+            return undefined;
+        }
+        return (
+            <CompassIcon
+                color={changeOpacity(theme.sidebarHeaderTextColor, 0.72)}
+                name='chevron-right'
+                size={14}
+            />
+        );
+    }, [weChatPhoneTitle, memberCount, channelType, customStatus, isCustomStatusExpired, theme.sidebarHeaderTextColor, styles.customStatusContainer, styles.customStatusEmoji, styles.customStatusText, styles.subtitle, isCustomStatusEnabled]);
 
     useEffect(() => {
         const asyncEffect = async () => {

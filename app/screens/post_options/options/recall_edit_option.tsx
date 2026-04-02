@@ -22,7 +22,7 @@ type Props = {
 const messages = defineMessages({
     recall_edit: {
         id: 'mobile.post_info.reedit',
-        defaultMessage: '重新编辑',
+        defaultMessage: 'Re-edit',
     },
 });
 

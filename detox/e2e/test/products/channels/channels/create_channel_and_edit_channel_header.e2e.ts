@@ -52,7 +52,7 @@ describe('Channels - Create Channel and Edit Channel Header', () => {
         await expect(CreateOrEditChannelScreen.closeButton).toBeVisible();
         await expect(CreateOrEditChannelScreen.createButton).toBeVisible();
         await expect(CreateOrEditChannelScreen.makePrivateToggledOff).toBeVisible();
-        await expect(CreateOrEditChannelScreen.makePrivateDescription).toHaveText('When a channel is set to private, only invited team members can access and participate in that channel');
+        await expect(CreateOrEditChannelScreen.makePrivateDescription).toHaveText('When a channel is set to private, only invited enterprise members can access and participate in that channel');
         await expect(CreateOrEditChannelScreen.displayNameInput).toBeVisible();
         await expect(CreateOrEditChannelScreen.purposeInput).toBeVisible();
         await expect(CreateOrEditChannelScreen.purposeDescription).toHaveText('Describe how this channel should be used.');

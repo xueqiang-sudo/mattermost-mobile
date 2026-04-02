@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {fetchProfilesInTeam} from '@actions/remote/user';
+import {fetchProfilesInTeam, fetchUsersByIds} from '@actions/remote/user';
 import ContactService, {
     ContactCompanyTypes,
     DEFAULT_DEPARTMENT_NAME,
@@ -17,10 +17,12 @@ import {getTeamById, queryMyTeams} from '@queries/servers/team';
 import {getFullErrorMessage} from '@utils/errors';
 import {generateId} from '@utils/general';
 import {logDebug} from '@utils/log';
+import {username2Nickname} from '@utils/user';
 
 import type {Database} from '@nozbe/watermelondb';
+import type UserModel from '@typings/database/models/servers/user';
 
-export type ContactCompanyType = 'team' | 'customer' | 'supplier';
+export type ContactCompanyType = 'team';
 
 export type FetchEmployeesOfCompaniesByTypeResult = {
     data?: ContactEmployee[];
@@ -29,8 +31,6 @@ export type FetchEmployeesOfCompaniesByTypeResult = {
 
 const typeMap: Record<ContactCompanyType, string> = {
     team: ContactCompanyTypes.Team,
-    customer: ContactCompanyTypes.Customer,
-    supplier: ContactCompanyTypes.Supplier,
 };
 
 export type FetchCompanyResult = {
@@ -268,6 +268,67 @@ export const ensureContactEmployeeForUser = async (
         return {};
     } catch (error) {
         logDebug('[ensureContactEmployeeForUser]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 对外名片扫码：合并 Mattermost 用户与通讯录员工（同源 employee id = Mattermost user id） */
+export type MergedQrCardUserProfile = {
+    mattermostUser: UserProfile | UserModel | undefined;
+    contactEmployee: ContactEmployee | undefined;
+    /** 主展示名：优先 Mattermost 显示名，其次通讯录姓名 */
+    displayName: string;
+    email?: string;
+    phone?: string;
+    position?: string;
+};
+
+export type FetchMergedUserProfileForQrCardResult = {
+    data?: MergedQrCardUserProfile;
+    error?: unknown;
+};
+
+export const fetchMergedUserProfileForQrCard = async (
+    serverUrl: string,
+    mattermostUserId: string,
+    locale: string,
+    mmUserHint?: UserProfile | UserModel,
+): Promise<FetchMergedUserProfileForQrCardResult> => {
+    if (!serverUrl || !mattermostUserId) {
+        return {error: new Error('serverUrl and mattermostUserId are required')};
+    }
+    try {
+        let mmUser = mmUserHint;
+        if (!mmUser) {
+            const {users, existingUsers} = await fetchUsersByIds(serverUrl, [mattermostUserId], false);
+            mmUser = users?.[0] ?? existingUsers?.[0];
+        }
+        let contactEmployee: ContactEmployee | undefined;
+        if (!mmUser) {
+            try {
+                contactEmployee = await ContactService.getEmployee(mattermostUserId);
+            } catch {
+                // 通讯录中可能尚未建档
+            }
+        }
+        const mmDisplay = mmUser ? username2Nickname(mmUser, {locale, includeFullName: false}) : '';
+        const dirName = contactEmployee?.name?.trim() ?? '';
+        const displayName = mmDisplay || dirName || mattermostUserId;
+        const email = (mmUser?.email || contactEmployee?.email?.trim())?.trim() || undefined;
+        const phone = contactEmployee?.phone?.trim() || undefined;
+        const position = (mmUser?.position?.trim() || contactEmployee?.position?.trim()) || undefined;
+        return {
+            data: {
+                mattermostUser: mmUser,
+                contactEmployee,
+                displayName,
+                email,
+                phone,
+                position,
+            },
+        };
+    } catch (error) {
+        logDebug('[fetchMergedUserProfileForQrCard]', getFullErrorMessage(error));
         return {error};
     }
 };
@@ -637,7 +698,7 @@ export const deleteContactEmployee = async (employeeId: string): Promise<{error?
     }
 };
 
-/** 按公司类型获取员工（team/customer/supplier，去重） */
+/** 按公司类型获取员工（team，去重） */
 export const fetchEmployeesOfCompaniesByType = async (
     type: ContactCompanyType,
 ): Promise<FetchEmployeesOfCompaniesByTypeResult> => {

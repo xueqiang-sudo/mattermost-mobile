@@ -88,14 +88,14 @@ const TeamMembershipNotice = () => {
                     <Text style={styles.title}>
                         {intl.formatMessage({
                             id: 'alert.removed_from_team.title',
-                            defaultMessage: 'Team membership updated',
+                            defaultMessage: 'Enterprise membership updated',
                         })}
                     </Text>
                     <Text style={styles.description}>
                         {intl.formatMessage(
                             {
                                 id: 'alert.removed_from_team.description',
-                                defaultMessage: 'You are no longer a member of team {displayName}.',
+                                defaultMessage: 'You are no longer a member of enterprise {displayName}.',
                             },
                             {displayName},
                         )}

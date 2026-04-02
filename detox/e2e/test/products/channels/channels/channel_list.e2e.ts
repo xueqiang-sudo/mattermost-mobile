@@ -16,7 +16,6 @@ import {
     siteOneUrl,
 } from '@support/test_config';
 import {
-    BrowseChannelsScreen,
     ChannelScreen,
     ChannelListScreen,
     CreateDirectMessageScreen,
@@ -140,17 +139,15 @@ describe('Channels - Channel List', () => {
         await expect(ChannelListScreen.getChannelItemDisplayName(channelsCategory, townSquareChannelName)).toBeVisible();
     });
 
-    it('MM-T4728_4 - should be able to go to browse channels screen', async () => {
-        // # Tap on plus menu button and tap on browse channels item
-        await ChannelListScreen.headerPlusButton.tap();
-        await wait(timeouts.ONE_SEC);
-        await ChannelListScreen.browseChannelsItem.tap();
+    it('MM-T4728_4 - should be able to open find channels from the channel list header', async () => {
+        // # Tap search (replaces removed + menu → browse channels entry)
+        await FindChannelsScreen.open();
 
-        // * Verify on browse channels screen
-        await BrowseChannelsScreen.toBeVisible();
+        // * Verify on find channels screen
+        await FindChannelsScreen.toBeVisible();
 
         // # Go back to channel list screen
-        await BrowseChannelsScreen.close();
+        await FindChannelsScreen.close();
     });
 
     it('MM-T4728_5 - should be able to go to create direct message screen', async () => {

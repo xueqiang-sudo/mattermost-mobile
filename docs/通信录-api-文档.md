@@ -18,7 +18,7 @@
 |------|------|------|
 | `id` | string | 主键，36 字符 |
 | `name` | string | 必填 |
-| `type` | string | 如 `team`（本公司/团队）、`supplier`（供应商）、`customer`（客户） |
+| `type` | string | 如 `team`（本公司/团队） |
 | `description` | string | 可选 |
 | `owner_id` | string | 企业拥有者 ID，36 字符 |
 

@@ -347,7 +347,7 @@ const Post = ({
         if (canRecallEditPost) {
             items.push({
                 key: 'reedit',
-                label: intl.formatMessage({id: 'mobile.post_info.reedit', defaultMessage: '重新编辑'}),
+                label: intl.formatMessage({id: 'mobile.post_info.reedit', defaultMessage: 'Re-edit'}),
                 iconName: 'pencil',
                 onPress: closeAndRun(async () => {
                     const draftRootId = post.rootId || '';

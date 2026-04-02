@@ -50,6 +50,9 @@ export default keyMirror({
     JOIN_CALL_BAR_VISIBLE: null,
     DRAFT_SWIPEABLE: null,
     MANAGE_ENTERPRISE_REFRESH: null,
+
+    /** 供应商/客户关系增删改后刷新「我的供应商/客户」列表 */
+    SUPPLIER_CUSTOMER_CONTACTS_CHANGED: null,
     ACTIVE_SCREEN: null,
     ACTIVE_SERVER_CHANGED: null,
     FILE_ADD_REMOVED: null,

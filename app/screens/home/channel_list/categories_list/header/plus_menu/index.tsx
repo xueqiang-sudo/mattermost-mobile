@@ -16,24 +16,12 @@ import PlusMenuSeparator from './separator';
 
 type Props = {
     canCreateChannels: boolean;
-    canJoinChannels: boolean;
     canInvitePeople: boolean;
 }
 
-const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Props) => {
+const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
-
-    const browseChannels = useCallback(async () => {
-        await dismissBottomSheet();
-
-        const title = intl.formatMessage({id: 'browse_channels.title', defaultMessage: 'Browse channels'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
-
-        showModal(Screens.BROWSE_CHANNELS, title, {
-            closeButton,
-        });
-    }, [intl, theme]);
 
     const createNewChannel = useCallback(async () => {
         await dismissBottomSheet();
@@ -78,7 +66,6 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
 
     return (
         <>
-            {/* 发起会话：单聊优先，其次群聊/频道，最后浏览 */}
             <PlusMenuItem
                 pickerAction='openDirectMessage'
                 onPress={openDirectMessage}
@@ -87,12 +74,6 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
             <PlusMenuItem
                 pickerAction='createNewChannel'
                 onPress={createNewChannel}
-            />
-            }
-            {canJoinChannels &&
-            <PlusMenuItem
-                pickerAction='browseChannels'
-                onPress={browseChannels}
             />
             }
             {canInvitePeople &&

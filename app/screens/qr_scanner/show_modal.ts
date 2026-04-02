@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 import {OptionsModalPresentationStyle} from 'react-native-navigation';
 
+import {EmployeeContactTypes} from '@client/rest/employee_contact';
 import {Screens} from '@constants';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
 import {logInfo} from '@utils/log';
@@ -85,15 +86,27 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                         });
                         return true;
                     }
-                    const title = intl.formatMessage({
-                        id: 'add_user_to_friends.title',
-                        defaultMessage: 'Add User as Friend',
-                    });
+                    const forcedType = options?.extra?.forcedEmployeeContactType;
+                    const title =
+                        forcedType === EmployeeContactTypes.Supplier
+                            ? intl.formatMessage({
+                                id: 'add_user_to_friends.modal_title_add_supplier',
+                                defaultMessage: 'Add supplier',
+                            })
+                            : forcedType === EmployeeContactTypes.Customer
+                                ? intl.formatMessage({
+                                    id: 'add_user_to_friends.modal_title_add_customer',
+                                    defaultMessage: 'Add customer',
+                                })
+                                : intl.formatMessage({
+                                    id: 'add_user_to_friends.title',
+                                    defaultMessage: 'Add user as contact',
+                                });
                     showModalWithBackButton(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', mergedData, {
                         statusBar: {
                             drawBehind: true,
                         },
-                    }); // data: {uid, ts}
+                    });
                     return true;
                 }
             }

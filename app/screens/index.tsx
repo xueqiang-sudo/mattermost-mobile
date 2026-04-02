@@ -120,6 +120,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CONTACTS_MANAGE:
             screen = withServerDatabase(require('@screens/home/contacts/contacts_manage').default);
             break;
+        case Screens.SUPPLIER_CUSTOMER_FORM:
+            screen = withServerDatabase(require('@screens/home/supplier_customer/supplier_customer_form').default);
+            break;
         case Screens.CONTACTS_BATCH_MOVE_MEMBERS:
             screen = withServerDatabase(require('@screens/home/contacts/batch_move_members').default);
             break;

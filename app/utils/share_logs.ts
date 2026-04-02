@@ -75,7 +75,7 @@ export const reportAProblemMessages = defineMessages({
     },
     currentTeamId: {
         id: 'report_a_problem.metadata.currentTeamId',
-        defaultMessage: 'Current Team ID',
+        defaultMessage: 'Current Enterprise ID',
     },
     serverVersion: {
         id: 'report_a_problem.metadata.serverVersion',

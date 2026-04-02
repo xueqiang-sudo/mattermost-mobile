@@ -35,7 +35,6 @@ const PLUS_BUTTON_SIZE = 28;
 
 type Props = {
     canCreateChannels: boolean;
-    canJoinChannels: boolean;
     canInvitePeople: boolean;
     currentUser?: UserModel;
     displayName?: string;
@@ -141,7 +140,6 @@ const hitSlop: Insets = {top: 10, bottom: 30, left: 20, right: 20};
 
 const ChannelListHeader = ({
     canCreateChannels,
-    canJoinChannels,
     canInvitePeople,
     currentUser,
     displayName,
@@ -169,7 +167,6 @@ const ChannelListHeader = ({
             return (
                 <PlusMenu
                     canCreateChannels={canCreateChannels}
-                    canJoinChannels={canJoinChannels}
                     canInvitePeople={canInvitePeople}
                 />
             );
@@ -180,10 +177,6 @@ const ChannelListHeader = ({
         let separators = 0;
 
         if (canCreateChannels) {
-            items += 1;
-        }
-
-        if (canJoinChannels) {
             items += 1;
         }
 
@@ -203,7 +196,7 @@ const ChannelListHeader = ({
             theme,
             title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Start a conversation'}),
         });
-    }, [intl, theme, canCreateChannels, canInvitePeople, canJoinChannels]));
+    }, [intl, theme, canCreateChannels, canInvitePeople]));
 
     const onSearchPress = usePreventDoubleTap(useCallback(() => {
         findChannels(

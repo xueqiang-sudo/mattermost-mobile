@@ -32,7 +32,7 @@ export function errorUnkownUser(intl: IntlShape) {
 export function permalinkBadTeam(intl: IntlShape) {
     const message = defineMessage({
         id: 'mobile.server_link.unreachable_team.error',
-        defaultMessage: 'This link belongs to a deleted team or to a team to which you do not have access.',
+        defaultMessage: 'This link belongs to a deleted enterprise or to an enterprise to which you do not have access.',
     });
 
     alertErrorWithFallback(intl, {}, message);
