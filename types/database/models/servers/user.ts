@@ -125,6 +125,10 @@ declare class UserModel extends Model {
 
     /** customProfileAttributes : All the custom profile attributes for this user */
     customProfileAttributes: Query<CustomProfileAttributeModel> | undefined;
+
+    phone: string | null;
+
+    countrycode: string | null;
 }
 
 export default UserModel;

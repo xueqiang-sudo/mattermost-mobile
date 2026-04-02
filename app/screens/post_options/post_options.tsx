@@ -21,7 +21,6 @@ import {isSystemMessage} from '@utils/post';
 
 import AppBindingsPostOptions from './options/app_bindings_post_option';
 import DeletePostOption from './options/delete_post_option';
-import EditOption from './options/edit_option';
 import PinChannelOption from './options/pin_channel_option';
 import RecallEditOption from './options/recall_edit_option';
 import ReactionBar from './reaction_bar';
@@ -35,7 +34,6 @@ const POST_OPTIONS_BUTTON = 'close-post-options';
 type PostOptionsProps = {
     canAddReaction: boolean;
     canDelete: boolean;
-    canEdit: boolean;
     canRecallEdit: boolean;
     canPin: boolean;
     canReply: boolean;
@@ -49,7 +47,7 @@ type PostOptionsProps = {
     isBoRPost?: boolean;
 };
 const PostOptions = ({
-    canAddReaction, canDelete, canEdit, canRecallEdit,
+    canAddReaction, canDelete, canRecallEdit,
     canPin, canReply,
     combinedPost, componentId,
     sourceScreen, post, thread, bindings, serverUrl,
@@ -77,7 +75,7 @@ const PostOptions = ({
     const snapPoints = useMemo(() => {
         const items: Array<string | number> = [1];
         const optionsCount = [
-            canCopyPermalink, canCopyText, canDelete, canEdit, canRecallEdit,
+            canCopyPermalink, canCopyText, canDelete, canRecallEdit,
             canPin, canReply, shouldRenderFollow,
         ].reduce((acc, v) => {
             return v ? acc + 1 : acc;
@@ -92,7 +90,7 @@ const PostOptions = ({
         return items;
     }, [
         canAddReaction, canCopyPermalink, canCopyText,
-        canDelete, canEdit, canRecallEdit, shouldRenderFollow, shouldShowBindings,
+        canDelete, canRecallEdit, shouldRenderFollow, shouldShowBindings,
         canPin, canReply,
     ]);
 
@@ -139,13 +137,6 @@ const PostOptions = ({
                     bottomSheetId={Screens.POST_OPTIONS}
                     isPostPinned={post.isPinned}
                     postId={post.id}
-                />
-                }
-                {canEdit &&
-                <EditOption
-                    bottomSheetId={Screens.POST_OPTIONS}
-                    post={post}
-                    canDelete={canDelete}
                 />
                 }
                 {canRecallEdit &&

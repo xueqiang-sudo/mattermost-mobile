@@ -45,10 +45,12 @@ async function ensureDir(dir: string): Promise<void> {
     try {
         const info = await getInfoAsync(dir);
         if (!info.exists) {
+            logDebug('[contact_disk_cache.ensureDir] dir not exists, create:', dir);
             await makeDirectoryAsync(dir, {intermediates: true});
+            logDebug('[contact_disk_cache.ensureDir] dir created:', dir);
         }
     } catch (e) {
-        logDebug('[contact_disk_cache.ensureDir]', e);
+        logDebug('[contact_disk_cache.ensureDir] create dir failed:', e);
     }
 }
 
@@ -70,7 +72,9 @@ export async function readContactDiskCache(
         }
         const ageMs = Date.now() - (info.modificationTime * 1000);
         if (ageMs > DISK_CACHE_MAX_AGE_MS) {
+            logDebug('[contact_disk_cache.read] file expired, delete:', fileUri);
             await deleteAsync(fileUri, {idempotent: true});
+            logDebug('[contact_disk_cache.read] file deleted:', fileUri);
             return null;
         }
         const raw = await readAsStringAsync(fileUri);
@@ -103,9 +107,11 @@ export async function writeContactDiskCache(
     const fileUri = `${dir}${entryFileName(path)}`;
     const payload: DiskEntry = {version, data};
     try {
+        logDebug('[contact_disk_cache.write] start, fileUri:', fileUri);
         await writeAsStringAsync(fileUri, JSON.stringify(payload));
+        logDebug('[contact_disk_cache.write] fileUri:', fileUri);
     } catch (e) {
-        logDebug('[contact_disk_cache.write]', e);
+        logDebug('[contact_disk_cache.write] write file failed:', e);
     }
 }
 
@@ -120,10 +126,13 @@ async function cleanupExpiredFilesInCompanyDir(companyPath: string, now: number)
             }
             const ageMs = now - (fileInfo.modificationTime * 1000);
             if (ageMs > DISK_CACHE_MAX_AGE_MS) {
+                logDebug('[contact_disk_cache.cleanupExpiredFilesInCompanyDir] file expired, delete:', fileUri);
                 await deleteAsync(fileUri, {idempotent: true});
+                logDebug('[contact_disk_cache.cleanupExpiredFilesInCompanyDir] file deleted:', fileUri);
             }
-        } catch {
+        } catch (e) {
             // 单文件失败不中断整体
+            logDebug('[contact_disk_cache.cleanupExpiredFilesInCompanyDir] delete file failed:', e, ' ,fileUri:', fileUri);
         }
     }));
 }
@@ -156,17 +165,20 @@ export async function cleanupExpiredContactDiskCache(): Promise<void> {
                         if (!companyInfo.exists || !companyInfo.isDirectory) {
                             return;
                         }
+                        logDebug('[contact_disk_cache.cleanupExpiredFilesInCompanyDir] start, companyPath:', companyPath);
                         await cleanupExpiredFilesInCompanyDir(companyPath, now);
-                    } catch {
+                    } catch (e1) {
                         // 单企业目录失败不中断
+                        logDebug('[contact_disk_cache.cleanupExpiredFilesInCompanyDir] cleanup failed:', e1, ' ,companyPath:', companyPath);
                     }
                 }));
-            } catch {
+            } catch (e2) {
                 // 单 host 目录失败不中断
+                logDebug('[contact_disk_cache.cleanupExpiredFilesInCompanyDir] cleanup failed:', e2, ' ,hostPath:', hostPath);
             }
         }));
     } catch (e) {
-        logDebug('[contact_disk_cache.cleanupExpired]', e);
+        logDebug('[contact_disk_cache.cleanupExpired] cleanup failed:', e);
     }
 }
 
@@ -176,6 +188,7 @@ export async function clearContactDiskCacheCompany(baseUrl: string, companyId: s
     }
     const dir = companyCacheDir(baseUrl, companyId);
     try {
+        logDebug('[contact_disk_cache.clearCompany] start, dir:', dir);
         const info = await getInfoAsync(dir);
         if (!info.exists || !info.isDirectory) {
             return;
@@ -184,7 +197,28 @@ export async function clearContactDiskCacheCompany(baseUrl: string, companyId: s
         await Promise.all(
             names.map((name) => deleteAsync(`${dir}${name}`, {idempotent: true}).catch(() => undefined)),
         );
+        logDebug('[contact_disk_cache.clearCompany] dir deleted');
     } catch (e) {
-        logDebug('[contact_disk_cache.clearCompany]', e);
+        logDebug('[contact_disk_cache.clearCompany] delete dir failed:', e);
+    }
+}
+
+/**
+ * 清理所有本地缓存的通讯录（所有企业的）
+ */
+export async function clearAllContactDiskCache(): Promise<void> {
+    const rootDir = `${documentDirectory}${ROOT_DIR}/`;
+    logDebug('[contact_disk_cache.clearAll] start, rootDir:', rootDir);
+    try {
+        const rootInfo = await getInfoAsync(rootDir);
+        if (!rootInfo.exists || !rootInfo.isDirectory) {
+            logDebug('[contact_disk_cache.clearAll] rootDir not exists or not a directory, skip');
+            return;
+        }
+        logDebug('[contact_disk_cache.clearAll] delete rootDir:', rootDir);
+        await deleteAsync(rootDir, {idempotent: true});
+        logDebug('[contact_disk_cache.clearAll] rootDir deleted');
+    } catch (e) {
+        logDebug('[contact_disk_cache.clearAll] delete rootDir failed:', e);
     }
 }

@@ -15,7 +15,7 @@ import {logDebug, logError, logInfo, logWarning} from '@utils/log';
 const MAX_WEBSOCKET_FAILS = 7;
 const WEBSOCKET_TIMEOUT = toMilliseconds({seconds: 30});
 const MIN_WEBSOCKET_RETRY_TIME = toMilliseconds({seconds: 3});
-const MAX_WEBSOCKET_RETRY_TIME = toMilliseconds({minutes: 5});
+const MAX_WEBSOCKET_RETRY_TIME = toMilliseconds({minutes: 1});
 const PING_INTERVAL = toMilliseconds({seconds: 30});
 const DEFAULT_OPTIONS = {
     forceConnection: true,
@@ -128,7 +128,7 @@ export default class WebSocketClient {
 
         this.url = connectionUrl;
 
-        const reliableWebSockets = hasReliableWebsocket(version, reliableWebsocketConfig);
+        const reliableWebSockets = false; // hasReliableWebsocket(version, reliableWebsocketConfig);
         logDebug('[WebSocket] 可靠 WebSocket 配置', {
             reliableWebSockets,
             connectionId: this.connectionId,
@@ -357,6 +357,8 @@ export default class WebSocketClient {
         });
 
         this.conn!.onMessage((evt: any) => {
+            // console.log('qgstest conn onMessage evt msg seq:', evt.message.seq, ' ,this.serverSequence:', this.serverSequence, ', event:', evt.message.event);
+
             const msg = evt.message;
             if (this.shouldLogWebSocketIO()) {
                 logDebug('websocket received message', msg);

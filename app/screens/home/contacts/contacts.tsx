@@ -5,7 +5,7 @@ import {useIsFocused, useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Alert, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View} from 'react-native';
+import {Platform, ScrollView, StatusBar, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -30,7 +30,7 @@ import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getTeamById} from '@queries/servers/team';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
-import {logInfo} from '@utils/log';
+import {logDebug, logInfo} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -204,7 +204,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     /** 仅企业管理者可管理通讯录、可自动创建 */
     const [isEnterpriseManager, setIsEnterpriseManager] = useState(false);
 
-    /** Home 从弹窗下重新出现时递增，触发主列表重新拉取 */
+    /** RNN 弹窗关闭或 React Navigation Tab 再次聚焦时递增，触发主列表重新拉取 */
     const [homeReappearTick, setHomeReappearTick] = useState(0);
 
     const styles = getStyleSheet(theme);
@@ -242,6 +242,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     }, [companyName, currentTeamId]));
 
     const bumpHomeReappearTick = useCallback(() => {
+        logDebug('[ContactsScreen.bumpHomeReappearTick] isFocusedRef.current:', isFocusedRef.current);
         if (!isFocusedRef.current) {
             return;
         }
@@ -251,7 +252,9 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
 
     useEffect(() => {
         const fetchEnterprise = async () => {
+            logDebug('[ContactsScreen.fetchEnterprise] isFocused:', isFocused);
             if (!isFocused) {
+                logDebug('[ContactsScreen.fetchEnterprise] isFocused is false, return');
                 return;
             }
 

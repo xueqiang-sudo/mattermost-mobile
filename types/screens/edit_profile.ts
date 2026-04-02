@@ -14,6 +14,7 @@ export interface UserInfo {
     nickname: string;
     position: string;
     username: string;
+    phone: string;
     customAttributes: CustomAttributeSet;
 }
 

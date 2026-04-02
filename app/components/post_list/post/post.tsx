@@ -318,7 +318,6 @@ const Post = ({
         const x = event?.nativeEvent.pageX ?? 0;
         const y = event?.nativeEvent.pageY ?? 0;
         const canQuote = !isSystemPost && !hasBeenDeleted;
-        const canEditPost = !isSystemPost && isOwnPost && !hasBeenDeleted && canEdit && within2MinFromCreateAt;
         const canWithdrawPost = isOwnPost && !hasBeenDeleted && canDelete && within2MinFromCreateAt;
         const canRecallEditPost = isOwnPost && isRecallInferred && within2MinFromCreateAt && Boolean(textMessage) && !isSystemPost;
         const canCopyText = Boolean(textMessage) && !borPost;
@@ -342,17 +341,6 @@ const Post = ({
                     DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
                     DeviceEventEmitter.emit(Events.POST_DRAFT_SET_QUOTED_POST, {channelId: post.channelId, postId: post.id});
                     DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
-                }),
-            });
-        }
-        if (canEditPost) {
-            items.push({
-                key: 'edit',
-                label: intl.formatMessage({id: 'post_info.edit', defaultMessage: 'Edit'}),
-                iconName: 'pencil-outline',
-                onPress: closeAndRun(() => {
-                    const title = intl.formatMessage({id: 'mobile.edit_post.title', defaultMessage: 'Editing Message'});
-                    showModal(Screens.EDIT_POST, title, {post, closeButtonId: 'close-edit-post', canDelete: canWithdrawPost});
                 }),
             });
         }

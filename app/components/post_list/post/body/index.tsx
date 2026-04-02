@@ -2,19 +2,23 @@
 // See LICENSE.txt for license information.
 
 import React, {type ReactNode, useCallback, useMemo, useState} from 'react';
-import {Dimensions, type GestureResponderEvent, type LayoutChangeEvent, Pressable, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {Dimensions, type GestureResponderEvent, type LayoutChangeEvent, Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle} from 'react-native';
 import tinyColor from 'tinycolor2';
+import {DeviceEventEmitter} from 'react-native';
 
+import {updateDraftMessage} from '@actions/local/draft';
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
 import {Screens} from '@constants';
+import {Events} from '@constants';
 import {PostTypes} from '@constants/post';
 import {THREAD} from '@constants/screens';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
 import {PLAYBOOKS_UPDATE_STATUS_POST_TYPE} from '@playbooks/constants/plugin';
 import {isEdited as postEdited, isPostFailed} from '@utils/post';
 import {blendColors, makeStyleSheetFromTheme} from '@utils/theme';
+import {useServerUrl} from '@context/server';
 
 import Acknowledgements from './acknowledgements';
 import AddMembers from './add_members';
@@ -200,8 +204,28 @@ const Body = ({
     const isFailed = isPostFailed(post);
     const [layoutWidth, setLayoutWidth] = useState(0);
     const hasBeenDeleted = Boolean(post.deleteAt);
+    const serverUrl = useServerUrl();
     let body;
     let message;
+
+    /**
+     * 处理重新编辑按钮点击
+     * 将撤回的消息内容重新填充到输入框
+     */
+    const handleReedit = useCallback(async () => {
+        const draftRootId = post.rootId || '';
+        const textMessage = post.messageSource || post.message;
+
+        if (draftRootId) {
+            DeviceEventEmitter.emit(Events.POST_DRAFT_SET_REPLY_ROOT, {channelId: post.channelId, rootId: draftRootId});
+        } else {
+            DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+        }
+
+        await updateDraftMessage(serverUrl, post.channelId, draftRootId, textMessage);
+
+        DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
+    }, [post.channelId, post.messageSource, post.rootId, post, serverUrl]);
 
     const nBindings = Array.isArray(post.props?.app_bindings) ? post.props?.app_bindings.length : 0;
     const nAttachments = Array.isArray(post.props?.attachments) ? post.props?.attachments.length : 0;
@@ -297,14 +321,27 @@ const Body = ({
 
     if (hasBeenDeleted) {
         const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
+        const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
+        const textMessage = post.messageSource || post.message;
+        const canRecallEditPost = isOwnPost && isRecallInferred && within2MinFromCreateAt && Boolean(textMessage);
+        
         if (isRecallInferred) {
             if (isOwnPost) {
                 body = (
-                    <FormattedText
-                        style={style.message}
-                        id='mobile.post_body.recalled_self'
-                        defaultMessage='You withdrew a message'
-                    />
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                        <FormattedText
+                            style={style.message}
+                            id='mobile.post_body.recalled_self'
+                            defaultMessage='你撤回了一条消息'
+                        />
+                        {canRecallEditPost && (
+                            <Pressable onPress={handleReedit}>
+                                <Text style={[style.message, {color: theme.buttonBg, marginLeft: 8}]}>
+                                    重新编辑
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
                 );
             } else {
                 const rawUsername = author?.username || '';
@@ -316,7 +353,7 @@ const Body = ({
                     <FormattedText
                         style={style.message}
                         id='mobile.post_body.recalled_other'
-                        defaultMessage='{username} withdrew a message'
+                        defaultMessage='{username}撤回了一条消息'
                         values={{username}}
                     />
                 );

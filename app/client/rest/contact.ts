@@ -24,6 +24,7 @@ import ClientTracking from '@client/rest/tracking';
 import {
     cleanupExpiredContactDiskCache,
     clearContactDiskCacheCompany,
+    clearAllContactDiskCache,
     readContactDiskCache,
     writeContactDiskCache,
 } from './contact_disk_cache';
@@ -94,27 +95,22 @@ export type ContactEmployeeSearchItem = {
 
 /** 创建公司请求体：id/name/type 必填，id 需客户端生成 36 位字符串 */
 export type CreateCompanyRequest = ContactCompany;
-export type UpdateCompanyRequest = CreateCompanyRequest;
+export type UpdateCompanyRequest = Partial<Omit<ContactCompany, 'id'>>;
 
 /** 创建部门请求：company_id 必填，parent_id 可选（有则为子部门） */
 export type CreateDepartmentRequest = {
     company_id: string;
     name: string;
     description?: string;
-    parent_id?: number;
-};
-
-/** 更新部门请求：parent_id 为 null 表示移到根（顶层） */
-export type UpdateDepartmentRequest = {
-    company_id: string;
-    name: string;
-    description?: string;
     parent_id?: number | null;
 };
 
+/** 更新部门请求：parent_id 为 null 表示移到根（顶层） */
+export type UpdateDepartmentRequest = Partial<Omit<ContactDepartment, 'id'>> & {company_id: string};
+
 /** 创建员工请求体：id/name 必填，id 需客户端生成 36 位字符串 */
 export type CreateEmployeeRequest = ContactEmployee;
-export type UpdateEmployeeRequest = CreateEmployeeRequest;
+export type UpdateEmployeeRequest = Partial<Omit<ContactEmployee, 'id'>>;
 
 /** 员工-公司关联请求体 */
 export type CompanyEmployeeRequest = {
@@ -521,6 +517,14 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         return this.doFetchWithTracking(path, options, true) as Promise<T>;
     }
 
+    private async invalidateAllCompanyCache() {
+        this.versionByCompany.clear();
+        this.responseByCompany.clear();
+        this.versionInflight.clear();
+        this.diskInvalidationInFlight.clear();
+        await clearAllContactDiskCache();
+    }
+
     private async invalidateCompanyCache(companyId: string) {
         this.versionByCompany.delete(companyId);
         this.responseByCompany.delete(companyId);
@@ -690,8 +694,16 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     getEmployee = (employeeId: string) =>
         this.doRequestDirect<ContactEmployee>(contactRoutes.employee(employeeId), 'get');
 
-    updateEmployee = (employeeId: string, employee: UpdateEmployeeRequest) =>
-        this.doRequestDirect<ContactEmployee>(contactRoutes.employee(employeeId), 'put', employee);
+    updateEmployee = async (employeeId: string, employee: UpdateEmployeeRequest): Promise<ContactEmployee> => {
+        try {
+            const result = await this.doRequestDirect<ContactEmployee>(contactRoutes.employee(employeeId), 'put', employee);
+            await this.invalidateAllCompanyCache();
+            return result;
+        } catch (err) {
+            await this.invalidateAllCompanyCache();
+            throw err;
+        }
+    };
 
     deleteEmployee = (employeeId: string) =>
         this.doRequestDirect<Record<string, never>>(contactRoutes.employee(employeeId), 'delete');

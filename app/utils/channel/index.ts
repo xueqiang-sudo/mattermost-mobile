@@ -164,17 +164,19 @@ export function isDefaultChannel(channel: Channel | ChannelModel | undefined): b
 }
 
 /**
- * Default team channel (town-square): show company/team display name in header and composer,
+ * Default team channel (town-square) and all public channels: show company/team display name in header and composer,
  * consistent with {@link channel_item.tsx} list row. Falls back to channel.displayName if team is missing.
  */
 export function getChannelTitleDisplayName(
-    channel: Pick<ChannelModel, 'name' | 'displayName'> | undefined,
+    channel: Pick<ChannelModel, 'name' | 'displayName' | 'type'> | undefined,
     teamDisplayName?: string | null,
 ): string {
     if (!channel) {
         return '';
     }
-    if (isDefaultChannel(channel)) {
+    // 检查是否是公共频道（OPEN_CHANNEL）或默认频道
+    const isPublicChannel = (channel as any).type === General.OPEN_CHANNEL;
+    if (isDefaultChannel(channel) || isPublicChannel) {
         const team = teamDisplayName?.trim();
         return team || channel.displayName;
     }

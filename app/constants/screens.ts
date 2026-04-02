@@ -69,6 +69,9 @@ export const LOGIN = 'Login';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
 export const MFA = 'MFA';
 export const MY_HOMEPAGE = 'MyHomepage';
+export const MY_SUPPLIERS = 'MySuppliers';
+export const MY_CUSTOMERS = 'MyCustomers';
+export const ADD_EMPLOYEE_CONTACT = 'AddEmployeeContact';
 export const ONBOARDING = 'Onboarding';
 export const PDF_VIEWER = 'PdfViewer';
 export const PERMALINK = 'Permalink';
@@ -176,6 +179,9 @@ export default {
     MANAGE_CHANNEL_MEMBERS,
     MFA,
     MY_HOMEPAGE,
+    MY_SUPPLIERS,
+    MY_CUSTOMERS,
+    ADD_EMPLOYEE_CONTACT,
     ONBOARDING,
     PDF_VIEWER,
     PERMALINK,

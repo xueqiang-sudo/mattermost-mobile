@@ -64,6 +64,10 @@ const FIELDS: {[id: string]: MessageDescriptor} = defineMessages({
         id: 'user.settings.general.email',
         defaultMessage: 'Email',
     },
+    phone: {
+        id: 'user.settings.general.phone',
+        defaultMessage: 'Phone',
+    },
 });
 
 const styles = StyleSheet.create({
@@ -83,6 +87,7 @@ const USERNAME_FIELD = 'username';
 const EMAIL_FIELD = 'email';
 const NICKNAME_FIELD = 'nickname';
 const POSITION_FIELD = 'position';
+const PHONE_FIELD = 'phone';
 
 const profileKeys = [FIRST_NAME_FIELD, LAST_NAME_FIELD, USERNAME_FIELD, EMAIL_FIELD, NICKNAME_FIELD, POSITION_FIELD];
 
@@ -146,7 +151,7 @@ const ProfileForm = ({
                     break;
                 case EMAIL_FIELD:
                     fields[EMAIL_FIELD] = {
-                        isDisabled: true,
+                        isDisabled: true, //,//service !== '',
                     };
                     break;
                 case NICKNAME_FIELD:
@@ -159,6 +164,12 @@ const ProfileForm = ({
                     fields[POSITION_FIELD] = {
                         isDisabled: isSAMLOrLDAP(service) && lockedPosition,
                         maxLength: 128,
+                    };
+                    break;
+                case PHONE_FIELD:
+                    fields[PHONE_FIELD] = {
+                        isDisabled: false,
+                        maxLength: 20,
                     };
                     break;
                 default:
@@ -231,10 +242,12 @@ const ProfileForm = ({
     const getFieldID = (key: string) => key.slice(CUSTOM_ATTRS_PREFIX.length + 1);
 
     const getValue = (key: string): string => {
+        // 先尝试直接从 userInfo 读取
         const val = userInfo[key as keyof UserInfo];
         if (typeof val === 'string') {
             return val;
         }
+        // 如果不是标准字段，尝试从 customAttributes 读取
         try {
             const customKey = getFieldID(key);
             return userInfo.customAttributes[customKey].value;

@@ -562,15 +562,23 @@ export const updateContactEmployee = async (
     employeeId: string,
     updates: Partial<Pick<ContactEmployee, 'name' | 'email' | 'position' | 'phone'>>,
 ): Promise<UpdateContactEmployeeResult> => {
+    logDebug('[updateContactEmployee] Called with employeeId:', employeeId, 'updates:', updates);
     if (!employeeId) {
+        logDebug('[updateContactEmployee] Error: employeeId is required');
         return {error: new Error('employeeId is required')};
     }
     try {
-        const current = await ContactService.getEmployee(employeeId);
-        const updated = await ContactService.updateEmployee(employeeId, {...current, ...updates});
+        // logDebug('[updateContactEmployee] Getting current employee');
+        // const current = await ContactService.getEmployee(employeeId);
+        // logDebug('[updateContactEmployee] Current employee:', current);
+        
+        logDebug('[updateContactEmployee] Updating employee');
+        const updated = await ContactService.updateEmployee(employeeId, updates);
+        logDebug('[updateContactEmployee] Updated employee:', updated);
+        
         return {data: updated};
     } catch (error) {
-        logDebug('[updateContactEmployee]', getFullErrorMessage(error));
+        logDebug('[updateContactEmployee] Error:', getFullErrorMessage(error));
         return {error};
     }
 };

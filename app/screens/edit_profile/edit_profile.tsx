@@ -8,6 +8,7 @@ import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {updateLocalUser} from '@actions/local/user';
+import {updateContactEmployee} from '@actions/remote/contact';
 import {fetchCustomProfileAttributes, updateCustomProfileAttributes} from '@actions/remote/custom_profile';
 import {setDefaultProfileImage, updateMe, uploadUserProfileImage} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
@@ -21,7 +22,8 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, popTopScreen, setButtons} from '@screens/navigation';
-import {logError} from '@utils/log';
+import {realPhone} from '@utils/form-rule';
+import {logDebug, logError} from '@utils/log';
 import {isCustomFieldSamlLinked} from '@utils/user';
 
 import ProfileForm, {CUSTOM_ATTRS_PREFIX} from './components/form';
@@ -68,6 +70,7 @@ const EditProfile = ({
         nickname: currentUser?.nickname || '',
         position: currentUser?.position || '',
         username: currentUser?.username || '',
+        phone: realPhone(currentUser?.phone, currentUser?.countrycode),
         customAttributes: {},
     });
     const [canSave, setCanSave] = useState(false);
@@ -116,6 +119,7 @@ const EditProfile = ({
     }, [componentId, isModal, isTablet]);
 
     const enableSaveButton = useCallback((value: boolean) => {
+        logDebug('[EditProfile] enableSaveButton called with value:', value);
         if (!isTablet) {
             const buttons = {
                 rightButtons: [{
@@ -123,8 +127,10 @@ const EditProfile = ({
                     enabled: value,
                 }],
             };
+            logDebug('[EditProfile] Setting navigation buttons with enabled:', value);
             setButtons(componentId, buttons);
         }
+        logDebug('[EditProfile] Setting canSave to:', value);
         setCanSave(value);
     }, [componentId, rightButton, isTablet]);
 
@@ -168,14 +174,22 @@ const EditProfile = ({
         scrollViewRef.current?.scrollToPosition(0, 0, true);
     }, [enableSaveButton]);
 
-    const submitUser = usePreventDoubleTap(useCallback(async () => {
-        if (!currentUser) {
-            return;
-        }
-        enableSaveButton(false);
-        setError(undefined);
-        setUpdating(true);
+    const submitUser = useCallback(async () => {
+        logDebug('[EditProfile] submitUser CALLED!');
+
         try {
+            if (!currentUser) {
+                logDebug('[EditProfile] No currentUser, returning');
+                return;
+            }
+
+            logDebug('[EditProfile] currentUser exists:', Boolean(currentUser), 'currentUser.id:', currentUser?.id);
+
+            logDebug('[EditProfile] Enabling save button to false and setting updating to true');
+            enableSaveButton(false);
+            setError(undefined);
+            setUpdating(true);
+
             // Build update object with only changed and unlocked fields
             const newUserInfo: Partial<UserProfile> = {};
 
@@ -227,6 +241,46 @@ const EditProfile = ({
                 }
             }
 
+
+            // 同步更新企业通讯录中的个人信息
+            try {
+                logDebug('[EditProfile] Starting to sync contact employee info');
+
+                const nameFromProfile = `${(userInfo.firstName.trim() || '')}${(userInfo.lastName.trim() || '')}`.trim();
+                const name = userInfo.nickname.trim() || nameFromProfile || userInfo.username;
+
+                const contactUpdates: {name?: string; email?: string; position?: string; phone?: string} = {};
+
+                if (name) {
+                    contactUpdates.name = name;
+                }
+                if (userInfo.email.trim()) {
+                    contactUpdates.email = userInfo.email.trim();
+                }
+                if (userInfo.position.trim()) {
+                    contactUpdates.position = userInfo.position.trim();
+                }
+                if (userInfo.phone.trim()) {
+                    contactUpdates.phone = userInfo.phone.trim();
+                }
+
+                logDebug('[EditProfile] Contact updates to send:', contactUpdates);
+
+                if (Object.keys(contactUpdates).length > 0) {
+                    logDebug('[EditProfile] Calling updateContactEmployee for user:', currentUser.id);
+                    const result = await updateContactEmployee(currentUser.id, contactUpdates);
+                    if (result.error) {
+                        logError('[EditProfile] Error from updateContactEmployee:', result.error);
+                    } else {
+                        logDebug('[EditProfile] updateContactEmployee successful');
+                    }
+                } else {
+                    logDebug('[EditProfile] No contact updates to send');
+                }
+            } catch (contactError) {
+                logError('[EditProfile] Error updating contact employee info', contactError);
+            }
+
             // Update custom attributes if changed and not SAML-linked
             if (userInfo.customAttributes && enableCustomAttributes) {
                 // Create a map of custom fields for quick lookup
@@ -251,17 +305,21 @@ const EditProfile = ({
                 });
 
                 if (Object.keys(changedCustomAttributes).length > 0) {
+                    logDebug('[EditProfile] Calling updateCustomProfileAttributes for user:', currentUser.id);
                     const {error: attrError} = await updateCustomProfileAttributes(serverUrl, currentUser.id, changedCustomAttributes);
                     if (attrError) {
                         logError('Error updating custom attributes', attrError);
                         resetScreenForProfileError(attrError);
                         return;
                     }
+                    logDebug('[EditProfile] updateCustomProfileAttributes successful');
                 }
             }
 
+            logDebug('[EditProfile] All done, calling close()');
             close();
         } catch (e) {
+            logError('[EditProfile] Error in submitUser main try block:', e);
             resetScreen(e);
         }
     }, [
@@ -279,11 +337,23 @@ const EditProfile = ({
         resetScreenForProfileError,
         customFields,
         customAttributesSet,
-    ]));
+    ]);
 
     useAndroidHardwareBackHandler(componentId, close);
-    useNavButtonPressed(UPDATE_BUTTON_ID, componentId, submitUser, [userInfo]);
+
+    logDebug('[EditProfile] Setting up useNavButtonPressed handlers');
+    useNavButtonPressed(UPDATE_BUTTON_ID, componentId, () => {
+        logDebug('[EditProfile] UPDATE_BUTTON_ID pressed!');
+        logDebug('[EditProfile] canSave:', canSave);
+        logDebug('[EditProfile] Calling submitUser');
+        submitUser();
+    }, [userInfo, canSave, submitUser]);
+
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, []);
+
+    useEffect(() => {
+        logDebug('[EditProfile] canSave state changed to:', canSave);
+    }, [canSave]);
 
     const onUpdateProfilePicture = useCallback((newProfileImage: NewProfileImage) => {
         changedProfilePicture.current = newProfileImage;
@@ -291,6 +361,7 @@ const EditProfile = ({
     }, [enableSaveButton]);
 
     const onUpdateField = useCallback((fieldKey: string, value: string) => {
+        logDebug('[EditProfile] onUpdateField called with:', {fieldKey, value});
         const update = {...userInfo};
         if (fieldKey.startsWith(CUSTOM_ATTRS_PREFIX_NAME)) {
             const attrKey = fieldKey.slice(CUSTOM_ATTRS_PREFIX_NAME.length);
@@ -316,6 +387,9 @@ const EditProfile = ({
                 case 'username':
                     update.username = value;
                     break;
+                case 'phone':
+                    update.phone = value;
+                    break;
             }
         }
         setUserInfo(update);
@@ -324,12 +398,17 @@ const EditProfile = ({
         if (fieldKey.startsWith(CUSTOM_ATTRS_PREFIX_NAME)) {
             const attrKey = fieldKey.slice(CUSTOM_ATTRS_PREFIX_NAME.length);
             didChange = userInfo.customAttributes?.[attrKey].value !== value;
+        } else if (fieldKey === 'phone') {
+            // 对于手机号，直接对比 userInfo 中的新旧值
+            didChange = userInfo.phone !== value;
+            logDebug('[EditProfile] Phone field changed:', {old: userInfo.phone, new: value, didChange});
         } else {
             // @ts-expect-error access object property by string key
             const currentValue = currentUser[fieldKey];
             didChange = currentValue !== value;
         }
 
+        logDebug('[EditProfile] Field change result:', {fieldKey, didChange});
         hasUpdateUserInfo.current = didChange;
         enableSaveButton(didChange);
     }, [userInfo, currentUser, enableSaveButton]);

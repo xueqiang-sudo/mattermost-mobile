@@ -82,3 +82,12 @@ export const checkPhoneRule = (areaCode: string, phoneValue: string): string | u
     }
     return undefined;
 };
+
+export const realPhone = (phone?: string | null, areaCode?: string | null): string => {
+    if (!phone) {
+        return '';
+    }
+    // eslint-disable-next-line no-unused-expressions, no-param-reassign
+    areaCode && !areaCode.includes('+') && (areaCode = '+' + areaCode);
+    return `${areaCode && areaCode !== '+86' ? areaCode + ' ' : ''}${phone}`;
+};
