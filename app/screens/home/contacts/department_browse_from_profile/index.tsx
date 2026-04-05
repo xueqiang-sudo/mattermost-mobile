@@ -3,7 +3,7 @@
 
 import React, {useCallback, useState} from 'react';
 import {Text, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
@@ -22,6 +22,9 @@ type StackLevel = {
     departmentName: string;
     breadcrumb: string[];
 };
+
+/** 顶/左/右由本屏处理；底边由内嵌 department_detail（fromEmployeeProfile）单独处理，避免双层 SafeArea 叠加 */
+const SAFE_AREA_EDGES: Edge[] = ['top', 'left', 'right'];
 
 type Props = {
     componentId: AvailableScreens;
@@ -134,8 +137,8 @@ const ContactsDepartmentBrowseFromProfile = ({
 
     return (
         <SafeAreaView
-            edges={['bottom']}
-            style={styles.flex}
+            edges={SAFE_AREA_EDGES}
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
             testID='contacts.department_browse_from_profile.screen'
         >
             <View style={styles.headerBar}>

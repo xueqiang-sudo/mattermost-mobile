@@ -4,7 +4,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     fetchCompany,
@@ -28,6 +28,8 @@ import {typography} from '@utils/typography';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-batch-move';
+
+const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 type TargetLevel = {
     departmentId: number | null;
@@ -249,6 +251,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 24,
+        backgroundColor: theme.centerChannelBg,
     },
 }));
 
@@ -1077,8 +1080,8 @@ const ContactsBatchMoveMembers = ({
 
         return (
             <SafeAreaView
-                edges={['bottom']}
-                style={styles.flex}
+                edges={SAFE_AREA_EDGES}
+                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
                 testID='contacts.batch_move_members.screen'
             >
                 <View style={styles.header}>
@@ -1139,13 +1142,15 @@ const ContactsBatchMoveMembers = ({
                         />
                     </View>
                 ) : (employees.length === 0 && memberDepartments.length === 0) ? (
-                    <Text style={styles.emptyMessage}>
-                        {intl.formatMessage({id: 'contacts.no_members', defaultMessage: 'No members'})}
-                    </Text>
+                    <View style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}>
+                        <Text style={styles.emptyMessage}>
+                            {intl.formatMessage({id: 'contacts.no_members', defaultMessage: 'No members'})}
+                        </Text>
+                    </View>
                 ) : (
                     <>
                         <ScrollView
-                            style={styles.flex}
+                            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                             contentContainerStyle={{paddingBottom: 24}}
                             showsVerticalScrollIndicator={false}
                         >
@@ -1323,8 +1328,8 @@ const ContactsBatchMoveMembers = ({
 
     return (
         <SafeAreaView
-            edges={['bottom']}
-            style={styles.flex}
+            edges={SAFE_AREA_EDGES}
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
             testID='contacts.batch_move_members.screen'
         >
             <View style={styles.header}>
@@ -1374,7 +1379,7 @@ const ContactsBatchMoveMembers = ({
             ) : (
                 <>
                     <ScrollView
-                        style={styles.flex}
+                        style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                         contentContainerStyle={{paddingBottom: 24}}
                         showsVerticalScrollIndicator={false}
                     >

@@ -12,8 +12,10 @@ import ContactService, {
     type CreateEmployeeRequest,
 } from '@client/rest/contact';
 import {General} from '@constants';
+import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {getTeamById, queryMyTeams} from '@queries/servers/team';
+import {forceLogoutIfNecessary} from '@actions/remote/session';
 import {getFullErrorMessage} from '@utils/errors';
 import {generateId} from '@utils/general';
 import {logDebug} from '@utils/log';
@@ -334,6 +336,28 @@ export const fetchMergedUserProfileForQrCard = async (
 };
 
 /** 根据 id 获取单个通讯录公司 */
+/** 获取公司全部员工（用于企业信息转移所有权选人等） */
+export const fetchCompanyEmployeesList = async (companyId: string): Promise<FetchEmployeesResult> => {
+    if (!companyId) {
+        return {error: new Error('companyId is required')};
+    }
+    try {
+        const fromCompany = await ContactService.getEmployeesOfCompany(companyId);
+        if (Array.isArray(fromCompany) && fromCompany.length > 0) {
+            return {data: fromCompany};
+        }
+    } catch (error) {
+        logDebug('[fetchCompanyEmployeesList.getEmployeesOfCompany]', getFullErrorMessage(error));
+    }
+    try {
+        const data = await ContactService.getCompanyWithEmployees(companyId);
+        return {data};
+    } catch (error) {
+        logDebug('[fetchCompanyEmployeesList]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
 export const fetchCompany = async (companyId: string): Promise<FetchCompanyResult> => {
     if (!companyId) {
         return {error: new Error('companyId is required')};
@@ -609,6 +633,81 @@ export const updateContactCompany = async (
         return {data: company};
     } catch (error) {
         logDebug('[updateContactCompany]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+export type SyncEnterpriseDisplayNameParams = {
+    companyId: string;
+    displayName: string;
+    hasContactCompanyRecord: boolean;
+
+    /** company id 与 Mattermost team id 一致且应同步团队 display_name */
+    isMattermostTeam: boolean;
+};
+
+export type SyncEnterpriseDisplayNameResult = {
+    data?: {contactCompany?: ContactCompany};
+    error?: unknown;
+};
+
+/**
+ * 同步修改企业展示名：通讯录公司 +（若映射 Mattermost 团队）patchTeam display_name 并更新本地 DB。
+ */
+export const syncEnterpriseDisplayNameWithMattermost = async (
+    serverUrl: string | undefined,
+    params: SyncEnterpriseDisplayNameParams,
+): Promise<SyncEnterpriseDisplayNameResult> => {
+    const trimmed = params.displayName?.trim();
+    if (!params.companyId || !trimmed) {
+        return {error: new Error('companyId and displayName are required')};
+    }
+
+    let contactCompany: ContactCompany | undefined;
+
+    if (params.hasContactCompanyRecord) {
+        const contactRes = await updateContactCompany(params.companyId, trimmed);
+        if (contactRes.error) {
+            return {error: contactRes.error};
+        }
+        contactCompany = contactRes.data;
+    }
+
+    if (params.isMattermostTeam && serverUrl) {
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            const patched = await client.patchTeam({id: params.companyId, display_name: trimmed});
+            const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const models = await operator.handleTeam({teams: [patched], prepareRecordsOnly: true});
+            await operator.batchRecords(models, 'syncEnterpriseDisplayNameWithMattermost');
+        } catch (error) {
+            logDebug('[syncEnterpriseDisplayNameWithMattermost]', getFullErrorMessage(error));
+            forceLogoutIfNecessary(serverUrl, error);
+            return {error};
+        }
+    }
+
+    return {data: {contactCompany}};
+};
+
+export const transferContactCompanyOwnership = async (
+    currentUserId: string,
+    companyId: string,
+    newOwnerId: string,
+): Promise<{error?: unknown}> => {
+    const owner = currentUserId?.trim();
+    const next = newOwnerId?.trim();
+    if (!owner || !companyId || !next) {
+        return {error: new Error('currentUserId, companyId and newOwnerId are required')};
+    }
+    if (owner === next) {
+        return {error: new Error('new owner must differ from current user')};
+    }
+    try {
+        await ContactService.transferUserCompanyOwnership(owner, companyId, {new_owner_id: next});
+        return {};
+    } catch (error) {
+        logDebug('[transferContactCompanyOwnership]', getFullErrorMessage(error));
         return {error};
     }
 };

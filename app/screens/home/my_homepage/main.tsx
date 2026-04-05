@@ -10,9 +10,9 @@ import {useIsFocused, useNavigation} from '@react-navigation/native';
 import React from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Platform, ScrollView, StatusBar, Text, TouchableOpacity, View} from 'react-native';
+import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {EmployeeContactTypes} from '@client/rest/employee_contact';
 import CompassIcon from '@components/compass_icon';
@@ -21,6 +21,7 @@ import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {username2Nickname} from '@utils/user';
 
 import type {StackNavigationProp} from '@react-navigation/stack';
 import type {MyHomepageStackParamList} from '@screens/home/my_homepage/stack_param_list';
@@ -30,7 +31,8 @@ type Props = {
     currentUser?: UserModel;
 };
 
-const edges: Edge[] = ['left', 'right'];
+/** 与通讯录 Tab 一致：不用手动 topInset 条带，由 SafeAreaView 统一处理四边，避免双倍顶部留白 */
+const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
@@ -45,13 +47,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 16,
-        paddingVertical: 4,
+        paddingVertical: 2,
         backgroundColor: theme.sidebarBg,
+        flexShrink: 0,
     },
     headerTitle: {
         ...typography('Heading', 600, 'SemiBold'),
         color: theme.sidebarText,
         textAlign: 'center',
+        flexShrink: 1,
+        minWidth: 0,
     },
     scrollContent: {
         flexGrow: 1,
@@ -130,9 +135,17 @@ const MyHomepageMain = ({currentUser}: Props) => {
     const intl = useIntl();
     const isFocused = useIsFocused();
     const navigation = useNavigation<StackNavigationProp<MyHomepageStackParamList>>();
-    const insets = useSafeAreaInsets();
-    const topInset = insets.top || (Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0);
     const styles = getStyleSheet(theme);
+
+    const headerTitleText = React.useMemo(() => {
+        const fallback = intl.formatMessage({id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'});
+        const name = username2Nickname(currentUser, {
+            includeFullName: false,
+            locale: intl.locale,
+            useFallbackUsername: false,
+        }).trim();
+        return name || fallback;
+    }, [currentUser, intl]);
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
@@ -178,126 +191,130 @@ const MyHomepageMain = ({currentUser}: Props) => {
     });
 
     const content = (
-        <ScrollView
-            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
-            contentContainerStyle={[styles.scrollContent, {paddingBottom: insets.bottom + 24}]}
-            showsVerticalScrollIndicator={false}
-        >
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'})}
-                </Text>
-            </View>
-
-            <View style={styles.body}>
-                {/* 供应商按钮 */}
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={handleOpenSuppliers}
-                        activeOpacity={0.7}
+        <View style={styles.container}>
+            <View style={{backgroundColor: theme.sidebarBg}}>
+                <View style={styles.header}>
+                    <Text
+                        style={styles.headerTitle}
+                        numberOfLines={1}
+                        ellipsizeMode='tail'
                     >
-                        <View style={styles.buttonLeft}>
-                            <View style={[styles.buttonIcon, styles.buttonIconSupplier]}>
-                                <CompassIcon
-                                    name='car-outline'
-                                    size={24}
-                                    color={theme.linkColor}
-                                />
-                            </View>
-                            <View>
-                                <Text style={styles.buttonText}>
-                                    {intl.formatMessage({id: 'my_homepage.my_suppliers', defaultMessage: 'My Suppliers'})}
-                                </Text>
-                                <Text style={styles.buttonSubtext}>
-                                    {intl.formatMessage({id: 'my_homepage.suppliers_subtext', defaultMessage: 'Manage your supplier contacts'})}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.buttonRight}>
-                            <TouchableOpacity
-                                style={[styles.addButton, styles.addButtonSupplier]}
-                                onPress={handleAddSupplier}
-                                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                            >
-                                <CompassIcon
-                                    name='plus'
-                                    size={20}
-                                    color={theme.linkColor}
-                                />
-                            </TouchableOpacity>
-                            <CompassIcon
-                                name='chevron-right'
-                                size={20}
-                                color={theme.centerChannelColor}
-                                style={styles.arrowIcon}
-                            />
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* 客户按钮 */}
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={handleOpenCustomers}
-                        activeOpacity={0.7}
-                    >
-                        <View style={styles.buttonLeft}>
-                            <View style={[styles.buttonIcon, styles.buttonIconCustomer]}>
-                                <CompassIcon
-                                    name='account-multiple-outline'
-                                    size={24}
-                                    color={theme.onlineIndicator}
-                                />
-                            </View>
-                            <View>
-                                <Text style={styles.buttonText}>
-                                    {intl.formatMessage({id: 'my_homepage.my_customers', defaultMessage: 'My Customers'})}
-                                </Text>
-                                <Text style={styles.buttonSubtext}>
-                                    {intl.formatMessage({id: 'my_homepage.customers_subtext', defaultMessage: 'Manage your customer contacts'})}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.buttonRight}>
-                            <TouchableOpacity
-                                style={[styles.addButton, styles.addButtonCustomer]}
-                                onPress={handleAddCustomer}
-                                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                            >
-                                <CompassIcon
-                                    name='plus'
-                                    size={20}
-                                    color={theme.onlineIndicator}
-                                />
-                            </TouchableOpacity>
-                            <CompassIcon
-                                name='chevron-right'
-                                size={20}
-                                color={theme.centerChannelColor}
-                                style={styles.arrowIcon}
-                            />
-                        </View>
-                    </TouchableOpacity>
+                        {headerTitleText}
+                    </Text>
                 </View>
             </View>
-        </ScrollView>
+            <ScrollView
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
+                contentContainerStyle={[styles.scrollContent, {paddingBottom: 24}]}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.body}>
+                    {/* 供应商按钮 */}
+                    <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                            style={styles.button}
+                            onPress={handleOpenSuppliers}
+                            activeOpacity={0.7}
+                        >
+                            <View style={styles.buttonLeft}>
+                                <View style={[styles.buttonIcon, styles.buttonIconSupplier]}>
+                                    <CompassIcon
+                                        name='car-outline'
+                                        size={24}
+                                        color={theme.linkColor}
+                                    />
+                                </View>
+                                <View>
+                                    <Text style={styles.buttonText}>
+                                        {intl.formatMessage({id: 'my_homepage.my_suppliers', defaultMessage: 'My Suppliers'})}
+                                    </Text>
+                                    <Text style={styles.buttonSubtext}>
+                                        {intl.formatMessage({id: 'my_homepage.suppliers_subtext', defaultMessage: 'Manage your supplier contacts'})}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={styles.buttonRight}>
+                                <TouchableOpacity
+                                    style={[styles.addButton, styles.addButtonSupplier]}
+                                    onPress={handleAddSupplier}
+                                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                >
+                                    <CompassIcon
+                                        name='plus'
+                                        size={20}
+                                        color={theme.linkColor}
+                                    />
+                                </TouchableOpacity>
+                                <CompassIcon
+                                    name='chevron-right'
+                                    size={20}
+                                    color={theme.centerChannelColor}
+                                    style={styles.arrowIcon}
+                                />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* 客户按钮 */}
+                    <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                            style={styles.button}
+                            onPress={handleOpenCustomers}
+                            activeOpacity={0.7}
+                        >
+                            <View style={styles.buttonLeft}>
+                                <View style={[styles.buttonIcon, styles.buttonIconCustomer]}>
+                                    <CompassIcon
+                                        name='account-multiple-outline'
+                                        size={24}
+                                        color={theme.onlineIndicator}
+                                    />
+                                </View>
+                                <View>
+                                    <Text style={styles.buttonText}>
+                                        {intl.formatMessage({id: 'my_homepage.my_customers', defaultMessage: 'My Customers'})}
+                                    </Text>
+                                    <Text style={styles.buttonSubtext}>
+                                        {intl.formatMessage({id: 'my_homepage.customers_subtext', defaultMessage: 'Manage your customer contacts'})}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={styles.buttonRight}>
+                                <TouchableOpacity
+                                    style={[styles.addButton, styles.addButtonCustomer]}
+                                    onPress={handleAddCustomer}
+                                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                >
+                                    <CompassIcon
+                                        name='plus'
+                                        size={20}
+                                        color={theme.onlineIndicator}
+                                    />
+                                </TouchableOpacity>
+                                <CompassIcon
+                                    name='chevron-right'
+                                    size={20}
+                                    color={theme.centerChannelColor}
+                                    style={styles.arrowIcon}
+                                />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </ScrollView>
+        </View>
     );
 
     return (
         <Freeze freeze={!isFocused}>
-            <>
-                <View style={[{height: topInset, backgroundColor: theme.sidebarBg}]}/>
-                <SafeAreaView
-                    edges={edges}
-                    style={styles.flex}
-                >
-                    <Animated.View style={[styles.flex, animated]}>
-                        {content}
-                    </Animated.View>
-                </SafeAreaView>
-            </>
+            <SafeAreaView
+                edges={edges}
+                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+            >
+                <Animated.View style={[styles.flex, animated]}>
+                    {content}
+                </Animated.View>
+            </SafeAreaView>
         </Freeze>
     );
 };

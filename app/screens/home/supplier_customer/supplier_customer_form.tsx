@@ -15,7 +15,7 @@ import {
     View,
 } from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     addEmployeeContact,
@@ -42,7 +42,8 @@ import {typography} from '@utils/typography';
 import type {ContactEmployee} from '@client/rest/contact';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const edges: Edge[] = ['left', 'right'];
+/** Stack/Modal 内：统一由 SafeAreaView 处理四边，避免 topInset 条带与导航层叠加 */
+const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
@@ -355,8 +356,6 @@ const SupplierCustomerFormScreen = ({
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const intl = useIntl();
-    const insets = useSafeAreaInsets();
-    const topInset = insets.top || (Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0);
     const styles = getStyleSheet(theme);
 
     const [searchKeyword, setSearchKeyword] = useState('');
@@ -882,10 +881,9 @@ const SupplierCustomerFormScreen = ({
                 backgroundColor={theme.sidebarBg}
                 barStyle='light-content'
             />
-            <View style={[{height: topInset, backgroundColor: theme.sidebarBg}]}/>
             <SafeAreaView
                 edges={edges}
-                style={styles.flex}
+                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
             >
                 <Animated.View style={[styles.flex, animated]}>
                     <View style={styles.header}>
@@ -949,7 +947,7 @@ const SupplierCustomerFormScreen = ({
                         style={styles.bodyScroll}
                         contentContainerStyle={[
                             styles.scrollInner,
-                            {paddingBottom: insets.bottom + 24},
+                            {paddingBottom: 24},
                         ]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps='handled'

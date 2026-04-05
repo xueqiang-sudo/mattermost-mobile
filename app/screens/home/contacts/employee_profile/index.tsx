@@ -4,7 +4,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
 import {deleteContactEmployee} from '@actions/remote/contact';
@@ -27,6 +27,8 @@ import type {ContactEmployee} from '@client/rest/contact';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-employee-profile';
+
+const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 /** 与 showModalWithBackButton(SUPPLIER_CUSTOMER_FORM, …) 的 componentId 一致，用于明确关闭编辑层 */
 const SUPPLIER_CUSTOMER_FORM_MODAL_ID = 'close-supplier-customer-form' as AvailableScreens;
@@ -408,8 +410,8 @@ const ContactsEmployeeProfile = ({
 
     return (
         <SafeAreaView
-            edges={['bottom']}
-            style={styles.flex}
+            edges={SAFE_AREA_EDGES}
+            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
             testID='contacts.employee_profile.screen'
         >
             <ScrollView

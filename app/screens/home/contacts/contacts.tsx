@@ -5,9 +5,9 @@ import {useIsFocused, useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Platform, ScrollView, StatusBar, Text, TouchableOpacity, View} from 'react-native';
+import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     ensureTeamCompany,
@@ -20,6 +20,7 @@ import {
     syncTeamMembersToCompany,
 } from '@actions/remote/contact';
 import {DEFAULT_DEPARTMENT_NAME, type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+import {ContactsBarEnterpriseTitle} from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
@@ -37,7 +38,8 @@ import {typography} from '@utils/typography';
 import type {Database} from '@nozbe/watermelondb';
 import type UserModel from '@typings/database/models/servers/user';
 
-const edges: Edge[] = ['left', 'right'];
+/** 通讯录在 Stack 内：不再用手动 topInset 条带（易与系统/导航层重复叠加成「双倍留白」），只由 SafeAreaView 统一处理四边 */
+const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 type Props = {
     currentUser?: UserModel;
@@ -55,29 +57,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
         paddingHorizontal: 16,
-        paddingVertical: 4,
+        paddingVertical: 2,
         backgroundColor: theme.sidebarBg,
-    },
-    headerUser: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexShrink: 0,
     },
     headerTitle: {
         ...typography('Heading', 600, 'SemiBold'),
         color: theme.sidebarText,
-        textAlign: 'center',
     },
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginLeft: 'auto',
-        zIndex: 1,
+        flexShrink: 0,
         gap: 12,
+        marginLeft: 'auto',
     },
     headerIconButton: {
         padding: 4,
@@ -187,8 +181,6 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
-    const insets = useSafeAreaInsets();
-    const topInset = insets.top || (Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0);
     const isFocused = useIsFocused();
     const isFocusedRef = useRef(isFocused);
     isFocusedRef.current = isFocused;
@@ -200,9 +192,16 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
     const [companyName, setCompanyName] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
+    const [contactsHeaderWidth, setContactsHeaderWidth] = useState(0);
+    const [contactsHeaderActionsWidth, setContactsHeaderActionsWidth] = useState(0);
 
     /** 仅企业管理者可管理通讯录、可自动创建 */
     const [isEnterpriseManager, setIsEnterpriseManager] = useState(false);
+
+    const contactsActionsReserve = Math.max(
+        contactsHeaderActionsWidth,
+        isEnterpriseManager ? 72 : 40,
+    );
 
     /** RNN 弹窗关闭或 React Navigation Tab 再次聚焦时递增，触发主列表重新拉取 */
     const [homeReappearTick, setHomeReappearTick] = useState(0);
@@ -487,81 +486,88 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
         );
     };
 
-    const content = (
-        <ScrollView
-            style={styles.flex}
-            contentContainerStyle={[styles.scrollContent, {paddingBottom: insets.bottom + 24}]}
-            showsVerticalScrollIndicator={false}
-        >
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.headerUser}
-                    onPress={openAccount}
-                    activeOpacity={0.7}
-                    testID='contacts.header.account'
-                >
-                    <Text
-                        style={styles.headerTitle}
-                        numberOfLines={1}
-                    >
-                        {(companyName?.trim()) || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
-                    </Text>
-                </TouchableOpacity>
-                <View style={styles.headerActions}>
-                    <TouchableOpacity
-                        style={styles.headerIconButton}
-                        onPress={handleSearch}
-                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                        testID='contacts.header.search'
-                    >
-                        <CompassIcon
-                            name='magnify'
-                            size={24}
-                            color={theme.sidebarText}
-                        />
-                    </TouchableOpacity>
-                    {isEnterpriseManager && (
-                        <TouchableOpacity
-                            style={styles.headerIconButton}
-                            onPress={handleManageContacts}
-                            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                            testID='contacts.header.manage'
-                        >
-                            <CompassIcon
-                                name='format-list-bulleted'
-                                size={24}
-                                color={theme.sidebarText}
-                            />
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </View>
-
-            <View style={styles.enterpriseSection}>
-                <View style={styles.enterpriseHeader}>
-                    <Text style={styles.enterpriseTitle}>
-                        {intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'})}
-                    </Text>
-                </View>
-                {renderEnterpriseContent()}
-            </View>
-        </ScrollView>
-    );
-
     return (
         <Freeze freeze={!isFocused}>
-            <>
-                <View style={[{height: topInset, backgroundColor: theme.sidebarBg}]}/>
-                <SafeAreaView
-                    edges={edges}
-                    style={styles.flex}
-                    testID='contacts.screen'
-                >
+            <SafeAreaView
+                edges={edges}
+                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                testID='contacts.screen'
+            >
                     <Animated.View style={[styles.flex, animated]}>
-                        {content}
-                    </Animated.View>
-                </SafeAreaView>
-            </>
+                        <View style={styles.flex}>
+                            <View
+                                style={[styles.header, {position: 'relative', minHeight: 44}]}
+                                onLayout={(e) => setContactsHeaderWidth(e.nativeEvent.layout.width)}
+                            >
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={openAccount}
+                                    style={{
+                                        position: 'absolute',
+                                        left: 16,
+                                        right: contactsActionsReserve + 16 + 8,
+                                        top: 0,
+                                        bottom: 0,
+                                        zIndex: 0,
+                                    }}
+                                    testID='contacts.header.account'
+                                />
+                                <ContactsBarEnterpriseTitle
+                                    text={(companyName?.trim()) || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
+                                    textStyle={styles.headerTitle}
+                                    testID='contacts.header.title'
+                                    barWidth={contactsHeaderWidth}
+                                    actionsBlockWidth={contactsActionsReserve}
+                                />
+                                <View
+                                    style={[styles.headerActions, {zIndex: 2}]}
+                                    onLayout={(e) => setContactsHeaderActionsWidth(e.nativeEvent.layout.width)}
+                                >
+                                    <TouchableOpacity
+                                        style={styles.headerIconButton}
+                                        onPress={handleSearch}
+                                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                        testID='contacts.header.search'
+                                    >
+                                        <CompassIcon
+                                            name='magnify'
+                                            size={24}
+                                            color={theme.sidebarText}
+                                        />
+                                    </TouchableOpacity>
+                                    {isEnterpriseManager && (
+                                        <TouchableOpacity
+                                            style={styles.headerIconButton}
+                                            onPress={handleManageContacts}
+                                            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                            testID='contacts.header.manage'
+                                        >
+                                            <CompassIcon
+                                                name='format-list-bulleted'
+                                                size={24}
+                                                color={theme.sidebarText}
+                                            />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
+                        <ScrollView
+                            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
+                            contentContainerStyle={[styles.scrollContent, {paddingBottom: 24}]}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.enterpriseSection}>
+                                <View style={styles.enterpriseHeader}>
+                                    <Text style={styles.enterpriseTitle}>
+                                        {intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'})}
+                                    </Text>
+                                </View>
+                                {renderEnterpriseContent()}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </Animated.View>
+            </SafeAreaView>
         </Freeze>
     );
 };

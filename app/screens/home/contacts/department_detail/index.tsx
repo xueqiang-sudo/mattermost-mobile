@@ -1,14 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {Navigation} from 'react-native-navigation';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchContactDirectoryContent, fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact';
 import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
@@ -72,7 +73,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     stackHeaderBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
+        paddingHorizontal: 8,
         paddingVertical: 10,
         backgroundColor: theme.sidebarBg,
         borderBottomWidth: 1,
@@ -80,57 +81,57 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     stackHeaderBack: {
         padding: 4,
-        marginRight: 8,
-        zIndex: 1,
-    },
-    stackHeaderTitleWrap: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        justifyContent: 'center',
+        width: 40,
         alignItems: 'center',
-        paddingHorizontal: 48,
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
+    stackHeaderTitleSlot: {
+        flex: 1,
+        minWidth: 0,
+        marginHorizontal: 4,
     },
     stackHeaderTitle: {
         ...typography('Heading', 600, 'SemiBold'),
         color: theme.sidebarHeaderTextColor,
-        textAlign: 'center',
-    },
-    stackHeaderSpacer: {
-        flex: 1,
-        minWidth: 8,
     },
     stackHeaderActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        zIndex: 1,
+        gap: 4,
+        flexShrink: 0,
     },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 10,
+        backgroundColor: theme.sidebarBg,
         borderBottomWidth: 1,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
-    breadcrumb: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        alignItems: 'center',
+    /** 单行横向滚动，避免长路径折成多行 */
+    breadcrumbScroll: {
         flex: 1,
+        minWidth: 0,
+    },
+    breadcrumbRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'nowrap',
         gap: 8,
+        paddingVertical: 2,
+        paddingRight: 8,
     },
     breadcrumbText: {
         ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
+        /** 条带在 sidebarBg 上，须用 sidebar 前景色而非 centerChannelColor */
+        color: changeOpacity(theme.sidebarText, 0.88),
     },
     breadcrumbSeparator: {
         ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.48),
+        color: changeOpacity(theme.sidebarText, 0.45),
     },
     breadcrumbLink: {
         paddingVertical: 2,
@@ -239,6 +240,7 @@ const ContactsDepartmentDetail = ({
     const theme = useTheme();
     const intl = useIntl();
     const mounted = useRef(false);
+    const breadcrumbScrollRef = useRef<ScrollView>(null);
     const styles = getStyleSheet(theme);
 
     const [subDepartments, setSubDepartments] = useState<ContactDepartment[]>([]);
@@ -246,10 +248,13 @@ const ContactsDepartmentDetail = ({
     const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
-    const baseBreadcrumb = breadcrumb.length > 0 ? breadcrumb : [
-        intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
-        departmentName,
-    ];
+    const baseBreadcrumb = React.useMemo(
+        () => (breadcrumb.length > 0 ? breadcrumb : [
+            intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
+            departmentName,
+        ]),
+        [breadcrumb, departmentName, intl],
+    );
 
     const handleClose = useCallback(() => {
         if (onBack) {
@@ -296,12 +301,18 @@ const ContactsDepartmentDetail = ({
             {
                 companyId,
                 companyName,
-                ...(departmentId != null ? {departmentId, departmentName} : {}),
+                ...(departmentId != null ?
+                    {
+                        departmentId,
+                        departmentName,
+                        departmentBreadcrumb: baseBreadcrumb,
+                    } :
+                    {}),
                 closeButtonId: closeId,
             },
             {useBackIcon: true},
         );
-    }, [companyId, companyName, departmentId, departmentName, intl, onSearchPress]);
+    }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName, intl, onSearchPress]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: ContactDepartment) => {
         const newBreadcrumb = [...baseBreadcrumb, dept.name];
@@ -353,6 +364,22 @@ const ContactsDepartmentDetail = ({
         () => getNavigationalPathView(baseBreadcrumb, NAV_PATH_MAX_VISIBLE),
         [baseBreadcrumb],
     );
+
+    /** 路径变化或首屏布局后滚到最右侧，默认露出当前层级（路径末尾） */
+    const breadcrumbPathSignature = React.useMemo(
+        () => baseBreadcrumb.join('\u0001'),
+        [baseBreadcrumb],
+    );
+
+    const scrollBreadcrumbToEnd = useCallback(() => {
+        requestAnimationFrame(() => {
+            breadcrumbScrollRef.current?.scrollToEnd({animated: false});
+        });
+    }, []);
+
+    useLayoutEffect(() => {
+        scrollBreadcrumbToEnd();
+    }, [breadcrumbPathSignature, scrollBreadcrumbToEnd]);
 
     const handleEllipsisPress = useCallback(() => {
         if (pathView.middleSegments.length === 0) {
@@ -642,10 +669,17 @@ const ContactsDepartmentDetail = ({
         );
     };
 
+    const safeAreaEdges: Edge[] = fromEmployeeProfile
+        ? ['bottom']
+        : ['top', 'bottom', 'left', 'right'];
+
     return (
         <SafeAreaView
-            edges={['bottom']}
-            style={styles.flex}
+            edges={safeAreaEdges}
+            style={[
+                styles.flex,
+                fromEmployeeProfile ? undefined : {backgroundColor: theme.sidebarBg},
+            ]}
             testID='contacts.department_detail.screen'
         >
             {onBack && !fromEmployeeProfile ? (
@@ -662,18 +696,13 @@ const ContactsDepartmentDetail = ({
                             color={theme.sidebarHeaderTextColor}
                         />
                     </TouchableOpacity>
-                    <View
-                        style={styles.stackHeaderTitleWrap}
-                        pointerEvents='box-none'
-                    >
-                        <Text
-                            style={styles.stackHeaderTitle}
-                            numberOfLines={1}
-                        >
-                            {departmentName}
-                        </Text>
+                    <View style={styles.stackHeaderTitleSlot}>
+                        <AdaptiveTitleText
+                            text={departmentName}
+                            textStyle={styles.stackHeaderTitle}
+                            testID='contacts.department_detail.header_title'
+                        />
                     </View>
-                    <View style={styles.stackHeaderSpacer}/>
                     <View style={styles.stackHeaderActions}>
                         <TouchableOpacity
                             onPress={handleSearch}
@@ -701,7 +730,15 @@ const ContactsDepartmentDetail = ({
                 </View>
             ) : null}
             <View style={styles.headerRow}>
-                <View style={styles.breadcrumb}>
+                <ScrollView
+                    ref={breadcrumbScrollRef}
+                    horizontal={true}
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.breadcrumbScroll}
+                    contentContainerStyle={styles.breadcrumbRow}
+                    keyboardShouldPersistTaps='handled'
+                    onContentSizeChange={scrollBreadcrumbToEnd}
+                >
                     {pathView.items.map((pathItem, idx) => (
                         <React.Fragment key={idx}>
                             {idx > 0 && (
@@ -744,10 +781,10 @@ const ContactsDepartmentDetail = ({
                             )}
                         </React.Fragment>
                     ))}
-                </View>
+                </ScrollView>
             </View>
             <ScrollView
-                style={styles.flex}
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 contentContainerStyle={{paddingBottom: 24}}
                 showsVerticalScrollIndicator={false}
             >

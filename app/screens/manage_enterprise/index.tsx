@@ -15,6 +15,7 @@ import {
     type ManageEnterpriseEntry,
 } from '@actions/remote/contact';
 import {ContactCompanyTypes} from '@client/rest/contact';
+import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
@@ -171,7 +172,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     companyNameBlock: {
         flex: 1,
+        minWidth: 0,
         marginRight: 8,
+        justifyContent: 'center',
     },
     companyName: {
         ...typography('Body', 200),
@@ -403,12 +406,11 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                         </Text>
                     </View>
                     <View style={styles.companyNameBlock}>
-                        <Text
-                            style={styles.companyName}
-                            numberOfLines={1}
-                        >
-                            {entry.name}
-                        </Text>
+                        <AdaptiveTitleText
+                            text={entry.name}
+                            textStyle={styles.companyName}
+                            testID={`enterprise.manage.company_name.${entry.id}`}
+                        />
                         {SHOW_ENTERPRISE_SOURCE_LABEL && (
                             <Text
                                 style={styles.companySource}

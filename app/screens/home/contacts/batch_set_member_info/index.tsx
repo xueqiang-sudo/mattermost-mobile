@@ -4,7 +4,7 @@
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {updateContactEmployee} from '@actions/remote/contact';
 import {type ContactEmployee} from '@client/rest/contact';
@@ -21,6 +21,8 @@ import {typography} from '@utils/typography';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-batch-set-info';
+
+const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 type Props = {
     componentId: AvailableScreens;
@@ -259,8 +261,8 @@ const ContactsBatchSetMemberInfo = ({
 
     return (
         <SafeAreaView
-            edges={['bottom']}
-            style={styles.flex}
+            edges={SAFE_AREA_EDGES}
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
             testID='contacts.batch_set_member_info.screen'
         >
             <View style={styles.header}>
@@ -282,7 +284,7 @@ const ContactsBatchSetMemberInfo = ({
                 </View>
             </View>
             <ScrollView
-                style={styles.flex}
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >

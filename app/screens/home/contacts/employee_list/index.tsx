@@ -4,7 +4,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchEmployeesOfCompaniesByType} from '@actions/remote/contact';
 import ContactAvatar from '@components/contact_avatar';
@@ -22,6 +22,8 @@ import type {ContactEmployee} from '@client/rest/contact';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-employee-list';
+
+const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 type Props = {
     componentId: AvailableScreens;
@@ -172,8 +174,8 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
 
     return (
         <SafeAreaView
-            edges={['bottom']}
-            style={styles.flex}
+            edges={SAFE_AREA_EDGES}
+            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
             testID='contacts.employee_list.screen'
         >
             <ScrollView

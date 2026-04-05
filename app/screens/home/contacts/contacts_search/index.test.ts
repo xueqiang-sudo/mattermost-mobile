@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {filterValidSearchItems} from './index';
+import {filterValidSearchItems} from '@utils/contact_employee_search_path';
 
 import type {ContactEmployeeSearchItem} from '@client/rest/contact';
 

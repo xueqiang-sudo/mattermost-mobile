@@ -10,15 +10,13 @@ import {
     DeviceEventEmitter,
     FlatList,
     type GestureResponderEvent,
-    Platform,
     RefreshControl,
-    StatusBar,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     fetchEmployeeContactsWithDetails,
@@ -46,7 +44,8 @@ type Props = {
 
 type ListNav = StackNavigationProp<MyHomepageStackParamList>;
 
-const edges: Edge[] = ['left', 'right'];
+/** Stack 内页面：不用手动 topInset 条带，由 SafeAreaView 统一四边，避免双倍顶部留白 */
+const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
@@ -238,8 +237,6 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     const intl = useIntl();
     const isFocused = useIsFocused();
     const navigation = useNavigation<ListNav>();
-    const insets = useSafeAreaInsets();
-    const topInset = insets.top || (Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0);
     const styles = getStyleSheet(theme);
 
     const [items, setItems] = useState<EmployeeContactDetail[]>([]);
@@ -486,14 +483,12 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
 
     return (
         <Freeze freeze={!isFocused}>
-            <>
-                <View style={[{height: topInset, backgroundColor: theme.sidebarBg}]}/>
-                <SafeAreaView
-                    edges={edges}
-                    style={styles.flex}
-                >
-                    <Animated.View style={[styles.flex, animated]}>
-                        {listHeader}
+            <SafeAreaView
+                edges={edges}
+                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+            >
+                <Animated.View style={[styles.flex, animated]}>
+                    {listHeader}
                         {loading && items.length === 0 ? (
                             <View style={styles.loadingContainer}>
                                 <Loading
@@ -503,10 +498,10 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                             </View>
                         ) : (
                             <FlatList
-                                style={styles.flex}
+                                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                                 contentContainerStyle={[
                                     styles.listContent,
-                                    {paddingBottom: insets.bottom + 24},
+                                    {paddingBottom: 24},
                                     items.length === 0 ? {flexGrow: 1} : undefined,
                                 ]}
                                 data={items}
@@ -527,9 +522,8 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                                 testID='supplier_customer.list.flatlist'
                             />
                         )}
-                    </Animated.View>
-                </SafeAreaView>
-            </>
+                </Animated.View>
+            </SafeAreaView>
         </Freeze>
     );
 };

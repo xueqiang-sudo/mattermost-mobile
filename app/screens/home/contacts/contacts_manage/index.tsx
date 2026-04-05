@@ -1,10 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useDatabase} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     createSubDepartment,
@@ -12,7 +13,7 @@ import {
     fetchContactDepartment,
     fetchContactDirectoryContent,
     fetchEmployeeCountOfDepartment,
-    updateContactCompany,
+    syncEnterpriseDisplayNameWithMattermost,
     updateContactDepartment,
 } from '@actions/remote/contact';
 import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
@@ -21,11 +22,13 @@ import ContactDirectoryList from '@components/contact_directory_list';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {Screens} from '@constants';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {queryMyTeams} from '@queries/servers/team';
 import {bottomSheet, dismissBottomSheet, dismissModals, showModal, showModalWithBackButton} from '@screens/navigation';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheetSnapPoint} from '@utils/helpers';
@@ -35,6 +38,9 @@ import {typography} from '@utils/typography';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-manage';
+
+/** Modal 内：四边安全区由 SafeAreaView 统一处理，避免仅 bottom 导致顶部与系统/导航叠加留白 */
+const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 type ManageLevel = {
     departmentId: number | null;
@@ -166,6 +172,8 @@ const ContactsManage = ({
     departmentName: initialDepartmentName,
     breadcrumb: initialBreadcrumb = [],
 }: Props) => {
+    const database = useDatabase();
+    const serverUrl = useServerUrl();
     const theme = useTheme();
     const intl = useIntl();
     const mounted = useRef(false);
@@ -422,7 +430,14 @@ const ContactsManage = ({
         if (!name) {
             return;
         }
-        const res = await updateContactCompany(companyId, name);
+        const myTeams = await queryMyTeams(database).fetch();
+        const isMattermostTeam = myTeams.some((m) => m.id === companyId);
+        const res = await syncEnterpriseDisplayNameWithMattermost(serverUrl, {
+            companyId,
+            displayName: name,
+            hasContactCompanyRecord: true,
+            isMattermostTeam,
+        });
         if (res.error) {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
@@ -432,7 +447,7 @@ const ContactsManage = ({
             setEnterpriseDisplayName(name);
             refetch();
         }
-    }, [companyId, intl, modifyEnterpriseNameInput, refetch, enterpriseDisplayName, companyName, currentDepartmentId]);
+    }, [companyId, database, intl, modifyEnterpriseNameInput, refetch, enterpriseDisplayName, companyName, currentDepartmentId, serverUrl]);
 
     const handleMore = usePreventDoubleTap(useCallback(() => {
         /* 批量设置成员信息暂不启用，enterSubFirst 仅该功能使用
@@ -583,8 +598,8 @@ const ContactsManage = ({
 
     return (
         <SafeAreaView
-            edges={['bottom']}
-            style={styles.flex}
+            edges={SAFE_AREA_EDGES}
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
             testID='contacts.manage.screen'
         >
             <View style={styles.header}>
@@ -634,7 +649,7 @@ const ContactsManage = ({
                 </View>
             </View>
             <ScrollView
-                style={styles.flex}
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >

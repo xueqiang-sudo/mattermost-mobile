@@ -12,59 +12,32 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchSearchContactEmployees} from '@actions/remote/contact';
-import {DEFAULT_DEPARTMENT_NAME, type ContactEmployeeSearchItem} from '@client/rest/contact';
+import {type ContactEmployeeSearchItem} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
+import ContactSearchScopeHint from '@components/contact_search_scope_hint';
 import GlobalErrorBoundary from '@components/global_error_fallback';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
-import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
+import {
+    cascadePathLabel,
+    cascadePathParts,
+    filterValidSearchItems,
+    normalizeDepartmentName,
+} from '@utils/contact_employee_search_path';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-function normalizeDepartmentName(name: string, defaultDepartmentLabel: string): string {
-    return name === DEFAULT_DEPARTMENT_NAME ? defaultDepartmentLabel : name;
-}
+const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 
-function cascadePathParts(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string): string[] {
-    const paths = item.cascade_departments;
-    if (!paths?.length) {
-        return [];
-    }
-    return paths[0].map((d) => normalizeDepartmentName(d.name, defaultDepartmentLabel));
-}
-
-function cascadePathLabel(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string, enterpriseLabel: string): string {
-    const parts = cascadePathParts(item, defaultDepartmentLabel);
-    if (!parts.length) {
-        return '';
-    }
-
-    const leaf = parts[parts.length - 1];
-    const parentPath = formatPathForDisplay(
-        parts.slice(0, -1),
-        DEPARTMENT_PATH_DISPLAY_MAX_LENGTH,
-        '/',
-        enterpriseLabel,
-    );
-
-    return parentPath ? `${leaf}\n${parentPath}` : leaf;
-}
-
-function isValidSearchItem(item: ContactEmployeeSearchItem | undefined): item is ContactEmployeeSearchItem {
-    return Boolean(item?.employee?.id);
-}
-
-export function filterValidSearchItems(items: ContactEmployeeSearchItem[] = []) {
-    return items.filter(isValidSearchItem);
-}
+export {filterValidSearchItems} from '@utils/contact_employee_search_path';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {flex: 1},
@@ -133,12 +106,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 32,
         paddingHorizontal: 24,
     },
-    scopeHint: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.48),
-        paddingHorizontal: 16,
-        paddingTop: 8,
-    },
 }));
 
 type Props = {
@@ -148,6 +115,8 @@ type Props = {
     companyName?: string;
     departmentId?: number;
     departmentName?: string;
+    /** 与部门详情 baseBreadcrumb 一致，用于搜索范围级联展示 */
+    departmentBreadcrumb?: string[];
     currentUserId?: string;
 
     /** 通讯录栈内 push 时使用，替代左上角系统返回 */
@@ -161,6 +130,7 @@ const ContactsSearchContent = ({
     companyName,
     departmentId,
     departmentName,
+    departmentBreadcrumb,
     currentUserId,
     onBack,
 }: Props) => {
@@ -264,20 +234,6 @@ const ContactsSearchContent = ({
         );
     }, [companyId, companyName, currentUserId, defaultDepartmentLabel, departmentName, intl]);
 
-    let scopeHint: string | null = null;
-    if (typeof departmentId === 'number' && departmentName) {
-        const scopeDepartmentName = normalizeDepartmentName(departmentName, defaultDepartmentLabel);
-        scopeHint = intl.formatMessage(
-            {id: 'contacts.search.scope_department', defaultMessage: 'Searching in: {name}'},
-            {name: scopeDepartmentName},
-        );
-    } else if (companyName) {
-        scopeHint = intl.formatMessage(
-            {id: 'contacts.search.scope_company', defaultMessage: 'Searching in: {name}'},
-            {name: companyName},
-        );
-    }
-
     let emptyMessage: string | null = null;
     if (query.trim()) {
         if (searched && !loading) {
@@ -327,8 +283,8 @@ const ContactsSearchContent = ({
 
     return (
         <SafeAreaView
-            style={styles.flex}
-            edges={onBack ? ['top', 'left', 'right', 'bottom'] : ['left', 'right', 'bottom']}
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+            edges={SAFE_AREA_EDGES}
         >
             {onBack ? (
                 <View style={styles.header}>
@@ -352,9 +308,14 @@ const ContactsSearchContent = ({
                     </Text>
                 </View>
             ) : null}
-            {scopeHint ? (
-                <Text style={styles.scopeHint}>{scopeHint}</Text>
-            ) : null}
+            <ContactSearchScopeHint
+                variant='onSidebarHeader'
+                companyName={companyName}
+                departmentBreadcrumb={departmentBreadcrumb}
+                departmentName={departmentName}
+                departmentScoped={typeof departmentId === 'number' && Boolean(departmentName)}
+                testID='contacts.search.scope'
+            />
             <View style={styles.searchWrap}>
                 <TextInput
                     value={query}
@@ -373,6 +334,7 @@ const ContactsSearchContent = ({
                 />
             </View>
             <FlatList
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 data={results}
                 keyExtractor={(item, index) => item.employee?.id ?? `invalid-contact-${index}`}
                 renderItem={renderItem}

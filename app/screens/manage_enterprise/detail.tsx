@@ -2,23 +2,42 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {
+    Alert,
+    DeviceEventEmitter,
+    Dimensions,
+    FlatList,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {
     dissolveEnterprise,
     fetchCanDissolveTeam,
     fetchCompany,
+    fetchCompanyEmployeesList,
     fetchEmployeeCountOfCompany,
+    fetchSearchContactEmployees,
     quitEnterprise,
+    syncEnterpriseDisplayNameWithMattermost,
+    transferContactCompanyOwnership,
     type FetchCompanyResult,
     type FetchEmployeeCountOfCompanyResult,
 } from '@actions/remote/contact';
 import {deleteTeam, fetchTeamMemberCount, removeCurrentUserFromTeam} from '@actions/remote/team';
-import {type ContactCompany} from '@client/rest/contact';
+import {type ContactCompany, type ContactEmployee, type ContactEmployeeSearchItem} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
+import ContactAvatar from '@components/contact_avatar';
+import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
 import {Events} from '@constants';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
@@ -28,11 +47,16 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentUser} from '@queries/servers/user';
 import {popTopScreen} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
+import {cascadePathLabel, filterValidSearchItems} from '@utils/contact_employee_search_path';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
+
+type TransferOwnershipListEntry =
+    | {mode: 'browse'; member: ContactEmployee}
+    | {mode: 'search'; item: ContactEmployeeSearchItem};
 
 type Props = {
     companyId: string;
@@ -192,6 +216,121 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100),
         color: changeOpacity(theme.centerChannelColor, 0.64),
     },
+    secondaryButton: {
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        flexDirection: 'row',
+        columnGap: 8,
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.buttonBg, 0.35),
+        marginBottom: 12,
+    },
+    secondaryButtonText: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    managementCard: {
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.buttonBg, 0.35),
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        overflow: 'hidden',
+        marginBottom: 12,
+    },
+    managementCardRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        columnGap: 8,
+        paddingVertical: 14,
+        paddingHorizontal: 12,
+    },
+    managementCardDivider: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.22),
+    },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: changeOpacity('#000000', 0.45),
+        justifyContent: 'flex-end',
+    },
+    transferSheet: {
+        width: '100%',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        backgroundColor: theme.centerChannelBg,
+        overflow: 'hidden',
+    },
+    transferSheetInner: {
+        flex: 1,
+    },
+    transferSheetHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        flexShrink: 0,
+    },
+    transferSheetTitle: {
+        ...typography('Heading', 300, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    transferSearchWrap: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: theme.centerChannelBg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        flexShrink: 0,
+    },
+    transferSearchInput: {
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: Platform.select({ios: 10, android: 8}),
+        minHeight: 40,
+    },
+    transferList: {
+        flex: 1,
+    },
+    transferMemberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    transferMemberAvatar: {
+        marginRight: 14,
+    },
+    transferMemberText: {
+        flex: 1,
+        minWidth: 0,
+    },
+    transferMemberName: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    transferMemberPath: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: 2,
+    },
+    transferHint: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
 }));
 
 const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam, hasContactCompanyRecord = true, isCurrentTeam = false, currentUser, componentId}: Props) => {
@@ -206,8 +345,46 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
     const [isCreator, setIsCreator] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<unknown>();
+    const [transferVisible, setTransferVisible] = useState(false);
+    const [transferMembers, setTransferMembers] = useState<ContactEmployee[]>([]);
+    const [transferLoading, setTransferLoading] = useState(false);
+    const [transferSearchQuery, setTransferSearchQuery] = useState('');
+    const [transferSearchMembers, setTransferSearchMembers] = useState<ContactEmployeeSearchItem[]>([]);
+    const [transferSearchPending, setTransferSearchPending] = useState(false);
+    const transferSearchSeq = useRef(0);
+
+    const transferSheetHeight = React.useMemo(
+        () => Math.min(Math.round(Dimensions.get('window').height * 0.72), 560),
+        [],
+    );
+
+    const defaultDepartmentLabel = intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});
+    const enterpriseLabelForPath = company?.name ?? companyName ?? '';
+
+    const transferListEntries = React.useMemo((): TransferOwnershipListEntry[] => {
+        if (transferSearchQuery.trim()) {
+            return transferSearchMembers.map((item) => ({mode: 'search' as const, item}));
+        }
+        return transferMembers.map((member) => ({mode: 'browse' as const, member}));
+    }, [transferSearchQuery, transferSearchMembers, transferMembers]);
 
     const employeeId = currentUser?.id;
+    const editNameModal = useCustomInputModal();
+
+    const refreshCompanyAfterRename = useCallback(async (fallbackName: string) => {
+        const companyRes = await fetchCompany(companyId);
+        if (!companyRes.error && companyRes.data) {
+            setCompany(companyRes.data);
+        } else {
+            setCompany((prev) => ({
+                id: companyId,
+                name: fallbackName,
+                type: 'team' as const,
+                owner_id: prev?.owner_id ?? '',
+            }));
+        }
+        DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
+    }, [companyId]);
 
     useEffect(() => {
         const load = async () => {
@@ -383,6 +560,127 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
         );
     }, [company, companyId, companyName, employeeId, handleSuccessAndBack, hasContactCompanyRecord, intl, isCreator, isMattermostTeam, serverUrl]));
 
+    const handleEditEnterprise = usePreventDoubleTap(useCallback(async () => {
+        const current = (company?.name || companyName || '').trim();
+        const name = await editNameModal.showModal({
+            title: intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name_title', defaultMessage: 'Modify enterprise name'}),
+            placeholder: intl.formatMessage({id: 'enterprise.detail.name_placeholder', defaultMessage: 'Enterprise name'}),
+            defaultValue: current,
+            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+        });
+        if (!name?.trim()) {
+            return;
+        }
+        const trimmed = name.trim();
+        const res = await syncEnterpriseDisplayNameWithMattermost(serverUrl, {
+            companyId,
+            displayName: trimmed,
+            hasContactCompanyRecord,
+            isMattermostTeam: Boolean(isMattermostTeam),
+        });
+        if (res.error) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name_title', defaultMessage: 'Modify enterprise name'}),
+                intl.formatMessage({id: 'enterprise.detail.edit_failed', defaultMessage: 'Failed to update enterprise. Please try again.'}),
+            );
+            return;
+        }
+        await refreshCompanyAfterRename(trimmed);
+        Alert.alert(
+            intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name_title', defaultMessage: 'Modify enterprise name'}),
+            intl.formatMessage({id: 'enterprise.detail.edit_success', defaultMessage: 'Enterprise name was updated.'}),
+        );
+    }, [company?.name, companyId, companyName, editNameModal, hasContactCompanyRecord, intl, isMattermostTeam, refreshCompanyAfterRename, serverUrl]));
+
+    const runTransferToUserId = useCallback(async (newOwnerId: string) => {
+        if (!employeeId) {
+            return;
+        }
+        const tr = await transferContactCompanyOwnership(employeeId, companyId, newOwnerId);
+        if (tr.error) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.detail.transfer_title', defaultMessage: 'Transfer ownership'}),
+                intl.formatMessage({id: 'enterprise.detail.transfer_failed', defaultMessage: 'Failed to transfer ownership. Please try again.'}),
+            );
+            return;
+        }
+        setTransferVisible(false);
+        const companyRes = await fetchCompany(companyId);
+        if (!companyRes.error && companyRes.data) {
+            setCompany(companyRes.data);
+        }
+        DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
+        Alert.alert(
+            intl.formatMessage({id: 'enterprise.detail.transfer_title', defaultMessage: 'Transfer ownership'}),
+            intl.formatMessage({id: 'enterprise.detail.transfer_success', defaultMessage: 'Ownership was transferred.'}),
+        );
+    }, [companyId, employeeId, intl]);
+
+    const handlePickTransferMember = usePreventDoubleTap(useCallback((member: ContactEmployee) => {
+        Alert.alert(
+            intl.formatMessage({id: 'enterprise.detail.transfer_confirm_title', defaultMessage: 'Transfer ownership?'}),
+            intl.formatMessage(
+                {id: 'enterprise.detail.transfer_confirm_message', defaultMessage: 'Make {name} the new owner of this enterprise?'},
+                {name: member.name},
+            ),
+            [
+                {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
+                {
+                    text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
+                    onPress: () => {
+                        runTransferToUserId(member.id);
+                    },
+                },
+            ],
+        );
+    }, [intl, runTransferToUserId]));
+
+    const openTransferSheet = usePreventDoubleTap(useCallback(async () => {
+        if (!employeeId) {
+            return;
+        }
+        setTransferSearchQuery('');
+        setTransferSearchMembers([]);
+        setTransferVisible(true);
+        setTransferLoading(true);
+        const res = await fetchCompanyEmployeesList(companyId);
+        setTransferLoading(false);
+        if (res.error || !res.data?.length) {
+            setTransferMembers([]);
+            return;
+        }
+        setTransferMembers(res.data.filter((e) => e.id !== employeeId));
+    }, [companyId, employeeId]));
+
+    useEffect(() => {
+        if (!transferVisible || !employeeId) {
+            return;
+        }
+        const q = transferSearchQuery.trim();
+        if (!q) {
+            setTransferSearchMembers([]);
+            setTransferSearchPending(false);
+            return;
+        }
+        setTransferSearchPending(true);
+        const seq = ++transferSearchSeq.current;
+        const handle = setTimeout(async () => {
+            const res = await fetchSearchContactEmployees(companyId, q);
+            if (seq !== transferSearchSeq.current) {
+                return;
+            }
+            setTransferSearchPending(false);
+            if (res.error || !res.data?.length) {
+                setTransferSearchMembers([]);
+                return;
+            }
+            const mapped = filterValidSearchItems(res.data).filter((item) => item.employee.id !== employeeId);
+            setTransferSearchMembers(mapped);
+        }, 320);
+        return () => clearTimeout(handle);
+    }, [transferSearchQuery, transferVisible, companyId, employeeId]);
+
     const renderBody = () => {
         if (loading && !company) {
             return (
@@ -471,6 +769,46 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                         </View>
                     ) : null}
 
+                    {isCreator === true && (
+                        <View style={styles.managementCard}>
+                            <TouchableOpacity
+                                style={styles.managementCardRow}
+                                onPress={handleEditEnterprise}
+                                activeOpacity={0.7}
+                                testID='enterprise.detail.modify_name.button'
+                            >
+                                <CompassIcon
+                                    name='pencil-outline'
+                                    size={20}
+                                    color={theme.buttonBg}
+                                />
+                                <Text style={styles.secondaryButtonText}>
+                                    {intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name', defaultMessage: 'Modify enterprise name'})}
+                                </Text>
+                            </TouchableOpacity>
+                            {hasContactCompanyRecord && (
+                                <>
+                                    <View style={styles.managementCardDivider} />
+                                    <TouchableOpacity
+                                        style={styles.managementCardRow}
+                                        onPress={openTransferSheet}
+                                        activeOpacity={0.7}
+                                        testID='enterprise.detail.transfer.button'
+                                    >
+                                        <CompassIcon
+                                            name='account-outline'
+                                            size={20}
+                                            color={theme.buttonBg}
+                                        />
+                                        <Text style={styles.secondaryButtonText}>
+                                            {intl.formatMessage({id: 'enterprise.detail.transfer', defaultMessage: 'Transfer ownership'})}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                        </View>
+                    )}
+
                     <TouchableOpacity
                         style={styles.dangerButton}
                         onPress={handleQuitOrDissolve}
@@ -506,6 +844,156 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             >
                 {renderBody()}
             </ScrollView>
+            <Modal
+                visible={transferVisible}
+                animationType='slide'
+                transparent={true}
+                onRequestClose={() => setTransferVisible(false)}
+            >
+                <View style={styles.modalBackdrop}>
+                    <TouchableOpacity
+                        style={styles.flex}
+                        activeOpacity={1}
+                        onPress={() => setTransferVisible(false)}
+                    />
+                    <View
+                        style={[
+                            styles.transferSheet,
+                            {
+                                height: transferSheetHeight,
+                                paddingBottom: insets.bottom + 12,
+                            },
+                        ]}
+                    >
+                        <View style={[styles.transferSheetInner, styles.flex]}>
+                            <View style={styles.transferSheetHeader}>
+                                <Text style={styles.transferSheetTitle}>
+                                    {intl.formatMessage({id: 'enterprise.detail.transfer_title', defaultMessage: 'Transfer ownership'})}
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={() => setTransferVisible(false)}
+                                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                    testID='enterprise.detail.transfer.close'
+                                >
+                                    <CompassIcon
+                                        name='close'
+                                        size={22}
+                                        color={theme.centerChannelColor}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            {transferLoading ? (
+                                <View style={{paddingVertical: 32, alignItems: 'center'}}>
+                                    <Loading
+                                        color={theme.centerChannelColor}
+                                        size='small'
+                                    />
+                                </View>
+                            ) : (
+                                <>
+                                    <View style={styles.transferSearchWrap}>
+                                        <TextInput
+                                            value={transferSearchQuery}
+                                            onChangeText={setTransferSearchQuery}
+                                            placeholder={intl.formatMessage({
+                                                id: 'contacts.search.placeholder',
+                                                defaultMessage: 'Nickname, email, phone number…',
+                                            })}
+                                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.54)}
+                                            style={styles.transferSearchInput}
+                                            autoCorrect={false}
+                                            autoCapitalize='none'
+                                            returnKeyType='search'
+                                            clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
+                                            testID='enterprise.detail.transfer.search_input'
+                                        />
+                                    </View>
+                                    <FlatList
+                                        style={styles.transferList}
+                                        keyboardShouldPersistTaps='handled'
+                                        data={transferListEntries}
+                                        keyExtractor={(entry) => (
+                                            entry.mode === 'search' ? `s-${entry.item.employee.id}` : `b-${entry.member.id}`
+                                        )}
+                                        ListEmptyComponent={(
+                                            transferSearchQuery.trim() && transferSearchPending ?
+                                                <View style={{paddingVertical: 24, alignItems: 'center'}}>
+                                                    <Loading
+                                                        color={theme.centerChannelColor}
+                                                        size='small'
+                                                    />
+                                                </View> :
+                                                <Text style={styles.transferHint}>
+                                                    {transferSearchQuery.trim() ?
+                                                        intl.formatMessage({
+                                                            id: 'contacts.search.no_results',
+                                                            defaultMessage: 'No matching contacts',
+                                                        }) :
+                                                        intl.formatMessage({
+                                                            id: 'contacts.search.hint',
+                                                            defaultMessage: 'Please enter a nickname, email, or phone number to search',
+                                                        })}
+                                                </Text>
+                                        )}
+                                        contentContainerStyle={
+                                            transferListEntries.length === 0 ? {flexGrow: 1} : undefined
+                                        }
+                                        renderItem={({item: entry}) => {
+                                            const employee = entry.mode === 'search' ? entry.item.employee : entry.member;
+                                            const path = entry.mode === 'search' ?
+                                                cascadePathLabel(entry.item, defaultDepartmentLabel, enterpriseLabelForPath) :
+                                                '';
+                                            return (
+                                                <TouchableOpacity
+                                                    style={styles.transferMemberRow}
+                                                    onPress={() => handlePickTransferMember(employee)}
+                                                    activeOpacity={0.7}
+                                                    testID={`enterprise.detail.transfer.member.${employee.id}`}
+                                                >
+                                                    <View style={styles.transferMemberAvatar}>
+                                                        <ContactAvatar
+                                                            employee={employee}
+                                                            size={40}
+                                                        />
+                                                    </View>
+                                                    <View style={styles.transferMemberText}>
+                                                        <Text
+                                                            style={styles.transferMemberName}
+                                                            numberOfLines={1}
+                                                        >
+                                                            {employee.name}
+                                                        </Text>
+                                                        {path ? (
+                                                            <Text
+                                                                style={styles.transferMemberPath}
+                                                                numberOfLines={2}
+                                                            >
+                                                                {path}
+                                                            </Text>
+                                                        ) : null}
+                                                    </View>
+                                                </TouchableOpacity>
+                                            );
+                                        }}
+                                    />
+                                </>
+                            )}
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+            <CustomInputModal
+                key={editNameModal.visible ? 'edit-open' : 'edit-closed'}
+                visible={editNameModal.visible}
+                title={editNameModal.options.title}
+                placeholder={editNameModal.options.placeholder}
+                defaultValue={editNameModal.options.defaultValue}
+                confirmContent={editNameModal.options.confirmContent}
+                showCancelButton={editNameModal.options.showCancelButton}
+                cancelContent={editNameModal.options.cancelContent}
+                onConfirm={editNameModal.handleConfirm}
+                onCancel={editNameModal.handleCancel}
+            />
         </SafeAreaView>
     );
 };
