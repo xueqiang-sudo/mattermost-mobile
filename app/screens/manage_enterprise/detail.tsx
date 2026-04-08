@@ -24,7 +24,6 @@ import {
     dissolveEnterprise,
     fetchCanDissolveTeam,
     fetchCompany,
-    fetchCompanyEmployeesList,
     fetchEmployeeCountOfCompany,
     fetchSearchContactEmployees,
     quitEnterprise,
@@ -46,17 +45,15 @@ import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentUser} from '@queries/servers/user';
 import {popTopScreen} from '@screens/navigation';
-import {showSnackBar} from '@utils/snack_bar';
 import {cascadePathLabel, filterValidSearchItems} from '@utils/contact_employee_search_path';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
 
-type TransferOwnershipListEntry =
-    | {mode: 'browse'; member: ContactEmployee}
-    | {mode: 'search'; item: ContactEmployeeSearchItem};
+type TransferOwnershipListEntry = {mode: 'search'; item: ContactEmployeeSearchItem};
 
 type Props = {
     companyId: string;
@@ -346,10 +343,9 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<unknown>();
     const [transferVisible, setTransferVisible] = useState(false);
-    const [transferMembers, setTransferMembers] = useState<ContactEmployee[]>([]);
-    const [transferLoading, setTransferLoading] = useState(false);
     const [transferSearchQuery, setTransferSearchQuery] = useState('');
     const [transferSearchMembers, setTransferSearchMembers] = useState<ContactEmployeeSearchItem[]>([]);
+    const [transferSearchRawCount, setTransferSearchRawCount] = useState(0);
     const [transferSearchPending, setTransferSearchPending] = useState(false);
     const transferSearchSeq = useRef(0);
 
@@ -362,11 +358,27 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
     const enterpriseLabelForPath = company?.name ?? companyName ?? '';
 
     const transferListEntries = React.useMemo((): TransferOwnershipListEntry[] => {
-        if (transferSearchQuery.trim()) {
-            return transferSearchMembers.map((item) => ({mode: 'search' as const, item}));
+        if (!transferSearchQuery.trim()) {
+            return [];
         }
-        return transferMembers.map((member) => ({mode: 'browse' as const, member}));
-    }, [transferSearchQuery, transferSearchMembers, transferMembers]);
+        return transferSearchMembers.map((item) => ({mode: 'search' as const, item}));
+    }, [transferSearchQuery, transferSearchMembers]);
+    const hasTransferSearchQuery = transferSearchQuery.trim().length > 0;
+    const transferSearchOnlySelf = hasTransferSearchQuery && transferSearchRawCount > 0 && transferListEntries.length === 0;
+    const transferEmptyText = hasTransferSearchQuery ?
+        (transferSearchOnlySelf ?
+            intl.formatMessage({
+                id: 'enterprise.detail.transfer.self_only_result',
+                defaultMessage: 'Search result only contains yourself. Ownership cannot be transferred to yourself.',
+            }) :
+            intl.formatMessage({
+                id: 'contacts.search.no_results',
+                defaultMessage: 'No matching contacts',
+            })) :
+        intl.formatMessage({
+            id: 'contacts.search.hint',
+            defaultMessage: 'Please enter a nickname, email, or phone number to search',
+        });
 
     const employeeId = currentUser?.id;
     const editNameModal = useCustomInputModal();
@@ -606,10 +618,8 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             return;
         }
         setTransferVisible(false);
-        const companyRes = await fetchCompany(companyId);
-        if (!companyRes.error && companyRes.data) {
-            setCompany(companyRes.data);
-        }
+        setCompany((prev) => prev ? {...prev, owner_id: newOwnerId} : prev);
+        setIsCreator(false);
         DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
         Alert.alert(
             intl.formatMessage({id: 'enterprise.detail.transfer_title', defaultMessage: 'Transfer ownership'}),
@@ -636,22 +646,16 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
         );
     }, [intl, runTransferToUserId]));
 
-    const openTransferSheet = usePreventDoubleTap(useCallback(async () => {
+    const openTransferSheet = usePreventDoubleTap(useCallback(() => {
         if (!employeeId) {
             return;
         }
         setTransferSearchQuery('');
         setTransferSearchMembers([]);
+        setTransferSearchRawCount(0);
+        setTransferSearchPending(false);
         setTransferVisible(true);
-        setTransferLoading(true);
-        const res = await fetchCompanyEmployeesList(companyId);
-        setTransferLoading(false);
-        if (res.error || !res.data?.length) {
-            setTransferMembers([]);
-            return;
-        }
-        setTransferMembers(res.data.filter((e) => e.id !== employeeId));
-    }, [companyId, employeeId]));
+    }, [employeeId]));
 
     useEffect(() => {
         if (!transferVisible || !employeeId) {
@@ -660,6 +664,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
         const q = transferSearchQuery.trim();
         if (!q) {
             setTransferSearchMembers([]);
+            setTransferSearchRawCount(0);
             setTransferSearchPending(false);
             return;
         }
@@ -673,8 +678,10 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             setTransferSearchPending(false);
             if (res.error || !res.data?.length) {
                 setTransferSearchMembers([]);
+                setTransferSearchRawCount(0);
                 return;
             }
+            setTransferSearchRawCount(res.data.length);
             const mapped = filterValidSearchItems(res.data).filter((item) => item.employee.id !== employeeId);
             setTransferSearchMembers(mapped);
         }, 320);
@@ -882,102 +889,81 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                                     />
                                 </TouchableOpacity>
                             </View>
-                            {transferLoading ? (
-                                <View style={{paddingVertical: 32, alignItems: 'center'}}>
-                                    <Loading
-                                        color={theme.centerChannelColor}
-                                        size='small'
+                            <>
+                                <View style={styles.transferSearchWrap}>
+                                    <TextInput
+                                        value={transferSearchQuery}
+                                        onChangeText={setTransferSearchQuery}
+                                        placeholder={intl.formatMessage({
+                                            id: 'contacts.search.placeholder',
+                                            defaultMessage: 'Nickname, email, phone number…',
+                                        })}
+                                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.54)}
+                                        style={styles.transferSearchInput}
+                                        autoCorrect={false}
+                                        autoCapitalize='none'
+                                        returnKeyType='search'
+                                        clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
+                                        testID='enterprise.detail.transfer.search_input'
                                     />
                                 </View>
-                            ) : (
-                                <>
-                                    <View style={styles.transferSearchWrap}>
-                                        <TextInput
-                                            value={transferSearchQuery}
-                                            onChangeText={setTransferSearchQuery}
-                                            placeholder={intl.formatMessage({
-                                                id: 'contacts.search.placeholder',
-                                                defaultMessage: 'Nickname, email, phone number…',
-                                            })}
-                                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.54)}
-                                            style={styles.transferSearchInput}
-                                            autoCorrect={false}
-                                            autoCapitalize='none'
-                                            returnKeyType='search'
-                                            clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
-                                            testID='enterprise.detail.transfer.search_input'
-                                        />
-                                    </View>
-                                    <FlatList
-                                        style={styles.transferList}
-                                        keyboardShouldPersistTaps='handled'
-                                        data={transferListEntries}
-                                        keyExtractor={(entry) => (
-                                            entry.mode === 'search' ? `s-${entry.item.employee.id}` : `b-${entry.member.id}`
-                                        )}
-                                        ListEmptyComponent={(
-                                            transferSearchQuery.trim() && transferSearchPending ?
-                                                <View style={{paddingVertical: 24, alignItems: 'center'}}>
-                                                    <Loading
-                                                        color={theme.centerChannelColor}
-                                                        size='small'
+                                <FlatList<TransferOwnershipListEntry>
+                                    style={styles.transferList}
+                                    keyboardShouldPersistTaps='handled'
+                                    data={transferListEntries}
+                                    keyExtractor={(entry: TransferOwnershipListEntry) => `s-${entry.item.employee.id}`}
+                                    ListEmptyComponent={(
+                                        transferSearchQuery.trim() && transferSearchPending ?
+                                            <View style={{paddingVertical: 24, alignItems: 'center'}}>
+                                                <Loading
+                                                    color={theme.centerChannelColor}
+                                                    size='small'
+                                                />
+                                            </View> :
+                                            <Text style={styles.transferHint}>
+                                                {transferEmptyText}
+                                            </Text>
+                                    )}
+                                    contentContainerStyle={
+                                        transferListEntries.length === 0 ? {flexGrow: 1} : undefined
+                                    }
+                                    renderItem={({item: entry}: {item: TransferOwnershipListEntry}) => {
+                                        const employee = entry.item.employee;
+                                        const path = cascadePathLabel(entry.item, defaultDepartmentLabel, enterpriseLabelForPath);
+                                        return (
+                                            <TouchableOpacity
+                                                style={styles.transferMemberRow}
+                                                onPress={() => handlePickTransferMember(employee)}
+                                                activeOpacity={0.7}
+                                                testID={`enterprise.detail.transfer.member.${employee.id}`}
+                                            >
+                                                <View style={styles.transferMemberAvatar}>
+                                                    <ContactAvatar
+                                                        employee={employee}
+                                                        size={40}
                                                     />
-                                                </View> :
-                                                <Text style={styles.transferHint}>
-                                                    {transferSearchQuery.trim() ?
-                                                        intl.formatMessage({
-                                                            id: 'contacts.search.no_results',
-                                                            defaultMessage: 'No matching contacts',
-                                                        }) :
-                                                        intl.formatMessage({
-                                                            id: 'contacts.search.hint',
-                                                            defaultMessage: 'Please enter a nickname, email, or phone number to search',
-                                                        })}
-                                                </Text>
-                                        )}
-                                        contentContainerStyle={
-                                            transferListEntries.length === 0 ? {flexGrow: 1} : undefined
-                                        }
-                                        renderItem={({item: entry}) => {
-                                            const employee = entry.mode === 'search' ? entry.item.employee : entry.member;
-                                            const path = entry.mode === 'search' ?
-                                                cascadePathLabel(entry.item, defaultDepartmentLabel, enterpriseLabelForPath) :
-                                                '';
-                                            return (
-                                                <TouchableOpacity
-                                                    style={styles.transferMemberRow}
-                                                    onPress={() => handlePickTransferMember(employee)}
-                                                    activeOpacity={0.7}
-                                                    testID={`enterprise.detail.transfer.member.${employee.id}`}
-                                                >
-                                                    <View style={styles.transferMemberAvatar}>
-                                                        <ContactAvatar
-                                                            employee={employee}
-                                                            size={40}
-                                                        />
-                                                    </View>
-                                                    <View style={styles.transferMemberText}>
+                                                </View>
+                                                <View style={styles.transferMemberText}>
+                                                    <Text
+                                                        style={styles.transferMemberName}
+                                                        numberOfLines={1}
+                                                    >
+                                                        {employee.name}
+                                                    </Text>
+                                                    {path ? (
                                                         <Text
-                                                            style={styles.transferMemberName}
-                                                            numberOfLines={1}
+                                                            style={styles.transferMemberPath}
+                                                            numberOfLines={2}
                                                         >
-                                                            {employee.name}
+                                                            {path}
                                                         </Text>
-                                                        {path ? (
-                                                            <Text
-                                                                style={styles.transferMemberPath}
-                                                                numberOfLines={2}
-                                                            >
-                                                                {path}
-                                                            </Text>
-                                                        ) : null}
-                                                    </View>
-                                                </TouchableOpacity>
-                                            );
-                                        }}
-                                    />
-                                </>
-                            )}
+                                                    ) : null}
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    }}
+                                />
+                            </>
                         </View>
                     </View>
                 </View>

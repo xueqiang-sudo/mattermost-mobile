@@ -774,11 +774,10 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             `keyword=${encodeURIComponent(params.keyword)}`,
             ...(typeof params.departmentId === 'number' ? [`department_id=${encodeURIComponent(String(params.departmentId))}`] : []),
         ];
-        return this.doRequestCompanyProxy<ContactEmployeeSearchItem[]>(
-            companyId,
+        return this.doRequestDirect<{data: ContactEmployeeSearchItem[]}>(
             `${contactRoutes.searchEmployeesOfCompany(companyId)}?${queryParts.join('&')}`,
             'get',
-        );
+        ).then((res) => res.data || []);
     };
 
     searchDepartmentEmployees = (departmentId: number, params: {keyword: string; companyId: string}) => {
@@ -786,11 +785,10 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             `keyword=${encodeURIComponent(params.keyword)}`,
             `company_id=${encodeURIComponent(params.companyId)}`,
         ];
-        return this.doRequestCompanyProxy<ContactEmployeeSearchItem[]>(
-            params.companyId,
+        return this.doRequestDirect<{data: ContactEmployeeSearchItem[]}>(
             `${contactRoutes.searchEmployeesOfDepartment(departmentId)}?${queryParts.join('&')}`,
             'get',
-        );
+        ).then((res) => res.data || []);
     };
 
     getContactVersion = (companyId: string) =>
@@ -806,7 +804,7 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
         this.doRequestDirect<ContactCompany[]>(contactRoutes.userOwnedCompanies(userId), 'get');
 
     transferUserCompanyOwnership = (userId: string, companyId: string, body: TransferContactOwnershipRequest) =>
-        this.doRequestDirect<unknown>(contactRoutes.userTransferOwnership(userId, companyId), 'post', body);
+        this.doRequestCompanyProxy<unknown>(companyId, contactRoutes.userTransferOwnership(userId, companyId), 'post', body);
 
     /**
      * 通过查询字符串搜索联系人，也就是搜索员工

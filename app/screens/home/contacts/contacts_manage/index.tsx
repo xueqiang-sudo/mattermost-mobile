@@ -291,6 +291,8 @@ const ContactsManage = ({
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         const deptName = currentDepartmentName ?? intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});
+        const currentBreadcrumb = currentLevel?.breadcrumb ?? [];
+        const departmentParentPath = currentBreadcrumb.length > 1 ? currentBreadcrumb.slice(0, -1).join('/') : undefined;
         showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
@@ -298,6 +300,7 @@ const ContactsManage = ({
             {
                 employee,
                 departmentName: deptName,
+                departmentParentPath,
                 companyName,
                 departmentId: currentDepartmentId ?? undefined,
                 companyId,
@@ -306,7 +309,7 @@ const ContactsManage = ({
             },
             {useBackIcon: true},
         );
-    }, [companyId, companyName, currentDepartmentId, currentDepartmentName, intl]));
+    }, [companyId, companyName, currentDepartmentId, currentDepartmentName, currentLevel?.breadcrumb, intl]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
         const targetDepartmentId: number | null = currentDepartmentId ?? null;

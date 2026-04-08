@@ -1407,6 +1407,7 @@
   "contacts.phone": "Phone",
   "contacts.position": "Position",
   "contacts.department": "Department",
+  "contacts.self_tag": "Self",
   "contacts.change_department": "Change department",
   "contacts.enterprise_name": "Enterprise",
   "contacts.breadcrumb_separator": ">",
@@ -1836,6 +1837,7 @@
   "enterprise.detail.transfer_confirm_message": "Make {name} the new owner of this enterprise?",
   "enterprise.detail.transfer_failed": "Failed to transfer ownership. Please try again.",
   "enterprise.detail.transfer_success": "Ownership was transferred.",
+  "enterprise.detail.transfer.self_only_result": "Search result only contains yourself. Ownership cannot be transferred to yourself.",
   "enterprise.detail.transfer_empty": "No eligible members in the list. Use the search above to find someone in this enterprise.",
   "enterprise.detail.transfer_search_placeholder": "Search by name, email, or phone",
   "enterprise.detail.transfer_search_empty": "No members match your search."

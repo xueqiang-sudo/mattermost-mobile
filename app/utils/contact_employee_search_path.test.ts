@@ -36,6 +36,20 @@ describe('contact_employee_search_path', () => {
         expect(label).toContain('\n');
     });
 
+    it('should support flat cascade departments payload', () => {
+        const item = {
+            employee: {id: 'e2', name: 'Carol'},
+            cascade_departments: [
+                {id: 1, name: 'DeptA'},
+                {id: 2, name: 'DeptB'},
+            ],
+        } as unknown as ContactEmployeeSearchItem;
+
+        const label = cascadePathLabel(item, 'Default', 'Acme');
+        expect(label).toContain('DeptB');
+        expect(label).toContain('\n');
+    });
+
     it('should omit parent line when only enterprise and one department', () => {
         const {leaf, parentLine} = buildDepartmentScopeDisplayFromBreadcrumb(
             ['Acme Corp', '吕碧城'],

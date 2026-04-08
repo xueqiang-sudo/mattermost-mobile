@@ -64,7 +64,8 @@
 {
     "contact_id": "emp_87654321",
     "contact_type": "customer",
-    "description": "重要客户，长期合作"
+    "description": "重要客户，长期合作",
+    "remark": "备注名"
 }
 ```
 
@@ -74,6 +75,7 @@
 | contact_id | string | 是 | 联系人员工ID（系统中已存在的员工） |
 | contact_type | string | 是 | 关系类型：`customer`（客户）或 `supplier`（供应商） |
 | description | string | 否 | 关系描述，最大长度不限 |
+| remark | string | 否 | 备注名，用于备注姓名 |
 
 #### 响应示例
 **成功响应**：
@@ -292,6 +294,56 @@
 
 ---
 
+### 6. 更新联系人信息
+
+#### 接口描述
+更新指定员工与联系人之间的关系信息（`description` 和 `remark` 字段）
+
+#### 请求信息
+- **URL**：`PUT /api/v1/employees/{employee_id}/contacts`
+- **认证**：需要API Key（X-API-KEY）
+- **Content-Type**：`application/json`
+
+#### 路径参数
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| employee_id | string | 是 | 员工ID |
+
+#### 查询参数
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| contact_id | string | 是 | 联系人员工ID |
+| contact_type | string | 是 | 关系类型：`customer` 或 `supplier` |
+
+#### 请求体
+```json
+{
+    "description": "更新后的关系描述",
+    "remark": "更新后的备注信息"
+}
+```
+
+#### 参数说明
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| description | string | 否 | 关系描述，最大长度不限。不传或传空字符串表示清空该字段 |
+| remark | string | 否 | 备注信息，最大长度不限。不传或传空字符串表示清空该字段 |
+
+#### 注意事项
+1. **字段要求**：至少需要提供 `description` 或 `remark` 中的一个字段
+2. **清空字段**：传入空字符串 `""` 会清空对应字段值
+3. **保持不变**：不传某个字段表示保持该字段原值不变
+
+#### 响应示例
+**成功响应**：
+```json
+{
+    "message": "Contact updated successfully"
+}
+```
+
+---
+
 ## 业务规则
 
 ### 关系管理
@@ -315,6 +367,7 @@
 | 400 | contact_type must be 'customer' or 'supplier' | contact_type参数值无效 | 使用正确的值：customer 或 supplier |
 | 400 | contact_id is required | 缺少contact_id参数 | 在请求中提供contact_id |
 | 400 | contact_type is required | 缺少contact_type参数 | 在请求中提供contact_type |
+| 400 | at least one field (description or remark) is required | 更新时未提供可更新字段 | 至少传入 description 或 remark 之一 |
 | 400 | Invalid contact ID | 联系人ID格式错误 | 检查contact_id格式 |
 | 401 | Invalid or missing API key | API密钥无效或缺失 | 在请求头中添加正确的X-API-KEY |
 | 404 | Employee not found | 员工不存在 | 检查employee_id是否正确 |
@@ -366,12 +419,22 @@ curl -X GET \
   http://localhost:8080/api/v1/employees/emp_12345678/contacts/all \
   -H "X-API-KEY: b3cz8fsbrfd4ukmfmssf864pqr"
 
-# 6. 移除客户
+# 6. 更新联系人信息
+curl -X PUT \
+  "http://localhost:8080/api/v1/employees/emp_12345678/contacts?contact_id=emp_87654321&contact_type=customer" \
+  -H "X-API-KEY: b3cz8fsbrfd4ukmfmssf864pqr" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "更新后的合作说明",
+    "remark": "更新后的备注"
+  }'
+
+# 7. 移除客户
 curl -X DELETE \
   "http://localhost:8080/api/v1/employees/emp_12345678/contacts?contact_id=emp_87654321&contact_type=customer" \
   -H "X-API-KEY: b3cz8fsbrfd4ukmfmssf864pqr"
 
-# 7. 移除供应商
+# 8. 移除供应商
 curl -X DELETE \
   "http://localhost:8080/api/v1/employees/emp_12345678/contacts?contact_id=emp_99887766&contact_type=supplier" \
   -H "X-API-KEY: b3cz8fsbrfd4ukmfmssf864pqr"
@@ -437,6 +500,30 @@ async function getAllContacts(employeeId) {
     }
 }
 
+// 更新联系人关系信息
+async function updateContactInfo(employeeId, contactId, contactType, description, remark) {
+    try {
+        const response = await axios.put(
+            `${API_BASE}/employees/${employeeId}/contacts`,
+            {
+                description,
+                remark
+            },
+            {
+                params: {
+                    contact_id: contactId,
+                    contact_type: contactType
+                },
+                headers
+            }
+        );
+        console.log('联系人信息更新成功:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('更新联系人信息失败:', error.response?.data);
+    }
+}
+
 // 移除供应商
 async function removeSupplier(employeeId, supplierId) {
     try {
@@ -465,6 +552,14 @@ console.log('客户列表:', customers);
 const allContacts = await getAllContacts('emp_12345678');
 console.log('客户:', allContacts.customers);
 console.log('供应商:', allContacts.suppliers);
+
+await updateContactInfo(
+    'emp_12345678',
+    'emp_87654321',
+    'customer',
+    '更新后的合作关系',
+    '更新后的备注'
+);
 ```
 
 ---

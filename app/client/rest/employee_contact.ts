@@ -54,7 +54,11 @@ export type CreateEmployeeContactRequest = {
     contact_id: string;
     contact_type: EmployeeContactType;
     description?: string;
+    remark?: string;
 };
+
+/** 更新联系人关系请求体 */
+export type UpdateEmployeeContactRequest = Pick<CreateEmployeeContactRequest, 'description' | 'remark'>;
 
 /** 获取联系人列表响应 */
 export type EmployeeContactListResponse = {
@@ -84,8 +88,12 @@ export type EmployeeContactAllResponse = {
  * 包含客户和供应商关系的 CRUD 操作
  */
 export interface ClientEmployeeContactMix {
+
     /** POST /api/v1/employees/{employee_id}/contacts - 添加联系人 */
     addContact: (employeeId: string, contact: CreateEmployeeContactRequest) => Promise<{message: string}>;
+
+    /** PUT /api/v1/employees/{employee_id}/contacts - 更新联系人 */
+    updateContact: (employeeId: string, contactId: string, contactType: EmployeeContactType, updateInfo: UpdateEmployeeContactRequest) => Promise<{message: string}>;
 
     /** DELETE /api/v1/employees/{employee_id}/contacts - 移除联系人 */
     removeContact: (employeeId: string, contactId: string, contactType: EmployeeContactType) => Promise<{message: string}>;
@@ -104,6 +112,7 @@ export interface ClientEmployeeContactMix {
  * 员工联系人 API 路径映射（均需 X-API-KEY）
  */
 export const employeeContactRoutes = {
+
     /** POST/GET /api/v1/employees/{employee_id}/contacts */
     contacts: (employeeId: string) => `${EMPLOYEE_CONTACT_API_BASE_ROUTE}/employees/${encodeURIComponent(employeeId)}/contacts`,
 
@@ -224,6 +233,12 @@ class EmployeeContactServiceClass extends ClientTracking implements ClientEmploy
      */
     addContact = (employeeId: string, contact: CreateEmployeeContactRequest) =>
         this.doRequestDirect<{message: string}>(employeeContactRoutes.contacts(employeeId), 'post', contact);
+
+    /**
+     * 更新联系人关系
+     */
+    updateContact = (employeeId: string, contactId: string, contactType: EmployeeContactType, updateInfo: UpdateEmployeeContactRequest) =>
+        this.doRequestDirect<{message: string}>(`${employeeContactRoutes.contacts(employeeId)}?contact_id=${encodeURIComponent(contactId)}&contact_type=${encodeURIComponent(contactType)}`, 'put', updateInfo);
 
     /**
      * 移除联系人关系

@@ -40,11 +40,20 @@ export function normalizeDepartmentName(name: string, defaultDepartmentLabel: st
 }
 
 export function cascadePathParts(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string): string[] {
-    const paths = item.cascade_departments;
-    if (!paths?.length) {
+    const rawPaths = item.cascade_departments as unknown;
+    if (!Array.isArray(rawPaths) || rawPaths.length === 0) {
         return [];
     }
-    return paths[0].map((d) => normalizeDepartmentName(d.name, defaultDepartmentLabel));
+
+    // 兼容后端返回两种结构：
+    // 1) Department[][]（历史约定）
+    // 2) Department[]（部分接口当前实际返回）
+    const firstEntry = rawPaths[0];
+    const chain = (Array.isArray(firstEntry) ? firstEntry : rawPaths).filter(
+        (d): d is {name: string} => Boolean(d && typeof d === 'object' && 'name' in d),
+    );
+
+    return chain.map((d) => normalizeDepartmentName(d.name, defaultDepartmentLabel));
 }
 
 export function cascadePathLabel(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string, enterpriseLabel: string): string {

@@ -7,7 +7,7 @@ import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
-import {deleteContactEmployee} from '@actions/remote/contact';
+import {deleteContactEmployee, fetchCompany} from '@actions/remote/contact';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
@@ -175,6 +175,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'SemiBold'),
         marginLeft: 6,
     },
+    selfTag: {
+        marginTop: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignSelf: 'center',
+        backgroundColor: changeOpacity(theme.onlineIndicator, 0.12),
+    },
+    selfTagText: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.onlineIndicator,
+    },
     buttonSection: {
         paddingHorizontal: 16,
         paddingTop: 8,
@@ -207,10 +219,36 @@ const ContactsEmployeeProfile = ({
     const [sending, setSending] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [relationDescription, setRelationDescription] = useState(() => description ?? '');
+    const [isCompanyOwner, setIsCompanyOwner] = useState(false);
 
     useEffect(() => {
         setRelationDescription(description ?? '');
     }, [description]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadCompanyOwner = async () => {
+            if (!fromManage || !companyIdProp) {
+                if (!cancelled) {
+                    setIsCompanyOwner(false);
+                }
+                return;
+            }
+
+            const result = await fetchCompany(companyIdProp);
+            const ownerId = result.data?.owner_id ?? (result.data as {ownerId?: string} | undefined)?.ownerId;
+            if (!cancelled) {
+                setIsCompanyOwner(Boolean(ownerId && ownerId === employee.id));
+            }
+        };
+
+        loadCompanyOwner();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [companyIdProp, employee.id, fromManage]);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -273,8 +311,10 @@ const ContactsEmployeeProfile = ({
         }
     }, [serverUrl, employee.id, employee.email]);
 
+    const isSelf = Boolean(currentUserId && employee.id && currentUserId === employee.id);
+
     const handleSendMessage = usePreventDoubleTap(useCallback(async () => {
-        if (!serverUrl || sending) {
+        if (!serverUrl || sending || isSelf) {
             return;
         }
         setSending(true);
@@ -303,11 +343,9 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [serverUrl, sending, resolveMattermostUserId, employee.name, intl, handleClose]));
+    }, [serverUrl, sending, isSelf, resolveMattermostUserId, employee.name, intl, handleClose]));
 
-    const canSendMessage = Boolean(employee.email || employee.id);
-
-    const isSelf = Boolean(currentUserId && employee.id && currentUserId === employee.id);
+    const canSendMessage = !isSelf && Boolean(employee.email || employee.id);
 
     const canChangeDepartment = fromManage && Boolean(companyIdProp);
 
@@ -335,7 +373,8 @@ const ContactsEmployeeProfile = ({
 
     const isSupplierCustomer = Boolean(relationType);
 
-    const canDelete = (Boolean(companyIdProp) && !isSelf) || isSupplierCustomer;
+    const canDeleteEnterpriseMember = fromManage && Boolean(companyIdProp) && !isSelf && !isCompanyOwner;
+    const canDelete = canDeleteEnterpriseMember || isSupplierCustomer;
 
     const handleDeleteRelation = usePreventDoubleTap(useCallback(async () => {
         if (!isSupplierCustomer || deleting) {
@@ -376,7 +415,7 @@ const ContactsEmployeeProfile = ({
             await handleDeleteRelation();
             return;
         }
-        if (!canDelete || deleting) {
+        if (!canDeleteEnterpriseMember || deleting) {
             return;
         }
         const ok = await new Promise<boolean>((resolve) => {
@@ -406,7 +445,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [canDelete, deleting, employee.id, employee.name, handleClose, intl]));
+    }, [canDeleteEnterpriseMember, deleting, employee.id, employee.name, handleClose, intl]));
 
     return (
         <SafeAreaView
@@ -432,6 +471,13 @@ const ContactsEmployeeProfile = ({
                     >
                         {employee.name}
                     </Text>
+                    {isSelf ? (
+                        <View style={styles.selfTag}>
+                            <Text style={styles.selfTagText}>
+                                {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
+                            </Text>
+                        </View>
+                    ) : null}
                 </View>
 
                 {isSupplierCustomer && (

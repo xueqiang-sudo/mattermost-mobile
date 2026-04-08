@@ -447,6 +447,40 @@
       </div>
     </div>
 
+    <div class="section">
+      <div class="section-header">联系人关系管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/employees/:employee_id/contacts?contact_id=:contact_id&contact_type=:contact_type</span>
+            </div>
+            <p class="status">更新联系人关系信息（description/remark，至少提供一个）</p>
+            <div class="params">
+              <input id="contact_employee_id" placeholder="employee_id">
+              <input id="contact_contact_id" placeholder="contact_id">
+              <input id="contact_contact_type" placeholder="customer/supplier">
+            </div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_contact_update" rows="5" placeholder='{"description":"更新后的关系描述","remark":"更新后的备注信息"}'>{
+  "description": "更新后的关系描述",
+  "remark": "更新后的备注信息"
+}</textarea>
+            </div>
+          </div>
+          <button
+            class="btn"
+            onclick="callApi(
+              'PUT',
+              '/api/v1/employees/' + paramVal('contact_employee_id') + '/contacts?contact_id=' + encodeURIComponent(paramVal('contact_contact_id')) + '&contact_type=' + encodeURIComponent(paramVal('contact_contact_type')),
+              document.getElementById('body_contact_update').value
+            )"
+          >调用</button>
+        </div>
+      </div>
+    </div>
+
     <div class="response-panel">
       <div class="response-header">
         <span>响应</span>

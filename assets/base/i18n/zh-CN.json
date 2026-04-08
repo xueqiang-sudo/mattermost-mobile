@@ -1407,6 +1407,7 @@
   "contacts.phone": "电话",
   "contacts.position": "职位",
   "contacts.department": "部门",
+  "contacts.self_tag": "自己",
   "contacts.change_department": "设置部门",
   "contacts.enterprise_name": "企业",
   "contacts.breadcrumb_separator": ">",
@@ -1836,6 +1837,7 @@
   "enterprise.detail.transfer_confirm_message": "将企业所有者转移给 {name}？",
   "enterprise.detail.transfer_failed": "转移所有权失败，请重试。",
   "enterprise.detail.transfer_success": "所有权已转移。",
+  "enterprise.detail.transfer.self_only_result": "搜索结果仅包含你自己，不能转移给自己。",
   "enterprise.detail.transfer_empty": "当前列表没有可选成员。请按姓名搜索本企业成员。",
   "enterprise.detail.transfer_search_placeholder": "按姓名搜索成员",
   "enterprise.detail.transfer_search_empty": "没有符合搜索条件的成员。"

@@ -271,7 +271,9 @@ const ContactsBatchMoveMembers = ({
     const mounted = useRef(false);
     const styles = getStyleSheet(theme);
 
-    const [phase, setPhase] = useState<'members' | 'target'>('members');
+    const [phase, setPhase] = useState<'members' | 'target'>(() => (
+        singleEmployeeId ? 'target' : 'members'
+    ));
     const [employees, setEmployees] = useState<ContactEmployee[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
         singleEmployeeId ? new Set([singleEmployeeId]) : new Set(),
