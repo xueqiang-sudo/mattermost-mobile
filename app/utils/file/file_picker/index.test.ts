@@ -13,6 +13,8 @@ import Permissions from 'react-native-permissions';
 import {dismissBottomSheet} from '@screens/navigation';
 import TestHelper from '@test/test_helper';
 import {extractFileInfo, lookupMimeType} from '@utils/file';
+import {compressChatVideoAsset} from '@utils/file/compress_chat_video';
+import {hideVideoCompressOverlay, showVideoCompressOverlay} from '@utils/file/video_compress_overlay';
 import {getIntlShape} from '@utils/general';
 import {logWarning} from '@utils/log';
 
@@ -27,6 +29,17 @@ jest.mock('react-native-document-picker', () => ({
 
 jest.mock('@screens/navigation', () => ({
     dismissBottomSheet: jest.fn(),
+    showOverlay: jest.fn(),
+    dismissOverlay: jest.fn(),
+}));
+
+jest.mock('@utils/file/compress_chat_video', () => ({
+    compressChatVideoAsset: jest.fn(async (f: Asset) => f),
+}));
+
+jest.mock('@utils/file/video_compress_overlay', () => ({
+    showVideoCompressOverlay: jest.fn(),
+    hideVideoCompressOverlay: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@utils/file', () => ({
@@ -36,6 +49,7 @@ jest.mock('@utils/file', () => ({
 
 jest.mock('@utils/log', () => ({
     logWarning: jest.fn(),
+    logError: jest.fn(),
 }));
 
 jest.mock('@mattermost/rnutils', () => ({
@@ -145,6 +159,26 @@ describe('FilePickerUtil', () => {
             await filePickerUtil.prepareFileUpload(mockFiles);
 
             expect(extractFileInfo).toHaveBeenCalledWith(mockFiles);
+            expect(dismissBottomSheet).toHaveBeenCalled();
+            expect(mockUploadFiles).toHaveBeenCalledWith(mockExtractedFiles);
+            expect(showVideoCompressOverlay).not.toHaveBeenCalled();
+        });
+
+        test('should run video compression before extractFileInfo when attaching video', async () => {
+            const compressed = {uri: 'file://compressed', type: 'video/mp4', fileName: 'out.mp4'} as Asset;
+            (compressChatVideoAsset as jest.Mock).mockResolvedValueOnce(compressed);
+            const mockFiles = [{uri: 'file://v', type: 'video/mp4', fileName: 'a.mp4'}] as Asset[];
+            const mockExtractedFiles = [{name: 'x'}];
+
+            (extractFileInfo as jest.Mock).mockResolvedValue(mockExtractedFiles);
+
+            // @ts-expect-error prepareFileUpload is private
+            await filePickerUtil.prepareFileUpload(mockFiles);
+
+            expect(showVideoCompressOverlay).toHaveBeenCalled();
+            expect(compressChatVideoAsset).toHaveBeenCalledWith(mockFiles[0]);
+            expect(extractFileInfo).toHaveBeenCalledWith([compressed]);
+            expect(hideVideoCompressOverlay).toHaveBeenCalled();
             expect(dismissBottomSheet).toHaveBeenCalled();
             expect(mockUploadFiles).toHaveBeenCalledWith(mockExtractedFiles);
         });

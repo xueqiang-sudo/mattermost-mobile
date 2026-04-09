@@ -38,7 +38,7 @@ const CameraType = ({onPress}: Props) => {
         const options: CameraOptions = {
             quality: 0.8,
             mediaType: 'photo',
-            saveToPhotos: true,
+            saveToPhotos: false,
         };
 
         await dismissBottomSheet();
@@ -49,11 +49,16 @@ const CameraType = ({onPress}: Props) => {
         const options: CameraOptions = {
             videoQuality: 'high',
             mediaType: 'video',
-            saveToPhotos: true,
+            saveToPhotos: false,
+            durationLimit: 60,
         };
 
         await dismissBottomSheet();
         onPress(options);
+    };
+
+    const onCancel = async () => {
+        await dismissBottomSheet();
     };
 
     return (
@@ -76,6 +81,12 @@ const CameraType = ({onPress}: Props) => {
                 onPress={onVideo}
                 testID='camera_type.video'
                 text={intl.formatMessage({id: 'camera_type.video.option', defaultMessage: 'Record Video'})}
+            />
+            <SlideUpPanelItem
+                leftIcon='close'
+                onPress={onCancel}
+                testID='camera_type.cancel'
+                text={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
             />
         </View>
     );

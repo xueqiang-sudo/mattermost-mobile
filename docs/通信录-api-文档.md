@@ -97,6 +97,7 @@
     "DELETE /api/v1/departments/:id/force",
     "GET /api/v1/users/:userId/companies",
     "GET /api/v1/employees/:id/check-delete",
+    "GET /api/v1/employees/search",
     "GET /api/v1/company-employees/:companyId/search"
   ]
 }
@@ -276,6 +277,22 @@
 
 - **URL**: `GET /api/v1/employees/:id`
 - **参数**: `id` — 员工 ID（string）
+
+### 搜索员工（全局精确匹配）
+
+- **URL**: `GET /api/v1/employees/search`
+- **描述**: 按关键词在员工维度检索；**精确匹配**（与关键词完全一致，非模糊、非子串包含），匹配字段为：
+  - **昵称**：与数据模型中的 `name`（员工姓名/展示名）一致；
+  - **手机号**：`phone`；
+  - **邮箱**：`email`。
+- **查询参数**:
+  - `keyword` — 搜索关键词（必填；与上述字段之一完全相等即命中，具体 OR/AND 逻辑以服务端为准）
+
+**示例**:
+
+`/api/v1/employees/search?keyword=13800138000`
+
+**说明**: 返回体为匹配到的员工列表（元素结构与 `Employee` 一致或含扩展字段，以服务端为准）；无匹配时通常为空数组。
 
 ### 获取员工详细信息
 
@@ -587,6 +604,10 @@ curl -X GET http://localhost:8080/api/v1/companies \
 
 # 搜索公司员工（companyId 为公司 UUID）
 curl -X GET "http://localhost:8080/api/v1/company-employees/550e8400-e29b-41d4-a716-446655440000/search?keyword=%E5%BC%A0%E4%B8%89" \
+  -H "X-API-KEY: b3cz8fsbrfd4ukmfmssf864pqr"
+
+# 全局搜索员工（keyword 与 name / phone / email 精确匹配）
+curl -X GET "http://localhost:8080/api/v1/employees/search?keyword=13800138000" \
   -H "X-API-KEY: b3cz8fsbrfd4ukmfmssf864pqr"
 
 # 更新通讯录版本（无请求体）

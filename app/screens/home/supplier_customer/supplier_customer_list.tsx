@@ -151,6 +151,11 @@ function formatContactSubtitle(detail: EmployeeContactDetail, relationLabel: str
     return `${relationLabel}: ${detail.description.trim()}`;
 }
 
+function getContactDisplayName(detail: EmployeeContactDetail): string {
+    const r = detail.remark?.trim();
+    return r || detail.contact.name;
+}
+
 const SupplierCustomerListRow = memo(({
     item,
     isLast,
@@ -162,7 +167,9 @@ const SupplierCustomerListRow = memo(({
     relationDescriptionLabel,
 }: RowProps) => {
     const contactId = item.contact.id;
+    const displayName = getContactDisplayName(item);
     const sub = formatContactSubtitle(item, relationDescriptionLabel);
+    const remarkTrimmed = item.remark?.trim();
     return (
         <>
             <TouchableOpacity
@@ -182,8 +189,16 @@ const SupplierCustomerListRow = memo(({
                         style={styles.listItemName}
                         numberOfLines={1}
                     >
-                        {item.contact.name}
+                        {displayName}
                     </Text>
+                    {remarkTrimmed ? (
+                        <Text
+                            style={styles.listItemSub}
+                            numberOfLines={1}
+                        >
+                            {item.contact.name}
+                        </Text>
+                    ) : null}
                     {sub ? (
                         <Text
                             style={styles.listItemSub}
@@ -326,6 +341,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             existingContactId?: string;
             initialContactName?: string;
             initialDescription?: string;
+            initialRemark?: string;
             initialContactEmail?: string;
             initialContactPhone?: string;
             initialContactPosition?: string;
@@ -339,6 +355,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 existingContactId: opts.existingContactId,
                 initialContactName: opts.initialContactName,
                 initialDescription: opts.initialDescription,
+                initialRemark: opts.initialRemark,
                 initialContactEmail: opts.initialContactEmail,
                 initialContactPhone: opts.initialContactPhone,
                 initialContactPosition: opts.initialContactPosition,
@@ -360,6 +377,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 existingContactId: contactId,
                 initialContactName: row?.contact.name,
                 initialDescription: row?.description,
+                initialRemark: row?.remark,
                 initialContactEmail: row?.contact.email,
                 initialContactPhone: row?.contact.phone,
                 initialContactPosition: row?.contact.position,
@@ -372,7 +390,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         useCallback(
             (contactId: string) => {
                 const row = items.find((i) => i.contact.id === contactId);
-                const name = row?.contact.name ?? contactId;
+                const name = row ? getContactDisplayName(row) : contactId;
                 const typeLabel = isSupplierKind? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}): intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
                 const onConfirmDelete = async () => {
                     if (!ownerId) {
@@ -417,6 +435,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                     {
                         employee: contact.contact,
                         description: contact.description,
+                        remark: contact.remark,
                         relationType: contact.contact_type,
                         currentUserId: currentUser?.id,
                         closeButtonId: `close-supplier-customer-${contact.contact.id}`,

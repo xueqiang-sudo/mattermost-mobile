@@ -10,7 +10,9 @@ import Permissions from 'react-native-permissions';
 
 import {dismissBottomSheet} from '@screens/navigation';
 import {extractFileInfo, lookupMimeType} from '@utils/file';
-import {logWarning} from '@utils/log';
+import {compressChatVideoAsset} from '@utils/file/compress_chat_video';
+import {hideVideoCompressOverlay, showVideoCompressOverlay} from '@utils/file/video_compress_overlay';
+import {logError, logWarning} from '@utils/log';
 import {safeDecodeURIComponent} from '@utils/url';
 
 import type {IntlShape} from 'react-intl';
@@ -96,8 +98,62 @@ export default class FilePickerUtil {
         return permissions[source];
     };
 
-    private prepareFileUpload = async (files: Array<Asset | DocumentPickerResponse>) => {
-        const out = await extractFileInfo(files);
+    private fileLooksLikeVideo = (file: Asset | DocumentPickerResponse): boolean => {
+        const mime = file.type || lookupMimeType(
+            ('fileName' in file && file.fileName) ||
+            ('name' in file && file.name) ||
+            file.uri ||
+            '',
+        );
+        if (mime.startsWith('video/')) {
+            return true;
+        }
+        const name = ('fileName' in file && file.fileName) || ('name' in file && file.name) || '';
+        const ext = name.split('.').pop()?.toLowerCase();
+        return Boolean(ext && ['mp4', 'mov', 'm4v', 'webm', 'mkv', '3gp'].includes(ext));
+    };
+
+    private prepareFileUpload = async (files: Array<Asset | DocumentPickerResponse>, isVideoOverlayVisible = false) => {
+        const needsVideoPass = files.some((f) => this.fileLooksLikeVideo(f));
+        const shouldToggleVideoOverlay = needsVideoPass && !isVideoOverlayVisible;
+
+        let filesToExtract = files;
+        if (needsVideoPass) {
+            if (shouldToggleVideoOverlay) {
+                showVideoCompressOverlay(
+                    this.intl.formatMessage({
+                        id: 'mobile.video_upload.compressing',
+                        defaultMessage: 'Compressing video…',
+                    }),
+                    this.intl.formatMessage({
+                        id: 'mobile.video_upload.progress_label',
+                        defaultMessage: 'Progress',
+                    }),
+                );
+            }
+            try {
+                const next: Array<Asset | DocumentPickerResponse> = [];
+                for (const f of files) {
+                    if (this.fileLooksLikeVideo(f)) {
+                        // Sequential compression avoids high memory use when multiple large videos are attached.
+                        // eslint-disable-next-line no-await-in-loop
+                        next.push(await compressChatVideoAsset(f));
+                    } else {
+                        next.push(f);
+                    }
+                }
+                filesToExtract = next;
+            } catch (e) {
+                logError('[FilePickerUtil.prepareFileUpload] video compression batch failed', e);
+                filesToExtract = files;
+            } finally {
+                if (shouldToggleVideoOverlay) {
+                    await hideVideoCompressOverlay();
+                }
+            }
+        }
+
+        const out = await extractFileInfo(filesToExtract);
 
         if (out.length > 0) {
             dismissBottomSheet();
@@ -283,7 +339,7 @@ export default class FilePickerUtil {
                 quality: 0.8,
                 videoQuality: 'high',
                 mediaType: 'photo',
-                saveToPhotos: true,
+                saveToPhotos: false,
             };
         }
 
@@ -302,8 +358,28 @@ export default class FilePickerUtil {
                     return;
                 }
 
-                const files = await this.getFilesFromResponse(response);
-                await this.prepareFileUpload(files);
+                const hasVideoAsset = response.assets?.some((asset) => asset.type?.startsWith('video/')) ?? false;
+                if (hasVideoAsset) {
+                    showVideoCompressOverlay(
+                        this.intl.formatMessage({
+                            id: 'mobile.video_upload.compressing',
+                            defaultMessage: 'Compressing video…',
+                        }),
+                        this.intl.formatMessage({
+                            id: 'mobile.video_upload.progress_label',
+                            defaultMessage: 'Progress',
+                        }),
+                    );
+                }
+
+                try {
+                    const files = await this.getFilesFromResponse(response);
+                    await this.prepareFileUpload(files, hasVideoAsset);
+                } finally {
+                    if (hasVideoAsset) {
+                        await hideVideoCompressOverlay();
+                    }
+                }
             });
         }
     };

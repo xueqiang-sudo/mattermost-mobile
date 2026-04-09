@@ -46,6 +46,8 @@ export type EmployeeContactDetail = {
     contact: EmployeeContact;
     contact_type: EmployeeContactType;
     description?: string;
+    /** 备注名；列表/详情优先于对方昵称展示 */
+    remark?: string;
     created_at: number;
 };
 

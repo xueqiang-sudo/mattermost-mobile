@@ -1,17 +1,22 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState} from 'react';
+import Clipboard from '@react-native-clipboard/clipboard';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
 import {deleteContactEmployee, fetchCompany} from '@actions/remote/contact';
+import {updateEmployeeContact} from '@actions/remote/employee_contact';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
-import {Screens} from '@constants';
+import CustomInputModal from '@components/custom_input_modal/custom_input_modal';
+import {useCustomInputModal} from '@components/custom_input_modal/use_custom_input_modal';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
+import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -19,7 +24,9 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {buildClipboardTextFromLines} from '@utils/contact_profile_clipboard';
 import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -29,9 +36,6 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 const CLOSE_BUTTON_ID = 'close-contacts-employee-profile';
 
 const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
-
-/** 与 showModalWithBackButton(SUPPLIER_CUSTOMER_FORM, …) 的 componentId 一致，用于明确关闭编辑层 */
-const SUPPLIER_CUSTOMER_FORM_MODAL_ID = 'close-supplier-customer-form' as AvailableScreens;
 
 type Props = {
     componentId: AvailableScreens;
@@ -50,6 +54,9 @@ type Props = {
 
     /** 供应商/客户关系描述 */
     description?: string;
+
+    /** 供应商/客户备注名；列表与详情优先于对方昵称展示 */
+    remark?: string;
 
     /** 供应商/客户关系类型 */
     relationType?: string;
@@ -77,6 +84,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         textAlign: 'center',
     },
+    nameDirectoryHint: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        textAlign: 'center',
+        marginTop: 4,
+    },
     section: {
         paddingHorizontal: 16,
         marginBottom: 20,
@@ -87,6 +100,35 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginBottom: 12,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    sectionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        gap: 8,
+    },
+    sectionTitleInRow: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.72),
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        flex: 1,
+        marginBottom: 0,
+    },
+    copyInfoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.linkColor, 0.08),
+        flexShrink: 0,
+    },
+    copyInfoButtonText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.linkColor,
+        marginLeft: 6,
     },
     card: {
         backgroundColor: theme.centerChannelBg,
@@ -210,6 +252,7 @@ const ContactsEmployeeProfile = ({
     currentUserId,
     fromManage = false,
     description,
+    remark,
     relationType,
 }: Props) => {
     const theme = useTheme();
@@ -219,11 +262,18 @@ const ContactsEmployeeProfile = ({
     const [sending, setSending] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [relationDescription, setRelationDescription] = useState(() => description ?? '');
+    const [relationRemark, setRelationRemark] = useState(() => remark?.trim() ?? '');
     const [isCompanyOwner, setIsCompanyOwner] = useState(false);
+    const remarkEditInput = useCustomInputModal();
+    const relationDescriptionEditInput = useCustomInputModal();
 
     useEffect(() => {
         setRelationDescription(description ?? '');
     }, [description]);
+
+    useEffect(() => {
+        setRelationRemark(remark?.trim() ?? '');
+    }, [remark]);
 
     useEffect(() => {
         let cancelled = false;
@@ -257,43 +307,58 @@ const ContactsEmployeeProfile = ({
     useNavButtonPressed(closeButtonId ?? CLOSE_BUTTON_ID, componentId, handleClose, [handleClose]);
     useAndroidHardwareBackHandler(componentId, handleClose);
 
-    const handleEditRelation = usePreventDoubleTap(useCallback(() => {
+    const canEditRelationFields = Boolean(relationType && currentUserId);
+
+    const updateRelationFields = useCallback(async (nextRemark: string, nextDescription: string) => {
         if (!relationType || !currentUserId) {
+            return false;
+        }
+        const result = await updateEmployeeContact(currentUserId, employee.id, relationType as 'supplier' | 'customer', {
+            remark: nextRemark.trim() || undefined,
+            description: nextDescription.trim() || undefined,
+        });
+        if (result.error) {
+            Alert.alert(
+                intl.formatMessage({id: 'supplier_customer.error_title', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'supplier_customer.error_update_relation', defaultMessage: 'Could not update. If the relationship was removed, add the contact again.'}),
+            );
+            return false;
+        }
+        setRelationRemark(nextRemark.trim());
+        setRelationDescription(nextDescription.trim());
+        DeviceEventEmitter.emit(Events.SUPPLIER_CUSTOMER_CONTACTS_CHANGED, {contactType: relationType});
+        return true;
+    }, [currentUserId, employee.id, intl, relationType]);
+
+    const handleEditRemark = usePreventDoubleTap(useCallback(async () => {
+        if (!canEditRelationFields) {
             return;
         }
-        let editFormTitle: string;
-        if (relationType === 'supplier') {
-            editFormTitle = intl.formatMessage({id: 'supplier_customer.form_edit_supplier_title', defaultMessage: 'Edit supplier'});
-        } else {
-            editFormTitle = intl.formatMessage({id: 'supplier_customer.form_edit_customer_title', defaultMessage: 'Edit customer'});
+        const nextValue = await remarkEditInput.showModal({
+            title: intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'}),
+            placeholder: intl.formatMessage({id: 'supplier_customer.add_remark_placeholder', defaultMessage: 'e.g. ACME purchasing contact'}),
+            defaultValue: relationRemark,
+        });
+        if (nextValue === null || nextValue.trim() === relationRemark.trim()) {
+            return;
         }
-        showModalWithBackButton(
-            Screens.SUPPLIER_CUSTOMER_FORM,
-            editFormTitle,
-            SUPPLIER_CUSTOMER_FORM_MODAL_ID,
-            {
-                kind: relationType as 'supplier' | 'customer',
-                ownerId: currentUserId ?? '',
-                existingContactId: employee.id,
-                initialContactName: employee.name,
-                initialDescription: relationDescription,
-                initialContactEmail: employee.email,
-                initialContactPhone: employee.phone,
-                initialContactPosition: employee.position,
-                onRelationDescriptionSaved: setRelationDescription,
-                onBack: () => {
-                    dismissModal({componentId: SUPPLIER_CUSTOMER_FORM_MODAL_ID});
-                },
-            },
-            {
-                useBackIcon: true,
-                topBar: {
-                    visible: false,
-                    height: 0,
-                },
-            },
-        );
-    }, [relationType, relationDescription, currentUserId, employee.email, employee.id, employee.name, employee.phone, employee.position, intl]));
+        await updateRelationFields(nextValue, relationDescription);
+    }, [canEditRelationFields, intl, relationDescription, relationRemark, remarkEditInput, updateRelationFields]));
+
+    const handleEditRelationDescription = usePreventDoubleTap(useCallback(async () => {
+        if (!canEditRelationFields) {
+            return;
+        }
+        const nextValue = await relationDescriptionEditInput.showModal({
+            title: intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'}),
+            placeholder: intl.formatMessage({id: 'supplier_customer.field_description_edit_placeholder', defaultMessage: 'How do you work together? Add context—for example projects, roles, or reminders—for yourself and your enterprise. (optional)'}),
+            defaultValue: relationDescription,
+        });
+        if (nextValue === null || nextValue.trim() === relationDescription.trim()) {
+            return;
+        }
+        await updateRelationFields(relationRemark, nextValue);
+    }, [canEditRelationFields, intl, relationDescription, relationDescriptionEditInput, relationRemark, updateRelationFields]));
 
     const resolveMattermostUserId = useCallback(async (): Promise<string | null> => {
         if (!serverUrl) {
@@ -373,6 +438,26 @@ const ContactsEmployeeProfile = ({
 
     const isSupplierCustomer = Boolean(relationType);
 
+    const departmentClipboardValue = useMemo(() => {
+        if (!departmentName?.trim() && !departmentParentPath?.trim()) {
+            return '';
+        }
+        if (departmentParentPath?.includes('/')) {
+            const pathDisplay = formatPathForDisplay(
+                departmentParentPath.split('/').filter(Boolean),
+                DEPARTMENT_PATH_DISPLAY_MAX_LENGTH,
+                '/',
+                intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
+            );
+            const namePart = departmentName?.trim() ?? '';
+            if (namePart && pathDisplay) {
+                return `${namePart} — ${pathDisplay}`;
+            }
+            return namePart || pathDisplay;
+        }
+        return departmentName?.trim() ?? '';
+    }, [departmentName, departmentParentPath, intl]);
+
     const canDeleteEnterpriseMember = fromManage && Boolean(companyIdProp) && !isSelf && !isCompanyOwner;
     const canDelete = canDeleteEnterpriseMember || isSupplierCustomer;
 
@@ -381,12 +466,13 @@ const ContactsEmployeeProfile = ({
             return;
         }
         const relationLabel = relationType === 'supplier'? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}): intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
+        const confirmName = relationRemark.trim() || employee.name;
         const ok = await new Promise<boolean>((resolve) => {
             Alert.alert(
                 intl.formatMessage({id: 'supplier_customer.delete_relation', defaultMessage: 'Remove {relation}'}, {relation: relationLabel}),
                 intl.formatMessage(
                     {id: 'supplier_customer.delete_relation_confirm', defaultMessage: 'Remove {relation} relationship with {name}? This action cannot be undone.'},
-                    {name: employee.name, relation: relationLabel},
+                    {name: confirmName, relation: relationLabel},
                 ),
                 [
                     {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel', onPress: () => resolve(false)},
@@ -408,7 +494,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [isSupplierCustomer, relationType, deleting, employee.id, employee.name, handleClose, intl]));
+    }, [isSupplierCustomer, relationType, deleting, employee.id, employee.name, relationRemark, handleClose, intl]));
 
     const handleDeleteMember = usePreventDoubleTap(useCallback(async () => {
         if (isSupplierCustomer) {
@@ -447,6 +533,90 @@ const ContactsEmployeeProfile = ({
         handleClose();
     }, [canDeleteEnterpriseMember, deleting, employee.id, employee.name, handleClose, intl]));
 
+    const handleCopyBasicInfo = usePreventDoubleTap(
+        useCallback(() => {
+            const lines: Array<{label: string; value: string}> = [];
+            const nicknameLbl = intl.formatMessage({
+                id: 'supplier_customer.directory_name_subtitle',
+                defaultMessage: 'Nickname',
+            });
+            lines.push({label: nicknameLbl, value: employee.name});
+            if (relationRemark.trim()) {
+                lines.push({
+                    label: intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'}),
+                    value: relationRemark.trim(),
+                });
+            }
+            if (employee.email?.trim()) {
+                lines.push({
+                    label: intl.formatMessage({id: 'contacts.email', defaultMessage: 'Email'}),
+                    value: employee.email.trim(),
+                });
+            }
+            if (employee.phone?.trim()) {
+                lines.push({
+                    label: intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'}),
+                    value: employee.phone.trim(),
+                });
+            }
+            if (employee.position?.trim()) {
+                lines.push({
+                    label: intl.formatMessage({id: 'contacts.position', defaultMessage: 'Position'}),
+                    value: employee.position.trim(),
+                });
+            }
+            if (departmentClipboardValue.trim()) {
+                lines.push({
+                    label: intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'}),
+                    value: departmentClipboardValue.trim(),
+                });
+            }
+            if (isSupplierCustomer && relationType) {
+                const typeLabel =
+                    relationType === 'supplier'
+                        ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'})
+                        : intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
+                lines.push({
+                    label: intl.formatMessage({id: 'supplier_customer.type', defaultMessage: 'Type'}),
+                    value: typeLabel,
+                });
+            }
+            if (isSupplierCustomer && relationDescription.trim()) {
+                lines.push({
+                    label: intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'}),
+                    value: relationDescription.trim(),
+                });
+            }
+            if (employee.id) {
+                lines.push({
+                    label: intl.formatMessage({id: 'contacts.clipboard_member_id', defaultMessage: 'Member ID'}),
+                    value: employee.id,
+                });
+            }
+            const text = buildClipboardTextFromLines(lines);
+            if (!text) {
+                return;
+            }
+            Clipboard.setString(text);
+            showSnackBar({
+                barType: SNACK_BAR_TYPE.INFO_COPIED,
+                type: MESSAGE_TYPE.SUCCESS,
+            });
+        }, [
+            departmentClipboardValue,
+            employee.email,
+            employee.id,
+            employee.name,
+            employee.phone,
+            employee.position,
+            intl,
+            isSupplierCustomer,
+            relationDescription,
+            relationRemark,
+            relationType,
+        ]),
+    );
+
     return (
         <SafeAreaView
             edges={SAFE_AREA_EDGES}
@@ -467,10 +637,23 @@ const ContactsEmployeeProfile = ({
                     </View>
                     <Text
                         style={styles.name}
-                        numberOfLines={1}
+                        numberOfLines={2}
                     >
-                        {employee.name}
+                        {relationRemark.trim() || employee.name}
                     </Text>
+                    {relationRemark.trim() ? (
+                        <Text
+                            style={styles.nameDirectoryHint}
+                            numberOfLines={1}
+                        >
+                            {intl.formatMessage({
+                                id: 'supplier_customer.directory_name_subtitle',
+                                defaultMessage: 'Nickname',
+                            })}
+                            {': '}
+                            {employee.name}
+                        </Text>
+                    ) : null}
                     {isSelf ? (
                         <View style={styles.selfTag}>
                             <Text style={styles.selfTagText}>
@@ -488,6 +671,32 @@ const ContactsEmployeeProfile = ({
                         <View style={styles.card}>
                             <View style={styles.cardRow}>
                                 <Text style={styles.cardLabel}>
+                                    {intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'})}
+                                </Text>
+                                <View style={styles.cardValueWrap}>
+                                    <Text
+                                        style={styles.cardValue}
+                                        numberOfLines={2}
+                                    >
+                                        {relationRemark.trim() || '-'}
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={styles.changeDepartmentInline}
+                                        onPress={handleEditRemark}
+                                        activeOpacity={0.7}
+                                        disabled={!canEditRelationFields}
+                                        testID='supplier_customer.edit_remark'
+                                    >
+                                        <CompassIcon
+                                            name='pencil-outline'
+                                            size={16}
+                                            color={theme.linkColor}
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                            <View style={styles.cardRow}>
+                                <Text style={styles.cardLabel}>
                                     {intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'})}
                                 </Text>
                                 <View style={styles.cardValueWrap}>
@@ -499,8 +708,9 @@ const ContactsEmployeeProfile = ({
                                     </Text>
                                     <TouchableOpacity
                                         style={styles.changeDepartmentInline}
-                                        onPress={handleEditRelation}
+                                        onPress={handleEditRelationDescription}
                                         activeOpacity={0.7}
+                                        disabled={!canEditRelationFields}
                                         testID='supplier_customer.edit_relation'
                                     >
                                         <CompassIcon
@@ -548,9 +758,26 @@ const ContactsEmployeeProfile = ({
                 )}
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>
-                        {intl.formatMessage({id: 'contacts.contact_info', defaultMessage: 'Contact Info'})}
-                    </Text>
+                    <View style={styles.sectionTitleRow}>
+                        <Text style={styles.sectionTitleInRow}>
+                            {intl.formatMessage({id: 'contacts.contact_info', defaultMessage: 'Contact Info'})}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.copyInfoButton}
+                            onPress={handleCopyBasicInfo}
+                            activeOpacity={0.7}
+                            testID='contacts.employee_profile.copy_basic_info'
+                        >
+                            <CompassIcon
+                                name='content-copy'
+                                size={18}
+                                color={theme.linkColor}
+                            />
+                            <Text style={styles.copyInfoButtonText}>
+                                {intl.formatMessage({id: 'contacts.copy_basic_info', defaultMessage: 'Copy'})}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                     <View style={styles.card}>
                         {employee.email ? (
                             <View style={styles.cardRow}>
@@ -693,6 +920,28 @@ const ContactsEmployeeProfile = ({
                     )}
                 </View>
             </ScrollView>
+            <CustomInputModal
+                visible={remarkEditInput.visible}
+                title={remarkEditInput.options.title}
+                placeholder={remarkEditInput.options.placeholder}
+                defaultValue={remarkEditInput.options.defaultValue}
+                confirmContent={remarkEditInput.options.confirmContent}
+                showCancelButton={remarkEditInput.options.showCancelButton}
+                cancelContent={remarkEditInput.options.cancelContent}
+                onConfirm={remarkEditInput.handleConfirm}
+                onCancel={remarkEditInput.handleCancel}
+            />
+            <CustomInputModal
+                visible={relationDescriptionEditInput.visible}
+                title={relationDescriptionEditInput.options.title}
+                placeholder={relationDescriptionEditInput.options.placeholder}
+                defaultValue={relationDescriptionEditInput.options.defaultValue}
+                confirmContent={relationDescriptionEditInput.options.confirmContent}
+                showCancelButton={relationDescriptionEditInput.options.showCancelButton}
+                cancelContent={relationDescriptionEditInput.options.cancelContent}
+                onConfirm={relationDescriptionEditInput.handleConfirm}
+                onCancel={relationDescriptionEditInput.handleCancel}
+            />
         </SafeAreaView>
     );
 };

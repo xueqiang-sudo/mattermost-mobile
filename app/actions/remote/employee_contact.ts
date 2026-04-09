@@ -8,9 +8,10 @@ import EmployeeContactService, {
     type EmployeeContact,
     type EmployeeContactDetail,
     type EmployeeContactType,
+    type UpdateEmployeeContactRequest,
 } from '@client/rest/employee_contact';
 import {getFullErrorMessage} from '@utils/errors';
-import {logDebug, logError} from '@utils/log';
+import {logDebug} from '@utils/log';
 
 export type FetchEmployeeContactsResult = {
     data?: EmployeeContact[];
@@ -36,6 +37,11 @@ export type AddEmployeeContactResult = {
 };
 
 export type RemoveEmployeeContactResult = {
+    data?: {message: string};
+    error?: unknown;
+};
+
+export type UpdateEmployeeContactResult = {
     data?: {message: string};
     error?: unknown;
 };
@@ -147,29 +153,24 @@ export const removeEmployeeContact = async (
 };
 
 /**
- * 关系说明更新：服务端无 PATCH，先删后加同一 contact_id。
- * 若删除成功但添加失败，关系会丢失，调用方需提示用户重新添加。
+ * 更新供应商/客户关系：备注名与关系说明（PUT）
  */
-export const updateEmployeeContactDescription = async (
+export const updateEmployeeContact = async (
     employeeId: string,
     contactId: string,
     contactType: EmployeeContactType,
-    description: string | undefined,
-): Promise<AddEmployeeContactResult> => {
-    const removed = await removeEmployeeContact(employeeId, contactId, contactType);
-    if (removed.error) {
-        logError('[updateEmployeeContactDescription] remove', removed.error);
-        return {error: removed.error};
+    update: UpdateEmployeeContactRequest,
+): Promise<UpdateEmployeeContactResult> => {
+    if (!employeeId || !contactId) {
+        return {error: new Error('employeeId and contactId are required')};
     }
-    const added = await addEmployeeContact(employeeId, {
-        contact_id: contactId,
-        contact_type: contactType,
-        description: description?.trim() || undefined,
-    });
-    if (added.error) {
-        logDebug('[updateEmployeeContactDescription] re-add failed', getFullErrorMessage(added.error));
+    try {
+        const response = await EmployeeContactService.updateContact(employeeId, contactId, contactType, update);
+        return {data: response};
+    } catch (error) {
+        logDebug('[updateEmployeeContact]', getFullErrorMessage(error));
+        return {error};
     }
-    return added;
 };
 
 /**

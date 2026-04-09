@@ -10,7 +10,12 @@ import {useIsFocused, useNavigation} from '@react-navigation/native';
 import React from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 

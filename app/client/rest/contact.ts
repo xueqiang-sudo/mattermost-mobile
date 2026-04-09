@@ -290,11 +290,7 @@ export interface ClientContactMix {
     /** POST /api/v1/users/:userId/transfer-ownership/:companyId - 转移企业所有权 */
     transferUserCompanyOwnership: (userId: string, companyId: string, body: TransferContactOwnershipRequest) => Promise<unknown>;
 
-    /**
-     * 通过查询字符串搜索联系人，也就是搜索员工
-     * 查询字符串可以是员工的昵称、手机号、邮箱等【精准匹配】
-     * TODO qgs 后端实现后，这里再替换为后端接口调用
-     */
+    /** GET /api/v1/employees/search - 全局搜索员工【精准匹配， 查询字符串可以是员工的昵称、手机号、邮箱等】 */
     searchExactEmployees: (searchQuery: string) => Promise<ContactEmployee[]>;
 }
 
@@ -347,6 +343,9 @@ export const contactRoutes = {
 
     /** GET/PUT/DELETE /api/v1/employees/:id */
     employee: (id: string) => `${CONTACT_API_BASE_ROUTE}/employees/${id}`,
+
+    /** GET /api/v1/employees/search - 全局搜索员工【精准匹配】 */
+    employeeSearch: () => `${CONTACT_API_BASE_ROUTE}/employees/search`,
 
     /** GET /api/v1/employees/:id/check-delete */
     employeeCheckDelete: (id: string) => `${CONTACT_API_BASE_ROUTE}/employees/${id}/check-delete`,
@@ -811,22 +810,11 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
      * 查询字符串可以是员工的昵称、手机号、邮箱等【精准匹配】
      */
     searchExactEmployees = async (searchQuery: string): Promise<ContactEmployee[]> => {
-        if (!searchQuery) {
-            return [];
-        }
-        const normalizedQuery = searchQuery.trim();
+        const normalizedQuery = searchQuery ? searchQuery.trim() : '';
         if (!normalizedQuery) {
             return [];
         }
-
-        // TODO qgs 因为后端还没有实现接口，这里先利用现有 contact 接口进行临时实现
-        // 1. 获取所有企业
-        // 2. 获取全部企业所有员工联系人
-        // 3. 按昵称/手机号/邮箱做包含匹配，返回命中员工联系人
-        // 4. 返回筛选结果员工联系人列表
-        const companies = await this.getCompanies();
-        const employees = await Promise.all(companies.map((company) => this.getEmployeesOfCompany(company.id)));
-        return employees.flat().filter((employee) => employee.name === normalizedQuery || employee.phone === normalizedQuery || employee.email === normalizedQuery);
+        return this.doRequestDirect<ContactEmployee[]>(`${contactRoutes.employeeSearch()}?keyword=${normalizedQuery}`, 'get').then((res) => res.employees || []);
     };
 }
 

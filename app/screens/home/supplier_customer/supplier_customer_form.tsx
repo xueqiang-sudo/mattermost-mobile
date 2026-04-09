@@ -20,7 +20,7 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {
     addEmployeeContact,
     searchEmployeeContacts,
-    updateEmployeeContactDescription,
+    updateEmployeeContact,
     type ContactEmployeeSearchRow,
 } from '@actions/remote/employee_contact';
 import {EmployeeContactTypes, type EmployeeContactType} from '@client/rest/employee_contact';
@@ -299,6 +299,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginBottom: 12,
         lineHeight: 20,
     },
+    fieldDivider: {
+        height: 1,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+        marginVertical: 4,
+    },
+    fieldGroupHint: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+        marginBottom: 8,
+        lineHeight: 18,
+    },
     loadingBox: {
         paddingVertical: 20,
         alignItems: 'center',
@@ -328,6 +339,7 @@ export type SupplierCustomerFormProps = {
     existingContactId?: string;
     initialContactName?: string;
     initialDescription?: string;
+    initialRemark?: string;
     initialContactEmail?: string;
     initialContactPhone?: string;
     initialContactPosition?: string;
@@ -337,6 +349,9 @@ export type SupplierCustomerFormProps = {
 
     /** 编辑关系说明保存成功后回写上层（如个人信息弹窗），避免仍显示旧的 description */
     onRelationDescriptionSaved?: (nextDescription: string) => void;
+
+    /** 编辑备注名保存成功后回写上层 */
+    onRemarkSaved?: (nextRemark: string) => void;
 };
 
 const SupplierCustomerFormScreen = ({
@@ -345,6 +360,7 @@ const SupplierCustomerFormScreen = ({
     existingContactId,
     initialContactName,
     initialDescription,
+    initialRemark,
     initialContactEmail,
     initialContactPhone,
     initialContactPosition,
@@ -352,6 +368,7 @@ const SupplierCustomerFormScreen = ({
     onBack,
     componentId,
     onRelationDescriptionSaved,
+    onRemarkSaved,
 }: SupplierCustomerFormProps) => {
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -364,6 +381,7 @@ const SupplierCustomerFormScreen = ({
     const [hasSearched, setHasSearched] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<ContactEmployee | null>(null);
     const [description, setDescription] = useState(initialDescription ?? '');
+    const [remark, setRemark] = useState(initialRemark ?? '');
     const [saving, setSaving] = useState(false);
     const [avatarMattermostUserId, setAvatarMattermostUserId] = useState<string | null>(null);
 
@@ -383,6 +401,10 @@ const SupplierCustomerFormScreen = ({
     useEffect(() => {
         setDescription(initialDescription ?? '');
     }, [initialDescription, existingContactId]);
+
+    useEffect(() => {
+        setRemark(initialRemark ?? '');
+    }, [initialRemark, existingContactId]);
 
     useEffect(() => {
         if (!isEdit) {
@@ -530,13 +552,12 @@ const SupplierCustomerFormScreen = ({
                 }
                 setSaving(true);
                 try {
-                    const trimmed = description.trim();
-                    const result = await updateEmployeeContactDescription(
-                        ownerId,
-                        existingContactId,
-                        kind,
-                        trimmed || undefined,
-                    );
+                    const trimmedDesc = description.trim();
+                    const trimmedRemark = remark.trim();
+                    const result = await updateEmployeeContact(ownerId, existingContactId, kind, {
+                        description: trimmedDesc || undefined,
+                        remark: trimmedRemark || undefined,
+                    });
                     if (result.error) {
                         showErrorAlert(
                             intl.formatMessage({
@@ -546,7 +567,8 @@ const SupplierCustomerFormScreen = ({
                         );
                     } else {
                         DeviceEventEmitter.emit(Events.SUPPLIER_CUSTOMER_CONTACTS_CHANGED, {contactType: kind});
-                        onRelationDescriptionSaved?.(trimmed);
+                        onRelationDescriptionSaved?.(trimmedDesc);
+                        onRemarkSaved?.(trimmedRemark);
                         handleClose();
                     }
                 } catch {
@@ -566,6 +588,7 @@ const SupplierCustomerFormScreen = ({
                     contact_id: selectedEmployee.id,
                     contact_type: kind,
                     description: description.trim() || undefined,
+                    remark: remark.trim() || undefined,
                 });
                 if (result.error) {
                     showErrorAlert();
@@ -582,12 +605,14 @@ const SupplierCustomerFormScreen = ({
             canSaveAdd,
             canSaveEdit,
             description,
+            remark,
             existingContactId,
             intl,
             isEdit,
             kind,
             handleClose,
             onRelationDescriptionSaved,
+            onRemarkSaved,
             ownerId,
             selectedEmployee,
             showErrorAlert,
@@ -598,13 +623,14 @@ const SupplierCustomerFormScreen = ({
         id: 'supplier_customer.section_search',
         defaultMessage: 'Select contact',
     });
-    const notesSectionTitle = intl.formatMessage({
-        id: 'supplier_customer.section_relation_description',
-        defaultMessage: 'Relationship description',
+    const sectionTitle = intl.formatMessage({
+        id: 'supplier_customer.relation_info',
+        defaultMessage: 'Relation Info',
     });
-    const addRelationHint = intl.formatMessage({
-        id: 'supplier_customer.add_relation_hint',
-        defaultMessage: 'Add a short note about your relationship with this contact for future collaboration. (optional)',
+    const remarkLabel = intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'});
+    const relationDescriptionLabel = intl.formatMessage({
+        id: 'supplier_customer.relation',
+        defaultMessage: 'Relation description',
     });
     const addDescriptionPlaceholder = intl.formatMessage({
         id: 'supplier_customer.add_description_placeholder',
@@ -750,8 +776,35 @@ const SupplierCustomerFormScreen = ({
             </View>
 
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>{notesSectionTitle}</Text>
-                <Text style={styles.relationSectionSubtitle}>{addRelationHint}</Text>
+                <Text style={styles.sectionTitle}>{sectionTitle}</Text>
+                <Text style={styles.label}>
+                    {remarkLabel}
+                </Text>
+                <Text style={styles.fieldGroupHint}>
+                    {intl.formatMessage({
+                        id: 'supplier_customer.add_remark_hint',
+                        defaultMessage: 'Optional. When set, your list shows this remark instead of their nickname.',
+                    })}
+                </Text>
+                <TextInput
+                    style={styles.input}
+                    value={remark}
+                    onChangeText={setRemark}
+                    placeholder={intl.formatMessage({
+                        id: 'supplier_customer.add_remark_placeholder',
+                        defaultMessage: 'e.g. ACME purchasing contact',
+                    })}
+                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
+                    autoCorrect={false}
+                />
+                <View style={styles.fieldDivider} />
+                <Text style={styles.label}>{relationDescriptionLabel}</Text>
+                <Text style={styles.fieldGroupHint}>
+                    {intl.formatMessage({
+                        id: 'supplier_customer.relation_edit_hint',
+                        defaultMessage: 'Update the note that describes how you work with this contact.',
+                    })}
+                </Text>
                 <TextInput
                     style={[styles.input, styles.textArea]}
                     value={description}
@@ -765,11 +818,8 @@ const SupplierCustomerFormScreen = ({
         </>
     );
 
-    const editRelationSectionTitle = intl.formatMessage({
-        id: 'supplier_customer.section_edit_relation',
-        defaultMessage: 'Edit relationship',
-    });
-    const editRelationHint = intl.formatMessage({
+    const editNotesSectionTitle = sectionTitle;
+    const relationDescriptionHint = intl.formatMessage({
         id: 'supplier_customer.relation_edit_hint',
         defaultMessage: 'Update the note that describes how you work with this contact.',
     });
@@ -787,7 +837,7 @@ const SupplierCustomerFormScreen = ({
                 <Text style={[styles.hintText, {marginBottom: 12}]}>
                     {intl.formatMessage({
                         id: 'supplier_customer.contact_readonly_hint',
-                        defaultMessage: 'The profile below is read-only. Only the relationship note can be changed.',
+                        defaultMessage: 'Directory details below are read-only. Use the next section to change your list label and notes.',
                     })}
                 </Text>
                 <View style={styles.contactReadonlyCard}>
@@ -811,8 +861,21 @@ const SupplierCustomerFormScreen = ({
                                 style={styles.contactNameMain}
                                 numberOfLines={2}
                             >
-                                {initialContactName ?? existingContactId}
+                                {(initialRemark?.trim() || initialContactName) ?? existingContactId}
                             </Text>
+                            {initialRemark?.trim() ? (
+                                <Text
+                                    style={styles.contactHint}
+                                    numberOfLines={2}
+                                >
+                                    {intl.formatMessage({
+                                        id: 'supplier_customer.directory_name_subtitle',
+                                        defaultMessage: 'Nickname',
+                                    })}
+                                    {': '}
+                                    {initialContactName ?? ''}
+                                </Text>
+                            ) : null}
                         </View>
                     </View>
                     {initialContactEmail ? (
@@ -857,11 +920,29 @@ const SupplierCustomerFormScreen = ({
                 </View>
             </View>
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>{editRelationSectionTitle}</Text>
-                <Text style={styles.relationSectionSubtitle}>{editRelationHint}</Text>
-                <Text style={styles.label}>
-                    {intl.formatMessage({id: 'supplier_customer.field_description', defaultMessage: 'Relationship description'})}
+                <Text style={styles.sectionTitle}>{editNotesSectionTitle}</Text>
+                <Text style={styles.label}>{remarkLabel}</Text>
+                <Text style={styles.fieldGroupHint}>
+                    {intl.formatMessage({
+                        id: 'supplier_customer.add_remark_hint',
+                        defaultMessage: 'Optional. When set, your list shows this remark instead of their nickname.',
+                    })}
                 </Text>
+                <TextInput
+                    style={styles.input}
+                    value={remark}
+                    onChangeText={setRemark}
+                    placeholder={intl.formatMessage({
+                        id: 'supplier_customer.add_remark_placeholder',
+                        defaultMessage: 'e.g. ACME purchasing contact',
+                    })}
+                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
+                    autoCorrect={false}
+                    testID='supplier_customer.form.edit.remark'
+                />
+                <View style={styles.fieldDivider} />
+                <Text style={styles.label}>{relationDescriptionLabel}</Text>
+                <Text style={styles.fieldGroupHint}>{relationDescriptionHint}</Text>
                 <TextInput
                     style={[styles.input, styles.textArea]}
                     value={description}
@@ -870,6 +951,7 @@ const SupplierCustomerFormScreen = ({
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
                     multiline={true}
                     numberOfLines={4}
+                    testID='supplier_customer.form.edit.internal_note'
                 />
             </View>
         </>

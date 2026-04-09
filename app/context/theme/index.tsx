@@ -28,7 +28,7 @@ export function getDefaultThemeByAppearance(): Theme {
     if (Appearance.getColorScheme() === 'dark') {
         return Preferences.THEMES.onyx;
     }
-    return Preferences.THEMES.denim;
+    return Preferences.THEMES.quartz;
 }
 
 export const ThemeContext = createContext(getDefaultThemeByAppearance());

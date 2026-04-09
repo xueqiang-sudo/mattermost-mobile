@@ -36,6 +36,7 @@ function SupplierCustomerFormWrapper() {
             existingContactId={params.existingContactId}
             initialContactName={params.initialContactName}
             initialDescription={params.initialDescription}
+            initialRemark={params.initialRemark}
             initialContactEmail={params.initialContactEmail}
             initialContactPhone={params.initialContactPhone}
             initialContactPosition={params.initialContactPosition}

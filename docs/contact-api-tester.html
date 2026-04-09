@@ -528,6 +528,19 @@
           <button class="btn" onclick="callApi('GET','/api/v1/employees/'+paramVal('emp_id'),null)">调用</button>
         </div>
         <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/search</span>
+            </div>
+            <p class="status">全局搜索员工：查询参数 <code>keyword</code> 必填；与 <code>name</code>（昵称）、<code>phone</code>、<code>email</code> 精确匹配（非模糊）</p>
+            <div class="params">
+              <input id="emp_search_keyword" placeholder="keyword" style="width:220px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathEmployeesSearch(), null)">调用</button>
+        </div>
+        <div class="endpoint">
           <div style="flex:1">
             <div class="endpoint-info">
               <span class="method put">PUT</span>
@@ -909,6 +922,16 @@
       }
       var qs = q.toString();
       return '/api/v1/employees/' + encodeURIComponent(eid) + '/cascade-departments' + (qs ? '?' + qs : '');
+    }
+
+    function pathEmployeesSearch() {
+      var kw = document.getElementById('emp_search_keyword').value.trim();
+      var q = new URLSearchParams();
+      if (kw) {
+        q.set('keyword', kw);
+      }
+      var qs = q.toString();
+      return '/api/v1/employees/search' + (qs ? '?' + qs : '');
     }
 
     function pathCompanyEmployeeSearch() {

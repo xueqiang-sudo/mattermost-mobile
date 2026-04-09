@@ -35,6 +35,9 @@ buildscript {
 allprojects {
     repositories {
         mavenLocal()
+        // Maven Central: required for transitive deps (e.g. react-native-compressor → isoparser, jlayer)
+        // that are not on Google Maven; also avoids failing the whole resolve when google() times out.
+        mavenCentral()
         google()
         maven {
             url "$rootDir/../detox/node_modules/detox/Detox-android"

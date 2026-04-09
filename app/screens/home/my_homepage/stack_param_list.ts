@@ -15,6 +15,7 @@ export type MyHomepageStackParamList = {
         existingContactId?: string;
         initialContactName?: string;
         initialDescription?: string;
+        initialRemark?: string;
         initialContactEmail?: string;
         initialContactPhone?: string;
         initialContactPosition?: string;
