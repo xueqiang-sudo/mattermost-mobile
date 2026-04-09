@@ -19,6 +19,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import {bottomSheet, dismissBottomSheet, openAsBottomSheet} from '@screens/navigation';
 import {emojiShortNameToMarkdownToken, emojiShortNameToUnicodeString} from '@utils/emoji/helpers';
+import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
 import {persistentNotificationsConfirmation} from '@utils/post';
 import {
     changeOpacity,
@@ -463,6 +464,7 @@ export type Props = {
     uploadFileError: React.ReactNode;
     updateValue: React.Dispatch<React.SetStateAction<string>>;
     addFiles: (files: FileInfo[]) => void;
+    draftVideoProcessingBridge?: DraftVideoProcessingBridge;
     updatePostInputTop: (top: number) => void;
     setIsFocused: (isFocused: boolean) => void;
     scheduledPostsEnabled: boolean;
@@ -608,6 +610,7 @@ function DraftInput({
     canSend,
     updateValue,
     addFiles,
+    draftVideoProcessingBridge,
     updateCursorPosition,
     cursorPosition,
     updatePostInputTop,
@@ -940,6 +943,7 @@ function DraftInput({
         <QuickActionsSheet
             testID={`${quickActionsTestID}.more_sheet`}
             addFiles={addFiles}
+            draftVideoProcessingBridge={draftVideoProcessingBridge}
             canShowPostPriority={canShowPostPriority}
             fileCount={files.length}
             focus={focus}
@@ -950,7 +954,7 @@ function DraftInput({
             onDismiss={() => dismissBottomSheet()}
             showAtMention={!voiceMode}
         />
-    ), [addFiles, canShowPostPriority, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value, voiceMode]);
+    ), [addFiles, canShowPostPriority, draftVideoProcessingBridge, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value, voiceMode]);
 
     const openDraftMoreSheet = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
@@ -1037,6 +1041,7 @@ function DraftInput({
                         testID={quickActionsTestID}
                         fileCount={files.length}
                         addFiles={addFiles}
+                        draftVideoProcessingBridge={draftVideoProcessingBridge}
                         updateValue={updateValue}
                         value={value}
                         postPriority={postPriority}

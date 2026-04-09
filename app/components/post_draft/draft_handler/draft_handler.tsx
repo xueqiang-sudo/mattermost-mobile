@@ -1,11 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter} from 'react-native';
 
-import {addFilesToDraft, removeDraft} from '@actions/local/draft';
+import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
 import {createPost} from '@actions/remote/post';
 import {Events, Screens} from '@constants';
@@ -14,7 +14,14 @@ import {useServerUrl} from '@context/server';
 import useFileUploadError from '@hooks/file_upload_error';
 import DraftEditPostUploadManager from '@managers/draft_upload_manager';
 import {getErrorMessage} from '@utils/errors';
-import {fileMaxWarning, fileSizeWarning, uploadDisabledWarning} from '@utils/file';
+import {
+    clearDraftVideoProcessingAborted,
+    isDraftVideoLocalProcessingFile,
+    isDraftVideoProcessingAborted,
+    markDraftVideoProcessingAborted,
+    type DraftVideoProcessingBridge,
+} from '@utils/file/draft_video_local_processing';
+import {fileMaxWarning, fileSizeWarning, getExtensionFromMime, uploadDisabledWarning} from '@utils/file';
 import {logError} from '@utils/log';
 import {showSnackBar} from '@utils/snack_bar';
 
@@ -102,12 +109,101 @@ export default function DraftHandler(props: Props) {
         addFilesToDraft(serverUrl, channelId, rootId, newFiles);
 
         for (const file of newFiles) {
+            if (isDraftVideoLocalProcessingFile(file)) {
+                continue;
+            }
             DraftEditPostUploadManager.prepareUpload(serverUrl, file, channelId, rootId);
             uploadErrorHandlers.current[file.clientId!] = DraftEditPostUploadManager.registerErrorHandler(file.clientId!, newUploadError);
         }
 
         newUploadError(null);
     }, [intl, newUploadError, maxFileSize, serverUrl, files?.length, channelId, rootId]);
+
+    const addVideoPlaceholder = useCallback((file: FileInfo) => {
+        if (!canUploadFiles) {
+            newUploadError(uploadDisabledWarning(intl));
+            return;
+        }
+
+        const currentFileCount = files?.length || 0;
+        const availableCount = maxFileCount - currentFileCount;
+        if (availableCount < 1) {
+            newUploadError(fileMaxWarning(intl, maxFileCount));
+            return;
+        }
+
+        if (file.clientId) {
+            clearDraftVideoProcessingAborted(file.clientId);
+        }
+
+        void addFilesToDraft(serverUrl, channelId, rootId, [file]);
+        newUploadError(null);
+    }, [canUploadFiles, channelId, files?.length, intl, maxFileCount, newUploadError, rootId, serverUrl]);
+
+    const updateVideoPlaceholder = useCallback(async (clientId: string, file: FileInfo) => {
+        await updateDraftFile(serverUrl, channelId, rootId, file);
+    }, [serverUrl, channelId, rootId]);
+
+    const removeVideoPlaceholder = useCallback((clientId: string) => {
+        markDraftVideoProcessingAborted(clientId);
+        void removeDraftFile(serverUrl, channelId, rootId, clientId);
+    }, [serverUrl, channelId, rootId]);
+
+    const completeVideoProcessing = useCallback((clientId: string, extracted: ExtractedFileInfo[]) => {
+        if (isDraftVideoProcessingAborted(clientId)) {
+            clearDraftVideoProcessingAborted(clientId);
+            return;
+        }
+
+        const x = extracted[0];
+        if (!x?.name || !x.mime_type) {
+            void removeDraftFile(serverUrl, channelId, rootId, clientId);
+            clearDraftVideoProcessingAborted(clientId);
+            return;
+        }
+
+        const ext = getExtensionFromMime(x.mime_type) || x.name.split('.').pop() || 'mp4';
+        const merged: FileInfo = {
+            ...x,
+            clientId,
+            user_id: currentUserId,
+            extension: ext,
+            has_preview_image: x.has_preview_image ?? false,
+            height: typeof x.height === 'number' ? x.height : 0,
+            width: typeof x.width === 'number' ? x.width : 0,
+            size: x.size ?? 0,
+            name: x.name,
+            mime_type: x.mime_type,
+            localPath: x.localPath,
+            uri: x.uri,
+        };
+
+        if (merged.size > maxFileSize) {
+            void removeDraftFile(serverUrl, channelId, rootId, clientId);
+            newUploadError(fileSizeWarning(intl, maxFileSize));
+            clearDraftVideoProcessingAborted(clientId);
+            return;
+        }
+
+        void updateDraftFile(serverUrl, channelId, rootId, merged).then(({error}) => {
+            if (error || isDraftVideoProcessingAborted(clientId)) {
+                clearDraftVideoProcessingAborted(clientId);
+                return;
+            }
+            DraftEditPostUploadManager.prepareUpload(serverUrl, merged, channelId, rootId);
+            uploadErrorHandlers.current[merged.clientId!] = DraftEditPostUploadManager.registerErrorHandler(merged.clientId!, newUploadError);
+            clearDraftVideoProcessingAborted(clientId);
+        });
+        newUploadError(null);
+    }, [channelId, currentUserId, intl, maxFileSize, newUploadError, rootId, serverUrl]);
+
+    const draftVideoProcessingBridge: DraftVideoProcessingBridge = useMemo(() => ({
+        currentUserId,
+        addVideoPlaceholder,
+        updateVideoPlaceholder,
+        completeVideoProcessing,
+        removeVideoPlaceholder,
+    }), [addVideoPlaceholder, completeVideoProcessing, currentUserId, removeVideoPlaceholder, updateVideoPlaceholder]);
 
     /** Upload one image and post it immediately (WeChat-style local sticker); does not touch draft text or draft files. */
     const sendStandaloneStickerImage = useCallback(async (file: FileInfo) => {
@@ -198,6 +294,7 @@ export default function DraftHandler(props: Props) {
             files={files || emptyFileList}
             clearDraft={clearDraft}
             addFiles={addFiles}
+            draftVideoProcessingBridge={draftVideoProcessingBridge}
             uploadFileError={uploadError}
             updateCursorPosition={updateCursorPosition}
             updatePostInputTop={updatePostInputTop}

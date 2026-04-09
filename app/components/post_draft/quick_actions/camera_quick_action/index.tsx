@@ -33,6 +33,7 @@ const style = StyleSheet.create({
 export default function CameraQuickAction({
     disabled,
     onUploadFiles,
+    draftVideoProcessingBridge,
     maxFilesReached,
     maxFileCount,
     testID,
@@ -41,19 +42,24 @@ export default function CameraQuickAction({
     const theme = useTheme();
 
     const handleButtonPress = useCallback((options: CameraOptions) => {
-        const picker = new PickerUtil(intl,
-            onUploadFiles);
+        const picker = new PickerUtil(intl, onUploadFiles, draftVideoProcessingBridge);
 
         picker.attachFileFromCamera(options);
-    }, [intl, onUploadFiles]);
+    }, [intl, onUploadFiles, draftVideoProcessingBridge]);
+
+    const handleVisionVideoPress = useCallback(() => {
+        const picker = new PickerUtil(intl, onUploadFiles, draftVideoProcessingBridge);
+        void picker.attachVideoFromVisionRecorder();
+    }, [intl, onUploadFiles, draftVideoProcessingBridge]);
 
     const renderContent = useCallback(() => {
         return (
             <CameraType
                 onPress={handleButtonPress}
+                onVisionVideoPress={handleVisionVideoPress}
             />
         );
-    }, [handleButtonPress]);
+    }, [handleButtonPress, handleVisionVideoPress]);
 
     const openSelectorModal = useCallback(() => {
         if (maxFilesReached) {

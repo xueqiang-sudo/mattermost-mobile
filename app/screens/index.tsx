@@ -257,6 +257,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.QR_SCANNER:
             screen = withIntl(require('@screens/qr_scanner').default);
             break;
+        case Screens.DRAFT_VIDEO_RECORDER:
+            screen = withIntl(require('@screens/draft_video_recorder').default);
+            break;
         case Screens.REACTIONS:
             screen = withServerDatabase(require('@screens/reactions').default);
             break;

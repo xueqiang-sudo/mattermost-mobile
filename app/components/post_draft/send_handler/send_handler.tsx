@@ -11,6 +11,15 @@ import {useServerUrl} from '@context/server';
 import {useHandleSendMessage} from '@hooks/handle_send_message';
 
 import type {DraftType} from '@constants/draft';
+import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
+
+const noopDraftVideoBridge: DraftVideoProcessingBridge = {
+    currentUserId: '',
+    addVideoPlaceholder: () => undefined,
+    updateVideoPlaceholder: async () => undefined,
+    completeVideoProcessing: () => undefined,
+    removeVideoPlaceholder: () => undefined,
+};
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -46,6 +55,7 @@ type Props = {
     updateCursorPosition: React.Dispatch<React.SetStateAction<number>>;
     updatePostInputTop: (top: number) => void;
     addFiles: (file: FileInfo[]) => void;
+    draftVideoProcessingBridge?: DraftVideoProcessingBridge;
 
     /** Immediate image-only post (local sticker); does not modify draft. */
     sendStandaloneStickerImage: (file: FileInfo) => Promise<void>;
@@ -94,6 +104,7 @@ export default function SendHandler({
     clearDraft,
     updateValue,
     addFiles,
+    draftVideoProcessingBridge,
     sendStandaloneStickerImage,
     uploadFileError,
     updateCursorPosition,
@@ -177,6 +188,7 @@ export default function SendHandler({
             files={files}
             updateValue={updateValue}
             addFiles={addFiles}
+            draftVideoProcessingBridge={draftVideoProcessingBridge ?? noopDraftVideoBridge}
             sendStandaloneStickerImage={sendStandaloneStickerImage}
             uploadFileError={uploadFileError}
             sendMessage={handleSendMessage}

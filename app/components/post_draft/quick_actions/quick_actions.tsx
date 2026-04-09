@@ -4,6 +4,8 @@
 import React from 'react';
 import {StyleSheet, View} from 'react-native';
 
+import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
+
 import CameraAction from './camera_quick_action';
 import FileAction from './file_quick_action';
 import ImageAction from './image_quick_action';
@@ -22,6 +24,7 @@ type Props = {
     value: string;
     updateValue: (value: string) => void;
     addFiles: (file: FileInfo[]) => void;
+    draftVideoProcessingBridge?: DraftVideoProcessingBridge;
     postPriority: PostPriority;
     updatePostPriority: (postPriority: PostPriority) => void;
     focus: () => void;
@@ -47,6 +50,7 @@ export default function QuickActions({
     maxFileCount,
     updateValue,
     addFiles,
+    draftVideoProcessingBridge,
     postPriority,
     updatePostPriority,
     focus,
@@ -65,6 +69,7 @@ export default function QuickActions({
         maxFileCount,
         maxFilesReached: fileCount >= maxFileCount,
         onUploadFiles: addFiles,
+        draftVideoProcessingBridge,
     };
 
     return (

@@ -8,26 +8,53 @@ import DocumentPicker, {type DocumentPickerResponse} from 'react-native-document
 import {type Asset, type CameraOptions, type ImageLibraryOptions, type ImagePickerResponse, launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import Permissions from 'react-native-permissions';
 
+import {showDraftVideoRecorderModal} from '@screens/draft_video_recorder/show_modal';
 import {dismissBottomSheet} from '@screens/navigation';
 import {extractFileInfo, lookupMimeType} from '@utils/file';
+import {
+    buildDraftVideoPlaceholderFile,
+    clearDraftVideoProcessingAborted,
+    isDraftVideoProcessingAborted,
+    patchDraftVideoPlaceholder,
+    type DraftVideoProcessingBridge,
+} from '@utils/file/draft_video_local_processing';
 import {compressChatVideoAsset} from '@utils/file/compress_chat_video';
-import {hideVideoCompressOverlay, showVideoCompressOverlay} from '@utils/file/video_compress_overlay';
+import {
+    hideVideoCompressOverlay,
+    reportVideoCompressOverlayMessage,
+    reportVideoCompressProgress,
+    showVideoCompressOverlay,
+} from '@utils/file/video_compress_overlay';
+import {generateId} from '@utils/general';
 import {logError, logWarning} from '@utils/log';
 import {safeDecodeURIComponent} from '@utils/url';
 
 import type {IntlShape} from 'react-intl';
+import type {VideoFile} from 'react-native-vision-camera';
+
+export type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
 
 type PermissionSource = 'camera' | 'storage' | 'photo_android' | 'photo_ios' | 'photo';
+
+type DraftVideoPrepareContext = {
+    clientId: string;
+    bridge: DraftVideoProcessingBridge;
+    onCompressProgress: (progress: number) => void;
+};
 
 export default class FilePickerUtil {
     private readonly uploadFiles: (files: ExtractedFileInfo[]) => void;
     private readonly intl: IntlShape;
+    private readonly draftVideoBridge?: DraftVideoProcessingBridge;
 
     constructor(
         intl: IntlShape,
-        uploadFiles: (files: ExtractedFileInfo[]) => void) {
+        uploadFiles: (files: ExtractedFileInfo[]) => void,
+        draftVideoBridge?: DraftVideoProcessingBridge,
+    ) {
         this.intl = intl;
         this.uploadFiles = uploadFiles;
+        this.draftVideoBridge = draftVideoBridge;
     }
 
     private getPermissionMessages = (source: PermissionSource) => {
@@ -113,7 +140,11 @@ export default class FilePickerUtil {
         return Boolean(ext && ['mp4', 'mov', 'm4v', 'webm', 'mkv', '3gp'].includes(ext));
     };
 
-    private prepareFileUpload = async (files: Array<Asset | DocumentPickerResponse>, isVideoOverlayVisible = false) => {
+    private prepareFileUpload = async (
+        files: Array<Asset | DocumentPickerResponse>,
+        isVideoOverlayVisible = false,
+        draftVideoContext?: DraftVideoPrepareContext,
+    ) => {
         const needsVideoPass = files.some((f) => this.fileLooksLikeVideo(f));
         const shouldToggleVideoOverlay = needsVideoPass && !isVideoOverlayVisible;
 
@@ -135,9 +166,14 @@ export default class FilePickerUtil {
                 const next: Array<Asset | DocumentPickerResponse> = [];
                 for (const f of files) {
                     if (this.fileLooksLikeVideo(f)) {
+                        const clientId = draftVideoContext?.clientId;
+                        const isAborted = clientId ? () => isDraftVideoProcessingAborted(clientId) : undefined;
                         // Sequential compression avoids high memory use when multiple large videos are attached.
                         // eslint-disable-next-line no-await-in-loop
-                        next.push(await compressChatVideoAsset(f));
+                        next.push(await compressChatVideoAsset(f, {
+                            isAborted,
+                            onProgress: draftVideoContext?.onCompressProgress,
+                        }));
                     } else {
                         next.push(f);
                     }
@@ -153,7 +189,25 @@ export default class FilePickerUtil {
             }
         }
 
+        if (draftVideoContext && isDraftVideoProcessingAborted(draftVideoContext.clientId)) {
+            return;
+        }
+
         const out = await extractFileInfo(filesToExtract);
+
+        if (draftVideoContext) {
+            if (isDraftVideoProcessingAborted(draftVideoContext.clientId)) {
+                return;
+            }
+            if (out.length > 0 && out[0]) {
+                out[0].clientId = draftVideoContext.clientId;
+                dismissBottomSheet();
+                draftVideoContext.bridge.completeVideoProcessing(draftVideoContext.clientId, out);
+            } else {
+                draftVideoContext.bridge.removeVideoPlaceholder(draftVideoContext.clientId);
+            }
+            return;
+        }
 
         if (out.length > 0) {
             dismissBottomSheet();
@@ -332,6 +386,137 @@ export default class FilePickerUtil {
         return {doc};
     };
 
+    private visionVideoToAsset = (video: VideoFile): Asset => {
+        const path = video.path;
+        const uri = path.startsWith('file://') ? path : `file://${path}`;
+        const ext = Platform.OS === 'ios' ? 'mov' : 'mp4';
+        const mime = Platform.OS === 'ios' ? 'video/quicktime' : 'video/mp4';
+        return {
+            uri,
+            type: mime,
+            fileName: `chat-video-${Date.now()}.${ext}`,
+            duration: video.duration,
+            width: video.width,
+            height: video.height,
+        };
+    };
+
+    private advanceDraftVideoToCompressingAndUpload = async (
+        clientId: string,
+        initialPlaceholder: FileInfo,
+        files: Asset[],
+    ): Promise<void> => {
+        if (!this.draftVideoBridge) {
+            return;
+        }
+        let placeholderSnapshot = initialPlaceholder;
+        const compressingLabel = this.intl.formatMessage({
+            id: 'mobile.video_upload.compressing',
+            defaultMessage: 'Compressing video…',
+        });
+        placeholderSnapshot = patchDraftVideoPlaceholder(placeholderSnapshot, {
+            stage: 'compressing',
+            progress: 0,
+            name: compressingLabel,
+        });
+        await this.draftVideoBridge.updateVideoPlaceholder(clientId, placeholderSnapshot);
+        reportVideoCompressOverlayMessage(compressingLabel);
+        const onCompressProgress = (p: number) => {
+            placeholderSnapshot = patchDraftVideoPlaceholder(placeholderSnapshot, {
+                stage: 'compressing',
+                progress: p,
+            });
+            void this.draftVideoBridge!.updateVideoPlaceholder(clientId, placeholderSnapshot);
+        };
+        await this.prepareFileUpload(files, true, {
+            clientId,
+            bridge: this.draftVideoBridge,
+            onCompressProgress,
+        });
+    };
+
+    private handleVisionCameraVideoRecorded = async (video: VideoFile) => {
+        const asset = this.visionVideoToAsset(video);
+        const progressLabel = this.intl.formatMessage({
+            id: 'mobile.video_upload.progress_label',
+            defaultMessage: 'Progress',
+        });
+
+        if (!this.draftVideoBridge) {
+            if (this.fileLooksLikeVideo(asset)) {
+                showVideoCompressOverlay(
+                    this.intl.formatMessage({
+                        id: 'mobile.video_upload.compressing',
+                        defaultMessage: 'Compressing video…',
+                    }),
+                    progressLabel,
+                );
+            }
+            try {
+                await this.prepareFileUpload([asset], this.fileLooksLikeVideo(asset));
+            } finally {
+                if (this.fileLooksLikeVideo(asset)) {
+                    await hideVideoCompressOverlay();
+                }
+            }
+            return;
+        }
+
+        const clientId = generateId();
+        clearDraftVideoProcessingAborted(clientId);
+        const resolvingLabel = this.intl.formatMessage({
+            id: 'mobile.video_upload.preparing_video',
+            defaultMessage: 'Preparing video…',
+        });
+        let placeholderSnapshot = buildDraftVideoPlaceholderFile({
+            clientId,
+            userId: this.draftVideoBridge.currentUserId,
+            name: resolvingLabel,
+            stage: 'resolving',
+            progress: 0,
+        });
+        this.draftVideoBridge.addVideoPlaceholder(placeholderSnapshot);
+        showVideoCompressOverlay(resolvingLabel, progressLabel);
+        reportVideoCompressProgress(0);
+        try {
+            if (isDraftVideoProcessingAborted(clientId)) {
+                return;
+            }
+            await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, [asset]);
+        } finally {
+            await hideVideoCompressOverlay();
+        }
+    };
+
+    /**
+     * Photo-only or video without draft placeholder bridge (system camera fallback).
+     */
+    private handlePickedCameraAssetsWithoutDraftPlaceholder = async (files: Asset[]): Promise<void> => {
+        const hasVideoAsset = files.some((asset) => this.fileLooksLikeVideo(asset));
+        const progressLabel = this.intl.formatMessage({
+            id: 'mobile.video_upload.progress_label',
+            defaultMessage: 'Progress',
+        });
+
+        if (hasVideoAsset) {
+            showVideoCompressOverlay(
+                this.intl.formatMessage({
+                    id: 'mobile.video_upload.compressing',
+                    defaultMessage: 'Compressing video…',
+                }),
+                progressLabel,
+            );
+        }
+
+        try {
+            await this.prepareFileUpload(files, hasVideoAsset);
+        } finally {
+            if (hasVideoAsset) {
+                await hideVideoCompressOverlay();
+            }
+        }
+    };
+
     attachFileFromCamera = async (customOptions?: CameraOptions) => {
         let options = customOptions;
         if (!options) {
@@ -358,28 +543,64 @@ export default class FilePickerUtil {
                     return;
                 }
 
-                const hasVideoAsset = response.assets?.some((asset) => asset.type?.startsWith('video/')) ?? false;
-                if (hasVideoAsset) {
-                    showVideoCompressOverlay(
-                        this.intl.formatMessage({
-                            id: 'mobile.video_upload.compressing',
-                            defaultMessage: 'Compressing video…',
-                        }),
-                        this.intl.formatMessage({
-                            id: 'mobile.video_upload.progress_label',
-                            defaultMessage: 'Progress',
-                        }),
-                    );
-                }
+                const hasVideoAsset = response.assets?.some((asset) => this.fileLooksLikeVideo(asset)) ?? false;
+                const progressLabel = this.intl.formatMessage({
+                    id: 'mobile.video_upload.progress_label',
+                    defaultMessage: 'Progress',
+                });
 
-                try {
-                    const files = await this.getFilesFromResponse(response);
-                    await this.prepareFileUpload(files, hasVideoAsset);
-                } finally {
-                    if (hasVideoAsset) {
+                if (hasVideoAsset && this.draftVideoBridge) {
+                    const clientId = generateId();
+                    clearDraftVideoProcessingAborted(clientId);
+                    const resolvingLabel = this.intl.formatMessage({
+                        id: 'mobile.video_upload.preparing_video',
+                        defaultMessage: 'Preparing video…',
+                    });
+                    let placeholderSnapshot = buildDraftVideoPlaceholderFile({
+                        clientId,
+                        userId: this.draftVideoBridge.currentUserId,
+                        name: resolvingLabel,
+                        stage: 'resolving',
+                        progress: 0,
+                    });
+                    this.draftVideoBridge.addVideoPlaceholder(placeholderSnapshot);
+                    showVideoCompressOverlay(resolvingLabel, progressLabel);
+                    reportVideoCompressProgress(0);
+                    try {
+                        const files = await this.getFilesFromResponse(response);
+                        if (isDraftVideoProcessingAborted(clientId)) {
+                            return;
+                        }
+                        if (!files.length) {
+                            this.draftVideoBridge.removeVideoPlaceholder(clientId);
+                            return;
+                        }
+                        await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, files);
+                    } finally {
                         await hideVideoCompressOverlay();
                     }
+                    return;
                 }
+
+                const files = await this.getFilesFromResponse(response);
+                await this.handlePickedCameraAssetsWithoutDraftPlaceholder(files);
+            });
+        }
+    };
+
+    attachVideoFromVisionRecorder = async () => {
+        const hasCameraPermission = await this.hasPhotoPermission('camera');
+
+        let hasWriteToStoragePermission = true;
+        if (Platform.OS === 'android' && Platform.Version <= 28) {
+            hasWriteToStoragePermission = await this.hasWriteStoragePermission();
+        }
+
+        if (hasCameraPermission && hasWriteToStoragePermission) {
+            showDraftVideoRecorderModal({
+                onVideoRecorded: (video) => {
+                    void this.handleVisionCameraVideoRecorded(video);
+                },
             });
         }
     };

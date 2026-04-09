@@ -1,6 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {getDraftVideoLocalMeta} from '@utils/file/draft_video_local_processing';
+
 import type {UploadItemFile} from './index';
 export {SHARED_UPLOAD_STYLES} from './constants';
 import type {SharedItem} from '@mattermost/rnshare';
@@ -20,6 +22,7 @@ export function fileInfoToUploadItemFile(file: FileInfo): UploadItemFile {
         width: file.width,
         height: file.height,
         mime_type: file.mime_type,
+        draftVideoLocal: getDraftVideoLocalMeta(file),
     };
 }
 

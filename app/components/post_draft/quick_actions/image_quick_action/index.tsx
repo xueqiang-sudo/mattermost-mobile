@@ -27,6 +27,7 @@ export default function ImageQuickAction({
     disabled,
     fileCount = 0,
     onUploadFiles,
+    draftVideoProcessingBridge,
     maxFilesReached,
     maxFileCount,
     testID = '',
@@ -46,11 +47,10 @@ export default function ImageQuickAction({
             return;
         }
 
-        const picker = new PickerUtil(intl,
-            onUploadFiles);
+        const picker = new PickerUtil(intl, onUploadFiles, draftVideoProcessingBridge);
 
         picker.attachFileFromPhotoGallery(maxFileCount - fileCount);
-    }, [onUploadFiles, fileCount, maxFileCount]);
+    }, [draftVideoProcessingBridge, onUploadFiles, fileCount, maxFileCount, maxFilesReached, intl]);
 
     const actionTestID = disabled ? `${testID}.disabled` : testID;
     const color = disabled ? changeOpacity(theme.centerChannelColor, 0.16) : changeOpacity(theme.centerChannelColor, 0.64);

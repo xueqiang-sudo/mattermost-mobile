@@ -10,13 +10,22 @@ import {dismissOverlay, showOverlay} from '@screens/navigation';
 export const VIDEO_COMPRESS_OVERLAY_ID = 'video-compress-overlay';
 
 let progressSetter: ((p: number) => void) | undefined;
+let messageSetter: ((m: string) => void) | undefined;
 
 function setVideoCompressProgressSetter(setter: typeof progressSetter) {
     progressSetter = setter;
 }
 
+function setVideoCompressMessageSetter(setter: typeof messageSetter) {
+    messageSetter = setter;
+}
+
 export function reportVideoCompressProgress(progress: number) {
     progressSetter?.(progress);
+}
+
+export function reportVideoCompressOverlayMessage(message: string) {
+    messageSetter?.(message);
 }
 
 const styles = StyleSheet.create({
@@ -45,12 +54,17 @@ type BodyProps = {
     progressLabel: string;
 };
 
-function VideoCompressOverlayBody({message, progressLabel}: BodyProps) {
+function VideoCompressOverlayBody({message: initialMessage, progressLabel}: BodyProps) {
     const [progress, setProgress] = useState(0);
+    const [message, setMessage] = useState(initialMessage);
 
     useEffect(() => {
         setVideoCompressProgressSetter(setProgress);
-        return () => setVideoCompressProgressSetter(undefined);
+        setVideoCompressMessageSetter(setMessage);
+        return () => {
+            setVideoCompressProgressSetter(undefined);
+            setVideoCompressMessageSetter(undefined);
+        };
     }, []);
 
     const pct = Math.round(Math.min(1, Math.max(0, progress)) * 100);

@@ -26,6 +26,7 @@ const style = StyleSheet.create({
 export default function FileQuickAction({
     disabled,
     onUploadFiles,
+    draftVideoProcessingBridge,
     maxFilesReached,
     maxFileCount,
     testID = '',
@@ -44,11 +45,10 @@ export default function FileQuickAction({
             );
             return;
         }
-        const picker = new PickerUtil(intl,
-            onUploadFiles);
+        const picker = new PickerUtil(intl, onUploadFiles, draftVideoProcessingBridge);
 
         picker.attachFileFromFiles(undefined, true);
-    }, [intl, maxFileCount, maxFilesReached, onUploadFiles]);
+    }, [intl, maxFileCount, maxFilesReached, onUploadFiles, draftVideoProcessingBridge]);
 
     const actionTestID = disabled ? `${testID}.disabled` : testID;
     const color = disabled ? changeOpacity(theme.centerChannelColor, 0.16) : changeOpacity(theme.centerChannelColor, 0.64);

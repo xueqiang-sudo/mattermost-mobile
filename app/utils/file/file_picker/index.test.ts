@@ -14,8 +14,9 @@ import {dismissBottomSheet} from '@screens/navigation';
 import TestHelper from '@test/test_helper';
 import {extractFileInfo, lookupMimeType} from '@utils/file';
 import {compressChatVideoAsset} from '@utils/file/compress_chat_video';
-import {hideVideoCompressOverlay, showVideoCompressOverlay} from '@utils/file/video_compress_overlay';
-import {getIntlShape} from '@utils/general';
+import {DRAFT_VIDEO_POST_PROP_KEY, markDraftVideoProcessingAborted} from '@utils/file/draft_video_local_processing';
+import {hideVideoCompressOverlay, reportVideoCompressOverlayMessage, reportVideoCompressProgress, showVideoCompressOverlay} from '@utils/file/video_compress_overlay';
+import * as GeneralUtils from '@utils/general';
 import {logWarning} from '@utils/log';
 
 import FilePickerUtil from '.';
@@ -40,6 +41,8 @@ jest.mock('@utils/file/compress_chat_video', () => ({
 jest.mock('@utils/file/video_compress_overlay', () => ({
     showVideoCompressOverlay: jest.fn(),
     hideVideoCompressOverlay: jest.fn().mockResolvedValue(undefined),
+    reportVideoCompressOverlayMessage: jest.fn(),
+    reportVideoCompressProgress: jest.fn(),
 }));
 
 jest.mock('@utils/file', () => ({
@@ -66,7 +69,7 @@ jest.mock('@mattermost/rnutils', () => ({
 
 describe('FilePickerUtil', () => {
     const mockUploadFiles = jest.fn();
-    const intl = getIntlShape();
+    const intl = GeneralUtils.getIntlShape();
     const originalSelect = Platform.select;
 
     let filePickerUtil: FilePickerUtil;
@@ -514,6 +517,136 @@ describe('FilePickerUtil', () => {
 
             expect(Permissions.check).toHaveBeenCalledWith(Permissions.PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
             expect(launchCameraMock).not.toHaveBeenCalled();
+        });
+
+        test('should add draft placeholder then completeVideoProcessing when draft video bridge is set', async () => {
+            jest.spyOn(GeneralUtils, 'generateId').mockReturnValueOnce('draft-video-cid-1');
+
+            const bridge = {
+                currentUserId: 'user-1',
+                addVideoPlaceholder: jest.fn(),
+                updateVideoPlaceholder: jest.fn().mockResolvedValue(undefined),
+                completeVideoProcessing: jest.fn(),
+                removeVideoPlaceholder: jest.fn(),
+            };
+
+            const pickerWithBridge = new FilePickerUtil(intl, mockUploadFiles, bridge);
+
+            (Permissions.check as jest.Mock).mockResolvedValue(Permissions.RESULTS.GRANTED);
+
+            const launchCameraMock = launchCamera as jest.Mock;
+            launchCameraMock.mockImplementation((_options: unknown, callback: (r: ImagePickerResponse) => void) => {
+                callback({
+                    assets: [{
+                        uri: 'file://camera_vid.mp4',
+                        type: 'video/mp4',
+                        fileName: 'vid.mp4',
+                    }],
+                });
+            });
+
+            const extracted = [{
+                name: 'vid.mp4',
+                uri: 'file://extracted.mp4',
+                mime_type: 'video/mp4',
+            }];
+
+            (extractFileInfo as jest.Mock).mockResolvedValue(extracted);
+
+            await pickerWithBridge.attachFileFromCamera();
+
+            expect(launchCameraMock).toHaveBeenCalled();
+            await TestHelper.wait(100);
+
+            expect(bridge.addVideoPlaceholder).toHaveBeenCalled();
+            const placeholderArg = bridge.addVideoPlaceholder.mock.calls[0][0];
+            expect(placeholderArg.clientId).toBe('draft-video-cid-1');
+            expect(placeholderArg.postProps?.[DRAFT_VIDEO_POST_PROP_KEY]).toMatchObject({
+                localProcessing: true,
+                stage: 'resolving',
+            });
+
+            expect(bridge.completeVideoProcessing).toHaveBeenCalledWith(
+                'draft-video-cid-1',
+                expect.arrayContaining([expect.objectContaining({clientId: 'draft-video-cid-1'})]),
+            );
+            expect(mockUploadFiles).not.toHaveBeenCalled();
+            expect(showVideoCompressOverlay).toHaveBeenCalled();
+            expect(hideVideoCompressOverlay).toHaveBeenCalled();
+            expect(reportVideoCompressProgress).toHaveBeenCalled();
+            expect(reportVideoCompressOverlayMessage).toHaveBeenCalled();
+            expect(bridge.updateVideoPlaceholder).toHaveBeenCalled();
+            const compressingUpdate = bridge.updateVideoPlaceholder.mock.calls.find(
+                ([, f]) => f.postProps?.[DRAFT_VIDEO_POST_PROP_KEY]?.stage === 'compressing',
+            );
+            expect(compressingUpdate).toBeDefined();
+        });
+
+        test('should removeVideoPlaceholder when extract yields no files (draft video bridge)', async () => {
+            jest.spyOn(GeneralUtils, 'generateId').mockReturnValueOnce('draft-video-cid-2');
+
+            const bridge = {
+                currentUserId: 'user-1',
+                addVideoPlaceholder: jest.fn(),
+                updateVideoPlaceholder: jest.fn().mockResolvedValue(undefined),
+                completeVideoProcessing: jest.fn(),
+                removeVideoPlaceholder: jest.fn(),
+            };
+
+            const pickerWithBridge = new FilePickerUtil(intl, mockUploadFiles, bridge);
+
+            (Permissions.check as jest.Mock).mockResolvedValue(Permissions.RESULTS.GRANTED);
+
+            const launchCameraMock = launchCamera as jest.Mock;
+            launchCameraMock.mockImplementation((_options: unknown, callback: (r: ImagePickerResponse) => void) => {
+                callback({
+                    assets: [{uri: 'file://x.mp4', type: 'video/mp4', fileName: 'x.mp4'}],
+                });
+            });
+
+            (extractFileInfo as jest.Mock).mockResolvedValue([]);
+
+            await pickerWithBridge.attachFileFromCamera();
+            await TestHelper.wait(100);
+
+            expect(bridge.removeVideoPlaceholder).toHaveBeenCalledWith('draft-video-cid-2');
+            expect(bridge.completeVideoProcessing).not.toHaveBeenCalled();
+        });
+
+        test('should not call completeVideoProcessing when processing aborted before extract (draft video bridge)', async () => {
+            jest.spyOn(GeneralUtils, 'generateId').mockReturnValueOnce('draft-video-cid-3');
+
+            const bridge = {
+                currentUserId: 'user-1',
+                addVideoPlaceholder: jest.fn(),
+                updateVideoPlaceholder: jest.fn().mockResolvedValue(undefined),
+                completeVideoProcessing: jest.fn(),
+                removeVideoPlaceholder: jest.fn(),
+            };
+
+            const pickerWithBridge = new FilePickerUtil(intl, mockUploadFiles, bridge);
+
+            (Permissions.check as jest.Mock).mockResolvedValue(Permissions.RESULTS.GRANTED);
+
+            const launchCameraMock = launchCamera as jest.Mock;
+            launchCameraMock.mockImplementation((_options: unknown, callback: (r: ImagePickerResponse) => void) => {
+                callback({
+                    assets: [{uri: 'file://x.mp4', type: 'video/mp4', fileName: 'x.mp4'}],
+                });
+            });
+
+            (compressChatVideoAsset as jest.Mock).mockImplementationOnce(async (f: Asset) => {
+                markDraftVideoProcessingAborted('draft-video-cid-3');
+                return f;
+            });
+
+            (extractFileInfo as jest.Mock).mockResolvedValue([{uri: 'file://out.mp4'}]);
+
+            await pickerWithBridge.attachFileFromCamera();
+            await TestHelper.wait(100);
+
+            expect(bridge.addVideoPlaceholder).toHaveBeenCalled();
+            expect(bridge.completeVideoProcessing).not.toHaveBeenCalled();
         });
     });
 

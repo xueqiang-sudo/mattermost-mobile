@@ -16,6 +16,7 @@ import {useIsTablet} from '@hooks/device';
 import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import {bottomSheet, openAsBottomSheet} from '@screens/navigation';
 import {fileMaxWarning} from '@utils/file';
+import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
 import PickerUtil from '@utils/file/file_picker';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -103,6 +104,7 @@ type Props = {
     value: string;
     updateValue: (value: string) => void;
     addFiles: (files: FileInfo[]) => void;
+    draftVideoProcessingBridge?: DraftVideoProcessingBridge;
     postPriority: PostPriority;
     updatePostPriority: (postPriority: PostPriority) => void;
     focus: () => void;
@@ -122,6 +124,7 @@ export default function QuickActionsSheet({
     value,
     updateValue,
     addFiles,
+    draftVideoProcessingBridge,
     postPriority,
     updatePostPriority,
     focus,
@@ -159,9 +162,9 @@ export default function QuickActionsSheet({
             );
             return;
         }
-        const picker = new PickerUtil(intl, addFiles);
+        const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromFiles(undefined, true);
-    }, [intl, addFiles, maxFilesReached, maxFileCount]);
+    }, [intl, addFiles, draftVideoProcessingBridge, maxFilesReached, maxFileCount]);
 
     const handleGalleryPress = useCallback(() => {
         if (maxFilesReached) {
@@ -171,9 +174,9 @@ export default function QuickActionsSheet({
             );
             return;
         }
-        const picker = new PickerUtil(intl, addFiles);
+        const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromPhotoGallery(maxFileCount - fileCount);
-    }, [intl, addFiles, fileCount, maxFileCount, maxFilesReached]);
+    }, [intl, addFiles, draftVideoProcessingBridge, fileCount, maxFileCount, maxFilesReached]);
 
     const handleCameraPress = useCallback((options: {type?: string}) => {
         if (maxFilesReached) {
@@ -183,9 +186,21 @@ export default function QuickActionsSheet({
             );
             return;
         }
-        const picker = new PickerUtil(intl, addFiles);
+        const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromCamera(options);
-    }, [intl, addFiles, maxFileCount, maxFilesReached]);
+    }, [intl, addFiles, draftVideoProcessingBridge, maxFileCount, maxFilesReached]);
+
+    const handleVisionVideoPress = useCallback(() => {
+        if (maxFilesReached) {
+            Alert.alert(
+                intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                fileMaxWarning(intl, maxFileCount),
+            );
+            return;
+        }
+        const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
+        void picker.attachVideoFromVisionRecorder();
+    }, [intl, addFiles, draftVideoProcessingBridge, maxFileCount, maxFilesReached]);
 
     const handlePriorityPress = useCallback(() => {
         const title = isTablet ? intl.formatMessage({id: 'post_priority.picker.title', defaultMessage: 'Message priority'}) : '';
@@ -224,7 +239,12 @@ export default function QuickActionsSheet({
             onPress: wrapWithDismiss(() => {
                 bottomSheet({
                     title: intl.formatMessage({id: 'mobile.camera_type.title', defaultMessage: 'Camera options'}),
-                    renderContent: () => <CameraType onPress={handleCameraPress}/>,
+                    renderContent: () => (
+                        <CameraType
+                            onPress={handleCameraPress}
+                            onVisionVideoPress={handleVisionVideoPress}
+                        />
+                    ),
                     snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT) + TITLE_HEIGHT],
                     theme,
                     closeButtonId: 'camera-close-sheet',

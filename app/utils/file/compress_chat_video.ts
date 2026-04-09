@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {deleteAsync} from 'expo-file-system';
 import {getRealPath, Video} from 'react-native-compressor';
 
 import {reportVideoCompressProgress} from '@utils/file/video_compress_overlay';
@@ -36,12 +37,19 @@ function outputBaseName(compressedUri: string): string {
     return decoded.includes('.') ? decoded : `${decoded}.mp4`;
 }
 
+export type CompressChatVideoOptions = {
+    isAborted?: () => boolean;
+    /** Fired with 0–1 during compression (in addition to overlay progress). */
+    onProgress?: (progress: number) => void;
+};
+
 /**
  * Compresses chat-bound videos (camera, gallery, files) toward a smaller MP4 suitable for upload.
  * On failure, returns the original asset unchanged.
  */
 export async function compressChatVideoAsset(
     file: Asset | DocumentPickerResponse,
+    options?: CompressChatVideoOptions,
 ): Promise<Asset | DocumentPickerResponse> {
     if (!isProbablyVideo(file) || !file.uri) {
         return file;
@@ -66,6 +74,7 @@ export async function compressChatVideoAsset(
 
     try {
         reportVideoCompressProgress(0);
+        options?.onProgress?.(0);
         const compressedUri = await Video.compress(
             inputUri,
             {
@@ -75,12 +84,20 @@ export async function compressChatVideoAsset(
             },
             (progress) => {
                 reportVideoCompressProgress(progress);
+                options?.onProgress?.(progress);
             },
         );
 
         const outUri = ensureFileScheme(compressedUri);
         const baseName = outputBaseName(outUri);
         reportVideoCompressProgress(1);
+        options?.onProgress?.(1);
+
+        if (options?.isAborted?.()) {
+            await deleteAsync(outUri, {idempotent: true}).catch(() => undefined);
+            reportVideoCompressProgress(0);
+            return file;
+        }
 
         if ('fileName' in file) {
             const {fileSize: _fs, duration: _duration, ...rest} = file as Asset;

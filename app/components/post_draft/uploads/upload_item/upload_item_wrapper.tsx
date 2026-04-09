@@ -7,6 +7,7 @@ import {View} from 'react-native';
 import {updateDraftFile} from '@actions/local/draft';
 import UploadItemShared from '@components/upload_item_shared';
 import {fileInfoToUploadItemFile} from '@components/upload_item_shared/adapters';
+import {getDraftVideoLocalMeta} from '@utils/file/draft_video_local_processing';
 import {useEditPost} from '@context/edit_post';
 import {useServerUrl} from '@context/server';
 import useDidUpdate from '@hooks/did_update';
@@ -34,7 +35,8 @@ export default function UploadItemWrapper({
     const [progress, setProgress] = useState(0);
     const {updateFileCallback, isEditMode} = useEditPost();
 
-    const loading = DraftEditPostUploadManager.isUploading(file.clientId!);
+    const localVideoMeta = getDraftVideoLocalMeta(file);
+    const loading = Boolean(localVideoMeta) || DraftEditPostUploadManager.isUploading(file.clientId!);
 
     const handlePress = useCallback(() => {
         openGallery(file);

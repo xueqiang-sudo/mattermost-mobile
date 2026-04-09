@@ -42,6 +42,7 @@ export const CUSTOM_STATUS = 'CustomStatus';
 export const CUSTOM_STATUS_CLEAR_AFTER = 'CustomStatusClearAfter';
 export const DRAFT = 'Draft';
 export const DRAFT_SCHEDULED_POST_OPTIONS = 'DraftScheduledPostOptions';
+export const DRAFT_VIDEO_RECORDER = 'DraftVideoRecorder';
 export const EDIT_POST = 'EditPost';
 export const EDIT_PROFILE = 'EditProfile';
 export const EDIT_SERVER = 'EditServer';
@@ -152,6 +153,7 @@ export default {
     CUSTOM_STATUS,
     CUSTOM_STATUS_CLEAR_AFTER,
     DRAFT_SCHEDULED_POST_OPTIONS,
+    DRAFT_VIDEO_RECORDER,
     EDIT_POST,
     EDIT_PROFILE,
     EDIT_SERVER,

@@ -12,6 +12,7 @@ import ImageFile from '@components/files/image_file';
 import UploadRetry from '@components/post_draft/uploads/upload_item/upload_retry';
 import ProgressBar from '@components/progress_bar';
 import {useTheme} from '@context/theme';
+import type {DraftVideoLocalPostProps} from '@utils/file/draft_video_local_processing';
 import {isImage, getFormattedFileSize} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -29,6 +30,7 @@ export interface UploadItemFile {
     width?: number;
     height?: number;
     mime_type?: string;
+    draftVideoLocal?: DraftVideoLocalPostProps;
 }
 
 export interface UploadItemProps {
@@ -243,6 +245,20 @@ export default function UploadItemShared({
     const fileExtension = file.extension?.toUpperCase() || file.name?.split('.').pop()?.toUpperCase() || '';
     const formattedSize = getFormattedFileSize(file.size || 0);
     const unknownFileLabel = intl.formatMessage({id: 'upload_item.unknown_file', defaultMessage: 'Unknown file'});
+    const preparingShort = intl.formatMessage({
+        id: 'mobile.video_upload.preparing_video_short',
+        defaultMessage: 'Preparing video…',
+    });
+    const compressingShort = intl.formatMessage({
+        id: 'mobile.video_upload.compressing_short',
+        defaultMessage: 'Compressing…',
+    });
+    const localMeta = file.draftVideoLocal;
+    const statusSubline = localMeta ?
+        (localMeta.stage === 'resolving' ?
+            preparingShort :
+            `${compressingShort} ${Math.round(Math.min(1, Math.max(0, localMeta.progress)) * 100)}%`) :
+        `${fileExtension && `${fileExtension} `}${formattedSize}`;
 
     const containerStyle = useMemo(() => {
         let containerStyleType;
@@ -287,7 +303,7 @@ export default function UploadItemShared({
                         {file.name || unknownFileLabel}
                     </Text>
                     <Text style={style.fileSize}>
-                        {fileExtension && `${fileExtension} `}{formattedSize}
+                        {statusSubline}
                     </Text>
                 </View>
             )}
@@ -301,7 +317,11 @@ export default function UploadItemShared({
             {loading && !file.failed && (
                 <View style={style.progress}>
                     <ProgressBar
-                        progress={progress || 0}
+                        progress={
+                            localMeta?.stage === 'resolving' ? 0.04 :
+                                localMeta?.stage === 'compressing' ? (localMeta.progress || 0) :
+                                    (progress || 0)
+                        }
                         color={theme.buttonBg}
                         containerStyle={style.progressContainer}
                     />

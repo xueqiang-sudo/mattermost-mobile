@@ -1,11 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {deleteAsync} from 'expo-file-system';
 import {getRealPath, Video} from 'react-native-compressor';
 
 import {compressChatVideoAsset} from './compress_chat_video';
 
 import type {Asset} from 'react-native-image-picker';
+
+jest.mock('expo-file-system', () => ({
+    deleteAsync: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@utils/file/video_compress_overlay', () => ({
     reportVideoCompressProgress: jest.fn(),
@@ -46,5 +51,14 @@ describe('compressChatVideoAsset', () => {
             expect.any(Object),
             expect.any(Function),
         );
+    });
+
+    it('should delete compressed output and return original when isAborted after compress', async () => {
+        const file = {uri: 'file://in.mov', type: 'video/quicktime', fileName: 'in.mov'} as Asset;
+        const out = await compressChatVideoAsset(file, {
+            isAborted: () => true,
+        });
+        expect(deleteAsync).toHaveBeenCalledWith('file:///cache/compressed.mp4', {idempotent: true});
+        expect(out).toMatchObject({uri: 'file://in.mov', fileName: 'in.mov'});
     });
 });
