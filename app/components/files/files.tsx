@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {DeviceEventEmitter, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {DeviceEventEmitter, Dimensions, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {Events} from '@constants';
@@ -28,12 +28,17 @@ type FilesProps = {
     postProps?: Record<string, unknown>;
     isPermalinkPreview?: boolean;
     isMediaOnlyMessage?: boolean;
+    /** WeChat-style: document rows follow content width instead of stretching to portrait width. */
+    shrinkWrapNonImage?: boolean;
 }
 
-const MAX_VISIBLE_ROW_IMAGES = 4;
 /** 多图/多视频时每行最多列数，列宽均分避免挤出气泡或遮挡头像 */
 const MEDIA_GRID_MAX_COLS = 3;
 const MEDIA_GRID_GAP = 6;
+/** 多图网格总宽不超过屏宽比例，与气泡/时间戳区对齐，避免贴头像侧溢出 */
+const FILES_GRID_MAX_WIDTH_FRAC = 0.82;
+/** 单格最大边长，避免 2×2 缩略图过大 */
+const MEDIA_GRID_CELL_MAX_EDGE = 114;
 const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
@@ -78,10 +83,19 @@ const Files = ({
     postProps,
     isPermalinkPreview = false,
     isMediaOnlyMessage = false,
+    shrinkWrapNonImage = false,
 }: FilesProps) => {
     const galleryIdentifier = `${postId}-fileAttachments-${location}`;
     const [inViewPort, setInViewPort] = useState(false);
     const isTablet = useIsTablet();
+
+    const portraitWidth = useMemo(() => {
+        const windowW = Dimensions.get('window').width;
+        const maxW = Math.floor(windowW * FILES_GRID_MAX_WIDTH_FRAC);
+        const fallback = getViewPortWidth(isReplyPost, isTablet) - 6;
+        const base = layoutWidth != null && layoutWidth > 0 ? layoutWidth : fallback;
+        return Math.min(base, maxW);
+    }, [isReplyPost, isTablet, layoutWidth]);
 
     const {images: imageAttachments, nonImages: nonImageAttachments} = useImageAttachments(filesInfo);
     const [filesForGallery, setFilesForGallery] = useState(() => [...imageAttachments, ...nonImageAttachments]);
@@ -109,22 +123,23 @@ const Files = ({
     // 纯媒体消息不需要额外上边距，避免与时间行之间出现过大的空隙。
     const compactTopSpacing = isMediaOnlyMessage && !isPermalinkPreview;
 
-    const renderItems = (items: FileInfo[], moreImagesCount = 0, includeGutter = false, isImageRow = false) => {
-        let nonVisibleImagesCount: number;
-
-        // Apply flex: 1 for multiple items, except in permalink previews where vertical
-        // document lists should not use flex to prevent shrinking under maxHeight constraints.
-        // Horizontal image rows (includeGutter=true) still need flex for space distribution.
-        const shouldApplyFlex = items.length > 1 && !(isPermalinkPreview && !includeGutter);
+    const renderItems = (
+        items: FileInfo[],
+        includeGutter = false,
+        isImageRow = false,
+        suppressItemMarginTop = false,
+    ) => {
+        // Flex:1 only for horizontal rows that use gutter spacing (multi-image strip).
+        // Stacked non-media attachments must not flex or they stretch oddly inside the bubble.
+        const shouldApplyFlex =
+            includeGutter &&
+            items.length > 1 &&
+            !(isPermalinkPreview && !includeGutter);
         let container: StyleProp<ViewStyle> = shouldApplyFlex ? styles.rowItemContainer : undefined;
         const containerWithGutter = [container, styles.gutter];
-        const wrapperWidth = getViewPortWidth(isReplyPost, isTablet) - 6;
+        const wrapperWidth = portraitWidth;
 
         return items.map((file, idx) => {
-            if (moreImagesCount && idx === MAX_VISIBLE_ROW_IMAGES - 1) {
-                nonVisibleImagesCount = moreImagesCount;
-            }
-
             if (idx !== 0 && includeGutter) {
                 container = containerWithGutter;
             }
@@ -136,9 +151,10 @@ const Files = ({
                 <View
                     style={[
                         container,
-                        styles.marginTop,
+                        !suppressItemMarginTop && styles.marginTop,
                         compactTopSpacing && {marginTop: 0},
                         shouldRemoveMarginTop && {marginTop: 0},
+                        suppressItemMarginTop && !(shrinkWrapNonImage && !isImageRow) && {alignSelf: 'stretch'},
                     ]}
                     testID={`${file.id}-file-container`}
                     key={file.id}
@@ -152,9 +168,8 @@ const Files = ({
                         index={attachmentIndex(file.id!)}
                         onPress={handlePreviewPress}
                         isSingleImage={isSingleImage}
-                        nonVisibleImagesCount={nonVisibleImagesCount}
                         updateFileForGallery={updateFileForGallery}
-                        wrapperWidth={layoutWidth || wrapperWidth}
+                        wrapperWidth={wrapperWidth}
                         inViewPort={inViewPort}
                     />
                 </View>
@@ -172,7 +187,10 @@ const Files = ({
         if (n === 3) {
             return 3;
         }
-        return 2;
+        if (n === 4) {
+            return 2;
+        }
+        return MEDIA_GRID_MAX_COLS;
     };
 
     const renderImageRow = () => {
@@ -180,14 +198,9 @@ const Files = ({
             return null;
         }
 
-        const visibleImages = imageAttachments.slice(0, MAX_VISIBLE_ROW_IMAGES);
-        const portraitPostWidth = layoutWidth || (getViewPortWidth(isReplyPost, isTablet) - 6);
+        const visibleImages = imageAttachments;
+        const portraitPostWidth = portraitWidth;
         const isSingleAttachmentImageRow = visibleImages.length === 1;
-
-        let nonVisibleImagesCount;
-        if (imageAttachments.length > MAX_VISIBLE_ROW_IMAGES) {
-            nonVisibleImagesCount = imageAttachments.length - MAX_VISIBLE_ROW_IMAGES;
-        }
 
         if (isSingleAttachmentImageRow) {
             return (
@@ -199,20 +212,22 @@ const Files = ({
                     ]}
                     testID='image-row'
                 >
-                    {renderItems(visibleImages, nonVisibleImagesCount, false, true)}
+                    {renderItems(visibleImages, false, true)}
                 </View>
             );
         }
 
         const cols = Math.min(pickMediaGridColumns(visibleImages.length), MEDIA_GRID_MAX_COLS);
-        const cellW = Math.floor((portraitPostWidth - MEDIA_GRID_GAP * (cols - 1)) / cols);
+        const rawCellW = Math.floor((portraitPostWidth - MEDIA_GRID_GAP * (cols - 1)) / cols);
+        const cellW = Math.min(rawCellW, MEDIA_GRID_CELL_MAX_EDGE);
+        const gridRowWidth = cols * cellW + MEDIA_GRID_GAP * Math.max(0, cols - 1);
 
         return (
             <View
                 style={[
                     styles.row,
                     styles.rowWrap,
-                    {width: portraitPostWidth},
+                    {width: gridRowWidth},
                     compactTopSpacing && {marginTop: 0},
                     isPermalinkPreview && {marginTop: 0},
                 ]}
@@ -221,10 +236,6 @@ const Files = ({
                 {visibleImages.map((file, idx) => {
                     const col = idx % cols;
                     const marginRight = col < cols - 1 ? MEDIA_GRID_GAP : 0;
-                    let nonVisible: number | undefined;
-                    if (nonVisibleImagesCount && idx === MAX_VISIBLE_ROW_IMAGES - 1) {
-                        nonVisible = nonVisibleImagesCount;
-                    }
                     return (
                         <View
                             key={file.id}
@@ -245,7 +256,6 @@ const Files = ({
                                 file={file}
                                 index={attachmentIndex(file.id!)}
                                 isSingleImage={isSingleImage}
-                                nonVisibleImagesCount={nonVisible ?? 0}
                                 onPress={handlePreviewPress}
                                 updateFileForGallery={updateFileForGallery}
                                 wrapperWidth={cellW}
@@ -272,6 +282,8 @@ const Files = ({
         setFilesForGallery([...imageAttachments, ...nonImageAttachments]);
     }, [imageAttachments, nonImageAttachments]);
 
+    const contentWidth = portraitWidth;
+
     return (
         <GalleryInit galleryIdentifier={galleryIdentifier}>
             <Animated.View
@@ -282,7 +294,29 @@ const Files = ({
                 ]}
             >
                 {renderImageRow()}
-                {renderItems(nonImageAttachments)}
+                {Boolean(nonImageAttachments.length) && (
+                    <View
+                        style={
+                            shrinkWrapNonImage ?
+                                {
+                                    maxWidth: contentWidth,
+                                    alignSelf: 'flex-start',
+                                    gap: MEDIA_GRID_GAP,
+                                    marginTop: imageAttachments.length > 0 ? MEDIA_GRID_GAP : 0,
+                                } :
+                                {
+                                    width: contentWidth,
+                                    maxWidth: '100%',
+                                    alignSelf: 'flex-start',
+                                    gap: MEDIA_GRID_GAP,
+                                    marginTop: imageAttachments.length > 0 ? MEDIA_GRID_GAP : 0,
+                                }
+                        }
+                        testID='non-image-attachments'
+                    >
+                        {renderItems(nonImageAttachments, false, false, true)}
+                    </View>
+                )}
             </Animated.View>
         </GalleryInit>
     );

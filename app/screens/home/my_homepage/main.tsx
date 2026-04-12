@@ -270,7 +270,7 @@ const MyHomepageMain = ({currentUser}: Props) => {
                             <View style={styles.buttonLeft}>
                                 <View style={[styles.buttonIcon, styles.buttonIconCustomer]}>
                                     <CompassIcon
-                                        name='account-multiple-outline'
+                                        name='account-outline'
                                         size={24}
                                         color={theme.onlineIndicator}
                                     />

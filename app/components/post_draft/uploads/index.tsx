@@ -3,10 +3,10 @@
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
-    ScrollView,
     Text,
     View,
     Platform,
+    ScrollView,
     useWindowDimensions,
     type LayoutChangeEvent,
 } from 'react-native';
@@ -24,10 +24,11 @@ import UploadItem from './upload_item/upload_item_wrapper';
 /** Min / max height for the attachment preview block (media wraps; cap avoids eating the screen). */
 const PREVIEW_HEIGHT_MIN = 76;
 const PREVIEW_HEIGHT_CAP = 380;
-/** Draft media grid: column count and gaps (matches WeChat-style input preview). */
-const DRAFT_MEDIA_GRID_COLUMNS = 3;
 const DRAFT_MEDIA_GRID_GAP = 6;
 const DRAFT_MEDIA_ROW_H_PAD = 12;
+/** Horizontal strip: fixed-ish thumb size (does not use full-width 3-column math). */
+const DRAFT_STRIP_MEDIA_MIN = 84;
+const DRAFT_STRIP_MEDIA_MAX = 102;
 const PREVIEW_HEIGHT_MIN_EMPTY = 0;
 const ERROR_HEIGHT_MAX = 20;
 const ERROR_HEIGHT_MIN = 0;
@@ -62,31 +63,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             flexDirection: 'column',
             width: '100%',
         },
-        mediaRow: {
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'flex-start',
-            alignItems: 'flex-start',
+        draftAttachmentsScroll: {
             width: '100%',
-            maxWidth: '100%',
-            paddingHorizontal: DRAFT_MEDIA_ROW_H_PAD,
-            // Remove 按钮向上偏移，需留出空间避免被父级裁切或与上行重叠感
-            paddingTop: 14,
-            paddingBottom: 2,
-        },
-        filesScroll: {
-            maxHeight: 80,
-        },
-        scrollView: {
             flexGrow: 0,
         },
-        scrollViewContent: {
-            alignItems: 'center',
+        draftAttachmentsScrollContent: {
             flexDirection: 'row',
-            justifyContent: 'flex-start',
-            paddingLeft: DRAFT_MEDIA_ROW_H_PAD,
-            paddingRight: DRAFT_MEDIA_ROW_H_PAD,
-            paddingBottom: 4,
+            alignItems: 'flex-end',
+            paddingHorizontal: DRAFT_MEDIA_ROW_H_PAD,
+            paddingTop: 14,
+            paddingBottom: 2,
         },
         errorContainer: {
             height: 0,
@@ -126,43 +112,22 @@ function Uploads({
 
     const [innerLayoutHeight, setInnerLayoutHeight] = useState(0);
 
-    const {mediaItems, docItems} = useMemo(() => {
-        const media: Array<{file: FileInfo; index: number}> = [];
-        const docs: Array<{file: FileInfo; index: number}> = [];
-        files.forEach((f, i) => {
-            if (isDraftMediaFile(f)) {
-                media.push({file: f, index: i});
-            } else {
-                docs.push({file: f, index: i});
-            }
-        });
-        return {mediaItems: media, docItems: docs};
-    }, [files]);
-
-    const mediaTileSize = useMemo(() => {
-        const usable =
-            windowWidth -
-            DRAFT_MEDIA_ROW_H_PAD * 2 -
-            DRAFT_MEDIA_GRID_GAP * (DRAFT_MEDIA_GRID_COLUMNS - 1);
-        const raw = Math.floor(usable / DRAFT_MEDIA_GRID_COLUMNS);
-        return Math.min(Math.max(raw, 72), 120);
+    const draftStripMediaSize = useMemo(() => {
+        return Math.min(
+            DRAFT_STRIP_MEDIA_MAX,
+            Math.max(DRAFT_STRIP_MEDIA_MIN, Math.round(windowWidth * 0.24)),
+        );
     }, [windowWidth]);
 
     const previewHeightCap = useMemo(() => {
-        const docStripAllowance = docItems.length > 0 ? 88 : 0;
-        if (mediaItems.length === 0) {
-            return Math.min(
-                PREVIEW_HEIGHT_CAP,
-                Math.max(PREVIEW_HEIGHT_MIN, docStripAllowance),
-            );
-        }
-        const rows = Math.ceil(mediaItems.length / DRAFT_MEDIA_GRID_COLUMNS);
-        const estimated =
-            rows * (mediaTileSize + DRAFT_MEDIA_GRID_GAP) +
-            DRAFT_MEDIA_ROW_H_PAD +
-            docStripAllowance;
-        return Math.min(PREVIEW_HEIGHT_CAP, Math.max(PREVIEW_HEIGHT_MIN, estimated));
-    }, [mediaItems.length, docItems.length, mediaTileSize]);
+        const hasStrip = files.length > 0;
+        const stripHeight = hasStrip ? draftStripMediaSize : 0;
+        const estimated = 14 + 2 + stripHeight;
+        return Math.min(
+            PREVIEW_HEIGHT_CAP,
+            Math.max(PREVIEW_HEIGHT_MIN, estimated || PREVIEW_HEIGHT_MIN),
+        );
+    }, [files, draftStripMediaSize]);
 
     const errorAnimatedStyle = useAnimatedStyle(() => {
         return {
@@ -227,50 +192,34 @@ function Uploads({
                         style={style.innerColumn}
                         onLayout={onInnerLayout}
                     >
-                        {Boolean(mediaItems.length) && (
-                            <View
-                                style={style.mediaRow}
-                                testID='uploads-media-row'
-                            >
-                                {mediaItems.map(({file, index}, mediaOrdinal) => (
-                                    <UploadItem
-                                        channelId={channelId}
-                                        galleryIdentifier={galleryIdentifier}
-                                        index={index}
-                                        file={file}
-                                        key={file.clientId || file.id}
-                                        mediaGridMarginRight={
-                                            (mediaOrdinal + 1) % DRAFT_MEDIA_GRID_COLUMNS === 0 ?
-                                                0 :
-                                                DRAFT_MEDIA_GRID_GAP
-                                        }
-                                        mediaTileSize={mediaTileSize}
-                                        openGallery={openGallery}
-                                        rootId={rootId}
-                                        variant='mediaGrid'
-                                    />
-                                ))}
-                            </View>
-                        )}
-                        {Boolean(docItems.length) && (
+                        {Boolean(files.length) && (
                             <ScrollView
                                 horizontal={true}
-                                style={[style.scrollView, style.filesScroll]}
-                                contentContainerStyle={style.scrollViewContent}
-                                keyboardShouldPersistTaps={'handled'}
-                                testID='uploads-files-row'
+                                showsHorizontalScrollIndicator={true}
+                                style={style.draftAttachmentsScroll}
+                                contentContainerStyle={style.draftAttachmentsScrollContent}
+                                keyboardShouldPersistTaps='handled'
+                                testID='uploads-draft-attachments'
                             >
-                                {docItems.map(({file, index}) => (
-                                    <UploadItem
-                                        channelId={channelId}
-                                        galleryIdentifier={galleryIdentifier}
-                                        index={index}
-                                        file={file}
+                                {files.map((file, index) => (
+                                    <View
                                         key={file.clientId || file.id}
-                                        openGallery={openGallery}
-                                        rootId={rootId}
-                                        variant='strip'
-                                    />
+                                        style={{
+                                            flexShrink: 0,
+                                            marginRight: index < files.length - 1 ? DRAFT_MEDIA_GRID_GAP : 0,
+                                        }}
+                                    >
+                                        <UploadItem
+                                            channelId={channelId}
+                                            galleryIdentifier={galleryIdentifier}
+                                            index={index}
+                                            file={file}
+                                            mediaTileSize={draftStripMediaSize}
+                                            openGallery={openGallery}
+                                            rootId={rootId}
+                                            variant={isDraftMediaFile(file) ? 'mediaGrid' : 'docTile'}
+                                        />
+                                    </View>
                                 ))}
                             </ScrollView>
                         )}

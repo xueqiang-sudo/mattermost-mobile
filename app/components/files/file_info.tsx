@@ -27,7 +27,8 @@ const FORMAT: FormattedDateFormat = {
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         attachmentContainer: {
-            flex: 1,
+            flexShrink: 1,
+            minWidth: 0,
             justifyContent: 'center',
         },
         fileDownloadContainer: {

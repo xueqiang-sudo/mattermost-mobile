@@ -101,11 +101,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'flex-start',
         },
 
-        // 纯媒体（自己发送）：靠左展示并与左缘留出间距（与对侧头像区对称），避免挤占标题栏或贴边裁切。
+        // 纯附件（自己发送）：与右侧时间、头像列对齐，避免与头像之间留出大块空白。
         bubbleWithTailWrapperOwnMediaOnly: {
-            alignSelf: 'flex-start',
-            marginLeft: 52,
-            marginRight: 56,
+            alignSelf: 'flex-end',
+            marginLeft: 0,
+            marginRight: 0,
             maxWidth: '100%',
         },
 
@@ -192,7 +192,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             maxWidth: '100%',
         },
         messageRowOwnWeChatMediaOnly: {
-            alignSelf: 'flex-start',
+            alignSelf: 'flex-end',
             maxWidth: '100%',
         },
     };
@@ -302,6 +302,18 @@ const Body = ({
     const hasTextMessage = Boolean(displayMessage.length || isEdited);
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
     const showBubble = weChatStyleActive && !hasBeenDeleted;
+
+    /** WeChat 本人消息：附件区宽度与右对齐气泡一致（左右 padding + 头像列约 50）。 */
+    const filesLayoutWidth = useMemo(() => {
+        const w = Dimensions.get('window').width;
+        if (weChatStyleActive && hasFiles) {
+            return Math.max(200, Math.floor(w - 32 - 50));
+        }
+        if (weChatStyleActive) {
+            return weChatContentMaxWidth;
+        }
+        return layoutWidth;
+    }, [weChatStyleActive, hasFiles, weChatContentMaxWidth, layoutWidth]);
     const bubbleStyle = useMemo(() => {
         if (!showBubble || !chatBubbleSurface) {
             return undefined;
@@ -453,11 +465,12 @@ const Body = ({
                 {hasFiles && post.type !== PostTypes.CUSTOM_VOICE_ASR &&
                 <Files
                     failed={isFailed}
-                    layoutWidth={weChatStyleActive ? weChatContentMaxWidth : layoutWidth}
+                    layoutWidth={filesLayoutWidth > 0 ? filesLayoutWidth : undefined}
                     location={location}
                     post={post}
                     isReplyPost={isReplyPost}
                     isMediaOnlyMessage={isMediaOnlyWeChat}
+                    shrinkWrapNonImage={weChatStyleActive}
                 />
                 }
                 {(acknowledgementsVisible || reactionsVisible) && (

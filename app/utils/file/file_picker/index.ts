@@ -179,10 +179,13 @@ export default class FilePickerUtil {
      *
      * Compression runs in native code (react-native-compressor); the JS thread only awaits and
      * forwards progress — keep placeholder/overlay updates light to avoid frame drops.
+     *
+     * @param compressChatVideos When true, chat video compression runs (Vision in-app recorder only).
      */
     private prepareFileUpload = async (
         files: Array<Asset | DocumentPickerResponse>,
         draftVideoContext?: DraftVideoPrepareContext,
+        compressChatVideos = false,
     ) => {
         await new Promise<void>((resolve) => {
             InteractionManager.runAfterInteractions(() => resolve());
@@ -190,7 +193,7 @@ export default class FilePickerUtil {
 
         const {exporting, progressLabel} = this.mediaExportMessages();
         const hasVideoFiles = files.some((f) => this.fileLooksLikeVideo(f));
-        const needsVideoCompress = ENABLE_VIDEO_COMPRESS && hasVideoFiles;
+        const needsVideoCompress = ENABLE_VIDEO_COMPRESS && compressChatVideos && hasVideoFiles;
         const hasImageFiles = files.some((f) => this.fileLooksLikeImage(f));
         const needsImageCompress = ENABLE_IMAGE_COMPRESS && hasImageFiles;
         const showExportOverlay = !draftVideoContext && (needsVideoCompress || needsImageCompress);
@@ -517,13 +520,14 @@ export default class FilePickerUtil {
         clientId: string,
         initialPlaceholder: FileInfo,
         files: Asset[],
+        compressChatVideos: boolean,
     ): Promise<void> => {
         if (!this.draftVideoBridge) {
             return;
         }
         let placeholderSnapshot = initialPlaceholder;
         const {exporting, preparing} = this.mediaExportMessages();
-        const willCompressVideo = ENABLE_VIDEO_COMPRESS && files.some((f) => this.fileLooksLikeVideo(f));
+        const willCompressVideo = ENABLE_VIDEO_COMPRESS && compressChatVideos && files.some((f) => this.fileLooksLikeVideo(f));
         const willCompressImage = ENABLE_IMAGE_COMPRESS && files.some((f) => this.fileLooksLikeImage(f));
         const busyCompressing = willCompressVideo || willCompressImage;
         placeholderSnapshot = patchDraftVideoPlaceholder(placeholderSnapshot, {
@@ -558,18 +562,19 @@ export default class FilePickerUtil {
             clientId,
             bridge: this.draftVideoBridge,
             onCompressProgress,
-        });
+        }, compressChatVideos);
     };
 
     /**
-     * One placeholder at a time: avoids overlapping compress/extract on the same draft row and
-     * keeps addFilesToDraft ordering predictable.
+     * Adds all placeholders immediately so the draft row updates without waiting for prior
+     * extract/compress work; processing still runs sequentially per item.
      */
     private processPickedAssetsWithDraftBridge = async (picked: Asset[]): Promise<void> => {
         if (!this.draftVideoBridge || !picked.length) {
             return;
         }
         const preparingLabel = this.mediaExportMessages().preparing;
+        const jobs: {clientId: string; placeholderSnapshot: FileInfo; asset: Asset}[] = [];
         for (const asset of picked) {
             const clientId = generateId();
             clearDraftVideoProcessingAborted(clientId);
@@ -579,12 +584,17 @@ export default class FilePickerUtil {
                 this.draftVideoBridge.currentUserId,
                 preparingLabel,
             );
+            jobs.push({clientId, placeholderSnapshot, asset});
+        }
+        for (const {placeholderSnapshot} of jobs) {
             this.draftVideoBridge.addVideoPlaceholder(placeholderSnapshot);
+        }
+        for (const {clientId, placeholderSnapshot, asset} of jobs) {
             if (isDraftVideoProcessingAborted(clientId)) {
                 return;
             }
             // eslint-disable-next-line no-await-in-loop
-            await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, [asset]);
+            await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, [asset], false);
         }
     };
 
@@ -592,7 +602,7 @@ export default class FilePickerUtil {
         const asset = this.visionVideoToAsset(video);
 
         if (!this.draftVideoBridge) {
-            await this.prepareFileUpload([asset]);
+            await this.prepareFileUpload([asset], undefined, true);
             return;
         }
 
@@ -613,14 +623,14 @@ export default class FilePickerUtil {
         if (isDraftVideoProcessingAborted(clientId)) {
             return;
         }
-        await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, [asset]);
+        await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, [asset], true);
     };
 
     /**
      * Photo-only or video without draft placeholder bridge (system camera fallback).
      */
     private handlePickedCameraAssetsWithoutDraftPlaceholder = async (files: Asset[]): Promise<void> => {
-        await this.prepareFileUpload(files);
+        await this.prepareFileUpload(files, undefined, false);
     };
 
     attachFileFromCamera = async (customOptions?: CameraOptions) => {
@@ -671,7 +681,7 @@ export default class FilePickerUtil {
                     if (isDraftVideoProcessingAborted(clientId)) {
                         return;
                     }
-                    await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, files);
+                    await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, files, false);
                     return;
                 }
 

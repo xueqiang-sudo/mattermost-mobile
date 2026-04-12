@@ -47,6 +47,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         fileWrapper: {
             flexDirection: 'row',
             alignItems: 'center',
+            alignSelf: 'flex-start',
+            maxWidth: '100%',
             borderWidth: 1,
             borderColor: changeOpacity(theme.centerChannelColor, 0.24),
             borderRadius: 4,

@@ -1,16 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {deleteAsync, getInfoAsync} from 'expo-file-system';
-import {Platform} from 'react-native';
+import {deleteAsync} from 'expo-file-system';
 import {getRealPath, Video} from 'react-native-compressor';
 
-import {
-    CHAT_VIDEO_COMPRESS_BITRATE,
-    CHAT_VIDEO_COMPRESS_MAX_SIZE,
-    CHAT_VIDEO_COMPRESSION_METHOD,
-    ENABLE_VIDEO_COMPRESS,
-} from '@constants/media_processing';
+import {ENABLE_VIDEO_COMPRESS} from '@constants/media_processing';
 import {reportVideoCompressProgress} from '@utils/file/video_compress_overlay';
 import {logError} from '@utils/log';
 
@@ -46,13 +40,9 @@ function outputBaseName(compressedUri: string): string {
 
 export type CompressChatVideoOptions = {
     isAborted?: () => boolean;
-
     /** Fired with 0–1 during compression (in addition to overlay progress). */
     onProgress?: (progress: number) => void;
 };
-
-/** Outputs smaller than this are treated as corrupt (e.g. Android manual+maxSize bug in react-native-compressor #380). */
-const MIN_VALID_COMPRESSED_BYTES = 4096;
 
 /**
  * Compresses chat-bound videos (camera, gallery, files) toward a smaller MP4 suitable for upload.
@@ -86,34 +76,13 @@ export async function compressChatVideoAsset(
     try {
         reportVideoCompressProgress(0);
         options?.onProgress?.(0);
-
-        /**
-         * Android: `manual` + `maxSize` can corrupt MP4 (react-native-compressor #380). The old workaround was
-         * `manual` without `maxSize`, which keeps the camera's full resolution — a fixed bitrate then looks
-         * blurry (bits/pixel too low) or requires a huge bitrate (30s → ~30MB). Chat apps first downscale then
-         * encode; `auto` + `maxSize` does that on Android and is not the #380 failure mode.
-         */
-        const isAndroid = Platform.OS === 'android';
-        const effectiveMethod: 'auto' | 'manual' = isAndroid ? 'auto' : CHAT_VIDEO_COMPRESSION_METHOD;
-
-        const compressorOptions: {
-            compressionMethod: 'auto' | 'manual';
-            maxSize: number;
-            minimumFileSizeForCompress: number;
-            bitrate?: number;
-        } = {
-            compressionMethod: effectiveMethod,
-            minimumFileSizeForCompress: 1,
-            maxSize: CHAT_VIDEO_COMPRESS_MAX_SIZE,
-        };
-
-        if (effectiveMethod === 'manual') {
-            compressorOptions.bitrate = CHAT_VIDEO_COMPRESS_BITRATE;
-        }
-
         const compressedUri = await Video.compress(
             inputUri,
-            compressorOptions,
+            {
+                compressionMethod: 'auto',
+                maxSize: 1080,
+                minimumFileSizeForCompress: 1,
+            },
             (progress) => {
                 reportVideoCompressProgress(progress);
                 options?.onProgress?.(progress);
@@ -122,28 +91,6 @@ export async function compressChatVideoAsset(
 
         const outUri = ensureFileScheme(compressedUri);
         const baseName = outputBaseName(outUri);
-
-        try {
-            const statPath = outUri.replace(/^file:\/\//, '');
-            const finfo = await getInfoAsync(statPath, {size: true});
-            if (
-                finfo.exists &&
-                'size' in finfo &&
-                typeof finfo.size === 'number' &&
-                finfo.size < MIN_VALID_COMPRESSED_BYTES
-            ) {
-                logError(
-                    '[compressChatVideoAsset] compressed file too small, discarding (likely corrupt output)',
-                    {size: finfo.size},
-                );
-                await deleteAsync(outUri, {idempotent: true}).catch(() => undefined);
-                reportVideoCompressProgress(0);
-                return file;
-            }
-        } catch (statErr) {
-            logError('[compressChatVideoAsset.getInfoAsync]', statErr);
-        }
-
         reportVideoCompressProgress(1);
         options?.onProgress?.(1);
 

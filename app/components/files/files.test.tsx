@@ -115,6 +115,8 @@ describe('Files', () => {
         expect(getByTestId('image-row')).toContainElement(getByTestId('2'));
         expect(getByTestId('image-row')).not.toContainElement(getByTestId('3'));
         expect(getByTestId('image-row')).not.toContainElement(getByTestId('4'));
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('3'));
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('4'));
     });
 
     it('should not show the image row if no images', () => {
@@ -138,6 +140,8 @@ describe('Files', () => {
         expect(getByTestId('3')).toBeVisible();
         expect(getByTestId('4')).toBeVisible();
         expect(queryByTestId('image-row')).not.toBeVisible();
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('3'));
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('4'));
     });
 
     it('should have different opacity if failed', () => {
@@ -556,7 +560,7 @@ describe('Files', () => {
         expect(getByTestId('4-isSingleImage')).toHaveTextContent('false');
     });
 
-    it('should trim more than 4 images and properly add the non visible images count to the last image', () => {
+    it('should render every image in the grid when more than 4 (no +N overlay on last cell)', () => {
         const filesInfo = [
             TestHelper.fakeFileInfo({id: '1'}),
             TestHelper.fakeFileInfo({id: '2'}),
@@ -577,23 +581,22 @@ describe('Files', () => {
             }), [fi]);
         });
 
-        const {getByTestId, queryByTestId} = render(
+        const {getByTestId} = render(
             <Files
                 {...getBaseProps()}
                 filesInfo={filesInfo}
             />,
         );
 
-        expect(getByTestId('1-nonVisibleImagesCount')).toHaveTextContent('undefined');
-        expect(getByTestId('2-nonVisibleImagesCount')).toHaveTextContent('undefined');
-        expect(getByTestId('3-nonVisibleImagesCount')).toHaveTextContent('undefined');
-        expect(getByTestId('4-nonVisibleImagesCount')).toHaveTextContent('1');
-        expect(queryByTestId('5-nonVisibleImagesCount')).not.toBeVisible();
-        expect(getByTestId('6-nonVisibleImagesCount')).toHaveTextContent('undefined');
-        expect(getByTestId('7-nonVisibleImagesCount')).toHaveTextContent('undefined');
-        expect(getByTestId('8-nonVisibleImagesCount')).toHaveTextContent('undefined');
-        expect(getByTestId('9-nonVisibleImagesCount')).toHaveTextContent('undefined');
-        expect(getByTestId('10-nonVisibleImagesCount')).toHaveTextContent('undefined');
+        for (const id of ['1', '2', '3', '4', '5']) {
+            expect(getByTestId(id)).toBeVisible();
+            expect(getByTestId(`${id}-nonVisibleImagesCount`)).toHaveTextContent('0');
+        }
+        expect(getByTestId('6-nonVisibleImagesCount')).toHaveTextContent('0');
+        expect(getByTestId('7-nonVisibleImagesCount')).toHaveTextContent('0');
+        expect(getByTestId('8-nonVisibleImagesCount')).toHaveTextContent('0');
+        expect(getByTestId('9-nonVisibleImagesCount')).toHaveTextContent('0');
+        expect(getByTestId('10-nonVisibleImagesCount')).toHaveTextContent('0');
     });
 
     it('should add gutter to the container of to all elements but the first only on image row', () => {

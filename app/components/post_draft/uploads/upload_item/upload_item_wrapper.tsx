@@ -24,12 +24,10 @@ type Props = {
     openGallery: (file: FileInfo) => void;
     rootId: string;
     inViewPort?: boolean;
-    /** Tighter margins when media tiles wrap in a grid (WeChat-style). */
-    variant?: 'strip' | 'mediaGrid';
-    /** Square thumbnail edge length when `variant` is `mediaGrid` (from screen width). */
+    /** `mediaGrid`: image/video tile; `docTile`: file tile in the same horizontal strip as media. */
+    variant?: 'strip' | 'mediaGrid' | 'docTile';
+    /** Square thumbnail edge length when `variant` is `mediaGrid` or `docTile` (from screen width). */
     mediaTileSize?: number;
-    /** Horizontal gap after tile; use `0` at end of each grid row to avoid wrap overflow. */
-    mediaGridMarginRight?: number;
 }
 
 export default function UploadItemWrapper({
@@ -37,7 +35,6 @@ export default function UploadItemWrapper({
     rootId, openGallery, inViewPort = true,
     variant = 'strip',
     mediaTileSize,
-    mediaGridMarginRight,
 }: Props) {
     const serverUrl = useServerUrl();
     const removeCallback = useRef<(() => void) | undefined>(undefined);
@@ -103,12 +100,12 @@ export default function UploadItemWrapper({
     const uploadItemFile = fileInfoToUploadItemFile(file);
 
     const outerStyle =
-        variant === 'mediaGrid' ?
+        variant === 'mediaGrid' || variant === 'docTile' ?
             {
                 paddingTop: 0,
                 marginLeft: 0,
-                marginBottom: 6,
-                marginRight: mediaGridMarginRight ?? 6,
+                marginBottom: 0,
+                marginRight: 0,
                 position: 'relative' as const,
                 zIndex: 2,
             } :
@@ -121,7 +118,7 @@ export default function UploadItemWrapper({
         >
             <UploadItemShared
                 file={uploadItemFile}
-                onPress={onGestureEvent}
+                onPress={loading ? undefined : onGestureEvent}
                 onRetry={retryFileUpload}
                 loading={loading}
                 progress={progress}
@@ -131,11 +128,12 @@ export default function UploadItemWrapper({
                 forwardRef={ref}
                 inViewPort={inViewPort}
                 mediaTileSize={variant === 'mediaGrid' ? mediaTileSize : undefined}
+                draftDocTileSize={variant === 'docTile' ? mediaTileSize : undefined}
             />
             <UploadRemove
                 clientId={file.clientId!}
                 channelId={channelId}
-                insetInTile={variant === 'mediaGrid'}
+                insetInTile={variant === 'mediaGrid' || variant === 'docTile'}
                 rootId={rootId}
                 fileId={file.id!}
             />
