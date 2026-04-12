@@ -3,7 +3,7 @@
 
 import React, {useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {StyleSheet, Text, TouchableWithoutFeedback, View, type ViewStyle} from 'react-native';
+import {Platform, StyleSheet, Text, TouchableWithoutFeedback, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import CompassIcon from '@components/compass_icon';
@@ -179,6 +179,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             borderRadius: 18,
             padding: 6,
         },
+        androidUploadProgressTrack: {
+            height: 4,
+            borderRadius: 2,
+            overflow: 'hidden',
+            width: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.16)',
+        },
+        androidUploadProgressFill: {
+            height: 4,
+            borderRadius: 2,
+        },
     };
 });
 
@@ -325,6 +336,14 @@ export default function UploadItemShared({
             `${exportingShort} ${Math.round(Math.min(1, Math.max(0, localMeta.progress)) * 100)}%`) :
         `${fileExtension && `${fileExtension} `}${formattedSize}`;
 
+    const loadingProgressValue = useMemo(
+        () =>
+            localMeta?.stage === 'resolving' ? 0.04 :
+                localMeta?.stage === 'compressing' ? (localMeta.progress || 0) :
+                    (progress || 0),
+        [localMeta?.stage, localMeta?.progress, progress],
+    );
+
     const containerStyle = useMemo(() => {
         let containerStyleType;
         if (fullWidth && !isMediaTile) {
@@ -386,15 +405,27 @@ export default function UploadItemShared({
 
             {loading && !file.failed && (
                 <View style={style.progress}>
-                    <ProgressBar
-                        progress={
-                            localMeta?.stage === 'resolving' ? 0.04 :
-                                localMeta?.stage === 'compressing' ? (localMeta.progress || 0) :
-                                    (progress || 0)
-                        }
-                        color={theme.buttonBg}
-                        containerStyle={style.progressContainer}
-                    />
+                    {Platform.OS === 'android' ? (
+                        <View style={style.progressContainer}>
+                            <View style={style.androidUploadProgressTrack}>
+                                <View
+                                    style={[
+                                        style.androidUploadProgressFill,
+                                        {
+                                            width: `${Math.min(100, Math.max(0, Math.round(loadingProgressValue * 100)))}%`,
+                                            backgroundColor: theme.buttonBg,
+                                        },
+                                    ]}
+                                />
+                            </View>
+                        </View>
+                    ) : (
+                        <ProgressBar
+                            progress={loadingProgressValue}
+                            color={theme.buttonBg}
+                            containerStyle={style.progressContainer}
+                        />
+                    )}
                 </View>
             )}
         </View>

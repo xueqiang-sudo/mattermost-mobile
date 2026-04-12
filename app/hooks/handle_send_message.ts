@@ -16,6 +16,7 @@ import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import DraftUploadManager from '@managers/draft_upload_manager';
 import * as DraftUtils from '@utils/draft';
+import {isDraftVideoLocalProcessingFile} from '@utils/file/draft_video_local_processing';
 import {isReactionMatch} from '@utils/emoji/helpers';
 import {getErrorMessage} from '@utils/errors';
 import {scheduledPostFromPost} from '@utils/post';
@@ -91,6 +92,9 @@ export const useHandleSendMessage = ({
         }
 
         if (files.length) {
+            if (files.some((file) => isDraftVideoLocalProcessingFile(file))) {
+                return false;
+            }
             const loadingComplete = !files.some((file) => DraftUploadManager.isUploading(file.clientId!));
             return loadingComplete;
         }
@@ -105,6 +109,11 @@ export const useHandleSendMessage = ({
     }, [serverUrl, rootId, clearDraft]);
 
     const doSubmitMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
+        if (files.some((f) => isDraftVideoLocalProcessingFile(f))) {
+            setSendingMessage(false);
+            return;
+        }
+
         const postFiles = files.filter((f) => !f.failed);
         const post = {
             user_id: currentUserId,
@@ -203,6 +212,10 @@ export const useHandleSendMessage = ({
 
     const handleSendMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
         if (!canSend) {
+            return Promise.resolve();
+        }
+
+        if (files.some((f) => isDraftVideoLocalProcessingFile(f))) {
             return Promise.resolve();
         }
 

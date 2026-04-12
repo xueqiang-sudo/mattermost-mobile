@@ -7,6 +7,7 @@ import {AppState, BackHandler, Platform, StyleSheet, Text, View, type AppStateSt
 import {
     Camera,
     useCameraDevice,
+    useCameraFormat,
     useCameraPermission,
     useMicrophonePermission,
     type VideoFile,
@@ -149,6 +150,9 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
     const {hasPermission: hasMicPermission, requestPermission: requestMicPermission} = useMicrophonePermission();
 
     const device = useCameraDevice(position);
+    const format = useCameraFormat(device, [
+        {fps: 30},
+    ]);
 
     const isActive = appState === 'active';
 
@@ -332,6 +336,7 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
                     ref={cameraRef}
                     style={StyleSheet.absoluteFill}
                     device={device}
+                    format={format}
                     isActive={isActive}
                     video={true}
                     audio={hasMicPermission}

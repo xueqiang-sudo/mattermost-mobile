@@ -172,6 +172,39 @@ describe('useHandleSendMessage', () => {
         expect(result.current.canSend).toBe(false);
     });
 
+    it('should not allow sending while a draft video is still compressing or resolving locally', async () => {
+        const clearDraft = jest.fn();
+        const props = {
+            ...defaultProps,
+            value: 'hello',
+            clearDraft,
+            files: [{
+                clientId: 'vid1',
+                failed: false,
+                postProps: {
+                    mmDraftVideoLocal: {
+                        localProcessing: true,
+                        stage: 'compressing',
+                        progress: 0.2,
+                    },
+                },
+            }],
+        };
+
+        jest.spyOn(DraftUploadManager, 'isUploading').mockReturnValue(false);
+
+        const {result} = renderHook(() => useHandleSendMessage(props), {wrapper});
+
+        expect(result.current.canSend).toBe(false);
+
+        await act(async () => {
+            result.current.handleSendMessage();
+        });
+
+        expect(createPost).not.toHaveBeenCalled();
+        expect(clearDraft).not.toHaveBeenCalled();
+    });
+
     it('should handle failed file attachments', async () => {
         jest.spyOn(DraftUtils, 'alertAttachmentFail').mockImplementation((intl, accept) => {
             accept();

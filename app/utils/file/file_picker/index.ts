@@ -195,10 +195,20 @@ export default class FilePickerUtil {
         const needsImageCompress = ENABLE_IMAGE_COMPRESS && hasImageFiles;
         const showExportOverlay = !draftVideoContext && (needsVideoCompress || needsImageCompress);
 
+        let exportOverlayShown = false;
         let filesToExtract = files;
         if (showExportOverlay) {
             showVideoCompressOverlay(exporting, progressLabel);
+            exportOverlayShown = true;
         }
+
+        const hideExportOverlayIfNeeded = async () => {
+            if (!exportOverlayShown) {
+                return;
+            }
+            exportOverlayShown = false;
+            await hideVideoCompressOverlay();
+        };
 
         try {
             if (needsVideoCompress) {
@@ -266,6 +276,7 @@ export default class FilePickerUtil {
                     return;
                 }
                 if (out.length > 0 && out[0]) {
+                    await hideExportOverlayIfNeeded();
                     out[0].clientId = draftVideoContext.clientId;
                     dismissBottomSheet();
                     draftVideoContext.bridge.completeVideoProcessing(draftVideoContext.clientId, out);
@@ -276,13 +287,12 @@ export default class FilePickerUtil {
             }
 
             if (out.length > 0) {
+                await hideExportOverlayIfNeeded();
                 dismissBottomSheet();
                 this.uploadFiles(out);
             }
         } finally {
-            if (showExportOverlay) {
-                await hideVideoCompressOverlay();
-            }
+            await hideExportOverlayIfNeeded();
         }
     };
 

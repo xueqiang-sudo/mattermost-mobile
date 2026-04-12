@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useEffect, useState} from 'react';
-import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Platform, StyleSheet, Text, View} from 'react-native';
 
 import ProgressBar from '@components/progress_bar';
 import {GENERIC_OVERLAY} from '@constants/screens';
@@ -58,6 +58,17 @@ const styles = StyleSheet.create({
         marginTop: 20,
         alignSelf: 'center',
     },
+    androidBarTrack: {
+        height: 4,
+        borderRadius: 2,
+        overflow: 'hidden',
+        width: '100%',
+        backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    },
+    androidBarFill: {
+        height: 4,
+        borderRadius: 2,
+    },
     sub: {
         color: '#dddddd',
         marginTop: 10,
@@ -69,6 +80,21 @@ type BodyProps = {
     message: string;
     progressLabel: string;
 };
+
+/** Avoid Reanimated `ProgressBar` in full-screen overlay on Android (ReanimatedNativeHierarchyManager crashes). */
+function AndroidLinearProgress({progress, color}: {progress: number; color: string}) {
+    const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+    return (
+        <View style={styles.androidBarTrack}>
+            <View
+                style={[
+                    styles.androidBarFill,
+                    {width: `${pct}%`, backgroundColor: color},
+                ]}
+            />
+        </View>
+    );
+}
 
 function VideoCompressOverlayBody({message: initialMessage, progressLabel}: BodyProps) {
     const theme = useTheme();
@@ -95,10 +121,17 @@ function VideoCompressOverlayBody({message: initialMessage, progressLabel}: Body
             />
             <Text style={styles.text}>{message}</Text>
             <View style={styles.barWrap}>
-                <ProgressBar
-                    progress={clamped}
-                    color={theme.buttonBg || '#ffffff'}
-                />
+                {Platform.OS === 'android' ? (
+                    <AndroidLinearProgress
+                        progress={clamped}
+                        color={theme.buttonBg || '#ffffff'}
+                    />
+                ) : (
+                    <ProgressBar
+                        progress={clamped}
+                        color={theme.buttonBg || '#ffffff'}
+                    />
+                )}
             </View>
             <Text style={styles.sub}>
                 {`${progressLabel}: ${pct}%`}

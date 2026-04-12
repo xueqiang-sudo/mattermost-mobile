@@ -63,7 +63,7 @@ const CameraType = ({onPress, onVisionVideoPress}: Props) => {
                 'Video is limited to 1 minute. The system camera may show a different duration; recording will still stop at 1 minute. The recording screen is provided by your device — use the back gesture or key to discard when available.',
         });
         const options: CameraOptions = {
-            videoQuality: 'high',
+            videoQuality: 'low',
             mediaType: 'video',
             saveToPhotos: false,
             durationLimit: 60,

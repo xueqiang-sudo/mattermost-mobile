@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {deleteAsync} from 'expo-file-system';
+import {deleteAsync, getInfoAsync} from 'expo-file-system';
 import {getRealPath, Video} from 'react-native-compressor';
 
 import {compressChatVideoAsset} from './compress_chat_video';
@@ -10,6 +10,7 @@ import type {Asset} from 'react-native-image-picker';
 
 jest.mock('expo-file-system', () => ({
     deleteAsync: jest.fn().mockResolvedValue(undefined),
+    getInfoAsync: jest.fn().mockResolvedValue({exists: true, size: 500_000}),
 }));
 
 jest.mock('@utils/file/video_compress_overlay', () => ({
@@ -23,6 +24,7 @@ jest.mock('@utils/log', () => ({
 describe('compressChatVideoAsset', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.mocked(getInfoAsync).mockResolvedValue({exists: true, size: 500_000});
     });
 
     it('should return the original asset when mime type is not video', async () => {
@@ -35,11 +37,20 @@ describe('compressChatVideoAsset', () => {
         const file = {uri: 'file://in.mov', type: 'video/quicktime', fileName: 'in.mov'} as Asset;
         const out = await compressChatVideoAsset(file);
         expect(Video.compress).toHaveBeenCalled();
+        expect(getInfoAsync).toHaveBeenCalled();
         expect(out).toMatchObject({
             uri: 'file:///cache/compressed.mp4',
             type: 'video/mp4',
             fileName: 'compressed.mp4',
         });
+    });
+
+    it('should return original asset when compressed file is suspiciously small', async () => {
+        jest.mocked(getInfoAsync).mockResolvedValueOnce({exists: true, size: 100});
+        const file = {uri: 'file://in.mov', type: 'video/quicktime', fileName: 'in.mov'} as Asset;
+        const out = await compressChatVideoAsset(file);
+        expect(deleteAsync).toHaveBeenCalledWith('file:///cache/compressed.mp4', {idempotent: true});
+        expect(out).toBe(file);
     });
 
     it('should resolve real path for content URIs before compressing', async () => {
@@ -68,6 +79,9 @@ describe('compressChatVideoAsset', () => {
             jest.doMock('@constants/media_processing', () => ({
                 ENABLE_VIDEO_COMPRESS: false,
                 ENABLE_IMAGE_COMPRESS: true,
+                CHAT_VIDEO_COMPRESSION_METHOD: 'manual',
+                CHAT_VIDEO_COMPRESS_MAX_SIZE: 720,
+                CHAT_VIDEO_COMPRESS_BITRATE: 1_200_000,
             }));
             compressOff = require('./compress_chat_video').compressChatVideoAsset;
         });
