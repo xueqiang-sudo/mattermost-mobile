@@ -4,13 +4,18 @@
 import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
 
+import ProgressBar from '@components/progress_bar';
 import {GENERIC_OVERLAY} from '@constants/screens';
+import {useTheme} from '@context/theme';
 import {dismissOverlay, showOverlay} from '@screens/navigation';
 
 export const VIDEO_COMPRESS_OVERLAY_ID = 'video-compress-overlay';
 
 let progressSetter: ((p: number) => void) | undefined;
 let messageSetter: ((m: string) => void) | undefined;
+
+/** Only forward progress to the full-screen overlay while it is active (avoids stray UI updates when compress runs inline in draft). */
+let overlaySessionActive = false;
 
 function setVideoCompressProgressSetter(setter: typeof progressSetter) {
     progressSetter = setter;
@@ -21,10 +26,16 @@ function setVideoCompressMessageSetter(setter: typeof messageSetter) {
 }
 
 export function reportVideoCompressProgress(progress: number) {
+    if (!overlaySessionActive) {
+        return;
+    }
     progressSetter?.(progress);
 }
 
 export function reportVideoCompressOverlayMessage(message: string) {
+    if (!overlaySessionActive) {
+        return;
+    }
     messageSetter?.(message);
 }
 
@@ -42,9 +53,14 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         paddingHorizontal: 24,
     },
+    barWrap: {
+        width: 280,
+        marginTop: 20,
+        alignSelf: 'center',
+    },
     sub: {
         color: '#dddddd',
-        marginTop: 8,
+        marginTop: 10,
         fontSize: 13,
     },
 });
@@ -55,6 +71,7 @@ type BodyProps = {
 };
 
 function VideoCompressOverlayBody({message: initialMessage, progressLabel}: BodyProps) {
+    const theme = useTheme();
     const [progress, setProgress] = useState(0);
     const [message, setMessage] = useState(initialMessage);
 
@@ -67,7 +84,8 @@ function VideoCompressOverlayBody({message: initialMessage, progressLabel}: Body
         };
     }, []);
 
-    const pct = Math.round(Math.min(1, Math.max(0, progress)) * 100);
+    const clamped = Math.min(1, Math.max(0, progress));
+    const pct = Math.round(clamped * 100);
 
     return (
         <View style={styles.root}>
@@ -76,6 +94,12 @@ function VideoCompressOverlayBody({message: initialMessage, progressLabel}: Body
                 size='large'
             />
             <Text style={styles.text}>{message}</Text>
+            <View style={styles.barWrap}>
+                <ProgressBar
+                    progress={clamped}
+                    color={theme.buttonBg || '#ffffff'}
+                />
+            </View>
             <Text style={styles.sub}>
                 {`${progressLabel}: ${pct}%`}
             </Text>
@@ -84,6 +108,7 @@ function VideoCompressOverlayBody({message: initialMessage, progressLabel}: Body
 }
 
 export function showVideoCompressOverlay(message: string, progressLabel: string) {
+    overlaySessionActive = true;
     showOverlay(
         GENERIC_OVERLAY,
         {
@@ -100,5 +125,6 @@ export function showVideoCompressOverlay(message: string, progressLabel: string)
 }
 
 export async function hideVideoCompressOverlay() {
+    overlaySessionActive = false;
     await dismissOverlay(VIDEO_COMPRESS_OVERLAY_ID);
 }

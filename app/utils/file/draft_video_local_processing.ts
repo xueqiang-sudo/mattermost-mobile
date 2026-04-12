@@ -36,24 +36,32 @@ export function isDraftVideoProcessingAborted(clientId: string) {
     return abortedClientIds.has(clientId);
 }
 
-export function buildDraftVideoPlaceholderFile(params: {
+/** Draft placeholder for camera/gallery media (image or video) while compress/extract runs. */
+export function buildDraftMediaPlaceholderFile(params: {
     clientId: string;
     userId: string;
     name: string;
     stage: DraftVideoLocalStage;
     progress?: number;
+    mime_type: string;
+    extension: string;
+    /** Local file URI for immediate thumbnail preview (image/video). */
+    uri?: string;
 }): FileInfo {
-    const {clientId, userId, name, stage, progress = 0} = params;
+    const {clientId, userId, name, stage, progress = 0, mime_type, extension, uri} = params;
+    const normalizedUri = uri && !uri.startsWith('file://') ? `file://${uri}` : uri;
     return {
         clientId,
         user_id: userId,
         name,
-        extension: 'mp4',
-        mime_type: 'video/mp4',
+        extension,
+        mime_type,
         size: 0,
         has_preview_image: false,
         height: 1,
         width: 1,
+        uri: normalizedUri,
+        localPath: normalizedUri?.replace(/^file:\/\//, ''),
         postProps: {
             [DRAFT_VIDEO_POST_PROP_KEY]: {
                 localProcessing: true,
@@ -62,6 +70,25 @@ export function buildDraftVideoPlaceholderFile(params: {
             },
         },
     };
+}
+
+export function buildDraftVideoPlaceholderFile(params: {
+    clientId: string;
+    userId: string;
+    name: string;
+    stage: DraftVideoLocalStage;
+    progress?: number;
+}): FileInfo {
+    const {clientId, userId, name, stage, progress = 0} = params;
+    return buildDraftMediaPlaceholderFile({
+        clientId,
+        userId,
+        name,
+        stage,
+        progress,
+        mime_type: 'video/mp4',
+        extension: 'mp4',
+    });
 }
 
 export function patchDraftVideoPlaceholder(

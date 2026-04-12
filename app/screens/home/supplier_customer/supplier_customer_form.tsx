@@ -142,23 +142,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'SemiBold'),
         color: theme.buttonColor,
     },
-    selectedContactCard: {
-        marginTop: 10,
-        marginBottom: 10,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: changeOpacity(theme.linkColor, 0.35),
-        backgroundColor: changeOpacity(theme.linkColor, 0.08),
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    selectedContactMeta: {
-        flex: 1,
-        minWidth: 0,
-        marginLeft: 10,
-    },
     selectedContactHint: {
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.64),
@@ -196,6 +179,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     searchResultRowLast: {
         borderBottomWidth: 0,
     },
+    searchResultRowSelected: {
+        borderColor: changeOpacity(theme.linkColor, 0.35),
+        backgroundColor: changeOpacity(theme.linkColor, 0.08),
+    },
+    resultSelectedActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    resultSelectedCheckIcon: {
+        marginLeft: 4,
+    },
     resultAvatarWrap: {
         marginRight: 10,
     },
@@ -206,6 +200,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     resultAddedText: {
         ...typography('Body', 75, 'SemiBold'),
         color: changeOpacity(theme.errorTextColor, 0.85),
+    },
+    searchResultSelfHint: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.errorTextColor, 0.92),
+        marginTop: 6,
+        lineHeight: 18,
+    },
+    resultSelfBadgeText: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.errorTextColor, 0.88),
+        textAlign: 'right',
+        maxWidth: 100,
     },
     searchResultName: {
         ...typography('Body', 200, 'SemiBold'),
@@ -379,7 +385,8 @@ const SupplierCustomerFormScreen = ({
     const [searchResults, setSearchResults] = useState<ContactEmployeeSearchRow[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
-    const [selectedEmployee, setSelectedEmployee] = useState<ContactEmployee | null>(null);
+    /** 按搜索结果下标选择，避免多条记录 id 相同时无法区分；也避免从列表中过滤已选项导致无法改选 */
+    const [selectedSearchIndex, setSelectedSearchIndex] = useState<number | null>(null);
     const [description, setDescription] = useState(initialDescription ?? '');
     const [remark, setRemark] = useState(initialRemark ?? '');
     const [saving, setSaving] = useState(false);
@@ -459,10 +466,12 @@ const SupplierCustomerFormScreen = ({
             if (!kw.trim()) {
                 setSearchResults([]);
                 setHasSearched(false);
+                setSelectedSearchIndex(null);
                 return;
             }
             setSearchLoading(true);
             setHasSearched(true);
+            setSelectedSearchIndex(null);
             try {
                 const contactType = isSupplierKind ? EmployeeContactTypes.Supplier : EmployeeContactTypes.Customer;
                 const result = await searchEmployeeContacts(contactType, ownerId, kw.trim());
@@ -472,16 +481,6 @@ const SupplierCustomerFormScreen = ({
                 }
                 const rows = result.data;
                 setSearchResults(rows);
-                setSelectedEmployee((current) => {
-                    if (!current) {
-                        return null;
-                    }
-                    const hit = rows.find((r) => r.employee.id === current.id);
-                    if (hit?.alreadyAdded) {
-                        return null;
-                    }
-                    return current;
-                });
             } finally {
                 setSearchLoading(false);
             }
@@ -511,16 +510,29 @@ const SupplierCustomerFormScreen = ({
         transform: [{translateX: withTiming(0, {duration: 150})}],
     }), []);
 
+    const selectedEmployee = useMemo((): ContactEmployee | null => {
+        if (selectedSearchIndex === null) {
+            return null;
+        }
+        return searchResults[selectedSearchIndex]?.employee ?? null;
+    }, [searchResults, selectedSearchIndex]);
+
     const isSelectedAlreadyAdded = useMemo(() => {
-        if (!selectedEmployee) {
+        if (selectedSearchIndex === null) {
             return false;
         }
-        return searchResults.some(
-            (r) => r.employee.id === selectedEmployee.id && r.alreadyAdded,
-        );
-    }, [searchResults, selectedEmployee]);
+        return Boolean(searchResults[selectedSearchIndex]?.alreadyAdded);
+    }, [searchResults, selectedSearchIndex]);
 
-    const canSaveAdd = Boolean(selectedEmployee) && !isSelectedAlreadyAdded && !saving;
+    const isSelectedSelf = useMemo(() => {
+        if (selectedSearchIndex === null || !ownerId) {
+            return false;
+        }
+        return searchResults[selectedSearchIndex]?.employee.id === ownerId;
+    }, [ownerId, searchResults, selectedSearchIndex]);
+
+    const canSaveAdd =
+        Boolean(selectedEmployee) && !isSelectedAlreadyAdded && !isSelectedSelf && !saving;
     const canSaveEdit = isEdit && !saving;
     const canSave = isEdit ? canSaveEdit : canSaveAdd;
 
@@ -636,13 +648,17 @@ const SupplierCustomerFormScreen = ({
         id: 'supplier_customer.add_description_placeholder',
         defaultMessage: 'Example: Main purchasing contact for ACME project. Follows up every Tuesday.',
     });
-    const filteredSearchResults = useMemo(() => {
-        if (!selectedEmployee) {
-            return searchResults;
-        }
-        return searchResults.filter((row) => row.employee.id !== selectedEmployee.id);
-    }, [searchResults, selectedEmployee]);
-
+    const cannotAddSelfHint = intl.formatMessage(
+        {
+            id: 'supplier_customer.cannot_add_self',
+            defaultMessage: 'This is your account. You cannot add yourself as a {type}.',
+        },
+        {type: typeLabel},
+    );
+    const cannotSelectSelfBadge = intl.formatMessage({
+        id: 'supplier_customer.cannot_select_self_badge',
+        defaultMessage: 'Cannot select',
+    });
     const addBody = (
         <>
             <View style={styles.section}>
@@ -681,30 +697,6 @@ const SupplierCustomerFormScreen = ({
                         </Text>
                     </TouchableOpacity>
                 </View>
-                {selectedEmployee ? (
-                    <View style={styles.selectedContactCard}>
-                        <ContactAvatar
-                            employee={selectedEmployee}
-                            size={40}
-                        />
-                        <View style={styles.selectedContactMeta}>
-                            <Text
-                                style={styles.searchResultName}
-                                numberOfLines={1}
-                            >
-                                {selectedEmployee.name}
-                            </Text>
-                            <Text style={styles.selectedContactHint}>
-                                {intl.formatMessage({id: 'supplier_customer.selected_badge', defaultMessage: 'Selected'})}
-                            </Text>
-                        </View>
-                        <CompassIcon
-                            name='check-circle'
-                            size={20}
-                            color={theme.linkColor}
-                        />
-                    </View>
-                ) : null}
                 {searchLoading ? (
                     <View style={styles.loadingBox}>
                         <Loading
@@ -714,27 +706,36 @@ const SupplierCustomerFormScreen = ({
                     </View>
                 ) : (
                     <View>
-                        {filteredSearchResults.length > 0 && (
+                        {searchResults.length > 0 && (
                             <View style={styles.searchResultContainer}>
-                                {filteredSearchResults.map((row, index) => {
+                                {searchResults.map((row, index) => {
                                     const {employee, alreadyAdded} = row;
-                                    const isLast = index === filteredSearchResults.length - 1;
+                                    const isSelf = Boolean(ownerId && employee.id === ownerId);
+                                    const rowBlocked = alreadyAdded || isSelf;
+                                    const isLast = index === searchResults.length - 1;
+                                    const isRowSelected = selectedSearchIndex === index;
                                     const meta = [employee.email, employee.phone, employee.position].filter(Boolean).join(' · ');
                                     return (
                                         <TouchableOpacity
-                                            key={employee.id}
+                                            key={`supplier_customer.search.row.${index}.${employee.id}`}
                                             style={[
                                                 styles.searchResultRow,
                                                 isLast && styles.searchResultRowLast,
-                                                alreadyAdded && styles.searchResultRowDisabled,
+                                                rowBlocked && styles.searchResultRowDisabled,
+                                                isRowSelected && !rowBlocked && styles.searchResultRowSelected,
                                             ]}
                                             onPress={() => {
-                                                if (!alreadyAdded) {
-                                                    setSelectedEmployee(employee);
+                                                if (rowBlocked) {
+                                                    return;
                                                 }
+                                                if (isRowSelected) {
+                                                    setSelectedSearchIndex(null);
+                                                    return;
+                                                }
+                                                setSelectedSearchIndex(index);
                                             }}
-                                            disabled={alreadyAdded}
-                                            activeOpacity={alreadyAdded ? 1 : 0.7}
+                                            disabled={rowBlocked}
+                                            activeOpacity={rowBlocked ? 1 : 0.7}
                                         >
                                             <View style={styles.resultAvatarWrap}>
                                                 <ContactAvatar
@@ -745,6 +746,16 @@ const SupplierCustomerFormScreen = ({
                                             <View style={styles.flex}>
                                                 <Text style={styles.searchResultName}>{employee.name}</Text>
                                                 {meta ? <Text style={styles.searchResultMeta}>{meta}</Text> : null}
+                                                {isSelf ? (
+                                                    <Text style={styles.searchResultSelfHint}>
+                                                        {cannotAddSelfHint}
+                                                    </Text>
+                                                ) : null}
+                                                {isRowSelected && !rowBlocked ? (
+                                                    <Text style={styles.selectedContactHint}>
+                                                        {intl.formatMessage({id: 'supplier_customer.selected_badge', defaultMessage: 'Selected'})}
+                                                    </Text>
+                                                ) : null}
                                             </View>
                                             {alreadyAdded ? (
                                                 <Text style={styles.resultAddedText}>
@@ -753,6 +764,29 @@ const SupplierCustomerFormScreen = ({
                                                         defaultMessage: 'Added',
                                                     })}
                                                 </Text>
+                                            ) : isSelf ? (
+                                                <Text
+                                                    style={styles.resultSelfBadgeText}
+                                                    numberOfLines={3}
+                                                >
+                                                    {cannotSelectSelfBadge}
+                                                </Text>
+                                            ) : isRowSelected ? (
+                                                <View style={styles.resultSelectedActions}>
+                                                    <Text style={styles.resultActionText}>
+                                                        {intl.formatMessage({
+                                                            id: 'supplier_customer.deselect_action',
+                                                            defaultMessage: 'Deselect',
+                                                        })}
+                                                    </Text>
+                                                    <View style={styles.resultSelectedCheckIcon}>
+                                                        <CompassIcon
+                                                            name='check-circle'
+                                                            size={20}
+                                                            color={theme.linkColor}
+                                                        />
+                                                    </View>
+                                                </View>
                                             ) : (
                                                 <Text style={styles.resultActionText}>
                                                     {intl.formatMessage({id: 'supplier_customer.select_action', defaultMessage: 'Select'})}
@@ -763,7 +797,7 @@ const SupplierCustomerFormScreen = ({
                                 })}
                             </View>
                         )}
-                        {hasSearched && filteredSearchResults.length === 0 && !searchLoading ? (
+                        {hasSearched && searchResults.length === 0 && !searchLoading ? (
                             <Text style={[styles.hintText, {marginBottom: 0, marginTop: 4}]}>
                                 {intl.formatMessage({
                                     id: 'supplier_customer.no_search_results',

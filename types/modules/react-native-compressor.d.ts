@@ -17,5 +17,17 @@ declare module 'react-native-compressor' {
         ): Promise<string>;
     };
 
+    export type ImageCompressionOptions = {
+        compressionMethod?: 'auto' | 'manual';
+        maxWidth?: number;
+        quality?: number;
+        progressDivider?: number;
+        downloadProgress?: (progress: number) => void;
+    };
+
+    export const Image: {
+        compress(url: string, options?: ImageCompressionOptions): Promise<string>;
+    };
+
     export function getRealPath(path: string, type?: 'video' | 'image'): Promise<string>;
 }

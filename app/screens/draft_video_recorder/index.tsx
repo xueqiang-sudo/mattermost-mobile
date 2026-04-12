@@ -157,6 +157,14 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
         return () => sub.remove();
     }, []);
 
+    // Prompt for microphone once camera is allowed so recordings include audio when the user accepts.
+    useEffect(() => {
+        if (!hasCameraPermission || hasMicPermission || isRecording) {
+            return;
+        }
+        void requestMicPermission();
+    }, [hasCameraPermission, hasMicPermission, isRecording, requestMicPermission]);
+
     const closeModal = useCallback(async () => {
         await dismissModal({componentId});
     }, [componentId]);
@@ -203,6 +211,7 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
         }
         recordingEndsAtRef.current = Date.now() + MAX_RECORD_MS;
         setIsRecording(true);
+        // Audio is muxed when <Camera audio={true} /> and microphone permission is granted (VisionCamera 4).
         cam.startRecording({
             flash: 'off',
             fileType: Platform.OS === 'ios' ? 'mov' : 'mp4',

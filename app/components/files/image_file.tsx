@@ -30,8 +30,8 @@ type ImageFileProps = {
 
 const SMALL_IMAGE_MAX_HEIGHT = 48;
 const SMALL_IMAGE_MAX_WIDTH = 48;
-const CHAT_SINGLE_MEDIA_MAX_WIDTH = 220;
-const CHAT_SINGLE_MEDIA_MAX_HEIGHT = 240;
+const CHAT_SINGLE_MEDIA_MAX_WIDTH = 180;
+const CHAT_SINGLE_MEDIA_MAX_HEIGHT = 200;
 const GRADIENT_COLORS: LinearGradientProps['colors'] = ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, .32)'];
 const GRADIENT_END = {x: 1, y: 1};
 const GRADIENT_LOCATIONS: LinearGradientProps['locations'] = [0.5, 1];

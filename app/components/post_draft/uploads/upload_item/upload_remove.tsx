@@ -15,6 +15,7 @@ type Props = {
     rootId: string;
     clientId: string;
     fileId: string;
+    insetInTile?: boolean;
 }
 
 export default function UploadRemove({
@@ -22,6 +23,7 @@ export default function UploadRemove({
     rootId,
     clientId,
     fileId,
+    insetInTile,
 }: Props) {
     const serverUrl = useServerUrl();
     const {onFileRemove, isEditMode} = useEditPost();
@@ -38,6 +40,7 @@ export default function UploadRemove({
 
     return (
         <RemoveButton
+            insetInTile={insetInTile}
             onPress={onPress}
             testID={`remove-button-${fileId}`}
         />

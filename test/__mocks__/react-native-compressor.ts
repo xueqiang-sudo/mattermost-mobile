@@ -12,3 +12,7 @@ export const getRealPath = jest.fn(async (uri: string) => {
 export const Video = {
     compress: jest.fn(async () => 'file:///cache/compressed.mp4'),
 };
+
+export const Image = {
+    compress: jest.fn(async () => 'file:///cache/compressed.jpg'),
+};

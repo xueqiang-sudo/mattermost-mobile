@@ -4,6 +4,7 @@
 import {deleteAsync} from 'expo-file-system';
 import {getRealPath, Video} from 'react-native-compressor';
 
+import {ENABLE_VIDEO_COMPRESS} from '@constants/media_processing';
 import {reportVideoCompressProgress} from '@utils/file/video_compress_overlay';
 import {logError} from '@utils/log';
 
@@ -51,7 +52,7 @@ export async function compressChatVideoAsset(
     file: Asset | DocumentPickerResponse,
     options?: CompressChatVideoOptions,
 ): Promise<Asset | DocumentPickerResponse> {
-    if (!isProbablyVideo(file) || !file.uri) {
+    if (!ENABLE_VIDEO_COMPRESS || !isProbablyVideo(file) || !file.uri) {
         return file;
     }
 

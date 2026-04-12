@@ -24,11 +24,20 @@ type Props = {
     openGallery: (file: FileInfo) => void;
     rootId: string;
     inViewPort?: boolean;
+    /** Tighter margins when media tiles wrap in a grid (WeChat-style). */
+    variant?: 'strip' | 'mediaGrid';
+    /** Square thumbnail edge length when `variant` is `mediaGrid` (from screen width). */
+    mediaTileSize?: number;
+    /** Horizontal gap after tile; use `0` at end of each grid row to avoid wrap overflow. */
+    mediaGridMarginRight?: number;
 }
 
 export default function UploadItemWrapper({
     channelId, galleryIdentifier, index, file,
     rootId, openGallery, inViewPort = true,
+    variant = 'strip',
+    mediaTileSize,
+    mediaGridMarginRight,
 }: Props) {
     const serverUrl = useServerUrl();
     const removeCallback = useRef<(() => void) | undefined>(undefined);
@@ -93,10 +102,22 @@ export default function UploadItemWrapper({
 
     const uploadItemFile = fileInfoToUploadItemFile(file);
 
+    const outerStyle =
+        variant === 'mediaGrid' ?
+            {
+                paddingTop: 0,
+                marginLeft: 0,
+                marginBottom: 6,
+                marginRight: mediaGridMarginRight ?? 6,
+                position: 'relative' as const,
+                zIndex: 2,
+            } :
+            {paddingTop: 5, marginLeft: 12};
+
     return (
         <View
             key={file.clientId}
-            style={{paddingTop: 5, marginLeft: 12}}
+            style={outerStyle}
         >
             <UploadItemShared
                 file={uploadItemFile}
@@ -109,10 +130,12 @@ export default function UploadItemWrapper({
                 testID={file.id}
                 forwardRef={ref}
                 inViewPort={inViewPort}
+                mediaTileSize={variant === 'mediaGrid' ? mediaTileSize : undefined}
             />
             <UploadRemove
                 clientId={file.clientId!}
                 channelId={channelId}
+                insetInTile={variant === 'mediaGrid'}
                 rootId={rootId}
                 fileId={file.id!}
             />

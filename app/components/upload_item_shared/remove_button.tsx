@@ -14,6 +14,8 @@ const hitSlop = {top: 10, bottom: 10, left: 10, right: 10};
 type Props = {
     onPress: () => void;
     testID?: string;
+    /** Draft 宫格缩略图：关闭按钮放在角内，避免负偏移被裁切或盖住相邻格 */
+    insetInTile?: boolean;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
@@ -25,6 +27,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             height: 24,
             top: -12,
             right: -10,
+        },
+        tappableContainerInset: {
+            top: 4,
+            right: 4,
         },
         removeButton: {
             borderRadius: 12,
@@ -43,6 +49,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
 export default function RemoveButton({
     onPress,
     testID = 'remove-button',
+    insetInTile = false,
 }: Props) {
     const theme = useTheme();
     const style = getStyleSheet(theme);
@@ -52,7 +59,11 @@ export default function RemoveButton({
 
     return (
         <Pressable
-            style={({pressed}) => [style.tappableContainer, pressed && {opacity: 0.72}]}
+            style={({pressed}) => [
+                style.tappableContainer,
+                insetInTile && style.tappableContainerInset,
+                pressed && {opacity: 0.72},
+            ]}
             onPress={handlePress}
             testID={testID}
             hitSlop={hitSlop}

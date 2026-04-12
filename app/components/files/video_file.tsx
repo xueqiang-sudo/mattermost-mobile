@@ -21,8 +21,8 @@ import FileIcon from './file_icon';
 
 import type {ImageContentFit} from 'expo-image';
 
-const CHAT_SINGLE_MEDIA_MAX_WIDTH = 220;
-const CHAT_SINGLE_MEDIA_MAX_HEIGHT = 240;
+const CHAT_SINGLE_MEDIA_MAX_WIDTH = 180;
+const CHAT_SINGLE_MEDIA_MAX_HEIGHT = 200;
 
 type Props = {
     index: number;

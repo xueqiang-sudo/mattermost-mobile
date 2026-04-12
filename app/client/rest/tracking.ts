@@ -22,8 +22,7 @@ import type {APIClientInterface, ClientHeaders, ClientResponse, ClientResponseMe
 
 // eslint-disable-next-line no-negated-condition
 const isEnvFlagEnabled = (value?: string, trueOtherVaue?: string) => (trueOtherVaue !== undefined ? value === trueOtherVaue : (value === 'true' || value === '1'));
-const shouldLogFetchSuccess = () => isEnvFlagEnabled(MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
-const shouldLogFetchData = () => isEnvFlagEnabled(MM_MOBILE_LOG_FETCH, '2'); // MM_MOBILE_LOG_FETCH = '2'
+const shouldLogFetchData = () => isEnvFlagEnabled(MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
 
 type UrlData = {
     count: number;
@@ -448,7 +447,7 @@ export default class ClientTracking {
                     ' ,data:',
                     response.data,
                 );
-            } else if (shouldLogFetchSuccess()) {
+            } else {
                 logDebug(new Date().toISOString() + ' -- request is success, url:', url, ' ,method:', method);
             }
             return returnDataOnly ? (response.data || {}) : response;

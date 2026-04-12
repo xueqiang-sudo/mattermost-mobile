@@ -96,6 +96,7 @@ describe('Uploads', () => {
         );
 
         expect(getByTestId('uploads')).toBeTruthy();
+        expect(getByTestId('uploads-media-row')).toBeTruthy();
     });
 
     it('should render with document files', () => {
@@ -137,6 +138,7 @@ describe('Uploads', () => {
         );
 
         expect(getByTestId('uploads')).toBeTruthy();
+        expect(getByTestId('uploads-files-row')).toBeTruthy();
     });
 
     it('should render with mixed file types', () => {
@@ -178,6 +180,8 @@ describe('Uploads', () => {
         );
 
         expect(getByTestId('uploads')).toBeTruthy();
+        expect(getByTestId('uploads-media-row')).toBeTruthy();
+        expect(getByTestId('uploads-files-row')).toBeTruthy();
     });
 
     it('should display upload error when present', () => {

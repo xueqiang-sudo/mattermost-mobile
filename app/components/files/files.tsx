@@ -31,6 +31,9 @@ type FilesProps = {
 }
 
 const MAX_VISIBLE_ROW_IMAGES = 4;
+/** 多图/多视频时每行最多列数，列宽均分避免挤出气泡或遮挡头像 */
+const MEDIA_GRID_MAX_COLS = 3;
+const MEDIA_GRID_GAP = 6;
 const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
@@ -40,8 +43,14 @@ const styles = StyleSheet.create({
         // 仅媒体消息时不要横向拉满，按内容自然宽度展示（对齐微信效果）。
         alignSelf: 'flex-start',
     },
+    rowWrap: {
+        flexWrap: 'wrap',
+    },
     rowItemContainer: {
         flex: 1,
+    },
+    gridCell: {
+        marginBottom: MEDIA_GRID_GAP,
     },
     gutter: {
         marginLeft: 8,
@@ -153,6 +162,19 @@ const Files = ({
         });
     };
 
+    const pickMediaGridColumns = (n: number) => {
+        if (n <= 1) {
+            return 1;
+        }
+        if (n === 2) {
+            return 2;
+        }
+        if (n === 3) {
+            return 3;
+        }
+        return 2;
+    };
+
     const renderImageRow = () => {
         if (imageAttachments.length === 0) {
             return null;
@@ -167,17 +189,71 @@ const Files = ({
             nonVisibleImagesCount = imageAttachments.length - MAX_VISIBLE_ROW_IMAGES;
         }
 
+        if (isSingleAttachmentImageRow) {
+            return (
+                <View
+                    style={[
+                        styles.row,
+                        compactTopSpacing && {marginTop: 0},
+                        isPermalinkPreview && {marginTop: 0},
+                    ]}
+                    testID='image-row'
+                >
+                    {renderItems(visibleImages, nonVisibleImagesCount, false, true)}
+                </View>
+            );
+        }
+
+        const cols = Math.min(pickMediaGridColumns(visibleImages.length), MEDIA_GRID_MAX_COLS);
+        const cellW = Math.floor((portraitPostWidth - MEDIA_GRID_GAP * (cols - 1)) / cols);
+
         return (
             <View
                 style={[
                     styles.row,
-                    !isSingleAttachmentImageRow && {width: portraitPostWidth},
+                    styles.rowWrap,
+                    {width: portraitPostWidth},
                     compactTopSpacing && {marginTop: 0},
                     isPermalinkPreview && {marginTop: 0},
                 ]}
                 testID='image-row'
             >
-                { renderItems(visibleImages, nonVisibleImagesCount, true, true) }
+                {visibleImages.map((file, idx) => {
+                    const col = idx % cols;
+                    const marginRight = col < cols - 1 ? MEDIA_GRID_GAP : 0;
+                    let nonVisible: number | undefined;
+                    if (nonVisibleImagesCount && idx === MAX_VISIBLE_ROW_IMAGES - 1) {
+                        nonVisible = nonVisibleImagesCount;
+                    }
+                    return (
+                        <View
+                            key={file.id}
+                            style={[
+                                styles.gridCell,
+                                {
+                                    width: cellW,
+                                    marginRight,
+                                    minWidth: 0,
+                                },
+                            ]}
+                            testID={`${file.id}-file-container`}
+                        >
+                            <File
+                                galleryIdentifier={galleryIdentifier}
+                                canDownloadFiles={canDownloadFiles}
+                                enableSecureFilePreview={enableSecureFilePreview}
+                                file={file}
+                                index={attachmentIndex(file.id!)}
+                                isSingleImage={isSingleImage}
+                                nonVisibleImagesCount={nonVisible ?? 0}
+                                onPress={handlePreviewPress}
+                                updateFileForGallery={updateFileForGallery}
+                                wrapperWidth={cellW}
+                                inViewPort={inViewPort}
+                            />
+                        </View>
+                    );
+                })}
             </View>
         );
     };

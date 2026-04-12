@@ -4,6 +4,7 @@
 import React from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import FormattedText from '@components/formatted_text';
 import SlideUpPanelItem from '@components/slide_up_panel_item';
@@ -32,6 +33,7 @@ const getStyle = makeStyleSheetFromTheme((theme: Theme) => ({
 const CameraType = ({onPress, onVisionVideoPress}: Props) => {
     const theme = useTheme();
     const isTablet = useIsTablet();
+    const insets = useSafeAreaInsets();
     const style = getStyle(theme);
     const intl = useIntl();
 
@@ -90,7 +92,7 @@ const CameraType = ({onPress, onVisionVideoPress}: Props) => {
     };
 
     return (
-        <View>
+        <View style={{paddingBottom: Math.max(insets.bottom, 12)}}>
             {!isTablet &&
             <FormattedText
                 id='mobile.camera_type.title'

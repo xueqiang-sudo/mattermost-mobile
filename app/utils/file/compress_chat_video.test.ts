@@ -61,4 +61,18 @@ describe('compressChatVideoAsset', () => {
         expect(deleteAsync).toHaveBeenCalledWith('file:///cache/compressed.mp4', {idempotent: true});
         expect(out).toMatchObject({uri: 'file://in.mov', fileName: 'in.mov'});
     });
+
+    it('should not compress when ENABLE_VIDEO_COMPRESS is false', async () => {
+        let compressOff: typeof compressChatVideoAsset;
+        jest.isolateModules(() => {
+            jest.doMock('@constants/media_processing', () => ({
+                ENABLE_VIDEO_COMPRESS: false,
+                ENABLE_IMAGE_COMPRESS: true,
+            }));
+            compressOff = require('./compress_chat_video').compressChatVideoAsset;
+        });
+        const file = {uri: 'file://in.mov', type: 'video/mp4', fileName: 'in.mov'} as Asset;
+        await expect(compressOff!(file)).resolves.toBe(file);
+        expect(Video.compress).not.toHaveBeenCalled();
+    });
 });

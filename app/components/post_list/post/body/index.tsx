@@ -101,9 +101,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'flex-start',
         },
 
-        // 纯媒体（自己发送）不画尾巴时，补一个与头像的安全间距，避免内容跑到头像下方。
+        // 纯媒体（自己发送）：靠左展示并与左缘留出间距（与对侧头像区对称），避免挤占标题栏或贴边裁切。
         bubbleWithTailWrapperOwnMediaOnly: {
-            marginRight: 52,
+            alignSelf: 'flex-start',
+            marginLeft: 52,
+            marginRight: 56,
+            maxWidth: '100%',
         },
 
         /** 气泡三角尾巴：向左指（他人消息） */
@@ -186,6 +189,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         messageRowOwnWeChat: {
             alignSelf: 'flex-end',
+            maxWidth: '100%',
+        },
+        messageRowOwnWeChatMediaOnly: {
+            alignSelf: 'flex-start',
             maxWidth: '100%',
         },
     };
@@ -484,7 +491,7 @@ const Body = ({
             <View
                 style={[
                     style.bubbleWithTailWrapper,
-                    isOwnPost && style.bubbleWithTailWrapperOwn,
+                    isOwnPost && !isMediaOnlyWeChat && style.bubbleWithTailWrapperOwn,
                     isOwnPost && isMediaOnlyWeChat && style.bubbleWithTailWrapperOwnMediaOnly,
                     {maxWidth: weChatBubbleMaxWidth},
                 ]}
@@ -542,10 +549,12 @@ const Body = ({
 
     return (
         <View
-            style={[
-                style.messageContainerWithReplyBar,
-                weChatStyleActive && isOwnPost ? style.messageRowOwnWeChat : style.messageContainerFullWidth,
-            ]}
+                style={[
+                    style.messageContainerWithReplyBar,
+                    weChatStyleActive && isOwnPost ?
+                        (isMediaOnlyWeChat ? style.messageRowOwnWeChatMediaOnly : style.messageRowOwnWeChat) :
+                        style.messageContainerFullWidth,
+                ]}
             onLayout={onLayout}
         >
             {content}

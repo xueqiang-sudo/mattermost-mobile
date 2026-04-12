@@ -3,9 +3,10 @@
 
 import React, {useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {TouchableWithoutFeedback, View, Text, type ViewStyle} from 'react-native';
+import {StyleSheet, Text, TouchableWithoutFeedback, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import CompassIcon from '@components/compass_icon';
 import ExpoImage from '@components/expo_image';
 import FileIcon from '@components/files/file_icon';
 import ImageFile from '@components/files/image_file';
@@ -13,7 +14,7 @@ import UploadRetry from '@components/post_draft/uploads/upload_item/upload_retry
 import ProgressBar from '@components/progress_bar';
 import {useTheme} from '@context/theme';
 import type {DraftVideoLocalPostProps} from '@utils/file/draft_video_local_processing';
-import {isImage, getFormattedFileSize} from '@utils/file';
+import {getFormattedFileSize, isImage, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -47,6 +48,8 @@ export interface UploadItemProps {
     forwardRef?: React.RefObject<unknown>;
     inViewPort?: boolean;
     hasError?: boolean;
+    /** When set, image/video draft tiles use this square size (draft grid). */
+    mediaTileSize?: number;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
@@ -165,6 +168,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             borderColor: theme.errorTextColor,
             borderWidth: 2,
         },
+        videoPlayOverlay: {
+            ...StyleSheet.absoluteFillObject,
+            justifyContent: 'center',
+            alignItems: 'center',
+            pointerEvents: 'none',
+        },
+        videoPlayBadge: {
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            borderRadius: 18,
+            padding: 6,
+        },
     };
 });
 
@@ -182,10 +196,28 @@ export default function UploadItemShared({
     forwardRef,
     inViewPort = false,
     hasError = false,
+    mediaTileSize,
 }: UploadItemProps) {
     const theme = useTheme();
     const intl = useIntl();
     const style = getStyleSheet(theme);
+
+    const tileDimStyle = useMemo((): ViewStyle | undefined => {
+        if (mediaTileSize == null || mediaTileSize <= 0) {
+            return undefined;
+        }
+        return {
+            width: mediaTileSize,
+            height: mediaTileSize,
+        };
+    }, [mediaTileSize]);
+
+    const playIconSize = useMemo(() => {
+        if (mediaTileSize == null) {
+            return 22;
+        }
+        return Math.max(18, Math.round(mediaTileSize * 0.24));
+    }, [mediaTileSize]);
 
     const fileForCheck = useMemo(() => ({
         name: file.name,
@@ -194,6 +226,8 @@ export default function UploadItemShared({
     } as FileInfo), [file.name, file.extension, file.mime_type]);
 
     const isImageFile = useMemo(() => isImage(fileForCheck), [fileForCheck]);
+    const isVideoFile = useMemo(() => isVideo(fileForCheck), [fileForCheck]);
+    const isMediaTile = isImageFile || isVideoFile;
 
     const imageFileData = useMemo(() => ({
         ...fileForCheck,
@@ -207,14 +241,22 @@ export default function UploadItemShared({
         failed: file.failed,
     } as FileInfo), [fileForCheck, file.id, file.clientId, file.size, file.uri, file.width, file.height, file.failed]);
 
+    const thumbStyle = useMemo(() => (
+        tileDimStyle ? [style.imageOnlyThumbnail, tileDimStyle] : style.imageOnlyThumbnail
+    ), [style.imageOnlyThumbnail, tileDimStyle]);
+
+    const imageStyle = useMemo(() => (
+        tileDimStyle ? [style.imageOnlyImage, tileDimStyle] : style.imageOnlyImage
+    ), [style.imageOnlyImage, tileDimStyle]);
+
     const fileDisplay = useMemo(() => {
         if (isImageFile) {
             if (isShareExtension) {
                 return (
-                    <View style={style.imageOnlyThumbnail}>
+                    <View style={thumbStyle}>
                         <ExpoImage
                             source={{uri: file.uri}}
-                            style={style.imageOnlyImage}
+                            style={imageStyle}
                             contentFit='cover'
                             cachePolicy='memory'
                         />
@@ -222,13 +264,36 @@ export default function UploadItemShared({
                 );
             }
             return (
-                <View style={style.imageOnlyThumbnail}>
+                <View style={thumbStyle}>
                     <ImageFile
                         file={imageFileData}
                         forwardRef={forwardRef}
                         inViewPort={inViewPort}
                         contentFit='cover'
                     />
+                </View>
+            );
+        }
+        if (isVideoFile) {
+            return (
+                <View style={thumbStyle}>
+                    {Boolean(file.uri) && (
+                        <ExpoImage
+                            source={{uri: file.uri}}
+                            style={imageStyle}
+                            contentFit='cover'
+                            cachePolicy='memory'
+                        />
+                    )}
+                    <View style={style.videoPlayOverlay}>
+                        <View style={style.videoPlayBadge}>
+                            <CompassIcon
+                                name='play'
+                                size={playIconSize}
+                                color='rgba(255,255,255,0.95)'
+                            />
+                        </View>
+                    </View>
                 </View>
             );
         }
@@ -240,31 +305,31 @@ export default function UploadItemShared({
                 />
             </View>
         );
-    }, [isImageFile, style.iconContainer, style.imageOnlyThumbnail, style.imageOnlyImage, fileForCheck, isShareExtension, imageFileData, forwardRef, inViewPort, file.uri]);
+    }, [isImageFile, isVideoFile, style.iconContainer, thumbStyle, imageStyle, style.videoPlayBadge, style.videoPlayOverlay, playIconSize, fileForCheck, isShareExtension, imageFileData, forwardRef, inViewPort, file.uri]);
 
     const fileExtension = file.extension?.toUpperCase() || file.name?.split('.').pop()?.toUpperCase() || '';
     const formattedSize = getFormattedFileSize(file.size || 0);
     const unknownFileLabel = intl.formatMessage({id: 'upload_item.unknown_file', defaultMessage: 'Unknown file'});
     const preparingShort = intl.formatMessage({
-        id: 'mobile.video_upload.preparing_video_short',
-        defaultMessage: 'Preparing video…',
+        id: 'mobile.media_export.preparing_short',
+        defaultMessage: 'Preparing…',
     });
-    const compressingShort = intl.formatMessage({
-        id: 'mobile.video_upload.compressing_short',
-        defaultMessage: 'Compressing…',
+    const exportingShort = intl.formatMessage({
+        id: 'mobile.media_export.exporting_short',
+        defaultMessage: 'Exporting…',
     });
     const localMeta = file.draftVideoLocal;
     const statusSubline = localMeta ?
         (localMeta.stage === 'resolving' ?
             preparingShort :
-            `${compressingShort} ${Math.round(Math.min(1, Math.max(0, localMeta.progress)) * 100)}%`) :
+            `${exportingShort} ${Math.round(Math.min(1, Math.max(0, localMeta.progress)) * 100)}%`) :
         `${fileExtension && `${fileExtension} `}${formattedSize}`;
 
     const containerStyle = useMemo(() => {
         let containerStyleType;
-        if (fullWidth && !isImageFile) {
+        if (fullWidth && !isMediaTile) {
             containerStyleType = style.fullWidthContainer;
-        } else if (isImageFile) {
+        } else if (isMediaTile) {
             containerStyleType = style.imageOnlyContainer;
         } else {
             containerStyleType = style.fileWithInfoContainer;
@@ -272,15 +337,20 @@ export default function UploadItemShared({
 
         const baseStyles = [style.previewContainer, containerStyleType];
 
+        const withTile =
+            isMediaTile && tileDimStyle ?
+                [...baseStyles, tileDimStyle] :
+                baseStyles;
+
         if (hasError) {
             return [
-                ...baseStyles,
+                ...withTile,
                 style.errorBorder,
             ];
         }
 
-        return baseStyles;
-    }, [fullWidth, isImageFile, hasError, style.fileWithInfoContainer, style.imageOnlyContainer, style.fullWidthContainer, style.previewContainer, style.errorBorder]);
+        return withTile;
+    }, [fullWidth, isMediaTile, hasError, tileDimStyle, style.fileWithInfoContainer, style.imageOnlyContainer, style.fullWidthContainer, style.previewContainer, style.errorBorder]);
 
     return (
         <View
@@ -293,7 +363,7 @@ export default function UploadItemShared({
                 </Animated.View>
             </TouchableWithoutFeedback>
 
-            {!isImageFile && (
+            {!isMediaTile && (
                 <View style={style.fileInfo}>
                     <Text
                         style={style.fileName}
