@@ -94,6 +94,10 @@ const messages = defineMessages({
         defaultMessage: 'Timezone',
         id: 'mobile.display_settings.timezone',
     },
+    language: {
+        defaultMessage: 'Language',
+        id: 'mobile.display_settings.language',
+    },
     manage_enterprise: {
         defaultMessage: 'Manage enterprises',
         id: 'settings.manage_enterprise',
@@ -197,6 +201,12 @@ export const DisplayOptionConfig: Record<string, SettingConfigDetails> = {
         i18nId: messages.timezone.id,
         icon: 'globe',
         testID: messages.timezone.id,
+    },
+    language: {
+        defaultMessage: messages.language.defaultMessage,
+        i18nId: messages.language.id,
+        icon: 'format-letter-case',
+        testID: messages.language.id,
     },
 };
 

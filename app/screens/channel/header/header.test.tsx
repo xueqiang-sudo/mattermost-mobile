@@ -42,6 +42,7 @@ describe('ChannelHeader', () => {
     function getBaseProps(): ComponentProps<typeof ChannelHeader> {
         return {
             channelId: 'channel-id',
+            channelName: General.DEFAULT_CHANNEL,
             channelType: 'O',
             currentUserId: 'current-user-id',
             displayName: 'Test Channel',

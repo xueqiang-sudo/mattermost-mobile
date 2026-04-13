@@ -94,6 +94,7 @@ export const SETTINGS_DISPLAY_CLOCK = 'SettingsDisplayClock';
 export const SETTINGS_DISPLAY_THEME = 'SettingsDisplayTheme';
 export const SETTINGS_DISPLAY_TIMEZONE = 'SettingsDisplayTimezone';
 export const SETTINGS_DISPLAY_TIMEZONE_SELECT = 'SettingsDisplayTimezoneSelect';
+export const SETTINGS_DISPLAY_LANGUAGE = 'SettingsDisplayLanguage';
 export const SETTINGS_NOTIFICATION = 'SettingsNotification';
 export const SETTINGS_NOTIFICATION_AUTO_RESPONDER = 'SettingsNotificationAutoResponder';
 export const SETTINGS_NOTIFICATION_EMAIL = 'SettingsNotificationEmail';
@@ -205,6 +206,7 @@ export default {
     SETTINGS_DISPLAY_THEME,
     SETTINGS_DISPLAY_TIMEZONE,
     SETTINGS_DISPLAY_TIMEZONE_SELECT,
+    SETTINGS_DISPLAY_LANGUAGE,
     SETTINGS_NOTIFICATION,
     SETTINGS_NOTIFICATION_AUTO_RESPONDER,
     SETTINGS_NOTIFICATION_EMAIL,

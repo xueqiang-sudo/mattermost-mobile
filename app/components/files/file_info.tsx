@@ -16,6 +16,8 @@ type FileInfoProps = {
     showDate: boolean;
     channelName?: string;
     onPress: () => void;
+    /** true：在文件行内占满剩余宽度；false：随文件名/大小收缩（微信气泡内非图附件） */
+    fillRemainingRow?: boolean;
 };
 const FORMAT: FormattedDateFormat = {
     month: 'short',
@@ -28,8 +30,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         attachmentContainer: {
             flexShrink: 1,
-            minWidth: 0,
             justifyContent: 'center',
+            minWidth: 0,
+        },
+        attachmentContainerFill: {
+            flex: 1,
         },
         fileDownloadContainer: {
             flexDirection: 'row',
@@ -37,6 +42,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         fileStatsContainer: {
             flexGrow: 1,
+            flexDirection: 'row',
+        },
+        fileStatsContainerCompact: {
+            flexGrow: 0,
             flexDirection: 'row',
         },
         infoText: {
@@ -65,12 +74,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const FileInfo = ({disabled, file, channelName, showDate, onPress}: FileInfoProps) => {
+const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDate, onPress}: FileInfoProps) => {
     const theme = useTheme();
     const style = getStyleSheet(theme);
 
     return (
-        <View style={style.attachmentContainer}>
+        <View style={[style.attachmentContainer, fillRemainingRow && style.attachmentContainerFill]}>
             <TouchableOpacity
                 disabled={disabled}
                 onPress={onPress}
@@ -93,7 +102,7 @@ const FileInfo = ({disabled, file, channelName, showDate, onPress}: FileInfoProp
                             </Text>
                         </View>
                     }
-                    <View style={style.fileStatsContainer}>
+                    <View style={fillRemainingRow ? style.fileStatsContainer : style.fileStatsContainerCompact}>
                         <Text style={style.infoText}>
                             {`${getFormattedFileSize(file.size)}`}
                         </Text>

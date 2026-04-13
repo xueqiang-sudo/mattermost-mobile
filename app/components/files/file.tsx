@@ -40,6 +40,9 @@ type FileProps = {
     updateFileForGallery: (idx: number, file: FileInfo) => void;
     asCard?: boolean;
     isPressDisabled?: boolean;
+
+    /** false：卡片宽度随内容收缩（微信样式非图附件）；true：铺满父级宽度 */
+    expandCardToParentWidth?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -47,17 +50,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         fileWrapper: {
             flexDirection: 'row',
             alignItems: 'center',
-            alignSelf: 'flex-start',
-            maxWidth: '100%',
+            minWidth: 0,
             borderWidth: 1,
             borderColor: changeOpacity(theme.centerChannelColor, 0.24),
-            borderRadius: 4,
+            borderRadius: 5,
+        },
+        fileWrapperFillWidth: {
+            width: '100%',
+        },
+        fileWrapperShrinkToContent: {
+            alignSelf: 'flex-start',
         },
         iconWrapper: {
             marginTop: 8,
-            marginRight: 7,
+            marginRight: 8,
             marginBottom: 8,
-            marginLeft: 6,
+            marginLeft: 8,
         },
         imageVideo: {
             height: 40,
@@ -89,6 +97,7 @@ const File = ({
     updateFileForGallery,
     wrapperWidth = 300,
     isPressDisabled = false,
+    expandCardToParentWidth = true,
 }: FileProps) => {
     const document = useRef<DocumentRef>(null);
     const theme = useTheme();
@@ -111,16 +120,22 @@ const File = ({
     const renderCardWithImage = (fileIcon: JSX.Element) => {
         const fileInfo = (
             <FileInfo
+                channelName={channelName}
                 disabled={isPressDisabled}
                 file={file}
-                showDate={showDate}
-                channelName={channelName}
+                fillRemainingRow={expandCardToParentWidth}
                 onPress={handlePreviewPress}
+                showDate={showDate}
             />
         );
 
+        const cardRowStyle = [
+            style.fileWrapper,
+            expandCardToParentWidth ? style.fileWrapperFillWidth : style.fileWrapperShrinkToContent,
+        ];
+
         return (
-            <View style={[style.fileWrapper]}>
+            <View style={cardRowStyle}>
                 <View style={style.iconWrapper}>
                     {fileIcon}
                 </View>
@@ -215,16 +230,22 @@ const File = ({
 
         const fileInfo = (
             <FileInfo
+                channelName={channelName}
                 disabled={isPressDisabled}
                 file={file}
-                showDate={showDate}
-                channelName={channelName}
+                fillRemainingRow={expandCardToParentWidth}
                 onPress={handlePreviewPress}
+                showDate={showDate}
             />
         );
 
         fileComponent = (
-            <View style={[style.fileWrapper]}>
+            <View
+                style={[
+                    style.fileWrapper,
+                    expandCardToParentWidth ? style.fileWrapperFillWidth : style.fileWrapperShrinkToContent,
+                ]}
+            >
                 {renderDocumentFile}
                 {fileInfo}
                 {onOptionsPress &&

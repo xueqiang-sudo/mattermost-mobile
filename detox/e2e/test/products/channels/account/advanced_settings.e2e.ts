@@ -22,7 +22,8 @@ import {
 } from '@support/ui/screen';
 import {expect} from 'detox';
 
-describe('Account - Settings - Advanced Settings', () => {
+// Skipped: Advanced Settings is not listed on the main Settings screen (product customization).
+describe.skip('Account - Settings - Advanced Settings', () => {
     const serverOneDisplayName = 'Server 1';
     let testUser: any;
 

@@ -29,6 +29,8 @@ const DRAFT_MEDIA_ROW_H_PAD = 12;
 /** Horizontal strip: fixed-ish thumb size (does not use full-width 3-column math). */
 const DRAFT_STRIP_MEDIA_MIN = 84;
 const DRAFT_STRIP_MEDIA_MAX = 102;
+/** `draftAttachmentsScrollContent` paddingTop/Bottom + `fileContainerStyle` paddingBottom when files exist */
+const DRAFT_STRIP_VERTICAL_CHROME = 14 + 2 + 5;
 const PREVIEW_HEIGHT_MIN_EMPTY = 0;
 const ERROR_HEIGHT_MAX = 20;
 const ERROR_HEIGHT_MIN = 0;
@@ -69,7 +71,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         },
         draftAttachmentsScrollContent: {
             flexDirection: 'row',
-            alignItems: 'flex-end',
+            /** flex-start：外层高度略小于内容时优先保留顶部（含关闭按钮），避免 flex-end 从上方裁切 */
+            alignItems: 'flex-start',
             paddingHorizontal: DRAFT_MEDIA_ROW_H_PAD,
             paddingTop: 14,
             paddingBottom: 2,
@@ -119,15 +122,13 @@ function Uploads({
         );
     }, [windowWidth]);
 
-    const previewHeightCap = useMemo(() => {
-        const hasStrip = files.length > 0;
-        const stripHeight = hasStrip ? draftStripMediaSize : 0;
-        const estimated = 14 + 2 + stripHeight;
-        return Math.min(
-            PREVIEW_HEIGHT_CAP,
-            Math.max(PREVIEW_HEIGHT_MIN, estimated || PREVIEW_HEIGHT_MIN),
-        );
-    }, [files, draftStripMediaSize]);
+    /** onLayout 前用于首帧高度，须包含 scroll 内边距 + 外层 paddingBottom，否则动画高度会小于真实内容并从顶部裁切 */
+    const estimatedStripHeight = useMemo(() => {
+        if (!files.length) {
+            return PREVIEW_HEIGHT_MIN_EMPTY;
+        }
+        return DRAFT_STRIP_VERTICAL_CHROME + draftStripMediaSize;
+    }, [files.length, draftStripMediaSize]);
 
     const errorAnimatedStyle = useAnimatedStyle(() => {
         return {
@@ -166,12 +167,13 @@ function Uploads({
             setInnerLayoutHeight(0);
             return;
         }
+        const fromLayout = innerLayoutHeight > 0 ? innerLayoutHeight : estimatedStripHeight;
         const h = Math.min(
-            Math.max(innerLayoutHeight || PREVIEW_HEIGHT_MIN, PREVIEW_HEIGHT_MIN),
-            previewHeightCap,
+            Math.max(fromLayout, PREVIEW_HEIGHT_MIN),
+            PREVIEW_HEIGHT_CAP,
         );
         containerHeight.value = h;
-    }, [containerHeight, hasFiles, innerLayoutHeight, previewHeightCap]);
+    }, [containerHeight, estimatedStripHeight, hasFiles, innerLayoutHeight]);
 
     const openGallery = useCallback((file: FileInfo) => {
         const items = filesForGallery.current.map((f) => fileToGalleryItem(f, currentUserId, undefined, 0, f.id || f.clientId));

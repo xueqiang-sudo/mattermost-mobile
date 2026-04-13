@@ -11,6 +11,13 @@ React Native 0.76.9 with **New Architecture disabled** (RCT_NEW_ARCH_ENABLED=0).
 
 ## Development Workflow
 
+### AI-assisted feature planning
+- **Pre-coding Plan（模板）**：[docs/development/ai-feature-plan-template.md](docs/development/ai-feature-plan-template.md)（架构、数据流、**高端 UI 草图/视觉规格/设计理由**、i18n、Loading/Empty/Error 等）。
+- **Rules（团队 AI 规范，Cursor 默认注入）**：[`.cursor/rules/mattermost-mobile-ai-standards.mdc`](.cursor/rules/mattermost-mobile-ai-standards.mdc)（`alwaysApply: true`）— 架构、高端移动端 UI、UI 工程落地、代码、主题、性能。
+- **Skills（交付自检，不放 rules）**：Cursor 项目 Skill [`.cursor/skills/mattermost-mobile-delivery/SKILL.md`](.cursor/skills/mattermost-mobile-delivery/SKILL.md)（A UI 合成 → G 提交前审查）；与 Rules 配套，Agent 应在相关任务中 **读取并执行** 该 Skill（可在对话中 @ 该 skill 或点名路径）。
+- **补充**：国际化若改 `assets/base/i18n/*.json`，另见 [`.cursor/rules/i18n-zh-en.mdc`](.cursor/rules/i18n-zh-en.mdc)（与上游仅 `en.json` 流程冲突时以任务/团队约定为准）。
+- Session-only scratch plans like `PLAN.md` should still stay out of commits per below.
+
 ### Implementing Multi-Phase Features
 When implementing complex features with multiple phases:
 

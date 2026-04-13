@@ -129,7 +129,8 @@ describe('Smoke Test - Account', () => {
         await expect(userInfoUsername).toHaveText(`@${testUser.username}`);
     });
 
-    it('MM-T5114_3 - should be able to set notification settings', async () => {
+    // Skipped: Notifications is not listed on the main Settings screen (product customization).
+    it.skip('MM-T5114_3 - should be able to set notification settings', async () => {
         // # Open settings screen, open notification settings screen, open mention notification settings screen, type in keywords, tap on back button, and go back to mention notification settings screen
         const keywords = `${getRandomId()}`;
         await SettingsScreen.open();

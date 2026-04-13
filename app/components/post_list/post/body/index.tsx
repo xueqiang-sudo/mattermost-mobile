@@ -2,23 +2,21 @@
 // See LICENSE.txt for license information.
 
 import React, {type ReactNode, useCallback, useMemo, useState} from 'react';
-import {Dimensions, type GestureResponderEvent, type LayoutChangeEvent, Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle} from 'react-native';
+import {DeviceEventEmitter, Dimensions, type GestureResponderEvent, type LayoutChangeEvent, Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle} from 'react-native';
 import tinyColor from 'tinycolor2';
-import {DeviceEventEmitter} from 'react-native';
 
 import {updateDraftMessage} from '@actions/local/draft';
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
-import {Screens} from '@constants';
-import {Events} from '@constants';
+import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
 import {THREAD} from '@constants/screens';
+import {useServerUrl} from '@context/server';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
 import {PLAYBOOKS_UPDATE_STATUS_POST_TYPE} from '@playbooks/constants/plugin';
 import {isEdited as postEdited, isPostFailed} from '@utils/post';
 import {blendColors, makeStyleSheetFromTheme} from '@utils/theme';
-import {useServerUrl} from '@context/server';
 
 import Acknowledgements from './acknowledgements';
 import AddMembers from './add_members';
@@ -101,14 +99,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'flex-start',
         },
 
-        // 纯附件（自己发送）：与右侧时间、头像列对齐，避免与头像之间留出大块空白。
-        bubbleWithTailWrapperOwnMediaOnly: {
-            alignSelf: 'flex-end',
-            marginLeft: 0,
-            marginRight: 0,
-            maxWidth: '100%',
-        },
-
         /** 气泡三角尾巴：向左指（他人消息） */
         bubbleTailLeft: {
             width: 0,
@@ -161,6 +151,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             paddingVertical: 0,
             paddingBottom: 0,
         },
+
+        /** 纯媒体 + 本人：子项在加宽的 messageBody 内靠右，避免附件相对气泡左偏 */
+        messageBodyMediaOnlyOwnWeChat: {
+            alignItems: 'flex-end',
+        },
+
+        /** 本人 + 正文 + 附件：与纯媒体一致靠右，配合 Files alignAttachmentsEnd */
+        messageBodyOwnWeChatAttachmentsEnd: {
+            alignItems: 'flex-end',
+        },
         messageContainer: {width: '100%'},
         replyBar: {
             backgroundColor: theme.centerChannelColor,
@@ -188,10 +188,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             width: '100%',
         },
         messageRowOwnWeChat: {
-            alignSelf: 'flex-end',
-            maxWidth: '100%',
-        },
-        messageRowOwnWeChatMediaOnly: {
             alignSelf: 'flex-end',
             maxWidth: '100%',
         },
@@ -303,47 +299,52 @@ const Body = ({
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
     const showBubble = weChatStyleActive && !hasBeenDeleted;
 
-    /** WeChat 本人消息：附件区宽度与右对齐气泡一致（左右 padding + 头像列约 50）。 */
-    const filesLayoutWidth = useMemo(() => {
-        const w = Dimensions.get('window').width;
-        if (weChatStyleActive && hasFiles) {
-            return Math.max(200, Math.floor(w - 32 - 50));
+    /** 微信附件宽度：与他人同一内容上限；本人带正文+附件由 Files 的 maxPortraitWidth 约束 */
+    const filesPassLayoutWidth = useMemo(() => {
+        if (!weChatStyleActive || !hasFiles) {
+            return 0;
         }
-        if (weChatStyleActive) {
+        if (isOwnPost && hasTextMessage) {
+            return 0;
+        }
+        return weChatContentMaxWidth;
+    }, [weChatStyleActive, hasFiles, hasTextMessage, isOwnPost, weChatContentMaxWidth]);
+
+    const filesMaxPortraitWidth = useMemo(() => {
+        if (weChatStyleActive && hasFiles && isOwnPost && hasTextMessage) {
             return weChatContentMaxWidth;
         }
-        return layoutWidth;
-    }, [weChatStyleActive, hasFiles, weChatContentMaxWidth, layoutWidth]);
+        return undefined;
+    }, [weChatStyleActive, hasFiles, hasTextMessage, isOwnPost, weChatContentMaxWidth]);
     const bubbleStyle = useMemo(() => {
         if (!showBubble || !chatBubbleSurface) {
             return undefined;
         }
-        if (isMediaOnlyWeChat) {
-            return [style.bubble, style.bubbleWeChat, {
-                backgroundColor: 'transparent',
-                borderWidth: 0,
-                paddingHorizontal: 0,
-                paddingVertical: 0,
-            }];
-        }
         const base = [style.bubble, style.bubbleWeChat];
+        const borderShell = {
+            borderWidth: StyleSheet.hairlineWidth * 2,
+            borderColor: chatBubbleSurface.border,
+        };
         if (isOwnPost) {
-            return [...base, style.bubbleOwnWeChat, {backgroundColor: chatBubbleSurface.ownBg, borderTopRightRadius: 0}];
+            return [...base, style.bubbleOwnWeChat, {
+                backgroundColor: chatBubbleSurface.ownBg,
+                borderTopRightRadius: 0,
+                ...borderShell,
+            }];
         }
         return [...base, style.bubbleOthersWeChat, {
             backgroundColor: chatBubbleSurface.othersBg,
-            borderWidth: StyleSheet.hairlineWidth * 2,
-            borderColor: chatBubbleSurface.border,
             borderTopLeftRadius: 0,
+            ...borderShell,
         }];
-    }, [showBubble, chatBubbleSurface, isMediaOnlyWeChat, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
+    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
 
     if (hasBeenDeleted) {
         const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
         const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
         const textMessage = post.messageSource || post.message;
         const canRecallEditPost = isOwnPost && isRecallInferred && within2MinFromCreateAt && Boolean(textMessage);
-        
+
         if (isRecallInferred) {
             if (isOwnPost) {
                 body = (
@@ -441,6 +442,8 @@ const Body = ({
                     style.messageBody,
                     weChatStyleActive && style.messageBodyWeChat,
                     isMediaOnlyWeChat && style.messageBodyMediaOnlyWeChat,
+                    isMediaOnlyWeChat && isOwnPost && style.messageBodyMediaOnlyOwnWeChat,
+                    weChatStyleActive && isOwnPost && hasFiles && !isMediaOnlyWeChat && style.messageBodyOwnWeChatAttachmentsEnd,
                 ]}
             >
                 {Boolean(quotedPostId) && (
@@ -465,7 +468,9 @@ const Body = ({
                 {hasFiles && post.type !== PostTypes.CUSTOM_VOICE_ASR &&
                 <Files
                     failed={isFailed}
-                    layoutWidth={filesLayoutWidth > 0 ? filesLayoutWidth : undefined}
+                    alignAttachmentsEnd={weChatStyleActive && Boolean(isOwnPost)}
+                    layoutWidth={filesPassLayoutWidth > 0 ? filesPassLayoutWidth : undefined}
+                    maxPortraitWidth={filesMaxPortraitWidth}
                     location={location}
                     post={post}
                     isReplyPost={isReplyPost}
@@ -504,12 +509,11 @@ const Body = ({
             <View
                 style={[
                     style.bubbleWithTailWrapper,
-                    isOwnPost && !isMediaOnlyWeChat && style.bubbleWithTailWrapperOwn,
-                    isOwnPost && isMediaOnlyWeChat && style.bubbleWithTailWrapperOwnMediaOnly,
+                    isOwnPost && style.bubbleWithTailWrapperOwn,
                     {maxWidth: weChatBubbleMaxWidth},
                 ]}
             >
-                {!isOwnPost && !isMediaOnlyWeChat && (
+                {!isOwnPost && (
                     <View
                         style={[
                             style.bubbleTailLeft,
@@ -520,7 +524,7 @@ const Body = ({
                 <View style={bubbleStyle}>
                     {body}
                 </View>
-                {isOwnPost && !isMediaOnlyWeChat && (
+                {isOwnPost && (
                     <View
                         style={[
                             style.bubbleTailRight,
@@ -562,12 +566,10 @@ const Body = ({
 
     return (
         <View
-                style={[
-                    style.messageContainerWithReplyBar,
-                    weChatStyleActive && isOwnPost ?
-                        (isMediaOnlyWeChat ? style.messageRowOwnWeChatMediaOnly : style.messageRowOwnWeChat) :
-                        style.messageContainerFullWidth,
-                ]}
+            style={[
+                style.messageContainerWithReplyBar,
+                weChatStyleActive && isOwnPost ? style.messageRowOwnWeChat : style.messageContainerFullWidth,
+            ]}
             onLayout={onLayout}
         >
             {content}

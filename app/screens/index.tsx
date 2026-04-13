@@ -293,6 +293,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SETTINGS_DISPLAY_TIMEZONE_SELECT:
             screen = withServerDatabase(require('@screens/settings/display_timezone_select').default);
             break;
+        case Screens.SETTINGS_DISPLAY_LANGUAGE:
+            screen = withServerDatabase(require('@screens/settings/display_language').default);
+            break;
         case Screens.SETTINGS_NOTIFICATION:
             screen = withServerDatabase(require('@screens/settings/notifications').default);
             break;

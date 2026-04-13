@@ -96,8 +96,6 @@ const getStyleSheet = makeStyleSheetFromTheme((_theme: Theme) => ({
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 6,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(255,255,255,0.38)',
         backgroundColor: 'rgba(0,0,0,0.18)',
         alignSelf: 'center',
     },

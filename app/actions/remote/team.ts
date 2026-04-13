@@ -15,6 +15,7 @@ import {getActiveServerUrl} from '@queries/app/servers';
 import {prepareCategoriesAndCategoriesChannels} from '@queries/servers/categories';
 import {prepareMyChannelsForTeam, getDefaultChannelForTeam} from '@queries/servers/channel';
 import {prepareCommonSystemValues, getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
+import {getIsCRTEnabled} from '@queries/servers/thread';
 import {addTeamToTeamHistory, prepareDeleteTeam, prepareMyTeams, getNthLastChannelFromTeam, queryTeamsById, getLastTeam, getTeamById, removeTeamFromTeamHistory, queryMyTeams} from '@queries/servers/team';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
@@ -421,6 +422,20 @@ export const removeUserFromTeam = async (serverUrl: string, teamId: string, user
     }
 };
 
+/** 切换团队后拉取该团队频道与分类，保证首页会话列表与当前企业一致（仅改 currentTeamId 时本地可能仍为旧数据） */
+async function syncMyChannelsAfterTeamSwitch(serverUrl: string, teamId: string) {
+    try {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const isCRTEnabled = await getIsCRTEnabled(database);
+        const {error} = await fetchMyChannelsForTeam(serverUrl, teamId, false, 0, false, false, isCRTEnabled);
+        if (error) {
+            logDebug('error on fetchMyChannelsForTeam after team switch', getFullErrorMessage(error));
+        }
+    } catch (e) {
+        logDebug('syncMyChannelsAfterTeamSwitch', getFullErrorMessage(e));
+    }
+}
+
 export async function handleTeamChange(serverUrl: string, teamId: string) {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
@@ -441,6 +456,7 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
         if (channelId) {
             await switchToChannelById(serverUrl, channelId, teamId);
             DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
+            await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
             return {};
         }
     }
@@ -463,6 +479,7 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
     // Fetch Groups + GroupTeams
     fetchGroupsForTeamIfConstrained(serverUrl, teamId);
     fetchScheduledPosts(serverUrl, teamId, false);
+    await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
     return {};
 }
 

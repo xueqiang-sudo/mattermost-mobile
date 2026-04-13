@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Platform, StyleSheet, View} from 'react-native';
+import {Platform, View} from 'react-native';
 import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 
 import CompassIcon from '@components/compass_icon';
@@ -11,16 +11,20 @@ import OptionBox, {OPTIONS_HEIGHT} from '@components/option_box';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {showModal} from '@screens/navigation';
-import {changeOpacity} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 type Props = {
     canCreateChannels: boolean;
     close: () => Promise<void>;
 }
 
-const styles = StyleSheet.create({
+/**
+ * 获取快速选项的样式
+ */
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        marginTop: 20,
+        marginTop: 8,
+        marginBottom: 16,
         alignItems: 'center',
     },
     wrapper: {
@@ -28,14 +32,21 @@ const styles = StyleSheet.create({
         height: OPTIONS_HEIGHT,
     },
     separator: {
-        width: 8,
+        width: 12,
     },
-});
+}));
 
+/**
+ * 快速选项组件
+ */
 const QuickOptions = ({canCreateChannels, close}: Props) => {
     const theme = useTheme();
+    const styles = getStyleSheet(theme);
     const intl = useIntl();
 
+    /**
+     * 创建新频道
+     */
     const createNewChannel = useCallback(async () => {
         const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
 
@@ -43,6 +54,9 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
         showModal(Screens.CREATE_OR_EDIT_CHANNEL, title);
     }, [intl]);
 
+    /**
+     * 打开私信
+     */
     const openDirectMessage = useCallback(async () => {
         const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Create Direct Message'});
         const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
@@ -65,8 +79,8 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
 
     return (
         <Animated.View
-            entering={FadeInDown.duration(200)}
-            exiting={Platform.select({ios: FadeOutUp.duration(100)}) /* https://mattermost.atlassian.net/browse/MM-63814?focusedCommentId=178584 */}
+            entering={FadeInDown.duration(250)}
+            exiting={Platform.select({ios: FadeOutUp.duration(150)}) /* https://mattermost.atlassian.net/browse/MM-63814?focusedCommentId=178584 */}
             style={styles.container}
         >
             <Animated.View style={styles.wrapper}>

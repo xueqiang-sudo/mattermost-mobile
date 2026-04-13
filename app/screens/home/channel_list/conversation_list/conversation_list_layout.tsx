@@ -35,6 +35,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 type Props = {
     sortedChannels: ChannelModel[];
     hasChannels: boolean;
+    currentTeamId?: string;
     iconPad?: boolean;
     isCRTEnabled?: boolean;
     moreThanOneTeam: boolean;
@@ -50,6 +51,7 @@ type ScreenType = typeof THREAD | typeof CHANNEL;
 const ConversationListLayout = ({
     sortedChannels,
     hasChannels,
+    currentTeamId,
     iconPad,
     isCRTEnabled,
     moreThanOneTeam,
@@ -137,6 +139,7 @@ const ConversationListLayout = ({
             <SubHeader/>
             {playbooksButtonComponent}
             <ConversationListContent
+                currentTeamId={currentTeamId}
                 sortedChannels={sortedChannels}
                 hasChannels={hasChannels}
                 onChannelSwitch={onChannelSwitch}

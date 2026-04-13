@@ -36,19 +36,24 @@ import {typography} from '@utils/typography';
 const FIELD_MARGIN_BOTTOM = 24;
 const MAKE_PRIVATE_MARGIN_BOTTOM = 32;
 const BOTTOM_AUTOCOMPLETE_SEPARATION = Platform.select({ios: 10, default: 10});
-const LIST_PADDING = 32;
+const LIST_PADDING = 24;
 const AUTOCOMPLETE_ADJUST = 5;
 
+/**
+ * 获取频道信息表单的样式
+ */
 const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
     container: {
         flex: 1,
+        backgroundColor: theme.centerChannelBg,
     },
     scrollView: {
         paddingVertical: LIST_PADDING,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
     },
     errorContainer: {
         width: '100%',
+        marginBottom: 16,
     },
     errorWrapper: {
         justifyContent: 'center',
@@ -63,9 +68,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
         ...typography('Body', 75, 'Regular'),
         color: changeOpacity(theme.centerChannelColor, 0.5),
         marginTop: 8,
+        lineHeight: 18,
     },
     mainView: {
-        gap: 24,
+        gap: 20,
+    },
+    sectionCard: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.03),
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 8,
+    },
+    optionItemWrapper: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.03),
+        borderRadius: 12,
+        padding: 12,
     },
 }));
 
@@ -86,6 +103,9 @@ type Props = {
     type?: string;
 }
 
+/**
+ * 频道信息表单组件
+ */
 export default function ChannelInfoForm({
     channelType,
     displayName,
@@ -151,11 +171,17 @@ export default function ChannelInfoForm({
 
     const isPrivate = type === General.PRIVATE_CHANNEL;
 
+    /**
+     * 处理频道类型切换
+     */
     const handlePress = () => {
         const chtype = isPrivate ? General.OPEN_CHANNEL : General.PRIVATE_CHANNEL;
         onTypeChange(chtype);
     };
 
+    /**
+     * 失去焦点处理
+     */
     const blur = useCallback(() => {
         nameInput.current?.blur();
         purposeInput.current?.blur();
@@ -163,12 +189,18 @@ export default function ChannelInfoForm({
         scrollViewRef.current?.scrollToPosition(0, 0, true);
     }, []);
 
+    /**
+     * 滚动到头部
+     */
     const scrollHeaderToTop = useCallback(() => {
         if (scrollViewRef?.current) {
             scrollViewRef.current?.scrollToPosition(0, headerPosition);
         }
     }, [headerPosition]);
 
+    /**
+     * 滚动事件处理
+     */
     const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const pos = e.nativeEvent.contentOffset.y;
         if (updateScrollTimeout.current) {
@@ -192,11 +224,17 @@ export default function ChannelInfoForm({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [keyboardHeight]);
 
+    /**
+     * 处理头部自动完成变化
+     */
     const onHeaderAutocompleteChange = useCallback((value: string) => {
         onHeaderChange(value);
         propagateValue(value);
     }, [onHeaderChange, propagateValue]);
 
+    /**
+     * 处理头部输入变化
+     */
     const onHeaderInputChange = useCallback((value: string) => {
         if (!shouldProcessEvent(value)) {
             return;
@@ -204,22 +242,45 @@ export default function ChannelInfoForm({
         onHeaderChange(value);
     }, [onHeaderChange, shouldProcessEvent]);
 
+    /**
+     * 错误区域布局处理
+     */
     const onLayoutError = useCallback((e: LayoutChangeEvent) => {
         setErrorHeight(e.nativeEvent.layout.height);
     }, []);
+
+    /**
+     * 设为私有选项布局处理
+     */
     const onLayoutMakePrivate = useCallback((e: LayoutChangeEvent) => {
         setMakePrivateHeight(e.nativeEvent.layout.height);
     }, []);
+
+    /**
+     * 显示名称字段布局处理
+     */
     const onLayoutDisplayName = useCallback((e: LayoutChangeEvent) => {
         setDisplayNameFieldHeight(e.nativeEvent.layout.height);
     }, []);
+
+    /**
+     * 用途字段布局处理
+     */
     const onLayoutPurpose = useCallback((e: LayoutChangeEvent) => {
         setPurposeFieldHeight(e.nativeEvent.layout.height);
     }, []);
+
+    /**
+     * 头部字段布局处理
+     */
     const onLayoutHeader = useCallback((e: LayoutChangeEvent) => {
         setHeaderFieldHeight(e.nativeEvent.layout.height);
         setHeaderPosition(e.nativeEvent.layout.y);
     }, []);
+
+    /**
+     * 包装器布局处理
+     */
     const onLayoutWrapper = useCallback((e: LayoutChangeEvent) => {
         setWrapperHeight(e.nativeEvent.layout.height);
     }, []);
@@ -293,19 +354,21 @@ export default function ChannelInfoForm({
                 >
                     <View style={styles.mainView}>
                         {showSelector && (
-                            <OptionItem
-                                testID='channel_info_form.make_private'
-                                label={makePrivateLabel}
-                                description={makePrivateDescription}
-                                action={handlePress}
-                                type={'toggle'}
-                                selected={isPrivate}
-                                icon={'lock-outline'}
-                                onLayout={onLayoutMakePrivate}
-                            />
+                            <View style={styles.optionItemWrapper}>
+                                <OptionItem
+                                    testID='channel_info_form.make_private'
+                                    label={makePrivateLabel}
+                                    description={makePrivateDescription}
+                                    action={handlePress}
+                                    type={'toggle'}
+                                    selected={isPrivate}
+                                    icon={'lock-outline'}
+                                    onLayout={onLayoutMakePrivate}
+                                />
+                            </View>
                         )}
                         {!displayHeaderOnly && (
-                            <>
+                            <View style={styles.sectionCard}>
                                 <FloatingTextInput
                                     blurOnSubmit={false}
                                     disableFullscreenUI={true}
@@ -330,32 +393,32 @@ export default function ChannelInfoForm({
                                         testID='channel_info_form.display_name.readonly_help'
                                     />
                                 )}
-                                <View
-                                    onLayout={onLayoutPurpose}
-                                >
-                                    <FloatingTextInput
-                                        blurOnSubmit={false}
-                                        disableFullscreenUI={true}
-                                        enablesReturnKeyAutomatically={true}
-                                        label={labelPurpose}
-                                        placeholder={placeholderPurpose}
-                                        onChangeText={onPurposeChange}
-                                        returnKeyType='next'
-                                        testID='channel_info_form.purpose.input'
-                                        value={purpose}
-                                        ref={purposeInput}
-                                        theme={theme}
-                                    />
-                                    <FormattedText
-                                        style={styles.helpText}
-                                        id='channel_modal.descriptionHelp'
-                                        defaultMessage='Describe how this channel should be used.'
-                                        testID='channel_info_form.purpose.description'
-                                    />
-                                </View>
-                            </>
+                            </View>
                         )}
-                        <View>
+                        {!displayHeaderOnly && (
+                            <View style={styles.sectionCard}>
+                                <FloatingTextInput
+                                    blurOnSubmit={false}
+                                    disableFullscreenUI={true}
+                                    enablesReturnKeyAutomatically={true}
+                                    label={labelPurpose}
+                                    placeholder={placeholderPurpose}
+                                    onChangeText={onPurposeChange}
+                                    returnKeyType='next'
+                                    testID='channel_info_form.purpose.input'
+                                    value={purpose}
+                                    ref={purposeInput}
+                                    theme={theme}
+                                />
+                                <FormattedText
+                                    style={styles.helpText}
+                                    id='channel_modal.descriptionHelp'
+                                    defaultMessage='Describe how this channel should be used.'
+                                    testID='channel_info_form.purpose.description'
+                                />
+                            </View>
+                        )}
+                        <View style={styles.sectionCard}>
                             <FloatingTextInput
                                 blurOnSubmit={false}
                                 disableFullscreenUI={true}

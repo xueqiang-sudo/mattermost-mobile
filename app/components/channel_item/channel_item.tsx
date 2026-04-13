@@ -199,7 +199,7 @@ const ChannelItem = ({
 
     let displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
     if (channel.name === General.DEFAULT_CHANNEL) {
-        /** 列表统一「企业总群」；会话内顶栏企业名由 getChannelTitleDisplayName 处理 */
+        /** 列表统一「企业总群」；会话内顶栏仅 town-square 显示企业名（getChannelTitleDisplayName） */
         const townSquareLabel = formatMessage({
             id: 'channel_list.town_square.display_name',
             defaultMessage: 'Enterprise main channel',

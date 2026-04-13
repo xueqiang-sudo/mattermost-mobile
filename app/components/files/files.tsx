@@ -22,23 +22,59 @@ type FilesProps = {
     failed?: boolean;
     filesInfo: FileInfo[];
     layoutWidth?: number;
+
+    /** 上限宽度（如本人带正文+附件时的 weChatContentMaxWidth），与 layoutWidth 缺省时的 fallback 取 min */
+    maxPortraitWidth?: number;
     location: string;
     isReplyPost: boolean;
     postId?: string;
     postProps?: Record<string, unknown>;
     isPermalinkPreview?: boolean;
     isMediaOnlyMessage?: boolean;
+
     /** WeChat-style: document rows follow content width instead of stretching to portrait width. */
     shrinkWrapNonImage?: boolean;
+
+    /** 本人微信：附件整体靠右，避免图片行 alignSelf:flex-start 在父级 flex-end 下仍留右侧大缝 */
+    alignAttachmentsEnd?: boolean;
 }
+
+const MAX_VISIBLE_ROW_IMAGES = 99;
 
 /** 多图/多视频时每行最多列数，列宽均分避免挤出气泡或遮挡头像 */
 const MEDIA_GRID_MAX_COLS = 3;
 const MEDIA_GRID_GAP = 6;
+
 /** 多图网格总宽不超过屏宽比例，与气泡/时间戳区对齐，避免贴头像侧溢出 */
-const FILES_GRID_MAX_WIDTH_FRAC = 0.82;
+const FILES_GRID_MAX_WIDTH_FRAC = 0.92;
+
 /** 单格最大边长，避免 2×2 缩略图过大 */
 const MEDIA_GRID_CELL_MAX_EDGE = 114;
+
+function pickMediaGridColumns(n: number): number {
+    if (n <= 1) {
+        return 1;
+    }
+    if (n === 2) {
+        return 2;
+    }
+    if (n === 3 || n >= 6) {
+        return 3;
+    }
+    return 2;
+}
+
+/** 与 renderImageRow 中多图网格一致的行宽，用于「图+文件」时文件区与上图对齐 */
+function getMediaGridRowWidth(portraitW: number, imageCount: number): number {
+    if (imageCount <= 1) {
+        return portraitW;
+    }
+    const cols = Math.min(pickMediaGridColumns(imageCount), MEDIA_GRID_MAX_COLS);
+    const rawCellW = Math.floor((portraitW - (MEDIA_GRID_GAP * (cols - 1))) / cols);
+    const cellW = Math.min(rawCellW, MEDIA_GRID_CELL_MAX_EDGE);
+    return (cols * cellW) + (MEDIA_GRID_GAP * Math.max(0, cols - 1));
+}
+
 const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
@@ -78,12 +114,14 @@ const Files = ({
     filesInfo,
     isReplyPost,
     layoutWidth,
+    maxPortraitWidth,
     location,
     postId,
     postProps,
     isPermalinkPreview = false,
     isMediaOnlyMessage = false,
     shrinkWrapNonImage = false,
+    alignAttachmentsEnd = false,
 }: FilesProps) => {
     const galleryIdentifier = `${postId}-fileAttachments-${location}`;
     const [inViewPort, setInViewPort] = useState(false);
@@ -94,11 +132,17 @@ const Files = ({
         const maxW = Math.floor(windowW * FILES_GRID_MAX_WIDTH_FRAC);
         const fallback = getViewPortWidth(isReplyPost, isTablet) - 6;
         const base = layoutWidth != null && layoutWidth > 0 ? layoutWidth : fallback;
-        return Math.min(base, maxW);
-    }, [isReplyPost, isTablet, layoutWidth]);
+        const cap = maxPortraitWidth != null && maxPortraitWidth > 0 ? maxPortraitWidth : Number.POSITIVE_INFINITY;
+        return Math.min(base, maxW, cap);
+    }, [isReplyPost, isTablet, layoutWidth, maxPortraitWidth]);
 
     const {images: imageAttachments, nonImages: nonImageAttachments} = useImageAttachments(filesInfo);
     const [filesForGallery, setFilesForGallery] = useState(() => [...imageAttachments, ...nonImageAttachments]);
+
+    const mediaBlockWidth = useMemo(
+        () => getMediaGridRowWidth(portraitWidth, imageAttachments.length),
+        [imageAttachments.length, portraitWidth],
+    );
 
     const attachmentIndex = (fileId: string) => {
         const index = filesForGallery.findIndex((file) => file.id === fileId);
@@ -123,12 +167,23 @@ const Files = ({
     // 纯媒体消息不需要额外上边距，避免与时间行之间出现过大的空隙。
     const compactTopSpacing = isMediaOnlyMessage && !isPermalinkPreview;
 
+    const rowAlignEndStyle = alignAttachmentsEnd ? {alignSelf: 'flex-end' as const} : undefined;
+
+    // 微信样式下非图附件按内容收缩宽度（本人/他人一致）；非微信仍铺满可用宽度。
+    const shrinkNonImageToContent = Boolean(shrinkWrapNonImage);
+
+    // 仅「多图/多视频网格」下文件行与网格同宽；单条视频/单图 + 文件仍按内容收缩，避免短文件名却拉满一行。
+    const expandCardToParentWidth = !shrinkNonImageToContent || imageAttachments.length >= 2;
+
     const renderItems = (
         items: FileInfo[],
+        moreImagesCount = 0,
         includeGutter = false,
         isImageRow = false,
         suppressItemMarginTop = false,
     ) => {
+        let nonVisibleImagesCount: number;
+
         // Flex:1 only for horizontal rows that use gutter spacing (multi-image strip).
         // Stacked non-media attachments must not flex or they stretch oddly inside the bubble.
         const shouldApplyFlex =
@@ -140,6 +195,10 @@ const Files = ({
         const wrapperWidth = portraitWidth;
 
         return items.map((file, idx) => {
+            if (moreImagesCount && idx === MAX_VISIBLE_ROW_IMAGES - 1) {
+                nonVisibleImagesCount = moreImagesCount;
+            }
+
             if (idx !== 0 && includeGutter) {
                 container = containerWithGutter;
             }
@@ -154,7 +213,13 @@ const Files = ({
                         !suppressItemMarginTop && styles.marginTop,
                         compactTopSpacing && {marginTop: 0},
                         shouldRemoveMarginTop && {marginTop: 0},
-                        suppressItemMarginTop && !(shrinkWrapNonImage && !isImageRow) && {alignSelf: 'stretch'},
+                        suppressItemMarginTop && {
+                            alignSelf: expandCardToParentWidth
+                                ? 'stretch'
+                                : (shrinkNonImageToContent
+                                    ? (alignAttachmentsEnd ? 'flex-end' : 'flex-start')
+                                    : 'stretch'),
+                        },
                     ]}
                     testID={`${file.id}-file-container`}
                     key={file.id}
@@ -164,10 +229,12 @@ const Files = ({
                         key={file.id}
                         canDownloadFiles={canDownloadFiles}
                         enableSecureFilePreview={enableSecureFilePreview}
+                        expandCardToParentWidth={expandCardToParentWidth}
                         file={file}
                         index={attachmentIndex(file.id!)}
                         onPress={handlePreviewPress}
                         isSingleImage={isSingleImage}
+                        nonVisibleImagesCount={nonVisibleImagesCount}
                         updateFileForGallery={updateFileForGallery}
                         wrapperWidth={wrapperWidth}
                         inViewPort={inViewPort}
@@ -177,22 +244,10 @@ const Files = ({
         });
     };
 
-    const pickMediaGridColumns = (n: number) => {
-        if (n <= 1) {
-            return 1;
-        }
-        if (n === 2) {
-            return 2;
-        }
-        if (n === 3) {
-            return 3;
-        }
-        if (n === 4) {
-            return 2;
-        }
-        return MEDIA_GRID_MAX_COLS;
-    };
-
+    /**
+     * 渲染图片/视频网格行
+     * @returns 图片/视频网格组件
+     */
     const renderImageRow = () => {
         if (imageAttachments.length === 0) {
             return null;
@@ -202,25 +257,30 @@ const Files = ({
         const portraitPostWidth = portraitWidth;
         const isSingleAttachmentImageRow = visibleImages.length === 1;
 
+        const nonVisibleImagesCount = 0;
+
         if (isSingleAttachmentImageRow) {
             return (
                 <View
                     style={[
                         styles.row,
+                        rowAlignEndStyle,
                         compactTopSpacing && {marginTop: 0},
                         isPermalinkPreview && {marginTop: 0},
                     ]}
                     testID='image-row'
                 >
-                    {renderItems(visibleImages, false, true)}
+                    {renderItems(visibleImages, nonVisibleImagesCount, false, true)}
                 </View>
             );
         }
 
         const cols = Math.min(pickMediaGridColumns(visibleImages.length), MEDIA_GRID_MAX_COLS);
-        const rawCellW = Math.floor((portraitPostWidth - MEDIA_GRID_GAP * (cols - 1)) / cols);
+        const rawCellW = Math.floor((portraitPostWidth - (MEDIA_GRID_GAP * (cols - 1))) / cols);
+
+        // 本人与他人同一格宽上限，仅整行 alignSelf 区分左右
         const cellW = Math.min(rawCellW, MEDIA_GRID_CELL_MAX_EDGE);
-        const gridRowWidth = cols * cellW + MEDIA_GRID_GAP * Math.max(0, cols - 1);
+        const gridRowWidth = (cols * cellW) + (MEDIA_GRID_GAP * Math.max(0, cols - 1));
 
         return (
             <View
@@ -228,6 +288,7 @@ const Files = ({
                     styles.row,
                     styles.rowWrap,
                     {width: gridRowWidth},
+                    rowAlignEndStyle,
                     compactTopSpacing && {marginTop: 0},
                     isPermalinkPreview && {marginTop: 0},
                 ]}
@@ -253,9 +314,11 @@ const Files = ({
                                 galleryIdentifier={galleryIdentifier}
                                 canDownloadFiles={canDownloadFiles}
                                 enableSecureFilePreview={enableSecureFilePreview}
+                                expandCardToParentWidth={expandCardToParentWidth}
                                 file={file}
                                 index={attachmentIndex(file.id!)}
                                 isSingleImage={isSingleImage}
+                                nonVisibleImagesCount={0}
                                 onPress={handlePreviewPress}
                                 updateFileForGallery={updateFileForGallery}
                                 wrapperWidth={cellW}
@@ -284,6 +347,24 @@ const Files = ({
 
     const contentWidth = portraitWidth;
 
+    const nonImageAlignSelf = alignAttachmentsEnd ? 'flex-end' : 'flex-start';
+
+    const nonImageStyleResolved: ViewStyle = shrinkNonImageToContent ? {
+        maxWidth: contentWidth,
+        ...(imageAttachments.length >= 2 && nonImageAttachments.length > 0
+            ? {width: mediaBlockWidth}
+            : {}),
+        alignSelf: nonImageAlignSelf,
+        gap: MEDIA_GRID_GAP,
+        marginTop: imageAttachments.length > 0 ? MEDIA_GRID_GAP : 0,
+    } : {
+        width: contentWidth,
+        maxWidth: '100%',
+        alignSelf: nonImageAlignSelf,
+        gap: MEDIA_GRID_GAP,
+        marginTop: imageAttachments.length > 0 ? MEDIA_GRID_GAP : 0,
+    };
+
     return (
         <GalleryInit galleryIdentifier={galleryIdentifier}>
             <Animated.View
@@ -291,30 +372,16 @@ const Files = ({
                 style={[
                     failed ? styles.failed : undefined,
                     isPermalinkPreview && {marginTop: 0},
+                    rowAlignEndStyle,
                 ]}
             >
                 {renderImageRow()}
                 {Boolean(nonImageAttachments.length) && (
                     <View
-                        style={
-                            shrinkWrapNonImage ?
-                                {
-                                    maxWidth: contentWidth,
-                                    alignSelf: 'flex-start',
-                                    gap: MEDIA_GRID_GAP,
-                                    marginTop: imageAttachments.length > 0 ? MEDIA_GRID_GAP : 0,
-                                } :
-                                {
-                                    width: contentWidth,
-                                    maxWidth: '100%',
-                                    alignSelf: 'flex-start',
-                                    gap: MEDIA_GRID_GAP,
-                                    marginTop: imageAttachments.length > 0 ? MEDIA_GRID_GAP : 0,
-                                }
-                        }
+                        style={nonImageStyleResolved}
                         testID='non-image-attachments'
                     >
-                        {renderItems(nonImageAttachments, false, false, true)}
+                        {renderItems(nonImageAttachments, 0, false, false, true)}
                     </View>
                 )}
             </Animated.View>

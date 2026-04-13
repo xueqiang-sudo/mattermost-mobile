@@ -275,20 +275,30 @@ describe('isDefaultChannel', () => {
 });
 
 describe('getChannelTitleDisplayName', () => {
-    it('should use team display name for default channel when provided', () => {
-        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道'} as ChannelModel;
+    it('should use team display name for open channel when provided', () => {
+        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道', type: General.OPEN_CHANNEL} as ChannelModel;
         expect(getChannelTitleDisplayName(channel, 'Acme Corp')).toBe('Acme Corp');
     });
 
-    it('should fall back to channel display name when team is missing', () => {
-        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道'} as ChannelModel;
+    it('should fall back to channel display name when team is missing on open channel', () => {
+        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道', type: General.OPEN_CHANNEL} as ChannelModel;
         expect(getChannelTitleDisplayName(channel, '')).toBe('公共频道');
         expect(getChannelTitleDisplayName(channel, null)).toBe('公共频道');
     });
 
-    it('should return channel display name for non-default channels', () => {
-        const channel = {name: 'off-topic', displayName: 'Off-Topic'} as ChannelModel;
+    it('should return channel display name for private channels', () => {
+        const channel = {name: 'off-topic', displayName: 'Off-Topic', type: General.PRIVATE_CHANNEL} as ChannelModel;
         expect(getChannelTitleDisplayName(channel, 'Team')).toBe('Off-Topic');
+    });
+
+    it('should return channel display name for group messages', () => {
+        const channel = {name: 'gm1', displayName: 'Project Group', type: General.GM_CHANNEL} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Team')).toBe('Project Group');
+    });
+
+    it('should return channel display name for non-default open channels', () => {
+        const channel = {name: 'marketing', displayName: 'Marketing', type: General.OPEN_CHANNEL} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Acme Corp')).toBe('Marketing');
     });
 
     it('should return empty string when channel is undefined', () => {

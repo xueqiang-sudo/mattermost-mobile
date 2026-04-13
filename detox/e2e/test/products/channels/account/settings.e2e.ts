@@ -15,10 +15,8 @@ import {
 import {
     AboutScreen,
     AccountScreen,
-    AdvancedSettingsScreen,
     DisplaySettingsScreen,
     HomeScreen,
-    NotificationSettingsScreen,
     LoginScreen,
     ServerScreen,
     SettingsScreen,
@@ -53,23 +51,9 @@ describe('Account - Settings', () => {
 
     it('MM-T4991_1 - should match elements on settings screen', async () => {
         // * Verify basic elements on settings screen
-        await expect(SettingsScreen.notificationsOption).toBeVisible();
         await expect(SettingsScreen.displayOption).toBeVisible();
-        await expect(SettingsScreen.advancedSettingsOption).toBeVisible();
         await expect(SettingsScreen.aboutOption).toBeVisible();
-        await expect(SettingsScreen.helpOption).toBeVisible();
         await expect(SettingsScreen.reportProblemOption).toBeVisible();
-    });
-
-    it('MM-T4991_2 - should be able to go to notification settings screen', async () => {
-        // # Tap on notifications option
-        await SettingsScreen.notificationsOption.tap();
-
-        // * Verify on notification settings screen
-        await NotificationSettingsScreen.toBeVisible();
-
-        // # Go back to settings screen
-        await NotificationSettingsScreen.back();
     });
 
     it('MM-T4991_3 - should be able to go to display settings screen', async () => {
@@ -81,17 +65,6 @@ describe('Account - Settings', () => {
 
         // # Go back to settings screen
         await DisplaySettingsScreen.back();
-    });
-
-    it('MM-T4991_4 - should be able to go to advanced settings screen', async () => {
-        // # Tap on advanced settings option
-        await SettingsScreen.advancedSettingsOption.tap();
-
-        // * Verify on advanced settings screen
-        await AdvancedSettingsScreen.toBeVisible();
-
-        // # Go back to settings screen
-        await AdvancedSettingsScreen.back();
     });
 
     it('MM-T4991_5 - should be able to go to about screen', async () => {

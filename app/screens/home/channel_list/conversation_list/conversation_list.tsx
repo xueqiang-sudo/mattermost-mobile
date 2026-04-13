@@ -19,6 +19,7 @@ import type ChannelModel from '@typings/database/models/servers/channel';
 type Props = {
     sortedChannels: ChannelModel[];
     hasChannels: boolean;
+    currentTeamId?: string;
     onChannelSwitch: (channel: ChannelModel) => void;
 };
 
@@ -63,7 +64,7 @@ const EmptyState = () => {
     );
 };
 
-const ConversationListContent = ({sortedChannels, hasChannels, onChannelSwitch}: Props) => {
+const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, onChannelSwitch}: Props) => {
     const serverUrl = useServerUrl();
     const [isChannelScreenActive, setChannelScreenActive] = useState(true);
 
@@ -108,6 +109,8 @@ const ConversationListContent = ({sortedChannels, hasChannels, onChannelSwitch}:
 
     return (
         <FlatList
+            key={currentTeamId || 'no-team'}
+            extraData={currentTeamId}
             data={sortedChannels}
             renderItem={renderItem}
             keyExtractor={extractKey}

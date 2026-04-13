@@ -55,7 +55,7 @@ describe('components/post_draft/send_button', () => {
         expect(onPress).toHaveBeenCalledTimes(1);
     });
 
-    it('should prevent double tap within debounce period', async () => {
+    it('should invoke sendMessage on each press (double-submit is prevented upstream via canSend / sendingMessage)', () => {
         const onPress = jest.fn();
         const {getByTestId} = renderWithIntl(
             <SendButton
@@ -65,43 +65,12 @@ describe('components/post_draft/send_button', () => {
         );
 
         const button = getByTestId('test_id.send.button');
-
-        // First tap
-        fireEvent.press(button);
-
-        // Second tap immediately after
-        fireEvent.press(button);
-
-        // Should only call once despite two taps
-        expect(onPress).toHaveBeenCalledTimes(1);
-    });
-
-    it('should allow tap after debounce period', async () => {
-        jest.useFakeTimers();
-        const onPress = jest.fn();
-        const {getByTestId} = renderWithIntl(
-            <SendButton
-                {...baseProps}
-                sendMessage={onPress}
-            />,
-        );
-
-        const button = getByTestId('test_id.send.button');
-
-        // First tap
         act(() => {
             fireEvent.press(button);
-        });
-
-        expect(onPress).toHaveBeenCalledTimes(1);
-
-        act(() => {
-            jest.advanceTimersByTime(750);
             fireEvent.press(button);
         });
 
         expect(onPress).toHaveBeenCalledTimes(2);
-        jest.useRealTimers();
     });
 
     it('should not call onPress when disabled', () => {

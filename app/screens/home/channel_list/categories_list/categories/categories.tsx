@@ -126,7 +126,7 @@ const Categories = ({
     return (
         <>
             {!switchingTeam && !initiaLoad && showOnlyUnreadsCategory &&
-            <View style={styles.mainList}>
+            <View key={teamId || 'no-team'} style={styles.mainList}>
                 <UnreadCategories
                     currentTeamId={teamId}
                     isTablet={isTablet}
@@ -137,6 +137,7 @@ const Categories = ({
             }
             {!switchingTeam && !initiaLoad && !showOnlyUnreadsCategory && (
                 <FlatList
+                    key={teamId || 'no-team'}
                     data={categoriesToShow}
                     ref={listRef}
                     renderItem={renderCategory}
@@ -145,6 +146,7 @@ const Categories = ({
                     showsVerticalScrollIndicator={false}
                     keyExtractor={extractKey}
                     initialNumToRender={categoriesToShow.length}
+                    extraData={teamId}
 
                     // @ts-expect-error strictMode not included in the types
                     strictMode={true}

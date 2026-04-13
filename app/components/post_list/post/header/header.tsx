@@ -41,6 +41,9 @@ type HeaderProps = {
 
     /** 微信风格：本人消息仅显示时间 */
     timeOnly?: boolean;
+
+    /** 微信风格：本人消息昵称+时间行右对齐（与头像、气泡一致） */
+    weChatAlignHeaderEnd?: boolean;
     author?: UserModel;
     commentCount: number;
     currentUser?: UserModel;
@@ -64,50 +67,59 @@ type HeaderProps = {
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
-        return {
-            container: {
-                flex: 1,
-                marginTop: 10,
-            },
+    return {
+        container: {
+            flex: 1,
+            marginTop: 10,
+        },
 
-            /** 微信风格：覆盖 container 的 flex:1；与下方气泡略留间距（他人消息） */
-            containerAlignAvatar: {
-                marginTop: 0,
-                marginBottom: 4,
-                flex: 0,
-                alignSelf: 'stretch',
-            },
-            pendingPost: {
-                opacity: 0.5,
-            },
-            wrapper: {
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-            },
-            timeOnlyWrapper: {
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-            },
+        /** 微信风格：覆盖 container 的 flex:1；与下方气泡略留间距（他人消息） */
+        containerAlignAvatar: {
+            marginTop: 0,
+            marginBottom: 4,
+            flex: 0,
+            alignSelf: 'stretch',
+        },
+        pendingPost: {
+            opacity: 0.5,
+        },
+        wrapper: {
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+        },
+        timeOnlyWrapper: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+        },
 
-            /** 微信风格：昵称、标签、时间与头像顶部齐平（横轴为顶对齐） */
-            wrapperWeChat: {
-                alignItems: 'center',
-                flex: 0,
-                flexShrink: 1,
-                alignSelf: 'stretch',
-            },
+        /** 微信风格：昵称、标签、时间与头像顶部齐平（横轴为顶对齐） */
+        wrapperWeChat: {
+            alignItems: 'center',
+            flex: 0,
+            flexShrink: 1,
+            alignSelf: 'stretch',
+        },
 
-            /** 微信风格：本人消息仅显示时间；与气泡间距略紧 */
-            containerTimeOnly: {
-                marginTop: 0,
-                marginBottom: 3,
-                alignSelf: 'flex-end',
-                minHeight: 20,
-                flex: 0,
-            },
+        /** 微信本人行：覆盖 containerAlignAvatar 的 stretch，与右栏对齐 */
+        containerWeChatHeaderEnd: {
+            alignSelf: 'flex-end',
+        },
+
+        /** 微信本人行：昵称与时间靠右排列 */
+        wrapperWeChatHeaderEnd: {
+            justifyContent: 'flex-end',
+        },
+
+        /** 微信风格：本人消息仅显示时间；与气泡间距略紧 */
+        containerTimeOnly: {
+            marginTop: 0,
+            alignSelf: 'flex-end',
+            minHeight: 20,
+            flex: 0,
+        },
 
         /** 私聊中对方消息：仅时间，左对齐；与他人昵称行一致略留空 */
         containerOthersDmTime: {
@@ -152,8 +164,9 @@ const Header = (props: HeaderProps) => {
         alignWithAvatar,
         author, channel, commentCount = 0, currentUser, enablePostUsernameOverride, isAutoResponse, isCRTEnabled, isCustomStatusEnabled,
         isEphemeral, isMilitaryTime, isPendingOrFailed, isSystemPost, isWebHook,
-        location, post, rootPostAuthor, showPostPriority, shouldRenderReplyButton, teammateNameDisplay: _teammateNameDisplay, hideGuestTags,
+        location, post, rootPostAuthor, showPostPriority, shouldRenderReplyButton, teammateNameDisplay, hideGuestTags,
         timeOnly,
+        weChatAlignHeaderEnd,
     } = props;
     const intl = useIntl();
     const theme = useTheme();
@@ -161,7 +174,7 @@ const Header = (props: HeaderProps) => {
     const pendingPostStyle = isPendingOrFailed ? style.pendingPost : undefined;
     const isReplyPost = Boolean(post.rootId && !isEphemeral);
     const showReply = !isReplyPost && (location !== THREAD) && (shouldRenderReplyButton && (!rootPostAuthor && commentCount > 0));
-    const displayName = postUserDisplayName(post, author, undefined, enablePostUsernameOverride);
+    const displayName = postUserDisplayName(post, author, teammateNameDisplay, enablePostUsernameOverride);
     const rootAuthorDisplayName = rootPostAuthor ? username2Nickname(rootPostAuthor, {locale: currentUser?.locale}) : undefined;
     const customStatus = getUserCustomStatus(author);
     const showCustomStatusEmoji = Boolean(
@@ -232,8 +245,21 @@ const Header = (props: HeaderProps) => {
 
     return (
         <>
-            <View style={[style.container, alignWithAvatar && style.containerAlignAvatar, pendingPostStyle]}>
-                <View style={[style.wrapper, alignWithAvatar && style.wrapperWeChat]}>
+            <View
+                style={[
+                    style.container,
+                    alignWithAvatar && style.containerAlignAvatar,
+                    alignWithAvatar && weChatAlignHeaderEnd && style.containerWeChatHeaderEnd,
+                    pendingPostStyle,
+                ]}
+            >
+                <View
+                    style={[
+                        style.wrapper,
+                        alignWithAvatar && style.wrapperWeChat,
+                        alignWithAvatar && weChatAlignHeaderEnd && style.wrapperWeChatHeaderEnd,
+                    ]}
+                >
                     <HeaderDisplayName
                         channelId={post.channelId}
                         commentCount={commentCount}

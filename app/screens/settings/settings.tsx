@@ -1,17 +1,17 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect} from 'react';
+import {nativeApplicationVersion, nativeBuildVersion} from 'expo-application';
+import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {Platform} from 'react-native';
 
-import {handleGotoLocation} from '@actions/remote/command';
 import CompassIcon from '@components/compass_icon';
 import MenuDivider from '@components/menu_divider';
 import SettingContainer from '@components/settings/container';
 import SettingItem from '@components/settings/item';
 import {Screens} from '@constants';
-import {useServerDisplayName, useServerUrl} from '@context/server';
+import {useServerDisplayName} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
@@ -26,15 +26,12 @@ const CLOSE_BUTTON_ID = 'close-settings';
 
 type SettingsProps = {
     componentId: AvailableScreens;
-    helpLink: string;
-    showHelp: boolean;
     siteName: string;
 }
 
-const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) => {
+const Settings = ({componentId, siteName}: SettingsProps) => {
     const theme = useTheme();
     const intl = useIntl();
-    const serverUrl = useServerUrl();
     const serverDisplayName = useServerDisplayName();
 
     const appTitle = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || siteName || serverDisplayName;
@@ -56,13 +53,6 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
     useAndroidHardwareBackHandler(componentId, close);
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, []);
 
-    const goToNotifications = usePreventDoubleTap(useCallback(() => {
-        const screen = Screens.SETTINGS_NOTIFICATION;
-        const title = intl.formatMessage({id: 'settings.notifications', defaultMessage: 'Notifications'});
-
-        goToScreen(screen, title);
-    }, [intl]));
-
     const goToDisplaySettings = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.SETTINGS_DISPLAY;
         const title = intl.formatMessage({id: 'settings.display', defaultMessage: 'Display'});
@@ -77,13 +67,6 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
         goToScreen(screen, title);
     }, [intl, appTitle]));
 
-    const goToAdvancedSettings = usePreventDoubleTap(useCallback(() => {
-        const screen = Screens.SETTINGS_ADVANCED;
-        const title = intl.formatMessage({id: 'settings.advanced_settings', defaultMessage: 'Advanced Settings'});
-
-        goToScreen(screen, title);
-    }, [intl]));
-
     const goToManageEnterprise = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.MANAGE_ENTERPRISE;
         const title = intl.formatMessage({id: 'settings.manage_enterprise', defaultMessage: 'Manage enterprises'});
@@ -91,19 +74,18 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
         goToScreen(screen, title);
     }, [intl]));
 
-    const openHelp = usePreventDoubleTap(useCallback(() => {
-        if (helpLink) {
-            handleGotoLocation(serverUrl, intl, helpLink);
-        }
-    }, [helpLink, intl, serverUrl]));
+    const aboutAppVersionInfo = useMemo(() => {
+        return intl.formatMessage({
+            id: 'mobile.about.appVersion',
+            defaultMessage: 'App Version: {version} (Build {number})',
+        }, {
+            version: nativeApplicationVersion ?? '0.0.0',
+            number: nativeBuildVersion ?? '0',
+        });
+    }, [intl]);
 
     return (
         <SettingContainer testID='settings'>
-            <SettingItem
-                onPress={goToNotifications}
-                optionName='notification'
-                testID='settings.notifications.option'
-            />
             <SettingItem
                 onPress={goToDisplaySettings}
                 optionName='display'
@@ -115,27 +97,15 @@ const Settings = ({componentId, helpLink, showHelp, siteName}: SettingsProps) =>
                 testID='settings.manage_enterprise.option'
             />
             <SettingItem
-                onPress={goToAdvancedSettings}
-                optionName='advanced_settings'
-                testID='settings.advanced_settings.option'
-            />
-            <SettingItem
                 icon='information-outline'
+                info={aboutAppVersionInfo}
                 label={intl.formatMessage({id: 'settings.about', defaultMessage: 'About {appTitle}'}, {appTitle})}
+                longInfo={true}
                 onPress={goToAbout}
                 optionName='about'
                 testID='settings.about.option'
             />
             {Platform.OS === 'android' && <MenuDivider/>}
-            {showHelp &&
-                <SettingItem
-                    onPress={openHelp}
-                    optionName='help'
-                    separator={false}
-                    testID='settings.help.option'
-                    type='link'
-                />
-            }
             <ReportProblem/>
         </SettingContainer>
     );

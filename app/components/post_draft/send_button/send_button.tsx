@@ -12,7 +12,6 @@ import CompassIcon from '@components/compass_icon';
 import ScheduledPostTooltip from '@components/post_draft/send_button/scheduled_post_tooltip';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
-import {usePreventDoubleTap} from '@hooks/utils';
 import {changeOpacity, getWeChatCompactSendButtonBackground, makeStyleSheetFromTheme} from '@utils/theme';
 
 type Props = {
@@ -137,12 +136,10 @@ const SendButton: React.FC<Props> = ({
         (disabled ? changeOpacity(weChatSendTextColor, 0.5) : weChatSendTextColor) :
         (disabled ? changeOpacity(theme.buttonColor, 0.5) : theme.buttonColor);
 
-    const sendMessageWithDoubleTapPrevention = usePreventDoubleTap(sendMessage);
-
     return (
         <TouchableWithFeedback
             testID={sendButtonTestID}
-            onPress={sendMessageWithDoubleTapPrevention}
+            onPress={sendMessage}
             style={weChatCompact ? style.sendButtonContainerWeChat : style.sendButtonContainer}
             type={'opacity'}
             disabled={disabled}

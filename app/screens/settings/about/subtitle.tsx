@@ -12,41 +12,29 @@ import {typography} from '@utils/typography';
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     return {
         subtitle: {
-            color: changeOpacity(theme.centerChannelColor, 0.72),
-            ...typography('Heading', 400, 'Regular'),
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            ...typography('Body', 200, 'Regular'),
             textAlign: 'center',
-            paddingHorizontal: 36,
+            marginTop: 12,
+            paddingHorizontal: 16,
         },
     };
 });
 
 const messages = defineMessages({
-    teamEditionSt: {
-        id: 'about.teamEditionSt',
-        defaultMessage: 'All your enterprise communication in one place, instantly searchable and accessible anywhere.',
-    },
-    enterpriseEditionSt: {
-        id: 'about.enterpriseEditionSt',
-        defaultMessage: 'Modern communication from behind your firewall.',
+    slogan: {
+        id: 'about.slogan',
+        defaultMessage: 'All your team communication in one place, searchable and available anywhere.',
     },
 });
 
-type SubtitleProps = {
-    config: ClientConfig;
-}
-const Subtitle = ({config}: SubtitleProps) => {
+const Subtitle = () => {
     const theme = useTheme();
     const style = getStyleSheet(theme);
 
-    let message = messages.teamEditionSt;
-
-    if (config.BuildEnterpriseReady === 'true') {
-        message = messages.enterpriseEditionSt;
-    }
-
     return (
         <FormattedText
-            {...message}
+            {...messages.slogan}
             style={style.subtitle}
             testID='about.subtitle'
         />

@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo} from 'react';
-import {useIntl} from 'react-intl';
+import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, Platform, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
@@ -36,9 +36,29 @@ import QuickActions, {MARGIN, SEPARATOR_HEIGHT} from './quick_actions';
 import type {HeaderRightButton} from '@components/navigation_header/header';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
+const channelTypeTagMessages = defineMessages({
+    privateChat: {
+        id: 'channel_header.tag.private_chat',
+        defaultMessage: 'Private chat',
+    },
+    groupChat: {
+        id: 'channel_header.tag.group_chat',
+        defaultMessage: 'Group chat',
+    },
+    discussionGroup: {
+        id: 'channel_header.tag.discussion_group',
+        defaultMessage: 'Discussion group',
+    },
+    enterprisePublic: {
+        id: 'channel_header.tag.enterprise_public',
+        defaultMessage: 'Public channel',
+    },
+});
+
 type ChannelProps = {
     canAddBookmarks: boolean;
     channelId: string;
+    channelName: string;
     channelType: ChannelType;
     currentUserId: string;
     customStatus?: UserCustomStatus;
@@ -92,6 +112,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ChannelHeader = ({
     canAddBookmarks,
     channelId,
+    channelName,
     channelType,
     componentId,
     currentUserId,
@@ -122,6 +143,22 @@ const ChannelHeader = ({
     const serverUrl = useServerUrl();
 
     const callsConfig = getCallsConfig(serverUrl);
+
+    const titleTag = useMemo(() => {
+        switch (channelType) {
+            case General.DM_CHANNEL:
+                return intl.formatMessage(channelTypeTagMessages.privateChat);
+            case General.GM_CHANNEL:
+            case General.PRIVATE_CHANNEL:
+                return intl.formatMessage(channelTypeTagMessages.discussionGroup);
+            case General.OPEN_CHANNEL:
+                return channelName === General.DEFAULT_CHANNEL
+                    ? intl.formatMessage(channelTypeTagMessages.enterprisePublic)
+                    : intl.formatMessage(channelTypeTagMessages.groupChat);
+            default:
+                return '';
+        }
+    }, [channelName, channelType, intl]);
 
     // NOTE: callsEnabledInChannel will be true/false (not undefined) based on explicit state + the DefaultEnabled system setting
     //   which ultimately comes from channel/index.tsx, and observeIsCallsEnabledInChannel
@@ -356,6 +393,7 @@ const ChannelHeader = ({
                 subtitle={subtitle}
                 subtitleCompanion={subtitleCompanion}
                 title={title}
+                titleTag={titleTag}
                 useChatStyle={true}
             />
             <View style={contextStyle}>

@@ -3,8 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Keyboard, type LayoutChangeEvent, View, SafeAreaView} from 'react-native';
 
 import {makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
 import {fetchProfiles, fetchProfilesInTeam, searchProfiles} from '@actions/remote/user';
@@ -61,25 +60,38 @@ type Props = {
     tutorialWatched: boolean;
 }
 
+/**
+ * 关闭界面
+ */
 const close = () => {
     Keyboard.dismiss();
     dismissModal();
 };
 
+/**
+ * 获取创建私信界面的样式
+ */
 const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
             flex: 1,
             backgroundColor: theme.centerChannelBg,
         },
+        contentContainer: {
+            flex: 1,
+            paddingHorizontal: 16,
+            paddingTop: 16,
+        },
         searchBar: {
-            marginHorizontal: 16,
-            marginTop: 12,
-            marginBottom: 8,
-            paddingVertical: 4,
+            marginBottom: 12,
+        },
+        searchBarContainer: {
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+            borderRadius: 12,
+            height: 48,
         },
         searchBarInput: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+            backgroundColor: 'transparent',
         },
         loadingContainer: {
             alignItems: 'center',
@@ -103,12 +115,18 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
+/**
+ * 从列表中移除用户
+ */
 function removeProfileFromList(list: Set<string>, id: string) {
     const newSelectedIds = new Set(list);
     newSelectedIds.delete(id);
     return newSelectedIds;
 }
 
+/**
+ * 创建私信/群聊界面组件
+ */
 export default function CreateDirectMessage({
     componentId,
     currentTeamId,
@@ -133,14 +151,25 @@ export default function CreateDirectMessage({
     const [showToast, setShowToast] = useState(false);
     const selectedCount = selectedIds.size;
 
+    const color = changeOpacity(theme.centerChannelColor, 0.72);
+
+    /**
+     * 清空搜索
+     */
     const clearSearch = useCallback(() => {
         setTerm('');
     }, []);
 
+    /**
+     * 移除已选用户
+     */
     const handleRemoveProfile = useCallback((id: string) => {
         setSelectedIds((current) => removeProfileFromList(current, id));
     }, []);
 
+    /**
+     * 创建私信频道
+     */
     const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
         const result = await makeDirectChannel(serverUrl, id);
 
@@ -151,6 +180,9 @@ export default function CreateDirectMessage({
         return !result.error;
     }, [intl, serverUrl]);
 
+    /**
+     * 创建群聊频道
+     */
     const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
         const result = await makeGroupChannel(serverUrl, ids);
 
@@ -161,6 +193,9 @@ export default function CreateDirectMessage({
         return !result.error;
     }, [intl, serverUrl]);
 
+    /**
+     * 开始对话
+     */
     const startConversation = useCallback(async (selectedId?: string) => {
         if (startingConversation) {
             return;
@@ -185,6 +220,9 @@ export default function CreateDirectMessage({
         }
     }, [startingConversation, selectedIds, createGroupChannel, createDirectChannel]);
 
+    /**
+     * 选择用户
+     */
     const handleSelectProfile = useCallback((user: UserProfile) => {
         if (user.id === currentUserId) {
             return;
@@ -207,10 +245,16 @@ export default function CreateDirectMessage({
         });
     }, [currentUserId, clearSearch, selectedCount]);
 
+    /**
+     * 处理布局变化
+     */
     const onLayout = useCallback((e: LayoutChangeEvent) => {
         setContainerHeight(e.nativeEvent.layout.height);
     }, []);
 
+    /**
+     * 更新导航按钮
+     */
     const updateNavigationButtons = useCallback(async () => {
         const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
         const closeIcon = await CompassIcon.getImageSource('close', 24, closeIconColor);
@@ -223,10 +267,16 @@ export default function CreateDirectMessage({
         });
     }, [componentId, theme.centerChannelColor]);
 
+    /**
+     * 处理搜索文本变化
+     */
     const onChangeText = useCallback((searchTerm: string) => {
         setTerm(searchTerm);
     }, []);
 
+    /**
+     * 获取用户列表
+     */
     const userFetchFunction = useCallback(async (page: number) => {
         let results;
         if (restrictDirectMessage) {
@@ -242,6 +292,9 @@ export default function CreateDirectMessage({
         return [];
     }, [serverUrl, currentTeamId, restrictDirectMessage]);
 
+    /**
+     * 搜索用户
+     */
     const userSearchFunction = useCallback(async (searchTerm: string) => {
         const lowerCasedTerm = searchTerm.toLowerCase();
         let results;
@@ -258,6 +311,9 @@ export default function CreateDirectMessage({
         return [];
     }, [serverUrl, currentTeamId, restrictDirectMessage]);
 
+    /**
+     * 创建用户过滤器
+     */
     const createUserFilter = useCallback((exactMatches: UserProfile[], searchTerm: string) => {
         return (p: UserProfile) => {
             if (p.id === currentUserId) {
@@ -276,10 +332,16 @@ export default function CreateDirectMessage({
     useNavButtonPressed(CLOSE_BUTTON, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
 
+    /**
+     * 初始化导航按钮
+     */
     useEffect(() => {
         updateNavigationButtons();
     }, [updateNavigationButtons]);
 
+    /**
+     * 检查是否达到最大用户数
+     */
     useEffect(() => {
         setShowToast(selectedCount >= General.MAX_USERS_IN_GM);
     }, [selectedCount]);
@@ -300,54 +362,56 @@ export default function CreateDirectMessage({
             onLayout={onLayout}
             ref={mainView}
         >
-            <View style={style.searchBar}>
-                <Search
-                    testID='create_direct_message.search_bar'
-                    placeholder={formatMessage({id: 'create_direct_message.search_placeholder', defaultMessage: 'Search contacts'})}
-                    cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                    onChangeText={onChangeText}
-                    onCancel={clearSearch}
-                    autoCapitalize='none'
-                    keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
-                    value={term}
-                    inputContainerStyle={style.searchBarInput}
+            <View style={style.contentContainer}>
+                <View style={style.searchBar}>
+                    <Search
+                        testID='create_direct_message.search_bar'
+                        placeholder={formatMessage({id: 'create_direct_message.search_placeholder', defaultMessage: 'Search people — pick one for a DM or several for a discussion group'})}
+                        cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
+                        placeholderTextColor={color}
+                        onChangeText={onChangeText}
+                        onCancel={clearSearch}
+                        autoCapitalize='none'
+                        keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
+                        value={term}
+                        inputContainerStyle={style.searchBarContainer}
+                        inputStyle={style.searchBarInput}
+                    />
+                </View>
+                <ServerUserList
+                    handleSelectProfile={handleSelectProfile}
+                    selectedIds={selectedIds}
+                    term={term}
+                    testID='create_direct_message.user_list'
+                    tutorialWatched={tutorialWatched}
+                    fetchFunction={userFetchFunction}
+                    searchFunction={userSearchFunction}
+                    createFilter={createUserFilter}
+                    location={Screens.CREATE_DIRECT_MESSAGE}
+                />
+                <SelectedUsers
+                    keyboardOverlap={keyboardOverlap}
+                    showToast={showToast}
+                    setShowToast={setShowToast}
+                    toastIcon={'check'}
+                    toastMessage={formatMessage(
+                        {
+                            id: 'mobile.create_direct_message.max_limit_reached',
+                            defaultMessage: 'A discussion group can include up to {max, number} people besides you',
+                        },
+                        {max: General.MAX_USERS_IN_GM},
+                    )}
+                    selectedIds={selectedIds}
+                    onRemove={handleRemoveProfile}
+                    teammateNameDisplay={Preferences.DISPLAY_PREFER_NICKNAME}
+                    onPress={startConversation}
+                    buttonIcon={'forum-outline'}
+                    buttonText={selectedCount > 1 ? formatMessage(messages.done) : formatMessage(messages.buttonText)}
+                    testID='create_direct_message'
+                    maxUsers={General.MAX_USERS_IN_GM}
+                    avatarBorderRadius={8}
                 />
             </View>
-            <ServerUserList
-                handleSelectProfile={handleSelectProfile}
-                selectedIds={selectedIds}
-                term={term}
-                testID='create_direct_message.user_list'
-                tutorialWatched={tutorialWatched}
-                fetchFunction={userFetchFunction}
-                searchFunction={userSearchFunction}
-                createFilter={createUserFilter}
-                location={Screens.CREATE_DIRECT_MESSAGE}
-            />
-            <SelectedUsers
-                keyboardOverlap={keyboardOverlap}
-                showToast={showToast}
-                setShowToast={setShowToast}
-                toastIcon={'check'}
-                toastMessage={formatMessage(
-                    {
-                        id: 'mobile.create_direct_message.max_limit_reached',
-                        defaultMessage: 'A discussion group can include up to {max, number} people besides you',
-                    },
-                    {max: General.MAX_USERS_IN_GM},
-                )}
-                selectedIds={selectedIds}
-                onRemove={handleRemoveProfile}
-                teammateNameDisplay={Preferences.DISPLAY_PREFER_NICKNAME}
-                onPress={startConversation}
-                buttonIcon={'forum-outline'}
-                buttonText={selectedCount > 1 ? formatMessage(messages.done) : formatMessage(messages.buttonText)}
-                testID='create_direct_message'
-                maxUsers={General.MAX_USERS_IN_GM}
-                avatarBorderRadius={4}
-            />
         </SafeAreaView>
     );
 }
-

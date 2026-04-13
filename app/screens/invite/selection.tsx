@@ -52,64 +52,93 @@ const keyExtractor = (item: SearchResult) => (
     typeof item === 'string' ? item : (item as UserProfile).id
 );
 
+/**
+ * 生成主题相关的样式表
+ * @param theme - 当前应用的主题
+ * @returns 样式表对象
+ */
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
             display: 'flex',
             flex: 1,
+            backgroundColor: theme.centerChannelBg,
         },
         searchList: {
-            left: 20,
-            right: 20,
+            left: 16,
+            right: 16,
             position: 'absolute',
             bottom: Platform.select({ios: 'auto', default: undefined}),
         },
         searchListBorder: {
             borderWidth: 1,
-            borderColor: changeOpacity(theme.centerChannelColor, 0.2),
-            borderRadius: 4,
-            elevation: 3,
+            borderColor: changeOpacity(theme.buttonBg, 0.2),
+            borderRadius: 16,
+            elevation: 4,
         },
         searchListPadding: {
             paddingVertical: 8,
             flex: 1,
         },
         searchListShadow: {
-            shadowColor: '#000',
+            shadowColor: theme.buttonBg,
             shadowOpacity: 0.12,
-            shadowRadius: 6,
+            shadowRadius: 16,
             shadowOffset: {
                 width: 0,
-                height: 6,
+                height: 8,
             },
-            borderRadius: 4,
+            borderRadius: 16,
             backgroundColor: theme.centerChannelBg,
         },
         searchListFlatList: {
             backgroundColor: theme.centerChannelBg,
-            borderRadius: 4,
-            paddingHorizontal: 16,
+            borderRadius: 16,
+            paddingHorizontal: 8,
         },
         selectedItems: {
             display: 'flex',
+            maxHeight: 120,
         },
         selectedItemsContainer: {
             alignItems: 'flex-start',
             flexDirection: 'row',
             flexWrap: 'wrap',
             marginVertical: 16,
-            gap: 8,
+            marginHorizontal: 8,
+            gap: 10,
         },
         contentContainer: {
             paddingHorizontal: 20,
+            paddingTop: 20,
         },
         optionsContainer: {
-            marginTop: 16,
-            gap: 8,
+            marginTop: 24,
+        },
+        optionCard: {
+            backgroundColor: theme.centerChannelBg,
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.06),
+            shadowColor: theme.centerChannelColor,
+            shadowOpacity: 0.06,
+            shadowRadius: 12,
+            shadowOffset: {
+                width: 0,
+                height: 4,
+            },
+            elevation: 3,
         },
     };
 });
 
+/**
+ * 提取频道ID
+ * @param channelId - 频道对象
+ * @returns 频道ID字符串
+ */
 function extractChannelId(channelId: Channel) {
     return channelId.id;
 }
@@ -138,6 +167,10 @@ type SelectionProps = {
     allowGuestMagicLink: boolean;
 }
 
+/**
+ * 邀请新人加入界面的主组件
+ * 提供搜索、选择、配置邀请选项的功能
+ */
 export default function Selection({
     teamId,
     teamDisplayName,
@@ -178,14 +211,26 @@ export default function Selection({
 
     const hasChannelsSelected = selectedChannels.length > 0;
 
+    /**
+     * 处理团队栏布局变化
+     * @param e - 布局变化事件
+     */
     const onLayoutSelectionTeamBar = useCallback((e: LayoutChangeEvent) => {
         setTeamBarHeight(e.nativeEvent.layout.height);
     }, []);
 
+    /**
+     * 处理搜索栏布局变化
+     * @param e - 布局变化事件
+     */
     const onLayoutSearchBar = useCallback((e: LayoutChangeEvent) => {
         setSearchBarHeight(e.nativeEvent.layout.height);
     }, []);
 
+    /**
+     * 处理移除已选择项
+     * @param id - 要移除的项的ID
+     */
     const handleOnRemoveItem = useCallback((id: string) => {
         onRemoveItem(id);
     }, [onRemoveItem]);
@@ -242,6 +287,9 @@ export default function Selection({
         return style;
     }, [loading, searchResults.length, styles, term]);
 
+    /**
+     * 渲染无搜索结果的提示
+     */
     const renderNoResults = useCallback(() => {
         if (!term || loading) {
             return null;
@@ -256,6 +304,10 @@ export default function Selection({
         );
     }, [term, loading]);
 
+    /**
+     * 渲染搜索结果列表项
+     * @param item - 列表项数据
+     */
     const renderItem = useCallback(({item}: ListRenderItemInfo<SearchResult>) => {
         const key = keyExtractor(item);
 
@@ -275,14 +327,21 @@ export default function Selection({
                 />
             </TouchableWithFeedback>
         ) : (
-            <UserItem
-                user={item}
-                testID='invite.search_list_user_item'
-                onUserPress={onSelectItem}
-            />
+            <View style={{borderRadius: 8, overflow: 'hidden'}}>
+                <UserItem
+                    user={item}
+                    testID='invite.search_list_user_item'
+                    onUserPress={onSelectItem}
+                    padding={12}
+                    includeMargin={false}
+                />
+            </View>
         );
     }, [theme.buttonBg, onSelectItem]);
 
+    /**
+     * 跳转到频道选择器界面
+     */
     const goToSelectorScreen = useCallback((() => {
         const screen = Screens.INTEGRATION_SELECTOR;
         const title = intl.formatMessage({id: 'invite.selected_channels', defaultMessage: 'Selected channels'});
@@ -302,6 +361,9 @@ export default function Selection({
         });
     }), [intl, selectedChannels, onSendOptionsChange]);
 
+    /**
+     * 处理邀请为访客选项变化
+     */
     const handleInviteAsGuestChange = useCallback(() => {
         onSendOptionsChange((options) => ({
             ...options,
@@ -309,6 +371,9 @@ export default function Selection({
         }));
     }, [onSendOptionsChange]);
 
+    /**
+     * 处理包含自定义消息选项变化
+     */
     const handleIncludeCustomMessageChange = useCallback(() => {
         onSendOptionsChange((options) => ({
             ...options,
@@ -316,6 +381,10 @@ export default function Selection({
         }));
     }, [onSendOptionsChange]);
 
+    /**
+     * 处理自定义消息内容变化
+     * @param text - 新的消息文本
+     */
     const handleCustomMessageChange = useCallback((text: string) => {
         onSendOptionsChange((options) => ({
             ...options,
@@ -323,6 +392,9 @@ export default function Selection({
         }));
     }, [onSendOptionsChange]);
 
+    /**
+     * 处理访客免密登录选项变化
+     */
     const handlePasswordlessInvitesChange = useCallback(() => {
         onSendOptionsChange((options) => ({
             ...options,
@@ -330,6 +402,9 @@ export default function Selection({
         }));
     }, [onSendOptionsChange]);
 
+    /**
+     * 渲染已选择的项
+     */
     const renderSelectedItems = () => {
         const selectedItems = [];
 
@@ -389,17 +464,19 @@ export default function Selection({
                 )}
                 <View style={styles.optionsContainer}>
                     {canInviteGuests && (
-                        <OptionItem
-                            label={intl.formatMessage({id: 'invite.invite_as_guest', defaultMessage: 'Invite as guest'})}
-                            description={intl.formatMessage({id: 'invite.invite_as_guest_description', defaultMessage: 'Guests are limited to selected channels'})}
-                            type='toggle'
-                            selected={inviteAsGuest}
-                            action={handleInviteAsGuestChange}
-                            testID='invite.invite_as_guest'
-                        />
+                        <View style={styles.optionCard}>
+                            <OptionItem
+                                label={intl.formatMessage({id: 'invite.invite_as_guest', defaultMessage: 'Invite as guest'})}
+                                description={intl.formatMessage({id: 'invite.invite_as_guest_description', defaultMessage: 'Guests are limited to selected channels'})}
+                                type='toggle'
+                                selected={inviteAsGuest}
+                                action={handleInviteAsGuestChange}
+                                testID='invite.invite_as_guest'
+                            />
+                        </View>
                     )}
                     {inviteAsGuest && (
-                        <>
+                        <View style={styles.optionCard}>
                             <OptionItem
                                 label={intl.formatMessage({id: 'invite.selected_channels', defaultMessage: 'Selected channels'})}
                                 type='arrow'
@@ -435,7 +512,7 @@ export default function Selection({
                                     testID='invite.guest_magic_link'
                                 />
                             )}
-                        </>
+                        </View>
                     )}
                 </View>
             </View>

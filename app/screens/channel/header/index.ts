@@ -36,6 +36,10 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     const channel = observeChannel(database, channelId);
 
     const channelType = channel.pipe(switchMap((c) => of$(c?.type)));
+    const channelName = channel.pipe(
+        switchMap((c) => of$(c?.name ?? '')),
+        distinctUntilChanged(),
+    );
     const channelInfo = observeChannelInfo(database, channelId);
 
     const dmUser = currentUserId.pipe(
@@ -120,6 +124,7 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
 
     return {
         canAddBookmarks,
+        channelName,
         channelType,
         currentUserId,
         customStatus,

@@ -30,6 +30,7 @@ type Props = SearchProps & {
     subtitle?: string;
     subtitleCompanion?: React.ReactElement;
     title?: string;
+    titleTag?: string;
 
     /** 用于聊天界面：浅灰背景、更简洁的视觉效果 */
     useChatStyle?: boolean;
@@ -57,6 +58,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
     subtitle,
     subtitleCompanion,
     title = '',
+    titleTag,
     useChatStyle = false,
     hideHeader,
     ...searchProps
@@ -107,6 +109,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
                 subtitleCompanion={subtitleCompanion}
                 theme={theme}
                 title={title}
+                titleTag={titleTag}
                 backgroundColor={useChatStyle ? chatHeaderBackground : undefined}
             />
             {isLargeTitle &&

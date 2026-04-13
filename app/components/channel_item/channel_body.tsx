@@ -93,9 +93,9 @@ export const ChannelBody = ({
     if (isOnHome && channelType) {
         if (channelNameKey === General.DEFAULT_CHANNEL) {
             tagLabel = formatMessage({id: 'channel_list.tag.enterprise_group', defaultMessage: 'All staff'});
-        } else if (channelType === General.GM_CHANNEL) {
+        } else if (channelType === General.GM_CHANNEL || channelType === General.PRIVATE_CHANNEL) {
             tagLabel = formatMessage({id: 'channel_list.tag.channel', defaultMessage: 'Discussion'});
-        } else if (channelType === General.OPEN_CHANNEL || channelType === General.PRIVATE_CHANNEL) {
+        } else if (channelType === General.OPEN_CHANNEL) {
             tagLabel = formatMessage({id: 'channel_list.tag.group_chat', defaultMessage: 'Group'});
         }
     }

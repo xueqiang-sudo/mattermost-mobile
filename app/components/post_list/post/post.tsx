@@ -164,7 +164,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         profilePictureContainerOwn: {
             marginBottom: 4,
-            marginLeft: 10,
+            marginLeft: 4,
             marginRight: 0,
             marginTop: 6,
         },
@@ -182,7 +182,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         rightColumnOwnSizing: {
             flexGrow: 0,
             flexShrink: 0,
-            maxWidth: '90%',
+            maxWidth: '94%',
             flexDirection: 'column',
         },
 

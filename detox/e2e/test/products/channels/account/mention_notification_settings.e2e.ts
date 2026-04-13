@@ -24,7 +24,8 @@ import {
 import {getRandomId, isIos, timeouts} from '@support/utils';
 import {expect} from 'detox';
 
-describe('Account - Settings - Mention Notification Settings', () => {
+// Skipped: Notifications is not listed on the main Settings screen (product customization).
+describe.skip('Account - Settings - Mention Notification Settings', () => {
     const serverOneDisplayName = 'Server 1';
     let testUser: any;
 

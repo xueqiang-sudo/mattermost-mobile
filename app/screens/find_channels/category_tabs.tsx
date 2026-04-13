@@ -19,40 +19,41 @@ const TAB_MESSAGES = {
     channels: {id: 'find_channels.category.channels', defaultMessage: 'Group chats'},
 };
 
+/**
+ * 获取分类标签的样式
+ */
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        marginTop: 12,
-        marginBottom: 8,
+        marginTop: 16,
+        marginBottom: 12,
     },
     scroll: {
         flexGrow: 0,
     },
     tabRow: {
         flexDirection: 'row',
-        paddingHorizontal: 4,
+        paddingHorizontal: 0,
     },
     tab: {
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        marginRight: 4,
-        position: 'relative' as const,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        marginRight: 8,
+        borderRadius: 20,
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.15),
+    },
+    tabActive: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
     },
     tabText: {
-        ...typography('Body', 200, 'Regular'),
-        color: changeOpacity(theme.centerChannelColor, 0.72),
+        ...typography('Body', 200, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.7),
     },
     tabTextActive: {
         ...typography('Body', 200, 'SemiBold'),
-        color: theme.buttonBg,
-    },
-    underline: {
-        position: 'absolute',
-        bottom: 0,
-        left: 14,
-        right: 14,
-        height: 2,
-        borderRadius: 1,
-        backgroundColor: theme.buttonBg,
+        color: theme.buttonColor,
     },
 }));
 
@@ -61,10 +62,16 @@ type Props = {
     onCategoryChange: (category: FindChannelsCategory) => void;
 };
 
+/**
+ * 分类标签组件
+ */
 const CategoryTabs = ({activeCategory, onCategoryChange}: Props) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
 
+    /**
+     * 渲染单个标签
+     */
     const renderTab = useCallback((id: FindChannelsCategory) => {
         const isActive = activeCategory === id;
         const msg = TAB_MESSAGES[id];
@@ -72,7 +79,7 @@ const CategoryTabs = ({activeCategory, onCategoryChange}: Props) => {
             <Pressable
                 key={id}
                 onPress={() => onCategoryChange(id)}
-                style={styles.tab}
+                style={[styles.tab, isActive && styles.tabActive]}
                 testID={`find_channels.category_tabs.${id}.button`}
                 accessibilityState={{selected: isActive}}
             >
@@ -81,7 +88,6 @@ const CategoryTabs = ({activeCategory, onCategoryChange}: Props) => {
                     defaultMessage={msg.defaultMessage}
                     style={[styles.tabText, isActive && styles.tabTextActive]}
                 />
-                {isActive && <View style={styles.underline}/>}
             </Pressable>
         );
     }, [activeCategory, onCategoryChange, styles]);

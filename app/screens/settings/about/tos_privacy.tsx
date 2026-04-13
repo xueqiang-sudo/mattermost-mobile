@@ -2,8 +2,9 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {Text} from 'react-native';
+import {TouchableOpacity, View} from 'react-native';
 
+import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -11,59 +12,107 @@ import {typography} from '@utils/typography';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     return {
-        noticeLink: {
+        list: {
+            marginBottom: 8,
+        },
+        row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 12,
+            minHeight: 48,
+        },
+        rowIconWrap: {
+            width: 28,
+            marginRight: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        rowLabel: {
+            ...typography('Body', 200, 'Regular'),
             color: theme.linkColor,
-            ...typography('Body', 50),
+            flex: 1,
         },
-        footerText: {
-            color: changeOpacity(theme.centerChannelColor, 0.5),
-            ...typography('Body', 50),
-            marginBottom: 10,
-        },
-        hyphenText: {
-            marginBottom: 0,
+        divider: {
+            height: 1,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+            marginLeft: 32,
         },
     };
 });
 
 type TosPrivacyContainerProps = {
-    config: ClientConfig;
-    onPressTOS: () => void;
+    termsUrl: string;
+    privacyUrl: string;
+    onPressTermsOfService: () => void;
     onPressPrivacyPolicy: () => void;
-}
-const TosPrivacyContainer = ({config, onPressTOS, onPressPrivacyPolicy}: TosPrivacyContainerProps) => {
+};
+
+const TosPrivacyContainer = ({
+    termsUrl,
+    privacyUrl,
+    onPressTermsOfService,
+    onPressPrivacyPolicy,
+}: TosPrivacyContainerProps) => {
     const theme = useTheme();
     const style = getStyleSheet(theme);
 
-    const hasTermsOfServiceLink = Boolean(config.TermsOfServiceLink);
-    const hasPrivacyPolicyLink = Boolean(config.PrivacyPolicyLink);
+    const showTerms = Boolean(termsUrl);
+    const showPrivacy = Boolean(privacyUrl);
+
+    if (!showTerms && !showPrivacy) {
+        return null;
+    }
 
     return (
-        <>
-            {hasTermsOfServiceLink && (
-                <FormattedText
-                    id={'mobile.tos_link'}
-                    defaultMessage='Terms of Service'
-                    style={style.noticeLink}
-                    onPress={onPressTOS}
-                    testID='about.terms_of_service'
-                />
+        <View style={style.list}>
+            {showTerms && (
+                <TouchableOpacity
+                    accessibilityRole='link'
+                    activeOpacity={0.72}
+                    onPress={onPressTermsOfService}
+                    style={style.row}
+                    testID='about.terms_of_service.row'
+                >
+                    <View style={style.rowIconWrap}>
+                        <CompassIcon
+                            color={theme.linkColor}
+                            name='link-variant'
+                            size={20}
+                        />
+                    </View>
+                    <FormattedText
+                        defaultMessage='Terms of Service'
+                        id='mobile.tos_link'
+                        style={style.rowLabel}
+                        testID='about.terms_of_service'
+                    />
+                </TouchableOpacity>
             )}
-            {hasTermsOfServiceLink && hasPrivacyPolicyLink && (
-                <Text style={[style.footerText, style.hyphenText]}>
-                    {' - '}
-                </Text>
-            )}
-            {hasPrivacyPolicyLink && (
-                <FormattedText
-                    id={'mobile.privacy_link'}
-                    defaultMessage='Privacy Policy'
-                    style={style.noticeLink}
+            {showTerms && showPrivacy && <View style={style.divider}/>}
+            {showPrivacy && (
+                <TouchableOpacity
+                    accessibilityRole='link'
+                    activeOpacity={0.72}
                     onPress={onPressPrivacyPolicy}
-                    testID='about.privacy_policy'
-                />
+                    style={style.row}
+                    testID='about.privacy_policy.row'
+                >
+                    <View style={style.rowIconWrap}>
+                        <CompassIcon
+                            color={theme.linkColor}
+                            name='link-variant'
+                            size={20}
+                        />
+                    </View>
+                    <FormattedText
+                        defaultMessage='Privacy Policy'
+                        id='mobile.privacy_link'
+                        style={style.rowLabel}
+                        testID='about.privacy_policy'
+                    />
+                </TouchableOpacity>
             )}
-        </>
+        </View>
     );
 };
 

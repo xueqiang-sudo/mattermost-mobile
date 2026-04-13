@@ -163,18 +163,22 @@ export const useHandleSendMessage = ({
             });
 
             if (!shouldClearDraft) {
+                setSendingMessage(false);
                 return;
             }
 
-            createPost(serverUrl, post, postFiles);
+            const draftViewPostPromise = createPost(serverUrl, post, postFiles);
             clearDraft();
+            await draftViewPostPromise;
 
             // Early return to avoid calling DeviceEventEmitter.emit
+            setSendingMessage(false);
             return;
         } else {
-            // Response error is handled at the post level so don't have to wait to clear draft
-            createPost(serverUrl, post, postFiles);
+            // Optimistic clear: same UX as before; await keeps sendingMessage true until request settles
+            const postPromise = createPost(serverUrl, post, postFiles);
             clearDraft();
+            await postPromise;
         }
 
         setSendingMessage(false);

@@ -164,8 +164,8 @@ export function isDefaultChannel(channel: Channel | ChannelModel | undefined): b
 }
 
 /**
- * Default team channel (town-square) and all public channels: show company/team display name in header and composer,
- * consistent with {@link channel_item.tsx} list row. Falls back to channel.displayName if team is missing.
+ * Only the team default public channel (town-square / 企业总群) shows the team/enterprise name in the header.
+ * Other open channels, group messages (GM), DMs, and private channels use the channel display name.
  */
 export function getChannelTitleDisplayName(
     channel: Pick<ChannelModel, 'name' | 'displayName' | 'type'> | undefined,
@@ -174,9 +174,7 @@ export function getChannelTitleDisplayName(
     if (!channel) {
         return '';
     }
-    // 检查是否是公共频道（OPEN_CHANNEL）或默认频道
-    const isPublicChannel = (channel as any).type === General.OPEN_CHANNEL;
-    if (isDefaultChannel(channel) || isPublicChannel) {
+    if (channel.type === General.OPEN_CHANNEL && isDefaultChannel(channel)) {
         const team = teamDisplayName?.trim();
         return team || channel.displayName;
     }
