@@ -27,6 +27,7 @@ const setFontFamily = () => {
         const origin = oldRender.call(this, ...args);
         return cloneElement(origin, {
             allowFontScaling: origin.props.allowFontScaling ?? false,
+            maxFontSizeMultiplier: origin.props.maxFontSizeMultiplier ?? 1,
             style: [styles.defaultText, origin.props.style],
         });
     };

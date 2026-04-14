@@ -26,11 +26,16 @@ const PREVIEW_HEIGHT_MIN = 76;
 const PREVIEW_HEIGHT_CAP = 380;
 const DRAFT_MEDIA_GRID_GAP = 6;
 const DRAFT_MEDIA_ROW_H_PAD = 12;
+
 /** Horizontal strip: fixed-ish thumb size (does not use full-width 3-column math). */
 const DRAFT_STRIP_MEDIA_MIN = 84;
 const DRAFT_STRIP_MEDIA_MAX = 102;
+
+/** Bottom padding on the animated file container when attachments exist (must match height math below). */
+const FILE_CONTAINER_PAD_BOTTOM = 5;
+
 /** `draftAttachmentsScrollContent` paddingTop/Bottom + `fileContainerStyle` paddingBottom when files exist */
-const DRAFT_STRIP_VERTICAL_CHROME = 14 + 2 + 5;
+const DRAFT_STRIP_VERTICAL_CHROME = 14 + 2 + FILE_CONTAINER_PAD_BOTTOM;
 const PREVIEW_HEIGHT_MIN_EMPTY = 0;
 const ERROR_HEIGHT_MAX = 20;
 const ERROR_HEIGHT_MIN = 0;
@@ -58,8 +63,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         fileContainer: {
             display: 'flex',
             flexDirection: 'column',
-            height: 0,
-            overflow: 'visible',
+            overflow: 'hidden',
+            alignSelf: 'stretch',
         },
         innerColumn: {
             flexDirection: 'column',
@@ -71,6 +76,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         },
         draftAttachmentsScrollContent: {
             flexDirection: 'row',
+
             /** flex-start：外层高度略小于内容时优先保留顶部（含关闭按钮），避免 flex-end 从上方裁切 */
             alignItems: 'flex-start',
             paddingHorizontal: DRAFT_MEDIA_ROW_H_PAD,
@@ -146,7 +152,7 @@ function Uploads({
     }, []);
 
     const fileContainerStyle = useMemo(() => ({
-        paddingBottom: files.length ? 5 : 0,
+        paddingBottom: files.length ? FILE_CONTAINER_PAD_BOTTOM : 0,
     }), [files.length]);
 
     useEffect(() => {
@@ -167,7 +173,15 @@ function Uploads({
             setInnerLayoutHeight(0);
             return;
         }
-        const fromLayout = innerLayoutHeight > 0 ? innerLayoutHeight : estimatedStripHeight;
+
+        /**
+         * `onLayout` 量到的是内层高度，不含本层 `paddingBottom`；若动画高度不加 padding，总框会少一截，
+         * 底部缩略图/关闭钮会被裁切或被下方 `actionsContainer` 盖住。
+         */
+        const paddingB = FILE_CONTAINER_PAD_BOTTOM;
+        const measuredCore =
+            innerLayoutHeight > 0 ? innerLayoutHeight + paddingB : estimatedStripHeight;
+        const fromLayout = Math.max(measuredCore, estimatedStripHeight);
         const h = Math.min(
             Math.max(fromLayout, PREVIEW_HEIGHT_MIN),
             PREVIEW_HEIGHT_CAP,

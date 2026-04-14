@@ -1,16 +1,18 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useIntl} from 'react-intl';
 import {Keyboard, type LayoutChangeEvent, View, SafeAreaView} from 'react-native';
 
 import SearchBar from '@components/search';
+import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useKeyboardOverlap} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal} from '@screens/navigation';
+import {buildNavigationButton, dismissModal, goToScreen, setButtons} from '@screens/navigation';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -20,6 +22,8 @@ import QuickOptions from './quick_options';
 import UnfilteredList from './unfiltered_list';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
+
+const FIND_CHANNELS_VIEW_ALL_BUTTON_ID = 'find-channels-view-all';
 
 type Props = {
     closeButtonId: string;
@@ -61,6 +65,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
  * 搜索界面组件
  */
 const FindChannels = ({closeButtonId, componentId}: Props) => {
+    const intl = useIntl();
     const theme = useTheme();
     const [term, setTerm] = useState('');
     const [loading, setLoading] = useState(false);
@@ -92,14 +97,14 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
     const close = useCallback(() => {
         Keyboard.dismiss();
         return dismissModal({componentId});
-    }, []);
+    }, [componentId]);
 
     /**
      * 取消搜索
      */
     const onCancel = useCallback(() => {
         dismissModal({componentId});
-    }, []);
+    }, [componentId]);
 
     /**
      * 处理搜索文本变化
@@ -111,7 +116,35 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
         }
     }, []);
 
-    useNavButtonPressed(closeButtonId, componentId, close, []);
+    useEffect(() => {
+        setButtons(componentId, {
+            rightButtons: [{
+                ...buildNavigationButton(
+                    FIND_CHANNELS_VIEW_ALL_BUTTON_ID,
+                    'find_channels.view_all.button',
+                ),
+                color: theme.sidebarHeaderTextColor,
+                text: intl.formatMessage({
+                    id: 'find_channels.view_all',
+                    defaultMessage: 'View all',
+                }),
+            }],
+        });
+    }, [componentId, intl, theme.sidebarHeaderTextColor]);
+
+    const openJoinedChannelsAndGroups = useCallback(() => {
+        goToScreen(
+            Screens.JOINED_CHANNELS_AND_GROUPS,
+            intl.formatMessage({
+                id: 'joined_channels.title',
+                defaultMessage: 'Joined channels & groups',
+            }),
+            {},
+        );
+    }, [intl]);
+
+    useNavButtonPressed(FIND_CHANNELS_VIEW_ALL_BUTTON_ID, componentId, openJoinedChannelsAndGroups, [openJoinedChannelsAndGroups]);
+    useNavButtonPressed(closeButtonId, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
 
     return (

@@ -576,6 +576,64 @@ export function queryMyRecentChannels(database: Database, take: number) {
     );
 }
 
+function observeChannelsForMyChannelsList(
+    database: Database,
+    myChannelsList$: Observable<MyChannelModel[]>,
+    orderedByLastViewedAt: boolean,
+): Observable<ChannelModel[]> {
+    return myChannelsList$.pipe(
+        switchMap((myChannels) => {
+            const ids = myChannels.map((m) => m.id);
+            if (!ids.length) {
+                return of$([]);
+            }
+            const idsStr = `'${ids.join("','")}'`;
+            const order = orderedByLastViewedAt ? 'order by my.last_viewed_at desc' : '';
+            return database.get<ChannelModel>(CHANNEL).query(
+                Q.unsafeSqlQuery(`select distinct c.* from ${MY_CHANNEL} my
+                inner join ${CHANNEL} c on c.id=my.id and c.id in (${idsStr})
+                ${order}`),
+            ).observe();
+        }),
+    );
+}
+
+export function queryMyJoinedTeamChannels(database: Database) {
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.eq(0)),
+            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+export function queryMyGroupMessageChannels(database: Database) {
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.eq(0)),
+            Q.where('type', Q.eq(General.GM_CHANNEL)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+export const observeMyJoinedTeamChannels = (database: Database): Observable<ChannelModel[]> => {
+    return observeChannelsForMyChannelsList(
+        database,
+        queryMyJoinedTeamChannels(database).observeWithColumns(['last_viewed_at']),
+        true,
+    );
+};
+
+export const observeMyGroupMessageChannels = (database: Database): Observable<ChannelModel[]> => {
+    return observeChannelsForMyChannelsList(
+        database,
+        queryMyGroupMessageChannels(database).observeWithColumns(['last_viewed_at']),
+        true,
+    );
+};
+
 export const observeRecentConversationsForTeam = (database: Database, teamId: string): Observable<ChannelModel[]> => {
     const myChannelsQuery = queryAllMyChannelsForTeam(database, teamId).extend(
         Q.on(CHANNEL, Q.where('delete_at', Q.eq(0))),

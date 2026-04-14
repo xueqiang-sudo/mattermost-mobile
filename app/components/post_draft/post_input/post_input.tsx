@@ -355,9 +355,10 @@ export default function PostInput({
 
     return (
         <PasteableTextInput
-            allowFontScaling={true}
+            allowFontScaling={false}
             disableCopyPaste={disableCopyAndPaste}
             disableFullscreenUI={true}
+            maxFontSizeMultiplier={1}
             keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
             multiline={true}
             onBlur={onBlur}

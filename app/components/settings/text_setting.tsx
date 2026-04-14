@@ -101,7 +101,8 @@ function TextSetting({
             <View style={inputContainerStyle}>
                 <View>
                     <TextInput
-                        allowFontScaling={true}
+                        allowFontScaling={false}
+                        maxFontSizeMultiplier={1}
                         value={value}
                         placeholder={placeholder}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}

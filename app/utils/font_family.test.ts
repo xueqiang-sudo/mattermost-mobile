@@ -108,6 +108,8 @@ describe('setFontFamily', () => {
 
         // Check if cloneElement was called with the correct arguments
         expect(cloneElement).toHaveBeenCalledWith(mockOriginRenderOutput, {
+            allowFontScaling: false,
+            maxFontSizeMultiplier: 1,
             style: [
                 {
                     fontFamily: 'OpenSans',

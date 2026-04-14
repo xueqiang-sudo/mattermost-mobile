@@ -54,6 +54,7 @@ export const ADD_USER_TO_FRIENDS = 'AddUserToFriends';
 export const EXTERNAL_PROFILE_CARD_EXTERNAL_INFO = 'ExternalProfileCardExternalInfo';
 export const EXTERNAL_PROFILE_CARD_STYLE = 'ExternalProfileCardStyle';
 export const FIND_CHANNELS = 'FindChannels';
+export const JOINED_CHANNELS_AND_GROUPS = 'JoinedChannelsAndGroups';
 export const FORGOT_PASSWORD = 'ForgotPassword';
 export const GALLERY = 'Gallery';
 export const GENERIC_OVERLAY = 'GenericOverlay';
@@ -166,6 +167,7 @@ export default {
     EXTERNAL_PROFILE_CARD_EXTERNAL_INFO,
     EXTERNAL_PROFILE_CARD_STYLE,
     FIND_CHANNELS,
+    JOINED_CHANNELS_AND_GROUPS,
     FORGOT_PASSWORD,
     GALLERY,
     GENERIC_OVERLAY,

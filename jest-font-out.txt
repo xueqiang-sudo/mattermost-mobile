@@ -1,0 +1,23 @@
+(node:63009) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS app/utils/font_family.test.ts (11.458 s)
+  setFontFamily
+    ✓ overrides Text.render and applies custom styles (8 ms)
+
+Snapshot Summary
+ › 9 snapshot files obsolete from 9 test suites. To remove them all, re-run jest with `-u`.
+   ↳   • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@comments.flow.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@type-annotations.flow.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@function.flow.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@comment-line.flow.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@object-type-definitions.flow.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@comment-block.flow.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@function.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@comment-block.js.snap
+       • net-cache-resources/facebook_hermers_git/unsupported/hermes/crates/hermes_parser/tests/snapshots/parser_test__fixtures@comment-line.js.snap
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   9 files obsolete, 0 total
+Time:        12.128 s
+Ran all test suites matching /app\/utils\/font_family.test.ts/i.

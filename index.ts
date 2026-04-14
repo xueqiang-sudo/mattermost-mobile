@@ -3,13 +3,13 @@
 
 import {RUNNING_E2E} from '@env';
 import TurboLogger from '@mattermost/react-native-turbo-log';
-import {LogBox, Platform, TextInput, UIManager} from 'react-native';
+import {LogBox, Platform, UIManager} from 'react-native';
 import ViewReactNativeStyleAttributes from 'react-native/Libraries/Components/View/ReactNativeStyleAttributes';
 import 'react-native-gesture-handler';
 import {Navigation} from 'react-native-navigation';
 
+import './app/utils/bootstrap_text_scaling';
 import {start} from './app/init/app';
-import setFontFamily from './app/utils/font_family';
 import {logInfo} from './app/utils/log';
 
 declare const global: { HermesInternal: null | {} };
@@ -36,14 +36,6 @@ if (__DEV__) {
         LogBox.ignoreAllLogs(true);
     }
 }
-
-setFontFamily();
-
-TextInput.defaultProps = {
-    ...TextInput.defaultProps,
-    allowFontScaling: false,
-    maxFontSizeMultiplier: 1,
-};
 
 if (global.HermesInternal) {
     // Polyfills required to use Intl with Hermes engine

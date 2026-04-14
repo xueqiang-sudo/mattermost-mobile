@@ -178,6 +178,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.FIND_CHANNELS:
             screen = withServerDatabase(require('@screens/find_channels').default);
             break;
+        case Screens.JOINED_CHANNELS_AND_GROUPS:
+            screen = withServerDatabase(require('@screens/joined_channels_and_groups').default);
+            break;
         case Screens.FORGOT_PASSWORD:
             screen = withIntl(require('@screens/forgot_password').default);
             break;

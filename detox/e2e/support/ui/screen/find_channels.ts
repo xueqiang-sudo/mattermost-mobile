@@ -13,6 +13,7 @@ class FindChannelsScreen {
         unfilteredChannelItemPrefix: 'find_channels.unfiltered_list.channel_item.',
         findChannelsScreen: 'find_channels.screen',
         closeButton: 'close.find_channels.button',
+        viewAllButton: 'find_channels.view_all.button',
         openDirectMessageQuickOption: 'find_channels.quick_options.open_dm.option',
         newChannelQuickOption: 'find_channels.quick_options.new_channel.option',
         sectionUnfilteredChannelList: 'find_channels.unfiltered_list.section_list',
@@ -21,6 +22,7 @@ class FindChannelsScreen {
 
     findChannelsScreen = element(by.id(this.testID.findChannelsScreen));
     closeButton = element(by.id(this.testID.closeButton));
+    viewAllButton = element(by.id(this.testID.viewAllButton));
     openDirectMessageQuickOption = element(by.id(this.testID.openDirectMessageQuickOption));
     newChannelQuickOption = element(by.id(this.testID.newChannelQuickOption));
     sectionUnfilteredChannelList = element(by.id(this.testID.sectionUnfilteredChannelList));

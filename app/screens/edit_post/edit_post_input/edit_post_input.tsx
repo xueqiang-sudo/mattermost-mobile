@@ -105,9 +105,10 @@ const EditPostInput = ({
     return (
         <View style={containerStyle}>
             <PasteInput
-                allowFontScaling={true}
+                allowFontScaling={false}
                 disableCopyPaste={disableCopyAndPaste}
                 disableFullscreenUI={true}
+                maxFontSizeMultiplier={1}
                 keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
                 multiline={true}
                 onChangeText={onChangeText}
