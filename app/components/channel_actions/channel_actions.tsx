@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback} from 'react';
-import {StyleSheet, View} from 'react-native';
+import {StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
 
 import ChannelInfoStartButton from '@calls/components/channel_info_start';
 import AddMembersBox from '@components/channel_actions/add_members_box';
@@ -21,7 +21,9 @@ type Props = {
     dismissChannelInfo: () => void;
     callsEnabled: boolean;
     testID?: string;
-    canManageMembers: boolean;
+    canManageMembers?: boolean;
+    /** When set (e.g. Channel Info modal), quick actions use this container style on each OptionBox. */
+    optionBoxContainerStyle?: StyleProp<ViewStyle>;
 }
 
 export const CHANNEL_ACTIONS_OPTIONS_HEIGHT = 62;
@@ -42,7 +44,8 @@ const ChannelActions = ({
     inModal = false,
     dismissChannelInfo,
     callsEnabled,
-    canManageMembers,
+    canManageMembers = false,
+    optionBoxContainerStyle,
     testID,
 }: Props) => {
     const serverUrl = useServerUrl();
@@ -59,14 +62,20 @@ const ChannelActions = ({
 
     return (
         <View style={styles.wrapper}>
-            <FavoriteBox
-                channelId={channelId}
-                showSnackBar={!inModal}
-                testID={testID}
-            />
-            <View style={styles.separator}/>
+            {!inModal && (
+                <>
+                    <FavoriteBox
+                        channelId={channelId}
+                        containerStyle={optionBoxContainerStyle}
+                        showSnackBar={true}
+                        testID={testID}
+                    />
+                    <View style={styles.separator}/>
+                </>
+            )}
             <MutedBox
                 channelId={channelId}
+                containerStyle={optionBoxContainerStyle}
                 showSnackBar={!inModal}
                 testID={testID}
             />
@@ -74,6 +83,7 @@ const ChannelActions = ({
             {isDM &&
                 <SetHeaderBox
                     channelId={channelId}
+                    containerStyle={optionBoxContainerStyle}
                     inModal={inModal}
                     testID={`${testID}.set_header.action`}
                 />
@@ -81,6 +91,7 @@ const ChannelActions = ({
             {canManageMembers &&
                 <AddMembersBox
                     channelId={channelId}
+                    containerStyle={optionBoxContainerStyle}
                     inModal={inModal}
                     testID={`${testID}.add_members.action`}
                 />
@@ -90,6 +101,7 @@ const ChannelActions = ({
                     <View style={styles.separator}/>
                     <CopyChannelLinkBox
                         channelId={channelId}
+                        containerStyle={optionBoxContainerStyle}
                         onAnimationEnd={onCopyLinkAnimationEnd}
                         testID={`${testID}.copy_channel_link.action`}
                     />
@@ -99,9 +111,10 @@ const ChannelActions = ({
                 <>
                     <View style={styles.separator}/>
                     <ChannelInfoStartButton
-                        serverUrl={serverUrl}
+                        boxContainerStyle={optionBoxContainerStyle}
                         channelId={channelId}
                         dismissChannelInfo={dismissChannelInfo}
+                        serverUrl={serverUrl}
                     />
                 </>
             }

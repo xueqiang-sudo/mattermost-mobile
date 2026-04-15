@@ -3,7 +3,7 @@
 
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
 import Badge from '@components/badge';
 import ChannelIcon from '@components/channel_icon';
@@ -17,6 +17,7 @@ import {isDMorGM} from '@utils/channel';
 import {formatMessagePreview} from '@utils/message_preview';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {getUserIdFromChannelName} from '@utils/user';
 
 import {ChannelBody} from './channel_body';
@@ -39,15 +40,29 @@ type Props = {
     testID?: string;
     hasCall: boolean;
     isOnCenterBg?: boolean;
+    /** 与 `isOnCenterBg` 配合：奇偶行背景区分 */
+    listRowIndex?: number;
+    /**
+     * 与 `listRowIndex` 同屏用于查找频道、已加入频道等列表：非私聊用展示名前二字替代成员拼图头像。
+     */
+    useListInitialsForNonDm?: boolean;
     showChannelName?: boolean;
     isOnHome?: boolean;
     lastPostAt?: number;
     lastPostPreview?: string;
+    isMilitaryTime: boolean;
 }
 
 export const ROW_HEIGHT = 40;
+/** 查找频道 / 已加入列表等：卡片行内区域高度（含上下 padding） */
+export const ROW_HEIGHT_CENTER_LIST = 64;
 export const ROW_HEIGHT_WITH_TEAM = 58;
 export const ROW_HEIGHT_CONVERSATION = 72;
+
+/** 首页私聊圆形头像：角标「骑」在头像右缘，约一半压在圆上一半伸入与标题间留白，避免整块压在圆弧上 */
+const HOME_DM_BADGE_TOP = 4;
+/** 48px 头像、Small 角标宽约 24–26：left≈32 使角标中心接近头像右缘 */
+const HOME_DM_BADGE_LEFT = 32;
 
 export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
@@ -102,6 +117,25 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         left: undefined,
         borderColor: theme.sidebarBg,
         marginLeft: 0,
+    },
+    // 首页私聊：角标不沿用 iconBadge 的 right:-4（易与圆切线别扭），改用 left 锚定 + 描边/浅阴影分层
+    iconBadgeHomeDm: {
+        position: 'absolute' as const,
+        top: HOME_DM_BADGE_TOP,
+        left: HOME_DM_BADGE_LEFT,
+        marginLeft: 0,
+        borderWidth: 3,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000000',
+                shadowOffset: {width: 0, height: 1},
+                shadowOpacity: 0.12,
+                shadowRadius: 2,
+            },
+            default: {
+                elevation: 2,
+            },
+        }),
     },
 
     // 已静音：头像角标（群/频道右下；私聊左下，避免与在线状态点重叠）
@@ -178,10 +212,13 @@ const ChannelItem = ({
     testID,
     hasCall,
     isOnCenterBg = false,
+    listRowIndex,
+    useListInitialsForNonDm = false,
     showChannelName = false,
     isOnHome = false,
     lastPostAt = 0,
     lastPostPreview = '',
+    isMilitaryTime,
 }: Props) => {
     const {formatMessage} = useIntl();
     const theme = useTheme();
@@ -216,8 +253,11 @@ const ChannelItem = ({
         if (isOnHome) {
             return ROW_HEIGHT_CONVERSATION;
         }
+        if (isOnCenterBg && listRowIndex !== undefined) {
+            return (teamDisplayName && !isTablet) ? ROW_HEIGHT_WITH_TEAM : ROW_HEIGHT_CENTER_LIST;
+        }
         return (teamDisplayName && !isTablet) ? ROW_HEIGHT_WITH_TEAM : ROW_HEIGHT;
-    }, [teamDisplayName, isTablet, isOnHome]);
+    }, [teamDisplayName, isTablet, isOnHome, isOnCenterBg, listRowIndex]);
 
     const handleOnPress = useCallback(() => {
         onPress(channel);
@@ -233,15 +273,22 @@ const ChannelItem = ({
         isMuted && isOnCenterBg && styles.mutedOnCenterBg,
     ], [isBolded, styles, isMuted, showActive, isOnCenterBg]);
 
-    const containerStyle = useMemo(() => [
-        styles.container,
-        isOnHome && HOME_PADDING,
-        showActive && styles.activeItem,
-        showActive && isOnHome && {
-            paddingLeft: HOME_PADDING.paddingLeft - styles.activeItem.borderLeftWidth,
-        },
-        {minHeight: height},
-    ], [height, showActive, styles, isOnHome]);
+    const containerStyle = useMemo(() => {
+        const listSurface =
+            isOnCenterBg && listRowIndex !== undefined ?
+                getChannelListModalRowSurfaceStyle(theme) :
+                null;
+        return [
+            styles.container,
+            listSurface,
+            isOnHome && HOME_PADDING,
+            showActive && styles.activeItem,
+            showActive && isOnHome && {
+                paddingLeft: HOME_PADDING.paddingLeft - styles.activeItem.borderLeftWidth,
+            },
+            {minHeight: height},
+        ];
+    }, [height, showActive, styles, isOnHome, isOnCenterBg, listRowIndex, theme]);
 
     const showIconBadge = isOnHome && (mentionsCount > 0 || (isUnread && !isMuted));
 
@@ -264,6 +311,7 @@ const ChannelItem = ({
                     <ChannelIcon
                         channelId={channel.id}
                         hasDraft={hasDraft}
+                        initialsSource={displayName}
                         isActive={isTablet && isActive}
                         isOnCenterBg={isOnCenterBg}
                         isOnHome={isOnHome}
@@ -272,9 +320,11 @@ const ChannelItem = ({
                         membersCount={membersCount}
                         name={channel.name}
                         shared={channel.shared}
-                        size={isOnHome ? 48 : 24}
+                        promotedListAvatar={listRowIndex !== undefined}
+                        size={isOnHome ? 48 : (listRowIndex !== undefined ? 40 : 24)}
                         type={channel.type}
                         isMuted={isMuted}
+                        useListInitialsForNonDm={useListInitialsForNonDm}
                         style={!isOnHome ? styles.icon : undefined}
                     />
                     {isOnHome && isMuted && (
@@ -300,7 +350,12 @@ const ChannelItem = ({
                             backgroundColor='#FF3B30'
                             color='#FFFFFF'
                             borderColor={isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg}
-                            style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg, styles.iconBadge]}
+                            style={[
+                                styles.badge,
+                                isMuted && styles.mutedBadge,
+                                isOnCenterBg && styles.badgeOnCenterBg,
+                                isDmChannel ? styles.iconBadgeHomeDm : styles.iconBadge,
+                            ]}
                         />
                     )}
                 </View>
@@ -324,6 +379,7 @@ const ChannelItem = ({
                                 <FormattedConversationTime
                                     timestamp={lastPostAt}
                                     timeZone={currentTimezone ?? undefined}
+                                    isMilitaryTime={isMilitaryTime}
                                     style={[styles.timestamp, isOnCenterBg && styles.timestampOnCenterBg]}
                                 />
                             ) : (

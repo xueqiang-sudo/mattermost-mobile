@@ -26,6 +26,9 @@ import {username2Nickname} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
+const SCREEN_PADDING_H = 16;
+const CARD_RADIUS = 12;
+
 type InviteUserJoinTeamProps = {
     componentId: AvailableScreens;
     closeButtonId: string;
@@ -48,55 +51,76 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.centerChannelBg,
     },
     content: {
-        paddingHorizontal: 20,
+        paddingHorizontal: SCREEN_PADDING_H,
         paddingBottom: 24,
     },
     userCard: {
         marginTop: 16,
-        marginBottom: 20,
-        borderRadius: 16,
+        marginBottom: 16,
+        borderRadius: CARD_RADIUS,
         backgroundColor: theme.centerChannelBg,
         borderWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
         paddingHorizontal: 16,
         paddingVertical: 16,
         flexDirection: 'row',
         alignItems: 'center',
     },
+    noticeCard: {
+        marginBottom: 20,
+        padding: 16,
+        borderRadius: CARD_RADIUS,
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    noticeIconWrap: {
+        marginRight: 12,
+        marginTop: 2,
+    },
+    noticeText: {
+        flex: 1,
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        ...typography('Body', 75, 'Regular'),
+        lineHeight: 20,
+    },
     userTextContainer: {
         flex: 1,
         marginLeft: 12,
+        minWidth: 0,
     },
     userName: {
         color: theme.centerChannelColor,
-        ...typography('Heading', 300, 'SemiBold'),
+        ...typography('Body', 100, 'SemiBold'),
     },
     userAccount: {
-        marginTop: 2,
-        color: changeOpacity(theme.centerChannelColor, 0.72),
+        marginTop: 4,
+        color: changeOpacity(theme.centerChannelColor, 0.56),
         ...typography('Body', 75, 'Regular'),
     },
     sectionTitle: {
         marginBottom: 8,
         color: theme.centerChannelColor,
-        ...typography('Heading', 200, 'SemiBold'),
+        ...typography('Body', 100, 'SemiBold'),
     },
     sectionSubtitle: {
         marginBottom: 12,
-        color: changeOpacity(theme.centerChannelColor, 0.72),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
         ...typography('Body', 75, 'Regular'),
     },
     teamListCard: {
-        borderRadius: 12,
+        borderRadius: CARD_RADIUS,
         borderWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
         overflow: 'hidden',
     },
     teamRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 14,
+        paddingHorizontal: 16,
         paddingVertical: 14,
         borderBottomWidth: 1,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
@@ -116,11 +140,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75, 'SemiBold'),
     },
     inviteButton: {
-        minWidth: 90,
-        borderRadius: 6,
+        minWidth: 88,
+        borderRadius: 12,
         backgroundColor: theme.buttonBg,
         paddingHorizontal: 12,
-        paddingVertical: 7,
+        paddingVertical: 8,
         alignItems: 'center',
     },
     inviteButtonDisabled: {
@@ -139,7 +163,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     centerText: {
         marginTop: 12,
         textAlign: 'center',
-        color: changeOpacity(theme.centerChannelColor, 0.72),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
         ...typography('Body', 100, 'Regular'),
     },
     emptyStateIcon: {
@@ -148,13 +172,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     emptyStateTitle: {
         color: theme.centerChannelColor,
         textAlign: 'center',
-        ...typography('Heading', 400, 'SemiBold'),
+        ...typography('Body', 200, 'SemiBold'),
     },
     emptyStateParagraph: {
         marginTop: 8,
         textAlign: 'center',
-        color: changeOpacity(theme.centerChannelColor, 0.72),
-        ...typography('Body', 200),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        ...typography('Body', 100, 'Regular'),
         maxWidth: 320,
     },
 }));
@@ -402,6 +426,25 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid, contactTargetDepar
                             {`@${username2Nickname(targetUser, {locale: intl.locale, includeFullName: false})}`}
                         </Text>
                     </View>
+                </View>
+
+                <View
+                    style={styles.noticeCard}
+                    testID='invite_user_join_team.instant_add_notice'
+                >
+                    <View style={styles.noticeIconWrap}>
+                        <CompassIcon
+                            name='information-outline'
+                            size={22}
+                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                        />
+                    </View>
+                    <Text style={styles.noticeText}>
+                        {intl.formatMessage({
+                            id: 'invite_user_join_team.instant_add_notice',
+                            defaultMessage: 'Tapping Invite adds this person to the enterprise right away—there is no separate accept step in the app.',
+                        })}
+                    </Text>
                 </View>
 
                 <Text style={styles.sectionTitle}>

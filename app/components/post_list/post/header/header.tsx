@@ -208,7 +208,7 @@ const Header = (props: HeaderProps) => {
             style={[style.time, style.timeWeChat]}
             testID='post_header.date_time'
         >
-            {formatWeChatPostHeaderTime(intl, post.createAt, getUserTimezone(currentUser))}
+            {formatWeChatPostHeaderTime(intl, post.createAt, getUserTimezone(currentUser), isMilitaryTime)}
         </Text>
     ) : (
         <FormattedTime

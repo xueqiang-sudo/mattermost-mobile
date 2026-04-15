@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {formatTime, getReadableTimestamp, isSameDate, isSameMonth, isSameYear, isToday, isYesterday} from './datetime';
+import {formatTime, getConversationTimestampFormat, getReadableTimestamp, isSameDate, isSameMonth, isSameYear, isToday, isYesterday} from './datetime';
 
 describe('Datetime', () => {
     test('isSameDate (isSameMonth / isSameYear)', () => {
@@ -33,6 +33,57 @@ describe('Datetime', () => {
         const today = new Date();
         today.setDate(today.getDate() - 1);
         expect(isYesterday(today)).toBe(true);
+    });
+});
+
+describe('getConversationTimestampFormat', () => {
+    beforeAll(() => {
+        jest.useFakeTimers({doNotFake: ['nextTick']});
+        jest.setSystemTime(new Date('2025-06-15T12:00:00Z'));
+    });
+
+    afterAll(() => {
+        jest.useRealTimers();
+    });
+
+    it('should use 12-hour clock for today when isMilitaryTime is false', () => {
+        const timestamp = new Date('2025-06-15T12:00:00Z').getTime();
+        const result = getConversationTimestampFormat(timestamp, {
+            locale: 'en-US',
+            timeZone: 'America/New_York',
+            isMilitaryTime: false,
+        });
+        expect(result.type).toBe('time');
+        if (result.type === 'time') {
+            expect(result.value).toMatch(/AM|PM/i);
+        }
+    });
+
+    it('should use 24-hour clock for today when isMilitaryTime is true', () => {
+        const timestamp = new Date('2025-06-15T12:00:00Z').getTime();
+        const result = getConversationTimestampFormat(timestamp, {
+            locale: 'en-US',
+            timeZone: 'America/New_York',
+            isMilitaryTime: true,
+        });
+        expect(result.type).toBe('time');
+        if (result.type === 'time') {
+            expect(result.value).toMatch(/\b08:00\b/);
+            expect(result.value).not.toMatch(/AM|PM/i);
+        }
+    });
+
+    it('should default to 24-hour for today when isMilitaryTime is omitted', () => {
+        const timestamp = new Date('2025-06-15T12:00:00Z').getTime();
+        const result = getConversationTimestampFormat(timestamp, {
+            locale: 'en-US',
+            timeZone: 'America/New_York',
+        });
+        expect(result.type).toBe('time');
+        if (result.type === 'time') {
+            expect(result.value).toMatch(/\b08:00\b/);
+            expect(result.value).not.toMatch(/AM|PM/i);
+        }
     });
 });
 

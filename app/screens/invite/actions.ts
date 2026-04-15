@@ -72,7 +72,7 @@ export async function sendMembersInvites(serverUrl: string, teamId: string, sele
                 if (membersWithError[userId]) {
                     notSent.push({userId, reason: membersWithError[userId]});
                 } else {
-                    sent.push({userId, reason: formatMessage({id: 'invite.summary.member_invite', defaultMessage: 'Invited as a member of {teamDisplayName}'}, {teamDisplayName})});
+                    sent.push({userId, reason: formatMessage({id: 'invite.summary.member_added', defaultMessage: 'Added to {teamDisplayName} immediately'}, {teamDisplayName})});
                 }
             }
         }

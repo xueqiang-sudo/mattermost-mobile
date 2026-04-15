@@ -3,11 +3,9 @@
 
 import React from 'react';
 import {useIntl} from 'react-intl';
-import {Text} from 'react-native';
+import {Text, type StyleProp, type TextStyle} from 'react-native';
 
 import {getConversationTimestampFormat, type ConversationTimestampFormat} from '@utils/datetime';
-
-import type {StyleProp, TextStyle} from 'react-native';
 
 type Props = {
     timestamp: number;
@@ -15,6 +13,7 @@ type Props = {
 
     /** 用户时区，与聊天消息一致；空则使用设备默认 */
     timeZone?: string | null;
+    isMilitaryTime: boolean;
 };
 
 function formatTimestamp(fmt: ConversationTimestampFormat, intl: ReturnType<typeof useIntl>, timeZone?: string): string {
@@ -33,12 +32,20 @@ function formatTimestamp(fmt: ConversationTimestampFormat, intl: ReturnType<type
     }
 }
 
-export default function FormattedConversationTime({timestamp, style, timeZone}: Props) {
+export default function FormattedConversationTime({timestamp, style, timeZone, isMilitaryTime}: Props) {
     const intl = useIntl();
-    const fmt = getConversationTimestampFormat(timestamp, {locale: intl.locale, timeZone: timeZone ?? undefined});
+    const fmt = getConversationTimestampFormat(timestamp, {
+        locale: intl.locale,
+        timeZone: timeZone ?? undefined,
+        isMilitaryTime,
+    });
     const text = formatTimestamp(fmt, intl, timeZone ?? undefined);
-    return (<Text
-        style={style}
-        numberOfLines={1}
-            >{text}</Text>);
+    return (
+        <Text
+            style={style}
+            numberOfLines={1}
+        >
+            {text}
+        </Text>
+    );
 }

@@ -22,6 +22,8 @@ type SelectedChipProps = {
     };
     showAnimation?: boolean;
     avatarBorderRadius?: number;
+    /** 限制标签最大宽度，避免底部横向 chips 中单条过宽 */
+    labelMaxWidth?: number;
 }
 
 const CHIP_AVATAR_SIZE = 20;
@@ -34,6 +36,7 @@ export default function UserChip({
     action: receivedAction,
     showAnimation,
     avatarBorderRadius,
+    labelMaxWidth,
 }: SelectedChipProps) {
     const intl = useIntl();
 
@@ -72,6 +75,7 @@ export default function UserChip({
             showAnimation={showAnimation}
             label={name}
             prefix={picture}
+            maxWidth={labelMaxWidth}
         />
     );
 }

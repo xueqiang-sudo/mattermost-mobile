@@ -55,7 +55,7 @@ const DmAvatar = ({
         if (authorId && !author) {
             fetchUserByIdBatched(serverUrl, authorId);
         }
-    }, []);
+    }, [author, authorId, serverUrl]);
     if (author?.deleteAt) {
         return (
             <CompassIcon
@@ -66,12 +66,13 @@ const DmAvatar = ({
         );
     }
 
-    const borderRadius = isOnHome ? Math.round(size * 0.1) : undefined;
+    // isOnHome：圆形头像 + 列表行空间紧凑；右下角状态点（负偏移）易落在圆外空白角，观感差，故列表不展示状态（会话内仍可见）
+    const borderRadius = !isOnHome && isOnCenterBg ? Math.round(size / 2) : undefined;
     return (
         <ProfilePicture
             author={author}
             size={size}
-            showStatus={true}
+            showStatus={!isOnHome}
             statusSize={12}
             statusStyle={[styles.status, isOnCenterBg && styles.statusOnCenterBg]}
             containerStyle={style}

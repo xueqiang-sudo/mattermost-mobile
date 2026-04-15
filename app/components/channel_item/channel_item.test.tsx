@@ -42,6 +42,7 @@ describe('components/channel_list/categories/body/channel_item', () => {
                 isUnread={myChannel.isUnread}
                 mentionsCount={myChannel.mentionsCount}
                 hasCall={false}
+                isMilitaryTime={false}
             />,
         );
 
@@ -62,6 +63,7 @@ describe('components/channel_list/categories/body/channel_item', () => {
                 isUnread={myChannel.isUnread}
                 mentionsCount={myChannel.mentionsCount}
                 hasCall={false}
+                isMilitaryTime={false}
             />,
         );
 
@@ -82,6 +84,7 @@ describe('components/channel_list/categories/body/channel_item', () => {
                 isUnread={myChannel.isUnread}
                 mentionsCount={myChannel.mentionsCount}
                 hasCall={true}
+                isMilitaryTime={false}
             />,
         );
 

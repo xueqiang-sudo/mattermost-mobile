@@ -25,8 +25,13 @@ const enhanced = withObservables(['term'], ({database, term}: EnhanceProps) => {
         // eslint-disable-next-line max-nested-callbacks
         switchMap((teams) => of$(new Set(teams.map((t) => t.id)))),
     );
-    const joinedChannelsMatchStart = observeJoinedChannelsByTerm(database, term, MAX_RESULTS, true);
-    const joinedChannelsMatch = observeJoinedChannelsByTerm(database, term, MAX_RESULTS);
+    const currentTeamId$ = observeCurrentTeamId(database);
+    const joinedChannelsMatchStart = currentTeamId$.pipe(
+        switchMap((teamId) => observeJoinedChannelsByTerm(database, term, MAX_RESULTS, true, teamId)),
+    );
+    const joinedChannelsMatch = currentTeamId$.pipe(
+        switchMap((teamId) => observeJoinedChannelsByTerm(database, term, MAX_RESULTS, false, teamId)),
+    );
     const directChannelsMatchStart = observeDirectChannelsByTerm(database, term, MAX_RESULTS, true);
     const directChannelsMatch = observeDirectChannelsByTerm(database, term, MAX_RESULTS);
 
@@ -46,8 +51,10 @@ const enhanced = withObservables(['term'], ({database, term}: EnhanceProps) => {
         switchMap(([myChannels, tmIds]) => of$(removeChannelsFromArchivedTeams(myChannels, tmIds))),
     );
 
-    const archivedChannels = observeArchiveChannelsByTerm(database, term, MAX_RESULTS).pipe(
-        switchMap((archived) => retrieveChannels(database, archived)),
+    const archivedChannels = currentTeamId$.pipe(
+        switchMap((teamId) => observeArchiveChannelsByTerm(database, term, MAX_RESULTS, teamId).pipe(
+            switchMap((archived) => retrieveChannels(database, archived)),
+        )),
     );
 
     const usersMatchStart = observeNotDirectChannelsByTerm(database, term, MAX_RESULTS, true);
@@ -63,7 +70,7 @@ const enhanced = withObservables(['term'], ({database, term}: EnhanceProps) => {
         archivedChannels,
         channelsMatch,
         channelsMatchStart,
-        currentTeamId: observeCurrentTeamId(database),
+        currentTeamId: currentTeamId$,
         restrictDirectMessage,
         showTeamName: teamIds.pipe(switchMap((ids) => of$(ids.size > 1))),
         teamIds,

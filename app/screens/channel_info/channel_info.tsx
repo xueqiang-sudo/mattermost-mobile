@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {ScrollView, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
@@ -16,9 +16,17 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal} from '@screens/navigation';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {makeStyleSheetFromTheme} from '@utils/theme';
 
 import ChannelInfoAppBindings from './app_bindings';
+import ChannelInfoCard from './channel_info_card';
+import {
+    CHANNEL_INFO_CARD_INNER_PADDING,
+    CHANNEL_INFO_HERO_TO_ACTIONS_GAP,
+    CHANNEL_INFO_SCREEN_PADDING_H,
+    CHANNEL_INFO_SECTION_GAP,
+    makeChannelInfoModalOptionBoxStyle,
+} from './channel_info_constants';
 import DestructiveOptions from './destructive_options';
 import Extra from './extra';
 import Options from './options';
@@ -48,16 +56,24 @@ const edges: Edge[] = ['bottom', 'left', 'right'];
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     content: {
-        paddingHorizontal: 20,
-        paddingBottom: 16,
+        paddingHorizontal: CHANNEL_INFO_SCREEN_PADDING_H,
+        paddingTop: 8,
+        paddingBottom: 24,
     },
     flex: {
         flex: 1,
+        backgroundColor: theme.centerChannelBg,
     },
-    separator: {
-        height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        marginVertical: 8,
+    safeArea: {
+        flex: 1,
+        backgroundColor: theme.centerChannelBg,
+    },
+    sectionAfterCard: {
+        marginTop: CHANNEL_INFO_SECTION_GAP,
+    },
+    extraBelowActions: {
+        marginTop: 8,
+        marginBottom: CHANNEL_INFO_SECTION_GAP,
     },
 }));
 
@@ -82,6 +98,11 @@ const ChannelInfo = ({
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
+    const modalOptionBoxStyle = useMemo(
+        () => makeChannelInfoModalOptionBoxStyle(theme),
+        [theme],
+    );
+
     // NOTE: isCallsEnabledInChannel will be true/false (not undefined) based on explicit state + the DefaultEnabled system setting
     //   which comes from observeIsCallsEnabledInChannel
     let callsAvailable = isCallsEnabledInChannel;
@@ -105,7 +126,7 @@ const ChannelInfo = ({
         >
             <SafeAreaView
                 edges={edges}
-                style={styles.flex}
+                style={styles.safeArea}
                 testID='channel_info.screen'
             >
                 <ScrollView
@@ -114,60 +135,84 @@ const ChannelInfo = ({
                     contentContainerStyle={styles.content}
                     testID='channel_info.scroll_view'
                 >
-                    <Title
-                        channelId={channelId}
-                        type={type}
-                    />
-                    {isBookmarksEnabled &&
-                        <ChannelBookmarks
+                    <ChannelInfoCard
+                        contentStyle={{padding: CHANNEL_INFO_CARD_INNER_PADDING}}
+                        testID='channel_info.card.hero'
+                    >
+                        <Title
                             channelId={channelId}
-                            canAddBookmarks={canAddBookmarks}
-                            showInInfo={true}
+                            type={type}
                         />
-                    }
-                    <ChannelActions
-                        channelId={channelId}
-                        inModal={true}
-                        dismissChannelInfo={onPressed}
-                        callsEnabled={callsAvailable}
-                        testID='channel_info.channel_actions'
-                    />
-                    <Extra channelId={channelId}/>
-                    <View style={styles.separator}/>
-                    <Options
-                        channelId={channelId}
-                        type={type}
-                        callsEnabled={callsAvailable}
-                        canManageMembers={canManageMembers}
-                        isCRTEnabled={isCRTEnabled}
-                        canManageSettings={canManageSettings}
-                        isPlaybooksEnabled={isPlaybooksEnabled}
-                    />
-                    <View style={styles.separator}/>
+                        {isBookmarksEnabled &&
+                            <ChannelBookmarks
+                                canAddBookmarks={canAddBookmarks}
+                                channelId={channelId}
+                                hideAddBookmarkWhenEmptyInInfo={true}
+                                separator={false}
+                                showInInfo={true}
+                            />
+                        }
+                    </ChannelInfoCard>
+                    <ChannelInfoCard
+                        contentStyle={{
+                            paddingVertical: 12,
+                            paddingHorizontal: 8,
+                        }}
+                        style={{marginTop: CHANNEL_INFO_HERO_TO_ACTIONS_GAP}}
+                        testID='channel_info.card.actions'
+                    >
+                        <ChannelActions
+                            canManageMembers={canManageMembers}
+                            channelId={channelId}
+                            channelType={type}
+                            dismissChannelInfo={onPressed}
+                            callsEnabled={callsAvailable}
+                            inModal={true}
+                            optionBoxContainerStyle={modalOptionBoxStyle}
+                            testID='channel_info.channel_actions'
+                        />
+                    </ChannelInfoCard>
+                    <View style={styles.extraBelowActions}>
+                        <Extra channelId={channelId}/>
+                    </View>
+                    <ChannelInfoCard
+                        contentStyle={{
+                            paddingVertical: 8,
+                            paddingHorizontal: CHANNEL_INFO_CARD_INNER_PADDING,
+                        }}
+                        testID='channel_info.card.options'
+                    >
+                        <Options
+                            channelId={channelId}
+                            type={type}
+                            callsEnabled={callsAvailable}
+                            canManageMembers={canManageMembers}
+                            isCRTEnabled={isCRTEnabled}
+                            canManageSettings={canManageSettings}
+                            isPlaybooksEnabled={isPlaybooksEnabled}
+                        />
+                    </ChannelInfoCard>
                     {convertGMOptionAvailable &&
-                    <>
-                        <ConvertToChannelLabel channelId={channelId}/>
-                        <View style={styles.separator}/>
-                    </>
+                        <View style={styles.sectionAfterCard}>
+                            <ConvertToChannelLabel channelId={channelId}/>
+                        </View>
                     }
                     {canEnableDisableCalls &&
-                        <>
+                        <View style={styles.sectionAfterCard}>
                             <ChannelInfoEnableCalls
                                 channelId={channelId}
                                 enabled={isCallsEnabledInChannel}
                             />
-                            <View style={styles.separator}/>
-                        </>
+                        </View>
                     }
                     <ChannelInfoAppBindings
                         channelId={channelId}
-                        serverUrl={serverUrl}
                         dismissChannelInfo={onPressed}
+                        serverUrl={serverUrl}
                     />
                     <DestructiveOptions
                         channelId={channelId}
                         componentId={componentId}
-                        type={type}
                     />
                 </ScrollView>
             </SafeAreaView>

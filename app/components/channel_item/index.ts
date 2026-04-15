@@ -3,21 +3,24 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
-import {of as of$, combineLatest} from 'rxjs';
-import {switchMap, distinctUntilChanged, map, shareReplay} from 'rxjs/operators';
+import {asyncScheduler, combineLatest, of as of$} from 'rxjs';
+import {distinctUntilChanged, map, shareReplay, switchMap, throttleTime} from 'rxjs/operators';
 
 import {observeChannelsWithCalls} from '@calls/state';
-import {General} from '@constants';
+import {General, Preferences} from '@constants';
 import {withServerUrl} from '@context/server';
+import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
 import {observeIsMutedSetting, observeMyChannel, queryChannelMembers} from '@queries/servers/channel';
 import {queryDraft} from '@queries/servers/drafts';
 import {observeLastPostInChannel} from '@queries/servers/post';
+import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {observeCurrentChannelId, observeCurrentUserId} from '@queries/servers/system';
 import {observeTeam} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
 import {getTimezone} from '@utils/user';
 
-import ChannelItem from './channel_item';
+import ChannelItem, {ROW_HEIGHT, ROW_HEIGHT_CENTER_LIST, ROW_HEIGHT_CONVERSATION, ROW_HEIGHT_WITH_TEAM} from './channel_item';
+import {HOME_CONVERSATION_LAST_POST_THROTTLE_MS} from './conversation_list_constants';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type ChannelModel from '@typings/database/models/servers/channel';
@@ -31,11 +34,10 @@ type EnhanceProps = WithDatabaseArgs & {
     isOnHome?: boolean;
 }
 
-const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActive', 'shouldHighlightState', 'isOnHome'], ({
+const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHighlightState', 'isOnHome'], ({
     channel,
     database,
     serverUrl,
-    showTeamName = false,
     shouldHighlightActive = false,
     shouldHighlightState = false,
     isOnHome = false,
@@ -114,7 +116,15 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
         distinctUntilChanged(),
     );
 
-    const lastPost = observeLastPostInChannel(database, channel.id).pipe(shareReplay({bufferSize: 1, refCount: true}));
+    const lastPostSource = observeLastPostInChannel(database, channel.id).pipe(
+        shareReplay({bufferSize: 1, refCount: true}),
+    );
+    const lastPost = isOnHome ?
+        lastPostSource.pipe(
+            throttleTime(HOME_CONVERSATION_LAST_POST_THROTTLE_MS, asyncScheduler, {leading: true, trailing: true}),
+            shareReplay({bufferSize: 1, refCount: true}),
+        ) :
+        lastPostSource;
     const lastPostAt = (isOnHome && shouldHighlightState) ?
         combineLatest([lastPost, myChannel]).pipe(
             map(([post, mc]) => Math.max(post?.createAt ?? 0, mc?.lastPostAt ?? 0)),
@@ -132,6 +142,12 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
         distinctUntilChanged(),
     );
 
+    const isMilitaryTime = queryDisplayNamePreferences(database).
+        observeWithColumns(['value']).pipe(
+            map((prefs) => getDisplayNamePreferenceAsBool(prefs, Preferences.USE_MILITARY_TIME)),
+            distinctUntilChanged(),
+        );
+
     return {
         channel: 'observe' in channel ? channel.observe() : of$(channel),
         currentUserId,
@@ -147,7 +163,9 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
         hasCall,
         lastPostAt,
         lastPostPreview,
+        isMilitaryTime,
     };
 });
 
+export {ROW_HEIGHT, ROW_HEIGHT_CENTER_LIST, ROW_HEIGHT_CONVERSATION, ROW_HEIGHT_WITH_TEAM};
 export default React.memo(withDatabase(withServerUrl(enhance(ChannelItem))));

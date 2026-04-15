@@ -6,8 +6,9 @@ import {Observable, of as of$} from 'rxjs';
 import {combineLatestWith, switchMap} from 'rxjs/operators';
 
 import {queryMyRecentChannels} from '@queries/servers/channel';
+import {observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams} from '@queries/servers/team';
-import {removeChannelsFromArchivedTeams, retrieveChannels} from '@screens/find_channels/utils';
+import {filterChannelsToCurrentTeam, removeChannelsFromArchivedTeams, retrieveChannels} from '@screens/find_channels/utils';
 
 import UnfilteredList from './unfiltered_list';
 
@@ -27,6 +28,8 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
             switchMap((myChannels) => retrieveChannels(database, myChannels, true)),
             combineLatestWith(teamIds),
             switchMap(([myChannels, tmIds]) => of$(removeChannelsFromArchivedTeams(myChannels, tmIds))),
+            combineLatestWith(observeCurrentTeamId(database)),
+            switchMap(([channels, currentTeamId]) => of$(filterChannelsToCurrentTeam(channels, currentTeamId))),
         );
 
     return {

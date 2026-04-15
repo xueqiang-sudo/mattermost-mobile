@@ -145,17 +145,24 @@ export const updateLocalUser = async (
 export const storeProfile = async (serverUrl: string, profile: UserProfile) => {
     try {
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const user = await getUserById(database, profile.id);
-        if (user) {
-            return {user};
-        }
 
+        // Always merge through handleUsers so existing DB rows get fields from the latest UserProfile
+        // (e.g. search result) instead of returning stale data when the user already exists.
         const records = await operator.handleUsers({
             users: [profile],
             prepareRecordsOnly: false,
         });
 
-        return {user: records[0]};
+        if (records.length > 0 && records[0]) {
+            return {user: records[0]};
+        }
+
+        const user = await getUserById(database, profile.id);
+        if (user) {
+            return {user};
+        }
+
+        return {error: new Error('storeProfile: no user record')};
     } catch (error) {
         logError('Failed storeProfile', error);
         return {error};

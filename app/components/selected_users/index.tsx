@@ -11,7 +11,7 @@ import {CHIP_HEIGHT} from '@components/chips/constants';
 import SelectedUserChipById from '@components/chips/selected_user_chip_by_id';
 import Toast from '@components/toast';
 import {useTheme} from '@context/theme';
-import {useIsTablet, useKeyboardHeightWithDuration} from '@hooks/device';
+import {useIsTablet, useKeyboardHeightWithDuration, useWindowDimensions} from '@hooks/device';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 type Props = {
@@ -85,6 +85,11 @@ type Props = {
      * When set, avatar is a rounded square. Omit for circular.
      */
     avatarBorderRadius?: number;
+
+    /**
+     * 已选用户 chip 内显示名的最大宽度；不传则沿用 BaseChip 默认（约屏宽的 70%）。
+     */
+    chipLabelMaxWidth?: number;
 }
 
 const BUTTON_HEIGHT = 48;
@@ -92,13 +97,15 @@ const CHIP_GAP = 8;
 const CHIP_HEIGHT_WITH_MARGIN = CHIP_HEIGHT + CHIP_GAP;
 const EXPOSED_CHIP_HEIGHT = 0.33 * CHIP_HEIGHT;
 const MAX_CHIP_ROWS = 2;
-const SCROLL_MARGIN_TOP = 20;
+const SCROLL_MARGIN_TOP = 12;
 const SCROLL_MARGIN_BOTTOM = 12;
 const USERS_CHIPS_MAX_HEIGHT = (CHIP_HEIGHT_WITH_MARGIN * MAX_CHIP_ROWS) + EXPOSED_CHIP_HEIGHT;
 const SCROLL_MAX_HEIGHT = USERS_CHIPS_MAX_HEIGHT + SCROLL_MARGIN_TOP + SCROLL_MARGIN_BOTTOM;
 const PANEL_MAX_HEIGHT = SCROLL_MAX_HEIGHT + BUTTON_HEIGHT;
 const MARGIN_BOTTOM = 20;
 const TOAST_BOTTOM_MARGIN = 24;
+/** Single-row chip strip: chip 24px + vertical padding on allowed scale */
+const CHIPS_STRIP_MIN_HEIGHT = CHIP_HEIGHT + 8 + 8;
 
 const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
     return {
@@ -128,7 +135,8 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             flexDirection: 'row',
             alignItems: 'center',
             gap: CHIP_GAP,
-            paddingVertical: 4,
+            paddingVertical: 8,
+            minHeight: CHIPS_STRIP_MIN_HEIGHT,
         },
         message: {
             color: theme.centerChannelBg,
@@ -155,14 +163,22 @@ export default function SelectedUsers({
     toastMessage,
     maxUsers,
     avatarBorderRadius,
+    chipLabelMaxWidth,
 }: Props) {
     const theme = useTheme();
+    const {width: windowWidth} = useWindowDimensions();
+    const resolvedChipLabelMaxWidth = useMemo(() => {
+        if (chipLabelMaxWidth !== undefined) {
+            return chipLabelMaxWidth;
+        }
+        return Math.min(200, Math.max(96, Math.round((windowWidth - 32 - 140) / 2)));
+    }, [chipLabelMaxWidth, windowWidth]);
     const style = getStyleFromTheme(theme);
     const keyboard = useKeyboardHeightWithDuration();
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
 
-    const usersChipsHeight = useSharedValue(0);
+    const usersChipsHeight = useSharedValue(CHIPS_STRIP_MIN_HEIGHT);
     const [isVisible, setIsVisible] = useState(false);
     const numberSelectedIds = selectedIds.size;
 
@@ -179,11 +195,12 @@ export default function SelectedUsers({
                     teammateNameDisplay={teammateNameDisplay}
                     testID={userItemTestID}
                     avatarBorderRadius={avatarBorderRadius}
+                    labelMaxWidth={resolvedChipLabelMaxWidth}
                 />,
             );
         }
         return u;
-    }, [selectedIds, teammateNameDisplay, onRemove, testID, avatarBorderRadius]);
+    }, [selectedIds, teammateNameDisplay, onRemove, testID, avatarBorderRadius, resolvedChipLabelMaxWidth]);
 
     const totalPanelHeight = useDerivedValue(() => (
         isVisible ? usersChipsHeight.value + SCROLL_MARGIN_BOTTOM + SCROLL_MARGIN_TOP + BUTTON_HEIGHT : 0
@@ -194,10 +211,8 @@ export default function SelectedUsers({
     }, [onPress]);
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
-        usersChipsHeight.value = Math.min(
-            USERS_CHIPS_MAX_HEIGHT,
-            e.nativeEvent.layout.height,
-        );
+        const h = Math.max(CHIPS_STRIP_MIN_HEIGHT, e.nativeEvent.layout.height);
+        usersChipsHeight.value = Math.min(USERS_CHIPS_MAX_HEIGHT, h);
     }, [usersChipsHeight]);
 
     const androidMaxHeight = Platform.select({
@@ -206,11 +221,14 @@ export default function SelectedUsers({
         },
     });
 
-    const animatedContainerStyle = useAnimatedStyle(() => ({
-        marginBottom: withTiming(keyboardOverlap + ((Platform.OS === 'android' || isTablet) ? MARGIN_BOTTOM : -MARGIN_BOTTOM), {duration: keyboard.duration}),
-        backgroundColor: isVisible ? theme.centerChannelBg : 'transparent',
-        ...androidMaxHeight,
-    }), [keyboardOverlap, keyboard.duration, isVisible, isTablet, theme.centerChannelBg]);
+    const animatedContainerStyle = useAnimatedStyle(() => {
+        const extraBottom = (Platform.OS === 'android' || isTablet) ? MARGIN_BOTTOM : 0;
+        return {
+            marginBottom: withTiming(Math.max(0, keyboardOverlap) + extraBottom, {duration: keyboard.duration}),
+            backgroundColor: isVisible ? theme.centerChannelBg : 'transparent',
+            ...androidMaxHeight,
+        };
+    }, [keyboardOverlap, keyboard.duration, isVisible, isTablet, theme.centerChannelBg]);
 
     const animatedToastStyle = useAnimatedStyle(() => {
         return {
@@ -222,8 +240,8 @@ export default function SelectedUsers({
 
     const animatedViewStyle = useAnimatedStyle(() => ({
         height: withTiming(totalPanelHeight.value, {duration: 250}),
-        borderWidth: isVisible ? 1 : 0,
         maxHeight: isVisible ? PANEL_MAX_HEIGHT + BUTTON_HEIGHT : 0,
+        overflow: 'hidden',
     }), [isVisible]);
 
     const animatedButtonStyle = useAnimatedStyle(() => ({

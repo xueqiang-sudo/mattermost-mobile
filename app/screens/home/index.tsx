@@ -76,7 +76,7 @@ export function HomeScreen(props: HomeProps) {
     const handleFindChannels = useCallback(() => {
         if (!NavigationStore.getScreensInStack().includes(Screens.FIND_CHANNELS)) {
             findChannels(
-                intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Find Channels'}),
+                intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
                 theme,
             );
         }

@@ -29,6 +29,7 @@ import {useIsTablet} from '@hooks/device';
 import {goToScreen} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 
+import InviteHowItWorks from './invite_how_it_works';
 import SelectionSearchBar from './selection_search_bar';
 import SelectionTeamBar from './selection_team_bar';
 import TextItem from './text_item';
@@ -38,6 +39,8 @@ const AUTOCOMPLETE_ADJUST = 5;
 
 const INITIAL_BATCH_TO_RENDER = 15;
 const SCROLL_EVENT_THROTTLE = 60;
+const SCREEN_PADDING_H = 16;
+const LIST_CORNER_RADIUS = 12;
 
 const keyboardDismissProp = Platform.select({
     android: {
@@ -65,35 +68,35 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             backgroundColor: theme.centerChannelBg,
         },
         searchList: {
-            left: 16,
-            right: 16,
+            left: SCREEN_PADDING_H,
+            right: SCREEN_PADDING_H,
             position: 'absolute',
             bottom: Platform.select({ios: 'auto', default: undefined}),
         },
         searchListBorder: {
             borderWidth: 1,
-            borderColor: changeOpacity(theme.buttonBg, 0.2),
-            borderRadius: 16,
-            elevation: 4,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+            borderRadius: LIST_CORNER_RADIUS,
+            elevation: 2,
         },
         searchListPadding: {
             paddingVertical: 8,
             flex: 1,
         },
         searchListShadow: {
-            shadowColor: theme.buttonBg,
-            shadowOpacity: 0.12,
-            shadowRadius: 16,
+            shadowColor: theme.centerChannelColor,
+            shadowOpacity: 0.06,
+            shadowRadius: 8,
             shadowOffset: {
                 width: 0,
-                height: 8,
+                height: 4,
             },
-            borderRadius: 16,
+            borderRadius: LIST_CORNER_RADIUS,
             backgroundColor: theme.centerChannelBg,
         },
         searchListFlatList: {
             backgroundColor: theme.centerChannelBg,
-            borderRadius: 16,
+            borderRadius: LIST_CORNER_RADIUS,
             paddingHorizontal: 8,
         },
         selectedItems: {
@@ -104,32 +107,25 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'flex-start',
             flexDirection: 'row',
             flexWrap: 'wrap',
-            marginVertical: 16,
-            marginHorizontal: 8,
-            gap: 10,
+            marginVertical: 12,
+            marginHorizontal: 0,
+            gap: 8,
         },
         contentContainer: {
-            paddingHorizontal: 20,
-            paddingTop: 20,
+            paddingHorizontal: SCREEN_PADDING_H,
+            paddingTop: 4,
+            paddingBottom: 16,
         },
         optionsContainer: {
-            marginTop: 24,
+            marginTop: 16,
         },
         optionCard: {
             backgroundColor: theme.centerChannelBg,
-            borderRadius: 16,
-            padding: 20,
+            borderRadius: LIST_CORNER_RADIUS,
+            padding: 16,
             marginBottom: 16,
             borderWidth: 1,
-            borderColor: changeOpacity(theme.centerChannelColor, 0.06),
-            shadowColor: theme.centerChannelColor,
-            shadowOpacity: 0.06,
-            shadowRadius: 12,
-            shadowOffset: {
-                width: 0,
-                height: 4,
-            },
-            elevation: 3,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
         },
     };
 });
@@ -165,6 +161,7 @@ type SelectionProps = {
     onClose: () => Promise<void>;
     canInviteGuests: boolean;
     allowGuestMagicLink: boolean;
+    emailInvitationsEnabled: boolean;
 }
 
 /**
@@ -199,6 +196,7 @@ export default function Selection({
     onSendOptionsChange,
     canInviteGuests,
     allowGuestMagicLink,
+    emailInvitationsEnabled,
 }: SelectionProps) {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -327,7 +325,7 @@ export default function Selection({
                 />
             </TouchableWithFeedback>
         ) : (
-            <View style={{borderRadius: 8, overflow: 'hidden'}}>
+            <View style={{borderRadius: 12, overflow: 'hidden'}}>
                 <UserItem
                     user={item}
                     testID='invite.search_list_user_item'
@@ -448,6 +446,7 @@ export default function Selection({
                 onClose={onClose}
             />
             <View style={styles.contentContainer}>
+                <InviteHowItWorks emailInvitationsEnabled={emailInvitationsEnabled}/>
                 <SelectionSearchBar
                     term={term}
                     onSearchChange={onSearchChange}

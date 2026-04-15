@@ -13,6 +13,7 @@ import {goToScreen} from '@screens/navigation';
 import {fireEvent, renderWithIntl} from '@test/intl-test-helper';
 import TestHelper from '@test/test_helper';
 
+import InviteHowItWorks from './invite_how_it_works';
 import Selection from './selection';
 import SelectionSearchBar from './selection_search_bar';
 import SelectionTeamBar from './selection_team_bar';
@@ -27,6 +28,11 @@ jest.mocked(SelectionSearchBar).mockImplementation(
 jest.mock('./selection_team_bar');
 jest.mocked(SelectionTeamBar).mockImplementation(
     (props) => React.createElement('SelectionTeamBar', {testID: 'selection-team-bar', ...props}),
+);
+
+jest.mock('./invite_how_it_works');
+jest.mocked(InviteHowItWorks).mockImplementation(
+    (props) => React.createElement('InviteHowItWorks', {testID: 'invite-how-it-works', ...props}),
 );
 
 jest.mock('./text_item');
@@ -102,6 +108,7 @@ describe('Selection', () => {
             onClose: mockOnClose,
             canInviteGuests: true,
             allowGuestMagicLink: true,
+            emailInvitationsEnabled: true,
         };
     }
 
@@ -115,6 +122,7 @@ describe('Selection', () => {
 
         expect(getByTestId('selection-search-bar')).toBeTruthy();
         expect(getByTestId('selection-team-bar')).toBeTruthy();
+        expect(getByTestId('invite-how-it-works')).toBeTruthy();
     });
 
     it('renders selected items correctly', () => {
@@ -313,6 +321,16 @@ describe('Selection', () => {
         expect(teamBar.teamId).toBe('team-1');
         expect(teamBar.teamDisplayName).toBe('Test Team');
         expect(teamBar.onClose).toBe(mockOnClose);
+    });
+
+    it('passes emailInvitationsEnabled to InviteHowItWorks', () => {
+        const props = getBaseProps();
+        props.emailInvitationsEnabled = false;
+
+        renderWithIntl(<Selection {...props}/>);
+
+        const howItWorks = jest.mocked(InviteHowItWorks).mock.calls[0][0];
+        expect(howItWorks.emailInvitationsEnabled).toBe(false);
     });
 });
 

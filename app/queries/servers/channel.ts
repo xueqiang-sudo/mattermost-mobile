@@ -17,7 +17,7 @@ import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
 
 import {prepareDeletePost} from './post';
 import {queryRoles} from './role';
-import {observeCurrentChannelId, getCurrentChannelId, observeCurrentUserId, observeConfigBooleanValue} from './system';
+import {observeCurrentChannelId, observeCurrentTeamId, getCurrentChannelId, observeCurrentUserId, observeConfigBooleanValue} from './system';
 import {observeCurrentUser, observeTeammateNameDisplay} from './user';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
@@ -608,6 +608,24 @@ export function queryMyJoinedTeamChannels(database: Database) {
     );
 }
 
+/**
+ * Joined open/private channels for a single team (e.g. current enterprise).
+ * When teamId is empty, yields no rows.
+ */
+export function queryMyJoinedTeamChannelsForTeam(database: Database, teamId: string) {
+    if (!teamId) {
+        return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
+    }
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.eq(0)),
+            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
+            Q.where('team_id', Q.eq(teamId)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
 export function queryMyGroupMessageChannels(database: Database) {
     return queryAllMyChannel(database).extend(
         Q.on(CHANNEL, Q.and(
@@ -623,6 +641,18 @@ export const observeMyJoinedTeamChannels = (database: Database): Observable<Chan
         database,
         queryMyJoinedTeamChannels(database).observeWithColumns(['last_viewed_at']),
         true,
+    );
+};
+
+/** Open/private channels joined in the current team only (follows system current_team_id). */
+export const observeMyJoinedTeamChannelsForCurrentTeam = (database: Database): Observable<ChannelModel[]> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((teamId) => observeChannelsForMyChannelsList(
+            database,
+            queryMyJoinedTeamChannelsForTeam(database, teamId).observeWithColumns(['last_viewed_at']),
+            true,
+        )),
     );
 };
 
@@ -751,7 +781,7 @@ export const observeNotDirectChannelsByTerm = (database: Database, term: string,
     );
 };
 
-export const observeJoinedChannelsByTerm = (database: Database, term: string, take = 20, matchStart = false) => {
+export const observeJoinedChannelsByTerm = (database: Database, term: string, take = 20, matchStart = false, scopeTeamId?: string) => {
     if (term.startsWith('@')) {
         return of$([]);
     }
@@ -761,27 +791,32 @@ export const observeJoinedChannelsByTerm = (database: Database, term: string, ta
     if (!matchStart) {
         displayname = `c.display_name LIKE '%${value}%' AND c.display_name NOT LIKE '${value}%'`;
     }
+    const teamScopeClause = scopeTeamId ? ` AND c.team_id='${scopeTeamId.replace(/'/g, "''")}'` : '';
     return database.get<MyChannelModel>(MY_CHANNEL).query(
         Q.unsafeSqlQuery(`SELECT DISTINCT my.* FROM ${MY_CHANNEL} my
-        INNER JOIN ${CHANNEL} c ON c.id=my.id AND c.delete_at=0 AND c.team_id !='' AND ${displayname}
+        INNER JOIN ${CHANNEL} c ON c.id=my.id AND c.delete_at=0 AND c.team_id !=''${teamScopeClause} AND ${displayname}
         ORDER BY my.last_viewed_at DESC
         LIMIT ${take}`),
     ).observe();
 };
 
-export const observeArchiveChannelsByTerm = (database: Database, term: string, take = 20) => {
+export const observeArchiveChannelsByTerm = (database: Database, term: string, take = 20, scopeTeamId?: string) => {
     if (term.startsWith('@')) {
         return of$([]);
     }
 
     const value = sanitizeLikeString(term);
     const displayname = `%${value}%`;
+    const channelConditions: Q.Where[] = [
+        Q.where('delete_at', Q.gt(0)),
+        Q.where('team_id', Q.notEq('')),
+        Q.where('display_name', Q.like(displayname)),
+    ];
+    if (scopeTeamId) {
+        channelConditions.push(Q.where('team_id', Q.eq(scopeTeamId)));
+    }
     return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(CHANNEL, Q.and(
-            Q.where('delete_at', Q.gt(0)),
-            Q.where('team_id', Q.notEq('')),
-            Q.where('display_name', Q.like(displayname)),
-        )),
+        Q.on(CHANNEL, Q.and(...channelConditions)),
         Q.sortBy('last_viewed_at'),
         Q.take(take),
     ).observe();

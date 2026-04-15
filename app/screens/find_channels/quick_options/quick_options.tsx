@@ -96,7 +96,7 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
                     <OptionBox
                         iconName='plus'
                         onPress={createNewChannel}
-                        text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New Channel'})}
+                        text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New group'})}
                         testID='find_channels.quick_options.new_channel.option'
                     />
                 </>

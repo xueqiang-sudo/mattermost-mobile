@@ -10,13 +10,13 @@ import {of as of$} from 'rxjs';
 import {combineLatestWith, switchMap} from 'rxjs/operators';
 
 import {switchToChannelById} from '@actions/remote/channel';
-import ChannelItem from '@components/channel_item';
+import ChannelItem, {ROW_HEIGHT_CENTER_LIST} from '@components/channel_item';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import SecurityManager from '@managers/security_manager';
-import {observeMyGroupMessageChannels, observeMyJoinedTeamChannels} from '@queries/servers/channel';
+import {observeMyGroupMessageChannels, observeMyJoinedTeamChannelsForCurrentTeam} from '@queries/servers/channel';
 import {queryJoinedTeams} from '@queries/servers/team';
 import {dismissModal, popTopScreen} from '@screens/navigation';
 import {removeChannelsFromArchivedTeams} from '@screens/find_channels/utils';
@@ -30,7 +30,7 @@ import type ChannelModel from '@typings/database/models/servers/channel';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const SCREEN_PADDING_H = 16;
-const LIST_ESTIMATED_ITEM_SIZE = 64;
+const LIST_ESTIMATED_ITEM_SIZE = ROW_HEIGHT_CENTER_LIST;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
@@ -81,11 +81,11 @@ const JoinedChannelsAndGroups = ({
     const emptyMessage = activeTab === 'channels' ?
         intl.formatMessage({
             id: 'joined_channels.empty.channels',
-            defaultMessage: 'No channels',
+            defaultMessage: 'No groups',
         }) :
         intl.formatMessage({
             id: 'joined_channels.empty.group_messages',
-            defaultMessage: 'No group messages',
+            defaultMessage: 'No discussion groups',
         });
 
     const onChannelPress = useCallback(async (channel: ChannelModel | Channel) => {
@@ -93,14 +93,16 @@ const JoinedChannelsAndGroups = ({
         switchToChannelById(serverUrl, channel.id);
     }, [serverUrl]);
 
-    const renderItem = useCallback(({item}: ListRenderItemInfo<ChannelModel>) => (
+    const renderItem = useCallback(({item, index}: ListRenderItemInfo<ChannelModel>) => (
         <ChannelItem
             channel={item}
             isOnCenterBg={true}
+            listRowIndex={index}
             onPress={onChannelPress}
             shouldHighlightState={true}
             showTeamName={showTeamName}
             testID='joined_channels.list.channel_item'
+            useListInitialsForNonDm={true}
         />
     ), [onChannelPress, showTeamName]);
 
@@ -150,25 +152,20 @@ const JoinedChannelsAndGroups = ({
 };
 
 const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
-    const teamsCount = queryJoinedTeams(database).observeCount();
     const teamIds = queryJoinedTeams(database).observe().pipe(
         switchMap((teams) => of$(new Set(teams.map((t) => t.id)))),
     );
 
-    const teamChannels = observeMyJoinedTeamChannels(database).pipe(
+    const teamChannels = observeMyJoinedTeamChannelsForCurrentTeam(database).pipe(
         combineLatestWith(teamIds),
         switchMap(([channels, tmIds]) => of$(removeChannelsFromArchivedTeams(channels, tmIds))),
     );
 
     const groupMessages = observeMyGroupMessageChannels(database);
 
-    const showTeamName = teamsCount.pipe(
-        switchMap((count) => of$(count > 1)),
-    );
-
     return {
         groupMessages,
-        showTeamName,
+        showTeamName: of$(false),
         teamChannels,
     };
 });

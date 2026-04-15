@@ -130,7 +130,7 @@ export default function ServerUserList({
             term={term}
             testID={testID}
             tutorialWatched={tutorialWatched}
-            includeUserMargin={true}
+            includeUserMargin={location !== Screens.CREATE_DIRECT_MESSAGE}
             location={location}
             customSection={customSection}
             contactSelectLayout={location === Screens.CREATE_DIRECT_MESSAGE}

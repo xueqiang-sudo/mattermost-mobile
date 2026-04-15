@@ -122,6 +122,20 @@ describe('storeProfile', () => {
         expect(userModel).toBeDefined();
     });
 
+    it('merges incoming profile when user already exists', async () => {
+        const initial = TestHelper.fakeUser({
+            id: 'userid-merge',
+            username: 'mergeuser',
+            nickname: 'OldNick',
+            roles: '',
+        });
+        await operator.handleUsers({users: [initial], prepareRecordsOnly: false});
+        const incoming = {...initial, nickname: 'NewNick'};
+        const {user: userModel} = await storeProfile(serverUrl, incoming);
+        expect(userModel).toBeDefined();
+        expect(userModel?.nickname).toBe('NewNick');
+    });
+
     it('base case - no user', async () => {
         const {user: userModel} = await storeProfile(serverUrl, user);
         expect(userModel).toBeDefined();

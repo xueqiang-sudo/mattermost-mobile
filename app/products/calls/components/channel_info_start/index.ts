@@ -11,7 +11,10 @@ import {observeChannelsWithCalls, observeCurrentCall} from '@calls/state';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 
+import type {StyleProp, ViewStyle} from 'react-native';
+
 type EnhanceProps = WithDatabaseArgs & {
+    boxContainerStyle?: StyleProp<ViewStyle>;
     serverUrl: string;
     channelId: string;
 }

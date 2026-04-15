@@ -4,6 +4,7 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
+import {type StyleProp, type ViewStyle} from 'react-native';
 
 import AnimatedOptionBox from '@components/option_box/animated';
 import {useServerUrl} from '@context/server';
@@ -11,12 +12,13 @@ import {useTheme} from '@context/theme';
 
 type Props = {
     channelName?: string;
+    containerStyle?: StyleProp<ViewStyle>;
     onAnimationEnd?: () => void;
     teamName?: string;
     testID?: string;
 }
 
-const CopyChannelLinkBox = ({channelName, onAnimationEnd, teamName, testID}: Props) => {
+const CopyChannelLinkBox = ({channelName, containerStyle, onAnimationEnd, teamName, testID}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -31,6 +33,7 @@ const CopyChannelLinkBox = ({channelName, onAnimationEnd, teamName, testID}: Pro
             animatedColor={theme.buttonColor}
             animatedIconName='check'
             animatedText={intl.formatMessage({id: 'channel_info.copied', defaultMessage: 'Copied'})}
+            containerStyle={containerStyle}
             iconName='link-variant'
             onAnimationEnd={onAnimationEnd}
             onPress={onCopyLink}

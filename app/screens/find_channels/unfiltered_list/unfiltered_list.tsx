@@ -16,8 +16,9 @@ import FindChannelsHeader from './header';
 import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
 import type ChannelModel from '@typings/database/models/servers/channel';
 
-const isGroupChannel = (c: ChannelModel) => c.type === General.GM_CHANNEL || c.type === General.OPEN_CHANNEL || c.type === General.PRIVATE_CHANNEL;
 const isDirectChannel = (c: ChannelModel) => c.type === General.DM_CHANNEL;
+const isTeamOpenOrPrivate = (c: ChannelModel) => c.type === General.OPEN_CHANNEL || c.type === General.PRIVATE_CHANNEL;
+const isDiscussionGroup = (c: ChannelModel) => c.type === General.GM_CHANNEL;
 
 type Props = {
     category: FindChannelsCategory;
@@ -42,7 +43,8 @@ const style = StyleSheet.create({
 const buildSections = (recentChannels: ChannelModel[], category: FindChannelsCategory) => {
     const filtered = category === 'all' ? recentChannels :
         category === 'contacts' ? recentChannels.filter(isDirectChannel) :
-            recentChannels.filter(isGroupChannel);
+            category === 'channels' ? recentChannels.filter(isTeamOpenOrPrivate) :
+                recentChannels.filter(isDiscussionGroup);
     const sections = [];
     if (filtered.length) {
         sections.push({
@@ -69,15 +71,17 @@ const UnfilteredList = ({category, close, keyboardOverlap, recentChannels, showT
         <FindChannelsHeader sectionName={intl.formatMessage({id: section.id, defaultMessage: section.defaultMessage})}/>
     ), [intl]);
 
-    const renderSectionItem = useCallback(({item}: SectionListRenderItemInfo<ChannelModel>) => {
+    const renderSectionItem = useCallback(({item, index}: SectionListRenderItemInfo<ChannelModel>) => {
         return (
             <ChannelItem
                 channel={item}
                 onPress={onPress}
                 isOnCenterBg={true}
+                listRowIndex={index}
                 showTeamName={showTeamName}
                 shouldHighlightState={true}
                 testID={`${testID}.channel_item`}
+                useListInitialsForNonDm={true}
             />
         );
     }, [onPress, showTeamName, testID]);

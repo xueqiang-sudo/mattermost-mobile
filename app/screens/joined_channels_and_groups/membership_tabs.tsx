@@ -14,8 +14,8 @@ export type JoinedMembershipTab = 'channels' | 'group_messages';
 const TAB_IDS: JoinedMembershipTab[] = ['channels', 'group_messages'];
 
 const TAB_MESSAGES = {
-    channels: {id: 'joined_channels.tab.channels', defaultMessage: 'Channels'},
-    group_messages: {id: 'joined_channels.tab.group_messages', defaultMessage: 'Group messages'},
+    channels: {id: 'joined_channels.tab.channels', defaultMessage: 'Groups'},
+    group_messages: {id: 'joined_channels.tab.group_messages', defaultMessage: 'Discussion groups'},
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({

@@ -44,7 +44,7 @@ const SearchField = () => {
 
     const onPress = usePreventDoubleTap(useCallback(() => {
         findChannels(
-            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Find Channels'}),
+            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
             theme,
         );
     }, [intl, theme]));

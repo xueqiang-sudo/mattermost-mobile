@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle} from 'react-native';
 import Animated, {Easing, interpolate, interpolateColor, runOnJS, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import CompassIcon from '@components/compass_icon';
@@ -17,6 +17,7 @@ type OptionBoxProps = {
     animatedColor: string;
     animatedIconName: string;
     animatedText: string;
+    containerStyle?: StyleProp<ViewStyle>;
     iconName: string;
     onAnimationEnd?: () => void;
     onPress: () => void;
@@ -50,7 +51,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 
 const AnimatedOptionBox = ({
     animatedBackgroundColor, animatedColor, animatedIconName, animatedText,
-    iconName, onAnimationEnd, onPress, testID, text,
+    containerStyle, iconName, onAnimationEnd, onPress, testID, text,
 }: OptionBoxProps) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -115,13 +116,13 @@ const AnimatedOptionBox = ({
 
     return (
         <AnimatedPressable
-            onPress={handleOnPress}
             disabled={activated}
-            style={styles.container}
+            onPress={handleOnPress}
+            style={[styles.container, containerStyle]}
             testID={testID}
         >
             {({pressed}) => (
-                <View style={[styles.container, styles.background, pressed && {backgroundColor: changeOpacity(theme.buttonBg, 0.16)}]}>
+                <View style={[styles.container, styles.background, containerStyle, pressed && {backgroundColor: changeOpacity(theme.buttonBg, 0.16)}]}>
                     <Animated.View style={[styles.container, backgroundStyle]}>
                         <Animated.View style={[StyleSheet.absoluteFill, styles.center, optionStyle]}>
                             <CompassIcon

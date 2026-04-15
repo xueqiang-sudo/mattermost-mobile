@@ -9,14 +9,15 @@ import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-export type FindChannelsCategory = 'all' | 'contacts' | 'channels';
+export type FindChannelsCategory = 'all' | 'contacts' | 'channels' | 'discussion_groups';
 
-const TAB_IDS: FindChannelsCategory[] = ['all', 'contacts', 'channels'];
+const TAB_IDS: FindChannelsCategory[] = ['all', 'contacts', 'channels', 'discussion_groups'];
 
 const TAB_MESSAGES = {
     all: {id: 'find_channels.category.all', defaultMessage: 'All'},
     contacts: {id: 'find_channels.category.contacts', defaultMessage: 'Contacts'},
-    channels: {id: 'find_channels.category.channels', defaultMessage: 'Group chats'},
+    channels: {id: 'find_channels.category.channels', defaultMessage: 'Groups'},
+    discussion_groups: {id: 'find_channels.category.discussion_groups', defaultMessage: 'Discussion groups'},
 };
 
 /**

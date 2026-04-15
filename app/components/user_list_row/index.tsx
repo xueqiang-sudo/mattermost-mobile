@@ -18,15 +18,19 @@ import UserItem from '@components/user_item';
 import {Preferences} from '@constants';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
+import {getContactPickerGroupedRowStyle} from '@utils/channel_list_modal_row';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type UserModel from '@typings/database/models/servers/user';
 
 const AVATAR_ROUNDED_SQUARE_RATIO = 0.2;
+const CONTACT_SELECT_AVATAR_SIZE = 40;
 
 type Props = {
     contactSelectLayout?: boolean;
+    /** 与 {@link contactSelectLayout} 联用：区内行下标，用于斑马纹卡片行背景 */
+    listRowIndex?: number;
     highlight?: boolean;
     id: string;
     includeMargin?: boolean;
@@ -92,6 +96,7 @@ const messages = defineMessages({
 
 function UserListRow({
     contactSelectLayout = false,
+    listRowIndex,
     id,
     includeMargin,
     highlight,
@@ -191,7 +196,7 @@ function UserListRow({
             <View style={[style.selector, contactSelectLayout && style.selectorLeft]}>
                 <CompassIcon
                     name={selected ? 'check-circle' : 'circle-outline'}
-                    size={28}
+                    size={contactSelectLayout ? 30 : 28}
                     color={color}
                 />
             </View>
@@ -199,29 +204,43 @@ function UserListRow({
     }, [selectable, selected, theme.buttonBg, theme.centerChannelColor, style.selector, style.selectorLeft, contactSelectLayout]);
 
     const userItemTestID = `${testID}.${id}`;
-    const avatarBorderRadius = contactSelectLayout ? Math.round(24 * AVATAR_ROUNDED_SQUARE_RATIO) : undefined;
+    const avatarBorderRadius = contactSelectLayout ? Math.round(CONTACT_SELECT_AVATAR_SIZE * AVATAR_ROUNDED_SQUARE_RATIO) : undefined;
     const decorator = manageMode ? manageModeIcon : icon;
+
+    const useGroupedPickerRow = Boolean(contactSelectLayout && listRowIndex !== undefined);
+    const groupedPickerRowStyle = useMemo(() => {
+        if (!useGroupedPickerRow || listRowIndex === undefined) {
+            return undefined;
+        }
+        return getContactPickerGroupedRowStyle(theme, listRowIndex, selected);
+    }, [useGroupedPickerRow, listRowIndex, selected, theme]);
+
+    const rowBody = (
+        <View style={contactSelectLayout && !useGroupedPickerRow ? style.rowDivider : undefined}>
+            <UserItem
+                user={user}
+                teammateNameDisplayOverride={contactSelectLayout ? Preferences.DISPLAY_PREFER_NICKNAME : undefined}
+                onUserLongPress={onLongPress}
+                onUserPress={handlePress}
+                showBadges={true}
+                testID={userItemTestID}
+                leftDecorator={contactSelectLayout ? decorator : undefined}
+                rightDecorator={!contactSelectLayout ? decorator : undefined}
+                avatarBorderRadius={avatarBorderRadius}
+                size={contactSelectLayout ? CONTACT_SELECT_AVATAR_SIZE : 24}
+                contactSelectLayout={contactSelectLayout}
+                disabled={!(selectable || selected || !disabled)}
+                viewRef={viewRef}
+                padding={contactSelectLayout ? 16 : 20}
+                includeMargin={includeMargin}
+                onLayout={onLayout}
+            />
+        </View>
+    );
 
     return (
         <>
-            <View style={contactSelectLayout ? style.rowDivider : undefined}>
-                <UserItem
-                    user={user}
-                    teammateNameDisplayOverride={contactSelectLayout ? Preferences.DISPLAY_PREFER_NICKNAME : undefined}
-                    onUserLongPress={onLongPress}
-                    onUserPress={handlePress}
-                    showBadges={true}
-                    testID={userItemTestID}
-                    leftDecorator={contactSelectLayout ? decorator : undefined}
-                    rightDecorator={!contactSelectLayout ? decorator : undefined}
-                    avatarBorderRadius={avatarBorderRadius}
-                    disabled={!(selectable || selected || !disabled)}
-                    viewRef={viewRef}
-                    padding={20}
-                    includeMargin={includeMargin}
-                    onLayout={onLayout}
-                />
-            </View>
+            {useGroupedPickerRow ? <View style={groupedPickerRowStyle}>{rowBody}</View> : rowBody}
             {showTutorial &&
             <TutorialHighlight
                 itemBounds={itemBounds}

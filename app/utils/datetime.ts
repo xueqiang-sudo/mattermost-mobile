@@ -74,19 +74,26 @@ export type ConversationTimestampFormat =
     | {type: 'weekday'; date: Date}
     | {type: 'date'; value: string};
 
-type LocaleAndTimezone = {locale?: string; timeZone?: string};
+type LocaleAndTimezone = {locale?: string; timeZone?: string; isMilitaryTime?: boolean};
 
 /**
- * 企业微信风格会话列表时间戳：当天 "HH:mm"，昨天用 date_separator.yesterday，
+ * 企业微信风格会话列表时间戳：当天按 use_military_time（12/24 小时），昨天用 date_separator.yesterday，
  * 本周用 locale 的 weekday short，更早 "M/d"
  * @param timeZone 用户时区（如 Asia/Shanghai），与聊天消息保持一致；空则使用设备默认
+ * @param isMilitaryTime 未传时默认 true（24 小时），与历史写死 hour12:false 行为一致
  */
 export function getConversationTimestampFormat(timestamp: number, opts?: LocaleAndTimezone): ConversationTimestampFormat {
     const date = new Date(timestamp);
     const now = new Date();
     const fmtOpts: Intl.DateTimeFormatOptions = opts?.timeZone ? {timeZone: opts.timeZone} : {};
+    const isMilitaryTime = opts?.isMilitaryTime ?? true;
     if (isToday(date)) {
-        const value = date.toLocaleTimeString(opts?.locale, {hour: '2-digit', minute: '2-digit', hour12: false, ...fmtOpts});
+        const value = date.toLocaleTimeString(opts?.locale, {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: !isMilitaryTime,
+            ...fmtOpts,
+        });
         return {type: 'time', value};
     }
     if (isYesterday(date)) {

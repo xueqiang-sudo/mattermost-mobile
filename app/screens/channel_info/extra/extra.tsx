@@ -38,7 +38,7 @@ const headerMetadata = {header: {width: 1, height: 1}};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        marginBottom: 20,
+        marginBottom: 0,
     },
     item: {
         marginTop: 16,

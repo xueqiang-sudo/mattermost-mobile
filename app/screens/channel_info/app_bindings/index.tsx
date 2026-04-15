@@ -3,16 +3,27 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useMemo} from 'react';
+import {View} from 'react-native';
 
 import {postEphemeralCallResponseForChannel} from '@actions/remote/apps';
 import OptionItem from '@components/option_item';
 import {AppBindingLocations} from '@constants/apps';
+import {useTheme} from '@context/theme';
 import {useAppBinding} from '@hooks/apps';
 import {usePreventDoubleTap} from '@hooks/utils';
 import AppsManager from '@managers/apps_manager';
 import {observeCurrentTeamId} from '@queries/servers/system';
+import {makeStyleSheetFromTheme} from '@utils/theme';
+
+import {CHANNEL_INFO_SECTION_GAP} from '../channel_info_constants';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
+
+const getBindingsStyleSheet = makeStyleSheetFromTheme(() => ({
+    bindingsSection: {
+        marginTop: CHANNEL_INFO_SECTION_GAP,
+    },
+}));
 
 type Props = {
     channelId: string;
@@ -23,6 +34,9 @@ type Props = {
 };
 
 const ChannelInfoAppBindings = ({channelId, teamId, dismissChannelInfo, serverUrl, bindings}: Props) => {
+    const theme = useTheme();
+    const layoutStyles = getBindingsStyleSheet(theme);
+
     const onCallResponse = useCallback((callResp: AppCallResponse, message: string) => {
         postEphemeralCallResponseForChannel(serverUrl, callResp, message, channelId);
     }, [serverUrl, channelId]);
@@ -47,6 +61,10 @@ const ChannelInfoAppBindings = ({channelId, teamId, dismissChannelInfo, serverUr
         await finish();
     }, [dismissChannelInfo, handleBindingSubmit]));
 
+    if (!bindings.length) {
+        return null;
+    }
+
     const options = bindings.map((binding) => (
         <BindingOptionItem
             key={(binding.app_id || '') + (binding.location || '')}
@@ -55,7 +73,11 @@ const ChannelInfoAppBindings = ({channelId, teamId, dismissChannelInfo, serverUr
         />
     ));
 
-    return <>{options}</>;
+    return (
+        <View style={layoutStyles.bindingsSection}>
+            {options}
+        </View>
+    );
 };
 
 const BindingOptionItem = ({binding, onPress}: {binding: AppBinding; onPress: (binding: AppBinding) => void}) => {

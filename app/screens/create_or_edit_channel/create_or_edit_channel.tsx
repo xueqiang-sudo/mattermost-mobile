@@ -16,6 +16,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {buildNavigationButton, dismissModal, popTopScreen, setButtons} from '@screens/navigation';
 import {validateDisplayName} from '@utils/channel';
+import {changeOpacity} from '@utils/theme';
 
 import ChannelInfoForm from './channel_info_form';
 
@@ -134,7 +135,8 @@ const CreateOrEditChannel = ({
         );
         base.enabled = canSave;
         base.showAsAction = 'always';
-        base.color = theme.sidebarHeaderTextColor;
+        // RNN 仍使用 enabled 拦截点击；禁用态降低文字对比度以明确不可提交
+        base.color = canSave ? theme.sidebarHeaderTextColor : changeOpacity(theme.sidebarHeaderTextColor, 0.38);
         return base;
     }, [editing, theme.sidebarHeaderTextColor, intl, canSave]);
 

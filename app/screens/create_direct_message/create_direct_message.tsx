@@ -1,9 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, View, SafeAreaView} from 'react-native';
+import {Keyboard, type LayoutChangeEvent, StyleSheet, Text, View, SafeAreaView} from 'react-native';
 
 import {makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
 import {fetchProfiles, fetchProfilesInTeam, searchProfiles} from '@actions/remote/user';
@@ -39,17 +39,19 @@ const messages = defineMessages({
         id: 'mobile.create_direct_message.start',
         defaultMessage: 'Start Conversation',
     },
-    done: {
-        id: 'create_direct_message.done',
-        defaultMessage: 'Done',
-    },
     doneWithCount: {
         id: 'create_direct_message.done_with_count',
         defaultMessage: 'Done ({count})',
     },
+    selectionHint: {
+        id: 'create_direct_message.selection_hint',
+        defaultMessage: 'One person: private chat · Several: discussion group. Long-press a row for profile.',
+    },
 });
 
 const CLOSE_BUTTON = 'close-dms';
+
+const SCREEN_PADDING_H = 16;
 
 type Props = {
     componentId: AvailableScreens;
@@ -79,16 +81,33 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
         },
         contentContainer: {
             flex: 1,
-            paddingHorizontal: 16,
-            paddingTop: 16,
+            paddingHorizontal: SCREEN_PADDING_H,
+            paddingTop: 12,
+        },
+        listFlex: {
+            flex: 1,
+            minHeight: 0,
+            marginTop: 16,
+        },
+        searchCard: {
+            borderRadius: 12,
+            padding: 12,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
         },
         searchBar: {
-            marginBottom: 12,
+            marginBottom: 0,
+        },
+        selectionHint: {
+            marginTop: 8,
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            ...typography('Body', 100, 'Regular'),
         },
         searchBarContainer: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-            borderRadius: 12,
-            height: 48,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+            borderRadius: 8,
+            height: 56,
         },
         searchBarInput: {
             backgroundColor: 'transparent',
@@ -152,6 +171,13 @@ export default function CreateDirectMessage({
     const selectedCount = selectedIds.size;
 
     const color = changeOpacity(theme.centerChannelColor, 0.72);
+
+    const primaryActionLabel = useMemo(() => {
+        if (selectedCount > 1) {
+            return formatMessage(messages.doneWithCount, {count: selectedCount});
+        }
+        return formatMessage(messages.buttonText);
+    }, [formatMessage, selectedCount]);
 
     /**
      * 清空搜索
@@ -349,7 +375,7 @@ export default function CreateDirectMessage({
     if (startingConversation) {
         return (
             <View style={style.container}>
-                <Loading color={theme.centerChannelColor}/>
+                <Loading color={theme.buttonBg}/>
             </View>
         );
     }
@@ -363,32 +389,42 @@ export default function CreateDirectMessage({
             ref={mainView}
         >
             <View style={style.contentContainer}>
-                <View style={style.searchBar}>
-                    <Search
-                        testID='create_direct_message.search_bar'
-                        placeholder={formatMessage({id: 'create_direct_message.search_placeholder', defaultMessage: 'Search people — pick one for a DM or several for a discussion group'})}
-                        cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                        placeholderTextColor={color}
-                        onChangeText={onChangeText}
-                        onCancel={clearSearch}
-                        autoCapitalize='none'
-                        keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
-                        value={term}
-                        inputContainerStyle={style.searchBarContainer}
-                        inputStyle={style.searchBarInput}
+                <View style={style.searchCard}>
+                    <View style={style.searchBar}>
+                        <Search
+                            testID='create_direct_message.search_bar'
+                            placeholder={formatMessage({id: 'create_direct_message.search_placeholder', defaultMessage: 'Search by name, phone, or username'})}
+                            cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
+                            placeholderTextColor={color}
+                            onChangeText={onChangeText}
+                            onCancel={clearSearch}
+                            autoCapitalize='none'
+                            keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
+                            value={term}
+                            inputContainerStyle={style.searchBarContainer}
+                            inputStyle={style.searchBarInput}
+                        />
+                    </View>
+                    <Text
+                        style={style.selectionHint}
+                        testID='create_direct_message.selection_hint'
+                    >
+                        {formatMessage(messages.selectionHint)}
+                    </Text>
+                </View>
+                <View style={style.listFlex}>
+                    <ServerUserList
+                        handleSelectProfile={handleSelectProfile}
+                        selectedIds={selectedIds}
+                        term={term}
+                        testID='create_direct_message.user_list'
+                        tutorialWatched={tutorialWatched}
+                        fetchFunction={userFetchFunction}
+                        searchFunction={userSearchFunction}
+                        createFilter={createUserFilter}
+                        location={Screens.CREATE_DIRECT_MESSAGE}
                     />
                 </View>
-                <ServerUserList
-                    handleSelectProfile={handleSelectProfile}
-                    selectedIds={selectedIds}
-                    term={term}
-                    testID='create_direct_message.user_list'
-                    tutorialWatched={tutorialWatched}
-                    fetchFunction={userFetchFunction}
-                    searchFunction={userSearchFunction}
-                    createFilter={createUserFilter}
-                    location={Screens.CREATE_DIRECT_MESSAGE}
-                />
                 <SelectedUsers
                     keyboardOverlap={keyboardOverlap}
                     showToast={showToast}
@@ -406,7 +442,7 @@ export default function CreateDirectMessage({
                     teammateNameDisplay={Preferences.DISPLAY_PREFER_NICKNAME}
                     onPress={startConversation}
                     buttonIcon={'forum-outline'}
-                    buttonText={selectedCount > 1 ? formatMessage(messages.done) : formatMessage(messages.buttonText)}
+                    buttonText={primaryActionLabel}
                     testID='create_direct_message'
                     maxUsers={General.MAX_USERS_IN_GM}
                     avatarBorderRadius={8}

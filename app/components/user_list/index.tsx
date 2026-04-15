@@ -3,7 +3,7 @@
 
 import React, {useCallback, useMemo} from 'react';
 import {defineMessages, type IntlShape, useIntl} from 'react-intl';
-import {FlatList, Keyboard, type ListRenderItemInfo, Platform, SectionList, type SectionListData, Text, View} from 'react-native';
+import {FlatList, Keyboard, type ListRenderItemInfo, Platform, SectionList, type SectionListData, StyleSheet, Text, View} from 'react-native';
 
 import {storeProfile} from '@actions/local/user';
 import Loading from '@components/loading';
@@ -140,6 +140,19 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             backgroundColor: theme.centerChannelBg,
             flex: 1,
         },
+        listContactSelectGrouped: {
+            backgroundColor: 'transparent',
+            flex: 1,
+        },
+        groupedListShell: {
+            flex: 1,
+            minHeight: 0,
+            borderRadius: 12,
+            overflow: 'hidden',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+            backgroundColor: theme.centerChannelBg,
+        },
         container: {
             flexGrow: 1,
         },
@@ -147,6 +160,9 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             flex: 1,
             justifyContent: 'center' as const,
             alignItems: 'center' as const,
+        },
+        loadingContainerGrouped: {
+            backgroundColor: 'transparent',
         },
         noResultContainer: {
             flexGrow: 1,
@@ -160,12 +176,18 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             height: 24,
         },
         sectionContainerContactSelect: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-            height: 24,
-            paddingLeft: 16,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            justifyContent: 'center',
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
         },
         sectionWrapper: {
             backgroundColor: theme.centerChannelBg,
+        },
+        sectionWrapperContactSelect: {
+            backgroundColor: 'transparent',
         },
         sectionText: {
             color: theme.centerChannelColor,
@@ -173,7 +195,7 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
         },
         sectionTextContactSelect: {
             color: changeOpacity(theme.centerChannelColor, 0.56),
-            ...typography('Body', 75, 'Regular'),
+            ...typography('Body', 75, 'SemiBold'),
         },
     };
 });
@@ -269,6 +291,7 @@ export default function UserList({
             <UserListRow
                 key={item.id}
                 contactSelectLayout={contactSelectLayout}
+                listRowIndex={contactSelectLayout ? index : undefined}
                 highlight={section?.first && index === 0}
                 id={item.id}
                 isChannelAdmin={isChAdmin}
@@ -295,11 +318,14 @@ export default function UserList({
         return (
             <Loading
                 color={theme.buttonBg}
-                containerStyle={style.loadingContainer}
+                containerStyle={[
+                    style.loadingContainer,
+                    contactSelectLayout && style.loadingContainerGrouped,
+                ]}
                 size='large'
             />
         );
-    }, [loading, style.loadingContainer, theme.buttonBg]);
+    }, [loading, style.loadingContainer, style.loadingContainerGrouped, theme.buttonBg, contactSelectLayout]);
 
     const renderNoResults = useCallback(() => {
         if (!showNoResults || !term) {
@@ -315,7 +341,7 @@ export default function UserList({
 
     const renderSectionHeader = useCallback(({section}: {section: SectionListData<UserProfile>}) => {
         return (
-            <View style={style.sectionWrapper}>
+            <View style={[style.sectionWrapper, contactSelectLayout && style.sectionWrapperContactSelect]}>
                 <View style={[style.sectionContainer, contactSelectLayout && style.sectionContainerContactSelect]}>
                     <Text style={[style.sectionText, contactSelectLayout && style.sectionTextContactSelect]}>{section.id}</Text>
                 </View>
@@ -324,10 +350,11 @@ export default function UserList({
     }, [style, contactSelectLayout]);
 
     const renderFlatList = (items: UserProfile[]) => {
-        return (
+        const list = (
             <FlatList
                 contentContainerStyle={style.container}
                 data={items}
+                extraData={selectedIds}
                 keyboardShouldPersistTaps='always'
                 {...keyboardDismissProp}
                 keyExtractor={keyExtractor}
@@ -338,16 +365,26 @@ export default function UserList({
                 removeClippedSubviews={true}
                 renderItem={renderItem}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
-                style={style.list}
+                style={contactSelectLayout ? style.listContactSelectGrouped : style.list}
                 testID={`${testID}.flat_list`}
             />
         );
+
+        if (contactSelectLayout) {
+            return (
+                <View style={style.groupedListShell}>
+                    {list}
+                </View>
+            );
+        }
+        return list;
     };
 
     const renderSectionList = (sections: Array<SectionListData<UserProfile>>) => {
-        return (
+        const list = (
             <SectionList
                 contentContainerStyle={style.container}
+                extraData={selectedIds}
                 keyboardShouldPersistTaps='always'
                 {...keyboardDismissProp}
                 keyExtractor={keyExtractor}
@@ -360,12 +397,21 @@ export default function UserList({
                 renderSectionHeader={renderSectionHeader}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
                 sections={sections}
-                style={style.list}
+                style={contactSelectLayout ? style.listContactSelectGrouped : style.list}
                 stickySectionHeadersEnabled={false}
                 testID={`${testID}.section_list`}
                 onEndReached={fetchMore}
             />
         );
+
+        if (contactSelectLayout) {
+            return (
+                <View style={style.groupedListShell}>
+                    {list}
+                </View>
+            );
+        }
+        return list;
     };
 
     if (term) {

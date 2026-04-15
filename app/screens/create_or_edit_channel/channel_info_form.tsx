@@ -12,6 +12,7 @@ import {
     type NativeSyntheticEvent,
     type NativeScrollEvent,
     Platform,
+    StyleSheet,
 } from 'react-native';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -33,10 +34,11 @@ import {
 } from '@utils/theme';
 import {typography} from '@utils/typography';
 
-const FIELD_MARGIN_BOTTOM = 24;
-const MAKE_PRIVATE_MARGIN_BOTTOM = 32;
+const SCREEN_PADDING_H = 16;
+const SECTION_GAP = 24;
+const FIELD_CAPTION_GAP = 8;
 const BOTTOM_AUTOCOMPLETE_SEPARATION = Platform.select({ios: 10, default: 10});
-const LIST_PADDING = 24;
+const SCROLL_PADDING_VERTICAL = 20;
 const AUTOCOMPLETE_ADJUST = 5;
 
 /**
@@ -48,8 +50,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
         backgroundColor: theme.centerChannelBg,
     },
     scrollView: {
-        paddingVertical: LIST_PADDING,
-        paddingHorizontal: 16,
+        paddingVertical: SCROLL_PADDING_VERTICAL,
+        paddingHorizontal: SCREEN_PADDING_H,
     },
     errorContainer: {
         width: '100%',
@@ -64,25 +66,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    helpText: {
-        ...typography('Body', 75, 'Regular'),
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        marginTop: 8,
-        lineHeight: 18,
+    captionText: {
+        ...typography('Body', 100, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: FIELD_CAPTION_GAP,
     },
     mainView: {
-        gap: 20,
+        gap: SECTION_GAP,
     },
-    sectionCard: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.03),
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 8,
+    fieldStack: {
+        width: '100%',
     },
-    optionItemWrapper: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.03),
+    privacySection: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
         borderRadius: 12,
-        padding: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        overflow: 'hidden',
+    },
+    privacySectionInner: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
 }));
 
@@ -285,9 +289,9 @@ export default function ChannelInfoForm({
         setWrapperHeight(e.nativeEvent.layout.height);
     }, []);
 
-    const otherElementsSize = LIST_PADDING + errorHeight +
-        (showSelector ? makePrivateHeight + MAKE_PRIVATE_MARGIN_BOTTOM : 0) +
-        (displayHeaderOnly ? 0 : purposeFieldHeight + FIELD_MARGIN_BOTTOM + displayNameFieldHeight + FIELD_MARGIN_BOTTOM);
+    const otherElementsSize = SCROLL_PADDING_VERTICAL + errorHeight +
+        (showSelector ? makePrivateHeight + SECTION_GAP : 0) +
+        (displayHeaderOnly ? 0 : displayNameFieldHeight + SECTION_GAP + purposeFieldHeight + SECTION_GAP);
 
     const workingSpace = wrapperHeight - keyboardOverlap;
     const spaceOnTop = otherElementsSize - scrollPosition - AUTOCOMPLETE_ADJUST;
@@ -354,21 +358,28 @@ export default function ChannelInfoForm({
                 >
                     <View style={styles.mainView}>
                         {showSelector && (
-                            <View style={styles.optionItemWrapper}>
-                                <OptionItem
-                                    testID='channel_info_form.make_private'
-                                    label={makePrivateLabel}
-                                    description={makePrivateDescription}
-                                    action={handlePress}
-                                    type={'toggle'}
-                                    selected={isPrivate}
-                                    icon={'lock-outline'}
-                                    onLayout={onLayoutMakePrivate}
-                                />
+                            <View
+                                style={styles.privacySection}
+                                onLayout={onLayoutMakePrivate}
+                            >
+                                <View style={styles.privacySectionInner}>
+                                    <OptionItem
+                                        testID='channel_info_form.make_private'
+                                        label={makePrivateLabel}
+                                        description={makePrivateDescription}
+                                        action={handlePress}
+                                        type={'toggle'}
+                                        selected={isPrivate}
+                                        icon={'lock-outline'}
+                                    />
+                                </View>
                             </View>
                         )}
                         {!displayHeaderOnly && (
-                            <View style={styles.sectionCard}>
+                            <View
+                                style={styles.fieldStack}
+                                onLayout={onLayoutDisplayName}
+                            >
                                 <FloatingTextInput
                                     blurOnSubmit={false}
                                     disableFullscreenUI={true}
@@ -383,11 +394,10 @@ export default function ChannelInfoForm({
                                     value={displayName}
                                     ref={nameInput}
                                     theme={theme}
-                                    onLayout={onLayoutDisplayName}
                                 />
                                 {displayNameReadOnly && (
                                     <FormattedText
-                                        style={styles.helpText}
+                                        style={styles.captionText}
                                         id='mobile.channel.town_square_display_name_readonly'
                                         defaultMessage='The default channel display name cannot be changed here.'
                                         testID='channel_info_form.display_name.readonly_help'
@@ -396,7 +406,10 @@ export default function ChannelInfoForm({
                             </View>
                         )}
                         {!displayHeaderOnly && (
-                            <View style={styles.sectionCard}>
+                            <View
+                                style={styles.fieldStack}
+                                onLayout={onLayoutPurpose}
+                            >
                                 <FloatingTextInput
                                     blurOnSubmit={false}
                                     disableFullscreenUI={true}
@@ -411,14 +424,17 @@ export default function ChannelInfoForm({
                                     theme={theme}
                                 />
                                 <FormattedText
-                                    style={styles.helpText}
+                                    style={styles.captionText}
                                     id='channel_modal.descriptionHelp'
                                     defaultMessage='Describe how this channel should be used.'
                                     testID='channel_info_form.purpose.description'
                                 />
                             </View>
                         )}
-                        <View style={styles.sectionCard}>
+                        <View
+                            style={styles.fieldStack}
+                            onLayout={onLayoutHeader}
+                        >
                             <FloatingTextInput
                                 blurOnSubmit={false}
                                 disableFullscreenUI={true}
@@ -433,14 +449,12 @@ export default function ChannelInfoForm({
                                 ref={headerInput}
                                 theme={theme}
                                 onFocus={scrollHeaderToTop}
-                                onLayout={onLayoutHeader}
                             />
                             <FormattedText
-                                style={styles.helpText}
+                                style={styles.captionText}
                                 id='channel_modal.headerHelp'
                                 defaultMessage={'Specify text to appear in the channel header beside the channel name. For example, include frequently used links by typing link text [Link Title](http://example.com).'}
                                 testID='channel_info_form.header.description'
-
                             />
                         </View>
                     </View>

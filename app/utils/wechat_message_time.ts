@@ -3,6 +3,9 @@
 
 import moment from 'moment-timezone';
 
+import {getLocaleFromLanguage} from '@i18n';
+import {getFormattedTime} from '@utils/time';
+
 import type {IntlShape} from 'react-intl';
 
 /**
@@ -12,11 +15,13 @@ export function formatWeChatPostHeaderTime(
     intl: IntlShape,
     createAt: number,
     timezone: string | undefined,
+    isMilitaryTime: boolean,
 ): string {
     const zone = timezone || moment.tz.guess();
     const m = moment.tz(createAt, zone);
     const now = moment.tz(zone);
-    const timeStr = m.format('HH:mm');
+    moment.locale(getLocaleFromLanguage(intl.locale).toLowerCase());
+    const timeStr = getFormattedTime(isMilitaryTime, zone, createAt);
 
     if (m.isSame(now, 'day')) {
         return timeStr;

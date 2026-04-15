@@ -61,7 +61,7 @@ export const ConvertGMToChannelForm = ({
     const serverUrl = useServerUrl();
     const {formatList, formatMessage} = useIntl();
 
-    const [selectedTeam, setSelectedTeam] = useState<Team>(commonTeams[0]);
+    const [selectedTeam, setSelectedTeam] = useState<Team | undefined>(commonTeams[0]);
     const [newChannelName, setNewChannelName] = useState<string>('');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [channelNameErrorMessage, setChannelNameErrorMessage] = useState<string>('');
@@ -71,13 +71,15 @@ export const ConvertGMToChannelForm = ({
     const submitButtonEnabled = !conversionInProgress && selectedTeam && newChannelName.trim();
 
     const handleOnPress = usePreventDoubleTap(useCallback(async () => {
-        if (!submitButtonEnabled) {
+        if (!submitButtonEnabled || !selectedTeam) {
             return;
         }
 
+        const selectedTeamId = selectedTeam.id;
+
         setConversionInProgress(true);
 
-        const {updatedChannel, error} = await convertGroupMessageToPrivateChannel(serverUrl, channelId, selectedTeam.id, newChannelName);
+        const {updatedChannel, error} = await convertGroupMessageToPrivateChannel(serverUrl, channelId, selectedTeamId, newChannelName);
         if (error) {
             if (isServerError(error) && error.server_error_id === ServerErrors.DUPLICATE_CHANNEL_NAME && isErrorWithMessage(error)) {
                 setChannelNameErrorMessage(error.message);
@@ -99,9 +101,9 @@ export const ConvertGMToChannelForm = ({
         }
 
         setErrorMessage('');
-        switchToChannelById(serverUrl, updatedChannel.id, selectedTeam.id);
+        switchToChannelById(serverUrl, updatedChannel.id, selectedTeamId);
         setConversionInProgress(false);
-    }, [submitButtonEnabled, serverUrl, channelId, selectedTeam.id, newChannelName, formatMessage]));
+    }, [submitButtonEnabled, serverUrl, channelId, selectedTeam, newChannelName, formatMessage]));
 
     if (commonTeams.length === 0) {
         return (

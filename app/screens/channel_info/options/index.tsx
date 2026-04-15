@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
+import {View} from 'react-native';
 
 import CopyChannelLinkOption from '@components/channel_actions/copy_channel_link_option';
 import {General} from '@constants';
@@ -39,7 +40,7 @@ const Options = ({
     const isDMorGM = isTypeDMorGM(type);
 
     return (
-        <>
+        <View testID='channel_info.options.group'>
             {type !== General.DM_CHANNEL && (
                 <>
                     {isCRTEnabled && (
@@ -72,7 +73,7 @@ const Options = ({
             {canManageSettings &&
                 <EditChannel channelId={channelId}/>
             }
-        </>
+        </View>
     );
 };
 

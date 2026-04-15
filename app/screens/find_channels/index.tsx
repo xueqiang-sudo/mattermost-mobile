@@ -5,6 +5,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Keyboard, type LayoutChangeEvent, View, SafeAreaView} from 'react-native';
 
+import CompassIcon from '@components/compass_icon';
 import SearchBar from '@components/search';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
@@ -117,27 +118,31 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
     }, []);
 
     useEffect(() => {
+        const linkColor = theme.linkColor;
+        const listIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 20, linkColor);
+        const viewJoinedLabel = intl.formatMessage({
+            id: 'find_channels.view_all',
+            defaultMessage: 'View joined',
+        });
         setButtons(componentId, {
             rightButtons: [{
                 ...buildNavigationButton(
                     FIND_CHANNELS_VIEW_ALL_BUTTON_ID,
                     'find_channels.view_all.button',
+                    listIcon,
+                    viewJoinedLabel,
                 ),
-                color: theme.sidebarHeaderTextColor,
-                text: intl.formatMessage({
-                    id: 'find_channels.view_all',
-                    defaultMessage: 'View all',
-                }),
+                color: linkColor,
             }],
         });
-    }, [componentId, intl, theme.sidebarHeaderTextColor]);
+    }, [componentId, intl, theme.linkColor]);
 
     const openJoinedChannelsAndGroups = useCallback(() => {
         goToScreen(
             Screens.JOINED_CHANNELS_AND_GROUPS,
             intl.formatMessage({
                 id: 'joined_channels.title',
-                defaultMessage: 'Joined channels & groups',
+                defaultMessage: 'Joined groups & discussion groups',
             }),
             {},
         );

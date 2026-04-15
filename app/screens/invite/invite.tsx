@@ -368,6 +368,7 @@ export default function Invite({
                         onSendOptionsChange={setSendOptions}
                         canInviteGuests={canInviteGuests}
                         allowGuestMagicLink={allowGuestMagicLink}
+                        emailInvitationsEnabled={emailInvitationsEnabled}
                     />
                 );
         }
