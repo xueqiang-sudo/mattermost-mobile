@@ -69,6 +69,8 @@ const messages = defineMessages({
 const channelContextScreens: AvailableScreens[] = [Screens.CHANNEL];
 
 const PICKER_PREVIEW_TITLE_BLOCK = 96;
+/** PickerProfileDetails 卡片 marginTop + marginBottom，未计入 getPickerProfileDetailsHeight */
+const PICKER_PROFILE_CARD_VERTICAL_MARGIN = 12;
 
 const UserProfile = ({
     canChangeMemberRoles,
@@ -123,6 +125,11 @@ const UserProfile = ({
     const showPosition = Boolean(user.position) && !override && !user.isBot && !manageMode;
     const showLocalTime = Boolean(localTime) && !override && !user.isBot && !manageMode;
 
+    /** 选人预览：灰色卡片已含职位；标题已有昵称；不展示两地时间与下方重复项 */
+    const userInfoShowNickname = isPickerPreview ? false : showNickname;
+    const userInfoShowPosition = isPickerPreview ? false : showPosition;
+    const userInfoShowLocalTime = isPickerPreview ? false : showLocalTime;
+
     const headerText = manageMode ? formatMessage(messages.manageMember) : undefined;
 
     const pickerDetailsHeight = isPickerPreview ? getPickerProfileDetailsHeight(user) : 0;
@@ -141,18 +148,23 @@ const UserProfile = ({
 
             const optionsCount = [
                 showCustomStatus,
-                showNickname,
-                showPosition,
-                showLocalTime,
+                userInfoShowNickname,
+                userInfoShowPosition,
+                userInfoShowLocalTime,
             ].reduce((acc, v) => {
                 return v ? acc + 1 : acc;
             }, 0);
 
-            const extraHeight = Math.max(8, EXTRA_HEIGHT - bottom - 24);
+            const userInfoSnapHeight = optionsCount > 0 ? bottomSheetSnapPoint(optionsCount, LABEL_HEIGHT) : 0;
+            const bottomComfort = Math.min(bottom, 16);
 
             return [
                 1,
-                bottomSheetSnapPoint(optionsCount, LABEL_HEIGHT) + title + extraHeight + pickerDetailsHeight,
+                title +
+                    userInfoSnapHeight +
+                    bottomComfort +
+                    pickerDetailsHeight +
+                    PICKER_PROFILE_CARD_VERTICAL_MARGIN,
                 '88%',
             ];
         }
@@ -201,6 +213,9 @@ const UserProfile = ({
         showNickname,
         showPosition,
         showLocalTime,
+        userInfoShowNickname,
+        userInfoShowPosition,
+        userInfoShowLocalTime,
         manageMode,
         bottom,
         showOptions,
@@ -249,9 +264,9 @@ const UserProfile = ({
                         <UserInfo
                             localTime={localTime}
                             showCustomStatus={showCustomStatus}
-                            showNickname={showNickname}
-                            showPosition={showPosition}
-                            showLocalTime={showLocalTime}
+                            showNickname={userInfoShowNickname}
+                            showPosition={userInfoShowPosition}
+                            showLocalTime={userInfoShowLocalTime}
                             user={user}
                             enableCustomAttributes={enableCustomAttributes}
                             customAttributesSet={customAttributesSet}
@@ -279,6 +294,7 @@ const UserProfile = ({
             initialSnapIndex={1}
             snapPoints={snapPoints}
             testID='user_profile'
+            contentStyle={isPickerPreview ? {flex: 0} : undefined}
         />
     );
 };

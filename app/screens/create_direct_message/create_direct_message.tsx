@@ -3,7 +3,8 @@
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, StyleSheet, Text, View, SafeAreaView} from 'react-native';
+import {Keyboard, type LayoutChangeEvent, StyleSheet, Text, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
 import {fetchProfiles, fetchProfilesInTeam, searchProfiles} from '@actions/remote/user';
@@ -387,6 +388,7 @@ export default function CreateDirectMessage({
             nativeID={SecurityManager.getShieldScreenId(componentId)}
             onLayout={onLayout}
             ref={mainView}
+            edges={['top', 'left', 'right']}
         >
             <View style={style.contentContainer}>
                 <View style={style.searchCard}>

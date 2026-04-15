@@ -149,8 +149,10 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             minHeight: 0,
             borderRadius: 12,
             overflow: 'hidden',
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+            borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
             backgroundColor: theme.centerChannelBg,
         },
         container: {

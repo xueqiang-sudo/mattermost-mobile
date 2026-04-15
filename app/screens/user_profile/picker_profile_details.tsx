@@ -3,7 +3,7 @@
 
 import React, {useMemo} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {StyleSheet, Text, View} from 'react-native';
+import {Text, View} from 'react-native';
 
 import {General} from '@constants';
 import {useTheme} from '@context/theme';
@@ -29,6 +29,10 @@ const messages = defineMessages({
         id: 'user_profile.picker_detail.status',
         defaultMessage: 'Status',
     },
+    position: {
+        id: 'channel_info.position',
+        defaultMessage: 'Position',
+    },
 });
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -38,8 +42,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         padding: 12,
         borderRadius: 12,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        overflow: 'hidden',
         gap: 12,
     },
     row: {
@@ -87,6 +90,9 @@ export function getPickerProfileDetailsHeight(user: UserModel): number {
     if (user.email?.trim()) {
         rows++;
     }
+    if (user.position?.trim()) {
+        rows++;
+    }
     if (formatPickerProfilePhone(user)) {
         rows++;
     }
@@ -118,6 +124,7 @@ export default function PickerProfileDetails({user}: Props) {
 
     const phone = formatPickerProfilePhone(user);
     const email = user.email?.trim() ?? '';
+    const position = user.position?.trim() ?? '';
 
     return (
         <View
@@ -143,6 +150,18 @@ export default function PickerProfileDetails({user}: Props) {
                         numberOfLines={2}
                     >
                         {email}
+                    </Text>
+                </View>
+            )}
+            {!user.isBot && Boolean(position) && (
+                <View style={styles.row}>
+                    <Text style={styles.label}>{formatMessage(messages.position)}</Text>
+                    <Text
+                        style={styles.value}
+                        selectable={true}
+                        numberOfLines={2}
+                    >
+                        {position}
                     </Text>
                 </View>
             )}

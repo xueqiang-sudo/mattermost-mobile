@@ -86,8 +86,13 @@ const ProfilePicture = ({
     }, []);
 
     const viewStyle = useMemo(
-        () => [style.container, {width: size, height: size}, containerStyle],
-        [style, size, containerStyle],
+        () => [
+            style.container,
+            {width: size, height: size},
+            !showStatus && {overflow: 'hidden' as const},
+            containerStyle,
+        ],
+        [style, size, showStatus, containerStyle],
     );
 
     return (
