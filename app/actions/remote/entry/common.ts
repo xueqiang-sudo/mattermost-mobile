@@ -124,15 +124,15 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
             const existingChannel = await getChannelById(database, channelId);
             if (existingChannel && existingChannel.type === General.GM_CHANNEL) {
                 // Okay, so now we know the channel exists in mobile app's database as a GM.
-                // We now need to also check if channel on server is actually a private channel,
+                // We now need to also check if channel on server is actually type P (group chat),
                 // and if so, which team does it belong to now. That team will become the
                 // active team on mobile app after this point.
 
                 const fetchResult = await fetchChannelById(serverUrl, channelId);
 
-                // Although you can convert GM only to a private channel, a private channel can further be converted to a public channel.
+                // Although you can convert GM only to type P, a group chat can further be converted to a public channel.
                 // So between the mobile app being on the GM and reconnecting,
-                // it may have become either a public or a private channel. So we need to check for both.
+                // it may have become either a public channel or type P. So we need to check for both.
                 if (fetchResult.channel?.type === General.PRIVATE_CHANNEL || fetchResult.channel?.type === General.OPEN_CHANNEL) {
                     initialTeamId = fetchResult.channel.team_id;
                     initialChannelId = channelId;

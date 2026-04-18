@@ -167,8 +167,9 @@ describe('renderSystemMessage', () => {
         expect(renderedMessage.toJSON()).toBeNull();
     });
 
-    test('uses discussion wording for channel header when channelType is private', () => {
+    test('renders structured announcement card for private channel (announcement UX)', () => {
         const post = {
+            createAt: 1_704_067_200_000,
             props: {
                 old_header: 'old header',
                 new_header: 'new header',
@@ -183,7 +184,34 @@ describe('renderSystemMessage', () => {
             />,
             {database},
         );
-        expect(getByText('updated the discussion group header from: old header to: new header')).toBeTruthy();
+        expect(getByText(/Time:/)).toBeTruthy();
+        expect(getByText(/Editor:/)).toBeTruthy();
+        expect(getByText(/old header/)).toBeTruthy();
+        expect(getByText(/new header/)).toBeTruthy();
+    });
+
+    test('renders structured announcement card (time, editor, content) for open channel', () => {
+        const post = {
+            createAt: 1_704_067_200_000,
+            props: {
+                old_header: 'Previous announcement',
+                new_header: 'Updated announcement',
+            },
+            type: Post.POST_TYPES.HEADER_CHANGE,
+        };
+        const {getByText} = renderWithEverything(
+            <SystemMessage
+                post={post}
+                {...baseProps}
+                channelType={General.OPEN_CHANNEL}
+            />,
+            {database},
+        );
+        expect(getByText(/Time:/)).toBeTruthy();
+        expect(getByText(/Editor:/)).toBeTruthy();
+        expect(getByText(/Announcement content:/)).toBeTruthy();
+        expect(getByText(/Previous announcement/)).toBeTruthy();
+        expect(getByText(/Updated announcement/)).toBeTruthy();
     });
 
     test('uses discussion wording for guest join when channelType is private', () => {

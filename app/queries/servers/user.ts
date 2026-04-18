@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import {Database, Q} from '@nozbe/watermelondb';
-import {combineLatest, of as of$} from 'rxjs';
-import {distinctUntilChanged, switchMap} from 'rxjs/operators';
+import {combineLatest, of as of$, type Observable} from 'rxjs';
+import {distinctUntilChanged, map as map$, switchMap} from 'rxjs/operators';
 
 import {General} from '@constants';
 import {MM_TABLES} from '@constants/database';
@@ -114,6 +114,26 @@ export const observeUserIsTeamAdmin = (database: Database, userId: string, teamI
         Q.where('id', Q.eq(id)),
     ).observeWithColumns(['scheme_admin']).pipe(
         switchMap((tm) => of$(tm.length ? tm[0].schemeAdmin : false)),
+    );
+};
+
+/** User ids that belong to the given team (enterprise); used to scope DM/GM on home conversation list. */
+export const observeUserIdsInTeam = (database: Database, teamId: string): Observable<ReadonlySet<string>> => {
+    return database.get<TeamMembershipModel>(TEAM_MEMBERSHIP).query(
+        Q.where('team_id', teamId),
+    ).observeWithColumns(['user_id']).pipe(
+        map$((rows) => new Set(rows.map((r) => r.userId))),
+        distinctUntilChanged((a, b) => {
+            if (a.size !== b.size) {
+                return false;
+            }
+            for (const id of a) {
+                if (!b.has(id)) {
+                    return false;
+                }
+            }
+            return true;
+        }),
     );
 };
 

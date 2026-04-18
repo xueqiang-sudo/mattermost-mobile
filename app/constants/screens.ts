@@ -44,6 +44,7 @@ export const DRAFT = 'Draft';
 export const DRAFT_SCHEDULED_POST_OPTIONS = 'DraftScheduledPostOptions';
 export const DRAFT_VIDEO_RECORDER = 'DraftVideoRecorder';
 export const EDIT_POST = 'EditPost';
+export const EDIT_CHANNEL_ANNOUNCEMENT = 'EditChannelAnnouncement';
 export const EDIT_PROFILE = 'EditProfile';
 export const EDIT_SERVER = 'EditServer';
 export const EMOJI_PICKER = 'EmojiPicker';
@@ -157,6 +158,7 @@ export default {
     DRAFT_SCHEDULED_POST_OPTIONS,
     DRAFT_VIDEO_RECORDER,
     EDIT_POST,
+    EDIT_CHANNEL_ANNOUNCEMENT,
     EDIT_PROFILE,
     EDIT_SERVER,
     EMOJI_PICKER,
@@ -237,6 +239,7 @@ export const MODAL_SCREENS_WITHOUT_BACK = new Set<string>([
     CREATE_TEAM,
     CUSTOM_STATUS,
     EDIT_POST,
+    EDIT_CHANNEL_ANNOUNCEMENT,
     EDIT_PROFILE,
     EDIT_SERVER,
     FIND_CHANNELS,

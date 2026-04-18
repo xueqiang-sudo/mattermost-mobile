@@ -33,8 +33,36 @@ export function isTypeDMorGM(channelType: ChannelType | undefined): boolean {
     return Boolean(channelType && DIRECT_TYPES.includes(channelType));
 }
 
+/** 一对一私聊（不含讨论组 GM）。 */
+export function isDirectMessageChannel(channelType: ChannelType | undefined): boolean {
+    return channelType === General.DM_CHANNEL;
+}
+
+/** 使用「公告」编辑与展示体系的频道类型（P 群、讨论组、公开/企业频道）。 */
+export function channelSupportsAnnouncementUx(channelType: ChannelType | undefined): boolean {
+    if (!channelType) {
+        return false;
+    }
+    return (
+        channelType === General.PRIVATE_CHANNEL ||
+        channelType === General.GM_CHANNEL ||
+        channelType === General.OPEN_CHANNEL
+    );
+}
+
+/** 编辑频道 header（公告）所需的权限常量。 */
+export function permissionForEditingChannelAnnouncement(channelType: ChannelType | undefined): string | undefined {
+    if (channelType === General.PRIVATE_CHANNEL) {
+        return Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES;
+    }
+    if (channelType === General.GM_CHANNEL || channelType === General.OPEN_CHANNEL) {
+        return Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES;
+    }
+    return undefined;
+}
+
 /**
- * 讨论组（Mattermost GM）专用文案；私有群聊（P）与公开群聊（O）走「群聊」体系，勿与讨论组合用。
+ * 讨论组（Mattermost GM）专用文案；P/O 类型群聊走「群聊」体系，勿与讨论组合用。
  * @see `app/screens/channel/header/header.tsx` 标题角标
  */
 export function usesDiscussionGroupChannelCopy(channelType: ChannelType | undefined): boolean {
@@ -173,7 +201,7 @@ export function isDefaultChannel(channel: Channel | ChannelModel | undefined): b
 
 /**
  * Only the team default public channel (town-square / 企业总群) shows the team/enterprise name in the header.
- * Other open channels, group messages (GM), DMs, and private channels use the channel display name.
+ * Other open channels, group messages (GM), DMs, and P-type group chats use the channel display name.
  */
 export function getChannelTitleDisplayName(
     channel: Pick<ChannelModel, 'name' | 'displayName' | 'type'> | undefined,

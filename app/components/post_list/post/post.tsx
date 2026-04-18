@@ -198,9 +198,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         rightColumnOwn: {
             alignItems: 'flex-end',
         },
+        /**
+         * 微信居中系统消息：右栏必须占满行宽，否则子级 flex:1 的文案区宽度为 0，
+         * 公告卡片会塌成「竖线 + 喇叭」。
+         */
         rightColumnSystem: {
-            alignSelf: 'center',
-            flex: undefined,
+            flex: 1,
+            alignSelf: 'stretch',
+            minWidth: 0,
+            maxWidth: '100%',
         },
         rightColumnPadding: {paddingBottom: 3},
     };
@@ -473,7 +479,7 @@ const Post = ({
     const useCenteredNoAvatarLayout =
         !invalidTipWeChatOwnRow &&
         (showSystemCentered || (showInvalidTip && !weChatStyle));
-    const showOwnLayout = weChatStyle && (isOwnPost || invalidTipWeChatOwnRow);
+    const showOwnLayout = weChatStyle && ((isOwnPost && !isSystemPost) || invalidTipWeChatOwnRow);
     const effectiveConsecutivePost = weChatStyle ? false : isConsecutivePost;
 
     const rightColumnStyle: StyleProp<ViewStyle> = [

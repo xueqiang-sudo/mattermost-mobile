@@ -49,6 +49,7 @@ type Props = {
     isConvertGMFeatureAvailable: boolean;
     isCRTEnabled: boolean;
     isGuestUser: boolean;
+    isTeamDefaultOpenChannel?: boolean;
     type?: ChannelType;
 }
 
@@ -92,6 +93,7 @@ const ChannelInfo = ({
     isConvertGMFeatureAvailable,
     isCRTEnabled,
     isGuestUser,
+    isTeamDefaultOpenChannel = false,
     type,
 }: Props) => {
     const theme = useTheme();
@@ -190,6 +192,7 @@ const ChannelInfo = ({
                             isCRTEnabled={isCRTEnabled}
                             canManageSettings={canManageSettings}
                             isPlaybooksEnabled={isPlaybooksEnabled}
+                            isTeamDefaultOpenChannel={isTeamDefaultOpenChannel}
                         />
                     </ChannelInfoCard>
                     {convertGMOptionAvailable &&

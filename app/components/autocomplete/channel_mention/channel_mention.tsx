@@ -64,7 +64,7 @@ const channelMentionMessages = defineMessages({
     },
     private: {
         id: 'suggestion.search.private',
-        defaultMessage: 'Private Channels',
+        defaultMessage: 'Group chats',
     },
     direct: {
         id: 'suggestion.search.direct',

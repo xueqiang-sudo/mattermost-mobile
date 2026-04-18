@@ -21,6 +21,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
 import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@playbooks/screens/navigation';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
+import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
 import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
@@ -48,9 +49,9 @@ const channelTypeTagMessages = defineMessages({
         id: 'channel_header.tag.discussion_group',
         defaultMessage: 'Discussion group',
     },
-    privateGroupChat: {
-        id: 'channel_header.tag.private_group_chat',
-        defaultMessage: 'Private group chat',
+    publicGroupChat: {
+        id: 'channel_header.tag.public_group_chat',
+        defaultMessage: 'Public group chat',
     },
     enterprisePublic: {
         id: 'channel_header.tag.enterprise_public',
@@ -59,7 +60,9 @@ const channelTypeTagMessages = defineMessages({
 });
 
 type ChannelProps = {
+    announcementMarkdown: string;
     canAddBookmarks: boolean;
+    canEditAnnouncement: boolean;
     channelId: string;
     channelName: string;
     channelType: ChannelType;
@@ -113,7 +116,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 const ChannelHeader = ({
+    announcementMarkdown,
     canAddBookmarks,
+    canEditAnnouncement,
     channelId,
     channelName,
     channelType,
@@ -154,11 +159,11 @@ const ChannelHeader = ({
             case General.GM_CHANNEL:
                 return intl.formatMessage(channelTypeTagMessages.discussionGroup);
             case General.PRIVATE_CHANNEL:
-                return intl.formatMessage(channelTypeTagMessages.privateGroupChat);
+                return intl.formatMessage(channelTypeTagMessages.groupChat);
             case General.OPEN_CHANNEL:
                 return channelName === General.DEFAULT_CHANNEL
                     ? intl.formatMessage(channelTypeTagMessages.enterprisePublic)
-                    : intl.formatMessage(channelTypeTagMessages.groupChat);
+                    : intl.formatMessage(channelTypeTagMessages.publicGroupChat);
             default:
                 return '';
         }
@@ -191,7 +196,7 @@ const ChannelHeader = ({
                 title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
                 break;
             case General.PRIVATE_CHANNEL:
-                title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Private group chat info'});
+                title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
                 break;
             default:
                 title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
@@ -410,6 +415,13 @@ const ChannelHeader = ({
                 <ChannelBanner
                     channelId={channelId}
                     isTopItem={!showBookmarkBar}
+                />
+            }
+            {channelType === General.PRIVATE_CHANNEL && Boolean(announcementMarkdown.trim()) &&
+                <ChannelAnnouncementBar
+                    canEditAnnouncement={canEditAnnouncement}
+                    channelId={channelId}
+                    headerMarkdown={announcementMarkdown}
                 />
             }
         </>

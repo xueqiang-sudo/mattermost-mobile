@@ -91,13 +91,13 @@ function PermalinkError({
     let button;
     if (isPrivate && error.joinedTeam) {
         image = (<JoinPrivateChannel theme={theme}/>);
-        title = intl.formatMessage({id: 'permalink.error.private_channel_and_team.title', defaultMessage: 'Join private channel and enterprise'});
-        text = intl.formatMessage({id: 'permalink.error.private_channel_and_team.text', defaultMessage: 'The message you are trying to view is in a private channel in an enterprise you are not a member of. You have access as an admin. Do you want to join **{channelName}** and the **{teamName}** enterprise to view it?'}, {channelName: error.channelName, teamName: error.teamName});
+        title = intl.formatMessage({id: 'permalink.error.private_channel_and_team.title', defaultMessage: 'Join group chat and enterprise'});
+        text = intl.formatMessage({id: 'permalink.error.private_channel_and_team.text', defaultMessage: 'The message you are trying to view is in a group chat in an enterprise you are not a member of. You have access as an admin. Do you want to join **{channelName}** and the **{teamName}** enterprise to view it?'}, {channelName: error.channelName, teamName: error.teamName});
         button = intl.formatMessage({id: 'permalink.error.private_channel_and_team.button', defaultMessage: 'Join channel and enterprise'});
     } else if (isPrivate) {
         image = (<JoinPrivateChannel theme={theme}/>);
-        title = intl.formatMessage({id: 'permalink.error.private_channel.title', defaultMessage: 'Join private channel'});
-        text = intl.formatMessage({id: 'permalink.error.private_channel.text', defaultMessage: 'The message you are trying to view is in a private channel you have not been invited to, but you have access as an admin. Do you still want to join **{channelName}**?'}, {channelName: error.channelName});
+        title = intl.formatMessage({id: 'permalink.error.private_channel.title', defaultMessage: 'Join group chat'});
+        text = intl.formatMessage({id: 'permalink.error.private_channel.text', defaultMessage: 'The message you are trying to view is in a group chat you have not been invited to, but you have access as an admin. Do you still want to join **{channelName}**?'}, {channelName: error.channelName});
         button = intl.formatMessage({id: 'permalink.error.private_channel.button', defaultMessage: 'Join channel'});
     } else if (error.joinedTeam) {
         image = (<JoinPublicChannel theme={theme}/>);

@@ -153,6 +153,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EDIT_POST:
             screen = withServerDatabase(require('@screens/edit_post').default);
             break;
+        case Screens.EDIT_CHANNEL_ANNOUNCEMENT:
+            screen = withServerDatabase(require('@screens/edit_channel_announcement').default);
+            break;
         case Screens.EDIT_PROFILE:
             screen = withServerDatabase(require('@screens/edit_profile').default);
             break;

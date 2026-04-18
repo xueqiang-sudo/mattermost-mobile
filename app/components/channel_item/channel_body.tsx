@@ -96,10 +96,12 @@ export const ChannelBody = ({
     if ((isOnHome || showChannelTypeTag) && channelType) {
         if (channelNameKey === General.DEFAULT_CHANNEL) {
             tagLabel = formatMessage({id: 'channel_list.tag.enterprise_group', defaultMessage: 'All staff'});
-        } else if (channelType === General.GM_CHANNEL || channelType === General.PRIVATE_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.channel', defaultMessage: 'Discussion'});
+        } else if (channelType === General.GM_CHANNEL) {
+            tagLabel = formatMessage({id: 'channel_list.tag.discussion_group', defaultMessage: 'Discussion group'});
+        } else if (channelType === General.PRIVATE_CHANNEL) {
+            tagLabel = formatMessage({id: 'channel_list.tag.group_chat', defaultMessage: 'Group chat'});
         } else if (channelType === General.OPEN_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.group_chat', defaultMessage: 'Group'});
+            tagLabel = formatMessage({id: 'channel_list.tag.public_group_chat', defaultMessage: 'Public group chat'});
         }
     }
 

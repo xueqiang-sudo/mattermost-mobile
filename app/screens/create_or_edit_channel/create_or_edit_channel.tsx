@@ -96,7 +96,7 @@ const CreateOrEditChannel = ({
     const isDefaultTownSquare = channel?.name === General.DEFAULT_CHANNEL;
     const displayNameReadOnly = Boolean(editing && isDefaultTownSquare);
 
-    const [type, setType] = useState<ChannelType>(channel?.type || General.OPEN_CHANNEL);
+    const [type, setType] = useState<ChannelType>(channel?.type ?? General.PRIVATE_CHANNEL);
     const [canSave, setCanSave] = useState(false);
 
     const [displayName, setDisplayName] = useState<string>(channel?.displayName || '');
@@ -171,15 +171,17 @@ const CreateOrEditChannel = ({
 
     useEffect(() => {
         const displayNameChanged = displayNameReadOnly ? false : displayName !== channel?.displayName;
+        const isPrivateTeamChannel = channel?.type === General.PRIVATE_CHANNEL && !isDirect(channel);
+        const headerDirty = !headerOnly && isPrivateTeamChannel ? false : header !== channelInfo?.header;
         setCanSave(
             displayName.length >= MIN_CHANNEL_NAME_LENGTH && (
                 displayNameChanged ||
                 purpose !== channelInfo?.purpose ||
-                header !== channelInfo?.header ||
+                headerDirty ||
                 type !== channel?.type
             ),
         );
-    }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly]);
+    }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly, headerOnly]);
 
     const isValidDisplayName = useCallback((): boolean => {
         // DM 不需要验证 displayName；GM 群聊需要验证
@@ -206,7 +208,8 @@ const CreateOrEditChannel = ({
         }
 
         setCanSave(false);
-        const createdChannel = await createChannel(serverUrl, displayName, purpose, header, type);
+        const headerToCreate = type === General.PRIVATE_CHANNEL ? '' : header;
+        const createdChannel = await createChannel(serverUrl, displayName, purpose, headerToCreate, type);
         if (createdChannel.error) {
             dispatch({
                 type: RequestActions.FAILURE,
@@ -218,7 +221,7 @@ const CreateOrEditChannel = ({
         dispatch({type: RequestActions.COMPLETE});
         close(componentId, isModal);
         switchToChannelById(serverUrl, createdChannel.channel!.id, createdChannel.channel!.team_id);
-    }, [serverUrl, type, displayName, header, isModal, purpose, isValidDisplayName]);
+    }, [serverUrl, type, displayName, header, isModal, purpose, isValidDisplayName, componentId]);
 
     const onUpdateChannel = useCallback(async () => {
         if (!channel) {
@@ -230,19 +233,23 @@ const CreateOrEditChannel = ({
             return;
         }
 
-        const patchChannel: ChannelPatch = {
-            header,
-        };
+        const patchChannel: ChannelPatch = {};
         const allowDisplayNamePatch = channel.name !== General.DEFAULT_CHANNEL;
         if (channel.type === General.GM_CHANNEL) {
             if (allowDisplayNamePatch) {
                 patchChannel.display_name = displayName;
             }
+            patchChannel.header = header;
         } else if (!isDirect(channel)) {
             if (allowDisplayNamePatch) {
                 patchChannel.display_name = displayName;
             }
             patchChannel.purpose = purpose;
+            if (channel.type !== General.PRIVATE_CHANNEL) {
+                patchChannel.header = header;
+            }
+        } else {
+            patchChannel.header = header;
         }
 
         setCanSave(false);
@@ -275,7 +282,7 @@ const CreateOrEditChannel = ({
             <ChannelInfoForm
                 error={appState.error}
                 saving={appState.saving}
-                channelType={channel?.type}
+                channelType={channel?.type ?? type}
                 editing={editing}
                 onTypeChange={setType}
                 type={type}

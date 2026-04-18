@@ -138,6 +138,12 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
             distinctUntilChanged(),
         ) : of$('');
 
+    const lastPostType = isOnHome ?
+        lastPost.pipe(
+            switchMap((post) => of$(post?.type ?? '')),
+            distinctUntilChanged(),
+        ) : of$('');
+
     const currentTimezone = observeCurrentUser(database).pipe(
         map((user) => getTimezone(user?.timezone) || null),
         distinctUntilChanged(),
@@ -164,6 +170,7 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
         hasCall,
         lastPostAt,
         lastPostPreview,
+        lastPostType,
         isMilitaryTime,
     };
 });

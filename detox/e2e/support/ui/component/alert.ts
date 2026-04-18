@@ -6,15 +6,15 @@ import {isAndroid} from '@support/utils';
 class Alert {
     // alert titles
     confirmSendingNotificationsTitle = isAndroid() ? element(by.text('Confirm sending notifications to entire channel')) : element(by.label('Confirm sending notifications to entire channel')).atIndex(0);
-    archivePrivateChannelTitle = isAndroid() ? element(by.text('Archive Private Channel')) : element(by.label('Archive Private Channel')).atIndex(0);
+    archivePrivateChannelTitle = isAndroid() ? element(by.text('Archive Group chat')) : element(by.label('Archive Group chat')).atIndex(0);
     archivePublicChannelTitle = isAndroid() ? element(by.text('Archive Public Channel')) : element(by.label('Archive Public Channel')).atIndex(0);
     channelNowPrivateTitle = (channelDisplayName: string) => {
-        const title = `${channelDisplayName} is now a private channel.`;
+        const title = `${channelDisplayName} is now a group chat.`;
 
         return isAndroid() ? element(by.text(title)) : element(by.label(title)).atIndex(0);
     };
     convertToPrivateChannelTitle = (channelDisplayName: string) => {
-        const title = `Convert ${channelDisplayName} to a private channel?`;
+        const title = `Convert ${channelDisplayName} to a group chat?`;
 
         return isAndroid() ? element(by.text(title)) : element(by.label(title)).atIndex(0);
     };
@@ -34,7 +34,7 @@ class Alert {
 
         return isAndroid() ? element(by.text(title)) : element(by.label(title)).atIndex(0);
     };
-    unarchivePrivateChannelTitle = isAndroid() ? element(by.text('Unarchive Private Channel')) : element(by.label('Unarchive Private Channel')).atIndex(0);
+    unarchivePrivateChannelTitle = isAndroid() ? element(by.text('Unarchive Group chat')) : element(by.label('Unarchive Group chat')).atIndex(0);
     unarchivePublicChannelTitle = isAndroid() ? element(by.text('Unarchive Public Channel')) : element(by.label('Unarchive Public Channel')).atIndex(0);
 
     // alert buttons

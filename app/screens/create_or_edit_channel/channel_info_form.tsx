@@ -13,16 +13,17 @@ import {
     type NativeScrollEvent,
     Platform,
     StyleSheet,
+    Text,
 } from 'react-native';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import Autocomplete from '@components/autocomplete';
+import CompassIcon from '@components/compass_icon';
 import ErrorText from '@components/error_text';
 import FloatingTextInput from '@components/floating_input/floating_text_input_label';
 import FormattedText from '@components/formatted_text';
 import Loading from '@components/loading';
-import OptionItem from '@components/option_item';
 import {General, Channel} from '@constants';
 import {useTheme} from '@context/theme';
 import {useAutocompleteDefaultAnimatedValues} from '@hooks/autocomplete';
@@ -36,14 +37,14 @@ import {typography} from '@utils/typography';
 
 const SCREEN_PADDING_H = 16;
 const SECTION_GAP = 24;
+const CARD_PADDING = 16;
+const FIELD_GAP_IN_CARD = 20;
 const FIELD_CAPTION_GAP = 8;
 const BOTTOM_AUTOCOMPLETE_SEPARATION = Platform.select({ios: 10, default: 10});
 const SCROLL_PADDING_VERTICAL = 20;
 const AUTOCOMPLETE_ADJUST = 5;
+const CARD_RADIUS = 12;
 
-/**
- * 获取频道信息表单的样式
- */
 const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
     container: {
         flex: 1,
@@ -66,27 +67,62 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    captionText: {
-        ...typography('Body', 100, 'Regular'),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: FIELD_CAPTION_GAP,
-    },
     mainView: {
         gap: SECTION_GAP,
+    },
+    introCard: {
+        borderRadius: CARD_RADIUS,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        padding: CARD_PADDING,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    introIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.12),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    introTextBlock: {
+        flex: 1,
+        minWidth: 0,
+    },
+    introTitle: {
+        ...typography('Body', 300, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginBottom: 4,
+    },
+    introCaption: {
+        ...typography('Body', 100, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        lineHeight: 22,
+    },
+    sectionLabel: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginBottom: 8,
+        marginLeft: 2,
+    },
+    fieldsCard: {
+        borderRadius: CARD_RADIUS,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.03),
+        padding: CARD_PADDING,
+        gap: FIELD_GAP_IN_CARD,
     },
     fieldStack: {
         width: '100%',
     },
-    privacySection: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
-        borderRadius: 12,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
-        overflow: 'hidden',
-    },
-    privacySectionInner: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+    captionText: {
+        ...typography('Body', 100, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: FIELD_CAPTION_GAP,
     },
 }));
 
@@ -107,9 +143,6 @@ type Props = {
     type?: string;
 }
 
-/**
- * 频道信息表单组件
- */
 export default function ChannelInfoForm({
     channelType,
     displayName,
@@ -126,6 +159,7 @@ export default function ChannelInfoForm({
     saving,
     type,
 }: Props) {
+    void onTypeChange;
     const intl = useIntl();
     const {formatMessage} = intl;
 
@@ -151,9 +185,8 @@ export default function ChannelInfoForm({
     const [scrollPosition, setScrollPosition] = useState(0);
 
     const [errorHeight, setErrorHeight] = useState(0);
-    const [displayNameFieldHeight, setDisplayNameFieldHeight] = useState(0);
-    const [makePrivateHeight, setMakePrivateHeight] = useState(0);
-    const [purposeFieldHeight, setPurposeFieldHeight] = useState(0);
+    const [introHeight, setIntroHeight] = useState(0);
+    const [detailsBlockHeight, setDetailsBlockHeight] = useState(0);
     const [headerFieldHeight, setHeaderFieldHeight] = useState(0);
     const [headerPosition, setHeaderPosition] = useState(0);
 
@@ -162,30 +195,30 @@ export default function ChannelInfoForm({
     const labelPurpose = formatMessage({id: 'channel_modal.purpose', defaultMessage: 'Purpose'}) + ' ' + optionalText;
     const labelHeader = formatMessage({id: 'channel_modal.header', defaultMessage: 'Header'}) + ' ' + optionalText;
 
-    const placeholderDisplayName = formatMessage({id: 'channel_modal.nameEx', defaultMessage: 'Bugs, Marketing'});
-    const placeholderPurpose = formatMessage({id: 'channel_modal.purposeEx', defaultMessage: 'A channel to file bugs and improvements'});
-    const placeholderHeader = formatMessage({id: 'channel_modal.headerEx', defaultMessage: 'Use Markdown to format header text'});
+    const placeholderDisplayName = formatMessage({id: 'channel_modal.nameEx', defaultMessage: 'e.g. Bugs, Marketing'});
+    const placeholderPurpose = formatMessage({id: 'channel_modal.purposeEx', defaultMessage: 'What this group chat is for'});
+    const placeholderHeader = formatMessage({id: 'channel_modal.headerEx', defaultMessage: 'Markdown supported — links, notes'});
 
-    const makePrivateLabel = formatMessage({id: 'channel_modal.makePrivate.label', defaultMessage: 'Make Private'});
-    const makePrivateDescription = formatMessage({id: 'channel_modal.makePrivate.description', defaultMessage: 'When a channel is set to private, only invited enterprise members can access and participate in that channel'});
-
-    // GM 群聊编辑时显示名称字段以支持修改群聊名称
+    const effectiveChannelType = channelType ?? type ?? '';
     const displayHeaderOnly = headerOnly || channelType === General.DM_CHANNEL || (channelType === General.GM_CHANNEL && !editing);
-    const showSelector = !displayHeaderOnly && !editing;
+    const showCreateIntro = !editing && !displayHeaderOnly;
+    const hideHeaderField = effectiveChannelType === General.PRIVATE_CHANNEL && !headerOnly;
+    const showHeaderField = displayHeaderOnly || (!displayHeaderOnly && !hideHeaderField);
 
-    const isPrivate = type === General.PRIVATE_CHANNEL;
+    const sectionDetailsLabel = formatMessage({
+        id: 'channel_modal.section.details',
+        defaultMessage: 'Details',
+    });
 
-    /**
-     * 处理频道类型切换
-     */
-    const handlePress = () => {
-        const chtype = isPrivate ? General.OPEN_CHANNEL : General.PRIVATE_CHANNEL;
-        onTypeChange(chtype);
-    };
+    const introTitle = formatMessage({
+        id: 'channel_modal.create_private_notice.title',
+        defaultMessage: 'Create a chat for this topic',
+    });
+    const introCaption = formatMessage({
+        id: 'channel_modal.create_private_notice.caption',
+        defaultMessage: 'After you create it, invite the right people—keep decisions, updates, and files in one thread.',
+    });
 
-    /**
-     * 失去焦点处理
-     */
     const blur = useCallback(() => {
         nameInput.current?.blur();
         purposeInput.current?.blur();
@@ -193,18 +226,12 @@ export default function ChannelInfoForm({
         scrollViewRef.current?.scrollToPosition(0, 0, true);
     }, []);
 
-    /**
-     * 滚动到头部
-     */
     const scrollHeaderToTop = useCallback(() => {
         if (scrollViewRef?.current) {
             scrollViewRef.current?.scrollToPosition(0, headerPosition);
         }
     }, [headerPosition]);
 
-    /**
-     * 滚动事件处理
-     */
     const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const pos = e.nativeEvent.contentOffset.y;
         if (updateScrollTimeout.current) {
@@ -224,21 +251,14 @@ export default function ChannelInfoForm({
             setKeyBoardVisible(true);
         }
 
-        // We only want to change the visibility when the height changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [keyboardHeight]);
 
-    /**
-     * 处理头部自动完成变化
-     */
     const onHeaderAutocompleteChange = useCallback((value: string) => {
         onHeaderChange(value);
         propagateValue(value);
     }, [onHeaderChange, propagateValue]);
 
-    /**
-     * 处理头部输入变化
-     */
     const onHeaderInputChange = useCallback((value: string) => {
         if (!shouldProcessEvent(value)) {
             return;
@@ -246,58 +266,36 @@ export default function ChannelInfoForm({
         onHeaderChange(value);
     }, [onHeaderChange, shouldProcessEvent]);
 
-    /**
-     * 错误区域布局处理
-     */
     const onLayoutError = useCallback((e: LayoutChangeEvent) => {
         setErrorHeight(e.nativeEvent.layout.height);
     }, []);
 
-    /**
-     * 设为私有选项布局处理
-     */
-    const onLayoutMakePrivate = useCallback((e: LayoutChangeEvent) => {
-        setMakePrivateHeight(e.nativeEvent.layout.height);
+    const onLayoutIntro = useCallback((e: LayoutChangeEvent) => {
+        setIntroHeight(e.nativeEvent.layout.height);
     }, []);
 
-    /**
-     * 显示名称字段布局处理
-     */
-    const onLayoutDisplayName = useCallback((e: LayoutChangeEvent) => {
-        setDisplayNameFieldHeight(e.nativeEvent.layout.height);
+    const onLayoutDetailsBlock = useCallback((e: LayoutChangeEvent) => {
+        setDetailsBlockHeight(e.nativeEvent.layout.height);
     }, []);
 
-    /**
-     * 用途字段布局处理
-     */
-    const onLayoutPurpose = useCallback((e: LayoutChangeEvent) => {
-        setPurposeFieldHeight(e.nativeEvent.layout.height);
-    }, []);
-
-    /**
-     * 头部字段布局处理
-     */
     const onLayoutHeader = useCallback((e: LayoutChangeEvent) => {
         setHeaderFieldHeight(e.nativeEvent.layout.height);
         setHeaderPosition(e.nativeEvent.layout.y);
     }, []);
 
-    /**
-     * 包装器布局处理
-     */
     const onLayoutWrapper = useCallback((e: LayoutChangeEvent) => {
         setWrapperHeight(e.nativeEvent.layout.height);
     }, []);
 
     const otherElementsSize = SCROLL_PADDING_VERTICAL + errorHeight +
-        (showSelector ? makePrivateHeight + SECTION_GAP : 0) +
-        (displayHeaderOnly ? 0 : displayNameFieldHeight + SECTION_GAP + purposeFieldHeight + SECTION_GAP);
+        (showCreateIntro ? introHeight + SECTION_GAP : 0) +
+        (displayHeaderOnly ? headerFieldHeight : detailsBlockHeight);
 
     const workingSpace = wrapperHeight - keyboardOverlap;
     const spaceOnTop = otherElementsSize - scrollPosition - AUTOCOMPLETE_ADJUST;
-    const spaceOnBottom = (workingSpace + scrollPosition) - (otherElementsSize + headerFieldHeight + BOTTOM_AUTOCOMPLETE_SEPARATION);
+    const spaceOnBottom = (workingSpace + scrollPosition) - (otherElementsSize + BOTTOM_AUTOCOMPLETE_SEPARATION);
 
-    const bottomPosition = (otherElementsSize + headerFieldHeight) - scrollPosition;
+    const bottomPosition = otherElementsSize - scrollPosition;
     const topPosition = (workingSpace + scrollPosition + AUTOCOMPLETE_ADJUST + keyboardOverlap) - otherElementsSize;
     const autocompletePosition = spaceOnBottom > spaceOnTop ? bottomPosition : topPosition;
     const autocompleteAvailableSpace = spaceOnBottom > spaceOnTop ? spaceOnBottom : spaceOnTop;
@@ -357,119 +355,148 @@ export default function ChannelInfoForm({
                     onPress={blur}
                 >
                     <View style={styles.mainView}>
-                        {showSelector && (
+                        {showCreateIntro && (
                             <View
-                                style={styles.privacySection}
-                                onLayout={onLayoutMakePrivate}
+                                style={styles.introCard}
+                                onLayout={onLayoutIntro}
                             >
-                                <View style={styles.privacySectionInner}>
-                                    <OptionItem
-                                        testID='channel_info_form.make_private'
-                                        label={makePrivateLabel}
-                                        description={makePrivateDescription}
-                                        action={handlePress}
-                                        type={'toggle'}
-                                        selected={isPrivate}
-                                        icon={'lock-outline'}
+                                <View style={styles.introIconWrap}>
+                                    <CompassIcon
+                                        name='bullhorn-outline'
+                                        size={22}
+                                        color={theme.buttonBg}
                                     />
+                                </View>
+                                <View style={styles.introTextBlock}>
+                                    <Text style={styles.introTitle}>
+                                        {introTitle}
+                                    </Text>
+                                    <Text style={styles.introCaption}>
+                                        {introCaption}
+                                    </Text>
                                 </View>
                             </View>
                         )}
                         {!displayHeaderOnly && (
-                            <View
-                                style={styles.fieldStack}
-                                onLayout={onLayoutDisplayName}
-                            >
-                                <FloatingTextInput
-                                    blurOnSubmit={false}
-                                    disableFullscreenUI={true}
-                                    editable={!displayNameReadOnly}
-                                    enablesReturnKeyAutomatically={true}
-                                    label={labelDisplayName}
-                                    placeholder={placeholderDisplayName}
-                                    onChangeText={onDisplayNameChange}
-                                    maxLength={Channel.MAX_CHANNEL_NAME_LENGTH}
-                                    returnKeyType='next'
-                                    testID='channel_info_form.display_name.input'
-                                    value={displayName}
-                                    ref={nameInput}
-                                    theme={theme}
-                                />
-                                {displayNameReadOnly && (
-                                    <FormattedText
-                                        style={styles.captionText}
-                                        id='mobile.channel.town_square_display_name_readonly'
-                                        defaultMessage="This name is your enterprise workspace. It is shown here instead of the server default. To change it, ask your administrator to update the team or enterprise display name."
-                                        testID='channel_info_form.display_name.readonly_help'
-                                    />
-                                )}
+                            <View onLayout={onLayoutDetailsBlock}>
+                                <Text style={styles.sectionLabel}>
+                                    {sectionDetailsLabel}
+                                </Text>
+                                <View style={styles.fieldsCard}>
+                                    <View style={styles.fieldStack}>
+                                        <FloatingTextInput
+                                            blurOnSubmit={false}
+                                            disableFullscreenUI={true}
+                                            editable={!displayNameReadOnly}
+                                            enablesReturnKeyAutomatically={true}
+                                            label={labelDisplayName}
+                                            placeholder={placeholderDisplayName}
+                                            onChangeText={onDisplayNameChange}
+                                            maxLength={Channel.MAX_CHANNEL_NAME_LENGTH}
+                                            returnKeyType='next'
+                                            testID='channel_info_form.display_name.input'
+                                            value={displayName}
+                                            ref={nameInput}
+                                            theme={theme}
+                                        />
+                                        {displayNameReadOnly && (
+                                            <FormattedText
+                                                style={styles.captionText}
+                                                id='mobile.channel.town_square_display_name_readonly'
+                                                defaultMessage="This name is your enterprise workspace. It is shown here instead of the server default. To change it, ask your administrator to update the team or enterprise display name."
+                                                testID='channel_info_form.display_name.readonly_help'
+                                            />
+                                        )}
+                                    </View>
+                                    <View style={styles.fieldStack}>
+                                        <FloatingTextInput
+                                            blurOnSubmit={false}
+                                            disableFullscreenUI={true}
+                                            enablesReturnKeyAutomatically={true}
+                                            label={labelPurpose}
+                                            placeholder={placeholderPurpose}
+                                            onChangeText={onPurposeChange}
+                                            returnKeyType='next'
+                                            testID='channel_info_form.purpose.input'
+                                            value={purpose}
+                                            ref={purposeInput}
+                                            theme={theme}
+                                        />
+                                    </View>
+                                    {showHeaderField && (
+                                        <View
+                                            style={styles.fieldStack}
+                                            onLayout={onLayoutHeader}
+                                        >
+                                            <FloatingTextInput
+                                                blurOnSubmit={false}
+                                                disableFullscreenUI={true}
+                                                enablesReturnKeyAutomatically={true}
+                                                label={labelHeader}
+                                                placeholder={placeholderHeader}
+                                                onChangeText={onHeaderInputChange}
+                                                multiline={true}
+                                                returnKeyType='next'
+                                                testID='channel_info_form.header.input'
+                                                value={header}
+                                                ref={headerInput}
+                                                theme={theme}
+                                                onFocus={scrollHeaderToTop}
+                                            />
+                                            <FormattedText
+                                                style={styles.captionText}
+                                                id='channel_modal.headerHelp'
+                                                defaultMessage={'Shown next to the chat name at the top. Use Markdown for links, e.g. [Docs](https://example.com).'}
+                                                testID='channel_info_form.header.description'
+                                            />
+                                        </View>
+                                    )}
+                                </View>
                             </View>
                         )}
-                        {!displayHeaderOnly && (
+                        {displayHeaderOnly && (
                             <View
                                 style={styles.fieldStack}
-                                onLayout={onLayoutPurpose}
+                                onLayout={onLayoutHeader}
                             >
                                 <FloatingTextInput
                                     blurOnSubmit={false}
                                     disableFullscreenUI={true}
                                     enablesReturnKeyAutomatically={true}
-                                    label={labelPurpose}
-                                    placeholder={placeholderPurpose}
-                                    onChangeText={onPurposeChange}
+                                    label={labelHeader}
+                                    placeholder={placeholderHeader}
+                                    onChangeText={onHeaderInputChange}
+                                    multiline={true}
                                     returnKeyType='next'
-                                    testID='channel_info_form.purpose.input'
-                                    value={purpose}
-                                    ref={purposeInput}
+                                    testID='channel_info_form.header.input'
+                                    value={header}
+                                    ref={headerInput}
                                     theme={theme}
+                                    onFocus={scrollHeaderToTop}
                                 />
                                 <FormattedText
                                     style={styles.captionText}
-                                    id='channel_modal.descriptionHelp'
-                                    defaultMessage='Describe how this channel should be used.'
-                                    testID='channel_info_form.purpose.description'
+                                    id='channel_modal.headerHelp'
+                                    defaultMessage={'Shown next to the chat name at the top. Use Markdown for links, e.g. [Docs](https://example.com).'}
+                                    testID='channel_info_form.header.description'
                                 />
                             </View>
                         )}
-                        <View
-                            style={styles.fieldStack}
-                            onLayout={onLayoutHeader}
-                        >
-                            <FloatingTextInput
-                                blurOnSubmit={false}
-                                disableFullscreenUI={true}
-                                enablesReturnKeyAutomatically={true}
-                                label={labelHeader}
-                                placeholder={placeholderHeader}
-                                onChangeText={onHeaderInputChange}
-                                multiline={true}
-                                returnKeyType='next'
-                                testID='channel_info_form.header.input'
-                                value={header}
-                                ref={headerInput}
-                                theme={theme}
-                                onFocus={scrollHeaderToTop}
-                            />
-                            <FormattedText
-                                style={styles.captionText}
-                                id='channel_modal.headerHelp'
-                                defaultMessage={'Specify text to appear in the channel header beside the channel name. For example, include frequently used links by typing link text [Link Title](http://example.com).'}
-                                testID='channel_info_form.header.description'
-                            />
-                        </View>
                     </View>
                 </TouchableWithoutFeedback>
             </KeyboardAwareScrollView>
-            <Autocomplete
-                position={animatedAutocompletePosition}
-                updateValue={onHeaderAutocompleteChange}
-                cursorPosition={header.length}
-                value={header}
-                nestedScrollEnabled={true}
-                availableSpace={animatedAutocompleteAvailableSpace}
-                shouldDirectlyReact={false}
-                growDown={growDown}
-            />
+            {showHeaderField && (
+                <Autocomplete
+                    position={animatedAutocompletePosition}
+                    updateValue={onHeaderAutocompleteChange}
+                    cursorPosition={header.length}
+                    value={header}
+                    nestedScrollEnabled={true}
+                    availableSpace={animatedAutocompleteAvailableSpace}
+                    shouldDirectlyReact={false}
+                    growDown={growDown}
+                />
+            )}
         </SafeAreaView>
     );
 }

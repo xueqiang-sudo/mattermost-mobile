@@ -158,7 +158,7 @@ export const postTypeMessages = {
     }),
 };
 
-/** Join/add/remove/leave channel — discussion group wording（仅 GM；私有群聊走「群聊」文案） */
+/** Join/add/remove/leave channel — discussion group wording（仅 GM；P 类型群聊走「群聊」文案） */
 const postTypeMessagesDiscussionChannel = {
     [JOIN_CHANNEL]: defineMessages({
         one: {

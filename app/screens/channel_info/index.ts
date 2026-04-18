@@ -7,6 +7,7 @@ import {distinctUntilChanged, switchMap, combineLatestWith} from 'rxjs/operators
 
 import {observeIsCallsEnabledInChannel} from '@calls/observers';
 import {observeCallsConfig} from '@calls/state';
+import {General} from '@constants';
 import {withServerUrl} from '@context/server';
 import {observeIsPlaybooksEnabled} from '@playbooks/database/queries/version';
 import {observeCurrentChannel} from '@queries/servers/channel';
@@ -21,7 +22,7 @@ import {
 } from '@queries/servers/system';
 import {observeIsCRTEnabled} from '@queries/servers/thread';
 import {observeCurrentUser, observeUserIsChannelAdmin, observeUserIsTeamAdmin} from '@queries/servers/user';
-import {isTypeDMorGM} from '@utils/channel';
+import {isDefaultChannel, isTypeDMorGM} from '@utils/channel';
 import {isMinimumServerVersion} from '@utils/helpers';
 import {isSystemAdmin} from '@utils/user';
 
@@ -72,6 +73,9 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         switchMap((v) => of$(isMinimumServerVersion(v || '', 7, 6))),
     );
     const dmOrGM = type.pipe(switchMap((t) => of$(isTypeDMorGM(t))));
+    const isTeamDefaultOpenChannel = channel.pipe(
+        switchMap((c) => of$(Boolean(c?.type === General.OPEN_CHANNEL && isDefaultChannel(c)))),
+    );
     const canEnableDisableCalls = combineLatest([callsPluginEnabled, callsDefaultEnabled, allowEnableCalls, systemAdmin, channelAdmin, callsGAServer, dmOrGM, isTeamAdmin]).pipe(
         switchMap(([pluginEnabled, liveMode, allow, sysAdmin, chAdmin, gaServer, dmGM, tAdmin]) => {
             // Always false if the plugin is not enabled.
@@ -150,7 +154,9 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
     const isPlaybooksEnabled = observeIsPlaybooksEnabled(database);
 
     return {
+        channelId,
         type,
+        isTeamDefaultOpenChannel,
         canEnableDisableCalls,
         isCallsEnabledInChannel,
         groupCallsAllowed,

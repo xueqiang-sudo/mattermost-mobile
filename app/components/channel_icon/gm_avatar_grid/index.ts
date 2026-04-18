@@ -10,6 +10,7 @@ import {MM_TABLES} from '@constants/database';
 import {queryUsersOnChannel} from '@queries/servers/channel';
 import {observeCurrentUserId} from '@queries/servers/system';
 import {queryUsersById} from '@queries/servers/user';
+import {isBot} from '@utils/user';
 
 import GmAvatarGrid from './gm_avatar_grid';
 
@@ -67,7 +68,10 @@ const enhanced = withObservables(['channelId', 'channelName'], ({channelId, chan
                                 }
                             }
 
-                            const sorted = [...mergedUsers].sort((a, b) => (a.id === userId ? -1 : 0) - (b.id === userId ? -1 : 0));
+                            // 过滤掉系统/机器人用户，不显示在头像网格中
+                            const filteredUsers = mergedUsers.filter((user) => !isBot(user));
+                            
+                            const sorted = [...filteredUsers].sort((a, b) => (a.id === userId ? -1 : 0) - (b.id === userId ? -1 : 0));
                             return sorted.slice(0, 9);
                         }),
                     );

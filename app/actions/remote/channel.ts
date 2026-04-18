@@ -828,7 +828,7 @@ export async function joinIfNeededAndSwitchToChannel(
                 const {join} = await privateChannelJoinPrompt(fetchRequest.channel.display_name, intl);
                 if (!join) {
                     onError(joinedTeam, teamId);
-                    return {error: 'Refused to join Private channel'};
+                    return {error: 'Refused to join group chat'};
                 }
             }
 

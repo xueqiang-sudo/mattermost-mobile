@@ -14,6 +14,7 @@ import {HOME_PADDING} from '@constants/view';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {isDMorGM} from '@utils/channel';
+import {getHomeLastPostPreviewText} from '@utils/home_last_post_preview';
 import {formatMessagePreview} from '@utils/message_preview';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -52,6 +53,8 @@ type Props = {
     isOnHome?: boolean;
     lastPostAt?: number;
     lastPostPreview?: string;
+    /** Last root post `type` in home list (for localized preview overrides). */
+    lastPostType?: string;
     isMilitaryTime: boolean;
 }
 
@@ -229,9 +232,11 @@ const ChannelItem = ({
     isOnHome = false,
     lastPostAt = 0,
     lastPostPreview = '',
+    lastPostType = '',
     isMilitaryTime,
 }: Props) => {
-    const {formatMessage} = useIntl();
+    const intl = useIntl();
+    const {formatMessage} = intl;
     const theme = useTheme();
     const isTablet = useIsTablet();
     const styles = getStyleSheet(theme);
@@ -305,7 +310,19 @@ const ChannelItem = ({
 
     // 传入实际数量，Badge 组件会在 >99 时显示 "99+"
     const badgeValue = mentionsCount > 0 ? mentionsCount : (isUnread && messageCount > 0 ? messageCount : -1);
-    const subtitle = formatMessagePreview(lastPostPreview);
+    const homePreviewSource = useMemo(() => {
+        if (!isOnHome) {
+            return lastPostPreview;
+        }
+        return getHomeLastPostPreviewText(
+            intl,
+            lastPostPreview,
+            lastPostType || undefined,
+            channel.type as ChannelType,
+        );
+    }, [channel.type, intl, isOnHome, lastPostPreview, lastPostType]);
+
+    const subtitle = formatMessagePreview(homePreviewSource);
     const mutedIndicatorA11yLabel = formatMessage({
         id: 'mobile.channel_list.muted_indicator_a11y',
         defaultMessage: 'Muted',

@@ -609,7 +609,7 @@ export function queryMyJoinedTeamChannels(database: Database) {
 }
 
 /**
- * Joined open/private channels for a single team (e.g. current enterprise).
+ * Joined open and P-type (invite-only group chat) channels for a single team (e.g. current enterprise).
  * When teamId is empty, yields no rows.
  */
 export function queryMyJoinedTeamChannelsForTeam(database: Database, teamId: string) {
@@ -637,7 +637,7 @@ export function queryMyGroupMessageChannels(database: Database) {
 }
 
 /**
- * Archived open/private channels the user still has in my_channels, scoped to one team.
+ * Archived open and P-type channels the user still has in my_channels, scoped to one team.
  */
 export function queryMyArchivedTeamChannelsForTeam(database: Database, teamId: string) {
     if (!teamId) {
@@ -672,7 +672,7 @@ export const observeMyJoinedTeamChannels = (database: Database): Observable<Chan
     );
 };
 
-/** Open/private channels joined in the current team only (follows system current_team_id). */
+/** Open and P-type channels joined in the current team only (follows system current_team_id). */
 export const observeMyJoinedTeamChannelsForCurrentTeam = (database: Database): Observable<ChannelModel[]> => {
     return observeCurrentTeamId(database).pipe(
         distinctUntilChanged(),
@@ -719,6 +719,91 @@ export const sortChannelsForJoinedArchivedList = (channels: ChannelModel[]): Cha
     return [...channels].sort((a, b) => (b.updateAt || 0) - (a.updateAt || 0));
 };
 
+/** Mattermost DM/GM `channel.name`: sorted user ids joined by `__`. */
+export const MATTERMOST_USER_ID_IN_CHANNEL_NAME_RE = /^[a-z0-9]{26}$/;
+
+/**
+ * Parses user ids from a DM or GM channel name when it follows the standard Mattermost format.
+ * Otherwise returns `undefined` (caller should load members from `ChannelMembership`).
+ */
+export function parseUserIdsFromGroupedChannelName(channelName: string): string[] | undefined {
+    const parts = channelName.split('__').filter(Boolean);
+    if (parts.length < 2) {
+        return undefined;
+    }
+    if (!parts.every((p) => MATTERMOST_USER_ID_IN_CHANNEL_NAME_RE.test(p))) {
+        return undefined;
+    }
+    return parts;
+}
+
+/**
+ * Home "current team" conversation list: includes all channels bound to `teamId`, plus DMs/GMs with no team
+ * (`team_id` empty). Does not require the other party or every GM member to appear in team membership,
+ * so DMs/GMs are not dropped when the roster is incomplete.
+ */
+export function channelBelongsToTeamScopedConversations(
+    channel: ChannelModel,
+    teamId: string,
+    currentUserId: string,
+    _teamUserIds: ReadonlySet<string>,
+    _gmMemberIdsByChannelId: ReadonlyMap<string, string[]>,
+): boolean {
+    const boundTeam = channel.teamId ?? '';
+    if (boundTeam === teamId) {
+        return true;
+    }
+    if (channel.type === General.DM_CHANNEL && boundTeam === '') {
+        const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
+        if (!teammateId || teammateId === currentUserId) {
+            return false;
+        }
+        return true;
+    }
+    if (channel.type === General.GM_CHANNEL && boundTeam === '') {
+        return true;
+    }
+    return false;
+}
+
+function sortRecentConversationEntries(
+    entries: Array<{channel: ChannelModel; myChannel: MyChannelModel}>,
+): ChannelModel[] {
+    return [...entries].sort((a, b) => {
+        const isUnreadA = a.myChannel.isUnread || a.myChannel.mentionsCount > 0;
+        const isUnreadB = b.myChannel.isUnread || b.myChannel.mentionsCount > 0;
+
+        if (isUnreadA && !isUnreadB) {
+            return -1;
+        }
+        if (!isUnreadA && isUnreadB) {
+            return 1;
+        }
+
+        const sortTimeA = Math.max(a.myChannel.lastPostAt || 0, a.myChannel.lastViewedAt || 0, a.channel.createAt || 0);
+        const sortTimeB = Math.max(b.myChannel.lastPostAt || 0, b.myChannel.lastViewedAt || 0, b.channel.createAt || 0);
+        return sortTimeB - sortTimeA;
+    }).map((s) => s.channel);
+}
+
+/**
+ * Home sidebar: whether the current team has any visible recent conversation (after enterprise/team scoping).
+ */
+export const observeHasRecentConversationsForTeam = (database: Database): Observable<boolean> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((id) => {
+            if (!id) {
+                return of$(false);
+            }
+            return observeRecentConversationsForTeam(database, id).pipe(
+                map$((channels) => channels.length > 0),
+                distinctUntilChanged(),
+            );
+        }),
+    );
+};
+
 export const observeRecentConversationsForTeam = (database: Database, teamId: string): Observable<ChannelModel[]> => {
     const myChannelsQuery = queryAllMyChannelsForTeam(database, teamId).extend(
         Q.on(CHANNEL, Q.where('delete_at', Q.eq(0))),
@@ -728,7 +813,7 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
     return myChannelsQuery.observeWithColumns(['last_post_at', 'last_viewed_at', 'is_unread', 'mentions_count', 'message_count']).pipe(
         combineLatestWith(observeCurrentUserId(database)),
         switchMap(([myChannels, currentUserId]) => {
-            if (myChannels.length === 0) {
+            if (myChannels.length === 0 || !currentUserId) {
                 return of$([]);
             }
 
@@ -741,31 +826,17 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                         }
                     });
 
-                    const sorted = [...channelMap.values()].
-                        filter(({channel}) => {
-                            if (channel.type !== General.DM_CHANNEL) {
-                                return true;
-                            }
-                            const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
-                            return teammateId !== currentUserId;
-                        }).
-                        sort((a, b) => {
-                            const isUnreadA = a.myChannel.isUnread || a.myChannel.mentionsCount > 0;
-                            const isUnreadB = b.myChannel.isUnread || b.myChannel.mentionsCount > 0;
-
-                            if (isUnreadA && !isUnreadB) {
-                                return -1;
-                            }
-                            if (!isUnreadA && isUnreadB) {
-                                return 1;
-                            }
-
-                            const sortTimeA = Math.max(a.myChannel.lastPostAt || 0, a.myChannel.lastViewedAt || 0, a.channel.createAt || 0);
-                            const sortTimeB = Math.max(b.myChannel.lastPostAt || 0, b.myChannel.lastViewedAt || 0, b.channel.createAt || 0);
-                            return sortTimeB - sortTimeA;
-                        });
-
-                    return sorted.map((s) => s.channel);
+                    const values = [...channelMap.values()];
+                    const emptyTeamUserIds = new Set<string>();
+                    const emptyGmMembers = new Map<string, string[]>();
+                    const filtered = values.filter(({channel}) => channelBelongsToTeamScopedConversations(
+                        channel,
+                        teamId,
+                        currentUserId,
+                        emptyTeamUserIds,
+                        emptyGmMembers,
+                    ));
+                    return sortRecentConversationEntries(filtered);
                 }),
             );
         }),

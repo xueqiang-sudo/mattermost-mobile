@@ -78,7 +78,7 @@ const definedMessages = defineMessages({
     },
     linkIdPrivate: {
         id: 'post_body.check_for_out_of_channel_mentions.link.private',
-        defaultMessage: 'add them to this private channel',
+        defaultMessage: 'add them to this group chat',
     },
     linkIdPublic: {
         id: 'post_body.check_for_out_of_channel_mentions.link.public',

@@ -7,8 +7,10 @@ import {combineLatestWith, switchMap} from 'rxjs/operators';
 
 import {General} from '@constants';
 import {observeChannel, observeChannelInfo} from '@queries/servers/channel';
+import {observePermissionForChannel} from '@queries/servers/role';
 import {observeConfigBooleanValue} from '@queries/servers/system';
 import {observeCurrentUser, observeUser} from '@queries/servers/user';
+import {permissionForEditingChannelAnnouncement} from '@utils/channel';
 import {getUserCustomStatus, getUserIdFromChannelName, isCustomStatusExpired as checkCustomStatusIsExpired, username2Nickname} from '@utils/user';
 
 import Extra from './extra';
@@ -23,6 +25,17 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: Props) =
     const currentUser = observeCurrentUser(database);
     const channel = observeChannel(database, channelId);
     const channelInfo = observeChannelInfo(database, channelId);
+    const channelType = channel.pipe(switchMap((c) => of$(c?.type)));
+    const canEditAnnouncement = channel.pipe(
+        combineLatestWith(currentUser),
+        switchMap(([ch, u]) => {
+            const perm = permissionForEditingChannelAnnouncement(ch?.type);
+            if (!ch || !u || !perm) {
+                return of$(false);
+            }
+            return observePermissionForChannel(database, ch, u, perm, false);
+        }),
+    );
     const createdAt = channel.pipe(switchMap((c) => of$(c?.type === General.DM_CHANNEL ? 0 : c?.createAt)));
     const header = channelInfo.pipe(switchMap((ci) => of$(ci?.header)));
     const dmUser = currentUser.pipe(
@@ -50,6 +63,8 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: Props) =
     const isCustomStatusEnabled = observeConfigBooleanValue(database, 'EnableCustomUserStatuses');
 
     return {
+        canEditAnnouncement,
+        channelType,
         createdAt,
         createdBy,
         customStatus,

@@ -86,7 +86,7 @@ export const ConvertGMToChannelForm = ({
             } else if (isErrorWithMessage(error)) {
                 setErrorMessage(error.message);
             } else {
-                setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a private channel.'}));
+                setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a group chat.'}));
             }
 
             setConversionInProgress(false);
@@ -94,8 +94,8 @@ export const ConvertGMToChannelForm = ({
         }
 
         if (!updatedChannel) {
-            logError('No updated channel received from server when converting GM to private channel');
-            setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a private channel.'}));
+            logError('No updated channel received from server when converting GM to group chat');
+            setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a group chat.'}));
             setConversionInProgress(false);
             return;
         }
@@ -118,7 +118,7 @@ export const ConvertGMToChannelForm = ({
 
     const textConvert = formatMessage({
         id: 'channel_info.convert_gm_to_channel.button_text',
-        defaultMessage: 'Convert to Private Channel',
+        defaultMessage: 'Convert to group chat',
     });
 
     const textConverting = formatMessage({

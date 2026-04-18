@@ -14,7 +14,7 @@ import {General, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {observeChannel} from '@queries/servers/channel';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
-import {usesDiscussionGroupChannelCopy} from '@utils/channel';
+import {isDefaultChannel, usesDiscussionGroupChannelCopy} from '@utils/channel';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type {StyleProp, ViewStyle} from 'react-native';
@@ -28,9 +28,10 @@ type Props = {
 
 type InnerProps = Props & {
     channelType?: ChannelType;
+    isTeamDefaultOpenChannel?: boolean;
 }
 
-const InfoBoxBody = ({channelId, channelType, containerStyle, showAsLabel = false, testID}: InnerProps) => {
+const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenChannel = false, showAsLabel = false, testID}: InnerProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const discussionUx = usesDiscussionGroupChannelCopy(channelType);
@@ -42,8 +43,8 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, showAsLabel = fals
             title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
         } else if (channelType === General.DM_CHANNEL) {
             title = intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'});
-        } else if (channelType === General.PRIVATE_CHANNEL) {
-            title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Private group chat info'});
+        } else if (channelType === General.PRIVATE_CHANNEL || (channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel)) {
+            title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
         } else {
             title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
         }
@@ -60,14 +61,14 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, showAsLabel = fals
             },
         };
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
-    }, [channelId, channelType, intl, theme]);
+    }, [channelId, channelType, intl, isTeamDefaultOpenChannel, theme]);
 
     const slideUpLabel = discussionUx
         ? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'})
         : channelType === General.DM_CHANNEL
             ? intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'})
-            : channelType === General.PRIVATE_CHANNEL
-                ? intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Private group chat info'})
+            : channelType === General.PRIVATE_CHANNEL || (channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel)
+                ? intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'})
                 : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
 
     if (showAsLabel) {
@@ -99,7 +100,10 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     const channelType = channel.pipe(
         switchMap((c) => of$(c?.type as ChannelType | undefined)),
     );
-    return {channelType};
+    const isTeamDefaultOpenChannel = channel.pipe(
+        switchMap((c) => of$(Boolean(c?.type === General.OPEN_CHANNEL && isDefaultChannel(c)))),
+    );
+    return {channelType, isTeamDefaultOpenChannel};
 });
 
 export default withDatabase(enhanced(InfoBoxBody));

@@ -112,7 +112,7 @@ export async function handleChannelUpdatedEvent(serverUrl: string, msg: any) {
         }
         operator.batchRecords(models, 'handleChannelUpdatedEvent');
 
-        // This indicates a GM was converted to a private channel
+        // This indicates a GM was converted to a group chat (type P)
         if (existingChannelType === General.GM_CHANNEL && updatedChannel.type === General.PRIVATE_CHANNEL) {
             await handleConvertedGMCategories(serverUrl, updatedChannel.id, updatedChannel.team_id);
 

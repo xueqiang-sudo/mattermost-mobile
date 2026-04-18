@@ -5,11 +5,12 @@ import React from 'react';
 import {defineMessages, type IntlShape, useIntl} from 'react-intl';
 import {type StyleProp, Text, type TextStyle, View, type ViewStyle} from 'react-native';
 
+import CompassIcon from '@components/compass_icon';
 import Markdown from '@components/markdown';
 import {getPostTypeMessagesForSystemActivity} from '@components/post_list/combined_user_activity/messages';
 import {General, Post} from '@constants';
 import {useTheme} from '@context/theme';
-import {usesDiscussionGroupChannelCopy} from '@utils/channel';
+import {channelSupportsAnnouncementUx, usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord, ensureString} from '@utils/types';
 import {typography} from '@utils/typography';
@@ -62,6 +63,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         systemMessageCompact: {
             color: changeOpacity(theme.centerChannelColor, 0.5),
             ...typography('Body', 75, 'Regular'),
+        },
+        announcementCard: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            alignSelf: 'center',
+            maxWidth: '100%',
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 8,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+            marginVertical: 4,
+        },
+        announcementCardTextWrap: {
+            flex: 1,
+            flexShrink: 1,
+            marginLeft: 8,
         },
     };
 });
@@ -129,64 +146,117 @@ const headerMessagesDiscussion = defineMessages({
     },
 });
 
-const headerMessagesDm = defineMessages({
+const headerMessagesAnnouncement = defineMessages({
     updatedFrom: {
-        id: 'mobile.system_message.update_channel_header_message_and_forget.updated_from.dm',
-        defaultMessage: '{username} updated the private chat header from: {oldHeader} to: {newHeader}',
+        id: 'mobile.system_message.update_channel_announcement.updated_from',
+        defaultMessage: '{username} updated the announcement from: {oldHeader} to: {newHeader}',
     },
     updatedTo: {
-        id: 'mobile.system_message.update_channel_header_message_and_forget.updated_to.dm',
-        defaultMessage: '{username} updated the private chat header to: {newHeader}',
+        id: 'mobile.system_message.update_channel_announcement.updated_to',
+        defaultMessage: '{username} updated the announcement to: {newHeader}',
     },
     removed: {
-        id: 'mobile.system_message.update_channel_header_message_and_forget.removed.dm',
-        defaultMessage: '{username} removed the private chat header (was: {oldHeader})',
+        id: 'mobile.system_message.update_channel_announcement.removed',
+        defaultMessage: '{username} removed the announcement (was: {oldHeader})',
     },
 });
 
+const headerMessagesDmNote = defineMessages({
+    updatedFrom: {
+        id: 'mobile.system_message.update_dm_conversation_note.updated_from',
+        defaultMessage: '{username} updated the conversation note from: {oldHeader} to: {newHeader}',
+    },
+    updatedTo: {
+        id: 'mobile.system_message.update_dm_conversation_note.updated_to',
+        defaultMessage: '{username} updated the conversation note to: {newHeader}',
+    },
+    removed: {
+        id: 'mobile.system_message.update_dm_conversation_note.removed',
+        defaultMessage: '{username} removed the conversation note (was: {oldHeader})',
+    },
+});
+
+function readChannelHeaderChangeProps(post: PostModel) {
+    const rawNew = post.props?.new_header ?? post.props?.newHeader;
+    const rawOld = post.props?.old_header ?? post.props?.oldHeader;
+    const newHeader = ensureString(rawNew);
+    const oldHeader = ensureString(rawOld);
+    const hasNew =
+        rawNew !== undefined &&
+        rawNew !== null &&
+        String(rawNew).trim().length > 0;
+    const hasOld =
+        rawOld !== undefined &&
+        rawOld !== null &&
+        String(rawOld).trim().length > 0;
+    return {newHeader, oldHeader, hasNew, hasOld};
+}
+
 function pickHeaderCopy(channelType: ChannelType | undefined) {
     if (channelType === General.DM_CHANNEL) {
-        return headerMessagesDm;
+        return headerMessagesDmNote;
     }
-    if (usesDiscussionGroupChannelCopy(channelType)) {
-        return headerMessagesDiscussion;
+    if (channelSupportsAnnouncementUx(channelType)) {
+        return headerMessagesAnnouncement;
     }
     return headerMessages;
 }
 
 const renderHeaderChangeMessage = ({post, author, channelType, location, styles, intl, theme}: RenderersProps) => {
-    let values;
-
     if (!author?.username) {
         return null;
     }
 
     const username = renderUsername(author.username);
-    const oldHeader = ensureString(post.props?.old_header);
-    const newHeader = ensureString(post.props?.new_header);
-    let localeHolder;
+    const {newHeader, oldHeader, hasNew, hasOld} = readChannelHeaderChangeProps(post);
     const headerCopy = pickHeaderCopy(channelType);
 
-    if (post.props?.new_header) {
-        if (post.props?.old_header) {
+    let localeHolder;
+    let values: Record<string, PrimitiveType>;
+
+    if (hasNew) {
+        if (hasOld) {
             localeHolder = headerCopy.updatedFrom;
-
             values = {username, oldHeader, newHeader};
-            return renderMessage({post, styles, intl, location, localeHolder, values, theme});
+        } else {
+            localeHolder = headerCopy.updatedTo;
+            values = {username, oldHeader, newHeader};
         }
-
-        localeHolder = headerCopy.updatedTo;
-
-        values = {username, oldHeader, newHeader};
-        return renderMessage({post, styles, intl, location, localeHolder, values, theme});
-    } else if (post.props?.old_header) {
+    } else if (hasOld) {
         localeHolder = headerCopy.removed;
-
         values = {username, oldHeader, newHeader};
-        return renderMessage({post, styles, intl, location, localeHolder, values, theme});
+    } else {
+        return null;
     }
 
-    return null;
+    const inner = renderMessage({
+        post,
+        styles,
+        intl,
+        location,
+        localeHolder,
+        values,
+        theme,
+        skipMarkdown: true,
+    });
+
+    const sheet = getStyleSheet(theme);
+    if (channelSupportsAnnouncementUx(channelType)) {
+        return (
+            <View style={sheet.announcementCard}>
+                <CompassIcon
+                    color={changeOpacity(theme.centerChannelColor, 0.56)}
+                    name='bullhorn-outline'
+                    size={18}
+                />
+                <View style={sheet.announcementCardTextWrap}>
+                    {inner}
+                </View>
+            </View>
+        );
+    }
+
+    return inner;
 };
 
 const purposeMessages = defineMessages({
@@ -410,7 +480,7 @@ const renderUnarchivedMessage = ({post, author, channelType, location, styles, i
 const changeChannelPrivacyMessages = defineMessages({
     toPrivate: {
         id: 'mobile.system_message.change_channel_privacy.to_private',
-        defaultMessage: 'This group chat is now private. Only invited members can view it.',
+        defaultMessage: 'This group chat is now invite-only. Only invited members can view it.',
     },
     toPublic: {
         id: 'mobile.system_message.change_channel_privacy.to_public',

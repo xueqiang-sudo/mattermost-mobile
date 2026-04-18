@@ -61,7 +61,7 @@
 //     },
 //     privateChannel: {
 //         id: 'intro.private_channel',
-//         defaultMessage: 'Private Channel',
+//         defaultMessage: 'Group chat',
 //     },
 //     welcomePublic: {
 //         id: 'intro.welcome.public',
@@ -69,7 +69,7 @@
 //     },
 //     welcomePrivate: {
 //         id: 'intro.welcome.private',
-//         defaultMessage: 'Only invited members can see messages posted in this private channel.',
+//         defaultMessage: 'Only invited members can see messages posted in this group chat.',
 //     },
 //     welcome: {
 //         id: 'intro.welcome',

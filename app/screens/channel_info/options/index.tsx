@@ -27,6 +27,7 @@ type Props = {
     isCRTEnabled: boolean;
     isPlaybooksEnabled: boolean;
     canManageSettings: boolean;
+    isTeamDefaultOpenChannel?: boolean;
 }
 
 const Options = ({
@@ -37,6 +38,7 @@ const Options = ({
     isCRTEnabled,
     isPlaybooksEnabled,
     canManageSettings,
+    isTeamDefaultOpenChannel = false,
 }: Props) => {
     const isDMorGM = isTypeDMorGM(type);
 
@@ -77,6 +79,7 @@ const Options = ({
             {canManageSettings &&
                 <EditChannel
                     channelId={channelId}
+                    isTeamDefaultOpenChannel={isTeamDefaultOpenChannel}
                     type={type}
                 />
             }

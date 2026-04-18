@@ -34,7 +34,7 @@ const messages = defineMessages({
     },
     privateChannel: {
         id: 'channel_info.private_channel',
-        defaultMessage: 'Private Channel',
+        defaultMessage: 'Group chat',
     },
     alertNo: {
         id: 'channel_info.alertNo',
