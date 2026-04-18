@@ -161,9 +161,7 @@ const ChannelHeader = ({
             case General.PRIVATE_CHANNEL:
                 return intl.formatMessage(channelTypeTagMessages.groupChat);
             case General.OPEN_CHANNEL:
-                return channelName === General.DEFAULT_CHANNEL
-                    ? intl.formatMessage(channelTypeTagMessages.enterprisePublic)
-                    : intl.formatMessage(channelTypeTagMessages.publicGroupChat);
+                return channelName === General.DEFAULT_CHANNEL? intl.formatMessage(channelTypeTagMessages.enterprisePublic): intl.formatMessage(channelTypeTagMessages.publicGroupChat);
             default:
                 return '';
         }
@@ -323,9 +321,7 @@ const ChannelHeader = ({
     } else if (memberCount) {
         subtitle = intl.formatMessage({id: 'channel_header.member_count', defaultMessage: '{count, plural, one {# member} other {# members}}'}, {count: memberCount});
     } else if (channelType !== General.DM_CHANNEL && (!customStatus || !customStatus.text || isCustomStatusExpired)) {
-        subtitle = usesDiscussionGroupChannelCopy(channelType)
-            ? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'})
-            : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
+        subtitle = usesDiscussionGroupChannelCopy(channelType)? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'}): intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
     }
 
     const subtitleCompanion = useMemo(() => {
@@ -417,10 +413,11 @@ const ChannelHeader = ({
                     isTopItem={!showBookmarkBar}
                 />
             }
-            {channelType === General.PRIVATE_CHANNEL && Boolean(announcementMarkdown.trim()) &&
+            {(channelType === General.PRIVATE_CHANNEL || channelType === General.DM_CHANNEL) && Boolean(announcementMarkdown.trim()) &&
                 <ChannelAnnouncementBar
                     canEditAnnouncement={canEditAnnouncement}
                     channelId={channelId}
+                    channelType={channelType}
                     headerMarkdown={announcementMarkdown}
                 />
             }

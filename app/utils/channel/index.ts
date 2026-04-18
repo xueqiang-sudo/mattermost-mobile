@@ -38,7 +38,7 @@ export function isDirectMessageChannel(channelType: ChannelType | undefined): bo
     return channelType === General.DM_CHANNEL;
 }
 
-/** 使用「公告」编辑与展示体系的频道类型（P 群、讨论组、公开/企业频道）。 */
+/** 使用「公告」编辑与展示体系的频道类型（P 群、讨论组、公开/企业频道、私聊）。 */
 export function channelSupportsAnnouncementUx(channelType: ChannelType | undefined): boolean {
     if (!channelType) {
         return false;
@@ -46,12 +46,17 @@ export function channelSupportsAnnouncementUx(channelType: ChannelType | undefin
     return (
         channelType === General.PRIVATE_CHANNEL ||
         channelType === General.GM_CHANNEL ||
-        channelType === General.OPEN_CHANNEL
+        channelType === General.OPEN_CHANNEL ||
+        channelType === General.DM_CHANNEL
     );
 }
 
-/** 编辑频道 header（公告）所需的权限常量。 */
+/** 编辑频道 header（公告/备注）所需的权限常量。 */
 export function permissionForEditingChannelAnnouncement(channelType: ChannelType | undefined): string | undefined {
+    if (channelType === General.DM_CHANNEL) {
+        // 私聊备注：无需特殊权限，直接可编辑。
+        return undefined;
+    }
     if (channelType === General.PRIVATE_CHANNEL) {
         return Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES;
     }

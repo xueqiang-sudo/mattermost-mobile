@@ -6,7 +6,7 @@ import {useIntl} from 'react-intl';
 import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
 import Markdown from '@components/markdown';
-import {Screens} from '@constants';
+import {General, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {bottomSheet, dismissBottomSheet, showModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -49,17 +49,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 type Props = {
     canEditAnnouncement: boolean;
     channelId: string;
+    channelType: ChannelType;
     headerMarkdown: string;
 }
 
 const ChannelAnnouncementBar = ({
     canEditAnnouncement,
     channelId,
+    channelType,
     headerMarkdown,
 }: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
+
+    const isDM = channelType === General.DM_CHANNEL;
 
     const preview = useMemo(() => {
         const oneLine = headerMarkdown.replace(/\s+/g, ' ').trim();
@@ -71,15 +75,16 @@ const ChannelAnnouncementBar = ({
 
     const openEditor = useCallback(() => {
         dismissBottomSheet();
-        const title = intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
+        const title = isDM? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'}): intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
         showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
-    }, [channelId, intl]);
+    }, [channelId, intl, isDM]);
 
     const onPressBar = useCallback(() => {
         const renderContent = () => (
             <View style={styles.sheetInner}>
                 <Text style={styles.sheetTitle}>
-                    {intl.formatMessage({id: 'channel_announcement.bottom_sheet.title', defaultMessage: 'Announcement'})}
+                    {isDM? intl.formatMessage({id: 'channel_announcement.bottom_sheet.title.note', defaultMessage: 'Note'}): intl.formatMessage({id: 'channel_announcement.bottom_sheet.title', defaultMessage: 'Announcement'})
+                    }
                 </Text>
                 <ScrollView
                     keyboardShouldPersistTaps='handled'
@@ -101,7 +106,8 @@ const ChannelAnnouncementBar = ({
                         testID='channel_announcement.bottom_sheet.edit'
                     >
                         <Text style={styles.editLabel}>
-                            {intl.formatMessage({id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'})}
+                            {isDM? intl.formatMessage({id: 'channel_info.edit_note', defaultMessage: 'Edit note'}): intl.formatMessage({id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'})
+                            }
                         </Text>
                     </TouchableOpacity>
                 )}
@@ -116,7 +122,7 @@ const ChannelAnnouncementBar = ({
             closeButtonId: 'close-channel-announcement',
             scrollable: true,
         });
-    }, [canEditAnnouncement, channelId, headerMarkdown, intl, openEditor, styles.editLabel, styles.editPress, styles.sheetInner, styles.sheetTitle, theme]);
+    }, [canEditAnnouncement, channelId, headerMarkdown, intl, isDM, openEditor, styles.editLabel, styles.editPress, styles.sheetInner, styles.sheetTitle, theme]);
 
     if (!headerMarkdown.trim()) {
         return null;

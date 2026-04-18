@@ -15,17 +15,18 @@ import FormattedText from '@components/formatted_text';
 import Markdown from '@components/markdown';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
-import {Screens} from '@constants';
+import {General, Screens} from '@constants';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {ANDROID_33, OS_VERSION} from '@constants/versions';
 import {useTheme} from '@context/theme';
 import {bottomSheet, dismissBottomSheet, showModal} from '@screens/navigation';
-import {CHANNEL_INFO_CARD_RADIUS} from '../channel_info_constants';
-import {bottomSheetSnapPoint, isEmail} from '@utils/helpers';
 import {channelSupportsAnnouncementUx} from '@utils/channel';
+import {bottomSheetSnapPoint, isEmail} from '@utils/helpers';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
+import {CHANNEL_INFO_CARD_RADIUS} from '../channel_info_constants';
 
 type Props = {
     canEditAnnouncement?: boolean;
@@ -58,6 +59,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'space-between',
         marginBottom: 0,
     },
+
     /** 公告体系：整块公告与编辑入口放在轻量卡片内，层次更清晰。 */
     announcementPanel: {
         marginTop: 2,
@@ -77,6 +79,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     announcementPanelHeaderRowTight: {
         marginBottom: 6,
     },
+
     /** 公告为区块标题，字阶与字重高于正文，避免与内容「长得一样」。 */
     announcementPanelHeading: {
         color: theme.centerChannelColor,
@@ -170,15 +173,16 @@ const Extra = ({
 
     const styles = getStyleSheet(theme);
     const usesAnnouncementUx = channelSupportsAnnouncementUx(channelType);
+    const isDM = channelType === General.DM_CHANNEL;
     const hasAnnouncementText = Boolean(header && String(header).trim());
     const showAnnouncementSection =
         usesAnnouncementUx && (hasAnnouncementText || canEditAnnouncement);
     const showLegacyHeaderSection = !usesAnnouncementUx && Boolean(header);
 
     const onEditAnnouncement = useCallback(() => {
-        const title = intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
+        const title = isDM? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'}): intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
         showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
-    }, [channelId, intl]);
+    }, [channelId, intl, isDM]);
 
     const created = useMemo(() => ({
         user: createdBy,
@@ -308,8 +312,8 @@ const Extra = ({
                     <View style={styles.announcementPanel}>
                         <View style={[styles.announcementPanelHeaderRow, !hasAnnouncementText && styles.announcementPanelHeaderRowTight]}>
                             <FormattedText
-                                id='channel_info.announcement'
-                                defaultMessage='Announcement'
+                                id={isDM ? 'channel_info.note' : 'channel_info.announcement'}
+                                defaultMessage={isDM ? 'Note' : 'Announcement'}
                                 style={styles.announcementPanelHeading}
                                 testID={headerTestId}
                             />
@@ -320,7 +324,8 @@ const Extra = ({
                                     testID={`${headerTestId}.edit_announcement`}
                                 >
                                     <Text style={styles.editAnnouncement}>
-                                        {intl.formatMessage({id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'})}
+                                        {intl.formatMessage(isDM? {id: 'channel_info.edit_note', defaultMessage: 'Edit note'}: {id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'},
+                                        )}
                                     </Text>
                                 </TouchableWithFeedback>
                             )}
