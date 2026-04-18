@@ -24,6 +24,8 @@ type Props = {
     channelType?: string;
     channelNameKey?: string;
     isOnHome?: boolean;
+    /** When true, show enterprise/group/discussion type tag without home conversation layout. */
+    showChannelTypeTag?: boolean;
     isOnCenterBg?: boolean;
 }
 
@@ -81,6 +83,7 @@ export const ChannelBody = ({
     channelType,
     channelNameKey,
     isOnHome = false,
+    showChannelTypeTag = false,
     isOnCenterBg = false,
 }: Props) => {
     const {formatMessage} = useIntl();
@@ -90,7 +93,7 @@ export const ChannelBody = ({
     const nonBreakingDisplayName = nonBreakingString(displayName);
 
     let tagLabel: string | undefined;
-    if (isOnHome && channelType) {
+    if ((isOnHome || showChannelTypeTag) && channelType) {
         if (channelNameKey === General.DEFAULT_CHANNEL) {
             tagLabel = formatMessage({id: 'channel_list.tag.enterprise_group', defaultMessage: 'All staff'});
         } else if (channelType === General.GM_CHANNEL || channelType === General.PRIVATE_CHANNEL) {

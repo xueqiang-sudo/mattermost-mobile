@@ -7,6 +7,7 @@ import {combineLatest, of as of$} from 'rxjs';
 import {map, switchMap} from 'rxjs/operators';
 
 import {Permissions} from '@constants';
+import {observeChannel} from '@queries/servers/channel';
 import {queryPostsById} from '@queries/servers/post';
 import {observePermissionForPost} from '@queries/servers/role';
 import {observeCurrentUserId} from '@queries/servers/system';
@@ -28,6 +29,17 @@ const withCombinedPosts = withObservables(['postId'], ({database, postId}: WithD
     // Columns observed: `props` is used by `usernamesById`. `message` is used by generateCombinedPost.
     const posts = queryPostsById(database, postIds).observeWithColumns(['props', 'message']);
     const post = posts.pipe(map((ps) => (ps.length ? generateCombinedPost(postId, ps) : null)));
+    const channelType = post.pipe(
+        switchMap((p) => {
+            const channelId = p?.channel_id;
+            if (!channelId) {
+                return of$(undefined);
+            }
+            return observeChannel(database, channelId).pipe(
+                map((ch) => ch?.type),
+            );
+        }),
+    );
     const canDelete = combineLatest([posts, currentUser]).pipe(
         switchMap(([ps, u]) => (ps.length ? observePermissionForPost(database, ps[0], u, Permissions.DELETE_OTHERS_POSTS, false) : of$(false))),
     );
@@ -56,6 +68,7 @@ const withCombinedPosts = withObservables(['postId'], ({database, postId}: WithD
 
     return {
         canDelete,
+        channelType,
         currentUserId,
         post,
         usernamesById,

@@ -34,6 +34,9 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 /** 三角与气泡上沿留白，避免负 margin 参与异常拉伸；略对齐头像侧 */
 const WECHAT_BUBBLE_TAIL_MARGIN_TOP = 6;
 
+/** 微信气泡（含尾巴）相对屏宽上限（本人右栏另用 90% 约束整列） */
+const WECHAT_BUBBLE_MAX_WIDTH_SCREEN_RATIO = 0.80;
+
 const POST_RECALL_TIME_LIMIT_MS = 2 * 60 * 1000;
 
 type BodyProps = {
@@ -263,7 +266,10 @@ const Body = ({
     }, []);
 
     const weChatStyleActive = useWeChatStyle(location);
-    const weChatBubbleMaxWidth = useMemo(() => Dimensions.get('window').width * 0.86, []);
+    const weChatBubbleMaxWidth = useMemo(
+        () => Math.floor(Dimensions.get('window').width * WECHAT_BUBBLE_MAX_WIDTH_SCREEN_RATIO),
+        [],
+    );
     const weChatContentMaxWidth = useMemo(() => {
         return Math.floor(weChatBubbleMaxWidth - 24);
     }, [weChatBubbleMaxWidth]);
@@ -422,7 +428,7 @@ const Body = ({
                 isEdited={isEdited}
                 isPendingOrFailed={isPendingOrFailed}
                 isReplyPost={isReplyPost}
-                layoutWidth={layoutWidth}
+                layoutWidth={weChatStyleActive ? weChatContentMaxWidth : layoutWidth}
                 location={location}
                 post={post}
                 searchPatterns={searchPatterns}

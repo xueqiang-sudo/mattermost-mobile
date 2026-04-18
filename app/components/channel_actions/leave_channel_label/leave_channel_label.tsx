@@ -13,6 +13,7 @@ import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import {dismissAllModalsAndPopToRoot, dismissBottomSheet} from '@screens/navigation';
+import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 
 type Props = {
     isOptionItem?: boolean;
@@ -43,6 +44,10 @@ const messages = defineMessages({
     leaveChannel: {
         id: 'channel_info.leave_channel',
         defaultMessage: 'Leave channel',
+    },
+    leaveDiscussionGroup: {
+        id: 'channel_info.leave_discussion_group',
+        defaultMessage: 'Leave discussion group',
     },
     leavePrivateChannel: {
         id: 'channel_info.leave_private_channel',
@@ -133,8 +138,11 @@ const LeaveChannelLabel = ({canLeave, channelId, displayName, isOptionItem, type
     };
 
     const leavePrivateChannel = () => {
+        const alertTitle = type && usesDiscussionGroupChannelCopy(type)
+            ? intl.formatMessage(messages.leaveDiscussionGroup)
+            : intl.formatMessage(messages.leaveChannel);
         Alert.alert(
-            intl.formatMessage(messages.leaveChannel),
+            alertTitle,
             intl.formatMessage(messages.leavePrivateChannel, {displayName}),
             [{
                 text: intl.formatMessage(messages.cancel),
@@ -181,6 +189,12 @@ const LeaveChannelLabel = ({canLeave, channelId, displayName, isOptionItem, type
         case General.GM_CHANNEL:
             leaveText = intl.formatMessage(messages.closeGroupMessage);
             icon = 'close';
+            break;
+        case General.PRIVATE_CHANNEL:
+            leaveText = usesDiscussionGroupChannelCopy(General.PRIVATE_CHANNEL)
+                ? intl.formatMessage(messages.leaveDiscussionGroup)
+                : intl.formatMessage(messages.leaveChannel);
+            icon = 'exit-to-app';
             break;
         default:
             leaveText = intl.formatMessage(messages.leaveChannel);

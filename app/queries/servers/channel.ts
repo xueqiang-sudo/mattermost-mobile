@@ -636,6 +636,34 @@ export function queryMyGroupMessageChannels(database: Database) {
     );
 }
 
+/**
+ * Archived open/private channels the user still has in my_channels, scoped to one team.
+ */
+export function queryMyArchivedTeamChannelsForTeam(database: Database, teamId: string) {
+    if (!teamId) {
+        return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
+    }
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.gt(0)),
+            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
+            Q.where('team_id', Q.eq(teamId)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+/** Archived group messages still in my_channels (delete_at > 0 on channel row). */
+export function queryMyArchivedGroupMessageChannels(database: Database) {
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.gt(0)),
+            Q.where('type', Q.eq(General.GM_CHANNEL)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
 export const observeMyJoinedTeamChannels = (database: Database): Observable<ChannelModel[]> => {
     return observeChannelsForMyChannelsList(
         database,
@@ -662,6 +690,33 @@ export const observeMyGroupMessageChannels = (database: Database): Observable<Ch
         queryMyGroupMessageChannels(database).observeWithColumns(['last_viewed_at']),
         true,
     );
+};
+
+/** Archived open/private for current team (follows system current_team_id). */
+export const observeMyArchivedTeamChannelsForCurrentTeam = (database: Database): Observable<ChannelModel[]> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((teamId) => observeChannelsForMyChannelsList(
+            database,
+            queryMyArchivedTeamChannelsForTeam(database, teamId).observeWithColumns(['last_viewed_at']),
+            true,
+        )),
+    );
+};
+
+export const observeMyArchivedGroupMessageChannels = (database: Database): Observable<ChannelModel[]> => {
+    return observeChannelsForMyChannelsList(
+        database,
+        queryMyArchivedGroupMessageChannels(database).observeWithColumns(['last_viewed_at']),
+        true,
+    );
+};
+
+/**
+ * Merge archived team channels and GMs for joined-archived UI; sort by channel recency (update_at desc).
+ */
+export const sortChannelsForJoinedArchivedList = (channels: ChannelModel[]): ChannelModel[] => {
+    return [...channels].sort((a, b) => (b.updateAt || 0) - (a.updateAt || 0));
 };
 
 export const observeRecentConversationsForTeam = (database: Database, teamId: string): Observable<ChannelModel[]> => {

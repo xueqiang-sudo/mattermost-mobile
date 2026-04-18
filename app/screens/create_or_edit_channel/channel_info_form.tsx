@@ -399,7 +399,7 @@ export default function ChannelInfoForm({
                                     <FormattedText
                                         style={styles.captionText}
                                         id='mobile.channel.town_square_display_name_readonly'
-                                        defaultMessage='The default channel display name cannot be changed here.'
+                                        defaultMessage="This name is your enterprise workspace. It is shown here instead of the server default. To change it, ask your administrator to update the team or enterprise display name."
                                         testID='channel_info_form.display_name.readonly_help'
                                     />
                                 )}

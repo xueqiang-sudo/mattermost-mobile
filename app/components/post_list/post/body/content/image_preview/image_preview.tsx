@@ -13,6 +13,7 @@ import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import useDidUpdate from '@hooks/did_update';
 import {useGalleryItem} from '@hooks/gallery';
+import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {lookupMimeType} from '@utils/file';
 import {openGalleryAtIndex} from '@utils/gallery';
 import {calculateDimensions, getViewPortWidth, isGifTooLarge} from '@utils/images';
@@ -51,6 +52,7 @@ const style = StyleSheet.create({
 });
 
 const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, metadata, onLongPress, postId, theme}: ImagePreviewProps) => {
+    const mediaInViewport = usePostMediaInViewport(postId, location);
     const galleryIdentifier = `${postId}-ImagePreview-${location}`;
     const [error, setError] = useState(false);
     const serverUrl = useServerUrl();
@@ -140,6 +142,7 @@ const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, m
                             forwardRef={ref}
                             id={fileId.current}
                             imageUri={imageUrl}
+                            inViewPort={mediaInViewport}
                             onError={onError}
                             contentFit='contain'
                             style={[style.image, {width: dimensions.width, height: dimensions.height}]}

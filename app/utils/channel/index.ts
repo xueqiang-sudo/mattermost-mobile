@@ -33,6 +33,14 @@ export function isTypeDMorGM(channelType: ChannelType | undefined): boolean {
     return Boolean(channelType && DIRECT_TYPES.includes(channelType));
 }
 
+/**
+ * 讨论组（Mattermost GM）专用文案；私有群聊（P）与公开群聊（O）走「群聊」体系，勿与讨论组合用。
+ * @see `app/screens/channel/header/header.tsx` 标题角标
+ */
+export function usesDiscussionGroupChannelCopy(channelType: ChannelType | undefined): boolean {
+    return channelType === General.GM_CHANNEL;
+}
+
 export function isArchived(channel: Channel | ChannelModel): boolean {
     const deleteAt = 'delete_at' in channel ? channel.delete_at : channel.deleteAt;
     return deleteAt > 0;

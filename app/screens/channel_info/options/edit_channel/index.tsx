@@ -6,17 +6,23 @@ import {useIntl} from 'react-intl';
 import {Platform} from 'react-native';
 
 import OptionItem from '@components/option_item';
-import {Screens} from '@constants';
+import {General, Screens} from '@constants';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {goToScreen} from '@screens/navigation';
+import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 
 type Props = {
     channelId: string;
+    type?: ChannelType;
 }
 
-const EditChannel = ({channelId}: Props) => {
+const EditChannel = ({channelId, type}: Props) => {
     const {formatMessage} = useIntl();
-    const title = formatMessage({id: 'screens.channel_edit', defaultMessage: 'Edit Channel'});
+    const title = type && usesDiscussionGroupChannelCopy(type)
+        ? formatMessage({id: 'screens.channel_edit.discussion', defaultMessage: 'Edit discussion group'})
+        : type === General.PRIVATE_CHANNEL
+            ? formatMessage({id: 'screens.channel_edit.private_group_chat', defaultMessage: 'Edit private group chat'})
+            : formatMessage({id: 'screens.channel_edit', defaultMessage: 'Edit Channel'});
 
     const goToEditChannel = usePreventDoubleTap(useCallback(async () => {
         goToScreen(Screens.CREATE_OR_EDIT_CHANNEL, title, {channelId});

@@ -10,6 +10,7 @@ const path = require('path');
 const PORT = 3456;
 const CONTACT_HTML_FILE = path.join(__dirname, 'contact-api-tester.html');
 const SUPPLIER_CUSTOMER_HTML_FILE = path.join(__dirname, 'supplier-customer-api-tester.html');
+const DEPARTMENT_HTML_FILE = path.join(__dirname, 'department-api-tester.html');
 
 function formatTime() {
     const now = new Date();
@@ -147,12 +148,26 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (url.pathname === '/department-api-tester.html') {
+        fs.readFile(DEPARTMENT_HTML_FILE, 'utf8', (err, data) => {
+            if (err) {
+                res.writeHead(500);
+                res.end('500 - Failed to read HTML');
+                return;
+            }
+            res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
+            res.end(data);
+        });
+        return;
+    }
+
     res.writeHead(404);
     res.end('404 - Not Found');
 });
 
 server.listen(PORT, () => {
-    console.log('\n  Contact API 测试工具代理已启动');
-    console.log(`  请在浏览器访问: http://localhost:${PORT}/contact-api-tester.html\n`);
-    console.log(`  请在浏览器访问: http://localhost:${PORT}/supplier-customer-api-tester.html\n`);
+    console.log('\n  API 测试工具代理已启动（Contact / Supplier-Customer / Department）');
+    console.log(`  请在浏览器访问: http://localhost:${PORT}/contact-api-tester.html`);
+    console.log(`  请在浏览器访问: http://localhost:${PORT}/supplier-customer-api-tester.html`);
+    console.log(`  请在浏览器访问: http://localhost:${PORT}/department-api-tester.html\n`);
 });

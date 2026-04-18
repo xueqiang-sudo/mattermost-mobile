@@ -2,13 +2,13 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {DeviceEventEmitter, Dimensions, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {Dimensions, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import {Events} from '@constants';
 import {GalleryInit} from '@context/gallery';
 import {useIsTablet} from '@hooks/device';
 import {useImageAttachments} from '@hooks/files';
+import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {isImage, isVideo} from '@utils/file';
 import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
@@ -124,7 +124,7 @@ const Files = ({
     alignAttachmentsEnd = false,
 }: FilesProps) => {
     const galleryIdentifier = `${postId}-fileAttachments-${location}`;
-    const [inViewPort, setInViewPort] = useState(false);
+    const inViewPort = usePostMediaInViewport(postId, location);
     const isTablet = useIsTablet();
 
     const portraitWidth = useMemo(() => {
@@ -330,16 +330,6 @@ const Files = ({
             </View>
         );
     };
-
-    useEffect(() => {
-        const onScrollEnd = DeviceEventEmitter.addListener(Events.ITEM_IN_VIEWPORT, (viewableItems) => {
-            if (`${location}-${postId}` in viewableItems) {
-                setInViewPort(true);
-            }
-        });
-
-        return () => onScrollEnd.remove();
-    }, [location, postId]);
 
     useEffect(() => {
         setFilesForGallery([...imageAttachments, ...nonImageAttachments]);

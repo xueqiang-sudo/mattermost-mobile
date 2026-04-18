@@ -16,6 +16,7 @@ import {
     isDefaultChannel,
     isDMorGM,
     isTypeDMorGM,
+    usesDiscussionGroupChannelCopy,
     selectDefaultChannelForTeam,
     sortChannelsByDisplayName,
     sortChannelsModelByDisplayName,
@@ -59,6 +60,19 @@ describe('isTypeDMorGM', () => {
     it('should return false for other channel types', () => {
         expect(isTypeDMorGM(General.OPEN_CHANNEL)).toBe(false);
         expect(isTypeDMorGM(undefined)).toBe(false);
+    });
+});
+
+describe('usesDiscussionGroupChannelCopy', () => {
+    it('should return true for group messages and private channels', () => {
+        expect(usesDiscussionGroupChannelCopy(General.GM_CHANNEL)).toBe(true);
+        expect(usesDiscussionGroupChannelCopy(General.PRIVATE_CHANNEL)).toBe(false);
+    });
+
+    it('should return false for DM and open channels', () => {
+        expect(usesDiscussionGroupChannelCopy(General.DM_CHANNEL)).toBe(false);
+        expect(usesDiscussionGroupChannelCopy(General.OPEN_CHANNEL)).toBe(false);
+        expect(usesDiscussionGroupChannelCopy(undefined)).toBe(false);
     });
 });
 

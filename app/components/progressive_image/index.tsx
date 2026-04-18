@@ -57,9 +57,15 @@ const ProgressiveImage = ({
 
     useEffect(() => {
         if (inViewPort) {
-            setShowHighResImage(inViewPort);
+            setShowHighResImage(true);
         }
     }, [inViewPort]);
+
+    /** Files / Markdown 等传入 boolean 时：高分辨率仅在进入可视（或邻近行已标记）后加载 */
+    const usesLazyViewport = inViewPort === true || inViewPort === false;
+    const shouldLoadFullImage = usesLazyViewport ?
+        (showHighResImage || (!thumbnailUri && inViewPort)) :
+        (showHighResImage || !thumbnailUri);
 
     if (isBackgroundImage && imageUri) {
         return (
@@ -97,21 +103,21 @@ const ProgressiveImage = ({
         );
     }
 
-    const showImage = showHighResImage || !thumbnailUri;
+    const placeholderSource = thumbnailUri ? {uri: thumbnailUri} : undefined;
 
     return (
         <Animated.View style={[styles.defaultImageContainer, style]}>
             <ExpoImage
                 id={id}
                 ref={forwardRef}
-                placeholder={{uri: thumbnailUri}}
+                placeholder={placeholderSource}
                 placeholderContentFit='cover'
                 nativeID={`image-${id}`}
                 recyclingKey={`image-${id}`}
                 testID='progressive_image.highResImage'
                 transition={300}
                 style={[StyleSheet.absoluteFill, imageStyle]}
-                source={(showImage) ? {uri: imageUri} : undefined}
+                source={shouldLoadFullImage && imageUri ? {uri: imageUri} : undefined}
                 autoplay={true}
             />
         </Animated.View>

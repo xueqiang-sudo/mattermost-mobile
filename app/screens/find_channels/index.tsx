@@ -119,18 +119,18 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
 
     useEffect(() => {
         const linkColor = theme.linkColor;
-        const listIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 20, linkColor);
-        const viewJoinedLabel = intl.formatMessage({
-            id: 'find_channels.view_all',
-            defaultMessage: 'View joined',
+        const joinedIcon = CompassIcon.getImageSourceSync('forum-outline', 20, linkColor);
+        const joinedNavShort = intl.formatMessage({
+            id: 'find_channels.joined_nav_action',
+            defaultMessage: 'Joined',
         });
         setButtons(componentId, {
             rightButtons: [{
                 ...buildNavigationButton(
                     FIND_CHANNELS_VIEW_ALL_BUTTON_ID,
                     'find_channels.view_all.button',
-                    listIcon,
-                    viewJoinedLabel,
+                    joinedIcon,
+                    joinedNavShort,
                 ),
                 color: linkColor,
             }],

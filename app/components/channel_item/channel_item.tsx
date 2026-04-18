@@ -3,7 +3,7 @@
 
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 
 import Badge from '@components/badge';
 import ChannelIcon from '@components/channel_icon';
@@ -46,6 +46,8 @@ type Props = {
      * 与 `listRowIndex` 同屏用于查找频道、已加入频道等列表：非私聊用展示名前二字替代成员拼图头像。
      */
     useListInitialsForNonDm?: boolean;
+    /** 已加入/归档列表等：在标题旁显示群类型角标（与首页标签规则一致）。 */
+    showChannelTypeTag?: boolean;
     showChannelName?: boolean;
     isOnHome?: boolean;
     lastPostAt?: number;
@@ -189,6 +191,14 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     filler: {
         flex: 1,
     },
+    /**
+     * 查找群聊 / 已加入列表等卡片行：按压态
+     * 仅用主题链接色极低透明度铺底（与 iOS 设置列表、Material 3 surface tint 同类做法），
+     * 不改边框、不加阴影/elevation，避免出现「厚灰边 / 外发光」廉价感。
+     */
+    centerListRowPressed: {
+        backgroundColor: changeOpacity(theme.linkColor, 0.06),
+    },
 }));
 
 export const textStyle = StyleSheet.create({
@@ -214,6 +224,7 @@ const ChannelItem = ({
     isOnCenterBg = false,
     listRowIndex,
     useListInitialsForNonDm = false,
+    showChannelTypeTag = false,
     showChannelName = false,
     isOnHome = false,
     lastPostAt = 0,
@@ -300,13 +311,32 @@ const ChannelItem = ({
         defaultMessage: 'Muted',
     });
     const isDmChannel = channel.type === General.DM_CHANNEL;
+    const isCenterListCard = isOnCenterBg && listRowIndex !== undefined;
 
     return (
-        <TouchableOpacity onPress={handleOnPress}>
-            <View
-                style={containerStyle}
-                testID={channelItemTestId}
-            >
+        <Pressable
+            accessibilityRole='button'
+            android_disableSound={true}
+            android_ripple={
+                isCenterListCard && Platform.OS === 'android' ?
+                    {color: '#00000000', borderless: false} :
+                    undefined
+            }
+            onPress={handleOnPress}
+            style={({pressed}) => (
+                !isCenterListCard && pressed ?
+                    {opacity: 0.92} :
+                    undefined
+            )}
+        >
+            {({pressed}) => (
+                <View
+                    style={[
+                        containerStyle,
+                        isCenterListCard && pressed && styles.centerListRowPressed,
+                    ]}
+                    testID={channelItemTestId}
+                >
                 <View style={[styles.icon, isOnHome && styles.iconWrapper]}>
                     <ChannelIcon
                         channelId={channel.id}
@@ -373,6 +403,7 @@ const ChannelItem = ({
                                 channelType={channel.type}
                                 channelNameKey={channel.name}
                                 isOnHome={true}
+                                showChannelTypeTag={showChannelTypeTag}
                                 isOnCenterBg={isOnCenterBg}
                             />
                             {lastPostAt > 0 ? (
@@ -409,6 +440,7 @@ const ChannelItem = ({
                             channelType={channel.type}
                             channelNameKey={channel.name}
                             isOnHome={isOnHome}
+                            showChannelTypeTag={showChannelTypeTag}
                             isOnCenterBg={isOnCenterBg}
                         />
                         <View style={styles.filler}/>
@@ -426,8 +458,9 @@ const ChannelItem = ({
                         )}
                     </>
                 )}
-            </View>
-        </TouchableOpacity>
+                </View>
+            )}
+        </Pressable>
     );
 };
 

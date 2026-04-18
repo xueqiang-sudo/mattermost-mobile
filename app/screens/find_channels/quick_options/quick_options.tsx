@@ -87,7 +87,7 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
                 <OptionBox
                     iconName='account-outline'
                     onPress={openDirectMessage}
-                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'Open a DM'})}
+                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'Pick people to start chatting'})}
                     testID='find_channels.quick_options.open_dm.option'
                 />
                 {canCreateChannels &&
@@ -96,7 +96,7 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
                     <OptionBox
                         iconName='plus'
                         onPress={createNewChannel}
-                        text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New group'})}
+                        text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New group chat'})}
                         testID='find_channels.quick_options.new_channel.option'
                     />
                 </>

@@ -3,7 +3,7 @@
 
 import React from 'react';
 
-import {Post} from '@constants';
+import {General, Post, Screens} from '@constants';
 import {renderWithEverything} from '@test/intl-test-helper';
 import TestHelper from '@test/test_helper';
 
@@ -18,6 +18,8 @@ const baseProps = {
         firstName: 'Test',
         lastName: 'Author',
     },
+    hideGuestTags: false,
+    location: Screens.CHANNEL,
 };
 
 describe('renderSystemMessage', () => {
@@ -163,6 +165,43 @@ describe('renderSystemMessage', () => {
             {database},
         );
         expect(renderedMessage.toJSON()).toBeNull();
+    });
+
+    test('uses discussion wording for channel header when channelType is private', () => {
+        const post = {
+            props: {
+                old_header: 'old header',
+                new_header: 'new header',
+            },
+            type: Post.POST_TYPES.HEADER_CHANGE,
+        };
+        const {getByText} = renderWithEverything(
+            <SystemMessage
+                post={post}
+                {...baseProps}
+                channelType={General.PRIVATE_CHANNEL}
+            />,
+            {database},
+        );
+        expect(getByText('updated the discussion group header from: old header to: new header')).toBeTruthy();
+    });
+
+    test('uses discussion wording for guest join when channelType is private', () => {
+        const post = {
+            props: {
+                username: 'username',
+            },
+            type: Post.POST_TYPES.GUEST_JOIN_CHANNEL,
+        };
+        const joined = renderWithEverything(
+            <SystemMessage
+                post={post}
+                {...baseProps}
+                channelType={General.PRIVATE_CHANNEL}
+            />,
+            {database},
+        );
+        expect(joined.getByText('joined the discussion group as a guest.')).toBeTruthy();
     });
 
     test('uses renderer for Guest added and join to channel', () => {

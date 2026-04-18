@@ -127,6 +127,7 @@ const ChannelPostList = ({
             posts={posts}
             shouldShowJoinLeaveMessages={shouldShowJoinLeaveMessages}
             showMoreMessages={true}
+            showNewMessageLine={true}
             testID='channel.post_list'
         />
     );

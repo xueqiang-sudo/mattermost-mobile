@@ -158,11 +158,14 @@ const MoreMessages = ({
     // So we maintain a localUnreadCount to hide the indicator when the count is reset.
     // If we don't maintain the local counter, in the case of a thread, the indicator will be shown again once we scroll down after we reach the top.
     const localUnreadCount = useRef(unreadCount);
+    const postsRef = useRef(posts);
+    postsRef.current = posts;
+
     useEffect(() => {
         localUnreadCount.current = unreadCount;
     }, [unreadCount]);
 
-    const resetCount = async () => {
+    const resetCount = useCallback(async () => {
         localUnreadCount.current = 0;
 
         if (resetting.current || (isCRTEnabled && rootId)) {
@@ -172,38 +175,7 @@ const MoreMessages = ({
         resetting.current = true;
         await resetMessageCount(serverUrl, channelId);
         resetting.current = false;
-    };
-
-    const onViewableItemsChanged = (viewableItems: ViewToken[]) => {
-        pressed.current = false;
-
-        if (newMessageLineIndex <= 0 || viewableItems.length === 0 || isManualUnread || resetting.current) {
-            return;
-        }
-
-        const lastViewableIndex = viewableItems.filter((v) => v.isViewable)[viewableItems.length - 1]?.index || 0;
-        const nextViewableIndex = lastViewableIndex + 1;
-        if (viewableItems[0].index === 0 && nextViewableIndex > newMessageLineIndex && !initialScroll.current) {
-            // Auto scroll if the first post is viewable and
-            // * the new message line is viewable OR
-            // * the new message line will be the first next viewable item
-            scrollToIndex(newMessageLineIndex, true, false);
-            resetCount();
-            top.value = 0;
-            initialScroll.current = true;
-            return;
-        }
-
-        const readCount = posts.slice(0, lastViewableIndex).filter((v) => v.type === 'post').length;
-        const totalUnread = localUnreadCount.current - readCount;
-        if (lastViewableIndex >= newMessageLineIndex) {
-            resetCount();
-            top.value = 0;
-        } else if (totalUnread > 0) {
-            setRemaining(totalUnread);
-            top.value = 1;
-        }
-    };
+    }, [serverUrl, channelId, isCRTEnabled, rootId]);
 
     const onScrollEndIndex = () => {
         pressed.current = false;
@@ -212,6 +184,7 @@ const MoreMessages = ({
     const onCancel = useCallback(() => {
         pressed.current = true;
         top.value = 0;
+        setRemaining(0);
         resetMessageCount(serverUrl, channelId);
         pressed.current = false;
     }, [top, serverUrl, channelId]);
@@ -243,18 +216,79 @@ const MoreMessages = ({
         const unregister = registerScrollEndIndexListener(onScrollEndIndex);
 
         return () => unregister();
-    }, []);
+    }, [registerScrollEndIndexListener]);
 
     useEffect(() => {
+        const hideBar = () => {
+            top.value = 0;
+            setRemaining(0);
+        };
+
+        const onViewableItemsChanged = (viewableItems: ViewToken[]) => {
+            pressed.current = false;
+
+            if (viewableItems.length === 0 || isManualUnread || resetting.current) {
+                return;
+            }
+
+            if (newMessageLineIndex <= 0) {
+                hideBar();
+                return;
+            }
+
+            const lastViewableIndex = viewableItems.filter((v) => v.isViewable)[viewableItems.length - 1]?.index || 0;
+            const nextViewableIndex = lastViewableIndex + 1;
+            if (viewableItems[0].index === 0 && nextViewableIndex > newMessageLineIndex && !initialScroll.current) {
+                // Auto scroll if the first post is viewable and
+                // * the new message line is viewable OR
+                // * the new message line will be the first next viewable item
+                scrollToIndex(newMessageLineIndex, true, false);
+                resetCount();
+                hideBar();
+                initialScroll.current = true;
+                return;
+            }
+
+            const readCount = postsRef.current.slice(0, lastViewableIndex).filter((v) => v.type === 'post').length;
+            const totalUnread = localUnreadCount.current - readCount;
+            if (lastViewableIndex >= newMessageLineIndex) {
+                resetCount();
+                hideBar();
+            } else if (totalUnread > 0) {
+                setRemaining(totalUnread);
+                top.value = 1;
+            } else {
+                hideBar();
+            }
+        };
+
         const unregister = registerViewableItemsListener(onViewableItemsChanged);
 
         return () => unregister();
-    }, [channelId, unreadCount, newMessageLineIndex, posts]);
+
+        // top is a Reanimated shared value; it must not be a hook dependency
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [channelId, unreadCount, newMessageLineIndex, isManualUnread, registerViewableItemsListener, scrollToIndex, resetCount]);
 
     useEffect(() => {
         resetting.current = false;
         initialScroll.current = false;
-    }, [channelId]);
+        top.value = 0;
+        setRemaining(0);
+
+        // top is a Reanimated shared value; it must not be a hook dependency
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [channelId, rootId]);
+
+    useEffect(() => {
+        if (newMessageLineIndex <= 0) {
+            top.value = 0;
+            setRemaining(0);
+        }
+
+        // top is a Reanimated shared value; it must not be a hook dependency
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [newMessageLineIndex]);
 
     return (
         <Animated.View style={[styles.animatedContainer, animatedStyle]}>

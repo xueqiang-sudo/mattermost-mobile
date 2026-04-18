@@ -8,6 +8,8 @@ export const PostTypes = {
     CHANNEL_UNARCHIVED: 'system_channel_restored',
     DISPLAYNAME_CHANGE: 'system_displayname_change',
     CONVERT_CHANNEL: 'system_convert_channel',
+    /** Public ⟷ private group chat privacy change (server `PostTypeChangeChannelPrivacy`) */
+    CHANGE_CHANNEL_PRIVACY: 'system_change_chan_privacy',
     EPHEMERAL: 'system_ephemeral',
     EPHEMERAL_ADD_TO_CHANNEL: 'system_ephemeral_add_to_channel',
     HEADER_CHANGE: 'system_header_change',

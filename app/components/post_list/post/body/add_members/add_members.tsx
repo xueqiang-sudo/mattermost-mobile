@@ -11,6 +11,7 @@ import FormattedText from '@components/formatted_text';
 import AtMention from '@components/markdown/at_mention';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
+import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {getMarkdownTextStyles} from '@utils/markdown';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {isStringArray} from '@utils/types';
@@ -71,6 +72,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 });
 
 const definedMessages = defineMessages({
+    linkDiscussion: {
+        id: 'post_body.check_for_out_of_channel_mentions.link.discussion',
+        defaultMessage: 'add them to this discussion group',
+    },
     linkIdPrivate: {
         id: 'post_body.check_for_out_of_channel_mentions.link.private',
         defaultMessage: 'add them to this private channel',
@@ -79,17 +84,29 @@ const definedMessages = defineMessages({
         id: 'post_body.check_for_out_of_channel_mentions.link.public',
         defaultMessage: 'add them to the channel',
     },
-    messageOne: {
-        id: 'post_body.check_for_out_of_channel_mentions.message.one',
-        defaultMessage: 'was mentioned but is not in the channel. Would you like to ',
-    },
     messageMultiple: {
         id: 'post_body.check_for_out_of_channel_mentions.message.multiple',
         defaultMessage: 'were mentioned but they are not in the channel. Would you like to ',
     },
+    messageMultipleDiscussion: {
+        id: 'post_body.check_for_out_of_channel_mentions.message.multiple.discussion',
+        defaultMessage: 'were mentioned but they are not in the discussion group. Would you like to ',
+    },
+    messageOne: {
+        id: 'post_body.check_for_out_of_channel_mentions.message.one',
+        defaultMessage: 'was mentioned but is not in the channel. Would you like to ',
+    },
+    messageOneDiscussion: {
+        id: 'post_body.check_for_out_of_channel_mentions.message.one.discussion',
+        defaultMessage: 'was mentioned but is not in the discussion group. Would you like to ',
+    },
     outOfGroupsMessage: {
         id: 'post_body.check_for_out_of_channel_groups_mentions.message',
         defaultMessage: 'did not get notified by this mention because they are not in the channel. They are also not a member of the groups linked to this channel.',
+    },
+    outOfGroupsMessageDiscussion: {
+        id: 'post_body.check_for_out_of_channel_groups_mentions.message.discussion',
+        defaultMessage: 'did not get notified by this mention because they are not in the discussion group. They are also not a member of the groups linked to this discussion group.',
     },
 });
 
@@ -191,8 +208,13 @@ const AddMembers = ({channelType, currentUser, location, post, theme}: AddMember
         return '';
     };
 
-    const linkMessageDescriptor = channelType === General.PRIVATE_CHANNEL ? definedMessages.linkIdPrivate : definedMessages.linkIdPublic;
-    const outOfChannelMessageDescriptor = usernames.length === 1 ? definedMessages.messageOne : definedMessages.messageMultiple;
+    const useDiscussionCopy = usesDiscussionGroupChannelCopy(channelType as ChannelType);
+    const linkMessageDescriptor = useDiscussionCopy ?
+        definedMessages.linkDiscussion :
+        (channelType === General.PRIVATE_CHANNEL ? definedMessages.linkIdPrivate : definedMessages.linkIdPublic);
+    const outOfChannelMessageDescriptor = usernames.length === 1 ?
+        (useDiscussionCopy ? definedMessages.messageOneDiscussion : definedMessages.messageOne) :
+        (useDiscussionCopy ? definedMessages.messageMultipleDiscussion : definedMessages.messageMultiple);
     const outOfChannelAtMentions = generateAtMentions(usernames);
 
     const outOfGroupsAtMentions = generateAtMentions(noGroupsUsernames);
@@ -223,6 +245,10 @@ const AddMembers = ({channelType, currentUser, location, post, theme}: AddMember
         );
     }
 
+    const outOfGroupsMessageDescriptor = useDiscussionCopy ?
+        definedMessages.outOfGroupsMessageDiscussion :
+        definedMessages.outOfGroupsMessage;
+
     let outOfGroupsMessage = null;
     if (noGroupsUsernames?.length) {
         outOfGroupsMessage = (
@@ -230,7 +256,7 @@ const AddMembers = ({channelType, currentUser, location, post, theme}: AddMember
                 {outOfGroupsAtMentions}
                 {' '}
                 <FormattedText
-                    {...definedMessages.outOfGroupsMessage}
+                    {...outOfGroupsMessageDescriptor}
                     style={styles.message}
                 />
             </Text>

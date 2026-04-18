@@ -9,13 +9,14 @@ import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-export type JoinedMembershipTab = 'channels' | 'group_messages';
+export type JoinedMembershipTab = 'channels' | 'group_messages' | 'archived';
 
-const TAB_IDS: JoinedMembershipTab[] = ['channels', 'group_messages'];
+const TAB_IDS: JoinedMembershipTab[] = ['channels', 'group_messages', 'archived'];
 
 const TAB_MESSAGES = {
     channels: {id: 'joined_channels.tab.channels', defaultMessage: 'Groups'},
     group_messages: {id: 'joined_channels.tab.group_messages', defaultMessage: 'Discussion groups'},
+    archived: {id: 'joined_channels.tab.archived', defaultMessage: 'Archived'},
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({

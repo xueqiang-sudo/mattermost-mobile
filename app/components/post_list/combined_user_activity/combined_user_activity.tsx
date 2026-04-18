@@ -15,16 +15,18 @@ import {useIsTablet} from '@hooks/device';
 import {bottomSheetModalOptions, showModal, showModalOverCurrentContext} from '@screens/navigation';
 import {emptyFunction} from '@utils/general';
 import {isUserActivityProp} from '@utils/post_list';
+import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 
 import LastUsers from './last_users';
-import {postTypeMessages} from './messages';
+import {getPostTypeMessagesForChannelActivity} from './messages';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type Props = {
     canDelete: boolean;
+    channelType?: ChannelType;
     currentUserId?: string;
     currentUsername?: string;
     location: AvailableScreens;
@@ -62,7 +64,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 });
 
 const CombinedUserActivity = ({
-    canDelete, currentUserId, currentUsername, location,
+    canDelete, channelType, currentUserId, currentUsername, location,
     post, showJoinLeave, testID, theme, usernamesById = {}, style,
 }: Props) => {
     const intl = useIntl();
@@ -78,6 +80,15 @@ const CombinedUserActivity = ({
         }
         return undefined;
     }, [post?.props?.user_activity]);
+
+    const useDiscussionGroupCopy = useMemo(
+        () => usesDiscussionGroupChannelCopy(channelType),
+        [channelType],
+    );
+    const postTypeMessagesForActivity = useMemo(
+        () => getPostTypeMessagesForChannelActivity(useDiscussionGroupCopy),
+        [useDiscussionGroupCopy],
+    );
 
     const getUsernames = (userIds: string[]) => {
         const someone = intl.formatMessage({id: 'channel_loader.someone', defaultMessage: 'Someone'});
@@ -142,6 +153,7 @@ const CombinedUserActivity = ({
                     postType={postType}
                     theme={theme}
                     usernames={usernames}
+                    useDiscussionGroupCopy={useDiscussionGroupCopy}
                 />
             );
         }
@@ -150,16 +162,16 @@ const CombinedUserActivity = ({
         const secondUser = usernames[1];
         let localeHolder;
         if (numOthers === 0) {
-            localeHolder = secureGetFromRecord(postTypeMessages, postType)?.one;
+            localeHolder = secureGetFromRecord(postTypeMessagesForActivity, postType)?.one;
 
             if (
                 (userIds[0] === currentUserId || userIds[0] === currentUsername) &&
-                secureGetFromRecord(postTypeMessages, postType)?.one_you
+                secureGetFromRecord(postTypeMessagesForActivity, postType)?.one_you
             ) {
-                localeHolder = postTypeMessages[postType as keyof typeof postTypeMessages].one_you;
+                localeHolder = postTypeMessagesForActivity[postType as keyof typeof postTypeMessagesForActivity].one_you;
             }
         } else {
-            localeHolder = postTypeMessages[postType as keyof typeof postTypeMessages].two;
+            localeHolder = postTypeMessagesForActivity[postType as keyof typeof postTypeMessagesForActivity].two;
         }
 
         // We default to empty string, but this should never happen

@@ -6,6 +6,7 @@ import {View} from 'react-native';
 
 import CopyChannelLinkOption from '@components/channel_actions/copy_channel_link_option';
 import {General} from '@constants';
+import {RUNNING_E2E} from '@env';
 import PlaybookRunsOption from '@playbooks/components/channel_actions/playbook_runs_option';
 import {isTypeDMorGM} from '@utils/channel';
 
@@ -50,7 +51,10 @@ const Options = ({
                 </>
             )}
             <NotificationPreference channelId={channelId}/>
-            <PinnedMessages channelId={channelId}/>
+            {/* Pinned row hidden in user builds; Detox still taps it when RUNNING_E2E=true (e2e workflows). */}
+            {RUNNING_E2E === 'true' && (
+                <PinnedMessages channelId={channelId}/>
+            )}
             <ChannelFiles channelId={channelId}/>
             {isPlaybooksEnabled && !isDMorGM &&
             <PlaybookRunsOption
@@ -71,7 +75,10 @@ const Options = ({
                 />
             }
             {canManageSettings &&
-                <EditChannel channelId={channelId}/>
+                <EditChannel
+                    channelId={channelId}
+                    type={type}
+                />
             }
         </View>
     );

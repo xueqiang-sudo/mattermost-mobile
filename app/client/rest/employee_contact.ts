@@ -22,7 +22,16 @@ import * as ClientConstants from '@client/rest/constants';
 import ClientError from '@client/rest/error';
 import ClientTracking from '@client/rest/tracking';
 
+/**
+ * 员工联系人 API 路径前缀（与 `employeeContactRoutes` 组合使用）。
+ * @remarks 仓库内其他文件未直接 import；仅本模块内部使用。
+ */
 export const EMPLOYEE_CONTACT_API_BASE_ROUTE = '/api/v1';
+
+/**
+ * 请求头名（`X-API-KEY`）；与 `contact.ts` 中同名导出语义一致。
+ * @remarks 仓库内其他文件未直接 import；仅本模块内部使用。
+ */
 export const API_KEY_HEADER = 'X-API-KEY';
 
 /** 联系人类型枚举：customer=客户，supplier=供应商 */
@@ -62,21 +71,30 @@ export type CreateEmployeeContactRequest = {
 /** 更新联系人关系请求体 */
 export type UpdateEmployeeContactRequest = Pick<CreateEmployeeContactRequest, 'description' | 'remark'>;
 
-/** 获取联系人列表响应 */
+/**
+ * 获取联系人列表响应
+ * @remarks 仓库内其他文件未直接 import；由本模块请求方法与相关 action 间接使用。
+ */
 export type EmployeeContactListResponse = {
     employee_id: string;
     contact_type: EmployeeContactType;
     contacts: EmployeeContact[];
 };
 
-/** 获取联系人详细信息响应 */
+/**
+ * 获取联系人详细信息响应
+ * @remarks 仓库内其他文件未直接 import；由本模块请求方法与相关 action 间接使用。
+ */
 export type EmployeeContactDetailResponse = {
     employee_id: string;
     contact_type: EmployeeContactType;
     contacts: EmployeeContactDetail[];
 };
 
-/** 获取所有联系人响应 */
+/**
+ * 获取所有联系人响应
+ * @remarks 仓库内其他文件未直接 import；由本模块请求方法与相关 action 间接使用。
+ */
 export type EmployeeContactAllResponse = {
     employee_id: string;
     contacts: {
@@ -88,6 +106,7 @@ export type EmployeeContactAllResponse = {
 /**
  * 员工联系人 API 客户端接口定义
  * 包含客户和供应商关系的 CRUD 操作
+ * @remarks 仓库内其他文件未直接 import；由 `EmployeeContactServiceClass` 实现，供类型检查。
  */
 export interface ClientEmployeeContactMix {
 
@@ -112,6 +131,7 @@ export interface ClientEmployeeContactMix {
 
 /**
  * 员工联系人 API 路径映射（均需 X-API-KEY）
+ * @remarks 仓库内其他文件未直接 import；仅本模块内部使用。
  */
 export const employeeContactRoutes = {
 

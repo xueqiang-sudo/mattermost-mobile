@@ -11,6 +11,7 @@ import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {dismissModal, popToRoot} from '@screens/navigation';
+import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {alertErrorWithFallback} from '@utils/draft';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -151,11 +152,17 @@ const Archive = ({
         return null;
     }
 
+    const discussionUx = usesDiscussionGroupChannelCopy(type);
+
     if (canUnarchive) {
         return (
             <OptionItem
                 action={onUnarchive}
-                label={intl.formatMessage({id: 'channel_info.unarchive', defaultMessage: 'Unarchive Channel'})}
+                label={intl.formatMessage(
+                    discussionUx
+                        ? {id: 'channel_info.unarchive_discussion_group', defaultMessage: 'Unarchive discussion group'}
+                        : {id: 'channel_info.unarchive', defaultMessage: 'Unarchive Channel'},
+                )}
                 icon='archive-arrow-up-outline'
                 destructive={true}
                 type='default'
@@ -167,7 +174,11 @@ const Archive = ({
     return (
         <OptionItem
             action={onArchive}
-            label={intl.formatMessage({id: 'channel_info.archive', defaultMessage: 'Archive Channel'})}
+            label={intl.formatMessage(
+                discussionUx
+                    ? {id: 'channel_info.archive_discussion_group', defaultMessage: 'Archive discussion group'}
+                    : {id: 'channel_info.archive', defaultMessage: 'Archive Channel'},
+            )}
             icon='archive-outline'
             destructive={true}
             type='default'

@@ -165,13 +165,17 @@ export interface ClientContactMix {
     /** PUT /api/v1/companies/:id - 更新公司 */
     updateCompany: (companyId: string, company: UpdateCompanyRequest) => Promise<ContactCompany>;
 
-    /** DELETE /api/v1/companies/:id - 软删除公司 */
+    /** DELETE /api/v1/companies/:id - 软删除公司
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     deleteCompany: (companyId: string) => Promise<Record<string, never>>;
 
     /** DELETE /api/v1/companies/:id/force - 强制删除公司及其关联的部门与员工 */
     deleteCompanyForce: (companyId: string) => Promise<Record<string, never>>;
 
-    /** GET /api/v1/companies/:id/departments — 获取公司及其部门（按公司过滤子集请用 getDepartmentsByCompany） */
+    /** GET /api/v1/companies/:id/departments — 获取公司及其部门（按公司过滤子集请用 getDepartmentsByCompany）
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getCompanyWithDepartments: (companyId: string) => Promise<ContactCompany & {departments?: ContactDepartment[]}>;
 
     /**
@@ -192,7 +196,9 @@ export interface ClientContactMix {
     /** PUT /api/v1/departments/:id - 更新部门 */
     updateDepartment: (departmentId: number, department: UpdateDepartmentRequest) => Promise<ContactDepartment>;
 
-    /** DELETE /api/v1/departments/:id - 删除部门（级联删除关联） */
+    /** DELETE /api/v1/departments/:id - 删除部门（级联删除关联）
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     deleteDepartment: (companyId: string, departmentId: number) => Promise<Record<string, never>>;
 
     /** DELETE /api/v1/departments/:id/force - 强制删除部门（含级联） */
@@ -201,16 +207,23 @@ export interface ClientContactMix {
     /**
      * GET /api/v1/departments/:id/employees — 获取部门员工。
      * 文档描述响应可能「含部门信息」；当前按纯 `ContactEmployee[]` 解析，若服务端返回包装对象需在调用方适配。
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
      */
     getDepartmentWithEmployees: (companyId: string, departmentId: number) => Promise<ContactEmployee[]>;
 
-    /** GET /api/v1/departments/:id/sub-departments - 7. 获取子部门列表 */
+    /** GET /api/v1/departments/:id/sub-departments - 7. 获取子部门列表
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getSubDepartments: (companyId: string, parentDepartmentId: number) => Promise<ContactDepartment[]>;
 
-    /** GET /api/v1/departments/:id/children - 获取部门及其子部门 */
+    /** GET /api/v1/departments/:id/children - 获取部门及其子部门
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getDepartmentWithChildren: (companyId: string, departmentId: number) => Promise<ContactDepartment[]>;
 
-    /** GET /api/v1/departments/:id/ancestors - 获取部门祖先链（含自身，从上到下） */
+    /** GET /api/v1/departments/:id/ancestors - 获取部门祖先链（含自身，从上到下）
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getDepartmentAncestors: (companyId: string, departmentId: number) => Promise<ContactDepartment[]>;
 
     /** 获取部门及其子部门下员工总数 */
@@ -228,13 +241,19 @@ export interface ClientContactMix {
     /** DELETE /api/v1/employees/:id - 删除员工（级联删除关联） */
     deleteEmployee: (employeeId: string) => Promise<Record<string, never>>;
 
-    /** GET /api/v1/employees/:id/check-delete - 检查员工是否可删除（响应结构以服务端为准） */
+    /** GET /api/v1/employees/:id/check-delete - 检查员工是否可删除（响应结构以服务端为准）
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getEmployeeCheckDelete: (employeeId: string) => Promise<unknown>;
 
-    /** GET /api/v1/employees/:id/owned-companies - 员工拥有的企业 */
+    /** GET /api/v1/employees/:id/owned-companies - 员工拥有的企业
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getEmployeeOwnedCompanies: (employeeId: string) => Promise<ContactCompany[]>;
 
-    /** GET /api/v1/employees/:id/cascade-departments - 获取员工在指定公司下的级联部门 */
+    /** GET /api/v1/employees/:id/cascade-departments - 获取员工在指定公司下的级联部门
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getEmployeeCascadeDepartments: (employeeId: string, companyId: string) => Promise<ContactEmployeeCascadeDepartments>;
 
     /** POST /api/v1/employees/:id/companies - 将员工添加到公司 */
@@ -278,13 +297,19 @@ export interface ClientContactMix {
     /** GET /api/v1/versions/companies/:companyId/contacts - 获取通讯录版本 */
     getContactVersion: (companyId: string) => Promise<ContactVersionInfo>;
 
-    /** PUT /api/v1/versions/companies/:companyId/contacts - 更新通讯录版本 */
+    /** PUT /api/v1/versions/companies/:companyId/contacts - 更新通讯录版本
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     updateContactVersion: (companyId: string) => Promise<UpdateContactVersionResponse>;
 
-    /** GET /api/v1/users/:userId/companies - 用户所在企业 */
+    /** GET /api/v1/users/:userId/companies - 用户所在企业
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getUserCompanies: (userId: string) => Promise<ContactCompany[]>;
 
-    /** GET /api/v1/users/:userId/owned-companies - 用户拥有的企业 */
+    /** GET /api/v1/users/:userId/owned-companies - 用户拥有的企业
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getUserOwnedCompanies: (userId: string) => Promise<ContactCompany[]>;
 
     /** POST /api/v1/users/:userId/transfer-ownership/:companyId - 转移企业所有权 */
@@ -633,12 +658,18 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     updateCompany = (companyId: string, company: UpdateCompanyRequest) =>
         this.doRequestCompanyProxy<ContactCompany>(companyId, contactRoutes.company(companyId), 'put', company);
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     deleteCompany = (companyId: string) =>
         this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.company(companyId), 'delete');
 
     deleteCompanyForce = (companyId: string) =>
         this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.companyForce(companyId), 'delete');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getCompanyWithDepartments = async (companyId: string) =>
         this.doRequestCompanyProxy<ContactCompany & {departments?: ContactDepartment[]}>(
             companyId,
@@ -671,21 +702,36 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
             department,
         );
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     deleteDepartment = (companyId: string, departmentId: number) =>
         this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.department(departmentId), 'delete');
 
     deleteDepartmentForce = (companyId: string, departmentId: number) =>
         this.doRequestCompanyProxy<Record<string, never>>(companyId, contactRoutes.departmentForce(departmentId), 'delete');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getDepartmentWithEmployees = (companyId: string, departmentId: number) =>
         this.doRequestCompanyProxy<ContactEmployee[]>(companyId, contactRoutes.departmentWithEmployees(departmentId), 'get');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getSubDepartments = (companyId: string, parentDepartmentId: number) =>
         this.doRequestCompanyProxy<ContactDepartment[]>(companyId, contactRoutes.subDepartments(parentDepartmentId), 'get');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getDepartmentWithChildren = (companyId: string, departmentId: number) =>
         this.doRequestCompanyProxy<ContactDepartment[]>(companyId, contactRoutes.departmentWithChildren(departmentId), 'get');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getDepartmentAncestors = (companyId: string, departmentId: number) =>
         this.doRequestCompanyProxy<ContactDepartment[]>(companyId, contactRoutes.departmentAncestors(departmentId), 'get');
 
@@ -712,12 +758,21 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     deleteEmployee = (employeeId: string) =>
         this.doRequestDirect<Record<string, never>>(contactRoutes.employee(employeeId), 'delete');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getEmployeeCheckDelete = (employeeId: string) =>
         this.doRequestDirect<unknown>(contactRoutes.employeeCheckDelete(employeeId), 'get');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getEmployeeOwnedCompanies = (employeeId: string) =>
         this.doRequestDirect<ContactCompany[]>(contactRoutes.employeeOwnedCompanies(employeeId), 'get');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getEmployeeCascadeDepartments = (employeeId: string, companyId: string) => {
         const path = `${contactRoutes.employeeCascadeDepartments(employeeId)}?company_id=${encodeURIComponent(companyId)}`;
         return this.doRequestCompanyProxy<ContactEmployeeCascadeDepartments>(companyId, path, 'get');
@@ -793,12 +848,21 @@ class ContactServiceClass extends ClientTracking implements ClientContactMix {
     getContactVersion = (companyId: string) =>
         this.doRequestDirect<ContactVersionInfo>(contactRoutes.contactVersion(companyId), 'get');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     updateContactVersion = (companyId: string) =>
         this.doRequestDirect<UpdateContactVersionResponse>(contactRoutes.contactVersion(companyId), 'put');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getUserCompanies = (userId: string) =>
         this.doRequestDirect<ContactCompany[]>(contactRoutes.userCompanies(userId), 'get');
 
+    /**
+     * @remarks 当前移动客户端仓库内无调用方；保留与 OpenAPI/后端对齐，供后续功能或脚本使用。
+     */
     getUserOwnedCompanies = (userId: string) =>
         this.doRequestDirect<ContactCompany[]>(contactRoutes.userOwnedCompanies(userId), 'get');
 

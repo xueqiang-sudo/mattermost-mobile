@@ -11,7 +11,6 @@ import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
 import {ITEM_HEIGHT} from '@components/option_item';
-import OtherMentionsBadge from '@components/other_mentions_badge';
 import RoundedHeaderContext from '@components/rounded_header_context';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -25,7 +24,7 @@ import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import ChannelBanner from '@screens/channel/header/channel_banner';
 import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
-import {isTypeDMorGM} from '@utils/channel';
+import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -48,6 +47,10 @@ const channelTypeTagMessages = defineMessages({
     discussionGroup: {
         id: 'channel_header.tag.discussion_group',
         defaultMessage: 'Discussion group',
+    },
+    privateGroupChat: {
+        id: 'channel_header.tag.private_group_chat',
+        defaultMessage: 'Private group chat',
     },
     enterprisePublic: {
         id: 'channel_header.tag.enterprise_public',
@@ -149,8 +152,9 @@ const ChannelHeader = ({
             case General.DM_CHANNEL:
                 return intl.formatMessage(channelTypeTagMessages.privateChat);
             case General.GM_CHANNEL:
-            case General.PRIVATE_CHANNEL:
                 return intl.formatMessage(channelTypeTagMessages.discussionGroup);
+            case General.PRIVATE_CHANNEL:
+                return intl.formatMessage(channelTypeTagMessages.privateGroupChat);
             case General.OPEN_CHANNEL:
                 return channelName === General.DEFAULT_CHANNEL
                     ? intl.formatMessage(channelTypeTagMessages.enterprisePublic)
@@ -172,14 +176,6 @@ const ChannelHeader = ({
         top: defaultHeight,
     }), [defaultHeight]);
 
-    const leftComponent = useMemo(() => {
-        if (isTablet || !channelId || !teamId) {
-            return undefined;
-        }
-
-        return (<OtherMentionsBadge channelId={channelId}/>);
-    }, [isTablet, channelId, teamId]);
-
     const onBackPress = useCallback(() => {
         Keyboard.dismiss();
         popTopScreen(componentId);
@@ -193,6 +189,9 @@ const ChannelHeader = ({
                 break;
             case General.GM_CHANNEL:
                 title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
+                break;
+            case General.PRIVATE_CHANNEL:
+                title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Private group chat info'});
                 break;
             default:
                 title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
@@ -319,7 +318,9 @@ const ChannelHeader = ({
     } else if (memberCount) {
         subtitle = intl.formatMessage({id: 'channel_header.member_count', defaultMessage: '{count, plural, one {# member} other {# members}}'}, {count: memberCount});
     } else if (channelType !== General.DM_CHANNEL && (!customStatus || !customStatus.text || isCustomStatusExpired)) {
-        subtitle = intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
+        subtitle = usesDiscussionGroupChannelCopy(channelType)
+            ? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'})
+            : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
     }
 
     const subtitleCompanion = useMemo(() => {
@@ -385,7 +386,6 @@ const ChannelHeader = ({
         <>
             <NavigationHeader
                 isLargeTitle={false}
-                leftComponent={leftComponent}
                 onBackPress={onBackPress}
                 onTitlePress={onTitlePress}
                 rightButtons={rightButtons}

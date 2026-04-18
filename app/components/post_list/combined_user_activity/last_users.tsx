@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Text} from 'react-native';
 
@@ -11,7 +11,7 @@ import Markdown from '@components/markdown';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 
-import {postTypeMessages, systemMessages} from './messages';
+import {getPostTypeMessagesForChannelActivity, getSystemMessagesForLastUsers} from './messages';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -22,6 +22,7 @@ type LastUsersProps = {
     postType: string;
     usernames: string[];
     theme: Theme;
+    useDiscussionGroupCopy: boolean;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -39,10 +40,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const LastUsers = ({actor, channelId, location, postType, theme, usernames}: LastUsersProps) => {
+const LastUsers = ({actor, channelId, location, postType, theme, usernames, useDiscussionGroupCopy}: LastUsersProps) => {
     const [expanded, setExpanded] = useState(false);
     const intl = useIntl();
     const style = getStyleSheet(theme);
+    const postTypeMessages = useMemo(
+        () => getPostTypeMessagesForChannelActivity(useDiscussionGroupCopy),
+        [useDiscussionGroupCopy],
+    );
+    const systemMessages = useMemo(
+        () => getSystemMessagesForLastUsers(useDiscussionGroupCopy),
+        [useDiscussionGroupCopy],
+    );
 
     const onPress = () => {
         setExpanded(true);

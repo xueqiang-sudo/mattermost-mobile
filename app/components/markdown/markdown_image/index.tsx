@@ -19,6 +19,7 @@ import {GalleryInit} from '@context/gallery';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import {useGalleryItem} from '@hooks/gallery';
+import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {bottomSheet, dismissBottomSheet} from '@screens/navigation';
 import {lookupMimeType} from '@utils/file';
 import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
@@ -86,6 +87,7 @@ const MarkdownImage = ({
 }: MarkdownImageProps) => {
     const intl = useIntl();
     const isTablet = useIsTablet();
+    const mediaInViewport = usePostMediaInViewport(postId, location);
     const style = getStyleSheet(theme);
     const managedConfig = useManagedConfig<ManagedConfig>();
     const sourceKey = removeImageProxyForKey(source);
@@ -248,6 +250,7 @@ const MarkdownImage = ({
                             forwardRef={ref}
                             id={fileInfo.id!}
                             imageUri={fileInfo.uri}
+                            inViewPort={mediaInViewport}
                             onError={handleOnError}
                             contentFit='contain'
                             style={progressiveImageStyle}
@@ -269,6 +272,7 @@ const MarkdownImage = ({
                 <ProgressiveImage
                     id={fileInfo.id!}
                     imageUri={fileInfo.uri}
+                    inViewPort={mediaInViewport}
                     onError={handleOnError}
                     contentFit='contain'
                     style={progressiveImageStyle}

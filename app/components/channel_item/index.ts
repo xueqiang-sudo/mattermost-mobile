@@ -32,6 +32,7 @@ type EnhanceProps = WithDatabaseArgs & {
     shouldHighlightActive?: boolean;
     shouldHighlightState?: boolean;
     isOnHome?: boolean;
+    showChannelTypeTag?: boolean;
 }
 
 const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHighlightState', 'isOnHome'], ({

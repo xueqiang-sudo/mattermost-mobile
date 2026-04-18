@@ -22,6 +22,7 @@ import ChannelInfoForm from './channel_info_form';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelInfoModel from '@typings/database/models/servers/channel_info';
+import type TeamModel from '@typings/database/models/servers/team';
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {ImageResource} from 'react-native-navigation';
 
@@ -31,6 +32,7 @@ type Props = {
     channelInfo?: ChannelInfoModel;
     headerOnly?: boolean;
     isModal: boolean;
+    team?: TeamModel;
 }
 
 const CLOSE_BUTTON_ID = 'close-channel';
@@ -82,6 +84,7 @@ const CreateOrEditChannel = ({
     channelInfo,
     headerOnly,
     isModal,
+    team,
 }: Props) => {
     const intl = useIntl();
     const {formatMessage} = intl;
@@ -155,6 +158,17 @@ const CreateOrEditChannel = ({
         }
     }, [theme, isModal]);
 
+    // 企业总群（默认频道）：只读名称展示团队/企业显示名，而非频道 display_name（如「公共频道」）
+    useEffect(() => {
+        if (!editing || !channel || channel.name !== General.DEFAULT_CHANNEL || !team) {
+            return;
+        }
+        const teamLabel = team.displayName?.trim() || team.name?.trim() || '';
+        if (teamLabel) {
+            setDisplayName(teamLabel);
+        }
+    }, [editing, channel?.id, channel?.name, team?.id, team?.displayName, team?.name]);
+
     useEffect(() => {
         const displayNameChanged = displayNameReadOnly ? false : displayName !== channel?.displayName;
         setCanSave(
@@ -162,7 +176,7 @@ const CreateOrEditChannel = ({
                 displayNameChanged ||
                 purpose !== channelInfo?.purpose ||
                 header !== channelInfo?.header ||
-                type !== channel.type
+                type !== channel?.type
             ),
         );
     }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly]);

@@ -10,6 +10,7 @@ import ProgressiveImage from '@components/progressive_image';
 import {GalleryInit} from '@context/gallery';
 import {useIsTablet} from '@hooks/device';
 import {useGalleryItem} from '@hooks/gallery';
+import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {lookupMimeType} from '@utils/file';
 import {openGalleryAtIndex} from '@utils/gallery';
 import {isGifTooLarge, calculateDimensions, getViewPortWidth} from '@utils/images';
@@ -54,6 +55,7 @@ export type Props = {
 }
 
 const AttachmentImage = ({imageUrl, imageMetadata, layoutWidth, location, onLongPress, postId, theme}: Props) => {
+    const mediaInViewport = usePostMediaInViewport(postId, location);
     const galleryIdentifier = `${postId}-AttachmentImage-${location}`;
     const [error, setError] = useState(false);
     const fileId = useRef<string | null>(null);
@@ -117,6 +119,7 @@ const AttachmentImage = ({imageUrl, imageMetadata, layoutWidth, location, onLong
                             id={fileId.current}
                             imageStyle={style.attachmentMargin}
                             imageUri={imageUrl}
+                            inViewPort={mediaInViewport}
                             onError={onError}
                             contentFit='contain'
                             style={progressiveImageStyle}

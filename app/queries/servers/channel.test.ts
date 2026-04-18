@@ -63,6 +63,7 @@ import {prepareChannels,
     queryChannelMembers,
     queryChannelsForAutocomplete,
     observeChannelMembers,
+    sortChannelsForJoinedArchivedList,
 } from './channel';
 import {queryRoles} from './role';
 import {getCurrentChannelId, observeCurrentChannelId, observeCurrentUserId} from './system';
@@ -1578,5 +1579,15 @@ describe('Channel Observations', () => {
         result.subscribe((value) => {
             expect(value).toEqual(mockMembers);
         });
+    });
+});
+
+describe('sortChannelsForJoinedArchivedList', () => {
+    it('should sort channels by updateAt descending', () => {
+        const a = TestHelper.fakeChannelModel({id: 'a', updateAt: 100});
+        const b = TestHelper.fakeChannelModel({id: 'b', updateAt: 300});
+        const c = TestHelper.fakeChannelModel({id: 'c', updateAt: 200});
+        const sorted = sortChannelsForJoinedArchivedList([a, b, c]);
+        expect(sorted.map((x) => x.id)).toEqual(['b', 'c', 'a']);
     });
 });

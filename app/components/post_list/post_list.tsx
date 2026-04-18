@@ -69,6 +69,9 @@ type ScrollIndexFailed = {
 const CONTENT_OFFSET_THRESHOLD = 160;
 const SCROLL_EVENT_THROTTLE = Platform.select({android: 17, default: 60});
 
+/** 与当前可视项 ±N 行的帖子一并标记可加载媒体，便于即将滚入时预加载 */
+const POST_MEDIA_NEAR_VIEWPORT_RANGE = 5;
+
 const keyExtractor = (item: PostListItem | PostListOtherItem) => (item.type === 'post' ? item.value.currentPost.id : item.value);
 
 const styles = StyleSheet.create({
@@ -129,6 +132,9 @@ const PostList = ({
         const isThreadView = Boolean(rootId);
         return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
     }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
+
+    const orderedPostsRef = useRef(orderedPosts);
+    orderedPostsRef.current = orderedPosts;
 
     const initialIndex = useMemo(() => {
         return orderedPosts.findIndex((i) => i.type === 'start-of-new-messages');
@@ -248,12 +254,29 @@ const PostList = ({
             return;
         }
 
-        const viewableItemsMap = viewableItems.reduce((acc: Record<string, boolean>, {item, isViewable}) => {
-            if (isViewable && item.type === 'post') {
-                acc[`${location}-${item.value.currentPost.id}`] = true;
+        const list = orderedPostsRef.current;
+        const viewableItemsMap: Record<string, boolean> = {};
+
+        const markPost = (entry: PostListItem | PostListOtherItem | undefined) => {
+            if (entry?.type === 'post') {
+                viewableItemsMap[`${location}-${entry.value.currentPost.id}`] = true;
             }
-            return acc;
-        }, {});
+        };
+
+        for (const {item, isViewable, index} of viewableItems) {
+            if (!isViewable || item.type !== 'post') {
+                continue;
+            }
+            markPost(item);
+            if (typeof index === 'number' && !Number.isNaN(index)) {
+                for (let d = -POST_MEDIA_NEAR_VIEWPORT_RANGE; d <= POST_MEDIA_NEAR_VIEWPORT_RANGE; d++) {
+                    const j = index + d;
+                    if (j >= 0 && j < list.length) {
+                        markPost(list[j]);
+                    }
+                }
+            }
+        }
 
         DeviceEventEmitter.emit(Events.ITEM_IN_VIEWPORT, viewableItemsMap);
 

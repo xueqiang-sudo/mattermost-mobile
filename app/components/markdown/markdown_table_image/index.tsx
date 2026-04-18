@@ -10,6 +10,7 @@ import CompassIcon from '@components/compass_icon';
 import ProgressiveImage from '@components/progressive_image';
 import {useServerUrl} from '@context/server';
 import {useGalleryItem} from '@hooks/gallery';
+import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {lookupMimeType} from '@utils/file';
 import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
 import {calculateDimensions, isGifTooLarge} from '@utils/images';
@@ -46,6 +47,7 @@ const MarkTableImage = ({
     source,
     theme,
 }: MarkdownTableImageProps) => {
+    const mediaInViewport = usePostMediaInViewport(postId, location);
     const sourceKey = removeImageProxyForKey(source);
     const metadata = secureGetFromRecord(imagesMetadata, sourceKey);
     const fileId = useRef<string | null>(null);
@@ -142,6 +144,7 @@ const MarkTableImage = ({
                         id={fileId.current}
                         imageUri={source}
                         forwardRef={ref}
+                        inViewPort={mediaInViewport}
                         onError={onLoadFailed}
                         contentFit='contain'
                         style={{width, height}}

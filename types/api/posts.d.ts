@@ -10,6 +10,7 @@ type PostType =
     | 'system_channel_restored'
     | 'system_displayname_change'
     | 'system_convert_channel'
+    | 'system_change_chan_privacy'
     | 'system_ephemeral'
     | 'system_header_change'
     | 'system_join_channel'
