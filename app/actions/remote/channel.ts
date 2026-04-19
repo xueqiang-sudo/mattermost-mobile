@@ -15,7 +15,7 @@ import {getTeammateNameDisplaySetting} from '@helpers/api/preference';
 import AppsManager from '@managers/apps_manager';
 import NetworkManager from '@managers/network_manager';
 import {getActiveServer} from '@queries/app/servers';
-import {prepareMyChannelsForTeam, getChannelById, getChannelByName, getMyChannel, getChannelInfo, queryMyChannelSettingsByIds, getMembersCountByChannelsId, deleteChannelMembership, queryChannelsById} from '@queries/servers/channel';
+import {prepareMyChannelsForTeam, getChannelById, getChannelByName, getMyChannel, getChannelInfo, queryMyChannelSettingsByIds, getMembersCountByChannelsId, deleteChannelMembership, queryChannelsById, prepareDeleteChannel} from '@queries/servers/channel';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {getCommonSystemValues, getConfig, getCurrentChannelId, getCurrentTeamId, getCurrentUserId, getLicense, setCurrentChannelId, setCurrentTeamAndChannelId} from '@queries/servers/system';
 import {getNthLastChannelFromTeam, getMyTeamById, getTeamByName, queryMyTeams, removeChannelFromTeamHistory, getTeamById} from '@queries/servers/team';
@@ -993,12 +993,27 @@ export async function makeDirectChannel(serverUrl: string, userId: string, displ
     }
 }
 
-export async function fetchArchivedChannels(serverUrl: string, teamId: string, page = 0, perPage: number = General.CHANNELS_CHUNK_SIZE) {
+export async function fetchArchivedChannels(serverUrl: string, teamId: string, page = 0, perPage: number = General.CHANNELS_CHUNK_SIZE, fetchOnly = false) {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        const channels = await client.getArchivedChannels(teamId, page, perPage);
+        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const [channels, memberships] = await Promise.all([
+            client.getArchivedChannels(teamId, page, perPage),
+            client.getMyChannelMembers(teamId),
+        ]);
 
-        return {channels};
+        // 只保留已归档频道对应的成员关系
+        const channelIds = new Set(channels.map((c) => c.id));
+        const filteredMemberships = memberships.filter((m) => channelIds.has(m.channel_id));
+
+        if (!fetchOnly && channels.length > 0) {
+            const {models: chModels} = await storeMyChannelsForTeam(serverUrl, teamId, channels, filteredMemberships, true);
+            if (chModels?.length) {
+                await operator.batchRecords(chModels, 'fetchArchivedChannels');
+            }
+        }
+
+        return {channels, memberships: filteredMemberships};
     } catch (error) {
         logDebug('error on fetchArchivedChannels', getFullErrorMessage(error));
         forceLogoutIfNecessary(serverUrl, error);
@@ -1303,6 +1318,36 @@ export const unarchiveChannel = async (serverUrl: string, channelId: string) => 
         return {};
     } catch (error) {
         logDebug('error on unarchiveChannel', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    } finally {
+        EphemeralStore.removeArchivingChannel(channelId);
+    }
+};
+
+export const permanentlyDeleteChannel = async (serverUrl: string, channelId: string) => {
+    try {
+        EphemeralStore.addArchivingChannel(channelId);
+        const client = NetworkManager.getClient(serverUrl);
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        
+        // Get channel before deleting
+        const channel = await getChannelById(database, channelId);
+        if (!channel) {
+            return {error: `channel with id ${channelId} not found`};
+        }
+        
+        await client.deleteChannel(channelId, true);
+        
+        // Prepare models for permanent deletion
+        const modelsToDelete = await prepareDeleteChannel(serverUrl, channel);
+        
+        // Delete records from database
+        await operator.batchRecords(modelsToDelete, 'permanentlyDeleteChannel');
+        
+        return {};
+    } catch (error) {
+        logDebug('error on permanentlyDeleteChannel', getFullErrorMessage(error));
         forceLogoutIfNecessary(serverUrl, error);
         return {error};
     } finally {

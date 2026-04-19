@@ -145,7 +145,7 @@ export async function handleUserAddedToTeamEvent(serverUrl: string, msg: WebSock
 const fetchAndStoreJoinedTeamInfo = async (serverUrl: string, operator: ServerDataOperator, teamId: string, teams?: Team[], teamMemberships?: TeamMembership[]) => {
     const modelPromises: Array<Promise<Model[]>> = [];
     if (teams?.length && teamMemberships?.length) {
-        const {channels, memberships, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, false, 0, true);
+        const {channels, memberships, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, true);
         modelPromises.push(prepareCategoriesAndCategoriesChannels(operator, categories || [], true));
         modelPromises.push(...await prepareMyChannelsForTeam(operator, teamId, channels || [], memberships || []));
 

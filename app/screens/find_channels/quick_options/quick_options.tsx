@@ -87,7 +87,7 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
                 <OptionBox
                     iconName='account-outline'
                     onPress={openDirectMessage}
-                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'Pick people to start chatting'})}
+                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'Start a private chat or group discussion'})}
                     testID='find_channels.quick_options.open_dm.option'
                 />
                 {canCreateChannels &&

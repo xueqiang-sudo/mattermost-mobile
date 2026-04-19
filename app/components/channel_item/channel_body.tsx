@@ -54,18 +54,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             paddingHorizontal: 6,
             paddingVertical: 2,
             borderRadius: 4,
-            backgroundColor: changeOpacity(theme.sidebarTextActiveBorder || theme.linkColor, 0.2),
+            backgroundColor: changeOpacity(theme.buttonBg || theme.linkColor, 0.15),
             flexShrink: 0,
         },
         tagOnCenterBg: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
+            backgroundColor: changeOpacity(theme.buttonBg || theme.linkColor, 0.12),
         },
         tagText: {
             ...typography('Body', 50, 'SemiBold'),
-            color: theme.sidebarTextActiveBorder || theme.linkColor,
+            color: theme.buttonBg || theme.linkColor,
         },
         tagTextOnCenterBg: {
-            color: theme.centerChannelColor,
+            color: theme.buttonBg || theme.linkColor,
         },
         tagMuted: {
             opacity: 0.6,

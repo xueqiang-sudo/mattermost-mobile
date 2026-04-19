@@ -20,13 +20,12 @@ import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {ANDROID_33, OS_VERSION} from '@constants/versions';
 import {useTheme} from '@context/theme';
 import {bottomSheet, dismissBottomSheet, showModal} from '@screens/navigation';
-import {channelSupportsAnnouncementUx} from '@utils/channel';
+import {CHANNEL_INFO_CARD_RADIUS} from '../channel_info_constants';
 import {bottomSheetSnapPoint, isEmail} from '@utils/helpers';
+import {channelSupportsAnnouncementUx} from '@utils/channel';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-
-import {CHANNEL_INFO_CARD_RADIUS} from '../channel_info_constants';
 
 type Props = {
     canEditAnnouncement?: boolean;
@@ -59,7 +58,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'space-between',
         marginBottom: 0,
     },
-
     /** 公告体系：整块公告与编辑入口放在轻量卡片内，层次更清晰。 */
     announcementPanel: {
         marginTop: 2,
@@ -79,7 +77,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     announcementPanelHeaderRowTight: {
         marginBottom: 6,
     },
-
     /** 公告为区块标题，字阶与字重高于正文，避免与内容「长得一样」。 */
     announcementPanelHeading: {
         color: theme.centerChannelColor,
@@ -180,7 +177,9 @@ const Extra = ({
     const showLegacyHeaderSection = !usesAnnouncementUx && Boolean(header);
 
     const onEditAnnouncement = useCallback(() => {
-        const title = isDM? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'}): intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
+        const title = isDM 
+            ? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'})
+            : intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
         showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
     }, [channelId, intl, isDM]);
 
@@ -324,7 +323,9 @@ const Extra = ({
                                     testID={`${headerTestId}.edit_announcement`}
                                 >
                                     <Text style={styles.editAnnouncement}>
-                                        {intl.formatMessage(isDM? {id: 'channel_info.edit_note', defaultMessage: 'Edit note'}: {id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'},
+                                        {intl.formatMessage(isDM 
+                                            ? {id: 'channel_info.edit_note', defaultMessage: 'Edit note'}
+                                            : {id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'}
                                         )}
                                     </Text>
                                 </TouchableWithFeedback>

@@ -18,10 +18,10 @@ import Markdown from '@components/markdown';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useAutocompleteDefaultAnimatedValues} from '@hooks/autocomplete';
 import {useKeyboardHeight, useKeyboardOverlap} from '@hooks/device';
 import {useInputPropagation} from '@hooks/input';
+import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {buildNavigationButton, dismissModal, popTopScreen, setButtons} from '@screens/navigation';
@@ -272,11 +272,19 @@ const EditChannelAnnouncement = ({
     const growDown = spaceOnBottom > spaceOnTop;
     const [animatedAutocompletePosition, animatedAutocompleteAvailableSpace] = useAutocompleteDefaultAnimatedValues(autocompletePosition, autocompleteAvailableSpace);
 
-    const label = isDM? formatMessage({id: 'screens.edit_conversation_note.input_label', defaultMessage: 'Note (optional)'}): formatMessage({id: 'screens.edit_channel_announcement.input_label', defaultMessage: 'Announcement (optional)'});
-    const placeholder = isDM? formatMessage({id: 'screens.edit_conversation_note.placeholder', defaultMessage: 'e.g. their birthday, important notes, or helpful links'}): formatMessage({id: 'screens.edit_channel_announcement.placeholder', defaultMessage: 'e.g. key links, this week’s focus, or reminders for the team'});
+    const label = isDM 
+        ? formatMessage({id: 'screens.edit_conversation_note.input_label', defaultMessage: 'Note (optional)'})
+        : formatMessage({id: 'screens.edit_channel_announcement.input_label', defaultMessage: 'Announcement (optional)'});
+    const placeholder = isDM 
+        ? formatMessage({id: 'screens.edit_conversation_note.placeholder', defaultMessage: 'e.g. their birthday, important notes, or helpful links'})
+        : formatMessage({id: 'screens.edit_channel_announcement.placeholder', defaultMessage: 'e.g. key links, this week’s focus, or reminders for the team'});
 
-    const helperTextId = isDM? 'screens.edit_conversation_note.helper': 'screens.edit_channel_announcement.helper';
-    const helperTextDefaultMessage = isDM? 'Shown at the top of the conversation so you see it every time. You can use Markdown for links and light formatting.': 'Shown at the top of the conversation so everyone sees it. You can use Markdown for links and light formatting.';
+    const helperTextId = isDM 
+        ? 'screens.edit_conversation_note.helper'
+        : 'screens.edit_channel_announcement.helper';
+    const helperTextDefaultMessage = isDM 
+        ? 'Shown at the top of the conversation so you see it every time. You can use Markdown for links and light formatting.'
+        : 'Shown at the top of the conversation so everyone sees it. You can use Markdown for links and light formatting.';
 
     if (appState.saving) {
         return (

@@ -75,7 +75,9 @@ const ChannelAnnouncementBar = ({
 
     const openEditor = useCallback(() => {
         dismissBottomSheet();
-        const title = isDM? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'}): intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
+        const title = isDM 
+            ? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'})
+            : intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
         showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
     }, [channelId, intl, isDM]);
 
@@ -83,7 +85,9 @@ const ChannelAnnouncementBar = ({
         const renderContent = () => (
             <View style={styles.sheetInner}>
                 <Text style={styles.sheetTitle}>
-                    {isDM? intl.formatMessage({id: 'channel_announcement.bottom_sheet.title.note', defaultMessage: 'Note'}): intl.formatMessage({id: 'channel_announcement.bottom_sheet.title', defaultMessage: 'Announcement'})
+                    {isDM 
+                        ? intl.formatMessage({id: 'channel_announcement.bottom_sheet.title.note', defaultMessage: 'Note'})
+                        : intl.formatMessage({id: 'channel_announcement.bottom_sheet.title', defaultMessage: 'Announcement'})
                     }
                 </Text>
                 <ScrollView
@@ -106,7 +110,9 @@ const ChannelAnnouncementBar = ({
                         testID='channel_announcement.bottom_sheet.edit'
                     >
                         <Text style={styles.editLabel}>
-                            {isDM? intl.formatMessage({id: 'channel_info.edit_note', defaultMessage: 'Edit note'}): intl.formatMessage({id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'})
+                            {isDM 
+                                ? intl.formatMessage({id: 'channel_info.edit_note', defaultMessage: 'Edit note'})
+                                : intl.formatMessage({id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'})
                             }
                         </Text>
                     </TouchableOpacity>

@@ -161,7 +161,9 @@ const ChannelHeader = ({
             case General.PRIVATE_CHANNEL:
                 return intl.formatMessage(channelTypeTagMessages.groupChat);
             case General.OPEN_CHANNEL:
-                return channelName === General.DEFAULT_CHANNEL? intl.formatMessage(channelTypeTagMessages.enterprisePublic): intl.formatMessage(channelTypeTagMessages.publicGroupChat);
+                return channelName === General.DEFAULT_CHANNEL
+                    ? intl.formatMessage(channelTypeTagMessages.enterprisePublic)
+                    : intl.formatMessage(channelTypeTagMessages.publicGroupChat);
             default:
                 return '';
         }
@@ -320,8 +322,6 @@ const ChannelHeader = ({
         subtitle = undefined;
     } else if (memberCount) {
         subtitle = intl.formatMessage({id: 'channel_header.member_count', defaultMessage: '{count, plural, one {# member} other {# members}}'}, {count: memberCount});
-    } else if (channelType !== General.DM_CHANNEL && (!customStatus || !customStatus.text || isCustomStatusExpired)) {
-        subtitle = usesDiscussionGroupChannelCopy(channelType)? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'}): intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
     }
 
     const subtitleCompanion = useMemo(() => {

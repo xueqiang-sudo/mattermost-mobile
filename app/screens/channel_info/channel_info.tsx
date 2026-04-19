@@ -24,7 +24,6 @@ import {
     CHANNEL_INFO_CARD_INNER_PADDING,
     CHANNEL_INFO_HERO_TO_ACTIONS_GAP,
     CHANNEL_INFO_SCREEN_PADDING_H,
-    CHANNEL_INFO_SECTION_GAP,
     makeChannelInfoModalOptionBoxStyle,
 } from './channel_info_constants';
 import DestructiveOptions from './destructive_options';
@@ -69,12 +68,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         backgroundColor: theme.centerChannelBg,
     },
-    sectionAfterCard: {
-        marginTop: CHANNEL_INFO_SECTION_GAP,
-    },
     extraBelowActions: {
         marginTop: 8,
-        marginBottom: CHANNEL_INFO_SECTION_GAP,
+        marginBottom: 16,
     },
 }));
 
@@ -194,20 +190,16 @@ const ChannelInfo = ({
                             isPlaybooksEnabled={isPlaybooksEnabled}
                             isTeamDefaultOpenChannel={isTeamDefaultOpenChannel}
                         />
-                    </ChannelInfoCard>
-                    {convertGMOptionAvailable &&
-                        <View style={styles.sectionAfterCard}>
+                        {convertGMOptionAvailable &&
                             <ConvertToChannelLabel channelId={channelId}/>
-                        </View>
-                    }
-                    {canEnableDisableCalls &&
-                        <View style={styles.sectionAfterCard}>
+                        }
+                        {canEnableDisableCalls &&
                             <ChannelInfoEnableCalls
                                 channelId={channelId}
                                 enabled={isCallsEnabledInChannel}
                             />
-                        </View>
-                    }
+                        }
+                    </ChannelInfoCard>
                     <ChannelInfoAppBindings
                         channelId={channelId}
                         dismissChannelInfo={onPressed}

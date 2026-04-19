@@ -29,6 +29,7 @@ type Props = {
     nativeID: string;
     posts: PostModel[];
     shouldShowJoinLeaveMessages: boolean;
+    unreadCount: number;
 }
 
 const edges: Edge[] = [];
@@ -39,7 +40,7 @@ const styles = StyleSheet.create({
 
 const ChannelPostList = ({
     channelId, contentContainerStyle, isCRTEnabled,
-    lastViewedAt, nativeID, posts, shouldShowJoinLeaveMessages,
+    lastViewedAt, nativeID, posts, shouldShowJoinLeaveMessages, unreadCount,
 }: Props) => {
     const appState = useAppState();
     const isTablet = useIsTablet();
@@ -129,6 +130,7 @@ const ChannelPostList = ({
             showMoreMessages={true}
             showNewMessageLine={true}
             testID='channel.post_list'
+            unreadCount={unreadCount}
         />
     );
 

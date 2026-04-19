@@ -4,14 +4,16 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {FlashList, type ListRenderItemInfo} from '@shopify/flash-list';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Alert, Text, View} from 'react-native';
 import {useIntl} from 'react-intl';
-import {Text, View} from 'react-native';
 import {of as of$} from 'rxjs';
 import {combineLatestWith, distinctUntilChanged, map, switchMap} from 'rxjs/operators';
 
-import {fetchGroupMessageMembersCommonTeams, switchToChannelById} from '@actions/remote/channel';
+import {fetchArchivedChannels, fetchGroupMessageMembersCommonTeams, switchToChannelById, unarchiveChannel, permanentlyDeleteChannel} from '@actions/remote/channel';
 import ChannelItem, {ROW_HEIGHT_CENTER_LIST} from '@components/channel_item';
 import Loading from '@components/loading';
+import {General} from '@constants';
+import {alertErrorWithFallback} from '@utils/draft';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -111,6 +113,7 @@ const JoinedChannelsAndGroups = ({
     const [archivedEnterpriseGms, setArchivedEnterpriseGms] = useState<ChannelModel[]>([]);
     const [gmEnterpriseFilterStatus, setGmEnterpriseFilterStatus] = useState<GmEnterpriseFilterStatus>('idle');
     const commonTeamsCache = useRef(new Map<string, boolean>());
+    const fetchedArchivedTeams = useRef<Set<string>>(new Set());
 
     const archivedGmCandidateIds = useMemo(
         () => archivedGmCandidates.map((c) => c.id).sort().join(','),
@@ -120,6 +123,34 @@ const JoinedChannelsAndGroups = ({
     useEffect(() => {
         commonTeamsCache.current.clear();
     }, [currentTeamId, serverUrl]);
+
+    // 当切换到已归档标签时，调用接口获取已归档频道
+    useEffect(() => {
+        if (activeTab !== 'archived') {
+            return;
+        }
+
+        if (!currentTeamId || !serverUrl) {
+            return;
+        }
+
+        const cacheKey = `${serverUrl}-${currentTeamId}`;
+        if (fetchedArchivedTeams.current.has(cacheKey)) {
+            return;
+        }
+        fetchedArchivedTeams.current.add(cacheKey);
+
+        const ac = new AbortController();
+        const run = async () => {
+            try {
+                await fetchArchivedChannels(serverUrl, currentTeamId);
+            } catch (error) {
+                logError('[JoinedChannelsAndGroups.fetchArchivedChannels', error);
+            }
+        };
+        void run();
+        return () => ac.abort();
+    }, [activeTab, currentTeamId, serverUrl]);
 
     useEffect(() => {
         if (activeTab !== 'archived') {
@@ -228,7 +259,118 @@ const JoinedChannelsAndGroups = ({
         switchToChannelById(serverUrl, channel.id);
     }, [serverUrl]);
 
+    const onRestoreChannel = useCallback((channel: ChannelModel | Channel) => {
+        const displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
+        const channelType = channel.type;
+        
+        // 根据频道类型生成术语
+        let term = intl.formatMessage({id: 'archived.channel_type_group', defaultMessage: '群组'});
+        if (channelType === General.PRIVATE_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_private', defaultMessage: '私密群组'});
+        } else if (channelType === General.OPEN_CHANNEL && channel.name !== General.DEFAULT_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_public', defaultMessage: '群聊'});
+        } else if (channelType === General.DM_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_dm', defaultMessage: '私聊'});
+        } else if (channelType === General.GM_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_discussion', defaultMessage: '讨论组'});
+        }
+        
+        Alert.alert(
+            intl.formatMessage({
+                id: 'archived.restore_title',
+                defaultMessage: '恢复{term}',
+            }, {term}),
+            intl.formatMessage({
+                id: 'archived.restore_description',
+                defaultMessage: '恢复后，「{name}」将回到您的已加入列表。',
+            }, {name: displayName}),
+            [
+                {
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                    style: 'cancel',
+                },
+                {
+                    text: intl.formatMessage({
+                        id: 'archived.restore_button',
+                        defaultMessage: '恢复{term}',
+                    }, {term}),
+                    style: 'default',
+                    onPress: async () => {
+                        try {
+                            await unarchiveChannel(serverUrl, channel.id);
+                        } catch (e) {
+                            alertErrorWithFallback(
+                                intl,
+                                e,
+                                {
+                                    id: 'mobile.channel.unarchive.error',
+                                    defaultMessage: 'We could not unarchive the channel',
+                                },
+                            );
+                        }
+                    },
+                },
+            ],
+        );
+    }, [serverUrl, intl]);
+
+    const onDeleteChannel = useCallback((channel: ChannelModel | Channel) => {
+        const displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
+        const channelType = channel.type;
+        
+        // 根据频道类型生成术语
+        let term = intl.formatMessage({id: 'archived.channel_type_group', defaultMessage: '群组'});
+        if (channelType === General.PRIVATE_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_private', defaultMessage: '私密群组'});
+        } else if (channelType === General.OPEN_CHANNEL && channel.name !== General.DEFAULT_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_public', defaultMessage: '群聊'});
+        } else if (channelType === General.DM_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_dm', defaultMessage: '私聊'});
+        } else if (channelType === General.GM_CHANNEL) {
+            term = intl.formatMessage({id: 'archived.channel_type_discussion', defaultMessage: '讨论组'});
+        }
+        
+        Alert.alert(
+            intl.formatMessage({
+                id: 'archived.delete_title',
+                defaultMessage: '删除{term}',
+            }, {term}),
+            intl.formatMessage({
+                id: 'archived.delete_description',
+                defaultMessage: '您确定要彻底删除 {name} 吗？此操作不可撤销。',
+            }, {name: displayName}),
+            [
+                {
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                    style: 'cancel',
+                },
+                {
+                    text: intl.formatMessage({
+                        id: 'archived.delete_button',
+                        defaultMessage: '删除{term}',
+                    }, {term}),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await permanentlyDeleteChannel(serverUrl, channel.id);
+                        } catch (e) {
+                            alertErrorWithFallback(
+                                intl,
+                                e,
+                                {
+                                    id: 'mobile.channel.delete.error',
+                                    defaultMessage: 'We could not delete the channel',
+                                },
+                            );
+                        }
+                    },
+                },
+            ],
+        );
+    }, [serverUrl, intl]);
+
     const showChannelTypeTag = activeTab === 'archived';
+    const isArchivedTab = activeTab === 'archived';
 
     const renderItem = useCallback(({item, index}: ListRenderItemInfo<ChannelModel>) => (
         <ChannelItem
@@ -241,8 +383,11 @@ const JoinedChannelsAndGroups = ({
             showTeamName={showTeamName}
             testID='joined_channels.list.channel_item'
             useListInitialsForNonDm={true}
+            isArchivedItem={isArchivedTab}
+            onRestore={isArchivedTab ? onRestoreChannel : undefined}
+            onDelete={isArchivedTab ? onDeleteChannel : undefined}
         />
-    ), [onChannelPress, showChannelTypeTag, showTeamName]);
+    ), [onChannelPress, showChannelTypeTag, showTeamName, isArchivedTab, onRestoreChannel, onDeleteChannel]);
 
     const keyExtractor = useCallback((item: ChannelModel) => item.id, []);
 
@@ -322,7 +467,7 @@ const JoinedChannelsAndGroups = ({
                             extraData={listExtraData}
                             keyExtractor={keyExtractor}
                             renderItem={renderItem}
-                            style={styles.flashList}
+                            contentContainerStyle={styles.flashList}
                         />
                     </View>
                 )}

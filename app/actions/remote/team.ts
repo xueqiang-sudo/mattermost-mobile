@@ -71,7 +71,7 @@ export async function addUserToTeam(serverUrl: string, teamId: string, userId: s
             loadEventSent = true;
 
             fetchRolesIfNeeded(serverUrl, member.roles.split(' '));
-            const {channels, memberships: channelMembers, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, false, 0, true);
+            const {channels, memberships: channelMembers, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, true);
             const myTeams: MyTeam[] = [{
                 id: member.team_id,
                 roles: member.roles,
@@ -427,7 +427,7 @@ async function syncMyChannelsAfterTeamSwitch(serverUrl: string, teamId: string) 
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const isCRTEnabled = await getIsCRTEnabled(database);
-        const {error} = await fetchMyChannelsForTeam(serverUrl, teamId, false, 0, false, false, isCRTEnabled);
+        const {error} = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, false, false, isCRTEnabled);
         if (error) {
             logDebug('error on fetchMyChannelsForTeam after team switch', getFullErrorMessage(error));
         }

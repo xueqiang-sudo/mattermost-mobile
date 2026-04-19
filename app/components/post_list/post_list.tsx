@@ -56,6 +56,8 @@ type Props = {
     testID: string;
     currentCallBarVisible?: boolean;
     savedPostIds: Set<string>;
+    unreadCount?: number;
+    isManualUnread?: boolean;
 }
 
 type onScrollEndIndexListenerEvent = (endIndex: number) => void;
@@ -110,6 +112,8 @@ const PostList = ({
     showNewMessageLine = false,
     testID,
     savedPostIds,
+    unreadCount = 0,
+    isManualUnread = false,
 }: Props) => {
     const firstIdInPosts = posts[0]?.id;
 
@@ -451,6 +455,8 @@ const PostList = ({
                 scrollToIndex={scrollToIndex}
                 theme={theme}
                 testID={`${testID}.more_messages_button`}
+                unreadCount={unreadCount}
+                isManualUnread={isManualUnread}
             />
             }
         </View>

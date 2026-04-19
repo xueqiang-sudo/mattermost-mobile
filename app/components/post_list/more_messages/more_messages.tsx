@@ -157,12 +157,14 @@ const MoreMessages = ({
     // Due to the implementation differences "unreadCount" gets updated for a channel on reset but not for a thread.
     // So we maintain a localUnreadCount to hide the indicator when the count is reset.
     // If we don't maintain the local counter, in the case of a thread, the indicator will be shown again once we scroll down after we reach the top.
-    const localUnreadCount = useRef(unreadCount);
+    const localUnreadCount = useRef(unreadCount > 0 ? unreadCount : 0);
     const postsRef = useRef(posts);
     postsRef.current = posts;
 
     useEffect(() => {
-        localUnreadCount.current = unreadCount;
+        if (unreadCount > 0) {
+            localUnreadCount.current = unreadCount;
+        }
     }, [unreadCount]);
 
     const resetCount = useCallback(async () => {
