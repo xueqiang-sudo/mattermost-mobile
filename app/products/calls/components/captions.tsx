@@ -46,7 +46,6 @@ const styles = StyleSheet.create({
     },
     text: {
         color: '#FFF',
-        fontFamily: 'Open Sans',
         fontSize: 16,
         fontStyle: 'normal',
         fontWeight: '400',

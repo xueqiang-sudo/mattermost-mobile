@@ -37,10 +37,9 @@ export const getMarkdownTextStyles = makeStyleSheetFromTheme((theme: Theme) => {
 
     return {
         emph: {
-            fontFamily: 'OpenSans-Italic',
+            fontStyle: 'italic',
         },
         strong: {
-            fontFamily: 'OpenSans-SemiBold',
             fontWeight: '600',
         },
         del: {
@@ -48,7 +47,6 @@ export const getMarkdownTextStyles = makeStyleSheetFromTheme((theme: Theme) => {
         },
         link: {
             color: theme.linkColor,
-            fontFamily: 'OpenSans',
         },
         heading1: {
             ...typography('Heading', 700),
@@ -101,15 +99,13 @@ export const getMarkdownTextStyles = makeStyleSheetFromTheme((theme: Theme) => {
             fontFamily: codeFont,
         },
         mention: {
-            fontFamily: 'OpenSans',
             color: theme.linkColor,
         },
         error: {
-            fontFamily: 'OpenSans',
             color: theme.errorTextColor,
         },
         table_header_row: {
-            fontFamily: 'OpenSans-Bold',
+            fontWeight: '700',
         },
         mention_highlight: {
             color: theme.mentionHighlightLink,

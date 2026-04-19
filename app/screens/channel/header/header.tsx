@@ -11,12 +11,10 @@ import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
 import {ITEM_HEIGHT} from '@components/option_item';
-import RoundedHeaderContext from '@components/rounded_header_context';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
-import {useDefaultHeaderHeight} from '@hooks/header';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
 import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@playbooks/screens/navigation';
@@ -147,7 +145,6 @@ const ChannelHeader = ({
     const isTablet = useIsTablet();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
-    const defaultHeight = useDefaultHeaderHeight();
     const serverUrl = useServerUrl();
 
     const callsConfig = getCallsConfig(serverUrl);
@@ -177,9 +174,6 @@ const ChannelHeader = ({
     }
 
     const isDMorGM = isTypeDMorGM(channelType);
-    const contextStyle = useMemo(() => ({
-        top: defaultHeight,
-    }), [defaultHeight]);
 
     const onBackPress = useCallback(() => {
         Keyboard.dismiss();
@@ -402,9 +396,6 @@ const ChannelHeader = ({
                 titleTag={titleTag}
                 useChatStyle={true}
             />
-            <View style={contextStyle}>
-                <RoundedHeaderContext/>
-            </View>
             {showBookmarkBar &&
             <ChannelHeaderBookmarks
                 canAddBookmarks={canAddBookmarks}

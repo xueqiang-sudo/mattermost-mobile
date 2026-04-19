@@ -175,12 +175,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     countryNameSelected: {
         color: theme.buttonBg,
-        fontFamily: 'OpenSans-SemiBold',
+        fontWeight: '600',
     },
     countryCode: {
         fontSize: 16,
         color: theme.buttonBg,
-        fontFamily: 'OpenSans-SemiBold',
+        fontWeight: '600',
     },
     countryCodeSelected: {
         color: theme.buttonBg,
@@ -199,7 +199,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     closeButtonText: {
         color: theme.buttonBg,
         fontSize: 14,
-        fontFamily: 'OpenSans-SemiBold',
+        fontWeight: '600',
     },
     errorText: {
         color: theme.errorTextColor,

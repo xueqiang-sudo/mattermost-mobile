@@ -111,12 +111,9 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
             ...typography('Body', 100, 'Regular'),
         },
         selectionHintPrefix: {
-            fontFamily: 'OpenSans-SemiBold',
             fontWeight: '600',
             fontSize: 14,
             color: changeOpacity(theme.centerChannelColor, 0.8),
-            allowFontScaling: false,
-            maxFontSizeMultiplier: 1,
             paddingTop: 8,
         },
         searchBarContainer: {

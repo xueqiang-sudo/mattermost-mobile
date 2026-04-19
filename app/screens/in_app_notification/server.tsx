@@ -15,7 +15,6 @@ const styles = StyleSheet.create({
     },
     text: {
         color: 'rgba(255, 255, 255, 0.64)',
-        fontFamily: 'OpenSans',
         fontSize: 10,
     },
 });

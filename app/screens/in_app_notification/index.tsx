@@ -51,7 +51,6 @@ const styles = StyleSheet.create({
     message: {
         color: '#FFFFFF',
         fontSize: 13,
-        fontFamily: 'OpenSans',
     },
     titleContainer: {
         flex: 1,

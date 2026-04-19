@@ -22,7 +22,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     moreImagesText: {
         color: theme.sidebarHeaderTextColor,
-        fontFamily: 'OpenSans',
         textAlign: 'center',
     },
 }));

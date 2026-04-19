@@ -26,7 +26,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     action: {
         color: changeOpacity(theme.centerChannelColor, 0.7),
-        fontFamily: 'OpenSans-SemiBold',
+        fontWeight: '600',
         fontSize: 16,
         lineHeight: 24,
     },
@@ -50,7 +50,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     title: {
         color: theme.centerChannelColor,
-        fontFamily: 'OpenSans-SemiBold',
+        fontWeight: '600',
         fontSize: 18,
         lineHeight: 24,
     },

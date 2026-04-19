@@ -57,6 +57,7 @@ const styles = StyleSheet.create({
     },
     messageArea: {
         flex: 1,
+        flexDirection: 'column',
     },
 });
 
@@ -94,7 +95,7 @@ const Channel = ({
 
     useAndroidHardwareBackHandler(componentId, handleBack);
 
-    const marginTop = defaultHeight + (isTablet ? 0 : -insets.top);
+    const marginTop = (defaultHeight + (isTablet ? 0 : -insets.top)) - 40;
     useEffect(() => {
         // Give time to the WS event
         const t = setTimeout(() => {
@@ -139,10 +140,12 @@ const Channel = ({
                 <ExtraKeyboardProvider>
                     <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
                         <ConnectionBanner isChatUI={true}/>
-                        <ChannelPostList
-                            channelId={channelId}
-                            nativeID={channelId}
-                        />
+                        <View style={{flex: 1}}>
+                            <ChannelPostList
+                                channelId={channelId}
+                                nativeID={channelId}
+                            />
+                        </View>
                     </View>
                     <>
                         {scheduledPostCount > 0 &&

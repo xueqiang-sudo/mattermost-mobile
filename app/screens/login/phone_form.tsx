@@ -78,7 +78,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     getCodeButtonText: {
         color: theme.buttonBg,
         fontSize: 14,
-        fontFamily: 'OpenSans-SemiBold',
+        fontWeight: '600',
     },
     getCodeButtonDisabled: {
         borderColor: changeOpacity(theme.buttonBg, 0.5),
