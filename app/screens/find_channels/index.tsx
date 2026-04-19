@@ -121,8 +121,8 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
      * 创建右上角按钮配置
      */
     const rightButton = useMemo(() => {
-        const linkColor = theme.linkColor;
-        const joinedIcon = CompassIcon.getImageSourceSync('forum-outline', 20, linkColor);
+        const iconColor = theme.sidebarHeaderTextColor;
+        const joinedIcon = CompassIcon.getImageSourceSync('forum-outline', 20, iconColor);
         const joinedNavShort = intl.formatMessage({
             id: 'find_channels.joined_nav_action',
             defaultMessage: 'Joined',
@@ -134,9 +134,9 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                 joinedIcon,
                 joinedNavShort,
             ),
-            color: linkColor,
+            color: iconColor,
         };
-    }, [intl, theme.linkColor]);
+    }, [intl, theme.sidebarHeaderTextColor]);
 
     /**
      * 更新导航栏按钮

@@ -15,7 +15,7 @@ import {THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
 import {PLAYBOOKS_UPDATE_STATUS_POST_TYPE} from '@playbooks/constants/plugin';
-import {isEdited as postEdited, isPostFailed} from '@utils/post';
+import {isEdited as postEdited, isPostFailed, isSystemMessage} from '@utils/post';
 import {blendColors, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Acknowledgements from './acknowledgements';
@@ -303,7 +303,8 @@ const Body = ({
     const quotedPostId = post.props?.quoted_post_id;
     const hasTextMessage = Boolean(displayMessage.length || isEdited);
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
-    const showBubble = weChatStyleActive && !hasBeenDeleted;
+    const isSystemPost = isSystemMessage(post);
+    const showBubble = weChatStyleActive && !hasBeenDeleted && !isSystemPost;
 
     /** 微信附件宽度：与他人同一内容上限；本人带正文+附件由 Files 的 maxPortraitWidth 约束 */
     const filesPassLayoutWidth = useMemo(() => {

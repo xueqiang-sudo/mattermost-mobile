@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 /**
- * Side-effect bootstrap: OpenSans default on Text + disable system font scaling app-wide
+ * Side-effect bootstrap: 不设置固定字体，跟随系统默认字体，并允许系统字体缩放
  * (Text / TextInput). Import this module once at each JS entry (root index, share extension).
  */
 
@@ -15,12 +15,10 @@ setFontFamily();
 // @ts-expect-error RN forwardRef Text typings omit defaultProps
 Text.defaultProps = {
     ...Text.defaultProps,
-    allowFontScaling: false,
-    maxFontSizeMultiplier: 1,
+    allowFontScaling: true,
 };
 
 TextInput.defaultProps = {
     ...TextInput.defaultProps,
-    allowFontScaling: false,
-    maxFontSizeMultiplier: 1,
+    allowFontScaling: true,
 };
