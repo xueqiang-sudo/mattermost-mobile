@@ -72,7 +72,7 @@ const enhanced = withObservables(['term'], ({database, term}: EnhanceProps) => {
         channelsMatchStart,
         currentTeamId: currentTeamId$,
         restrictDirectMessage,
-        showTeamName: teamIds.pipe(switchMap((ids) => of$(ids.size > 1))),
+        showTeamName: of$(false),
         teamIds,
         teammateDisplayNameSetting,
         usersMatchStart,

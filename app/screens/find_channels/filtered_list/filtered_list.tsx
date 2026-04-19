@@ -42,6 +42,11 @@ const isDiscussionGroupChannel = (c: ChannelModel | Channel) => {
     return type === General.GM_CHANNEL;
 };
 
+const showChannelTypeTagForChannel = (c: ChannelModel | Channel) => {
+    const type = 'type' in c ? c.type : (c as Channel).type;
+    return type === General.OPEN_CHANNEL || type === General.PRIVATE_CHANNEL || type === General.GM_CHANNEL;
+};
+
 type Props = {
     archivedChannels: ChannelModel[];
     category: FindChannelsCategory;
@@ -228,6 +233,7 @@ const FilteredList = ({
                     isOnCenterBg={true}
                     listRowIndex={index}
                     onPress={onSwitchToChannel}
+                    showChannelTypeTag={showChannelTypeTagForChannel(item)}
                     showTeamName={showTeamName}
                     shouldHighlightState={true}
                     testID='find_channels.filtered_list.channel_item'
@@ -254,6 +260,7 @@ const FilteredList = ({
                 isOnCenterBg={true}
                 listRowIndex={index}
                 onPress={onJoinChannel}
+                showChannelTypeTag={showChannelTypeTagForChannel(item)}
                 showTeamName={showTeamName}
                 shouldHighlightState={true}
                 testID='find_channels.filtered_list.remote_channel_item'

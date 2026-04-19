@@ -35,13 +35,14 @@ type EnhanceProps = WithDatabaseArgs & {
     showChannelTypeTag?: boolean;
 }
 
-const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHighlightState', 'isOnHome'], ({
+const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHighlightState', 'isOnHome', 'showTeamName'], ({
     channel,
     database,
     serverUrl,
     shouldHighlightActive = false,
     shouldHighlightState = false,
     isOnHome = false,
+    showTeamName,
 }: EnhanceProps) => {
     const currentUserId = observeCurrentUserId(database);
     const myChannel = observeMyChannel(database, channel.id);
@@ -81,8 +82,9 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
         ) : of$(false);
 
     const teamId = 'teamId' in channel ? channel.teamId : channel.team_id;
-    const teamDisplayName = teamId ?
-        observeTeam(database, teamId).pipe(
+    const shouldLoadTeamName = Boolean(teamId && showTeamName !== false);
+    const teamDisplayName = shouldLoadTeamName ?
+        observeTeam(database, teamId!).pipe(
             switchMap((team) => of$(team?.displayName || '')),
             distinctUntilChanged(),
         ) : of$('');

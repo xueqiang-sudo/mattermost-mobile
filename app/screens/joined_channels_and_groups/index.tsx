@@ -264,35 +264,35 @@ const JoinedChannelsAndGroups = ({
         const channelType = channel.type;
         
         // 根据频道类型生成术语
-        let term = intl.formatMessage({id: 'archived.channel_type_group', defaultMessage: '群组'});
+        let term = intl.formatMessage({id: 'archived.channel_type_group', defaultMessage: 'Group'});
         if (channelType === General.PRIVATE_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_private', defaultMessage: '私密群组'});
+            term = intl.formatMessage({id: 'archived.channel_type_private', defaultMessage: 'Private Group'});
         } else if (channelType === General.OPEN_CHANNEL && channel.name !== General.DEFAULT_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_public', defaultMessage: '群聊'});
+            term = intl.formatMessage({id: 'archived.channel_type_public', defaultMessage: 'Public Channel'});
         } else if (channelType === General.DM_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_dm', defaultMessage: '私聊'});
+            term = intl.formatMessage({id: 'archived.channel_type_dm', defaultMessage: 'Direct Message'});
         } else if (channelType === General.GM_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_discussion', defaultMessage: '讨论组'});
+            term = intl.formatMessage({id: 'archived.channel_type_discussion', defaultMessage: 'Discussion Group'});
         }
         
         Alert.alert(
             intl.formatMessage({
                 id: 'archived.restore_title',
-                defaultMessage: '恢复{term}',
+                defaultMessage: 'Restore {term}',
             }, {term}),
             intl.formatMessage({
                 id: 'archived.restore_description',
-                defaultMessage: '恢复后，「{name}」将回到您的已加入列表。',
+                defaultMessage: 'After restoration, "{name}" will return to your joined list.',
             }, {name: displayName}),
             [
                 {
-                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                     style: 'cancel',
                 },
                 {
                     text: intl.formatMessage({
                         id: 'archived.restore_button',
-                        defaultMessage: '恢复{term}',
+                        defaultMessage: 'Restore {term}',
                     }, {term}),
                     style: 'default',
                     onPress: async () => {
@@ -319,35 +319,35 @@ const JoinedChannelsAndGroups = ({
         const channelType = channel.type;
         
         // 根据频道类型生成术语
-        let term = intl.formatMessage({id: 'archived.channel_type_group', defaultMessage: '群组'});
+        let term = intl.formatMessage({id: 'archived.channel_type_group', defaultMessage: 'Group'});
         if (channelType === General.PRIVATE_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_private', defaultMessage: '私密群组'});
+            term = intl.formatMessage({id: 'archived.channel_type_private', defaultMessage: 'Private Group'});
         } else if (channelType === General.OPEN_CHANNEL && channel.name !== General.DEFAULT_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_public', defaultMessage: '群聊'});
+            term = intl.formatMessage({id: 'archived.channel_type_public', defaultMessage: 'Public Channel'});
         } else if (channelType === General.DM_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_dm', defaultMessage: '私聊'});
+            term = intl.formatMessage({id: 'archived.channel_type_dm', defaultMessage: 'Direct Message'});
         } else if (channelType === General.GM_CHANNEL) {
-            term = intl.formatMessage({id: 'archived.channel_type_discussion', defaultMessage: '讨论组'});
+            term = intl.formatMessage({id: 'archived.channel_type_discussion', defaultMessage: 'Discussion Group'});
         }
         
         Alert.alert(
             intl.formatMessage({
                 id: 'archived.delete_title',
-                defaultMessage: '删除{term}',
+                defaultMessage: 'Delete {term}',
             }, {term}),
             intl.formatMessage({
                 id: 'archived.delete_description',
-                defaultMessage: '您确定要彻底删除 {name} 吗？此操作不可撤销。',
+                defaultMessage: 'Are you sure you want to permanently delete {name}? This action cannot be undone.',
             }, {name: displayName}),
             [
                 {
-                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                     style: 'cancel',
                 },
                 {
                     text: intl.formatMessage({
                         id: 'archived.delete_button',
-                        defaultMessage: '删除{term}',
+                        defaultMessage: 'Delete {term}',
                     }, {term}),
                     style: 'destructive',
                     onPress: async () => {

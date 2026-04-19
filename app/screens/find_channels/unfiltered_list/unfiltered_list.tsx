@@ -20,9 +20,13 @@ const isDirectChannel = (c: ChannelModel) => c.type === General.DM_CHANNEL;
 const isTeamOpenOrPrivate = (c: ChannelModel) => c.type === General.OPEN_CHANNEL || c.type === General.PRIVATE_CHANNEL;
 const isDiscussionGroup = (c: ChannelModel) => c.type === General.GM_CHANNEL;
 
+const shouldShowChannelTypeTag = (c: ChannelModel) =>
+    isTeamOpenOrPrivate(c) || isDiscussionGroup(c);
+
 type Props = {
     category: FindChannelsCategory;
     close: () => Promise<void>;
+    currentTeamDisplayName: string;
     keyboardOverlap: number;
     recentChannels: ChannelModel[];
     showTeamName: boolean;
@@ -56,7 +60,7 @@ const buildSections = (recentChannels: ChannelModel[], category: FindChannelsCat
     return sections;
 };
 
-const UnfilteredList = ({category, close, keyboardOverlap, recentChannels, showTeamName, testID}: Props) => {
+const UnfilteredList = ({category, close, currentTeamDisplayName, keyboardOverlap, recentChannels, showTeamName, testID}: Props) => {
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const [sections, setSections] = useState(buildSections(recentChannels, category));
@@ -68,8 +72,11 @@ const UnfilteredList = ({category, close, keyboardOverlap, recentChannels, showT
     }, [serverUrl, close]);
 
     const renderSectionHeader = useCallback(({section}: SectionListRenderItemInfo<ChannelModel>) => (
-        <FindChannelsHeader sectionName={intl.formatMessage({id: section.id, defaultMessage: section.defaultMessage})}/>
-    ), [intl]);
+        <FindChannelsHeader
+            sectionName={intl.formatMessage({id: section.id, defaultMessage: section.defaultMessage})}
+            teamDisplayName={currentTeamDisplayName}
+        />
+    ), [currentTeamDisplayName, intl]);
 
     const renderSectionItem = useCallback(({item, index}: SectionListRenderItemInfo<ChannelModel>) => {
         return (
@@ -78,6 +85,7 @@ const UnfilteredList = ({category, close, keyboardOverlap, recentChannels, showT
                 onPress={onPress}
                 isOnCenterBg={true}
                 listRowIndex={index}
+                showChannelTypeTag={shouldShowChannelTypeTag(item)}
                 showTeamName={showTeamName}
                 shouldHighlightState={true}
                 testID={`${testID}.channel_item`}

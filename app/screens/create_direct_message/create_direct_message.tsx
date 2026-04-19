@@ -48,6 +48,10 @@ const messages = defineMessages({
         id: 'create_direct_message.selection_hint',
         defaultMessage: 'One person: private chat · Several: discussion group. Long-press a row for profile.',
     },
+    selectionHintPrefix: {
+        id: 'create_direct_message.selection_hint_prefix',
+        defaultMessage: 'One person: private chat · Several: discussion group.',
+    },
 });
 
 const CLOSE_BUTTON = 'close-dms';
@@ -104,6 +108,15 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
             marginTop: 8,
             color: changeOpacity(theme.centerChannelColor, 0.56),
             ...typography('Body', 100, 'Regular'),
+        },
+        selectionHintPrefix: {
+            fontFamily: 'OpenSans-SemiBold',
+            fontWeight: '600',
+            fontSize: 14,
+            color: changeOpacity(theme.centerChannelColor, 0.8),
+            allowFontScaling: false,
+            maxFontSizeMultiplier: 1,
+            paddingTop: 8,
         },
         searchBarContainer: {
             backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
@@ -408,10 +421,12 @@ export default function CreateDirectMessage({
                         />
                     </View>
                     <Text
-                        style={style.selectionHint}
+                        style={style.selectionHintPrefix}
                         testID='create_direct_message.selection_hint'
+                        allowFontScaling={false}
+                        maxFontSizeMultiplier={1}
                     >
-                        {formatMessage(messages.selectionHint)}
+                        {formatMessage(messages.selectionHintPrefix)}
                     </Text>
                 </View>
                 <View style={style.listFlex}>

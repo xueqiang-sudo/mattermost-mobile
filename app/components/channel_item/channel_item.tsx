@@ -440,6 +440,7 @@ const ChannelItem = ({
                             />
                             {deleteAt > 0 && (
                                 <Text style={[styles.subtitle, isOnCenterBg && styles.subtitleOnCenterBg]}>
+                                    {intl.formatMessage({id: 'channel.archived.time', defaultMessage: 'Archived at '})}
                                     {formatWeChatPostHeaderTime(intl, deleteAt, currentTimezone ?? undefined, isMilitaryTime)}
                                 </Text>
                             )}

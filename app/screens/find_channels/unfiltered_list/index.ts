@@ -3,11 +3,11 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {Observable, of as of$} from 'rxjs';
-import {combineLatestWith, switchMap} from 'rxjs/operators';
+import {combineLatestWith, distinctUntilChanged, switchMap} from 'rxjs/operators';
 
 import {queryMyRecentChannels} from '@queries/servers/channel';
 import {observeCurrentTeamId} from '@queries/servers/system';
-import {queryJoinedTeams} from '@queries/servers/team';
+import {observeTeam, queryJoinedTeams} from '@queries/servers/team';
 import {filterChannelsToCurrentTeam, removeChannelsFromArchivedTeams, retrieveChannels} from '@screens/find_channels/utils';
 
 import UnfilteredList from './unfiltered_list';
@@ -17,7 +17,6 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 const MAX_CHANNELS = 20;
 
 const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
-    const teamsCount = queryJoinedTeams(database).observeCount();
     const teamIds: Observable<Set<string>> = queryJoinedTeams(database).observe().pipe(
         // eslint-disable-next-line max-nested-callbacks
         switchMap((teams) => of$(new Set(teams.map((t) => t.id)))),
@@ -32,9 +31,23 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
             switchMap(([channels, currentTeamId]) => of$(filterChannelsToCurrentTeam(channels, currentTeamId))),
         );
 
+    const currentTeamDisplayName = observeCurrentTeamId(database).pipe(
+        switchMap((teamId) => {
+            if (!teamId) {
+                return of$('');
+            }
+            return observeTeam(database, teamId).pipe(
+                switchMap((team) => of$(team?.displayName ?? '')),
+                distinctUntilChanged(),
+            );
+        }),
+        distinctUntilChanged(),
+    );
+
     return {
+        currentTeamDisplayName,
         recentChannels,
-        showTeamName: teamsCount.pipe(switchMap((count) => of$(count > 1))),
+        showTeamName: of$(false),
     };
 });
 

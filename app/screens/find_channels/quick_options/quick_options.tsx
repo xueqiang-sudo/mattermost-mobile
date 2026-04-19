@@ -26,6 +26,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 8,
         marginBottom: 16,
         alignItems: 'center',
+        width: '100%',
     },
     wrapper: {
         flexDirection: 'row',
@@ -85,15 +86,17 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
         >
             <Animated.View style={styles.wrapper}>
                 <OptionBox
+                    containerStyle={styles.openDmBox}
                     iconName='account-outline'
                     onPress={openDirectMessage}
-                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'Start a private chat or group discussion'})}
+                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'DM or group chat'})}
                     testID='find_channels.quick_options.open_dm.option'
                 />
                 {canCreateChannels &&
                 <>
                     <View style={styles.separator}/>
                     <OptionBox
+                        containerStyle={styles.newChannelBox}
                         iconName='plus'
                         onPress={createNewChannel}
                         text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New group chat'})}

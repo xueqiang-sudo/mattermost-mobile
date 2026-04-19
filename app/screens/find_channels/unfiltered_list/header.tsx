@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
+import {useIntl} from 'react-intl';
 import {Text, View} from 'react-native';
 
 import {useTheme} from '@context/theme';
@@ -13,32 +14,48 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 8,
         paddingTop: 12,
         paddingLeft: 2,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
         backgroundColor: theme.centerChannelBg,
     },
     heading: {
         color: changeOpacity(theme.centerChannelColor, 0.64),
-        textTransform: 'uppercase',
         ...typography('Heading', 75, 'SemiBold'),
+    },
+    headingRecentOnly: {
+        textTransform: 'uppercase',
     },
 }));
 
 type Props = {
     sectionName: string;
+    teamDisplayName?: string;
 }
 
-const FindChannelsHeader = ({sectionName}: Props) => {
+const FindChannelsHeader = ({sectionName, teamDisplayName}: Props) => {
+    const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
+    const team = teamDisplayName?.trim();
+    const showTeam = Boolean(team);
+
+    const title = showTeam ?
+        intl.formatMessage(
+            {
+                id: 'find_channels.recent_with_current_org',
+                defaultMessage: 'Recent (Current organization: {teamName})',
+            },
+            {teamName: team},
+        ) :
+        sectionName.toUpperCase();
 
     return (
         <View style={styles.container}>
             <Text
-                style={styles.heading}
-                testID={`find_channels.header.${sectionName}`}
+                ellipsizeMode='tail'
+                numberOfLines={1}
+                style={[styles.heading, !showTeam && styles.headingRecentOnly]}
+                testID={showTeam ? 'find_channels.header.recent_with_org' : `find_channels.header.${sectionName}`}
             >
-                {sectionName.toUpperCase()}
+                {title}
             </Text>
         </View>
     );
