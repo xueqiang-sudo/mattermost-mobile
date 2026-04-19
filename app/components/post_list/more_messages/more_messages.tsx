@@ -47,6 +47,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             position: 'absolute',
             padding: 8,
             width: '100%',
+            alignItems: 'flex-end',
         },
         cancelContainer: {
             alignItems: 'center',
@@ -57,30 +58,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         container: {
             backgroundColor: theme.buttonBg,
             flexDirection: 'row',
-            justifyContent: 'space-evenly',
+            justifyContent: 'center',
             alignItems: 'center',
-            width: '100%',
-            height: 40,
-            borderRadius: 8,
-            paddingTop: 4,
-            paddingRight: 4,
-            paddingBottom: 4,
-            paddingLeft: 8,
+            alignSelf: 'flex-end',
+            height: 36,
+            borderRadius: 18,
+            paddingHorizontal: 12,
             shadowColor: theme.centerChannelColor,
             shadowOffset: {
                 width: 0,
-                height: 6,
+                height: 4,
             },
-            shadowOpacity: 0.12,
-            shadowRadius: 4,
-            elevation: 4,
+            shadowOpacity: 0.15,
+            shadowRadius: 6,
+            elevation: 6,
         },
         iconContainer: {
             top: 1,
-            width: 32,
+            width: 20,
         },
         icon: {
-            fontSize: 18,
+            fontSize: 16,
             color: theme.buttonColor,
             alignSelf: 'center',
         },
@@ -88,11 +86,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             color: changeOpacity(theme.buttonColor, 0.56),
         },
         pressContainer: {
-            flex: 1,
             flexDirection: 'row',
+            alignItems: 'center',
         },
         textContainer: {
-            marginLeft: 8,
+            marginLeft: 6,
+            marginRight: 8,
         },
         text: {
             color: theme.buttonColor,
@@ -291,6 +290,10 @@ const MoreMessages = ({
         // top is a Reanimated shared value; it must not be a hook dependency
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [newMessageLineIndex]);
+
+    if (remaining <= 0) {
+        return null;
+    }
 
     return (
         <Animated.View style={[styles.animatedContainer, animatedStyle]}>

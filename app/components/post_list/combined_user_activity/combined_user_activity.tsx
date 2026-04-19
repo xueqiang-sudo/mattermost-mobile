@@ -18,10 +18,12 @@ import {isUserActivityProp} from '@utils/post_list';
 import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
+import {username2Nickname} from '@utils/user';
 
 import LastUsers from './last_users';
 import {getPostTypeMessagesForChannelActivity} from './messages';
 
+import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type Props = {
@@ -34,7 +36,7 @@ type Props = {
     showJoinLeave: boolean;
     testID?: string;
     theme: Theme;
-    usernamesById: Record<string, string>;
+    usersById: Record<string, UserModel>;
     style?: StyleProp<ViewStyle>;
 }
 
@@ -65,7 +67,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 
 const CombinedUserActivity = ({
     canDelete, channelType, currentUserId, currentUsername, location,
-    post, showJoinLeave, testID, theme, usernamesById = {}, style,
+    post, showJoinLeave, testID, theme, usersById = {}, style,
 }: Props) => {
     const intl = useIntl();
     const isTablet = useIsTablet();
@@ -93,11 +95,12 @@ const CombinedUserActivity = ({
     const getUsernames = (userIds: string[]) => {
         const someone = intl.formatMessage({id: 'channel_loader.someone', defaultMessage: 'Someone'});
         const you = intl.formatMessage({id: 'combined_system_message.you', defaultMessage: 'You'});
-        const usernamesValues = Object.values(usernamesById);
+        const usersValues = Object.values(usersById);
         const usernames = userIds.reduce((acc: string[], id: string) => {
             if (id !== currentUserId && id !== currentUsername) {
-                const name = secureGetFromRecord(usernamesById, id) ?? usernamesValues.find((n) => n === id);
-                acc.push(name ? `@${name}` : someone);
+                const user = secureGetFromRecord(usersById, id) ?? usersValues.find((u) => u.id === id || u.username === id);
+                const displayName = user ? username2Nickname(user, {includeFullName: false}) : undefined;
+                acc.push(displayName ? `@${displayName}` : someone);
             }
             return acc;
         }, []);
@@ -132,8 +135,11 @@ const CombinedUserActivity = ({
             return null;
         }
         let actor = '';
-        if (actorId && secureGetFromRecord(usernamesById, actorId)) {
-            actor = `@${usernamesById[actorId]}`;
+        if (actorId) {
+            const actorUser = secureGetFromRecord(usersById, actorId);
+            if (actorUser) {
+                actor = `@${username2Nickname(actorUser, {includeFullName: false})}`;
+            }
         }
 
         if (actor && (actorId === currentUserId || actorId === currentUsername)) {

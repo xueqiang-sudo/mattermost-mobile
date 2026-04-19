@@ -14,6 +14,7 @@ import {channelSupportsAnnouncementUx, usesDiscussionGroupChannelCopy} from '@ut
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord, ensureString} from '@utils/types';
 import {typography} from '@utils/typography';
+import {username2Nickname} from '@utils/user';
 
 import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
@@ -83,7 +84,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const renderUsername = (value = '') => {
+const renderUsername = (user?: UserModel | null): string => {
+    if (user) {
+        const displayName = username2Nickname(user, {includeFullName: false});
+        return displayName ? `@${displayName}` : '';
+    }
+
+    return '';
+};
+
+const renderUsernameFromString = (value = ''): string => {
     if (value) {
         return (value[0] === '@') ? value : `@${value}`;
     }
@@ -207,7 +217,7 @@ const renderHeaderChangeMessage = ({post, author, channelType, location, styles,
         return null;
     }
 
-    const username = renderUsername(author.username);
+    const username = renderUsername(author);
     const {newHeader, oldHeader, hasNew, hasOld} = readChannelHeaderChangeProps(post);
     const headerCopy = pickHeaderCopy(channelType);
 
@@ -321,7 +331,7 @@ const renderPurposeChangeMessage = ({post, author, channelType, location, styles
         return null;
     }
 
-    const username = renderUsername(author.username);
+    const username = renderUsername(author);
     const oldPurpose = ensureString(post.props?.old_purpose);
     const newPurpose = ensureString(post.props?.new_purpose);
     let localeHolder;
@@ -388,7 +398,7 @@ const renderDisplayNameChangeMessage = ({post, author, channelType, location, st
         return null;
     }
 
-    const username = renderUsername(author.username);
+    const username = renderUsername(author);
     const localeHolder = pickDisplayNameCopy(channelType);
 
     const values = {username, oldDisplayName, newDisplayName};
@@ -427,7 +437,7 @@ function pickArchivedCopy(channelType: ChannelType | undefined) {
 }
 
 const renderArchivedMessage = ({post, author, channelType, location, styles, intl, theme}: RenderersProps) => {
-    const username = renderUsername(author?.username);
+    const username = renderUsername(author);
     const localeHolder = pickArchivedCopy(channelType);
 
     const values = {username};
@@ -470,7 +480,7 @@ const renderUnarchivedMessage = ({post, author, channelType, location, styles, i
         return null;
     }
 
-    const username = renderUsername(author.username);
+    const username = renderUsername(author);
     const localeHolder = pickUnarchivedCopy(channelType);
 
     const values = {username};

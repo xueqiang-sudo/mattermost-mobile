@@ -1,11 +1,12 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback} from 'react';
+import React, {useCallback, useState} from 'react';
 import {defineMessages, type MessageDescriptor, useIntl} from 'react-intl';
 import {Alert} from 'react-native';
 
-import {archiveChannel, unarchiveChannel} from '@actions/remote/channel';
+import {archiveChannel, permanentlyDeleteChannel, unarchiveChannel} from '@actions/remote/channel';
+import DeleteOrArchiveModal from '@components/delete_or_archive_modal';
 import OptionItem from '@components/option_item';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -27,7 +28,6 @@ type Props = {
 }
 
 const messages = defineMessages({
-
     publicChannel: {
         id: 'channel_info.public_channel',
         defaultMessage: 'Public Channel',
@@ -36,25 +36,13 @@ const messages = defineMessages({
         id: 'channel_info.private_channel',
         defaultMessage: 'Group chat',
     },
-    alertNo: {
-        id: 'channel_info.alertNo',
-        defaultMessage: 'No',
+    alertCancel: {
+        id: 'channel_info.alertCancel',
+        defaultMessage: 'Cancel',
     },
     alertYes: {
         id: 'channel_info.alertYes',
         defaultMessage: 'Yes',
-    },
-    archiveTitle: {
-        id: 'channel_info.archive_title',
-        defaultMessage: 'Archive {term}',
-    },
-    archiveDescriptionCanViewArchived: {
-        id: 'channel_info.archive_description.can_view_archived',
-        defaultMessage: 'This will archive the channel from the enterprise. Channel contents will still be accessible by channel members.\n\nAre you sure you wish to archive the {term} {name}?',
-    },
-    archiveDescriptionCannotViewArchived: {
-        id: 'channel_info.archive_description.cannot_view_archived',
-        defaultMessage: 'This will archive the channel from the enterprise and remove it from the user interface. Archived channels can be unarchived if needed again.\n\nAre you sure you wish to archive the {term} {name}?',
     },
     archiveFailed: {
         id: 'channel_info.archive_failed',
@@ -72,6 +60,10 @@ const messages = defineMessages({
         id: 'channel_info.unarchive_failed',
         defaultMessage: 'An error occurred trying to unarchive the channel {displayName}',
     },
+    deleteFailed: {
+        id: 'channel_info.delete_failed',
+        defaultMessage: 'An error occurred trying to delete the channel {displayName}',
+    },
 });
 
 const Archive = ({
@@ -80,6 +72,7 @@ const Archive = ({
 }: Props) => {
     const intl = useIntl();
     const serverUrl = useServerUrl();
+    const [showDeleteOrArchiveModal, setShowDeleteOrArchiveModal] = useState(false);
 
     const close = useCallback(async (pop: boolean) => {
         await dismissModal({componentId});
@@ -88,46 +81,72 @@ const Archive = ({
         }
     }, [componentId]);
 
+    const getTerm = useCallback(() => {
+        const {formatMessage} = intl;
+        if (type === General.OPEN_CHANNEL) {
+            return formatMessage(messages.publicChannel);
+        }
+        return formatMessage(messages.privateChannel);
+    }, [intl, type]);
+
     const alertAndHandleYesAction = useCallback((title: MessageDescriptor, message: MessageDescriptor, onPressAction: () => void) => {
         const {formatMessage} = intl;
-        let term: string;
-        if (type === General.OPEN_CHANNEL) {
-            term = formatMessage(messages.publicChannel);
-        } else {
-            term = formatMessage(messages.privateChannel);
-        }
+        const term = getTerm();
 
         Alert.alert(
             formatMessage(title, {term}),
             formatMessage(message, {term: term.toLowerCase(), name: displayName}),
             [{
-                text: formatMessage(messages.alertNo),
+                text: formatMessage(messages.alertCancel),
+                style: 'cancel',
             }, {
                 text: formatMessage(messages.alertYes),
                 onPress: onPressAction,
             }],
         );
-    }, [displayName, intl, type]);
+    }, [displayName, intl, getTerm]);
+
+    const handleArchive = useCallback(async () => {
+        setShowDeleteOrArchiveModal(false);
+        const result = await archiveChannel(serverUrl, channelId);
+        if (result.error) {
+            alertErrorWithFallback(
+                intl,
+                result.error,
+                messages.archiveFailed,
+                {displayName},
+            );
+        } else {
+            close(!canViewArchivedChannels);
+        }
+    }, [serverUrl, channelId, displayName, close, canViewArchivedChannels, intl]);
+
+    const handleDelete = useCallback(async () => {
+        setShowDeleteOrArchiveModal(false);
+        const result = await permanentlyDeleteChannel(serverUrl, channelId);
+        if (result.error) {
+            alertErrorWithFallback(
+                intl,
+                result.error,
+                messages.deleteFailed,
+                {displayName},
+            );
+        } else {
+            close(true);
+        }
+    }, [serverUrl, channelId, displayName, close, intl]);
+
+    const handleCancel = useCallback(() => {
+        setShowDeleteOrArchiveModal(false);
+    }, []);
+
+    const showDeleteOrArchiveDialog = useCallback(() => {
+        setShowDeleteOrArchiveModal(true);
+    }, []);
 
     const onArchive = usePreventDoubleTap(useCallback(() => {
-        const title = messages.archiveTitle;
-        const message = canViewArchivedChannels ? messages.archiveDescriptionCanViewArchived : messages.archiveDescriptionCannotViewArchived;
-
-        const onPressAction = async () => {
-            const result = await archiveChannel(serverUrl, channelId);
-            if (result.error) {
-                alertErrorWithFallback(
-                    intl,
-                    result.error,
-                    messages.archiveFailed,
-                    {displayName},
-                );
-            } else {
-                close(!canViewArchivedChannels);
-            }
-        };
-        alertAndHandleYesAction(title, message, onPressAction);
-    }, [alertAndHandleYesAction, canViewArchivedChannels, channelId, close, displayName, intl, serverUrl]));
+        showDeleteOrArchiveDialog();
+    }, [showDeleteOrArchiveDialog]));
 
     const onUnarchive = usePreventDoubleTap(useCallback(() => {
         const title = messages.unarchiveTitle;
@@ -172,18 +191,28 @@ const Archive = ({
     }
 
     return (
-        <OptionItem
-            action={onArchive}
-            label={intl.formatMessage(
-                discussionUx
-                    ? {id: 'channel_info.archive_discussion_group', defaultMessage: 'Archive discussion group'}
-                    : {id: 'channel_info.archive', defaultMessage: 'Archive Channel'},
-            )}
-            icon='archive-outline'
-            destructive={true}
-            type='default'
-            testID='channel_info.options.archive_channel.option'
-        />
+        <>
+            <OptionItem
+                action={onArchive}
+                label={intl.formatMessage(
+                    discussionUx
+                        ? {id: 'channel_info.delete_or_archive_discussion_group', defaultMessage: 'Delete or Archive discussion group'}
+                        : {id: 'channel_info.delete_or_archive', defaultMessage: 'Delete or Archive Channel'},
+                )}
+                icon='archive-outline'
+                destructive={true}
+                type='default'
+                testID='channel_info.options.delete_or_archive_channel.option'
+            />
+            <DeleteOrArchiveModal
+                visible={showDeleteOrArchiveModal}
+                displayName={displayName}
+                type={type}
+                onArchive={handleArchive}
+                onDelete={handleDelete}
+                onCancel={handleCancel}
+            />
+        </>
     );
 };
 

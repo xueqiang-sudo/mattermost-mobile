@@ -14,7 +14,7 @@ import CompassIcon from '@components/compass_icon';
 import {ANNOUNCEMENT_BAR_HEIGHT} from '@constants/view';
 import {useTheme} from '@context/theme';
 import {useAppState} from '@hooks/device';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import {useConnectionBanner} from './use_connection_banner';
@@ -24,6 +24,7 @@ import type {NetworkPerformanceState} from '@managers/network_performance_manage
 type Props = {
     websocketState: WebsocketConnectedState;
     networkPerformanceState: NetworkPerformanceState;
+    isChatUI?: boolean;
 }
 
 const getStyle = makeStyleSheetFromTheme((theme: Theme) => {
@@ -40,6 +41,9 @@ const getStyle = makeStyleSheetFromTheme((theme: Theme) => {
         background: {
             backgroundColor: theme.sidebarBg,
             zIndex: 1,
+        },
+        chatUIBackground: {
+            backgroundColor: getChatListBackdropColor(theme),
         },
         bannerContainerNotConnected: {
             ...bannerContainer,
@@ -70,6 +74,7 @@ const getStyle = makeStyleSheetFromTheme((theme: Theme) => {
 const ConnectionBanner = ({
     websocketState,
     networkPerformanceState,
+    isChatUI = false,
 }: Props) => {
     const intl = useIntl();
     const theme = useTheme();
@@ -98,7 +103,7 @@ const ConnectionBanner = ({
 
     return (
         <Animated.View
-            style={[style.background, bannerStyle]}
+            style={[style.background, isChatUI ? style.chatUIBackground : undefined, bannerStyle]}
         >
             <View
                 style={isShowingConnectedBanner ? style.bannerContainerConnected : style.bannerContainerNotConnected}

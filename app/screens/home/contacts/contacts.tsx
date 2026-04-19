@@ -532,7 +532,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                                         <CompassIcon
                                             name='magnify'
                                             size={24}
-                                            color={theme.sidebarText}
+                                            color={theme.sidebarHeaderTextColor}
                                         />
                                     </TouchableOpacity>
                                     {isEnterpriseManager && (
@@ -545,7 +545,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                                             <CompassIcon
                                                 name='format-list-bulleted'
                                                 size={24}
-                                                color={theme.sidebarText}
+                                                color={theme.sidebarHeaderTextColor}
                                             />
                                         </TouchableOpacity>
                                     )}

@@ -47,6 +47,8 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenC
             title = intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'});
         } else if (channelType === General.PRIVATE_CHANNEL) {
             title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
+        } else if (channelType === General.OPEN_CHANNEL) {
+            title = intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
         } else {
             title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
         }
@@ -73,7 +75,11 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenC
                 ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
                 : channelType === General.PRIVATE_CHANNEL
                     ? intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'})
-                    : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
+                    : channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel
+                        ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
+                        : channelType === General.OPEN_CHANNEL
+                            ? intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'})
+                            : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
 
     if (showAsLabel) {
         return (

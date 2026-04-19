@@ -135,10 +135,10 @@ const Channel = ({
                     shouldRenderBookmarks={shouldRender}
                     shouldRenderChannelBanner={includeChannelBanner}
                 />
-                <ConnectionBanner/>
                 {shouldRender &&
                 <ExtraKeyboardProvider>
                     <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
+                        <ConnectionBanner isChatUI={true}/>
                         <ChannelPostList
                             channelId={channelId}
                             nativeID={channelId}

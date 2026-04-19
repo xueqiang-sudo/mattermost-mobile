@@ -117,25 +117,35 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
         }
     }, []);
 
-    useEffect(() => {
+    /**
+     * 创建右上角按钮配置
+     */
+    const rightButton = useMemo(() => {
         const linkColor = theme.linkColor;
         const joinedIcon = CompassIcon.getImageSourceSync('forum-outline', 20, linkColor);
         const joinedNavShort = intl.formatMessage({
             id: 'find_channels.joined_nav_action',
             defaultMessage: 'Joined',
         });
+        return {
+            ...buildNavigationButton(
+                FIND_CHANNELS_VIEW_ALL_BUTTON_ID,
+                'find_channels.view_all.button',
+                joinedIcon,
+                joinedNavShort,
+            ),
+            color: linkColor,
+        };
+    }, [intl, theme.linkColor]);
+
+    /**
+     * 更新导航栏按钮
+     */
+    useEffect(() => {
         setButtons(componentId, {
-            rightButtons: [{
-                ...buildNavigationButton(
-                    FIND_CHANNELS_VIEW_ALL_BUTTON_ID,
-                    'find_channels.view_all.button',
-                    joinedIcon,
-                    joinedNavShort,
-                ),
-                color: linkColor,
-            }],
+            rightButtons: [rightButton],
         });
-    }, [componentId, intl, theme.linkColor]);
+    }, [componentId, rightButton]);
 
     const openJoinedChannelsAndGroups = useCallback(() => {
         goToScreen(

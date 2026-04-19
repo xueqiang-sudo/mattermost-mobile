@@ -47,6 +47,7 @@ const Title = ({channelId, displayName, type}: Props) => {
                 <PublicPrivate
                     channelId={channelId}
                     displayName={displayName}
+                    type={type}
                 />
 
             );

@@ -14,6 +14,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useKeyboardHeight} from '@hooks/device';
 import {openUserProfileModal} from '@screens/navigation';
+import {getContactListDisplayName, getContactSectionId, createContactSectionsByNickname} from '@utils/contact_section';
 import {
     changeOpacity,
     makeStyleSheetFromTheme,
@@ -54,8 +55,8 @@ const keyExtractor = (item: UserProfile) => {
 };
 
 const sectionKeyExtractor = (profile: UserProfile) => {
-    // Group items alphabetically by first letter of username
-    return profile.username[0].toUpperCase();
+    const displayName = getContactListDisplayName(profile);
+    return getContactSectionId(displayName);
 };
 
 const sectionRoleKeyExtractor = (cAdmin: boolean) => {

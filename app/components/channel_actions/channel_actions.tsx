@@ -8,7 +8,6 @@ import ChannelInfoStartButton from '@calls/components/channel_info_start';
 import AddMembersBox from '@components/channel_actions/add_members_box';
 import CopyChannelLinkBox from '@components/channel_actions/copy_channel_link_box';
 import EditAnnouncementBox from '@components/channel_actions/edit_announcement_box';
-import FavoriteBox from '@components/channel_actions/favorite_box';
 import MutedBox from '@components/channel_actions/mute_box';
 import SetHeaderBox from '@components/channel_actions/set_header_box';
 import {useServerUrl} from '@context/server';
@@ -65,17 +64,6 @@ const ChannelActions = ({
 
     return (
         <View style={styles.wrapper}>
-            {!inModal && (
-                <>
-                    <FavoriteBox
-                        channelId={channelId}
-                        containerStyle={optionBoxContainerStyle}
-                        showSnackBar={true}
-                        testID={testID}
-                    />
-                    <View style={styles.separator}/>
-                </>
-            )}
             <MutedBox
                 channelId={channelId}
                 containerStyle={optionBoxContainerStyle}

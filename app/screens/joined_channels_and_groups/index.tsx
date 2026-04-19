@@ -369,7 +369,7 @@ const JoinedChannelsAndGroups = ({
         );
     }, [serverUrl, intl]);
 
-    const showChannelTypeTag = activeTab === 'archived';
+    const showChannelTypeTag = true;
     const isArchivedTab = activeTab === 'archived';
 
     const renderItem = useCallback(({item, index}: ListRenderItemInfo<ChannelModel>) => (

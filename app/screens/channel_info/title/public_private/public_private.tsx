@@ -9,6 +9,7 @@ import {Platform, StyleSheet, Text, View} from 'react-native';
 
 import FormattedText from '@components/formatted_text';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import General from '@constants/general';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {ANDROID_33, OS_VERSION} from '@constants/versions';
 import {useTheme} from '@context/theme';
@@ -20,8 +21,10 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 type Props = {
+    channelId: string;
     displayName?: string;
     purpose?: string;
+    type?: ChannelType;
 }
 
 const purposeMessages = defineMessages({
@@ -32,6 +35,10 @@ const purposeMessages = defineMessages({
     empty: {
         id: 'channel_info.purpose_empty',
         defaultMessage: 'No purpose description yet. You can add it under Edit group chat.',
+    },
+    emptyPublic: {
+        id: 'channel_info.purpose_empty_public',
+        defaultMessage: 'No purpose description yet. You can add it under Edit public group chat.',
     },
 });
 
@@ -70,13 +77,15 @@ const style = StyleSheet.create({
     },
 });
 
-const PublicPrivate = ({displayName, purpose}: Props) => {
+const PublicPrivate = ({channelId, displayName, purpose, type}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const managedConfig = useManagedConfig<ManagedConfig>();
 
     const styles = getStyleSheet(theme);
     const publicPrivateTestId = 'channel_info.title.public_private';
+
+    const purposeMessage = type === General.OPEN_CHANNEL ? purposeMessages.emptyPublic : purposeMessages.empty;
 
     const onCopy = useCallback(async () => {
         Clipboard.setString(purpose!);
@@ -152,7 +161,7 @@ const PublicPrivate = ({displayName, purpose}: Props) => {
                     </Text>
                 ) : (
                     <FormattedText
-                        {...purposeMessages.empty}
+                        {...purposeMessage}
                         style={styles.purposePlaceholder}
                         testID={`${publicPrivateTestId}.purpose_empty`}
                     />

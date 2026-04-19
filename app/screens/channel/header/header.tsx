@@ -201,10 +201,10 @@ const ChannelHeader = ({
             case General.OPEN_CHANNEL:
                 title = channelName === General.DEFAULT_CHANNEL
                     ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
-                    : intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
+                    : intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
                 break;
             default:
-                title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
+                title = intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
                 break;
         }
 
