@@ -3,19 +3,19 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
+import {StyleSheet, View} from 'react-native';
 import {of as of$} from 'rxjs';
 import {combineLatestWith, distinctUntilChanged, map, switchMap} from 'rxjs/operators';
 
 import LeaveChannelLabel from '@components/channel_actions/leave_channel_label';
 import {General, Permissions} from '@constants';
+import {useTheme} from '@context/theme';
 import {observeChannel} from '@queries/servers/channel';
 import {observePermissionForChannel, observePermissionForTeam} from '@queries/servers/role';
 import {observeCurrentTeam} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
 import {isDefaultChannel} from '@utils/channel';
-
-import ChannelInfoCard from '../channel_info_card';
-import {CHANNEL_INFO_CARD_INNER_PADDING, CHANNEL_INFO_SECTION_GAP} from '../channel_info_constants';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Archive from './archive';
 import ConvertPrivate from './convert_private';
@@ -33,7 +33,19 @@ type BodyProps = Props & {
     resolvedType?: ChannelType;
 }
 
+const getDestructiveSectionStyle = makeStyleSheetFromTheme((theme: Theme) => ({
+    section: {
+        marginTop: 8,
+        paddingTop: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.12),
+    },
+}));
+
 const DestructiveOptionsBody = ({channelId, componentId, hasDestructiveRows, resolvedType}: BodyProps) => {
+    const theme = useTheme();
+    const sectionStyles = getDestructiveSectionStyle(theme);
+
     if (!hasDestructiveRows) {
         return null;
     }
@@ -41,12 +53,8 @@ const DestructiveOptionsBody = ({channelId, componentId, hasDestructiveRows, res
     const type = resolvedType;
 
     return (
-        <ChannelInfoCard
-            contentStyle={{
-                paddingVertical: 8,
-                paddingHorizontal: CHANNEL_INFO_CARD_INNER_PADDING,
-            }}
-            style={{marginTop: CHANNEL_INFO_SECTION_GAP}}
+        <View
+            style={sectionStyles.section}
             testID='channel_info.card.destructive'
         >
             {type === General.OPEN_CHANNEL &&
@@ -64,7 +72,7 @@ const DestructiveOptionsBody = ({channelId, componentId, hasDestructiveRows, res
                 type={type}
             />
             }
-        </ChannelInfoCard>
+        </View>
     );
 };
 

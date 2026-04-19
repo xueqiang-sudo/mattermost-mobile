@@ -191,7 +191,7 @@
 <body>
   <div class="container">
     <h1>部门管理 API 测试工具</h1>
-    <p style="color: var(--text-muted); margin-bottom: 8px;">基于 <code>docs/department-api.md</code> — Mattermost <code>/api/v4</code></p>
+    <p style="color: var(--text-muted); margin-bottom: 8px;">基于 <code>docs/department_api.md</code>、<code>docs/team_version_api.md</code> — Mattermost <code>/api/v4</code></p>
     <p class="config-hint" style="margin-bottom: 24px;">认证：<strong>Authorization: Bearer</strong>（Personal Access Token 或等价令牌）。与通讯录测试页的 <code>X-API-KEY</code> 不同。</p>
 
     <div class="config">
@@ -260,11 +260,10 @@
               <span class="method get">GET</span>
               <span class="path">/api/v4/teams/{team_id}/departments</span>
             </div>
-            <p class="status">部门列表；查询参数 page、per_page、search</p>
+            <p class="status">部门列表；查询参数 page、per_page（新文档未列出 search，若服务端仍支持可自行在 URL 后拼接）</p>
             <div class="params">
               <input id="q_dept_page" placeholder="page" value="0">
               <input id="q_dept_per_page" placeholder="per_page" value="60">
-              <input id="q_dept_search" class="wide" placeholder="search（可选）">
             </div>
           </div>
           <button class="btn" onclick="callApi('GET', pathDepartmentsList(), null)">调用</button>
@@ -327,6 +326,32 @@
     </div>
 
     <div class="section">
+      <div class="section-header">团队版本与部门统计</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/version</span>
+            </div>
+            <p class="status">团队结构版本（缓存同步用，见 team_version_api）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamVersion(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/stats</span>
+            </div>
+            <p class="status">部门统计</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathDepartmentStats(), null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-header">部门树形结构</div>
       <div class="section-body">
         <div class="endpoint">
@@ -335,9 +360,14 @@
               <span class="method get">GET</span>
               <span class="path">/api/v4/teams/{team_id}/departments/tree</span>
             </div>
-            <p class="status">完整部门树</p>
+            <p class="status">部门树（可选 parent_id、page、per_page）</p>
+            <div class="params">
+              <input id="q_tree_parent_id" placeholder="parent_id（可选）">
+              <input id="q_tree_page" placeholder="page" value="0">
+              <input id="q_tree_per_page" placeholder="per_page" value="60">
+            </div>
           </div>
-          <button class="btn" onclick="callApi('GET', pathTeamDepartments() + '/tree', null)">调用</button>
+          <button class="btn" onclick="callApi('GET', pathDepartmentsTree(), null)">调用</button>
         </div>
         <div class="endpoint">
           <div>
@@ -434,6 +464,43 @@
           </div>
           <button class="btn" onclick="callApi('DELETE', pathMemberRemove(), null)">调用</button>
         </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}/members/move</span>
+            </div>
+            <p class="status">将成员从当前「路径中的 department_id」移到目标部门（body：user_id、target_department_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_mem_move" rows="4">{
+  "user_id": "",
+  "target_department_id": 0
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathTeamDepartmentById() + '/members/move', document.getElementById('body_mem_move').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/members/move-batch</span>
+            </div>
+            <p class="status">批量移动（body 中 source/target 与下方输入框一致时可只填 user_ids）</p>
+            <div class="params" style="margin-top:8px;">
+              <input id="q_batch_move_source" class="wide" placeholder="source_department_id">
+              <input id="q_batch_move_target" class="wide" placeholder="target_department_id">
+            </div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_mem_move_batch" rows="5">{
+  "source_department_id": 0,
+  "target_department_id": 0,
+  "user_ids": []
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callMembersMoveBatch()">调用</button>
+        </div>
       </div>
     </div>
 
@@ -465,9 +532,11 @@
               <span class="method get">GET</span>
               <span class="path">/api/v4/users/{user_id}/contacts</span>
             </div>
-            <p class="status">可选 contact_type：customer | supplier</p>
+            <p class="status">可选 contact_type、page、per_page</p>
             <div class="params">
               <input id="q_contacts_type" placeholder="contact_type">
+              <input id="q_contacts_page" placeholder="page" value="0">
+              <input id="q_contacts_per_page" placeholder="per_page" value="60">
             </div>
           </div>
           <button class="btn" onclick="callApi('GET', pathUserContacts(), null)">调用</button>
@@ -478,9 +547,11 @@
               <span class="method get">GET</span>
               <span class="path">/api/v4/users/{user_id}/contacts/details</span>
             </div>
-            <p class="status">带员工/联系人详情的列表</p>
+            <p class="status">带员工/联系人详情的列表（可选 contact_type、page、per_page）</p>
             <div class="params">
               <input id="q_contacts_details_type" placeholder="contact_type">
+              <input id="q_contacts_details_page" placeholder="page" value="0">
+              <input id="q_contacts_details_per_page" placeholder="per_page" value="60">
             </div>
           </div>
           <button class="btn" onclick="callApi('GET', pathUserContactsDetails(), null)">调用</button>
@@ -537,6 +608,31 @@
           </div>
           <button class="btn" onclick="callApi('DELETE', pathUserContactsBase(), document.getElementById('body_contact_del').value)">调用</button>
         </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/users/{user_id}/contacts/version</span>
+            </div>
+            <p class="status">联系人数据版本（缓存同步）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathUserContactsVersion(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v4/users/{user_id}/contacts/version</span>
+            </div>
+            <p class="status">更新联系人版本（变更联系人数据后可调用）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_contact_version_put" rows="4">{
+  "version": "v1713340800000"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT', pathUserContactsVersion(), document.getElementById('body_contact_version_put').value)">调用</button>
+        </div>
       </div>
     </div>
 
@@ -585,18 +681,71 @@
       const q = new URLSearchParams();
       const page = paramVal('q_dept_page');
       const perPage = paramVal('q_dept_per_page');
-      const search = paramVal('q_dept_search');
       if (page !== '') {
         q.set('page', page);
       }
       if (perPage !== '') {
         q.set('per_page', perPage);
       }
-      if (search) {
-        q.set('search', search);
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathDepartmentsTree() {
+      const base = pathTeamDepartments() + '/tree';
+      const q = new URLSearchParams();
+      const parentId = paramVal('q_tree_parent_id');
+      const page = paramVal('q_tree_page');
+      const perPage = paramVal('q_tree_per_page');
+      if (parentId !== '') {
+        q.set('parent_id', parentId);
+      }
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
       }
       const qs = q.toString();
       return base + (qs ? '?' + qs : '');
+    }
+
+    function pathTeamVersion() {
+      return '/api/v4/teams/' + pathTeam() + '/version';
+    }
+
+    function pathDepartmentStats() {
+      return pathTeamDepartments() + '/departments/stats';
+    }
+
+    function pathMembersMoveBatch() {
+      return pathTeamDepartments() + '/members/move-batch';
+    }
+
+    function buildMoveBatchBodyMerged() {
+      const raw = document.getElementById('body_mem_move_batch').value;
+      const srcIn = paramVal('q_batch_move_source');
+      const tgtIn = paramVal('q_batch_move_target');
+      try {
+        const obj = raw.trim() ? JSON.parse(raw) : {};
+        const src = parseInt(srcIn, 10);
+        const tgt = parseInt(tgtIn, 10);
+        if (!isNaN(src)) {
+          obj.source_department_id = src;
+        }
+        if (!isNaN(tgt)) {
+          obj.target_department_id = tgt;
+        }
+        return JSON.stringify(obj, null, 2);
+      } catch (e) {
+        return raw;
+      }
+    }
+
+    async function callMembersMoveBatch() {
+      const merged = buildMoveBatchBodyMerged();
+      document.getElementById('body_mem_move_batch').value = merged;
+      await callApi('POST', pathMembersMoveBatch(), merged);
     }
 
     function pathMembersList() {
@@ -635,20 +784,44 @@
 
     function pathUserContacts() {
       const base = pathUserContactsBase();
+      const q = new URLSearchParams();
       const ct = paramVal('q_contacts_type');
+      const page = paramVal('q_contacts_page');
+      const perPage = paramVal('q_contacts_per_page');
       if (ct) {
-        return base + '?contact_type=' + encodeURIComponent(ct);
+        q.set('contact_type', ct);
       }
-      return base;
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
     }
 
     function pathUserContactsDetails() {
       const base = pathUserContactsBase() + '/details';
+      const q = new URLSearchParams();
       const ct = paramVal('q_contacts_details_type');
+      const page = paramVal('q_contacts_details_page');
+      const perPage = paramVal('q_contacts_details_per_page');
       if (ct) {
-        return base + '?contact_type=' + encodeURIComponent(ct);
+        q.set('contact_type', ct);
       }
-      return base;
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathUserContactsVersion() {
+      return pathUserContactsBase() + '/version';
     }
 
     function getDefaults() {
@@ -708,6 +881,34 @@
             obj.user_id = memUser;
           }
           elMemAdd.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+
+      const elMemMove = document.getElementById('body_mem_move');
+      if (elMemMove && memUser) {
+        try {
+          const obj = elMemMove.value.trim() ? JSON.parse(elMemMove.value) : {};
+          if ('user_id' in obj) {
+            obj.user_id = memUser;
+          }
+          elMemMove.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+
+      const sdDept = (document.getElementById('shared_dept_id') && document.getElementById('shared_dept_id').value.trim()) || dept;
+      const qSrc = document.getElementById('q_batch_move_source');
+      const qTgt = document.getElementById('q_batch_move_target');
+      if (qSrc && sdDept && !qSrc.value.trim()) {
+        qSrc.value = sdDept;
+      }
+      const elMoveBatch = document.getElementById('body_mem_move_batch');
+      if (elMoveBatch && sdDept) {
+        try {
+          const obj = elMoveBatch.value.trim() ? JSON.parse(elMoveBatch.value) : {};
+          if ('source_department_id' in obj && (obj.source_department_id === 0 || obj.source_department_id === '0')) {
+            obj.source_department_id = parseInt(sdDept, 10) || obj.source_department_id;
+          }
+          elMoveBatch.value = JSON.stringify(obj, null, 2);
         } catch (_) {}
       }
 

@@ -5,7 +5,7 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
-import {observeChannel, observeChannelMembers} from '@queries/servers/channel';
+import {observeChannel, observeChannelInfo, observeChannelMembers} from '@queries/servers/channel';
 import {observeCurrentUserId} from '@queries/servers/system';
 
 import GroupMessage from './group_message';
@@ -20,10 +20,13 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: Props) =
     const currentUserId = observeCurrentUserId(database);
     const channel = observeChannel(database, channelId);
     const members = channel.pipe(switchMap((c) => (c ? observeChannelMembers(database, channelId) : of$([]))));
+    const channelInfo = observeChannelInfo(database, channelId);
+    const purpose = channelInfo.pipe(switchMap((ci) => of$(ci?.purpose)));
 
     return {
         currentUserId,
         members,
+        purpose,
     };
 });
 

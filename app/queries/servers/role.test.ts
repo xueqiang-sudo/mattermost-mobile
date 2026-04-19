@@ -290,6 +290,34 @@ describe('Role Queries', () => {
                 });
             });
         });
+
+        it('should allow adding members to a group message channel', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'gm1',
+                    type: General.GM_CHANNEL,
+                    delete_at: 0,
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelMembers(
+                    database,
+                    'gm1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
     });
 
     describe('observePermissionForPost', () => {
@@ -402,6 +430,35 @@ describe('Role Queries', () => {
                     type: General.OPEN_CHANNEL,
                     delete_at: 0,
                     creator_id: 'user1',
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelSettings(
+                    database,
+                    'channel1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
+
+        it('should allow managing settings in a group message channel for any member', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.GM_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'someone_else',
                 })],
                 prepareRecordsOnly: false,
             }).then(() => {

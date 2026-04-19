@@ -95,6 +95,9 @@ const CreateOrEditChannel = ({
 
     const isDefaultTownSquare = channel?.name === General.DEFAULT_CHANNEL;
     const displayNameReadOnly = Boolean(editing && isDefaultTownSquare);
+    const isEnterpriseDefaultOpen = Boolean(
+        editing && channel && channel.name === General.DEFAULT_CHANNEL && channel.type === General.OPEN_CHANNEL,
+    );
 
     const [type, setType] = useState<ChannelType>(channel?.type ?? General.PRIVATE_CHANNEL);
     const [canSave, setCanSave] = useState(false);
@@ -172,7 +175,10 @@ const CreateOrEditChannel = ({
     useEffect(() => {
         const displayNameChanged = displayNameReadOnly ? false : displayName !== channel?.displayName;
         const isPrivateTeamChannel = channel?.type === General.PRIVATE_CHANNEL && !isDirect(channel);
-        const headerDirty = !headerOnly && isPrivateTeamChannel ? false : header !== channelInfo?.header;
+        const headerDirty =
+            channel?.type === General.GM_CHANNEL ? false : (
+                isEnterpriseDefaultOpen ? false : (!headerOnly && isPrivateTeamChannel ? false : header !== channelInfo?.header)
+            );
         setCanSave(
             displayName.length >= MIN_CHANNEL_NAME_LENGTH && (
                 displayNameChanged ||
@@ -181,7 +187,7 @@ const CreateOrEditChannel = ({
                 type !== channel?.type
             ),
         );
-    }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly, headerOnly]);
+    }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly, headerOnly, isEnterpriseDefaultOpen]);
 
     const isValidDisplayName = useCallback((): boolean => {
         // DM 不需要验证 displayName；GM 群聊需要验证
@@ -239,13 +245,13 @@ const CreateOrEditChannel = ({
             if (allowDisplayNamePatch) {
                 patchChannel.display_name = displayName;
             }
-            patchChannel.header = header;
+            patchChannel.purpose = purpose;
         } else if (!isDirect(channel)) {
             if (allowDisplayNamePatch) {
                 patchChannel.display_name = displayName;
             }
             patchChannel.purpose = purpose;
-            if (channel.type !== General.PRIVATE_CHANNEL) {
+            if (channel.type !== General.PRIVATE_CHANNEL && !isEnterpriseDefaultOpen) {
                 patchChannel.header = header;
             }
         } else {
@@ -263,7 +269,7 @@ const CreateOrEditChannel = ({
         }
         dispatch({type: RequestActions.COMPLETE});
         close(componentId, isModal);
-    }, [channel, componentId, displayName, header, isModal, purpose, isValidDisplayName, serverUrl]);
+    }, [channel, componentId, displayName, header, isEnterpriseDefaultOpen, isModal, purpose, isValidDisplayName, serverUrl]);
 
     const handleClose = useCallback(() => {
         close(componentId, isModal);
@@ -288,6 +294,7 @@ const CreateOrEditChannel = ({
                 type={type}
                 displayName={displayName}
                 displayNameReadOnly={displayNameReadOnly}
+                hideChannelHeaderField={isEnterpriseDefaultOpen}
                 onDisplayNameChange={setDisplayName}
                 header={header}
                 headerOnly={headerOnly}

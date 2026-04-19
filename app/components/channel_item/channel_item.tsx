@@ -206,13 +206,9 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     filler: {
         flex: 1,
     },
-    /**
-     * 查找群聊 / 已加入列表等卡片行：按压态
-     * 仅用主题链接色极低透明度铺底（与 iOS 设置列表、Material 3 surface tint 同类做法），
-     * 不改边框、不加阴影/elevation，避免出现「厚灰边 / 外发光」廉价感。
-     */
+    /** 按下时降低透明度，产生被按下的视觉效果 */
     centerListRowPressed: {
-        backgroundColor: changeOpacity(theme.linkColor, 0.06),
+        opacity: 0.85,
     },
     // 已归档频道的操作按钮样式
     archivedActions: {

@@ -341,11 +341,13 @@ export default function UserList({
         );
     }, [showNoResults, term, noResutsStyle]);
 
-    const renderSectionHeader = useCallback(({section}: {section: SectionListData<UserProfile>}) => {
+    const renderSectionHeader = useCallback(({section}: {section: SectionListData<UserProfile> & {id?: string; mmSectionLabel?: string}}) => {
+        const s = section as SectionListData<UserProfile> & {id?: string; mmSectionLabel?: string; title?: string};
+        const headerText = s.mmSectionLabel ?? s.title ?? s.id ?? '';
         return (
             <View style={[style.sectionWrapper, contactSelectLayout && style.sectionWrapperContactSelect]}>
                 <View style={[style.sectionContainer, contactSelectLayout && style.sectionContainerContactSelect]}>
-                    <Text style={[style.sectionText, contactSelectLayout && style.sectionTextContactSelect]}>{section.id}</Text>
+                    <Text style={[style.sectionText, contactSelectLayout && style.sectionTextContactSelect]}>{String(headerText)}</Text>
                 </View>
             </View>
         );
@@ -394,7 +396,7 @@ export default function UserList({
                 ListEmptyComponent={renderNoResults}
                 ListFooterComponent={renderLoading}
                 maxToRenderPerBatch={INITIAL_BATCH_TO_RENDER + 1}
-                removeClippedSubviews={true}
+                removeClippedSubviews={!contactSelectLayout}
                 renderItem={renderItem}
                 renderSectionHeader={renderSectionHeader}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}

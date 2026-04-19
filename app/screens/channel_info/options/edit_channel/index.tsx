@@ -21,9 +21,11 @@ const EditChannel = ({channelId, isTeamDefaultOpenChannel = false, type}: Props)
     const {formatMessage} = useIntl();
     const title = type && usesDiscussionGroupChannelCopy(type)
         ? formatMessage({id: 'screens.channel_edit.discussion', defaultMessage: 'Edit discussion group'})
-        : type === General.PRIVATE_CHANNEL || (type === General.OPEN_CHANNEL && isTeamDefaultOpenChannel)
-            ? formatMessage({id: 'screens.channel_edit.private_group_chat', defaultMessage: 'Edit group chat'})
-            : formatMessage({id: 'screens.channel_edit', defaultMessage: 'Edit Channel'});
+        : type === General.OPEN_CHANNEL && isTeamDefaultOpenChannel
+            ? formatMessage({id: 'screens.channel_edit.enterprise_main', defaultMessage: 'Edit enterprise main group'})
+            : type === General.PRIVATE_CHANNEL
+                ? formatMessage({id: 'screens.channel_edit.private_group_chat', defaultMessage: 'Edit group chat'})
+                : formatMessage({id: 'screens.channel_edit', defaultMessage: 'Edit Channel'});
 
     const goToEditChannel = usePreventDoubleTap(useCallback(async () => {
         goToScreen(Screens.CREATE_OR_EDIT_CHANNEL, title, {channelId});

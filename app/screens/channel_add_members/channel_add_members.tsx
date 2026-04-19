@@ -63,6 +63,7 @@ export const getHeaderOptions = async (theme: Theme, displayName: string, inModa
 type Props = {
     componentId: AvailableScreens;
     channel?: ChannelModel;
+    currentTeamId: string;
     teammateNameDisplay: string;
     tutorialWatched: boolean;
     inModal?: boolean;
@@ -118,6 +119,7 @@ function removeProfileFromList(list: Set<string>, id: string) {
 export default function ChannelAddMembers({
     componentId,
     channel,
+    currentTeamId,
     teammateNameDisplay,
     tutorialWatched,
     inModal,
@@ -205,18 +207,20 @@ export default function ChannelAddMembers({
         mergeNavigationOptions(componentId, options);
     }, [theme, channel?.displayName, inModal, componentId]);
 
+    const teamIdForMembersList = channel?.teamId || currentTeamId || '';
+
     const userFetchFunction = useCallback(async (page: number) => {
         if (!channel) {
             return [];
         }
 
-        const result = await fetchProfilesNotInChannel(serverUrl, channel.teamId, channel.id, channel.isGroupConstrained, page, General.PROFILE_CHUNK_SIZE);
+        const result = await fetchProfilesNotInChannel(serverUrl, teamIdForMembersList, channel.id, channel.isGroupConstrained, page, General.PROFILE_CHUNK_SIZE);
         if (result.users?.length) {
             return result.users.filter((u) => !u.delete_at);
         }
 
         return [];
-    }, [serverUrl, channel]);
+    }, [serverUrl, channel, teamIdForMembersList]);
 
     const userSearchFunction = useCallback(async (searchTerm: string) => {
         if (!channel) {
@@ -224,14 +228,14 @@ export default function ChannelAddMembers({
         }
 
         const lowerCasedTerm = searchTerm.toLowerCase();
-        const results = await searchProfiles(serverUrl, lowerCasedTerm, {team_id: channel.teamId, not_in_channel_id: channel.id, allow_inactive: false});
+        const results = await searchProfiles(serverUrl, lowerCasedTerm, {team_id: teamIdForMembersList, not_in_channel_id: channel.id, allow_inactive: false});
 
         if (results.data) {
             return results.data;
         }
 
         return [];
-    }, [serverUrl, channel]);
+    }, [serverUrl, channel, teamIdForMembersList]);
 
     const createUserFilter = useCallback((exactMatches: UserProfile[], searchTerm: string) => {
         return (p: UserProfile) => {

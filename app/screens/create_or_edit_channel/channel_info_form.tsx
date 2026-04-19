@@ -130,6 +130,8 @@ type Props = {
     channelType?: string;
     displayName: string;
     displayNameReadOnly?: boolean;
+    /** 企业总群（默认公开频道）：不显示「标题/公告」编辑字段，与信息页公告分离 */
+    hideChannelHeaderField?: boolean;
     onDisplayNameChange: (text: string) => void;
     editing: boolean;
     error?: string | object;
@@ -147,6 +149,7 @@ export default function ChannelInfoForm({
     channelType,
     displayName,
     displayNameReadOnly = false,
+    hideChannelHeaderField = false,
     onDisplayNameChange,
     editing,
     error,
@@ -202,7 +205,11 @@ export default function ChannelInfoForm({
     const effectiveChannelType = channelType ?? type ?? '';
     const displayHeaderOnly = headerOnly || channelType === General.DM_CHANNEL || (channelType === General.GM_CHANNEL && !editing);
     const showCreateIntro = !editing && !displayHeaderOnly;
-    const hideHeaderField = effectiveChannelType === General.PRIVATE_CHANNEL && !headerOnly;
+    /** 讨论组编辑：频道「标题」即会话顶栏公告，与信息页公告重复，仅保留名称与用途 */
+    const hideHeaderField =
+        (effectiveChannelType === General.PRIVATE_CHANNEL && !headerOnly) ||
+        Boolean(hideChannelHeaderField) ||
+        (effectiveChannelType === General.GM_CHANNEL && !displayHeaderOnly);
     const showHeaderField = displayHeaderOnly || (!displayHeaderOnly && !hideHeaderField);
 
     const sectionDetailsLabel = formatMessage({
@@ -402,8 +409,8 @@ export default function ChannelInfoForm({
                                         {displayNameReadOnly && (
                                             <FormattedText
                                                 style={styles.captionText}
-                                                id='mobile.channel.town_square_display_name_readonly'
-                                                defaultMessage="This name is your enterprise workspace. It is shown here instead of the server default. To change it, ask your administrator to update the team or enterprise display name."
+                                                id='mobile.channel.town_square_display_name_readonly_short'
+                                                defaultMessage='This enterprise main group shows your enterprise name. It can’t be changed here.'
                                                 testID='channel_info_form.display_name.readonly_help'
                                             />
                                         )}

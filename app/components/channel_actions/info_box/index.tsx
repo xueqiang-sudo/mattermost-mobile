@@ -43,7 +43,9 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenC
             title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
         } else if (channelType === General.DM_CHANNEL) {
             title = intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'});
-        } else if (channelType === General.PRIVATE_CHANNEL || (channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel)) {
+        } else if (channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel) {
+            title = intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'});
+        } else if (channelType === General.PRIVATE_CHANNEL) {
             title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
         } else {
             title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
@@ -67,9 +69,11 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenC
         ? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'})
         : channelType === General.DM_CHANNEL
             ? intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'})
-            : channelType === General.PRIVATE_CHANNEL || (channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel)
-                ? intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'})
-                : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
+            : channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel
+                ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
+                : channelType === General.PRIVATE_CHANNEL
+                    ? intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'})
+                    : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
 
     if (showAsLabel) {
         return (

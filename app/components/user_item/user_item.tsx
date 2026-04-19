@@ -3,7 +3,7 @@
 
 import React, {useCallback, useMemo, type ReactNode} from 'react';
 import {useIntl} from 'react-intl';
-import {StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle} from 'react-native';
+import {Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
@@ -205,24 +205,27 @@ const UserItem = ({
         ];
     }, [contactSelectLayout]);
 
-    const onPress = useCallback(() => {
-        if (user) {
-            onUserPress?.(user);
-        }
-    }, [user, onUserPress]);
-
     const onLongPress = useCallback(() => {
         if (user) {
             onUserLongPress?.(user);
         }
     }, [user, onUserLongPress]);
 
+    /** 处理用户点击事件 */
+    const handleOnPress = useCallback(() => {
+        if (user) {
+            onUserPress?.(user);
+        }
+    }, [user, onUserPress]);
+
     return (
-        <TouchableOpacity
-            onPress={onPress}
+        <Pressable
+            onPress={handleOnPress}
             onLongPress={onLongPress}
             disabled={!(onUserPress || onUserLongPress)}
             onLayout={onLayout}
+            android_disableSound={true}
+            android_ripple={undefined}
         >
             <View
                 ref={viewRef}
@@ -289,7 +292,7 @@ const UserItem = ({
                     {FooterComponent}
                 </View>
             </View>
-        </TouchableOpacity>
+        </Pressable>
     );
 };
 

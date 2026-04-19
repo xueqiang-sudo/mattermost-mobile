@@ -6,7 +6,7 @@ import {of as of$, combineLatest} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
 import {Database as DatabaseConstants, General, Permissions} from '@constants';
-import {isDefaultChannel, isDMorGM} from '@utils/channel';
+import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
 import {isSystemAdmin} from '@utils/user';
 
@@ -93,8 +93,14 @@ export function observePermissionForPost(database: Database, post: PostModel, us
 export function observeCanManageChannelMembers(database: Database, channelId: string, user: UserModel) {
     return observeChannel(database, channelId).pipe(
         switchMap((c) => {
-            if (!c || c.deleteAt !== 0 || isDMorGM(c) || isDefaultChannel(c)) {
+            if (!c || c.deleteAt !== 0 || isDefaultChannel(c)) {
                 return of$(false);
+            }
+            if (c.type === General.DM_CHANNEL) {
+                return of$(false);
+            }
+            if (c.type === General.GM_CHANNEL) {
+                return of$(true);
             }
 
             const permission = c.type === General.OPEN_CHANNEL ? Permissions.MANAGE_PUBLIC_CHANNEL_MEMBERS : Permissions.MANAGE_PRIVATE_CHANNEL_MEMBERS;
@@ -112,6 +118,9 @@ export function observeCanManageChannelSettings(database: Database, channelId: s
             }
             if (c.type === General.DM_CHANNEL) {
                 return of$(false);
+            }
+            if (c.type === General.GM_CHANNEL) {
+                return of$(true);
             }
 
             const isCreator = c.creatorId === user.id;

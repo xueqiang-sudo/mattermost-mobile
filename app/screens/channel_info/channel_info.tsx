@@ -199,15 +199,15 @@ const ChannelInfo = ({
                                 enabled={isCallsEnabledInChannel}
                             />
                         }
+                        <DestructiveOptions
+                            channelId={channelId}
+                            componentId={componentId}
+                        />
                     </ChannelInfoCard>
                     <ChannelInfoAppBindings
                         channelId={channelId}
                         dismissChannelInfo={onPressed}
                         serverUrl={serverUrl}
-                    />
-                    <DestructiveOptions
-                        channelId={channelId}
-                        componentId={componentId}
                     />
                 </ScrollView>
             </SafeAreaView>

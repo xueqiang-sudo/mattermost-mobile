@@ -198,6 +198,11 @@ const ChannelHeader = ({
             case General.PRIVATE_CHANNEL:
                 title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
                 break;
+            case General.OPEN_CHANNEL:
+                title = channelName === General.DEFAULT_CHANNEL
+                    ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
+                    : intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
+                break;
             default:
                 title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
                 break;
@@ -216,7 +221,7 @@ const ChannelHeader = ({
             },
         };
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
-    }), [channelId, channelType, intl, theme]));
+    }), [channelId, channelName, channelType, intl, theme]));
 
     const onChannelQuickAction = useCallback(() => {
         if (isTablet) {

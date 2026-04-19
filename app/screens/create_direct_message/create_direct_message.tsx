@@ -21,6 +21,7 @@ import {useKeyboardOverlap} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, setButtons} from '@screens/navigation';
+import {createContactSectionsByNickname} from '@utils/contact_section';
 import {alertErrorWithFallback} from '@utils/draft';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -440,6 +441,7 @@ export default function CreateDirectMessage({
                         searchFunction={userSearchFunction}
                         createFilter={createUserFilter}
                         location={Screens.CREATE_DIRECT_MESSAGE}
+                        customSection={createContactSectionsByNickname}
                     />
                 </View>
                 <SelectedUsers
