@@ -50,7 +50,6 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     headingStyles: {
         color: theme.sidebarText,
         ...typography('Heading', 300, 'SemiBold'),
-        lineHeight: 20,
     },
     subHeadingStyles: {
         color: changeOpacity(theme.sidebarText, 0.56),
@@ -118,7 +117,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'space-between',
         minHeight: 44,
-        paddingVertical: 4,
+        paddingVertical: 8,
     },
     firstBox: {
         flex: 1,

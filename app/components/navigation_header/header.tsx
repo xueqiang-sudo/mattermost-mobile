@@ -150,6 +150,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
         maxWidth: '100%',
     },
+    /** 聊天顶栏：标题行与状态栏下缘留出呼吸，避免胶囊/字体贴顶裁切 */
+    titleRowChat: {
+        paddingTop: 2,
+    },
     /** 非聊天顶栏（极少使用） */
     titleTagBadge: {
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
@@ -176,7 +180,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginRight: 8,
         minHeight: 22,
         paddingHorizontal: 10,
-        paddingVertical: 3,
+        paddingVertical: 4,
     },
     titleTagTextChat: {
         color: theme.linkColor,
@@ -294,7 +298,7 @@ const Header = ({
                 >
                     <View style={styles.centered}>
                         {!hasSearch &&
-                        <View style={styles.titleRow}>
+                        <View style={[styles.titleRow, Boolean(backgroundColor) && styles.titleRowChat]}>
                             {Boolean(titleTag) &&
                             <View
                                 style={[

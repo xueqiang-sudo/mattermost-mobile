@@ -3,12 +3,12 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
 import {type LayoutChangeEvent, StyleSheet, View} from 'react-native';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
 import FloatingCallContainer from '@calls/components/floating_call_container';
-import FreezeScreen from '@components/freeze_screen';
 import ConnectionBanner from '@components/connection_banner';
+import FreezeScreen from '@components/freeze_screen';
 import PostDraft from '@components/post_draft';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
 import {Screens} from '@constants';
@@ -16,7 +16,6 @@ import {ExtraKeyboardProvider} from '@context/extra_keyboard';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useChannelSwitch} from '@hooks/channel_switch';
-import {useIsTablet} from '@hooks/device';
 import {useDefaultHeaderHeight} from '@hooks/header';
 import {useTeamSwitch} from '@hooks/team_switch';
 import SecurityManager from '@managers/security_manager';
@@ -59,6 +58,12 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'column',
     },
+
+    /** 断网条在 FlatList 之上，避免 Android elevation 盖住条带（仍低于顶栏 zIndex 10） */
+    connectionBannerWrap: {
+        zIndex: 2,
+        elevation: 2,
+    },
 });
 
 const Channel = ({
@@ -80,8 +85,6 @@ const Channel = ({
 }: ChannelProps) => {
     const theme = useTheme();
     useGMasDMNotice(currentUserId, channelType, dismissedGMasDMNotice, hasGMasDMFeature);
-    const isTablet = useIsTablet();
-    const insets = useSafeAreaInsets();
     const switchingTeam = useTeamSwitch();
     const switchingChannels = useChannelSwitch();
     const defaultHeight = useDefaultHeaderHeight();
@@ -95,7 +98,11 @@ const Channel = ({
 
     useAndroidHardwareBackHandler(componentId, handleBack);
 
-    const marginTop = (defaultHeight + (isTablet ? 0 : -insets.top)) - 40;
+    /**
+     * 与绝对定位顶栏对齐；略小于 defaultHeight，避免部分机型上顶栏视觉底边低于占位高度时出现「顶栏—断网条」白条隙。
+     * 仍显著高于旧版 (defaultHeight - insets.top - 40)，断网条不会被顶栏盖住。
+     */
+    const marginTop = defaultHeight - 16;
     useEffect(() => {
         // Give time to the WS event
         const t = setTimeout(() => {
@@ -139,7 +146,9 @@ const Channel = ({
                 {shouldRender &&
                 <ExtraKeyboardProvider>
                     <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
-                        <ConnectionBanner isChatUI={true}/>
+                        <View style={styles.connectionBannerWrap}>
+                            <ConnectionBanner isChatUI={true}/>
+                        </View>
                         <View style={{flex: 1}}>
                             <ChannelPostList
                                 channelId={channelId}

@@ -106,7 +106,10 @@ const ConnectionBanner = ({
             style={[style.background, isChatUI ? style.chatUIBackground : undefined, bannerStyle]}
         >
             <View
-                style={isShowingConnectedBanner ? style.bannerContainerConnected : style.bannerContainerNotConnected}
+                style={[
+                    isShowingConnectedBanner ? style.bannerContainerConnected : style.bannerContainerNotConnected,
+                    visible && {minHeight: ANNOUNCEMENT_BAR_HEIGHT},
+                ]}
             >
                 {visible &&
                 <View

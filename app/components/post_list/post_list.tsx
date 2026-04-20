@@ -130,7 +130,15 @@ const PostList = ({
     const serverUrl = useServerUrl();
     const listContentStyle = useMemo(() => {
         const isChatStyle = location === Screens.CHANNEL || location === Screens.PERMALINK;
-        return isChatStyle ? {backgroundColor: getChatListBackdropColor(theme), flexGrow: 1} : undefined;
+        if (!isChatStyle) {
+            return undefined;
+        }
+        const base = {backgroundColor: getChatListBackdropColor(theme)};
+        /** 频道倒序列表：flexGrow 在消息少时会在视觉顶部与断网条之间撑出多余空隙 */
+        if (location === Screens.CHANNEL) {
+            return base;
+        }
+        return {...base, flexGrow: 1};
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
