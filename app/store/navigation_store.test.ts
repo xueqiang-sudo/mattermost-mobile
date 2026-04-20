@@ -77,7 +77,7 @@ describe('NavigationStore', () => {
 
     describe('tab management', () => {
         it('should manage visible tab correctly', () => {
-            expect(NavigationStore.getVisibleTab()).toBe('Home');
+            expect(NavigationStore.getVisibleTab()).toBe(Screens.HOME_TAB_CHAT);
 
             NavigationStore.setVisibleTap('Channel');
             expect(NavigationStore.getVisibleTab()).toBe('Channel');

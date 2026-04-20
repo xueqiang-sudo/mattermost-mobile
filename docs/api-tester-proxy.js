@@ -8,8 +8,6 @@ const https = require('https');
 const path = require('path');
 
 const PORT = 3456;
-const CONTACT_HTML_FILE = path.join(__dirname, 'contact-api-tester.html');
-const SUPPLIER_CUSTOMER_HTML_FILE = path.join(__dirname, 'supplier-customer-api-tester.html');
 const DEPARTMENT_HTML_FILE = path.join(__dirname, 'department-api-tester.html');
 
 function formatTime() {
@@ -36,11 +34,19 @@ function logRequest(method, targetUrl, reqBody) {
     }
 }
 
-function logResponse(status, statusText, body, durationMs, err) {
+function logResponse(status, statusText, body, durationMs, err, headers) {
     const statusColor = status >= 200 && status < 300 ? '\x1b[32m' : '\x1b[31m'; // green/red
     const reset = '\x1b[0m';
     console.log(`  响应: ${statusColor}${status} ${statusText}${reset}`);
     console.log(`  耗时: ${durationMs}ms`);
+    
+    if (headers) {
+        console.log('  响应头:');
+        for (const [key, value] of Object.entries(headers)) {
+            console.log(`    ${key}: ${value}`);
+        }
+    }
+    
     if (body) {
         const len = typeof body === 'string' ? body.length : 0;
         const preview = truncate(body, 300);
@@ -78,10 +84,17 @@ function fetchUrl(url, method, headers, body) {
             const chunks = [];
             res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => {
+                // 收集所有响应头
+                const allHeaders = {};
+                for (const [key, value] of Object.entries(res.headers)) {
+                    allHeaders[key] = value;
+                }
+                
                 resolve({
                     status: res.statusCode,
                     statusText: res.statusMessage,
                     body: Buffer.concat(chunks).toString(),
+                    headers: allHeaders,
                 });
             });
         });
@@ -108,7 +121,7 @@ const server = http.createServer(async (req, res) => {
 
             const result = await fetchUrl(targetUrl, method, headers || {}, reqBody || '');
             const duration = Date.now() - start;
-            logResponse(result.status, result.statusText, result.body, duration);
+            logResponse(result.status, result.statusText, result.body, duration, null, result.headers);
 
             res.writeHead(200, {'Content-Type': 'application/json; charset=utf-8'});
             res.end(JSON.stringify(result));
@@ -122,33 +135,7 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    if (url.pathname === '/' || url.pathname === '/contact-api-tester.html') {
-        fs.readFile(CONTACT_HTML_FILE, 'utf8', (err, data) => {
-            if (err) {
-                res.writeHead(500);
-                res.end('500 - Failed to read HTML');
-                return;
-            }
-            res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
-            res.end(data);
-        });
-        return;
-    }
-
-    if (url.pathname === '/supplier-customer-api-tester.html') {
-        fs.readFile(SUPPLIER_CUSTOMER_HTML_FILE, 'utf8', (err, data) => {
-            if (err) {
-                res.writeHead(500);
-                res.end('500 - Failed to read HTML');
-                return;
-            }
-            res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
-            res.end(data);
-        });
-        return;
-    }
-
-    if (url.pathname === '/department-api-tester.html') {
+    if (url.pathname === '/' || url.pathname === '/department-api-tester.html') {
         fs.readFile(DEPARTMENT_HTML_FILE, 'utf8', (err, data) => {
             if (err) {
                 res.writeHead(500);
@@ -166,8 +153,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log('\n  API 测试工具代理已启动（Contact / Supplier-Customer / Department）');
-    console.log(`  请在浏览器访问: http://localhost:${PORT}/contact-api-tester.html`);
-    console.log(`  请在浏览器访问: http://localhost:${PORT}/supplier-customer-api-tester.html`);
+    console.log('\n  API 测试工具代理已启动（Department）');
     console.log(`  请在浏览器访问: http://localhost:${PORT}/department-api-tester.html\n`);
 });

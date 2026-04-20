@@ -85,7 +85,7 @@ const ChannelListScreen = (props: ChannelProps) => {
 
     const handleBackPress = useCallback(() => {
         const isHomeScreen = NavigationStore.getVisibleScreen() === Screens.HOME;
-        const homeTab = NavigationStore.getVisibleTab() === Screens.HOME;
+        const homeTab = NavigationStore.getVisibleTab() === Screens.HOME_TAB_CHAT;
         const focused = navigation.isFocused() && isHomeScreen && homeTab;
 
         if (isMainActivity()) {

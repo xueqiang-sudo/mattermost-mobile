@@ -3,12 +3,14 @@
 
 import {BehaviorSubject} from 'rxjs';
 
+import {Screens} from '@constants';
+
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 class NavigationStoreSingleton {
     private screensInStack: AvailableScreens[] = [];
     private modalsInStack: AvailableScreens[] = [];
-    private visibleTab = 'Home';
+    private visibleTab: string = Screens.HOME_TAB_CHAT;
     private tosOpen = false;
 
     private subject: BehaviorSubject<AvailableScreens|undefined> = new BehaviorSubject(undefined);
@@ -20,7 +22,7 @@ class NavigationStoreSingleton {
     reset = () => {
         this.screensInStack = [];
         this.modalsInStack = [];
-        this.visibleTab = 'Home';
+        this.visibleTab = Screens.HOME_TAB_CHAT;
         this.tosOpen = false;
         this.subject.next(undefined);
     };

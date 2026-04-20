@@ -198,17 +198,28 @@
       <div class="config-row">
         <label>
           服务地址（Mattermost 根 URL）
-          <input type="text" id="baseUrl" placeholder="https://your-server.example">
+          <input type="text" id="baseUrl" placeholder="https://your-server.example" value="http://118.195.136.154:8065">
         </label>
         <label>
           访问令牌（Bearer）
-          <input type="password" id="accessToken" placeholder="Personal Access Token" autocomplete="off">
+          <input type="text" id="accessToken" placeholder="Personal Access Token" autocomplete="off">
         </label>
       </div>
       <div class="config-row" style="margin-top: 12px;">
         <label>
+          登录 ID（用户名/邮箱）
+          <input type="text" id="loginId" placeholder="Username or Email" autocomplete="off" value="qiuapitest163">
+        </label>
+        <label>
+          密码
+          <input type="text" id="password" placeholder="Password" autocomplete="off" value="qiuapitest163">
+        </label>
+        <button class="btn" onclick="login()" style="margin-top: 18px;">登录</button>
+      </div>
+      <div class="config-row" style="margin-top: 12px;">
+        <label>
           默认 team_id
-          <input type="text" id="defaultTeamId" class="short" placeholder="26 字符团队 ID">
+          <input type="text" id="defaultTeamId" class="short" placeholder="26 字符团队 ID" value="patnbfmb5iyapma5udb55hawbw">
         </label>
         <label>
           默认 department_id
@@ -486,11 +497,7 @@
               <span class="method post">POST</span>
               <span class="path">/api/v4/teams/{team_id}/departments/members/move-batch</span>
             </div>
-            <p class="status">批量移动（body 中 source/target 与下方输入框一致时可只填 user_ids）</p>
-            <div class="params" style="margin-top:8px;">
-              <input id="q_batch_move_source" class="wide" placeholder="source_department_id">
-              <input id="q_batch_move_target" class="wide" placeholder="target_department_id">
-            </div>
+            <p class="status">批量移动（请求体 JSON）</p>
             <div class="inline-body">
               <textarea class="body-input" id="body_mem_move_batch" rows="5">{
   "source_department_id": 0,
@@ -499,7 +506,7 @@
 }</textarea>
             </div>
           </div>
-          <button class="btn" onclick="callMembersMoveBatch()">调用</button>
+          <button class="btn" onclick="callApi('POST', pathMembersMoveBatch(), document.getElementById('body_mem_move_batch').value)">调用</button>
         </div>
       </div>
     </div>
@@ -720,32 +727,6 @@
 
     function pathMembersMoveBatch() {
       return pathTeamDepartments() + '/members/move-batch';
-    }
-
-    function buildMoveBatchBodyMerged() {
-      const raw = document.getElementById('body_mem_move_batch').value;
-      const srcIn = paramVal('q_batch_move_source');
-      const tgtIn = paramVal('q_batch_move_target');
-      try {
-        const obj = raw.trim() ? JSON.parse(raw) : {};
-        const src = parseInt(srcIn, 10);
-        const tgt = parseInt(tgtIn, 10);
-        if (!isNaN(src)) {
-          obj.source_department_id = src;
-        }
-        if (!isNaN(tgt)) {
-          obj.target_department_id = tgt;
-        }
-        return JSON.stringify(obj, null, 2);
-      } catch (e) {
-        return raw;
-      }
-    }
-
-    async function callMembersMoveBatch() {
-      const merged = buildMoveBatchBodyMerged();
-      document.getElementById('body_mem_move_batch').value = merged;
-      await callApi('POST', pathMembersMoveBatch(), merged);
     }
 
     function pathMembersList() {
@@ -981,6 +962,111 @@
 
     function useProxy() {
       return window.location.port === '3456' && window.location.hostname === 'localhost';
+    }
+
+    async function login() {
+        const base = document.getElementById('baseUrl').value.replace(/\/$/, '');
+        const loginId = document.getElementById('loginId').value.trim();
+        const password = document.getElementById('password').value;
+        const respEl = document.getElementById('responseBody');
+        const statusEl = document.getElementById('respStatus');
+
+        if (!base) {
+            respEl.textContent = '请输入服务地址';
+            respEl.className = 'response-body error';
+            statusEl.textContent = 'Error';
+            return;
+        }
+
+        if (!loginId || !password) {
+            respEl.textContent = '请输入登录 ID 和密码';
+            respEl.className = 'response-body error';
+            statusEl.textContent = 'Error';
+            return;
+        }
+
+        respEl.textContent = '登录中...';
+        respEl.className = 'response-body';
+        statusEl.textContent = '';
+
+        const url = base + '/api/v4/users/login';
+        const reqBody = JSON.stringify({ login_id: loginId, password: password });
+
+        try {
+            let status;
+            let statusText;
+            let text;
+            let token;
+            let proxyData;
+            if (useProxy()) {
+                const proxyRes = await fetch('/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        targetUrl: url,
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: reqBody
+                    })
+                });
+                proxyData = await proxyRes.json();
+                status = proxyData.status;
+                statusText = proxyData.statusText;
+                // Node.js http 模块会将响应头键名转换为小写
+                if (proxyData.headers && proxyData.headers.token) {
+                    token = proxyData.headers.token;
+                }
+                text = proxyData.body || '';
+            } else {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: reqBody
+                });
+                status = res.status;
+                statusText = res.statusText;
+                text = await res.text();
+                token = res.headers.get('Token') || res.headers.get('token');
+            }
+
+            let displayText = '[' + status + '] ' + statusText + '\n\n';
+            if (useProxy()) {
+                displayText += '--- 响应头 ---\n';
+                for (const [key, value] of Object.entries(proxyData.headers || {})) {
+                    displayText += `${key}: ${value}\n`;
+                }
+                displayText += '\n--- 响应体 ---\n';
+                try {
+                    displayText += JSON.stringify(JSON.parse(text), null, 2);
+                } catch (e) {
+                    displayText += text;
+                }
+            } else {
+                try {
+                    displayText += JSON.stringify(JSON.parse(text), null, 2);
+                } catch (e) {
+                    displayText += text;
+                }
+            }
+            
+            respEl.textContent = displayText;
+            respEl.className = 'response-body ' + (status >= 200 && status < 300 ? 'success' : 'error');
+            statusEl.textContent = status + ' ' + statusText;
+
+            if (status >= 200 && status < 300) {
+                if (token) {
+                    document.getElementById('accessToken').value = token;
+                    saveDefaults();
+                    respEl.textContent += '\n\n登录成功！令牌已自动填充到访问令牌字段。';
+                } else {
+                    respEl.textContent += '\n\n登录成功，但未能从响应中获取到 token。请手动输入 token。';
+                }
+            }
+        } catch (e) {
+            respEl.textContent = '登录失败：' + e.message + '\n\n若因 CORS 限制，请运行: node docs/contact-api-proxy.js\n然后访问: http://localhost:3456/department-api-tester.html';
+            respEl.className = 'response-body error';
+            statusEl.textContent = 'Error';
+        }
     }
 
     async function callApi(method, path, body) {

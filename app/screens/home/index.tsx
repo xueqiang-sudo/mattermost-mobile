@@ -175,25 +175,25 @@ export function HomeScreen(props: HomeProps) {
                             />)}
                     >
                         <Tab.Screen
-                            name={Screens.HOME}
+                            name={Screens.HOME_TAB_CHAT}
                             options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
                         >
                             {() => <ChannelList {...props}/>}
                         </Tab.Screen>
                         <Tab.Screen
-                            name={Screens.AI_AGENT}
+                            name={Screens.HOME_TAB_AI_AGENT}
                             options={{tabBarButtonTestID: 'tab_bar.ai_agent.tab', freezeOnBlur: true, lazy: true}}
                         >
                             {() => <AIAgent/>}
                         </Tab.Screen>
                         <Tab.Screen
-                            name={Screens.MY_HOMEPAGE}
+                            name={Screens.HOME_TAB_MY_HOMEPAGE}
                             options={{tabBarButtonTestID: 'tab_bar.my_homepage.tab', freezeOnBlur: true, lazy: true}}
                         >
                             {() => <MyHomepage/>}
                         </Tab.Screen>
                         <Tab.Screen
-                            name={Screens.CONTACTS}
+                            name={Screens.HOME_TAB_CONTACTS}
                             options={{tabBarButtonTestID: 'tab_bar.contacts.tab', freezeOnBlur: true, lazy: true}}
                         >
                             {() => (

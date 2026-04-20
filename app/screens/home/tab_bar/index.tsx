@@ -64,17 +64,17 @@ const shadowSides = {top: true, bottom: false, end: false, start: false};
 const shadowOffset: [x: number | string, y: number | string] = [0, -0.5];
 
 const TabComponents: Record<string, any> = {
-    [Screens.AI_AGENT]: AIAgent,
-    [Screens.CONTACTS]: Contacts,
-    [Screens.HOME]: Home,
-    [Screens.MY_HOMEPAGE]: MyHomepage,
+    [Screens.HOME_TAB_AI_AGENT]: AIAgent,
+    [Screens.HOME_TAB_CHAT]: Home,
+    [Screens.HOME_TAB_CONTACTS]: Contacts,
+    [Screens.HOME_TAB_MY_HOMEPAGE]: MyHomepage,
 };
 
 const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
-    [Screens.AI_AGENT]: {id: 'tab_bar.ai_agent.label', defaultMessage: 'AI Agent'},
-    [Screens.CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
-    [Screens.HOME]: {id: 'tab_bar.home.label', defaultMessage: 'Chat'},
-    [Screens.MY_HOMEPAGE]: {id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'},
+    [Screens.HOME_TAB_AI_AGENT]: {id: 'tab_bar.ai_agent.label', defaultMessage: 'AI Agent'},
+    [Screens.HOME_TAB_CHAT]: {id: 'tab_bar.home.label', defaultMessage: 'Chat'},
+    [Screens.HOME_TAB_CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
+    [Screens.HOME_TAB_MY_HOMEPAGE]: {id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'},
 };
 
 function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {theme: Theme}) {
@@ -95,8 +95,8 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
 
     useEffect(() => {
         const listner = DeviceEventEmitter.addListener(NavigationConstants.NAVIGATION_HOME, () => {
-            NavigationStore.setVisibleTap(Screens.HOME);
-            navigation.navigate(Screens.HOME);
+            NavigationStore.setVisibleTap(Screens.HOME_TAB_CHAT);
+            navigation.navigate(Screens.HOME_TAB_CHAT);
         });
 
         return () => listner.remove();
