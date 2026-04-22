@@ -271,8 +271,9 @@
               <span class="method get">GET</span>
               <span class="path">/api/v4/teams/{team_id}/departments</span>
             </div>
-            <p class="status">部门列表；查询参数 page、per_page（新文档未列出 search，若服务端仍支持可自行在 URL 后拼接）</p>
+            <p class="status">部门列表；查询参数 parent_id、page、per_page（parent_id 不传则不指定， -1: 根部门, >= 0: 指定 parent id）</p>
             <div class="params">
+              <input id="q_dept_parent_id" placeholder="指定 parent id" value="">
               <input id="q_dept_page" placeholder="page" value="0">
               <input id="q_dept_per_page" placeholder="per_page" value="60">
             </div>
@@ -355,7 +356,10 @@
               <span class="method get">GET</span>
               <span class="path">/api/v4/teams/{team_id}/departments/stats</span>
             </div>
-            <p class="status">部门统计</p>
+            <p class="status">部门统计；可选查询参数 department_id：不传为全团队，传则按该部门（以服务端为准）</p>
+            <div class="params">
+              <input id="q_stats_department_id" placeholder="department_id（可选）">
+            </div>
           </div>
           <button class="btn" onclick="callApi('GET', pathDepartmentStats(), null)">调用</button>
         </div>
@@ -549,21 +553,6 @@
           <button class="btn" onclick="callApi('GET', pathUserContacts(), null)">调用</button>
         </div>
         <div class="endpoint">
-          <div>
-            <div class="endpoint-info">
-              <span class="method get">GET</span>
-              <span class="path">/api/v4/users/{user_id}/contacts/details</span>
-            </div>
-            <p class="status">带员工/联系人详情的列表（可选 contact_type、page、per_page）</p>
-            <div class="params">
-              <input id="q_contacts_details_type" placeholder="contact_type">
-              <input id="q_contacts_details_page" placeholder="page" value="0">
-              <input id="q_contacts_details_per_page" placeholder="per_page" value="60">
-            </div>
-          </div>
-          <button class="btn" onclick="callApi('GET', pathUserContactsDetails(), null)">调用</button>
-        </div>
-        <div class="endpoint">
           <div style="flex:1">
             <div class="endpoint-info">
               <span class="method post">POST</span>
@@ -686,8 +675,12 @@
     function pathDepartmentsList() {
       const base = pathTeamDepartments();
       const q = new URLSearchParams();
+      const parentId = paramVal('q_dept_parent_id');
       const page = paramVal('q_dept_page');
       const perPage = paramVal('q_dept_per_page');
+      if (parentId !== '') {
+        q.set('parent_id', parentId);
+      }
       if (page !== '') {
         q.set('page', page);
       }
@@ -722,7 +715,14 @@
     }
 
     function pathDepartmentStats() {
-      return pathTeamDepartments() + '/departments/stats';
+      const base = pathTeamDepartments() + '/stats';
+      const q = new URLSearchParams();
+      const deptId = paramVal('q_stats_department_id');
+      if (deptId !== '') {
+        q.set('department_id', deptId);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
     }
 
     function pathMembersMoveBatch() {
@@ -769,25 +769,6 @@
       const ct = paramVal('q_contacts_type');
       const page = paramVal('q_contacts_page');
       const perPage = paramVal('q_contacts_per_page');
-      if (ct) {
-        q.set('contact_type', ct);
-      }
-      if (page !== '') {
-        q.set('page', page);
-      }
-      if (perPage !== '') {
-        q.set('per_page', perPage);
-      }
-      const qs = q.toString();
-      return base + (qs ? '?' + qs : '');
-    }
-
-    function pathUserContactsDetails() {
-      const base = pathUserContactsBase() + '/details';
-      const q = new URLSearchParams();
-      const ct = paramVal('q_contacts_details_type');
-      const page = paramVal('q_contacts_details_page');
-      const perPage = paramVal('q_contacts_details_per_page');
       if (ct) {
         q.set('contact_type', ct);
       }

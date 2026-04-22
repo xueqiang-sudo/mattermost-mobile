@@ -6,46 +6,55 @@
 
 ## Table of Contents
 
-1. [Department CRUD Operations](#1-department-crud-operations)
-   - [Get Departments](#11-get-departments)
-   - [Create Department](#12-create-department)
-   - [Get Department](#13-get-department)
-   - [Update Department](#14-update-department)
-   - [Delete Department](#15-delete-department)
-
-2. [Department Tree Operations](#2-department-tree-operations)
-   - [Get Department Tree](#21-get-department-tree)
-   - [Get Department Children](#22-get-department-children)
-   - [Get Department Ancestors](#23-get-department-ancestors)
-
-3. [Department Member Operations](#3-department-member-operations)
-   - [Get Department Members](#31-get-department-members)
-   - [Add Department Member](#32-add-department-member)
-   - [Remove Department Member](#33-remove-department-member)
-   - [Batch Add Members](#34-batch-add-members)
-   - [Batch Remove Members](#35-batch-remove-members)
-   - [Move Department Member](#36-move-department-member)
-   - [Batch Move Members](#37-batch-move-members)
-
-4. [User Department Operations](#4-user-department-operations)
-   - [Get User Departments](#41-get-user-departments)
-
-5. [Employee Contact Operations](#5-employee-contact-operations)
-   - [Get Employee Contacts](#51-get-employee-contacts)
-   - [Get Contacts with Details](#52-get-contacts-with-details)
-   - [Add Employee Contact](#53-add-employee-contact)
-   - [Update Employee Contact](#54-update-employee-contact)
-   - [Delete Employee Contact](#55-delete-employee-contact)
-
-6. [Contact Version Management](#6-contact-version-management)
-   - [Get Contact Version](#61-get-contact-version)
-   - [Update Contact Version](#62-update-contact-version)
-
-7. [Department Statistics](#7-department-statistics)
-   - [Get Department Stats](#71-get-department-stats)
-
-8. [Team Version Management](#8-team-version-management)
-   - [Get Team Version](#81-get-team-version)
+- [Department Management API Documentation](#department-management-api-documentation)
+  - [Table of Contents](#table-of-contents)
+  - [Base Information](#base-information)
+  - [1. Department CRUD Operations](#1-department-crud-operations)
+    - [1.1 Get Departments](#11-get-departments)
+    - [1.2 Create Department](#12-create-department)
+    - [1.3 Get Department](#13-get-department)
+    - [1.4 Update Department](#14-update-department)
+    - [1.5 Delete Department](#15-delete-department)
+  - [2. Department Tree Operations](#2-department-tree-operations)
+    - [2.1 Get Department Tree](#21-get-department-tree)
+    - [2.2 Get Department Children](#22-get-department-children)
+    - [2.3 Get Department Ancestors](#23-get-department-ancestors)
+  - [3. Department Member Operations](#3-department-member-operations)
+    - [3.1 Get Department Members](#31-get-department-members)
+    - [3.2 Add Department Member](#32-add-department-member)
+    - [3.3 Remove Department Member](#33-remove-department-member)
+    - [3.4 Batch Add Members](#34-batch-add-members)
+    - [3.5 Batch Remove Members](#35-batch-remove-members)
+    - [3.6 Move Department Member](#36-move-department-member)
+    - [3.7 Batch Move Members](#37-batch-move-members)
+  - [4. User Department Operations](#4-user-department-operations)
+    - [4.1 Get User Departments](#41-get-user-departments)
+  - [5. Employee Contact Operations](#5-employee-contact-operations)
+    - [5.1 Get Employee Contacts](#51-get-employee-contacts)
+    - [5.2 Add Employee Contact](#52-add-employee-contact)
+    - [5.3 Update Employee Contact](#53-update-employee-contact)
+    - [5.4 Delete Employee Contact](#54-delete-employee-contact)
+  - [6. Contact Version Management](#6-contact-version-management)
+    - [6.1 Get Contact Version](#61-get-contact-version)
+    - [6.2 Update Contact Version](#62-update-contact-version)
+  - [7. Department Statistics](#7-department-statistics)
+    - [7.1 Get Department Stats](#71-get-department-stats)
+  - [8. Team Version Management](#8-team-version-management)
+    - [8.1 Get Team Version](#81-get-team-version)
+  - [Cache Synchronization Strategy](#cache-synchronization-strategy)
+    - [Recommended Approach](#recommended-approach)
+    - [Best Practices](#best-practices)
+  - [Data Models](#data-models)
+    - [Department](#department)
+    - [DepartmentMember](#departmentmember)
+    - [EmployeeContact](#employeecontact)
+    - [DepartmentMembersWithCount](#departmentmemberswithcount)
+    - [DepartmentStats](#departmentstats)
+  - [Audit Logging](#audit-logging)
+  - [Error Handling Examples](#error-handling-examples)
+    - [JavaScript Example](#javascript-example)
+  - [Rate Limiting](#rate-limiting)
+  - [Support](#support)
 
 ---
 
@@ -90,6 +99,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
 **Query Parameters:**
 | Parameter | Type   | Required | Description         | Default |
 |-----------|--------|----------|---------------------|---------|
+| parent_id | number | No       | 不传则不指定， -1: 根部门, >= 0: 指定 parent id  | undefined       |
 | page      | number | No       | Page number         | 0       |
 | per_page  | number | No       | Items per page      | 60      |
 
@@ -847,54 +857,7 @@ curl -X GET \
 
 ---
 
-### 5.2 Get Contacts with Details
-
-获取员工联系人及其详细信息（包含用户名和邮箱）。
-
-**Endpoint:** `GET /users/{user_id}/contacts/details`
-
-**Permissions:** Same as Get Employee Contacts
-
-**Path Parameters:**
-| Parameter | Type   | Required | Description   |
-|-----------|--------|----------|---------------|
-| user_id   | string | Yes      | The user ID   |
-
-**Query Parameters:**
-| Parameter   | Type   | Required | Description                    |
-|-------------|--------|----------|--------------------------------|
-| contact_type| string | No       | Filter by contact type         |
-| page        | number | No       | Page number                    |
-| per_page    | number | No       | Items per page                 |
-
-**Response:** `200 OK`
-```json
-[
-  {
-    "id": "contact1...",
-    "employee_id": "xyz789...",
-    "contact_id": "contact_abc...",
-    "contact_type": "customer",
-    "description": "Key customer",
-    "remark": "VIP client",
-    "employee_name": "John Doe",
-    "employee_email": "john@example.com",
-    "contact_name": "Jane Smith",
-    "contact_email": "jane@customer.com"
-  }
-]
-```
-
-**Example:**
-```bash
-curl -X GET \
-  'http://localhost:8065/api/v4/users/xyz789.../contacts/details' \
-  -H 'Authorization: Bearer TOKEN'
-```
-
----
-
-### 5.3 Add Employee Contact
+### 5.2 Add Employee Contact
 
 添加员工联系人关系。
 
@@ -943,7 +906,7 @@ curl -X POST \
 
 ---
 
-### 5.4 Update Employee Contact
+### 5.3 Update Employee Contact
 
 更新员工联系人信息。
 
@@ -984,7 +947,7 @@ curl -X PUT \
 
 ---
 
-### 5.5 Delete Employee Contact
+### 5.4 Delete Employee Contact
 
 删除员工联系人关系。
 
@@ -1125,6 +1088,11 @@ curl -X PUT \
 | Parameter | Type   | Required | Description |
 |-----------|--------|----------|-------------|
 | team_id   | string | Yes      | The team ID |
+
+**Query Parameters:**
+| Parameter   | Type   | Required | Description                          |
+|-------------|--------|----------|--------------------------------------|
+| department_id | number | No       | 指定 department_id，如果没有则获取的是整个 team 的 |
 
 **Response:** `200 OK`
 ```json

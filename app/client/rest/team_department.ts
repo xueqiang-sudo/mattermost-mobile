@@ -67,6 +67,12 @@ export type MMTeamVersion = {
     updated_at: number;
 };
 
+export type MMUpdateTeamVersionResponse = {
+    team_id: string;
+    version: string;
+    updated_at?: number;
+};
+
 export type MMDepartmentStats = {
     team_id: string;
     total_departments: number;
@@ -126,6 +132,7 @@ export type MMCreateDepartmentRequest = {
     name: string;
     description?: string;
     parent_id?: number | null;
+    is_unique_name?: boolean;
 };
 
 export type MMUpdateDepartmentRequest = {
@@ -165,13 +172,18 @@ export type MMDeleteEmployeeContactRequest = {
     contact_type: MMEmployeeContactType;
 };
 
+export type MMUpdateTeamVersionRequest = {
+    version: string;
+};
+
 export type MMUpdateContactVersionRequest = {
     version: string;
 };
 
 export interface ClientTeamDepartmentMix {
     getTeamVersion: (teamId: string) => Promise<MMTeamVersion>;
-    getDepartments: (teamId: string, page?: number, perPage?: number) => Promise<MMGetDepartmentsResponse>;
+    updateTeamVersion: (teamId: string, body: MMUpdateTeamVersionRequest) => Promise<MMUpdateTeamVersionResponse>;
+    getDepartments: (teamId: string, opts?: {parentId?: number; page?: number; perPage?: number}) => Promise<MMGetDepartmentsResponse>;
     createDepartment: (teamId: string, body: MMCreateDepartmentRequest) => Promise<MMDepartment>;
     getDepartment: (teamId: string, departmentId: number) => Promise<MMDepartment>;
     updateDepartment: (teamId: string, departmentId: number, body: MMUpdateDepartmentRequest) => Promise<MMDepartment>;
@@ -179,7 +191,7 @@ export interface ClientTeamDepartmentMix {
     getDepartmentTree: (teamId: string, opts?: {parentId?: number; page?: number; perPage?: number}) => Promise<MMDepartment[]>;
     getDepartmentChildren: (teamId: string, departmentId: number) => Promise<MMDepartment[]>;
     getDepartmentAncestors: (teamId: string, departmentId: number) => Promise<MMDepartmentAncestor[]>;
-    getDepartmentMembers: (teamId: string, departmentId: number, page?: number, perPage?: number) => Promise<MMDepartmentMembersWithCount>;
+    getDepartmentMembers: (teamId: string, departmentId: number, opts?: {page?: number; perPage?: number}) => Promise<MMDepartmentMembersWithCount>;
     addDepartmentMember: (teamId: string, departmentId: number, body: MMAddDepartmentMemberRequest) => Promise<MMStatusOK>;
     removeDepartmentMember: (teamId: string, departmentId: number, userId: string) => Promise<MMStatusOK>;
     batchAddDepartmentMembers: (teamId: string, departmentId: number, body: MMBatchDepartmentMembersRequest) => Promise<MMStatusOK>;
@@ -187,9 +199,8 @@ export interface ClientTeamDepartmentMix {
     moveDepartmentMember: (teamId: string, departmentId: number, body: MMMoveDepartmentMemberRequest) => Promise<MMStatusOK>;
     batchMoveDepartmentMembers: (teamId: string, body: MMBatchMoveDepartmentMembersRequest) => Promise<MMStatusOK>;
     getUserDepartments: (userId: string, teamId: string) => Promise<MMDepartment[]>;
-    getDepartmentStats: (teamId: string) => Promise<MMDepartmentStats>;
+    getDepartmentStats: (teamId: string, departmentId?: number) => Promise<MMDepartmentStats>;
     getEmployeeContacts: (userId: string, opts?: {contactType?: MMEmployeeContactType; page?: number; perPage?: number}) => Promise<MMEmployeeContact[]>;
-    getEmployeeContactsWithDetails: (userId: string, opts?: {contactType?: MMEmployeeContactType; page?: number; perPage?: number}) => Promise<MMEmployeeContactWithDetails[]>;
     addEmployeeContact: (userId: string, body: MMUpsertEmployeeContactRequest) => Promise<MMStatusOK>;
     updateEmployeeContact: (userId: string, body: MMUpsertEmployeeContactRequest) => Promise<MMStatusOK>;
     deleteEmployeeContact: (userId: string, body: MMDeleteEmployeeContactRequest) => Promise<MMStatusOK>;
@@ -369,8 +380,13 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         return data;
     };
 
-    getDepartments = (teamId: string, page = 0, perPage = PER_PAGE_DEFAULT) => {
-        const path = `${this.departmentsBase(teamId)}${buildQueryString({page, per_page: perPage})}`;
+    getDepartments = (teamId: string, opts?: {parentId?: number; page?: number; perPage?: number}) => {
+        const {parentId, page = 0, perPage = PER_PAGE_DEFAULT} = opts || {};
+        const q: Record<string, number> = {page, per_page: perPage};
+        if (typeof parentId === 'number') {
+            q.parent_id = parentId;
+        }
+        const path = `${this.departmentsBase(teamId)}${buildQueryString(q)}`;
         return this.doRequestTeamStructureGet<MMGetDepartmentsResponse>(teamId, path);
     };
 
@@ -435,8 +451,10 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         return this.doRequestTeamStructureGet<MMDepartmentAncestor[]>(teamId, path);
     };
 
-    getDepartmentMembers = (teamId: string, departmentId: number, page = 0, perPage = PER_PAGE_DEFAULT) => {
-        const path = `${this.departmentsBase(teamId)}/${departmentId}/members${buildQueryString({page, per_page: perPage})}`;
+    getDepartmentMembers = (teamId: string, departmentId: number, opts?: {page?: number; perPage?: number}) => {
+        const {page = 0, perPage = PER_PAGE_DEFAULT} = opts || {};
+        const q: Record<string, number> = {page, per_page: perPage};
+        const path = `${this.departmentsBase(teamId)}/${departmentId}/members${buildQueryString(q)}`;
         return this.doRequestTeamStructureGet<MMDepartmentMembersWithCount>(teamId, path);
     };
 
@@ -517,8 +535,8 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         return this.doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
     };
 
-    getDepartmentStats = (teamId: string) => {
-        const path = `${this.departmentsBase(teamId)}/stats`;
+    getDepartmentStats = (teamId: string, departmentId?: number) => {
+        const path = `${this.departmentsBase(teamId)}/stats${typeof departmentId === 'number' ? `?department_id=${departmentId}` : ''}`;
         return this.doRequestTeamStructureGet<MMDepartmentStats>(teamId, path);
     };
 
@@ -531,17 +549,6 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         }
         const path = `${this.getUserRoute(userId)}/contacts${buildQueryString(q)}`;
         return this.doRequestUserContactsGet<MMEmployeeContact[]>(userId, path);
-    };
-
-    getEmployeeContactsWithDetails = (userId: string, opts?: {contactType?: MMEmployeeContactType; page?: number; perPage?: number}) => {
-        const page = opts?.page ?? 0;
-        const perPage = opts?.perPage ?? PER_PAGE_DEFAULT;
-        const q: Record<string, string | number> = {page, per_page: perPage};
-        if (opts?.contactType) {
-            q.contact_type = opts.contactType;
-        }
-        const path = `${this.getUserRoute(userId)}/contacts/details${buildQueryString(q)}`;
-        return this.doRequestUserContactsGet<MMEmployeeContactWithDetails[]>(userId, path);
     };
 
     addEmployeeContact = async (userId: string, body: MMUpsertEmployeeContactRequest) => {

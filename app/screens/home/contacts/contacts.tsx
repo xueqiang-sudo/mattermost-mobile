@@ -2,7 +2,8 @@
 // See LICENSE.txt for license information.
 
 import {useIsFocused, useNavigation} from '@react-navigation/native';
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {type StackNavigationProp} from '@react-navigation/stack';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
@@ -10,16 +11,12 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
-    ensureTeamCompany,
-    fetchCanManageEnterprise,
-    fetchCompany,
-    fetchDepartmentsByCompany,
-    fetchEmployeeCountOfCompany,
+    ensureTeamDefaultDepartment,
+    fetchDepartmentsByTeam,
     fetchEmployeesOfDefaultDepartment,
-    fetchTeamCreatorId,
-    syncTeamMembersToCompany,
-} from '@actions/remote/contact';
-import {DEFAULT_DEPARTMENT_NAME, type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+} from '@actions/remote/contact_new';
+import {fetchTeamMemberCount} from '@actions/remote/team';
+import {DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
 import {ContactsBarEnterpriseTitle} from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
@@ -29,13 +26,16 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {getTeamById} from '@queries/servers/team';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
-import {logDebug, logInfo} from '@utils/log';
+import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import {type ContactsStackParamList} from './contacts_stack_param_list';
+
+import type {MMDepartment, MMDepartmentMemberUser} from '@client/rest/team_department';
 import type {Database} from '@nozbe/watermelondb';
+import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
 
 /** 通讯录在 Stack 内：不再用手动 topInset 条带（易与系统/导航层重复叠加成「双倍留白」），只由 SafeAreaView 统一处理四边 */
@@ -43,8 +43,9 @@ const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 type Props = {
     currentUser?: UserModel;
-    currentTeamId?: string;
+    currentTeam?: TeamModel;
     database?: Database;
+    isEnterpriseManager: boolean;
 
     /** RNN Home componentId；关管理弹窗时 Home 会 willAppear，用于刷新列表 */
     rnnHomeComponentId?: string;
@@ -176,27 +177,26 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     subSection: {},
 }));
 
-const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentId}: Props) => {
+const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager, rnnHomeComponentId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
+    const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, keyof ContactsStackParamList>>();
     const isFocused = useIsFocused();
     const isFocusedRef = useRef(isFocused);
     isFocusedRef.current = isFocused;
     const mounted = useRef(false);
 
-    const [topLevelDepartments, setTopLevelDepartments] = useState<ContactDepartment[]>([]);
-    const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<ContactEmployee[]>([]);
+    const currentTeamId = useMemo(() => currentTeam?.id, [currentTeam]);
+    const companyName = useMemo(() => currentTeam?.displayName?.trim(), [currentTeam]);
+
+    const [topLevelDepartments, setTopLevelDepartments] = useState<MMDepartment[]>([]);
+    const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<MMDepartmentMemberUser[]>([]);
     const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
-    const [companyName, setCompanyName] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
     const [contactsHeaderWidth, setContactsHeaderWidth] = useState(0);
     const [contactsHeaderActionsWidth, setContactsHeaderActionsWidth] = useState(0);
-
-    /** 仅企业管理者可管理通讯录、可自动创建 */
-    const [isEnterpriseManager, setIsEnterpriseManager] = useState(false);
 
     const contactsActionsReserve = Math.max(
         contactsHeaderActionsWidth,
@@ -219,11 +219,11 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
         if (!currentTeamId) {
             return;
         }
-        navigation.navigate(Screens.CONTACTS_SEARCH as never, {
+        navigation.navigate(Screens.CONTACTS_SEARCH, {
             companyId: currentTeamId,
             companyName,
             currentUserId: currentUser?.id,
-        } as never);
+        });
     }, [companyName, currentTeamId, currentUser?.id, navigation]));
 
     const handleManageContacts = usePreventDoubleTap(useCallback(() => {
@@ -266,58 +266,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                 return;
             }
 
-            const getRes = await fetchCompany(currentTeamId);
-            if (getRes.error && mounted.current && database) {
-                // 通讯录不存在：仅企业管理者（团队创建者或管理员）可自动创建
-                const team = await getTeamById(database, currentTeamId);
-                const teamName = team?.displayName?.trim();
-                const currentUserId = currentUser?.id;
-                if (teamName && serverUrl && currentUserId) {
-                    const canManage = await fetchCanManageEnterprise(serverUrl, currentTeamId, currentUserId, null);
-                    if (!canManage && mounted.current) {
-                        setIsEnterpriseManager(false);
-                        setLoading(false);
-                        return;
-                    }
-                    const ownerId = await fetchTeamCreatorId(serverUrl, currentTeamId);
-                    if (!ownerId || ownerId.trim() === '' || !mounted.current) {
-                        setLoading(false);
-                        return;
-                    }
-                    const ensureRes = await ensureTeamCompany(currentTeamId, teamName, ownerId);
-                    if (ensureRes.error && mounted.current) {
-                        setServiceError(true);
-                        setLoading(false);
-                        return;
-                    }
-                    if (mounted.current) {
-                        setCompanyName(teamName);
-                        setIsEnterpriseManager(true);
-                    }
-
-                    // 新建企业时，将团队成员同步到通讯录默认部门
-                    if (ensureRes.isNewCreate && serverUrl) {
-                        logInfo('new create company need sync team members, currentTeamId:', currentTeamId);
-                        await syncTeamMembersToCompany(serverUrl, currentTeamId, currentTeamId);
-                    }
-                } else {
-                    setLoading(false);
-                    return;
-                }
-            } else if (getRes.data?.name && mounted.current) {
-                setCompanyName(getRes.data.name);
-                const currentUserId = currentUser?.id;
-                if (currentUserId && serverUrl) {
-                    const canManage = await fetchCanManageEnterprise(serverUrl, currentTeamId!, currentUserId, getRes.data);
-                    setIsEnterpriseManager(canManage);
-                } else {
-                    setIsEnterpriseManager(false);
-                }
-            } else if (mounted.current) {
-                setIsEnterpriseManager(false);
-            }
-
-            const deptRes = await fetchDepartmentsByCompany(currentTeamId, {parentDepartmentId: -1});
+            const deptRes = await fetchDepartmentsByTeam(serverUrl, currentTeamId, {parentId: -1, perPage: 10000});
             if (!mounted.current) {
                 return;
             }
@@ -326,11 +275,17 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                 setLoading(false);
                 return;
             }
-            setTopLevelDepartments((deptRes.data || []).filter((d) => d.name !== DEFAULT_DEPARTMENT_NAME));
+
+            if (isEnterpriseManager && !deptRes.data?.find((d) => d.name === DEFAULT_TEAM_DEPARTMENT_NAME)) {
+                // 创建默认部门
+                await ensureTeamDefaultDepartment(serverUrl, currentTeamId);
+            }
+
+            setTopLevelDepartments((deptRes.data || []).filter((d) => d.name !== DEFAULT_TEAM_DEPARTMENT_NAME));
 
             const [defaultEmpRes, countRes] = await Promise.all([
-                fetchEmployeesOfDefaultDepartment(currentTeamId),
-                fetchEmployeeCountOfCompany(currentTeamId),
+                fetchEmployeesOfDefaultDepartment(serverUrl, currentTeamId),
+                fetchTeamMemberCount(serverUrl, currentTeamId),
             ]);
 
             if (!mounted.current) {
@@ -354,7 +309,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
         };
     }, [currentTeamId, currentUser?.id, database, isFocused, serverUrl, homeReappearTick]);
 
-    const handleDepartmentPress = usePreventDoubleTap(useCallback((department: ContactDepartment) => {
+    const handleDepartmentPress = usePreventDoubleTap(useCallback((department: MMDepartment) => {
         const breadcrumb = [
             intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
             department.name,
@@ -368,7 +323,7 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
         });
     }, [companyName, intl, currentTeamId, navigation]));
 
-    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee, deptName?: string) => {
+    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: MMDepartmentMemberUser, deptName?: string) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
@@ -493,64 +448,64 @@ const ContactsScreen = ({currentUser, currentTeamId, database, rnnHomeComponentI
                 style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
                 testID='contacts.screen'
             >
-                    <Animated.View style={[styles.flex, animated]}>
-                        <View style={styles.flex}>
+                <Animated.View style={[styles.flex, animated]}>
+                    <View style={styles.flex}>
+                        <View
+                            style={[styles.header, {position: 'relative', minHeight: 44}]}
+                            onLayout={(e) => setContactsHeaderWidth(e.nativeEvent.layout.width)}
+                        >
+                            <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={openAccount}
+                                style={{
+                                    position: 'absolute',
+                                    left: 16,
+                                    right: contactsActionsReserve + 16 + 8,
+                                    top: 0,
+                                    bottom: 0,
+                                    zIndex: 0,
+                                }}
+                                testID='contacts.header.account'
+                            />
+                            <ContactsBarEnterpriseTitle
+                                text={(companyName?.trim()) || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
+                                textStyle={styles.headerTitle}
+                                testID='contacts.header.title'
+                                barWidth={contactsHeaderWidth}
+                                actionsBlockWidth={contactsActionsReserve}
+                            />
                             <View
-                                style={[styles.header, {position: 'relative', minHeight: 44}]}
-                                onLayout={(e) => setContactsHeaderWidth(e.nativeEvent.layout.width)}
+                                style={[styles.headerActions, {zIndex: 2}]}
+                                onLayout={(e) => setContactsHeaderActionsWidth(e.nativeEvent.layout.width)}
                             >
                                 <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={openAccount}
-                                    style={{
-                                        position: 'absolute',
-                                        left: 16,
-                                        right: contactsActionsReserve + 16 + 8,
-                                        top: 0,
-                                        bottom: 0,
-                                        zIndex: 0,
-                                    }}
-                                    testID='contacts.header.account'
-                                />
-                                <ContactsBarEnterpriseTitle
-                                    text={(companyName?.trim()) || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
-                                    textStyle={styles.headerTitle}
-                                    testID='contacts.header.title'
-                                    barWidth={contactsHeaderWidth}
-                                    actionsBlockWidth={contactsActionsReserve}
-                                />
-                                <View
-                                    style={[styles.headerActions, {zIndex: 2}]}
-                                    onLayout={(e) => setContactsHeaderActionsWidth(e.nativeEvent.layout.width)}
+                                    style={styles.headerIconButton}
+                                    onPress={handleSearch}
+                                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                    testID='contacts.header.search'
                                 >
+                                    <CompassIcon
+                                        name='magnify'
+                                        size={24}
+                                        color={theme.sidebarHeaderTextColor}
+                                    />
+                                </TouchableOpacity>
+                                {isEnterpriseManager && (
                                     <TouchableOpacity
                                         style={styles.headerIconButton}
-                                        onPress={handleSearch}
+                                        onPress={handleManageContacts}
                                         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                                        testID='contacts.header.search'
+                                        testID='contacts.header.manage'
                                     >
                                         <CompassIcon
-                                            name='magnify'
+                                            name='format-list-bulleted'
                                             size={24}
                                             color={theme.sidebarHeaderTextColor}
                                         />
                                     </TouchableOpacity>
-                                    {isEnterpriseManager && (
-                                        <TouchableOpacity
-                                            style={styles.headerIconButton}
-                                            onPress={handleManageContacts}
-                                            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                                            testID='contacts.header.manage'
-                                        >
-                                            <CompassIcon
-                                                name='format-list-bulleted'
-                                                size={24}
-                                                color={theme.sidebarHeaderTextColor}
-                                            />
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
+                                )}
                             </View>
+                        </View>
                         <ScrollView
                             style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                             contentContainerStyle={[styles.scrollContent, {paddingBottom: 24}]}

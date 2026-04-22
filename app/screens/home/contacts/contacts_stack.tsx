@@ -11,27 +11,9 @@ import {Screens} from '@constants';
 import ContactsScreen from './contacts';
 import ContactsSearchScreen from './contacts_search';
 import ContactsDepartmentDetail from './department_detail';
+import {type ContactsStackParamList} from './contacts_stack_param_list';
 
 import type UserModel from '@typings/database/models/servers/user';
-
-type ContactsStackParamList = {
-    [Screens.CONTACTS]: undefined;
-    [Screens.CONTACTS_DEPARTMENT_DETAIL]: {
-        departmentId: number;
-        departmentName: string;
-        breadcrumb: string[];
-        companyId: string;
-        companyName?: string;
-    };
-    [Screens.CONTACTS_SEARCH]: {
-        companyId: string;
-        companyName?: string;
-        departmentId?: number;
-        departmentName?: string;
-        departmentBreadcrumb?: string[];
-        currentUserId?: string;
-    };
-};
 
 const Stack = createStackNavigator<ContactsStackParamList>();
 
