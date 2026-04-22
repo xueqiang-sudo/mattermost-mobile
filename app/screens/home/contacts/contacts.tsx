@@ -188,6 +188,7 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
     const mounted = useRef(false);
 
     const currentTeamId = useMemo(() => currentTeam?.id, [currentTeam]);
+    const currentUserId = useMemo(() => currentUser?.id, [currentUser]);
     const companyName = useMemo(() => currentTeam?.displayName?.trim(), [currentTeam]);
 
     const [topLevelDepartments, setTopLevelDepartments] = useState<MMDepartment[]>([]);
@@ -222,9 +223,9 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
         navigation.navigate(Screens.CONTACTS_SEARCH, {
             companyId: currentTeamId,
             companyName,
-            currentUserId: currentUser?.id,
+            currentUserId: currentUserId,
         });
-    }, [companyName, currentTeamId, currentUser?.id, navigation]));
+    }, [companyName, currentTeamId, currentUserId, navigation]));
 
     const handleManageContacts = usePreventDoubleTap(useCallback(() => {
         const closeButtonId = 'close-contacts-manage';
@@ -307,7 +308,7 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, currentUser?.id, database, isFocused, serverUrl, homeReappearTick]);
+    }, [currentTeamId, currentUserId, database, isFocused, serverUrl, homeReappearTick, isEnterpriseManager]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: MMDepartment) => {
         const breadcrumb = [
@@ -334,12 +335,12 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
                 departmentName: deptName,
                 companyName,
                 companyId: currentTeamId ?? undefined,
-                currentUserId: currentUser?.id,
+                currentUserId: currentUserId ?? '',
                 closeButtonId: `close-employee-${employee.id}`,
             },
             {useBackIcon: true},
         );
-    }, [companyName, currentTeamId, currentUser?.id, intl]));
+    }, [companyName, currentTeamId, currentUserId, intl]));
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
