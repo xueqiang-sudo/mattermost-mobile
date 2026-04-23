@@ -201,26 +201,26 @@ export interface ClientTeamDepartmentMix {
 }
 
 const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class ClientTeamDepartmentMixin extends superclass {
-    private versionByTeam = new Map<string, {version: string; at: number}>();
-    private versionInflightTeam = new Map<string, Promise<string>>();
-    private responseByTeam = new Map<string, Map<string, {version: string; data: unknown; at: number}>>();
+    #versionByTeam = new Map<string, {version: string; at: number}>();
+    #versionInflightTeam = new Map<string, Promise<string>>();
+    #responseByTeam = new Map<string, Map<string, {version: string; data: unknown; at: number}>>();
 
-    private versionByUserContacts = new Map<string, {version: string; at: number}>();
-    private versionInflightUserContacts = new Map<string, Promise<string>>();
-    private responseByUserContacts = new Map<string, Map<string, {version: string; data: unknown; at: number}>>();
+    #versionByUserContacts = new Map<string, {version: string; at: number}>();
+    #versionInflightUserContacts = new Map<string, Promise<string>>();
+    #responseByUserContacts = new Map<string, Map<string, {version: string; data: unknown; at: number}>>();
 
-    private departmentsBase(teamId: string) {
+    #departmentsBase(teamId: string) {
         return `${this.getTeamRoute(teamId)}/departments`;
     }
 
-    private async resolveTeamStructureVersion(teamId: string): Promise<string> {
+    async #resolveTeamStructureVersion(teamId: string): Promise<string> {
         const now = Date.now();
-        const cached = this.versionByTeam.get(teamId);
+        const cached = this.#versionByTeam.get(teamId);
         if (cached && now - cached.at <= MM_TEAM_DEPARTMENT_VERSION_CACHE_TTL_MS) {
             return cached.version;
         }
 
-        const inflight = this.versionInflightTeam.get(teamId);
+        const inflight = this.#versionInflightTeam.get(teamId);
         if (inflight) {
             return inflight;
         }
@@ -228,44 +228,44 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         const p = (async () => {
             const data = (await this.doFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'get'})) as MMTeamVersion;
             const v = data.version;
-            this.versionByTeam.set(teamId, {version: v, at: Date.now()});
+            this.#versionByTeam.set(teamId, {version: v, at: Date.now()});
             return v;
         })();
 
-        this.versionInflightTeam.set(teamId, p);
+        this.#versionInflightTeam.set(teamId, p);
         try {
             return await p;
         } finally {
-            this.versionInflightTeam.delete(teamId);
+            this.#versionInflightTeam.delete(teamId);
         }
     }
 
-    private async invalidateTeamStructureCache(teamId: string) {
-        this.versionByTeam.delete(teamId);
-        this.responseByTeam.delete(teamId);
-        this.versionInflightTeam.delete(teamId);
+    async #invalidateTeamStructureCache(teamId: string) {
+        this.#versionByTeam.delete(teamId);
+        this.#responseByTeam.delete(teamId);
+        this.#versionInflightTeam.delete(teamId);
         const baseUrl = this.getBaseRoute();
         if (MM_TEAM_DEPARTMENT_ENABLE_DISK_CACHE && baseUrl) {
             await clearContactDiskCacheCompany(baseUrl, teamDiskScopeKey(teamId));
         }
     }
 
-    private async doRequestTeamStructureGet<T>(teamId: string, path: string): Promise<T> {
+    async #doRequestTeamStructureGet<T>(teamId: string, path: string): Promise<T> {
         if (!MM_TEAM_DEPARTMENT_ENABLE_CACHE) {
             return (await this.doFetch(path, {method: 'get'})) as T;
         }
 
         let version: string;
         try {
-            version = await this.resolveTeamStructureVersion(teamId);
+            version = await this.#resolveTeamStructureVersion(teamId);
         } catch {
             return (await this.doFetch(path, {method: 'get'})) as T;
         }
 
-        let map = this.responseByTeam.get(teamId);
+        let map = this.#responseByTeam.get(teamId);
         if (!map) {
             map = new Map();
-            this.responseByTeam.set(teamId, map);
+            this.#responseByTeam.set(teamId, map);
         }
         const hit = map.get(path);
         if (hit && hit.version === version) {
@@ -289,14 +289,14 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         return data;
     }
 
-    private async resolveUserContactsVersion(userId: string): Promise<string> {
+    async #resolveUserContactsVersion(userId: string): Promise<string> {
         const now = Date.now();
-        const cached = this.versionByUserContacts.get(userId);
+        const cached = this.#versionByUserContacts.get(userId);
         if (cached && now - cached.at <= MM_TEAM_DEPARTMENT_VERSION_CACHE_TTL_MS) {
             return cached.version;
         }
 
-        const inflight = this.versionInflightUserContacts.get(userId);
+        const inflight = this.#versionInflightUserContacts.get(userId);
         if (inflight) {
             return inflight;
         }
@@ -304,44 +304,44 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         const p = (async () => {
             const data = (await this.doFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'get'})) as MMContactVersionInfo;
             const v = data.version;
-            this.versionByUserContacts.set(userId, {version: v, at: Date.now()});
+            this.#versionByUserContacts.set(userId, {version: v, at: Date.now()});
             return v;
         })();
 
-        this.versionInflightUserContacts.set(userId, p);
+        this.#versionInflightUserContacts.set(userId, p);
         try {
             return await p;
         } finally {
-            this.versionInflightUserContacts.delete(userId);
+            this.#versionInflightUserContacts.delete(userId);
         }
     }
 
-    private async invalidateUserContactsCache(userId: string) {
-        this.versionByUserContacts.delete(userId);
-        this.responseByUserContacts.delete(userId);
-        this.versionInflightUserContacts.delete(userId);
+    async #invalidateUserContactsCache(userId: string) {
+        this.#versionByUserContacts.delete(userId);
+        this.#responseByUserContacts.delete(userId);
+        this.#versionInflightUserContacts.delete(userId);
         const baseUrl = this.getBaseRoute();
         if (MM_TEAM_DEPARTMENT_ENABLE_DISK_CACHE && baseUrl) {
             await clearContactDiskCacheCompany(baseUrl, userContactsDiskScopeKey(userId));
         }
     }
 
-    private async doRequestUserContactsGet<T>(userId: string, path: string): Promise<T> {
+    async #doRequestUserContactsGet<T>(userId: string, path: string): Promise<T> {
         if (!MM_TEAM_DEPARTMENT_ENABLE_CACHE) {
             return (await this.doFetch(path, {method: 'get'})) as T;
         }
 
         let version: string;
         try {
-            version = await this.resolveUserContactsVersion(userId);
+            version = await this.#resolveUserContactsVersion(userId);
         } catch {
             return (await this.doFetch(path, {method: 'get'})) as T;
         }
 
-        let map = this.responseByUserContacts.get(userId);
+        let map = this.#responseByUserContacts.get(userId);
         if (!map) {
             map = new Map();
-            this.responseByUserContacts.set(userId, map);
+            this.#responseByUserContacts.set(userId, map);
         }
         const hit = map.get(path);
         if (hit && hit.version === version) {
@@ -368,7 +368,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     /** 返回团队结构当前版本（不参与「按版本缓存业务 GET」的封装，便于外部轮询）；会写入短期 version 缓存供后续 GET 命中 */
     getTeamVersion = async (teamId: string) => {
         const data = (await this.doFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'get'})) as MMTeamVersion;
-        this.versionByTeam.set(teamId, {version: data.version, at: Date.now()});
+        this.#versionByTeam.set(teamId, {version: data.version, at: Date.now()});
         return data;
     };
 
@@ -378,47 +378,47 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         if (typeof parentId === 'number') {
             q.parent_id = parentId;
         }
-        const path = `${this.departmentsBase(teamId)}${buildQueryString(q)}`;
-        return this.doRequestTeamStructureGet<MMGetDepartmentsResponse>(teamId, path);
+        const path = `${this.#departmentsBase(teamId)}${buildQueryString(q)}`;
+        return this.#doRequestTeamStructureGet<MMGetDepartmentsResponse>(teamId, path);
     };
 
     createDepartment = async (teamId: string, body: MMCreateDepartmentRequest) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(this.departmentsBase(teamId), {method: 'post', body})) as MMDepartment;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(this.#departmentsBase(teamId), {method: 'post', body})) as MMDepartment;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     getDepartment = (teamId: string, departmentId: number) => {
-        const path = `${this.departmentsBase(teamId)}/${departmentId}`;
-        return this.doRequestTeamStructureGet<MMDepartment>(teamId, path);
+        const path = `${this.#departmentsBase(teamId)}/${departmentId}`;
+        return this.#doRequestTeamStructureGet<MMDepartment>(teamId, path);
     };
 
     updateDepartment = async (teamId: string, departmentId: number, body: MMUpdateDepartmentRequest) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/${departmentId}`, {method: 'put', body})) as MMDepartment;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}`, {method: 'put', body})) as MMDepartment;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     deleteDepartment = async (teamId: string, departmentId: number) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/${departmentId}`, {method: 'delete'})) as MMStatusOK;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}`, {method: 'delete'})) as MMStatusOK;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
@@ -429,107 +429,107 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         if (typeof parentId === 'number') {
             q.parent_id = parentId;
         }
-        const path = `${this.departmentsBase(teamId)}/tree${buildQueryString(q)}`;
-        return this.doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
+        const path = `${this.#departmentsBase(teamId)}/tree${buildQueryString(q)}`;
+        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
     };
 
     getDepartmentChildren = (teamId: string, departmentId: number) => {
-        const path = `${this.departmentsBase(teamId)}/${departmentId}/children`;
-        return this.doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
+        const path = `${this.#departmentsBase(teamId)}/${departmentId}/children`;
+        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
     };
 
     getDepartmentAncestors = (teamId: string, departmentId: number) => {
-        const path = `${this.departmentsBase(teamId)}/${departmentId}/ancestors`;
-        return this.doRequestTeamStructureGet<MMDepartmentAncestor[]>(teamId, path);
+        const path = `${this.#departmentsBase(teamId)}/${departmentId}/ancestors`;
+        return this.#doRequestTeamStructureGet<MMDepartmentAncestor[]>(teamId, path);
     };
 
     getDepartmentMembers = (teamId: string, departmentId: number, opts?: {page?: number; perPage?: number}) => {
         const {page = 0, perPage = PER_PAGE_DEFAULT} = opts || {};
         const q: Record<string, number> = {page, per_page: perPage};
-        const path = `${this.departmentsBase(teamId)}/${departmentId}/members${buildQueryString(q)}`;
-        return this.doRequestTeamStructureGet<MMDepartmentMembersWithCount>(teamId, path);
+        const path = `${this.#departmentsBase(teamId)}/${departmentId}/members${buildQueryString(q)}`;
+        return this.#doRequestTeamStructureGet<MMDepartmentMembersWithCount>(teamId, path);
     };
 
     addDepartmentMember = async (teamId: string, departmentId: number, body: MMAddDepartmentMemberRequest) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/${departmentId}/members`, {method: 'post', body})) as MMStatusOK;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members`, {method: 'post', body})) as MMStatusOK;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     removeDepartmentMember = async (teamId: string, departmentId: number, userId: string) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/${departmentId}/members/${encodeURIComponent(userId)}`, {method: 'delete'})) as MMStatusOK;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/${encodeURIComponent(userId)}`, {method: 'delete'})) as MMStatusOK;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     batchAddDepartmentMembers = async (teamId: string, departmentId: number, body: MMBatchDepartmentMembersRequest) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'post', body})) as MMStatusOK;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'post', body})) as MMStatusOK;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     batchRemoveDepartmentMembers = async (teamId: string, departmentId: number, body: MMBatchDepartmentMembersRequest) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'delete', body})) as MMStatusOK;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'delete', body})) as MMStatusOK;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     moveDepartmentMember = async (teamId: string, departmentId: number, body: MMMoveDepartmentMemberRequest) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/${departmentId}/members/move`, {method: 'post', body})) as MMStatusOK;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/move`, {method: 'post', body})) as MMStatusOK;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     batchMoveDepartmentMembers = async (teamId: string, body: MMBatchMoveDepartmentMembersRequest) => {
-        await this.invalidateTeamStructureCache(teamId);
+        await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.departmentsBase(teamId)}/members/move-batch`, {method: 'post', body})) as MMStatusOK;
-            await this.invalidateTeamStructureCache(teamId);
+            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/members/move-batch`, {method: 'post', body})) as MMStatusOK;
+            await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
-            await this.invalidateTeamStructureCache(teamId);
+            await this.#invalidateTeamStructureCache(teamId);
             throw e;
         }
     };
 
     getUserDepartments = (userId: string, teamId: string) => {
         const path = `${this.getUserRoute(userId)}/departments${buildQueryString({team_id: teamId})}`;
-        return this.doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
+        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
     };
 
     getDepartmentStats = (teamId: string, departmentId?: number) => {
-        const path = `${this.departmentsBase(teamId)}/stats${typeof departmentId === 'number' ? `?department_id=${departmentId}` : ''}`;
-        return this.doRequestTeamStructureGet<MMDepartmentStats>(teamId, path);
+        const path = `${this.#departmentsBase(teamId)}/stats${typeof departmentId === 'number' ? `?department_id=${departmentId}` : ''}`;
+        return this.#doRequestTeamStructureGet<MMDepartmentStats>(teamId, path);
     };
 
     getEmployeeContacts = (userId: string, opts?: {contactType?: MMEmployeeContactType; granularity?: 1 | 2; page?: number; perPage?: number}) => {
@@ -544,59 +544,59 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             q.granularity = opts.granularity;
         }
         const path = `${this.getUserRoute(userId)}/contacts${buildQueryString(q)}`;
-        return this.doRequestUserContactsGet<MMEmployeeContact[]>(userId, path);
+        return this.#doRequestUserContactsGet<MMEmployeeContact[]>(userId, path);
     };
 
     addEmployeeContact = async (userId: string, body: MMUpsertEmployeeContactRequest) => {
-        await this.invalidateUserContactsCache(userId);
+        await this.#invalidateUserContactsCache(userId);
         try {
             const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'post', body})) as MMStatusOK;
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             throw e;
         }
     };
 
     updateEmployeeContact = async (userId: string, body: MMUpsertEmployeeContactRequest) => {
-        await this.invalidateUserContactsCache(userId);
+        await this.#invalidateUserContactsCache(userId);
         try {
             const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'put', body})) as MMStatusOK;
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             throw e;
         }
     };
 
     deleteEmployeeContact = async (userId: string, body: MMDeleteEmployeeContactRequest) => {
-        await this.invalidateUserContactsCache(userId);
+        await this.#invalidateUserContactsCache(userId);
         try {
             const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'delete', body})) as MMStatusOK;
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             throw e;
         }
     };
 
     getUserContactVersion = async (userId: string) => {
         const data = (await this.doFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'get'})) as MMContactVersionInfo;
-        this.versionByUserContacts.set(userId, {version: data.version, at: Date.now()});
+        this.#versionByUserContacts.set(userId, {version: data.version, at: Date.now()});
         return data;
     };
 
     updateUserContactVersion = async (userId: string, body: MMUpdateContactVersionRequest) => {
-        await this.invalidateUserContactsCache(userId);
+        await this.#invalidateUserContactsCache(userId);
         try {
             const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'put', body})) as MMUpdateContactVersionResponse;
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {
-            await this.invalidateUserContactsCache(userId);
+            await this.#invalidateUserContactsCache(userId);
             throw e;
         }
     };
