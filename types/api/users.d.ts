@@ -80,6 +80,8 @@ type UserProfile = {
     status?: string;
     bot_description?: string;
     bot_last_icon_update?: number;
+    country_code?: string;
+    phone?: string;
 };
 
 type UsersState = {
@@ -140,8 +142,10 @@ type SearchUserOptions = {
 	in_group_id?: string;
 	group_constrained?: boolean;
 	allow_inactive?: boolean;
-	without_team?: string;
-	limit?: string;
+	without_team?: boolean;
+	limit?: number;
+    department_id?: number;
+    exact_match?: boolean;
 };
 
 type GetUsersOptions = {

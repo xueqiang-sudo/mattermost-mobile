@@ -1,6 +1,6 @@
 # Department Management API Documentation
 
-本文档描述了 Mattermost 部门管理系统的所有 API 端点，包括部门管理、成员管理、员工联系人管理以及版本同步功能。
+本文档描述了 Mattermost 部门管理系统的所有 API 端点，包括部门管理、成员管理、员工联系人管理、版本同步功能，以及与本项目配合使用的 Mattermost 标准用户搜索接口。
 
 ---
 
@@ -41,6 +41,8 @@
     - [7.1 Get Department Stats](#71-get-department-stats)
   - [8. Team Version Management](#8-team-version-management)
     - [8.1 Get Team Version](#81-get-team-version)
+  - [9. User Search (Mattermost)](#9-user-search-mattermost)
+    - [9.1 Search Users](#91-search-users)
   - [Cache Synchronization Strategy](#cache-synchronization-strategy)
     - [Recommended Approach](#recommended-approach)
     - [Best Practices](#best-practices)
@@ -1170,6 +1172,67 @@ curl -X GET \
   'http://localhost:8065/api/v4/teams/abc123/version' \
   -H 'Authorization: Bearer TOKEN'
 ```
+
+---
+
+## 9. User Search (Mattermost)
+
+本节为 Mattermost 平台自带的用户搜索能力，常用于选人、加成员、通讯录检索等场景。完整字段与行为以官方文档为准。
+
+**官方参考：** [SearchUsers](https://developers.mattermost.com/api-documentation/#/operations/SearchUsers)
+
+### 9.1 Search Users
+
+按关键词在指定范围（团队、频道等）内搜索用户，返回 `User` 对象数组。
+
+**Endpoint:** `POST /users/search`
+
+**Permissions:** 需已认证；实际可见用户受团队/频道成员关系及服务器「用户可见性」等策略约束。
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| term | string | 是 | 搜索关键词（用户名、姓名等，具体匹配规则见官方说明） |
+| team_id | string | 否 | 限定在指定团队内搜索 |
+| not_in_team | string | 否 | 排除指定团队内的用户 |
+| in_channel_id | string | 否 | 限定在指定频道成员中搜索 |
+| not_in_channel_id | string | 否 | 排除指定频道内的用户 |
+| in_group_id | string | 否 | 限定在指定用户组内 |
+| group_constrained | boolean | 否 | 与组约束相关的过滤 |
+| allow_inactive | boolean | 否 | 是否包含已停用用户 |
+| without_team | boolean | 否 | 与「无团队」用户相关的过滤（见官方 API） |
+| limit | number | 否 | 返回条数上限（数字形式，与客户端一致） |
+
+**本仓库扩展字段（若服务端支持）：**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| department_id | number | 否 | 按部门维度过滤（与自定义部门功能配合时使用） |
+| exact_match | boolean | 否 | 是否精确匹配 |
+
+**Response:** `200 OK`
+
+返回 JSON 数组，元素为 Mattermost `User` / `UserProfile` 结构（字段与标准用户对象一致，如 `id`、`username`、`email`、`first_name`、`last_name` 等）。
+
+**Example:**
+```bash
+curl -X POST \
+  'http://localhost:8065/api/v4/users/search' \
+  -H 'Authorization: Bearer TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "term": "zhang",
+    "team_id": "abc123...",
+    "allow_inactive": false,
+    "limit": "50"
+  }'
+```
+
+**Notes:**
+- 与 `GET /users` 分页列表不同，本接口用于**按条件检索**，适合搜索框、选人组件。
+- 客户端封装见 `ClientUsers.searchUsers`（`POST` 至 `users/search`，body 为 `{ term, ...options }`）；类型定义见 `types/api/users.d.ts` 中的 `SearchUserOptions`。
+- 与「@ 提及自动完成」等场景相比，部分界面使用 `GET /users/autocomplete`（查询参数如 `in_team`、`in_channel`、`name`），与 `POST /users/search` 用途不同，请按产品需求选择。
 
 ---
 

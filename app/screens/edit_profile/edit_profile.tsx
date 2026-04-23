@@ -70,7 +70,7 @@ const EditProfile = ({
         nickname: currentUser?.nickname || '',
         position: currentUser?.position || '',
         username: currentUser?.username || '',
-        phone: realPhone(currentUser?.phone, currentUser?.countrycode),
+        phone: realPhone(currentUser?.phone, currentUser?.country_code),
         customAttributes: {},
     });
     const [canSave, setCanSave] = useState(false);

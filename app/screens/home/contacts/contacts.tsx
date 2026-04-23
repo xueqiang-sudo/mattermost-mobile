@@ -11,7 +11,7 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
-    ensureTeamDefaultDepartment,
+    syncTeamMembersToDefaultDepartment,
     fetchDepartmentsByTeam,
     fetchEmployeesOfDefaultDepartment,
 } from '@actions/remote/contact_new';
@@ -33,7 +33,7 @@ import {typography} from '@utils/typography';
 
 import {type ContactsStackParamList} from './contacts_stack_param_list';
 
-import type {MMDepartment, MMDepartmentMemberUser} from '@client/rest/team_department';
+import type {MMDepartment} from '@client/rest/team_department';
 import type {Database} from '@nozbe/watermelondb';
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
@@ -192,7 +192,7 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
     const companyName = useMemo(() => currentTeam?.displayName?.trim(), [currentTeam]);
 
     const [topLevelDepartments, setTopLevelDepartments] = useState<MMDepartment[]>([]);
-    const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<MMDepartmentMemberUser[]>([]);
+    const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<UserProfile[]>([]);
     const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
@@ -278,8 +278,8 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
             }
 
             if (isEnterpriseManager && !deptRes.data?.find((d) => d.name === DEFAULT_TEAM_DEPARTMENT_NAME)) {
-                // 创建默认部门
-                await ensureTeamDefaultDepartment(serverUrl, currentTeamId);
+                // 创建默认部门 && 同步团队成员到默认部门
+                await syncTeamMembersToDefaultDepartment(serverUrl, currentTeamId);
             }
 
             setTopLevelDepartments((deptRes.data || []).filter((d) => d.name !== DEFAULT_TEAM_DEPARTMENT_NAME));
@@ -324,7 +324,7 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
         });
     }, [companyName, intl, currentTeamId, navigation]));
 
-    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: MMDepartmentMemberUser, deptName?: string) => {
+    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile, deptName?: string) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,

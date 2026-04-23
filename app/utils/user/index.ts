@@ -103,6 +103,15 @@ export function displayUsername(user?: UserProfile | UserModel | null, locale?: 
     return name;
 }
 
+export function user2FullPhone(user?: UserProfile | UserModel | null): string {
+    if (!user) {
+        return '';
+    }
+    const countryCode = user.country_code ? `${user.country_code.includes('+') ? '' : '+'}${user.country_code}` : '+86';
+    const phone = user.phone || '';
+    return `${countryCode} ${phone}`;
+}
+
 export function displayGroupMessageName(users: Array<UserProfile | UserModel>, locale?: string, _teammateDisplayNameSetting?: string, excludeUserId?: string) {
     const names: string[] = [];
     const sortUsernames = (a: string, b: string) => {

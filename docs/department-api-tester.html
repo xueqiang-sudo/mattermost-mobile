@@ -191,7 +191,7 @@
 <body>
   <div class="container">
     <h1>部门管理 API 测试工具</h1>
-    <p style="color: var(--text-muted); margin-bottom: 8px;">基于 <code>docs/department_api.md</code>、<code>docs/team_version_api.md</code> — Mattermost <code>/api/v4</code></p>
+    <p style="color: var(--text-muted); margin-bottom: 8px;">基于 <code>docs/department_api.md</code>（含第 9 节用户搜索）、<code>docs/team_version_api.md</code> — Mattermost <code>/api/v4</code></p>
     <p class="config-hint" style="margin-bottom: 24px;">认证：<strong>Authorization: Bearer</strong>（Personal Access Token 或等价令牌）。与通讯录测试页的 <code>X-API-KEY</code> 不同。</p>
 
     <div class="config">
@@ -535,6 +535,30 @@
     </div>
 
     <div class="section">
+      <div class="section-header">用户搜索（Mattermost SearchUsers）</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/users/search</span>
+            </div>
+            <p class="status">官方 <a href="https://developers.mattermost.com/api-documentation/#/operations/SearchUsers" style="color: var(--accent);" target="_blank" rel="noopener noreferrer">SearchUsers</a>；请求体 JSON：<code>term</code> 必填，可选 <code>team_id</code>、<code>in_channel_id</code>、<code>allow_inactive</code>、<code>limit</code> 等（见 <code>docs/department_api.md</code> §9）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_users_search" rows="8">{
+  "term": "1",
+  "team_id": "",
+  "allow_inactive": false,
+  "limit": 50
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathUsersSearch(), document.getElementById('body_users_search').value)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-header">员工联系人管理</div>
       <div class="section-body">
         <div class="endpoint">
@@ -759,6 +783,10 @@
       return '/api/v4/users/' + pathUser() + '/departments' + (qs ? '?' + qs : '');
     }
 
+    function pathUsersSearch() {
+      return '/api/v4/users/search';
+    }
+
     function pathUserContactsBase() {
       return '/api/v4/users/' + pathUser() + '/contacts';
     }
@@ -832,6 +860,18 @@
       const qTeam = document.getElementById('q_user_dept_team');
       if (qTeam && team) {
         qTeam.value = team;
+      }
+
+      const elUsersSearch = document.getElementById('body_users_search');
+      if (elUsersSearch) {
+        try {
+          const teamVal = (document.getElementById('shared_team_id') && document.getElementById('shared_team_id').value.trim()) || team;
+          const obj = elUsersSearch.value.trim() ? JSON.parse(elUsersSearch.value) : { term: '1', allow_inactive: false, limit: 50 };
+          if (teamVal) {
+            obj.team_id = teamVal;
+          }
+          elUsersSearch.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
       }
 
       const memUser = (document.getElementById('member_user_id') && document.getElementById('member_user_id').value.trim()) || user;

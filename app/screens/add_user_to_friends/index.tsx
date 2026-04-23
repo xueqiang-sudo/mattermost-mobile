@@ -6,14 +6,13 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, Modal, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 
-import {fetchMergedUserProfileForQrCard, type MergedQrCardUserProfile} from '@actions/remote/contact';
 import {
     addEmployeeContact,
     fetchAllEmployeeContacts,
 } from '@actions/remote/employee_contact';
+import {fetchUserById} from '@actions/remote/user';
 import {EmployeeContactTypes, type EmployeeContactType} from '@client/rest/employee_contact';
 import CompassIcon from '@components/compass_icon';
-import ContactAvatar from '@components/contact_avatar';
 import FormattedText from '@components/formatted_text';
 import Loading from '@components/loading';
 import ProfilePicture from '@components/profile_picture';
@@ -22,11 +21,13 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {getCurrentUserId} from '@queries/servers/system';
 import SecurityManager from '@managers/security_manager';
+import {getCurrentUserId} from '@queries/servers/system';
 import {dismissModal} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {user2FullPhone, username2Nickname} from '@utils/user';
+
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type AddUserToFriendsProps = {
@@ -271,7 +272,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [sheetVisible, setSheetVisible] = useState(false);
-    const [mergedProfile, setMergedProfile] = useState<MergedQrCardUserProfile | undefined>();
+    const [targetUProfile, setTargetUProfile] = useState<UserProfile | undefined>();
     const [relationState, setRelationState] = useState<RelationState>({
         isSupplier: false,
         isCustomer: false,
@@ -294,18 +295,18 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                 return;
             }
             setLoading(true);
-            const ownerId = await getCurrentUserId(database);
-            const [mergedRes, relationRes] = await Promise.all([
-                fetchMergedUserProfileForQrCard(serverUrl, uid, intl.locale),
-                ownerId ? fetchAllEmployeeContacts(ownerId) : Promise.resolve({}),
+            const currUid = await getCurrentUserId(database);
+            const [targetUProfile, relationRes] = await Promise.all([
+                fetchUserById(serverUrl, uid),
+                currUid ? fetchAllEmployeeContacts(currUid) : Promise.resolve({}),
             ]);
             if (!mounted) {
                 return;
             }
             const suppliers = relationRes.data?.suppliers ?? [];
             const customers = relationRes.data?.customers ?? [];
-            setCurrentUserId(ownerId);
-            setMergedProfile(mergedRes.data);
+            setCurrentUserId(currUid);
+            setTargetUProfile(targetUProfile);
             setRelationState({
                 isSupplier: suppliers.some((contact) => contact.id === uid),
                 isCustomer: customers.some((contact) => contact.id === uid),
@@ -367,9 +368,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
     } else if (forcedEmployeeContactType === EmployeeContactTypes.Customer) {
         forcedTypeAlreadyAdded = relationState.isCustomer;
     }
-    const mainButtonDisabled = isForcedMode
-        ? saving || isSelf || forcedTypeAlreadyAdded
-        : saving || allRelationsAdded || isSelf;
+    const mainButtonDisabled = isForcedMode? saving || isSelf || forcedTypeAlreadyAdded: saving || allRelationsAdded || isSelf;
 
     let addContactButtonId = 'add_user_to_friends.add_contact';
     let addContactButtonDefault = 'Add contact';
@@ -383,10 +382,8 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
         }
     }
 
-    const userDisplayName = mergedProfile?.displayName ?? uid ?? '-';
-    const userAccount = mergedProfile?.mattermostUser?.username
-        ? `@${mergedProfile.mattermostUser.username}`
-        : '';
+    const userDisplayName = username2Nickname(targetUProfile, {locale: intl.locale, includeFullName: false}) ?? uid ?? '-';
+    const userAccount = targetUProfile?.username ? `@${targetUProfile.username}` : '';
 
     const renderRelationTag = (
         iconName: string,
@@ -453,16 +450,11 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                     <>
                         <View style={styles.card}>
                             <View style={styles.userRow}>
-                                {mergedProfile?.mattermostUser ? (
+                                {targetUProfile ? (
                                     <ProfilePicture
-                                        author={mergedProfile.mattermostUser}
+                                        author={targetUProfile}
                                         size={52}
                                         showStatus={false}
-                                    />
-                                ) : mergedProfile?.contactEmployee ? (
-                                    <ContactAvatar
-                                        employee={mergedProfile.contactEmployee}
-                                        size={52}
                                     />
                                 ) : (
                                     <CompassIcon
@@ -527,17 +519,18 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                             />
                         ) : null}
 
-                        {(mergedProfile?.email || mergedProfile?.phone || mergedProfile?.position) ? (
+                        {(targetUProfile?.email || targetUProfile?.phone || targetUProfile?.position) ? (
                             <View style={styles.detailSection}>
                                 <Text style={styles.detailSectionTitle}>
                                     {intl.formatMessage({id: 'contacts.contact_info', defaultMessage: 'Contact Info'})}
                                 </Text>
                                 <View style={styles.detailCard}>
-                                    {mergedProfile.email ? (
-                                        <View style={[
-                                            styles.detailRow,
-                                            !(mergedProfile.phone || mergedProfile.position) && styles.detailRowLast,
-                                        ]}
+                                    {targetUProfile.email ? (
+                                        <View
+                                            style={[
+                                                styles.detailRow,
+                                                !(targetUProfile.phone || targetUProfile.position) && styles.detailRowLast,
+                                            ]}
                                         >
                                             <Text style={styles.detailLabel}>
                                                 {intl.formatMessage({id: 'contacts.email', defaultMessage: 'Email'})}
@@ -546,15 +539,16 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                                                 style={styles.detailValue}
                                                 numberOfLines={2}
                                             >
-                                                {mergedProfile.email}
+                                                {targetUProfile.email}
                                             </Text>
                                         </View>
                                     ) : null}
-                                    {mergedProfile.phone ? (
-                                        <View style={[
-                                            styles.detailRow,
-                                            !mergedProfile.position && styles.detailRowLast,
-                                        ]}
+                                    {targetUProfile.phone ? (
+                                        <View
+                                            style={[
+                                                styles.detailRow,
+                                                !targetUProfile.position && styles.detailRowLast,
+                                            ]}
                                         >
                                             <Text style={styles.detailLabel}>
                                                 {intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'})}
@@ -563,11 +557,11 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                                                 style={styles.detailValue}
                                                 numberOfLines={1}
                                             >
-                                                {mergedProfile.phone}
+                                                {user2FullPhone(targetUProfile)}
                                             </Text>
                                         </View>
                                     ) : null}
-                                    {mergedProfile.position ? (
+                                    {targetUProfile.position ? (
                                         <View style={[styles.detailRow, styles.detailRowLast]}>
                                             <Text style={styles.detailLabel}>
                                                 {intl.formatMessage({id: 'contacts.position', defaultMessage: 'Position'})}
@@ -576,7 +570,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                                                 style={styles.detailValue}
                                                 numberOfLines={2}
                                             >
-                                                {mergedProfile.position}
+                                                {targetUProfile.position}
                                             </Text>
                                         </View>
                                     ) : null}

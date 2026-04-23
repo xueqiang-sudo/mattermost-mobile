@@ -128,7 +128,7 @@ declare class UserModel extends Model {
 
     phone: string | null;
 
-    countrycode: string | null;
+    country_code: string | null;
 }
 
 export default UserModel;

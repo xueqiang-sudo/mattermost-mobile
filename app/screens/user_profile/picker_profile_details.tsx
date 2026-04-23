@@ -72,7 +72,7 @@ export function formatPickerProfilePhone(user: UserModel): string | null {
     if (!p) {
         return null;
     }
-    const c = user.countrycode?.trim();
+    const c = user.country_code?.trim();
     if (c) {
         return `${c} ${p}`;
     }

@@ -28,7 +28,7 @@ export interface ClientTeamsMix {
     sendGuestEmailInvitesToTeamGracefully: (teamId: string, emails: string[], channels: string[], message?: string, magicLink?: boolean) => Promise<TeamInviteWithError[]>;
     joinTeam: (inviteId: string) => Promise<TeamMembership>;
     removeFromTeam: (teamId: string, userId: string) => Promise<any>;
-    getTeamStats: (teamId: string) => Promise<any>;
+    getTeamStats: (teamId: string) => Promise<{team_id: string; total_member_count: number}>;
     getTeamIconUrl: (teamId: string, lastTeamIconUpdate: number) => string;
     existsTeam: (name: string) => Promise<boolean>;
 }

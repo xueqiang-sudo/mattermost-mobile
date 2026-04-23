@@ -26,6 +26,9 @@ export const MM_TEAM_DEPARTMENT_ENABLE_DISK_CACHE = true;
 
 const MM_TEAM_DEPARTMENT_VERSION_CACHE_TTL_MS = 5000;
 
+export const FULL_PER_PAGE = -1; // 全量
+export const MAX_PER_PAGE = 10000; // 最大每页数量
+
 function teamDiskScopeKey(teamId: string): string {
     return `mm_team:${teamId}`;
 }
@@ -81,18 +84,8 @@ export type MMDepartmentStats = {
     average_members_per_department: number;
 };
 
-export type MMDepartmentMemberUser = {
-    id: string;
-    username: string;
-    email?: string;
-    first_name?: string;
-    last_name?: string;
-    nickname?: string;
-    position?: string;
-};
-
 export type MMDepartmentMembersWithCount = {
-    members: MMDepartmentMemberUser[];
+    members: UserProfile[];
     total_count: number;
 };
 

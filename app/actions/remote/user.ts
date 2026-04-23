@@ -928,3 +928,14 @@ export const updateCustomAttributes = async (serverUrl: string, attributes: Cust
         return {error, success: false};
     }
 };
+
+export const fetchUserById = async (serverUrl: string, userId: string): Promise<UserProfile | undefined> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const user = await client.getUser(userId);
+        return user;
+    } catch (error) {
+        logDebug('error on fetchUserById', getFullErrorMessage(error));
+        return undefined;
+    }
+};
