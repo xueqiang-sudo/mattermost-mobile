@@ -89,24 +89,23 @@ export type MMDepartmentMembersWithCount = {
     total_count: number;
 };
 
-export type MMEmployeeContactType = 'customer' | 'supplier';
+/** 联系人类型枚举：customer=客户，supplier=供应商 */
+export const MMEmployeeContactTypes = {
+    Customer: 'customer',
+    Supplier: 'supplier',
+} as const;
+export type MMEmployeeContactType = typeof MMEmployeeContactTypes[keyof typeof MMEmployeeContactTypes];
 
 export type MMEmployeeContact = {
     id: string;
     employee_id: string;
     contact_id: string;
+    contact?: UserProfile | SimpleUserProfile;
     contact_type: MMEmployeeContactType;
     description: string;
     remark: string;
     create_at: number;
     update_at: number;
-};
-
-export type MMEmployeeContactWithDetails = MMEmployeeContact & {
-    employee_name?: string;
-    employee_email?: string;
-    contact_name?: string;
-    contact_email?: string;
 };
 
 export type MMContactVersionInfo = {
@@ -193,7 +192,7 @@ export interface ClientTeamDepartmentMix {
     batchMoveDepartmentMembers: (teamId: string, body: MMBatchMoveDepartmentMembersRequest) => Promise<MMStatusOK>;
     getUserDepartments: (userId: string, teamId: string) => Promise<MMDepartment[]>;
     getDepartmentStats: (teamId: string, departmentId?: number) => Promise<MMDepartmentStats>;
-    getEmployeeContacts: (userId: string, opts?: {contactType?: MMEmployeeContactType; page?: number; perPage?: number}) => Promise<MMEmployeeContact[]>;
+    getEmployeeContacts: (userId: string, opts?: {contactType?: MMEmployeeContactType; granularity?: 1 | 2; page?: number; perPage?: number}) => Promise<MMEmployeeContact[]>;
     addEmployeeContact: (userId: string, body: MMUpsertEmployeeContactRequest) => Promise<MMStatusOK>;
     updateEmployeeContact: (userId: string, body: MMUpsertEmployeeContactRequest) => Promise<MMStatusOK>;
     deleteEmployeeContact: (userId: string, body: MMDeleteEmployeeContactRequest) => Promise<MMStatusOK>;
@@ -201,7 +200,7 @@ export interface ClientTeamDepartmentMix {
     updateUserContactVersion: (userId: string, body: MMUpdateContactVersionRequest) => Promise<MMUpdateContactVersionResponse>;
 }
 
-const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
+const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class ClientTeamDepartmentMixin extends superclass {
     private versionByTeam = new Map<string, {version: string; at: number}>();
     private versionInflightTeam = new Map<string, Promise<string>>();
     private responseByTeam = new Map<string, Map<string, {version: string; data: unknown; at: number}>>();
@@ -533,12 +532,16 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         return this.doRequestTeamStructureGet<MMDepartmentStats>(teamId, path);
     };
 
-    getEmployeeContacts = (userId: string, opts?: {contactType?: MMEmployeeContactType; page?: number; perPage?: number}) => {
+    getEmployeeContacts = (userId: string, opts?: {contactType?: MMEmployeeContactType; granularity?: 1 | 2; page?: number; perPage?: number}) => {
         const page = opts?.page ?? 0;
         const perPage = opts?.perPage ?? PER_PAGE_DEFAULT;
         const q: Record<string, string | number> = {page, per_page: perPage};
         if (opts?.contactType) {
             q.contact_type = opts.contactType;
+        }
+        if (opts?.granularity) {
+            // granularity	integer	控制返回的 contact 粒度。 不传 – 不返回详细信息（仅返回 id, contact_id, contact_type）  1 – 完整 contact 用户信息   2 – 简洁 contact 用户信息（仅核心字段）
+            q.granularity = opts.granularity;
         }
         const path = `${this.getUserRoute(userId)}/contacts${buildQueryString(q)}`;
         return this.doRequestUserContactsGet<MMEmployeeContact[]>(userId, path);

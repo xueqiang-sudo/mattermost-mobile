@@ -1,9 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 import {PER_PAGE_DEFAULT, DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
-import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
-import {queryAllUsers} from '@queries/servers/user';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
 
@@ -42,10 +40,8 @@ export const syncTeamMembersToDefaultDepartment = async (serverUrl: string, team
         }
         await Promise.all(allDepartmentMemberPromises);
 
-        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-
         // 获取团队所有用户Id
-        const allUids = await queryAllUsers(database).fetchIds();
+        const allUids = (await client.getTeamMembers(teamId, 0, 10000)).map((item) => item.user_id);
 
         const needAddUserIds: string[] = allUids.filter((uid) => !allDepartmentMemberIds.has(uid));
         if (needAddUserIds.length) {

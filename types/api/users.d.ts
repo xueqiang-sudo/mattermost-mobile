@@ -53,22 +53,27 @@ type CustomProfileAttribute = {
     delete_at: number;
 }
 
-type UserProfile = {
+type SimpleUserProfile = {
     id: string;
-    create_at: number;
-    update_at: number;
-    delete_at: number;
     username: string;
-    auth_data?: string;
-    auth_service: string;
     email: string;
-    email_verified?: boolean;
     nickname: string;
     first_name: string;
     last_name: string;
     position: string;
     roles: string;
     locale: string;
+    country_code?: string;
+    phone?: string;
+}
+
+type UserProfile = SimpleUserProfile & {
+    create_at: number;
+    update_at: number;
+    delete_at: number;
+    auth_data?: string;
+    auth_service: string;
+    email_verified?: boolean;
     notify_props: UserNotifyProps;
     props?: UserProps;
     terms_of_service_id?: string;
@@ -80,8 +85,6 @@ type UserProfile = {
     status?: string;
     bot_description?: string;
     bot_last_icon_update?: number;
-    country_code?: string;
-    phone?: string;
 };
 
 type UsersState = {
