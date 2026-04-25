@@ -42,6 +42,7 @@
     - [7.1 Get Department Stats](#71-get-department-stats)
   - [8. Team Version Management](#8-team-version-management)
     - [8.1 Get Team Version](#81-get-team-version)
+    - [8.2 Update Team Version](#82-update-team-version)
   - [9. User Search (Mattermost)](#9-user-search-mattermost)
     - [9.1 Search Users](#91-search-users)
   - [Cache Synchronization Strategy](#cache-synchronization-strategy)
@@ -1188,7 +1189,7 @@ curl -X GET \
 
 获取团队的当前版本号（用于缓存同步）。
 
-**Endpoint:** `GET /teams/{team_id}/version`
+**Endpoint:** `GET /api/v4/teams/{team_id}/version`
 
 **Permissions:** `PermissionViewTeam`
 
@@ -1221,6 +1222,43 @@ Clients poll this endpoint to detect changes in team structure (departments and 
 **Example:**
 ```bash
 curl -X GET \
+  'http://localhost:8065/api/v4/teams/abc123/version' \
+  -H 'Authorization: Bearer TOKEN'
+```
+
+---
+
+### 8.2 Update Team Version
+
+手动更新团队版本号（通常用于调试或特定同步场景）。
+
+**Endpoint:** `PUT /api/v4/teams/{team_id}/version`
+
+**Permissions:** `PermissionManageTeam` (Team Admin)
+
+**Path Parameters:**
+| Parameter | Type   | Required | Description |
+|-----------|--------|----------|-------------|
+| team_id   | string | Yes      | The team ID |
+
+**Request Body:** 无需请求体（空 body）
+
+**Response:** `200 OK`
+```json
+{
+  "team_id": "abc123...",
+  "version": "v1713427200001",
+  "updated_at": 1713427200000
+}
+```
+
+**Notes:**
+- 服务端会自行生成并更新最新版本号，无需客户端传入 `version`
+- 调用后可强制触发客户端下一轮版本检查时的数据刷新
+
+**Example:**
+```bash
+curl -X PUT \
   'http://localhost:8065/api/v4/teams/abc123/version' \
   -H 'Authorization: Bearer TOKEN'
 ```

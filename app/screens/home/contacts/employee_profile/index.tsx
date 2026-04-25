@@ -9,7 +9,7 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
 import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
-import {fetchTeamById, removeUserFromTeam} from '@actions/remote/team';
+import {fetchTeamById, getTeamMembersByIds, removeUserFromTeam} from '@actions/remote/team';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
@@ -26,6 +26,7 @@ import NetworkManager from '@managers/network_manager';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {buildClipboardTextFromLines} from '@utils/contact_profile_clipboard';
+import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
 import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -219,16 +220,32 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginLeft: 6,
     },
     selfTag: {
-        marginTop: 8,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 12,
-        alignSelf: 'center',
         backgroundColor: changeOpacity(theme.onlineIndicator, 0.12),
     },
     selfTagText: {
         ...typography('Body', 75, 'SemiBold'),
         color: theme.onlineIndicator,
+    },
+    tagsRow: {
+        marginTop: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    ownerTag: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.14),
+    },
+    ownerTagText: {
+        color: theme.buttonBg,
+    },
+    managerTag: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.14),
+    },
+    managerTagText: {
+        color: theme.buttonBg,
     },
     buttonSection: {
         paddingHorizontal: 16,
@@ -265,6 +282,7 @@ const ContactsEmployeeProfile = ({
     const [relationDescription, setRelationDescription] = useState(() => description ?? '');
     const [relationRemark, setRelationRemark] = useState(() => remark?.trim() ?? '');
     const [isCompanyOwner, setIsCompanyOwner] = useState(false);
+    const [isCompanyManager, setIsCompanyManager] = useState(false);
     const remarkEditInput = useCustomInputModal();
     const relationDescriptionEditInput = useCustomInputModal();
 
@@ -280,17 +298,24 @@ const ContactsEmployeeProfile = ({
         let cancelled = false;
 
         const loadCompanyOwner = async () => {
-            if (!fromManage || !companyIdProp || !serverUrl) {
+            if (!companyIdProp || !serverUrl) {
                 if (!cancelled) {
                     setIsCompanyOwner(false);
+                    setIsCompanyManager(false);
                 }
                 return;
             }
 
-            const result = await fetchTeamById(serverUrl, companyIdProp);
-            const ownerId = result.team?.creator_id;
+            const [teamResult, memberResult] = await Promise.all([
+                fetchTeamById(serverUrl, companyIdProp),
+                getTeamMembersByIds(serverUrl, companyIdProp, [employee.id], true),
+            ]);
+            const ownerId = teamResult.team?.creator_id;
+            const memberRoles = memberResult.members?.[0]?.roles ?? '';
+            const isManager = memberRoles.split(' ').includes('team_admin');
             if (!cancelled) {
                 setIsCompanyOwner(Boolean(ownerId && ownerId === employee.id));
+                setIsCompanyManager(isManager);
             }
         };
 
@@ -299,7 +324,7 @@ const ContactsEmployeeProfile = ({
         return () => {
             cancelled = true;
         };
-    }, [companyIdProp, employee.id, fromManage, serverUrl]);
+    }, [companyIdProp, employee.id, serverUrl]);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -378,6 +403,12 @@ const ContactsEmployeeProfile = ({
     }, [serverUrl, employee.id, employee.email]);
 
     const isSelf = Boolean(currentUserId && employee.id && currentUserId === employee.id);
+    const profileTagKeys = buildEnterpriseUserTagKeys({
+        userId: employee.id,
+        ownerId: isCompanyOwner ? employee.id : undefined,
+        currentUserId,
+        managerIds: isCompanyManager ? new Set([employee.id]) : undefined,
+    });
 
     const handleSendMessage = usePreventDoubleTap(useCallback(async () => {
         if (!serverUrl || sending || isSelf) {
@@ -663,11 +694,44 @@ const ContactsEmployeeProfile = ({
                             {getContactListDisplayName(employee)}
                         </Text>
                     ) : null}
-                    {isSelf ? (
-                        <View style={styles.selfTag}>
-                            <Text style={styles.selfTagText}>
-                                {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
-                            </Text>
+                    {profileTagKeys.length > 0 ? (
+                        <View style={styles.tagsRow}>
+                            {profileTagKeys.map((tagKey: EnterpriseUserTagKey) => {
+                                if (tagKey === 'owner') {
+                                    return (
+                                        <View
+                                            key='owner'
+                                            style={[styles.selfTag, styles.ownerTag]}
+                                        >
+                                            <Text style={[styles.selfTagText, styles.ownerTagText]}>
+                                                {intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'})}
+                                            </Text>
+                                        </View>
+                                    );
+                                }
+                                if (tagKey === 'manager') {
+                                    return (
+                                        <View
+                                            key='manager'
+                                            style={[styles.selfTag, styles.managerTag]}
+                                        >
+                                            <Text style={[styles.selfTagText, styles.managerTagText]}>
+                                                {intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'})}
+                                            </Text>
+                                        </View>
+                                    );
+                                }
+                                return (
+                                    <View
+                                        key='self'
+                                        style={styles.selfTag}
+                                    >
+                                        <Text style={styles.selfTagText}>
+                                            {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
                         </View>
                     ) : null}
                 </View>

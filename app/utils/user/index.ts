@@ -140,6 +140,9 @@ export function getFullName(user: UserProfile | UserModel): string {
     }
 
     if (firstName && lastName) {
+        if (user.locale && /^zh-/.test(user.locale)) {
+            return `${lastName}${firstName}`;
+        }
         return `${firstName} ${lastName}`;
     } else if (firstName) {
         return firstName;

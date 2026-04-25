@@ -7,9 +7,9 @@ import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
+    batchMoveContactEmployeeToDepartment,
     fetchContactDirectoryContent,
     fetchDefaultDepartmentId,
-    moveContactEmployeeToDepartment,
     updateContactDepartment,
 } from '@actions/remote/contact_new';
 import {fetchTeamById} from '@actions/remote/team';
@@ -331,6 +331,9 @@ const ContactsBatchMoveMembers = ({
         (level) => level.departmentId != null && selectedDepartmentIds.has(level.departmentId),
     );
     const targetDepartmentId = currentTarget?.departmentId ?? null;
+    const resolvedTargetDepartmentId = targetDepartmentId ?? defaultDepartmentId ?? null;
+    const selectedMemberIds = Array.from(selectedIds);
+    const selectedDeptIds = Array.from(selectedDepartmentIds);
 
     /** 根目录时使用默认部门 ID 作为目标 */
     const effectiveTargetDepartmentId = targetDepartmentId ?? defaultDepartmentId;
@@ -338,10 +341,29 @@ const ContactsBatchMoveMembers = ({
     /** 当前部门 ID（源）；根目录用户时用 defaultDepartmentId */
     const effectiveSourceDepartmentId = sourceDepartmentId ?? defaultDepartmentId;
 
-    /** 不能移动到同一部门：目标与当前部门相同时按钮不可点击 */
-    const canMoveToTarget = effectiveTargetDepartmentId != null &&
-        effectiveSourceDepartmentId != null &&
-        effectiveTargetDepartmentId !== effectiveSourceDepartmentId;
+    const movableMemberIds = selectedMemberIds.filter((memberId) => {
+        const sourceDeptId = selectedMemberSourceDepts[memberId] ?? defaultDepartmentId ?? sourceDepartmentId ?? null;
+        if (resolvedTargetDepartmentId == null) {
+            return true;
+        }
+        return sourceDeptId !== resolvedTargetDepartmentId;
+    });
+    const movableDepartmentIds = selectedDeptIds.filter((deptId) => {
+        const path = selectedDepartmentPaths[deptId];
+        if (!path || path.length === 0) {
+            return true;
+        }
+        const parentDepartmentId = path.length > 1 ? path[path.length - 2] : null;
+        if (resolvedTargetDepartmentId == null) {
+            return parentDepartmentId != null;
+        }
+        return parentDepartmentId !== resolvedTargetDepartmentId;
+    });
+    const hasMovableItems = movableMemberIds.length > 0 || movableDepartmentIds.length > 0;
+
+    /** 不能移动到同一部门：同源目标成员/部门会被自动剔除，仅有可变更项时可移动 */
+    const canMoveToTarget = hasMovableItems &&
+        (resolvedTargetDepartmentId != null || targetDepartmentId === null);
     const isAtRootLevel = targetDepartmentId === null;
 
     /** 是否有任一选中项可以移动到根目录（默认部门）：
@@ -373,7 +395,7 @@ const ContactsBatchMoveMembers = ({
 
     /** 根目录时允许按钮可点（点击时再拉取默认部门 ID），只要存在可移动的选中项 */
     const canMoveToRoot = isAtRootLevel &&
-        (defaultDepartmentId == null ? (selectedIds.size > 0 || selectedDepartmentIds.size > 0) : hasAnyItemCanMoveToRoot);
+        (defaultDepartmentId == null ? hasMovableItems : hasAnyItemCanMoveToRoot);
 
     const loadEmployees = useCallback(async () => {
         setLoading(true);
@@ -953,10 +975,10 @@ const ContactsBatchMoveMembers = ({
         if (!serverUrl) {
             return;
         }
-        const hasMembers = selectedIds.size > 0;
-        const hasDepartments = selectedDepartmentIds.size > 0;
+        const hasMembers = movableMemberIds.length > 0;
+        const hasDepartments = movableDepartmentIds.length > 0;
         const allowedByTarget = isAtRootLevel ? canMoveToRoot : canMoveToTarget;
-        if (!allowedByTarget || effectiveSourceDepartmentId == null || (!hasMembers && !hasDepartments)) {
+        if (!allowedByTarget || (!hasMembers && !hasDepartments)) {
             return;
         }
 
@@ -976,11 +998,11 @@ const ContactsBatchMoveMembers = ({
         if (resolvedTargetId == null) {
             return;
         }
-        const memberCount = selectedIds.size;
-        const deptCount = selectedDepartmentIds.size;
+        const memberCount = movableMemberIds.length;
+        const deptCount = movableDepartmentIds.length;
         const targetName = isAtRootLevel? intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'}): (currentTarget?.departmentName ?? '');
-        const memberNames = Array.from(selectedIds).map((id) => selectedMemberNames[id] ?? id).filter(Boolean);
-        const deptNames = Array.from(selectedDepartmentIds).map((id) => selectedDepartmentNames[id] ?? '').filter(Boolean);
+        const memberNames = movableMemberIds.map((id) => selectedMemberNames[id] ?? id).filter(Boolean);
+        const deptNames = movableDepartmentIds.map((id) => selectedDepartmentNames[id] ?? '').filter(Boolean);
         let confirmLine: string;
         if (deptCount > 0 && memberCount > 0) {
             confirmLine = intl.formatMessage(
@@ -1023,8 +1045,8 @@ const ContactsBatchMoveMembers = ({
         }
         setMoving(true);
         let deptFailed = 0;
-        const deptTotal = selectedDepartmentIds.size;
-        for (const deptId of selectedDepartmentIds) {
+        const deptTotal = movableDepartmentIds.length;
+        for (const deptId of movableDepartmentIds) {
             const name = selectedDepartmentNames[deptId] ?? '';
             if (!name.trim()) {
                 deptFailed += 1;
@@ -1037,22 +1059,29 @@ const ContactsBatchMoveMembers = ({
             }
         }
         let failed = 0;
-        const count = selectedIds.size;
-        for (const employeeId of selectedIds) {
+        const count = movableMemberIds.length;
+        const memberIdsBySourceDept = new Map<number, string[]>();
+        for (const employeeId of movableMemberIds) {
             const srcDept = selectedMemberSourceDepts[employeeId] ?? defaultDepartmentId ?? effectiveSourceDepartmentId;
             if (srcDept == null) {
                 failed += 1;
                 continue;
             }
-            const res = await moveContactEmployeeToDepartment(
+            const ids = memberIdsBySourceDept.get(srcDept) ?? [];
+            ids.push(employeeId);
+            memberIdsBySourceDept.set(srcDept, ids);
+        }
+
+        for (const [sourceDeptId, memberIds] of memberIdsBySourceDept.entries()) {
+            const res = await batchMoveContactEmployeeToDepartment(
                 serverUrl,
                 companyId,
-                employeeId,
-                srcDept,
+                memberIds,
+                sourceDeptId,
                 resolvedTargetId,
             );
             if (res.error) {
-                failed += 1;
+                failed += memberIds.length;
             }
         }
         setMoving(false);
@@ -1080,7 +1109,7 @@ const ContactsBatchMoveMembers = ({
         }
         onSuccess?.();
         handleClose();
-    }, [canMoveToRoot, canMoveToTarget, companyId, currentTarget?.departmentName, defaultDepartmentId, effectiveSourceDepartmentId, effectiveTargetDepartmentId, intl, isAtRootLevel, onSuccess, selectedIds, selectedDepartmentIds, selectedDepartmentNames, selectedMemberNames, selectedMemberSourceDepts, serverUrl, handleClose]));
+    }, [canMoveToRoot, canMoveToTarget, companyId, currentTarget?.departmentName, defaultDepartmentId, effectiveSourceDepartmentId, intl, isAtRootLevel, movableDepartmentIds, movableMemberIds, onSuccess, selectedDepartmentNames, selectedMemberNames, selectedMemberSourceDepts, serverUrl, handleClose]));
 
     useNavButtonPressed(effectiveCloseId, componentId, handleClose, [handleClose]);
 
@@ -1435,7 +1464,7 @@ const ContactsBatchMoveMembers = ({
                         )}
                     </ScrollView>
                     <View style={styles.bottomBar}>
-                        {(selectedDepartmentIds.size > 0 || selectedIds.size > 0) && (
+                        {(movableDepartmentIds.length > 0 || movableMemberIds.length > 0) && (
                             <View style={styles.bottomBarChipsWrap}>
                                 <ScrollView
                                     horizontal={true}
@@ -1443,7 +1472,7 @@ const ContactsBatchMoveMembers = ({
                                     contentContainerStyle={styles.bottomBarChipsScroll}
                                 >
                                     <View style={styles.bottomBarChipsRow}>
-                                        {Array.from(selectedDepartmentIds).map((id) => (
+                                        {movableDepartmentIds.map((id) => (
                                             <View
                                                 key={`td-d-${id}`}
                                                 style={styles.selectedChip}
@@ -1460,7 +1489,7 @@ const ContactsBatchMoveMembers = ({
                                                 </Text>
                                             </View>
                                         ))}
-                                        {Array.from(selectedIds).map((id) => (
+                                        {movableMemberIds.map((id) => (
                                             <View
                                                 key={`td-m-${id}`}
                                                 style={styles.selectedChip}
@@ -1484,16 +1513,16 @@ const ContactsBatchMoveMembers = ({
                         <Text style={styles.bottomBarSummary}>
                             {intl.formatMessage(
                                 {id: 'contacts.selected_summary', defaultMessage: '{memberCount} member(s), {departmentCount} department(s) selected'},
-                                {memberCount: selectedIds.size, departmentCount: selectedDepartmentIds.size},
+                                {memberCount: movableMemberIds.length, departmentCount: movableDepartmentIds.length},
                             )}
                         </Text>
                         <TouchableOpacity
                             style={[
                                 styles.bottomButton,
-                                (moving || (isAtRootLevel ? !canMoveToRoot : !canMoveToTarget) || (selectedIds.size === 0 && selectedDepartmentIds.size === 0)) && styles.bottomButtonDisabled,
+                                (moving || (isAtRootLevel ? !canMoveToRoot : !canMoveToTarget) || !hasMovableItems) && styles.bottomButtonDisabled,
                             ]}
                             onPress={handleMoveHere}
-                            disabled={moving || (isAtRootLevel ? !canMoveToRoot : !canMoveToTarget) || (selectedIds.size === 0 && selectedDepartmentIds.size === 0)}
+                            disabled={moving || (isAtRootLevel ? !canMoveToRoot : !canMoveToTarget) || !hasMovableItems}
                             activeOpacity={0.8}
                             testID='contacts.batch_move.move_here'
                         >

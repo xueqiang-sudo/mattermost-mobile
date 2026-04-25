@@ -539,6 +539,67 @@ export async function getTeamMembersByIds(serverUrl: string, teamId: string, use
     }
 }
 
+export type TeamManager = {
+    user: UserProfile;
+    membership: TeamMembership;
+};
+
+const TEAM_ADMIN_ROLE = 'team_admin';
+
+const normalizeRoles = (roles: string) => roles.
+    split(' ').
+    map((role) => role.trim()).
+    filter(Boolean);
+
+const buildRoles = (roles: string[]) => Array.from(new Set(roles)).join(' ');
+
+export async function fetchTeamManagers(serverUrl: string, teamId: string): Promise<{data?: TeamManager[]; error?: unknown}> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const members = await client.getTeamMembers(teamId, 0, 10000);
+        const managerMemberships = members.filter((member) => normalizeRoles(member.roles).includes(TEAM_ADMIN_ROLE));
+        if (managerMemberships.length === 0) {
+            return {data: []};
+        }
+
+        const profiles = await client.getProfilesByIds(managerMemberships.map((member) => member.user_id));
+        const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+        const managers = managerMemberships.
+            map((membership) => {
+                const user = profileById.get(membership.user_id);
+                if (!user) {
+                    return undefined;
+                }
+                return {user, membership};
+            }).
+            filter(Boolean) as TeamManager[];
+
+        return {data: managers};
+    } catch (error) {
+        logDebug('error on fetchTeamManagers', getFullErrorMessage(error));
+        return {error};
+    }
+}
+
+export async function setTeamManagerRole(serverUrl: string, teamId: string, userId: string, isManager: boolean): Promise<{error?: unknown}> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const membership = await client.getTeamMember(teamId, userId);
+        const roles = normalizeRoles(membership.roles);
+        const nextRoles = isManager ? buildRoles([...roles, TEAM_ADMIN_ROLE]) : buildRoles(roles.filter((role) => role !== TEAM_ADMIN_ROLE));
+
+        if (!nextRoles) {
+            return {error: new Error('team member roles cannot be empty')};
+        }
+
+        await client.updateTeamMemberRoles(teamId, userId, nextRoles);
+        return {};
+    } catch (error) {
+        logDebug('error on setTeamManagerRole', getFullErrorMessage(error));
+        return {error};
+    }
+}
+
 export const buildTeamIconUrl = (serverUrl: string, teamId: string, timestamp = 0) => {
     try {
         const client = NetworkManager.getClient(serverUrl);

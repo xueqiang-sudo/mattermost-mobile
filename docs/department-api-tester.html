@@ -354,6 +354,16 @@
         <div class="endpoint">
           <div>
             <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v4/teams/{team_id}/version</span>
+            </div>
+            <p class="status">手动更新团队版本号（调试/缓存同步验证，无需请求体）</p>
+          </div>
+          <button class="btn" onclick="callApi('PUT', pathTeamVersion(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
               <span class="method get">GET</span>
               <span class="path">/api/v4/teams/{team_id}/departments/stats</span>
             </div>

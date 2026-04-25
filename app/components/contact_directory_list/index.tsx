@@ -10,6 +10,7 @@ import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {useTheme} from '@context/theme';
 import {getContactListDisplayName} from '@utils/contact_section';
+import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -18,6 +19,9 @@ import type {MMDepartment} from '@client/rest/team_department';
 export type ContactDirectoryListProps = {
     departments: MMDepartment[];
     employees: UserProfile[];
+    managerIds?: Set<string>;
+    ownerId?: string;
+    currentUserId?: string;
     memberCount: number;
     onDepartmentPress: (dept: MMDepartment) => void;
     onEmployeePress: (emp: UserProfile) => void;
@@ -61,7 +65,39 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     listItemName: {
         ...typography('Body', 200),
         color: theme.centerChannelColor,
+    },
+    listItemMain: {
         flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minWidth: 0,
+        gap: 8,
+    },
+    managerTag: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.14),
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.buttonBg, 0.35),
+    },
+    managerTagText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    selfTag: {
+        backgroundColor: changeOpacity(theme.onlineIndicator, 0.12),
+        borderColor: changeOpacity(theme.onlineIndicator, 0.35),
+    },
+    selfTagText: {
+        color: theme.onlineIndicator,
+    },
+    ownerTag: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.14),
+        borderColor: changeOpacity(theme.buttonBg, 0.35),
+    },
+    ownerTagText: {
+        color: theme.buttonBg,
     },
     memberCountFooter: {
         ...typography('Body', 75),
@@ -94,6 +130,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ContactDirectoryList = ({
     departments,
     employees,
+    managerIds,
+    ownerId,
+    currentUserId,
     memberCount,
     onDepartmentPress,
     onEmployeePress,
@@ -182,12 +221,55 @@ const ContactDirectoryList = ({
                                 size={40}
                             />
                         </View>
-                        <Text
-                            style={styles.listItemName}
-                            numberOfLines={1}
-                        >
-                            {getContactListDisplayName(emp)}
-                        </Text>
+                        <View style={styles.listItemMain}>
+                            <Text
+                                style={styles.listItemName}
+                                numberOfLines={1}
+                            >
+                                {getContactListDisplayName(emp)}
+                            </Text>
+                            {buildEnterpriseUserTagKeys({
+                                userId: emp.id,
+                                ownerId,
+                                currentUserId,
+                                managerIds,
+                            }).map((tagKey: EnterpriseUserTagKey) => {
+                                if (tagKey === 'owner') {
+                                    return (
+                                        <View
+                                            key={`${emp.id}-owner`}
+                                            style={[styles.managerTag, styles.ownerTag]}
+                                        >
+                                            <Text style={[styles.managerTagText, styles.ownerTagText]}>
+                                                {intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'})}
+                                            </Text>
+                                        </View>
+                                    );
+                                }
+                                if (tagKey === 'self') {
+                                    return (
+                                        <View
+                                            key={`${emp.id}-self`}
+                                            style={[styles.managerTag, styles.selfTag]}
+                                        >
+                                            <Text style={[styles.managerTagText, styles.selfTagText]}>
+                                                {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
+                                            </Text>
+                                        </View>
+                                    );
+                                }
+                                return (
+                                    <View
+                                        key={`${emp.id}-manager`}
+                                        style={styles.managerTag}
+                                    >
+                                        <Text style={styles.managerTagText}>
+                                            {intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'})}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
                     </TouchableOpacity>
                     {empIdx < employees.length - 1 ? (
                         <View style={styles.insetDivider}/>

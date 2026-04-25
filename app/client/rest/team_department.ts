@@ -174,7 +174,7 @@ export type MMUpdateContactVersionRequest = {
 
 export interface ClientTeamDepartmentMix {
     getTeamVersion: (teamId: string) => Promise<MMTeamVersion>;
-    updateTeamVersion: (teamId: string, body: MMUpdateTeamVersionRequest) => Promise<MMUpdateTeamVersionResponse>;
+    updateTeamVersion: (teamId: string) => Promise<{message: string; team_id: string; updatef_at: number}>;
     getDepartments: (teamId: string, opts?: {parentId?: number; page?: number; perPage?: number}) => Promise<MMGetDepartmentsResponse>;
     createDepartment: (teamId: string, body: MMCreateDepartmentRequest) => Promise<MMDepartment>;
     getDepartment: (teamId: string, departmentId: number) => Promise<MMDepartment>;
@@ -375,6 +375,18 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         const data = (await this.#doMyFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'get'})) as MMTeamVersion;
         this.#versionByTeam.set(teamId, {version: data.version, at: Date.now()});
         return data;
+    };
+
+    updateTeamVersion = async (teamId: string) => {
+        await this.#invalidateTeamStructureCache(teamId);
+        try {
+            const res = (await this.#doMyFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'put'})) as {message: string; team_id: string; updatef_at: number};
+            await this.#invalidateTeamStructureCache(teamId);
+            return res;
+        } catch (e) {
+            await this.#invalidateTeamStructureCache(teamId);
+            throw e;
+        }
     };
 
     getDepartments = (teamId: string, opts?: {parentId?: number; page?: number; perPage?: number}) => {

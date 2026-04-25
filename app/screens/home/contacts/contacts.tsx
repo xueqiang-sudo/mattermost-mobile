@@ -16,7 +16,7 @@ import {
     fetchEmployeesOfDefaultDepartment,
     ensureTeamDefaultDepartment,
 } from '@actions/remote/contact_new';
-import {fetchTeamMemberCount} from '@actions/remote/team';
+import {fetchTeamById, fetchTeamMemberCount, getTeamMembersByIds} from '@actions/remote/team';
 import {DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
 import {ContactsBarEnterpriseTitle} from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
@@ -29,9 +29,11 @@ import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
+import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
 import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import NetworkManager from '@managers/network_manager';
 
 import {type ContactsStackParamList} from './contacts_stack_param_list';
 
@@ -128,7 +130,32 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     listItemName: {
         ...typography('Body', 200),
         color: theme.centerChannelColor,
+    },
+    listItemMain: {
         flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minWidth: 0,
+        gap: 8,
+    },
+    userTag: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+        borderWidth: 1,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.14),
+        borderColor: changeOpacity(theme.buttonBg, 0.35),
+    },
+    userTagText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    selfTag: {
+        backgroundColor: changeOpacity(theme.onlineIndicator, 0.12),
+        borderColor: changeOpacity(theme.onlineIndicator, 0.35),
+    },
+    selfTagText: {
+        color: theme.onlineIndicator,
     },
     scrollContent: {
         flexGrow: 1,
@@ -198,6 +225,9 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
     const [serviceError, setServiceError] = useState(false);
     const [contactsHeaderWidth, setContactsHeaderWidth] = useState(0);
     const [contactsHeaderActionsWidth, setContactsHeaderActionsWidth] = useState(0);
+    const [managerIds, setManagerIds] = useState<Set<string>>(new Set());
+    const [ownerId, setOwnerId] = useState<string | undefined>();
+    const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | undefined>(currentUserId);
 
     const contactsActionsReserve = Math.max(
         contactsHeaderActionsWidth,
@@ -249,6 +279,58 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
         setHomeReappearTick((t) => t + 1);
     }, []);
     useOnComponentWillAppear(rnnHomeComponentId, bumpHomeReappearTick);
+
+    useEffect(() => {
+        setResolvedCurrentUserId(currentUserId);
+    }, [currentUserId]);
+
+    useEffect(() => {
+        if (!serverUrl || !currentTeamId) {
+            return;
+        }
+        let cancelled = false;
+        const loadTagMeta = async () => {
+            const teamResult = await fetchTeamById(serverUrl, currentTeamId);
+            if (!cancelled) {
+                setOwnerId(teamResult.team?.creator_id);
+            }
+            try {
+                const me = await NetworkManager.getClient(serverUrl).getMe();
+                if (!cancelled) {
+                    setResolvedCurrentUserId(me?.id);
+                }
+            } catch {
+                // ignore
+            }
+        };
+        loadTagMeta();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentTeamId, serverUrl]);
+
+    useEffect(() => {
+        if (!serverUrl || !currentTeamId || defaultDepartmentEmployees.length === 0) {
+            setManagerIds(new Set());
+            return;
+        }
+        let cancelled = false;
+        const loadManagers = async () => {
+            const ids = defaultDepartmentEmployees.map((u) => u.id);
+            const result = await getTeamMembersByIds(serverUrl, currentTeamId, ids, true);
+            if (cancelled || result.error || !result.members) {
+                return;
+            }
+            const next = new Set(
+                result.members.filter((m) => m.roles.split(' ').includes('team_admin')).map((m) => m.user_id),
+            );
+            setManagerIds(next);
+        };
+        loadManagers();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentTeamId, defaultDepartmentEmployees, serverUrl]);
 
     useEffect(() => {
         const fetchEnterprise = async () => {
@@ -432,12 +514,37 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                                     size={40}
                                 />
                             </View>
-                            <Text
-                                style={styles.listItemName}
-                                numberOfLines={1}
-                            >
-                                {getContactListDisplayName(emp)}
-                            </Text>
+                            <View style={styles.listItemMain}>
+                                <Text
+                                    style={styles.listItemName}
+                                    numberOfLines={1}
+                                >
+                                    {getContactListDisplayName(emp)}
+                                </Text>
+                                {buildEnterpriseUserTagKeys({
+                                    userId: emp.id,
+                                    ownerId,
+                                    currentUserId: resolvedCurrentUserId,
+                                    managerIds,
+                                }).map((tagKey: EnterpriseUserTagKey) => {
+                                    const isSelf = tagKey === 'self';
+                                    return (
+                                        <View
+                                            key={`${emp.id}-${tagKey}`}
+                                            style={[styles.userTag, isSelf && styles.selfTag]}
+                                        >
+                                            <Text style={[styles.userTagText, isSelf && styles.selfTagText]}>
+                                                {tagKey === 'owner' ?
+                                                    intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'}) :
+                                                    tagKey === 'manager' ?
+                                                        intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'}) :
+                                                        intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})
+                                                }
+                                            </Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
                         </TouchableOpacity>
                         {empIdx < defaultDepartmentEmployees.length - 1 ? (
                             <View style={styles.insetDivider}/>

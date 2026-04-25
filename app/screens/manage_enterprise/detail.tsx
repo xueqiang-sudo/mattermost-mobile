@@ -21,11 +21,18 @@ import {
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {fetchSearchContactEmployees, type TeamMemberSearchItem} from '@actions/remote/contact_new';
-import {deleteTeam, fetchTeamMemberCount, fetchUserCanDissolveTeam, removeCurrentUserFromTeam, transferTeamOwnership} from '@actions/remote/team';
+import {
+    deleteTeam,
+    fetchTeamMemberCount,
+    fetchUserCanDissolveTeam,
+    removeCurrentUserFromTeam,
+    transferTeamOwnership,
+} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
+import TeamManagerModal from '@components/team_manager_modal';
 import {Events} from '@constants';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
@@ -42,12 +49,14 @@ import {typography} from '@utils/typography';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 type TeamCompanyView = {
     id: string;
     name?: string;
+    description?: string;
     type: 'team';
-    owner_id?: string;
+    ownerId?: string;
 };
 
 type TransferOwnershipListEntry = {mode: 'search'; item: TeamMemberSearchItem};
@@ -59,7 +68,7 @@ type Props = {
     /** 是否为当前选中的企业 */
     isCurrentTeam?: boolean;
     currentUser?: UserModel;
-    componentId: string;
+    componentId: AvailableScreens;
 };
 
 const edges: Edge[] = ['left', 'right'];
@@ -240,6 +249,57 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         height: StyleSheet.hairlineWidth,
         backgroundColor: changeOpacity(theme.buttonBg, 0.22),
     },
+    managerModalBackdrop: {
+        flex: 1,
+        backgroundColor: changeOpacity('#000000', 0.45),
+        justifyContent: 'flex-end',
+    },
+    managerSheet: {
+        width: '100%',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        backgroundColor: theme.centerChannelBg,
+        overflow: 'hidden',
+    },
+    managerSheetHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    managerSheetTitle: {
+        ...typography('Heading', 300, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    managerListSectionTitle: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: 4,
+    },
+    managerMemberAction: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.errorTextColor, 0.1),
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.errorTextColor, 0.25),
+    },
+    managerMemberActionText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.errorTextColor,
+    },
+    managerMemberActionAdd: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        borderColor: changeOpacity(theme.buttonBg, 0.3),
+    },
+    managerMemberActionAddText: {
+        color: theme.buttonBg,
+    },
     modalBackdrop: {
         flex: 1,
         backgroundColor: changeOpacity('#000000', 0.45),
@@ -338,6 +398,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
     const [transferSearchMembers, setTransferSearchMembers] = useState<TeamMemberSearchItem[]>([]);
     const [transferSearchRawCount, setTransferSearchRawCount] = useState(0);
     const [transferSearchPending, setTransferSearchPending] = useState(false);
+    const [managerVisible, setManagerVisible] = useState(false);
     const transferSearchSeq = useRef(0);
 
     const transferSheetHeight = React.useMemo(
@@ -380,15 +441,16 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
             setCompany({
                 id: team.id,
                 name: team.display_name,
+                description: team.description,
                 type: 'team',
-                owner_id: team.creator_id,
+                ownerId: team.creator_id,
             });
         } catch {
             setCompany((prev) => ({
                 id: companyId,
                 name: fallbackName,
                 type: 'team' as const,
-                owner_id: prev?.owner_id ?? '',
+                ownerId: prev?.ownerId ?? '',
             }));
         }
         DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
@@ -411,8 +473,9 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
                 setCompany({
                     id: team.id,
                     name: team.display_name,
+                    description: team.description,
                     type: 'team',
-                    owner_id: team.creator_id,
+                    ownerId: team.creator_id,
                 });
                 setError(undefined);
                 const mmCountRes = await fetchTeamMemberCount(serverUrl, companyId);
@@ -424,6 +487,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
                     setCompany({
                         id: companyId,
                         name: companyName,
+                        description: '',
                         type: 'team',
                     });
                     setError(undefined);
@@ -437,17 +501,14 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
         load();
     }, [companyId, companyName, serverUrl]);
 
-    // 判断是否显示「解散」：需求1/2/3 综合逻辑
-    // - 需求2: 通讯录有且 owner_id 有效 → 以 owner_id === employeeId 为准
-    // - 需求1: 通讯录无（仅 MM）→ 仅 Mattermost 创建者可解散
-    // - 需求3: 通讯录有但 owner_id 为空 → 仅 Mattermost 创建者可解散
+    // 判断是否显示「解散」：统一以 Mattermost team owner 语义为准
     useEffect(() => {
         const checkCreator = async () => {
             if (!employeeId) {
                 setIsCreator(false);
                 return;
             }
-            const ownerId = company?.owner_id ?? (company as {ownerId?: string})?.ownerId;
+            const ownerId = company?.ownerId;
             if (ownerId != null && ownerId !== '') {
                 setIsCreator(ownerId === employeeId);
                 return;
@@ -479,7 +540,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
 
         const title = isDissolve ?intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :intl.formatMessage({id: 'enterprise.detail.quit', defaultMessage: 'Leave enterprise'});
 
-        const message = isDissolve ?intl.formatMessage({id: 'enterprise.detail.dissolve_confirm', defaultMessage: 'This will permanently delete this enterprise and all of its data in the contact system. This action cannot be undone. Continue?'}) :intl.formatMessage({id: 'enterprise.detail.quit_confirm', defaultMessage: 'You will no longer receive notifications or updates from this enterprise. Continue to leave?'});
+        const message = isDissolve ?intl.formatMessage({id: 'enterprise.detail.dissolve_confirm', defaultMessage: 'This will permanently delete this enterprise team and all of its data. This action cannot be undone. Continue?'}) :intl.formatMessage({id: 'enterprise.detail.quit_confirm', defaultMessage: 'You will no longer receive notifications or updates from this enterprise. Continue to leave?'});
 
         Alert.alert(
             title,
@@ -580,7 +641,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
         }
 
         setTransferVisible(false);
-        setCompany((prev) => (prev ? {...prev, owner_id: newOwnerId} : prev));
+        setCompany((prev) => (prev ? {...prev, ownerId: newOwnerId} : prev));
         DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
         Alert.alert(
             intl.formatMessage({id: 'enterprise.detail.transfer_title', defaultMessage: 'Transfer ownership'}),
@@ -617,6 +678,13 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
         setTransferSearchRawCount(0);
         setTransferSearchPending(false);
         setTransferVisible(true);
+    }, [employeeId]));
+
+    const openManagerSheet = usePreventDoubleTap(useCallback(() => {
+        if (!employeeId) {
+            return;
+        }
+        setManagerVisible(true);
     }, [employeeId]));
 
     useEffect(() => {
@@ -781,6 +849,22 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
                                         {intl.formatMessage({id: 'enterprise.detail.transfer', defaultMessage: 'Transfer ownership'})}
                                     </Text>
                                 </TouchableOpacity>
+                                <View style={styles.managementCardDivider}/>
+                                <TouchableOpacity
+                                    style={styles.managementCardRow}
+                                    onPress={openManagerSheet}
+                                    activeOpacity={0.7}
+                                    testID='enterprise.detail.manager_management.button'
+                                >
+                                    <CompassIcon
+                                        name='crown-outline'
+                                        size={20}
+                                        color={theme.buttonBg}
+                                    />
+                                    <Text style={styles.secondaryButtonText}>
+                                        {intl.formatMessage({id: 'contacts.manager_management', defaultMessage: 'Manager management'})}
+                                    </Text>
+                                </TouchableOpacity>
                             </>
                         </View>
                     )}
@@ -933,6 +1017,13 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
                     </View>
                 </View>
             </Modal>
+            <TeamManagerModal
+                visible={managerVisible}
+                companyId={companyId}
+                excludeUserId={employeeId}
+                onClose={() => setManagerVisible(false)}
+                testIDPrefix='enterprise.detail.manager_management'
+            />
             <CustomInputModal
                 key={editNameModal.visible ? 'edit-open' : 'edit-closed'}
                 visible={editNameModal.visible}

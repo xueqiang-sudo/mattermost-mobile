@@ -389,6 +389,12 @@ export const batchMoveContactEmployeeToDepartment = async (
     oldDepartmentId: number,
     newDepartmentId: number,
 ): Promise<{error?: unknown}> => {
+    if (employeeIds.length === 0) {
+        return {};
+    }
+    if (employeeIds.length === 1) {
+        return moveContactEmployeeToDepartment(serverUrl, teamId, employeeIds[0], oldDepartmentId, newDepartmentId);
+    }
     try {
         const client = NetworkManager.getClient(serverUrl);
         await client.batchMoveDepartmentMembers(teamId, {
@@ -411,6 +417,18 @@ export const deleteContactDepartmentForce = async (serverUrl: string, teamId: st
         return {};
     } catch (error) {
         logDebug('[deleteContactDepartmentForce]', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 手动更新企业缓存版本 */
+export const updateCompanyCacheVersion = async (serverUrl: string, teamId: string): Promise<{error?: unknown}> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        await client.updateTeamVersion(teamId);
+        return {};
+    } catch (error) {
+        logDebug('[updateCompanyCacheVersion] catch error', getFullErrorMessage(error));
         return {error};
     }
 };

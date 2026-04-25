@@ -14,10 +14,12 @@ import {
     fetchEmployeeCountOfDepartment,
     updateContactDepartment,
 } from '@actions/remote/contact_new';
+import {getTeamMembersByIds} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
 import ContactDirectoryList from '@components/contact_directory_list';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import TeamManagerModal from '@components/team_manager_modal';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -199,13 +201,18 @@ const ContactsManage = ({
     const [departments, setDepartments] = useState<MMDepartment[]>([]);
     const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [memberCount, setMemberCount] = useState(0);
+    const [managerIds, setManagerIds] = useState<Set<string>>(new Set());
+    const [ownerId, setOwnerId] = useState<string | undefined>();
+    const [currentUserId, setCurrentUserId] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [enterpriseDisplayName, setEnterpriseDisplayName] = useState<string | undefined>(companyName);
+    const [managerVisible, setManagerVisible] = useState(false);
 
     const currentLevel = manageStack[manageStack.length - 1];
     const currentDepartmentId = currentLevel?.departmentId ?? null;
     const currentDepartmentName = currentLevel?.departmentName;
+    const isCurrentUserOwner = Boolean(ownerId && currentUserId && ownerId === currentUserId);
     currentDeptIdRef.current = currentDepartmentId;
 
     const effectiveCloseButtonId = closeButtonId ?? CLOSE_BUTTON_ID;
@@ -282,6 +289,70 @@ const ContactsManage = ({
         }
     }, [currentDepartmentId, companyName]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadManagerRoles = async () => {
+            if (!serverUrl || employees.length === 0) {
+                if (!cancelled) {
+                    setManagerIds(new Set());
+                }
+                return;
+            }
+
+            const memberIds = employees.map((employee) => employee.id);
+            const result = await getTeamMembersByIds(serverUrl, companyId, memberIds, true);
+            if (cancelled || result.error || !result.members) {
+                return;
+            }
+
+            const managerUserIds = new Set(
+                result.members.
+                    filter((member) => member.roles.split(' ').includes('team_admin')).
+                    map((member) => member.user_id),
+            );
+            setManagerIds(managerUserIds);
+        };
+
+        loadManagerRoles();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, employees, serverUrl]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadOwnerAndSelf = async () => {
+            if (!serverUrl) {
+                return;
+            }
+            const client = NetworkManager.getClient(serverUrl);
+            try {
+                const [team, me] = await Promise.all([
+                    client.getTeam(companyId),
+                    client.getMe(),
+                ]);
+                if (cancelled) {
+                    return;
+                }
+                setOwnerId(team?.creator_id);
+                setCurrentUserId(me?.id);
+            } catch {
+                // no-op: keep tags degraded gracefully
+            }
+        };
+        loadOwnerAndSelf();
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, serverUrl]);
+
+    const openManagerModal = usePreventDoubleTap(useCallback(async () => {
+        await dismissBottomSheet();
+        setManagerVisible(true);
+    }, []));
+
     const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: MMDepartment) => {
         const top = manageStack[manageStack.length - 1];
         const prevBreadcrumb = top?.breadcrumb ?? [];
@@ -314,12 +385,13 @@ const ContactsManage = ({
                 companyName,
                 departmentId: currentDepartmentId ?? undefined,
                 companyId,
+                currentUserId,
                 fromManage: true,
                 closeButtonId: `close-employee-${employee.id}`,
             },
             {useBackIcon: true},
         );
-    }, [companyId, companyName, currentDepartmentId, currentDepartmentName, currentLevel?.breadcrumb, intl]));
+    }, [companyId, companyName, currentDepartmentId, currentDepartmentName, currentLevel?.breadcrumb, currentUserId, intl]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
         const targetDepartmentId: number | null = currentDepartmentId ?? null;
@@ -363,7 +435,7 @@ const ContactsManage = ({
             theme,
             title: intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'}),
         });
-    }, [intl, theme]));
+    }, [currentDepartmentId, intl, theme]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
         const name = await subDeptInput.showModal({
@@ -425,6 +497,18 @@ const ContactsManage = ({
                 intl.formatMessage({id: 'contacts.update_department_failed', defaultMessage: 'Failed to update department. Please try again.'}),
             );
         } else {
+            setManageStack((prev) => {
+                const next = [...prev];
+                const top = next[next.length - 1];
+                if (!top) {
+                    return prev;
+                }
+                next[next.length - 1] = {
+                    ...top,
+                    departmentName: name,
+                };
+                return next;
+            });
             refetch();
         }
     }, [companyId, currentDepartmentId, currentDepartmentName, intl, modifyDeptNameInput, refetch, serverUrl]);
@@ -458,6 +542,8 @@ const ContactsManage = ({
     }, [companyId, intl, modifyEnterpriseNameInput, refetch, enterpriseDisplayName, companyName, currentDepartmentId, serverUrl]);
 
     const handleMore = usePreventDoubleTap(useCallback(() => {
+        const managerMenuText = isCurrentUserOwner ? intl.formatMessage({id: 'contacts.manager_management', defaultMessage: 'Manager management'}) : intl.formatMessage({id: 'contacts.manager_list', defaultMessage: 'Manager list'});
+
         /* 批量设置成员信息暂不启用，enterSubFirst 仅该功能使用
         const enterSubFirst = () => {
             Alert.alert(
@@ -511,33 +597,12 @@ const ContactsManage = ({
                     }}
                     testID='contacts.manage.more.batch_move'
                 />
-                {/* 批量设置成员信息 - 暂不启用
                 <SlideUpPanelItem
-                    leftIcon='table-settings'
-                    text={intl.formatMessage({id: 'contacts.batch_set_member_info', defaultMessage: 'Batch set member info'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        if (currentDepartmentId == null) {
-                            enterSubFirst();
-                        } else {
-                            showModalWithBackButton(
-                                Screens.CONTACTS_BATCH_SET_MEMBER_INFO,
-                                intl.formatMessage({id: 'contacts.batch_set_member_info', defaultMessage: 'Batch set member info'}),
-                                'close-contacts-batch-set-info',
-                                {
-                                    companyId,
-                                    departmentId: currentDepartmentId,
-                                    departmentName: currentDepartmentName ?? '',
-                                    initialEmployees: employees,
-                                    onSuccess: refetch,
-                                },
-                                {useBackIcon: true, topBar: {visible: false}},
-                            );
-                        }
-                    }}
-                    testID='contacts.manage.more.batch_set'
+                    leftIcon='crown-outline'
+                    text={managerMenuText}
+                    onPress={openManagerModal}
+                    testID='contacts.manage.more.manager_management'
                 />
-                */}
                 {currentDepartmentId != null && memberCount === 0 && (
                     <SlideUpPanelItem
                         leftIcon='trash-can-outline'
@@ -594,7 +659,7 @@ const ContactsManage = ({
                 />
             </>
         );
-        const itemCount = 3 + (currentDepartmentId != null && memberCount === 0 ? 1 : 0);
+        const itemCount = 4 + (currentDepartmentId != null && memberCount === 0 ? 1 : 0);
         bottomSheet({
             closeButtonId: 'close-contacts-manage-more',
             renderContent,
@@ -602,7 +667,7 @@ const ContactsManage = ({
             theme,
             title: intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
         });
-    }, [companyId, currentDepartmentId, currentDepartmentName, employees, intl, memberCount, refetch, serverUrl, theme, handleBack, handleModifyDepartmentName, handleModifyEnterpriseName]));
+    }, [companyId, currentDepartmentId, currentDepartmentName, intl, isCurrentUserOwner, memberCount, refetch, serverUrl, theme, handleBack, handleModifyDepartmentName, handleModifyEnterpriseName, openManagerModal]));
 
     return (
         <SafeAreaView
@@ -664,6 +729,9 @@ const ContactsManage = ({
                 <ContactDirectoryList
                     departments={departments}
                     employees={employees}
+                    managerIds={managerIds}
+                    ownerId={ownerId}
+                    currentUserId={currentUserId}
                     memberCount={memberCount}
                     onDepartmentPress={handleDepartmentPress}
                     onEmployeePress={handleEmployeePress}
@@ -739,6 +807,13 @@ const ContactsManage = ({
                 cancelContent={modifyEnterpriseNameInput.options.cancelContent}
                 onConfirm={modifyEnterpriseNameInput.handleConfirm}
                 onCancel={modifyEnterpriseNameInput.handleCancel}
+            />
+            <TeamManagerModal
+                visible={managerVisible}
+                companyId={companyId}
+                onClose={() => setManagerVisible(false)}
+                onChanged={refetch}
+                testIDPrefix='contacts.manager_modal'
             />
         </SafeAreaView>
     );

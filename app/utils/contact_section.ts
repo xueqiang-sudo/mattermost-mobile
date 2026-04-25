@@ -11,7 +11,7 @@ import type {SectionListData} from 'react-native';
  * 联系人列表排序用展示名：昵称优先（与选人列表展示一致），无则回退 username。
  */
 export function getContactListDisplayName(user: UserProfile): string {
-    const fromNickname = username2Nickname(user, {includeFullName: false, useFallbackUsername: false});
+    const fromNickname = username2Nickname(user, {includeFullName: true, useFallbackUsername: true});
     const trimmed = (fromNickname || '').trim();
     if (trimmed) {
         return trimmed;

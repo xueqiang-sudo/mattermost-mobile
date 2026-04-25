@@ -7,21 +7,17 @@ import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {ensureTeamDefaultDepartment, syncTeamMembersToDefaultDepartment} from '@actions/remote/contact_new';
-import {addCurrentUserToTeam, createTeamByName} from '@actions/remote/team';
-import {getActiveServerUrl} from '@queries/app/servers';
 import {getTeamById, queryMyTeams} from '@queries/servers/team';
-import {cleanUpUrlable} from '@utils/url';
 import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
-import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
 import {Events, Screens} from '@constants';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
-import {dismissModal, goToScreen} from '@screens/navigation';
+import {dismissModal, goToScreen, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -38,11 +34,13 @@ type Props = {
 const edges: Edge[] = ['left', 'right'];
 
 /**
- * 是否在企业列表中显示来源标签（Mattermost / 通讯录 / 两者皆有）。
+ * 是否在企业列表中显示来源标签（当前统一为 Mattermost）。
  * 默认 false 不显示，方便正式环境保持界面简洁。
- * 设为 true 便于测试时快速区分企业来源。
+ * 设为 true 便于测试时观察标记位是否生效。
  */
 const SHOW_ENTERPRISE_SOURCE_LABEL = false;
+const CLOSE_CREATE_TEAM = 'close-manage-enterprise-create';
+const CLOSE_JOIN_TEAM_QR = 'close-manage-enterprise-join';
 
 const AVATAR_COLORS = [
     '#5D7A8C', '#6B8E6B', '#8B7355', '#7B68A0', '#A0525D',
@@ -220,15 +218,13 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const insets = useSafeAreaInsets();
+    const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
     const [entries, setEntries] = useState<ManageEnterpriseEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<unknown>();
-
-    const createInputModal = useCustomInputModal();
-    const joinInputModal = useCustomInputModal();
 
     const employeeId = currentUser?.id;
 
@@ -284,82 +280,44 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
     }, [loadCompanies]);
 
     const handleCreateEnterprise = usePreventDoubleTap(useCallback(async () => {
-        if (!employeeId) {
+        if (!employeeId || !serverUrl) {
             Alert.alert(
                 intl.formatMessage({id: 'enterprise.manage.loading_user', defaultMessage: 'Loading user'}),
                 intl.formatMessage({id: 'enterprise.manage.please_wait', defaultMessage: 'Please wait a moment and try again.'}),
             );
             return;
         }
-        const title = intl.formatMessage({id: 'enterprise.manage.create', defaultMessage: 'Create enterprise'});
-        const placeholder = intl.formatMessage({id: 'enterprise.manage.create.name_placeholder', defaultMessage: 'Enterprise name'});
-
-        const inputValue = await createInputModal.showModal({
-            title,
-            placeholder,
-            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
-            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
-        });
-        if (!inputValue?.trim()) {
-            return;
-        }
-        const serverUrl = await getActiveServerUrl();
-        if (!serverUrl) {
-            Alert.alert(
-                intl.formatMessage({id: 'enterprise.manage.create_failed', defaultMessage: 'Failed to create enterprise'}),
-            );
-            return;
-        }
-        const displayName = inputValue.trim();
-        const teamName = cleanUpUrlable(displayName);
-        const res = await createTeamByName(serverUrl, teamName, displayName, 'O');
-        if (res.error || !res.team) {
-            Alert.alert(
-                intl.formatMessage({id: 'enterprise.manage.create_failed', defaultMessage: 'Failed to create enterprise'}),
-            );
-            return;
-        }
-        await ensureTeamDefaultDepartment(serverUrl, res.team.id);
-        await syncTeamMembersToDefaultDepartment(serverUrl, res.team.id);
-        await loadCompanies();
-    }, [employeeId, intl, loadCompanies, createInputModal]));
+        showModalWithBackButton(
+            Screens.CREATE_TEAM,
+            intl.formatMessage({id: 'create_team.title', defaultMessage: 'Create Enterprise'}),
+            CLOSE_CREATE_TEAM,
+            {
+                serverUrl,
+                nickname: currentUser?.nickname || '',
+                userId: employeeId,
+            },
+        );
+    }, [employeeId, intl, serverUrl, currentUser?.nickname]));
 
     const handleJoinEnterprise = usePreventDoubleTap(useCallback(async () => {
-        if (!employeeId) {
+        if (!employeeId || !serverUrl) {
             Alert.alert(
                 intl.formatMessage({id: 'enterprise.manage.loading_user', defaultMessage: 'Loading user'}),
                 intl.formatMessage({id: 'enterprise.manage.please_wait', defaultMessage: 'Please wait a moment and try again.'}),
             );
             return;
         }
-        const title = intl.formatMessage({id: 'enterprise.manage.join', defaultMessage: 'Join another enterprise'});
-        const placeholder = intl.formatMessage({id: 'enterprise.manage.join.placeholder', defaultMessage: 'Enterprise ID'});
-
-        const companyId = await joinInputModal.showModal({
-            title,
-            placeholder,
-            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
-            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
-        });
-        if (!companyId?.trim()) {
-            return;
-        }
-        const serverUrl = await getActiveServerUrl();
-        if (!serverUrl) {
-            Alert.alert(
-                intl.formatMessage({id: 'enterprise.manage.join_failed', defaultMessage: 'Failed to join enterprise. Please check the ID and try again.'}),
-            );
-            return;
-        }
-        const res = await addCurrentUserToTeam(serverUrl, companyId.trim());
-        if (res.error) {
-            Alert.alert(
-                intl.formatMessage({id: 'enterprise.manage.join_failed', defaultMessage: 'Failed to join enterprise. Please check the ID and try again.'}),
-            );
-            return;
-        }
-        await loadCompanies();
-    }, [employeeId, intl, loadCompanies, joinInputModal]));
+        showModalWithBackButton(
+            Screens.JOIN_TEAM_QR,
+            intl.formatMessage({id: 'join_team_qr.title', defaultMessage: 'Join Enterprise'}),
+            CLOSE_JOIN_TEAM_QR,
+            {
+                serverUrl,
+                nickname: currentUser?.nickname || '',
+                userId: employeeId,
+            },
+        );
+    }, [employeeId, intl, serverUrl, currentUser?.nickname]));
 
     const handleCompanyPress = usePreventDoubleTap(useCallback((entry: ManageEnterpriseEntry) => {
         const title = intl.formatMessage({id: 'enterprise.detail.title', defaultMessage: 'Enterprise information'});
@@ -469,7 +427,7 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                 <Text style={styles.headerSubtitle}>
                     {intl.formatMessage({
                         id: 'enterprise.manage.subtitle_merged',
-                        defaultMessage: 'Includes your Mattermost enterprises (mapped to contact companies) and enterprises in the contact directory. Create or join more above.',
+                        defaultMessage: 'Includes your Mattermost enterprises. Create or join more above.',
                     })}
                 </Text>
             </View>
@@ -527,30 +485,6 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
                     {renderCompanies()}
                 </View>
             </ScrollView>
-            <CustomInputModal
-                key={createInputModal.visible ? 'create-open' : 'create-closed'}
-                visible={createInputModal.visible}
-                title={createInputModal.options.title}
-                placeholder={createInputModal.options.placeholder}
-                defaultValue={createInputModal.options.defaultValue}
-                confirmContent={createInputModal.options.confirmContent}
-                showCancelButton={createInputModal.options.showCancelButton}
-                cancelContent={createInputModal.options.cancelContent}
-                onConfirm={createInputModal.handleConfirm}
-                onCancel={createInputModal.handleCancel}
-            />
-            <CustomInputModal
-                key={joinInputModal.visible ? 'join-open' : 'join-closed'}
-                visible={joinInputModal.visible}
-                title={joinInputModal.options.title}
-                placeholder={joinInputModal.options.placeholder}
-                defaultValue={joinInputModal.options.defaultValue}
-                confirmContent={joinInputModal.options.confirmContent}
-                showCancelButton={joinInputModal.options.showCancelButton}
-                cancelContent={joinInputModal.options.cancelContent}
-                onConfirm={joinInputModal.handleConfirm}
-                onCancel={joinInputModal.handleCancel}
-            />
         </SafeAreaView>
     );
 };
