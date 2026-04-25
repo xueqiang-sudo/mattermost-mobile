@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useDatabase, withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import Loading from '@components/loading';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
@@ -25,10 +26,12 @@ import type {ManageEnterpriseEntry} from './types';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 type Props = {
     currentUser?: UserModel;
     currentTeamId?: string;
+    componentId?: AvailableScreens;
 };
 
 const edges: Edge[] = ['left', 'right'];
@@ -80,28 +83,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
         flex: 1,
     },
+    topContent: {
+        paddingHorizontal: 16,
+    },
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: 16,
         paddingBottom: 24,
     },
-    header: {
-        paddingTop: 12,
-        paddingBottom: 8,
-    },
-    headerTitle: {
-        ...typography('Heading', 400, 'SemiBold'),
-        color: theme.centerChannelColor,
-    },
-    headerSubtitle: {
-        marginTop: 2,
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-    },
     actionsRow: {
         flexDirection: 'row',
-        marginTop: 16,
-        marginBottom: 8,
+        marginTop: 12,
+        marginBottom: 12,
         gap: 8,
     },
     primaryAction: {
@@ -213,7 +206,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
+const ManageEnterpriseScreen = ({currentUser, currentTeamId, componentId}: Props) => {
     const database = useDatabase();
     const theme = useTheme();
     const intl = useIntl();
@@ -225,44 +218,56 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<unknown>();
+    const loadPromiseRef = useRef<Promise<ManageEnterpriseEntry[]> | null>(null);
 
     const employeeId = currentUser?.id;
 
     const loadCompanies = useCallback(async (opts?: {isRefresh?: boolean}): Promise<ManageEnterpriseEntry[]> => {
-        if (!employeeId) {
-            return [];
+        if (loadPromiseRef.current) {
+            return loadPromiseRef.current;
         }
-        if (opts?.isRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
-        setError(undefined);
-        let newEntries: ManageEnterpriseEntry[] = [];
-        try {
-            const myTeams = await queryMyTeams(database).fetch();
-            for (const mt of myTeams) {
-                const team = await getTeamById(database, mt.id);
-                if (team) {
-                    newEntries.push({
-                        id: team.id,
-                        name: team.displayName || team.name,
-                    });
-                }
+
+        const loadTask = (async (): Promise<ManageEnterpriseEntry[]> => {
+            if (!employeeId) {
+                return [];
+            }
+            if (opts?.isRefresh) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
             }
             setError(undefined);
-            setEntries(newEntries);
-        } catch (e) {
-            setError(e);
-            newEntries = [];
-            setEntries([]);
-        }
-        if (opts?.isRefresh) {
-            setRefreshing(false);
-        } else {
-            setLoading(false);
-        }
-        return newEntries;
+            let newEntries: ManageEnterpriseEntry[] = [];
+            try {
+                const myTeams = await queryMyTeams(database).fetch();
+                for (const mt of myTeams) {
+                    const team = await getTeamById(database, mt.id);
+                    if (team) {
+                        newEntries.push({
+                            id: team.id,
+                            name: team.displayName || team.name,
+                        });
+                    }
+                }
+                setError(undefined);
+                setEntries(newEntries);
+            } catch (e) {
+                setError(e);
+                newEntries = [];
+                setEntries([]);
+            } finally {
+                if (opts?.isRefresh) {
+                    setRefreshing(false);
+                } else {
+                    setLoading(false);
+                }
+                loadPromiseRef.current = null;
+            }
+            return newEntries;
+        })();
+
+        loadPromiseRef.current = loadTask;
+        return loadTask;
     }, [database, employeeId]);
 
     useEffect(() => {
@@ -278,6 +283,10 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
         });
         return () => listener.remove();
     }, [loadCompanies]);
+
+    useOnComponentWillAppear(componentId, () => {
+        loadCompanies({isRefresh: true});
+    });
 
     const handleCreateEnterprise = usePreventDoubleTap(useCallback(async () => {
         if (!employeeId || !serverUrl) {
@@ -420,54 +429,44 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
             style={styles.flex}
             testID='enterprise.manage.screen'
         >
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'enterprise.manage.title', defaultMessage: 'Manage enterprises'})}
-                </Text>
-                <Text style={styles.headerSubtitle}>
-                    {intl.formatMessage({
-                        id: 'enterprise.manage.subtitle_merged',
-                        defaultMessage: 'Includes your Mattermost enterprises. Create or join more above.',
-                    })}
+            <View style={styles.topContent}>
+                <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                        style={styles.primaryAction}
+                        onPress={handleCreateEnterprise}
+                        activeOpacity={0.7}
+                        testID='enterprise.manage.create.button'
+                    >
+                        <CompassIcon
+                            name='plus'
+                            size={18}
+                            color={theme.buttonColor}
+                        />
+                        <Text style={styles.primaryActionText}>
+                            {intl.formatMessage({id: 'enterprise.manage.create', defaultMessage: 'Create enterprise'})}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.secondaryAction}
+                        onPress={handleJoinEnterprise}
+                        activeOpacity={0.7}
+                        testID='enterprise.manage.join.button'
+                    >
+                        <CompassIcon
+                            name='account-multiple-plus-outline'
+                            size={18}
+                            color={theme.buttonBg}
+                        />
+                        <Text style={styles.secondaryActionText}>
+                            {intl.formatMessage({id: 'enterprise.manage.join', defaultMessage: 'Join another enterprise'})}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                <Text style={styles.sectionTitle}>
+                    {intl.formatMessage({id: 'enterprise.manage.list_title', defaultMessage: 'Your enterprises'})}
                 </Text>
             </View>
-
-            <View style={styles.actionsRow}>
-                <TouchableOpacity
-                    style={styles.primaryAction}
-                    onPress={handleCreateEnterprise}
-                    activeOpacity={0.7}
-                    testID='enterprise.manage.create.button'
-                >
-                    <CompassIcon
-                        name='plus'
-                        size={18}
-                        color={theme.buttonColor}
-                    />
-                    <Text style={styles.primaryActionText}>
-                        {intl.formatMessage({id: 'enterprise.manage.create', defaultMessage: 'Create enterprise'})}
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.secondaryAction}
-                    onPress={handleJoinEnterprise}
-                    activeOpacity={0.7}
-                    testID='enterprise.manage.join.button'
-                >
-                    <CompassIcon
-                        name='account-multiple-plus-outline'
-                        size={18}
-                        color={theme.buttonBg}
-                    />
-                    <Text style={styles.secondaryActionText}>
-                        {intl.formatMessage({id: 'enterprise.manage.join', defaultMessage: 'Join another enterprise'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <Text style={styles.sectionTitle}>
-                {intl.formatMessage({id: 'enterprise.manage.list_title', defaultMessage: 'Your enterprises'})}
-            </Text>
 
             <ScrollView
                 style={styles.flex}

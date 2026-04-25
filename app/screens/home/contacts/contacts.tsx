@@ -6,7 +6,7 @@ import {type StackNavigationProp} from '@react-navigation/stack';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
@@ -22,18 +22,18 @@ import {ContactsBarEnterpriseTitle} from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
-import {Screens} from '@constants';
+import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
+import NetworkManager from '@managers/network_manager';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
 import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import NetworkManager from '@managers/network_manager';
 
 import {type ContactsStackParamList} from './contacts_stack_param_list';
 
@@ -92,7 +92,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     enterpriseSection: {
         marginTop: 0,
-        marginHorizontal: 16,
+        marginHorizontal: 4,
         backgroundColor: theme.centerChannelBg,
         borderRadius: 12,
         overflow: 'hidden',
@@ -130,13 +130,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     listItemName: {
         ...typography('Body', 200),
         color: theme.centerChannelColor,
+        flexShrink: 1,
+        minWidth: 0,
     },
     listItemMain: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         minWidth: 0,
-        gap: 8,
+        gap: 6,
+    },
+    userTagsWrap: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 2,
+        marginLeft: 'auto',
     },
     userTag: {
         paddingHorizontal: 8,
@@ -213,6 +221,7 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
     const isFocusedRef = useRef(isFocused);
     isFocusedRef.current = isFocused;
     const mounted = useRef(false);
+    const tagMetaRequestIdRef = useRef(0);
 
     const currentTeamId = useMemo(() => currentTeam?.id, [currentTeam]);
     const currentUserId = useMemo(() => currentUser?.id, [currentUser]);
@@ -284,30 +293,35 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
         setResolvedCurrentUserId(currentUserId);
     }, [currentUserId]);
 
-    useEffect(() => {
+    const loadTagMeta = useCallback(async () => {
         if (!serverUrl || !currentTeamId) {
             return;
         }
-        let cancelled = false;
-        const loadTagMeta = async () => {
-            const teamResult = await fetchTeamById(serverUrl, currentTeamId);
-            if (!cancelled) {
-                setOwnerId(teamResult.team?.creator_id);
+        const requestId = ++tagMetaRequestIdRef.current;
+        const teamResult = await fetchTeamById(serverUrl, currentTeamId);
+        if (requestId === tagMetaRequestIdRef.current) {
+            setOwnerId(teamResult.team?.creator_id);
+        }
+        try {
+            const me = await NetworkManager.getClient(serverUrl).getMe();
+            if (requestId === tagMetaRequestIdRef.current) {
+                setResolvedCurrentUserId(me?.id);
             }
-            try {
-                const me = await NetworkManager.getClient(serverUrl).getMe();
-                if (!cancelled) {
-                    setResolvedCurrentUserId(me?.id);
-                }
-            } catch {
-                // ignore
-            }
-        };
-        loadTagMeta();
-        return () => {
-            cancelled = true;
-        };
+        } catch {
+            // ignore
+        }
     }, [currentTeamId, serverUrl]);
+
+    useEffect(() => {
+        loadTagMeta();
+    }, [loadTagMeta, homeReappearTick]);
+
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(Events.MANAGE_ENTERPRISE_REFRESH, () => {
+            loadTagMeta();
+        });
+        return () => listener.remove();
+    }, [loadTagMeta]);
 
     useEffect(() => {
         if (!serverUrl || !currentTeamId || defaultDepartmentEmployees.length === 0) {
@@ -521,29 +535,31 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                                 >
                                     {getContactListDisplayName(emp)}
                                 </Text>
-                                {buildEnterpriseUserTagKeys({
-                                    userId: emp.id,
-                                    ownerId,
-                                    currentUserId: resolvedCurrentUserId,
-                                    managerIds,
-                                }).map((tagKey: EnterpriseUserTagKey) => {
-                                    const isSelf = tagKey === 'self';
-                                    return (
-                                        <View
-                                            key={`${emp.id}-${tagKey}`}
-                                            style={[styles.userTag, isSelf && styles.selfTag]}
-                                        >
-                                            <Text style={[styles.userTagText, isSelf && styles.selfTagText]}>
-                                                {tagKey === 'owner' ?
-                                                    intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'}) :
-                                                    tagKey === 'manager' ?
-                                                        intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'}) :
-                                                        intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})
-                                                }
-                                            </Text>
-                                        </View>
-                                    );
-                                })}
+                                <View style={styles.userTagsWrap}>
+                                    {buildEnterpriseUserTagKeys({
+                                        userId: emp.id,
+                                        ownerId,
+                                        currentUserId: resolvedCurrentUserId,
+                                        managerIds,
+                                    }).map((tagKey: EnterpriseUserTagKey) => {
+                                        const isSelf = tagKey === 'self';
+                                        return (
+                                            <View
+                                                key={`${emp.id}-${tagKey}`}
+                                                style={[styles.userTag, isSelf && styles.selfTag]}
+                                            >
+                                                <Text style={[styles.userTagText, isSelf && styles.selfTagText]}>
+                                                    {tagKey === 'owner' ?
+                                                        intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'}) :
+                                                        tagKey === 'manager' ?
+                                                            intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'}) :
+                                                            intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})
+                                                    }
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
                             </View>
                         </TouchableOpacity>
                         {empIdx < defaultDepartmentEmployees.length - 1 ? (

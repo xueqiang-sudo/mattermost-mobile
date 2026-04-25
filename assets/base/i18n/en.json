@@ -1585,7 +1585,7 @@
   "contacts.add_sub_department": "Add Sub-department",
   "contacts.sub_department_name_placeholder": "Enter department name",
   "contacts.add_sub_department_failed": "Failed to create sub-department. Please try again.",
-  "contacts.more_management": "More Management",
+  "contacts.more_management": "More",
   "contacts.modify_department_name": "Modify department name",
   "contacts.modify_enterprise_name": "Modify enterprise name",
   "contacts.department_name_placeholder": "Department name",

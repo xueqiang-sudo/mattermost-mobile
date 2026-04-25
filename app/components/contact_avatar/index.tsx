@@ -16,18 +16,23 @@ type Props = {
     size?: number;
 };
 
+const LEADING_NON_WORD_RE = /^[^0-9A-Za-z\u3400-\u9FFF\uF900-\uFAFF]+/u;
+
+const getMeaningfulLeadingChar = (value: string): string => {
+    const normalized = value.trim().replace(LEADING_NON_WORD_RE, '');
+    return normalized.charAt(0);
+};
+
 const getInitials = (name: string): string | null => {
     const trimmed = name?.trim();
     if (!trimmed) {
         return null;
     }
-    const parts = trimmed.split(/\s+/);
-    if (parts.length >= 2) {
-        const first = parts[0].charAt(0);
-        const last = parts[parts.length - 1].charAt(0);
-        return (first + last).toUpperCase().slice(0, 2);
+    const firstChar = getMeaningfulLeadingChar(trimmed);
+    if (!firstChar) {
+        return null;
     }
-    return trimmed.charAt(0).toUpperCase();
+    return firstChar.toUpperCase();
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({

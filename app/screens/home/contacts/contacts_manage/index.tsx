@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
@@ -20,7 +20,7 @@ import ContactDirectoryList from '@components/contact_directory_list';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TeamManagerModal from '@components/team_manager_modal';
-import {Screens} from '@constants';
+import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -120,7 +120,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         gap: 8,
     },
     bottomButton: {
-        flex: 1,
+        flex: 2,
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 8,
@@ -246,6 +246,27 @@ const ContactsManage = ({
         );
     }, [companyId, serverUrl]);
 
+    const loadOwnerAndSelf = useCallback(async () => {
+        if (!serverUrl) {
+            return;
+        }
+
+        const client = NetworkManager.getClient(serverUrl);
+        try {
+            const [team, me] = await Promise.all([
+                client.getTeam(companyId),
+                client.getMe(),
+            ]);
+            if (!mounted.current) {
+                return;
+            }
+            setOwnerId(team?.creator_id);
+            setCurrentUserId(me?.id);
+        } catch {
+            // no-op: keep tags degraded gracefully
+        }
+    }, [companyId, serverUrl]);
+
     useNavButtonPressed(effectiveCloseButtonId, componentId, handleClose, [handleClose]);
     const handleHardwareBack = useCallback(() => {
         if (currentDepartmentId == null && manageStack.length <= 1) {
@@ -264,6 +285,7 @@ const ContactsManage = ({
     }, []);
 
     useOnComponentWillAppear(componentId, refetch);
+    useOnComponentWillAppear(componentId, loadOwnerAndSelf);
 
     useEffect(() => {
         const top = manageStack[manageStack.length - 1];
@@ -322,31 +344,15 @@ const ContactsManage = ({
     }, [companyId, employees, serverUrl]);
 
     useEffect(() => {
-        let cancelled = false;
-        const loadOwnerAndSelf = async () => {
-            if (!serverUrl) {
-                return;
-            }
-            const client = NetworkManager.getClient(serverUrl);
-            try {
-                const [team, me] = await Promise.all([
-                    client.getTeam(companyId),
-                    client.getMe(),
-                ]);
-                if (cancelled) {
-                    return;
-                }
-                setOwnerId(team?.creator_id);
-                setCurrentUserId(me?.id);
-            } catch {
-                // no-op: keep tags degraded gracefully
-            }
-        };
         loadOwnerAndSelf();
-        return () => {
-            cancelled = true;
-        };
-    }, [companyId, serverUrl]);
+    }, [loadOwnerAndSelf]);
+
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(Events.MANAGE_ENTERPRISE_REFRESH, () => {
+            loadOwnerAndSelf();
+        });
+        return () => listener.remove();
+    }, [loadOwnerAndSelf]);
 
     const openManagerModal = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
@@ -752,7 +758,7 @@ const ContactsManage = ({
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={styles.bottomButton}
+                    style={[styles.bottomButton, {flex: 3}]}
                     onPress={handleAddSubDepartment}
                     activeOpacity={0.7}
                     testID='contacts.manage.add_sub_department'
@@ -762,13 +768,13 @@ const ContactsManage = ({
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={styles.bottomButton}
+                    style={[styles.bottomButton, {flex: 1}]}
                     onPress={handleMore}
                     activeOpacity={0.7}
                     testID='contacts.manage.more'
                 >
                     <Text style={styles.bottomButtonText}>
-                        {intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'})}
+                        {intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More'})}
                     </Text>
                 </TouchableOpacity>
             </View>

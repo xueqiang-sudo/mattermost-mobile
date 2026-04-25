@@ -25,7 +25,7 @@ import {
 } from '@actions/remote/employee_contact_new';
 import {MMEmployeeContactTypes, type MMEmployeeContactType} from '@client/rest/team_department';
 import {useServerUrl} from '@context/server';
-import {getContactListDisplayName} from '@utils/contact_section';
+import {getContactListDisplayName, getSupplierCustomerDisplayName} from '@utils/contact_section';
 import ContactAvatar from '@components/contact_avatar';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
@@ -155,8 +155,7 @@ function formatContactSubtitle(detail: EmployeeContactDetailRow, relationLabel: 
 }
 
 function getContactDisplayName(detail: EmployeeContactDetailRow): string {
-    const r = detail.remark?.trim();
-    return r || getContactListDisplayName(detail.contact);
+    return getSupplierCustomerDisplayName(detail.remark, detail.contact);
 }
 
 const SupplierCustomerListRow = memo(({
@@ -172,7 +171,6 @@ const SupplierCustomerListRow = memo(({
     const contactId = item.contact.id;
     const displayName = getContactDisplayName(item);
     const sub = formatContactSubtitle(item, relationDescriptionLabel);
-    const remarkTrimmed = item.remark?.trim();
     return (
         <>
             <TouchableOpacity
@@ -194,14 +192,6 @@ const SupplierCustomerListRow = memo(({
                     >
                         {displayName}
                     </Text>
-                    {remarkTrimmed ? (
-                        <Text
-                            style={styles.listItemSub}
-                            numberOfLines={1}
-                        >
-                            {getContactListDisplayName(item.contact)}
-                        </Text>
-                    ) : null}
                     {sub ? (
                         <Text
                             style={styles.listItemSub}

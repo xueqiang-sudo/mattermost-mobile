@@ -42,8 +42,9 @@ function getCardGradientColors(theme: Theme): [string, string] {
     if (tinyColor(theme.sidebarBg).isDark()) {
         return [theme.sidebarBg, theme.sidebarHeaderBg];
     }
-    const endColor = blendColors(theme.linkColor, '#000000', 0.2, true);
-    return [theme.linkColor, endColor];
+    const startColor = blendColors(theme.sidebarBg, '#000000', 0.4, true);
+    const endColor = blendColors(theme.sidebarHeaderBg, '#000000', 0.2, true);
+    return [startColor, endColor];
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({

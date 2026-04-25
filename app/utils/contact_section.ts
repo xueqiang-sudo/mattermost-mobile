@@ -19,6 +19,20 @@ export function getContactListDisplayName(user: UserProfile): string {
     return user.username || '';
 }
 
+/**
+ * 供应商/客户显示名统一处理：
+ * - 没有设置备注：显示昵称
+ * - 设置了备注：显示「备注（昵称）」
+ */
+export function getSupplierCustomerDisplayName(remark: string | null | undefined, contact: UserProfile): string {
+    const nickname = getContactListDisplayName(contact);
+    const trimmedRemark = remark?.trim();
+    if (trimmedRemark) {
+        return `${trimmedRemark} (${nickname})`;
+    }
+    return nickname;
+}
+
 /** 汉字与扩展 A 区（含常用汉字）；用于判断是否走拼音首字母 */
 const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
 

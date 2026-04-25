@@ -65,13 +65,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     listItemName: {
         ...typography('Body', 200),
         color: theme.centerChannelColor,
+        flexShrink: 1,
+        minWidth: 0,
     },
     listItemMain: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         minWidth: 0,
-        gap: 8,
+        gap: 6,
+    },
+    managerTagsWrap: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 2,
+        marginLeft: 'auto',
     },
     managerTag: {
         paddingHorizontal: 8,
@@ -228,47 +236,49 @@ const ContactDirectoryList = ({
                             >
                                 {getContactListDisplayName(emp)}
                             </Text>
-                            {buildEnterpriseUserTagKeys({
-                                userId: emp.id,
-                                ownerId,
-                                currentUserId,
-                                managerIds,
-                            }).map((tagKey: EnterpriseUserTagKey) => {
-                                if (tagKey === 'owner') {
+                            <View style={styles.managerTagsWrap}>
+                                {buildEnterpriseUserTagKeys({
+                                    userId: emp.id,
+                                    ownerId,
+                                    currentUserId,
+                                    managerIds,
+                                }).map((tagKey: EnterpriseUserTagKey) => {
+                                    if (tagKey === 'owner') {
+                                        return (
+                                            <View
+                                                key={`${emp.id}-owner`}
+                                                style={[styles.managerTag, styles.ownerTag]}
+                                            >
+                                                <Text style={[styles.managerTagText, styles.ownerTagText]}>
+                                                    {intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'})}
+                                                </Text>
+                                            </View>
+                                        );
+                                    }
+                                    if (tagKey === 'self') {
+                                        return (
+                                            <View
+                                                key={`${emp.id}-self`}
+                                                style={[styles.managerTag, styles.selfTag]}
+                                            >
+                                                <Text style={[styles.managerTagText, styles.selfTagText]}>
+                                                    {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
+                                                </Text>
+                                            </View>
+                                        );
+                                    }
                                     return (
                                         <View
-                                            key={`${emp.id}-owner`}
-                                            style={[styles.managerTag, styles.ownerTag]}
+                                            key={`${emp.id}-manager`}
+                                            style={styles.managerTag}
                                         >
-                                            <Text style={[styles.managerTagText, styles.ownerTagText]}>
-                                                {intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'})}
+                                            <Text style={styles.managerTagText}>
+                                                {intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'})}
                                             </Text>
                                         </View>
                                     );
-                                }
-                                if (tagKey === 'self') {
-                                    return (
-                                        <View
-                                            key={`${emp.id}-self`}
-                                            style={[styles.managerTag, styles.selfTag]}
-                                        >
-                                            <Text style={[styles.managerTagText, styles.selfTagText]}>
-                                                {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
-                                            </Text>
-                                        </View>
-                                    );
-                                }
-                                return (
-                                    <View
-                                        key={`${emp.id}-manager`}
-                                        style={styles.managerTag}
-                                    >
-                                        <Text style={styles.managerTagText}>
-                                            {intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'})}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
+                                })}
+                            </View>
                         </View>
                     </TouchableOpacity>
                     {empIdx < employees.length - 1 ? (
