@@ -6,7 +6,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 
-import {ensureContactEmployeeForUser} from '@actions/remote/contact';
+import {addUserToDefaultDepartment, addUserToDepartment} from '@actions/remote/contact_new';
 import {addUsersToTeam, fetchMyTeams, getTeamMembersByIds} from '@actions/remote/team';
 import {fetchUsersByIds} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
@@ -309,13 +309,12 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid, contactTargetDepar
             team.id === teamId ? {...team, joined: true, inviting: false} : team
         )));
 
-        if (targetUser) {
-            await ensureContactEmployeeForUser(
-                serverUrl,
-                teamId,
-                targetUser,
-                contactTargetDepartmentId ?? null,
-            );
+        if (targetUser && uid) {
+            if (typeof contactTargetDepartmentId === 'number') {
+                await addUserToDepartment(serverUrl, teamId, contactTargetDepartmentId, uid);
+            } else {
+                await addUserToDefaultDepartment(serverUrl, teamId, uid);
+            }
         }
     }, [contactTargetDepartmentId, intl, serverUrl, targetUser, uid]));
 

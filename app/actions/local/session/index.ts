@@ -16,6 +16,7 @@ import {getDeviceToken} from '@queries/app/global';
 import {getExpiredSession} from '@queries/servers/system';
 import {getCurrentUser} from '@queries/servers/user';
 import EphemeralStore from '@store/ephemeral_store';
+import {getErrorMessage} from '@utils/errors';
 import {deleteFileCache, deleteFileCacheByDir} from '@utils/file';
 import {logError, logInfo, logWarning} from '@utils/log';
 import {clearCookiesForServer, getCSRFFromCookie, urlSafeBase64Encode} from '@utils/security';
@@ -101,7 +102,7 @@ export const cancelSessionNotification = async (serverUrl: string) => {
         return {};
     } catch (e) {
         if (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string' && e.message.includes('database not found')) {
-            logInfo('cancelSessionNotification database not found, err:', e);
+            logInfo('cancelSessionNotification database not found, err:', getErrorMessage(e));
         } else {
             logError('cancelSessionNotification', e);
         }

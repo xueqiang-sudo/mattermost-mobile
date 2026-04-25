@@ -15,8 +15,8 @@ import {getActiveServerUrl} from '@queries/app/servers';
 import {prepareCategoriesAndCategoriesChannels} from '@queries/servers/categories';
 import {prepareMyChannelsForTeam, getDefaultChannelForTeam} from '@queries/servers/channel';
 import {prepareCommonSystemValues, getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
-import {getIsCRTEnabled} from '@queries/servers/thread';
 import {addTeamToTeamHistory, prepareDeleteTeam, prepareMyTeams, getNthLastChannelFromTeam, queryTeamsById, getLastTeam, getTeamById, removeTeamFromTeamHistory, queryMyTeams} from '@queries/servers/team';
+import {getIsCRTEnabled} from '@queries/servers/thread';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
@@ -594,7 +594,43 @@ export const fetchTeamMemberCount = async (serverUrl: string, teamId: string): P
     }
 };
 
-/** 解散 Mattermost 团队（仅团队创建者/管理员可调用） */
+/** 转移团队所有权 */
+export const transferTeamOwnership = async (serverUrl: string, teamId: string, newOwnerId: string, reason?: string) => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const transferResult = await client.transferTeamOwnership(teamId, newOwnerId, reason);
+        return {data: transferResult};
+    } catch (error) {
+        logDebug('error on transferTeamOwnership', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/**
+ * 当前用户是否具备解散该团队权限。
+ * 根据团队所有权约束，仅 creator_id 可解散团队；最终以服务端 deleteTeam 校验为准。
+ */
+export const fetchUserCanDissolveTeam = async (
+    serverUrl: string,
+    teamId: string,
+    userId: string,
+): Promise<{data: boolean; error?: unknown}> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const team = await client.getTeam(teamId);
+        if (team?.creator_id && team.creator_id === userId) {
+            return {data: true};
+        }
+
+        // 仅创建者可解散；管理员角色不再具备该权限
+        return {data: false};
+    } catch (error) {
+        logDebug('error on fetchUserCanDissolveTeam', getFullErrorMessage(error));
+        return {data: false, error};
+    }
+};
+
+/** 解散 Mattermost 团队（仅团队创建者可调用） */
 export const deleteTeam = async (serverUrl: string, teamId: string): Promise<{error?: unknown}> => {
     try {
         const client = NetworkManager.getClient(serverUrl);

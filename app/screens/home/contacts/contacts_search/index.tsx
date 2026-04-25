@@ -14,13 +14,13 @@ import {
 } from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchSearchContactEmployees} from '@actions/remote/contact';
-import {type ContactEmployeeSearchItem} from '@client/rest/contact';
+import {fetchSearchContactEmployees, type TeamMemberSearchItem} from '@actions/remote/contact_new';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import ContactSearchScopeHint from '@components/contact_search_scope_hint';
 import GlobalErrorBoundary from '@components/global_error_fallback';
 import {Screens} from '@constants';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
@@ -30,14 +30,13 @@ import {
     filterValidSearchItems,
     normalizeDepartmentName,
 } from '@utils/contact_employee_search_path';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
-
-export {filterValidSearchItems} from '@utils/contact_employee_search_path';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {flex: 1},
@@ -115,6 +114,7 @@ type Props = {
     companyName?: string;
     departmentId?: number;
     departmentName?: string;
+
     /** 与部门详情 baseBreadcrumb 一致，用于搜索范围级联展示 */
     departmentBreadcrumb?: string[];
     currentUserId?: string;
@@ -136,17 +136,27 @@ const ContactsSearchContent = ({
 }: Props) => {
     const intl = useIntl();
     const theme = useTheme();
+    const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
     const mounted = useRef(true);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     const [query, setQuery] = useState('');
-    const [results, setResults] = useState<ContactEmployeeSearchItem[]>([]);
+    const [results, setResults] = useState<TeamMemberSearchItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
 
     const runSearch = useCallback(async (kw: string) => {
-        const res = await fetchSearchContactEmployees(companyId, kw, {
+        if (!serverUrl) {
+            if (!mounted.current) {
+                return;
+            }
+            setLoading(false);
+            setSearched(true);
+            setResults([]);
+            return;
+        }
+        const res = await fetchSearchContactEmployees(serverUrl, companyId, kw, {
             departmentId,
         });
         if (!mounted.current) {
@@ -155,13 +165,18 @@ const ContactsSearchContent = ({
 
         setLoading(false);
         setSearched(true);
-        if (res.data) {
-            setResults(filterValidSearchItems(res.data));
+        if (res.data?.length) {
+            const mapped: TeamMemberSearchItem[] = res.data.map((u) => ({
+                employee: u,
+                cascade_departments: [],
+                company_id: companyId,
+            }));
+            setResults(filterValidSearchItems(mapped));
             return;
         }
 
         setResults([]);
-    }, [companyId, departmentId]);
+    }, [companyId, departmentId, serverUrl]);
 
     useEffect(() => {
         mounted.current = true;
@@ -209,7 +224,7 @@ const ContactsSearchContent = ({
 
     useAndroidHardwareBackHandler(effectiveScreenId, handleClose);
 
-    const handleEmployeePress = useCallback((item: ContactEmployeeSearchItem) => {
+    const handleEmployeePress = useCallback((item: TeamMemberSearchItem) => {
         const emp = item.employee;
         const pathParts = cascadePathParts(item, defaultDepartmentLabel);
         const fallbackDepartmentName = departmentName ? normalizeDepartmentName(departmentName, defaultDepartmentLabel) : undefined;
@@ -244,7 +259,7 @@ const ContactsSearchContent = ({
     }
 
     const renderItem = useCallback(
-        ({item}: {item: ContactEmployeeSearchItem}) => {
+        ({item}: {item: TeamMemberSearchItem}) => {
             const path = cascadePathLabel(item, defaultDepartmentLabel, enterpriseLabel);
             return (
                 <TouchableOpacity
@@ -264,7 +279,7 @@ const ContactsSearchContent = ({
                             style={styles.rowName}
                             numberOfLines={1}
                         >
-                            {item.employee.name}
+                            {getContactListDisplayName(item.employee)}
                         </Text>
                         {path ? (
                             <Text

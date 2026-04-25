@@ -6,7 +6,7 @@ import {type IntlShape, useIntl} from 'react-intl';
 import {Keyboard, View, type LayoutChangeEvent} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {ensureContactEmployeeForUser} from '@actions/remote/contact';
+import {addUserToDefaultDepartment, addUserToDepartment} from '@actions/remote/contact_new';
 import {searchProfiles} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
@@ -228,12 +228,12 @@ export default function Invite({
                 if (!selected || typeof selected === 'string') {
                     continue;
                 }
-                await ensureContactEmployeeForUser(
-                    serverUrl,
-                    teamId,
-                    selected as unknown as UserProfile,
-                    targetDepartmentId,
-                );
+                const uid = (selected as UserProfile).id;
+                if (typeof targetDepartmentId === 'number') {
+                    await addUserToDepartment(serverUrl, teamId, targetDepartmentId, uid);
+                } else {
+                    await addUserToDefaultDepartment(serverUrl, teamId, uid);
+                }
             }
             return;
         }
@@ -254,12 +254,12 @@ export default function Invite({
                 if (!selected || typeof selected === 'string') {
                     continue;
                 }
-                await ensureContactEmployeeForUser(
-                    serverUrl,
-                    teamId,
-                    selected as unknown as UserProfile,
-                    targetDepartmentId,
-                );
+                const uid = (selected as UserProfile).id;
+                if (typeof targetDepartmentId === 'number') {
+                    await addUserToDepartment(serverUrl, teamId, targetDepartmentId, uid);
+                } else {
+                    await addUserToDefaultDepartment(serverUrl, teamId, uid);
+                }
             }
         }
     }, [contactTargetDepartmentId, formatMessage, handleSendError, isAdmin, hasSelection, selectedIds, sendOptions, serverUrl, teamDisplayName, teamId]);

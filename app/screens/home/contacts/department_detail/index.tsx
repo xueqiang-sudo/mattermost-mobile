@@ -1,5 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
+/* eslint-disable max-lines */
 
 import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
@@ -7,26 +8,28 @@ import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {Navigation} from 'react-native-navigation';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchContactDirectoryContent, fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact';
-import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+import {fetchContactDirectoryContent, fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact_new';
 import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {Screens} from '@constants';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {MMDepartment} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-department-detail';
@@ -111,6 +114,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderBottomWidth: 1,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
+
     /** 单行横向滚动，避免长路径折成多行 */
     breadcrumbScroll: {
         flex: 1,
@@ -126,6 +130,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     breadcrumbText: {
         ...typography('Body', 75),
+
         /** 条带在 sidebarBg 上，须用 sidebar 前景色而非 centerChannelColor */
         color: changeOpacity(theme.sidebarText, 0.88),
     },
@@ -239,12 +244,13 @@ const ContactsDepartmentDetail = ({
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const serverUrl = useServerUrl();
     const mounted = useRef(false);
     const breadcrumbScrollRef = useRef<ScrollView>(null);
     const styles = getStyleSheet(theme);
 
-    const [subDepartments, setSubDepartments] = useState<ContactDepartment[]>([]);
-    const [employees, setEmployees] = useState<ContactEmployee[]>([]);
+    const [subDepartments, setSubDepartments] = useState<MMDepartment[]>([]);
+    const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
@@ -301,20 +307,18 @@ const ContactsDepartmentDetail = ({
             {
                 companyId,
                 companyName,
-                ...(departmentId != null ?
-                    {
-                        departmentId,
-                        departmentName,
-                        departmentBreadcrumb: baseBreadcrumb,
-                    } :
-                    {}),
+                ...(departmentId != null ?{
+                    departmentId,
+                    departmentName,
+                    departmentBreadcrumb: baseBreadcrumb,
+                } :{}),
                 closeButtonId: closeId,
             },
             {useBackIcon: true},
         );
     }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName, intl, onSearchPress]);
 
-    const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: ContactDepartment) => {
+    const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: MMDepartment) => {
         const newBreadcrumb = [...baseBreadcrumb, dept.name];
         if (onNavigateToDepartment) {
             onNavigateToDepartment({
@@ -459,11 +463,9 @@ const ContactsDepartmentDetail = ({
         }
     }, [depth, isStackScreen, onBreadcrumbPress]));
 
-    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee) => {
+    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
-        const departmentParentPath = baseBreadcrumb.length > 1
-            ? baseBreadcrumb.slice(0, -1).join('/')
-            : undefined;
+        const departmentParentPath = baseBreadcrumb.length > 1? baseBreadcrumb.slice(0, -1).join('/'): undefined;
         showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
@@ -531,8 +533,15 @@ const ContactsDepartmentDetail = ({
 
         setLoading(true);
 
+        if (!serverUrl) {
+            if (mounted.current) {
+                setLoading(false);
+            }
+            return;
+        }
+
         if (departmentId == null) {
-            const res = await fetchContactDirectoryContent(companyId, undefined);
+            const res = await fetchContactDirectoryContent(serverUrl, companyId, undefined);
             if (!mounted.current) {
                 return;
             }
@@ -543,8 +552,8 @@ const ContactsDepartmentDetail = ({
             }
         } else {
             const [detailRes, countRes] = await Promise.all([
-                fetchDepartmentDetail(companyId, departmentId),
-                fetchEmployeeCountOfDepartment(companyId, departmentId),
+                fetchDepartmentDetail(serverUrl, companyId, departmentId),
+                fetchEmployeeCountOfDepartment(serverUrl, companyId, departmentId),
             ]);
 
             if (!mounted.current) {
@@ -563,7 +572,7 @@ const ContactsDepartmentDetail = ({
         if (mounted.current) {
             setLoading(false);
         }
-    }, [companyId, departmentId]);
+    }, [companyId, departmentId, serverUrl]);
 
     useEffect(() => {
         mounted.current = true;
@@ -649,7 +658,7 @@ const ContactsDepartmentDetail = ({
                                 style={styles.listItemName}
                                 numberOfLines={1}
                             >
-                                {emp.name}
+                                {getContactListDisplayName(emp)}
                             </Text>
                         </TouchableOpacity>
                         {empIdx < employees.length - 1 ? (
@@ -669,9 +678,7 @@ const ContactsDepartmentDetail = ({
         );
     };
 
-    const safeAreaEdges: Edge[] = fromEmployeeProfile
-        ? ['bottom']
-        : ['top', 'bottom', 'left', 'right'];
+    const safeAreaEdges: Edge[] = fromEmployeeProfile? ['bottom']: ['top', 'bottom', 'left', 'right'];
 
     return (
         <SafeAreaView

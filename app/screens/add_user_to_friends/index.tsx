@@ -9,9 +9,9 @@ import {Alert, Modal, ScrollView, Text, TouchableOpacity, View} from 'react-nati
 import {
     addEmployeeContact,
     fetchAllEmployeeContacts,
-} from '@actions/remote/employee_contact';
+} from '@actions/remote/employee_contact_new';
 import {fetchUserById} from '@actions/remote/user';
-import {EmployeeContactTypes, type EmployeeContactType} from '@client/rest/employee_contact';
+import {MMEmployeeContactTypes, type MMEmployeeContactType} from '@client/rest/team_department';
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import Loading from '@components/loading';
@@ -36,7 +36,7 @@ type AddUserToFriendsProps = {
     uid?: string;
 
     /** 从供应商/客户表单扫码进入时限定联系人类型，主按钮一键添加并关闭 modal */
-    forcedEmployeeContactType?: EmployeeContactType;
+    forcedEmployeeContactType?: MMEmployeeContactType;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -296,9 +296,9 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
             }
             setLoading(true);
             const currUid = await getCurrentUserId(database);
-            const [targetUProfile, relationRes] = await Promise.all([
+            const [targetUProfileTmp, relationRes] = await Promise.all([
                 fetchUserById(serverUrl, uid),
-                currUid ? fetchAllEmployeeContacts(currUid) : Promise.resolve({}),
+                currUid && serverUrl ? fetchAllEmployeeContacts(serverUrl, currUid) : Promise.resolve({data: {suppliers: [], customers: []}}),
             ]);
             if (!mounted) {
                 return;
@@ -306,10 +306,10 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
             const suppliers = relationRes.data?.suppliers ?? [];
             const customers = relationRes.data?.customers ?? [];
             setCurrentUserId(currUid);
-            setTargetUProfile(targetUProfile);
+            setTargetUProfile(targetUProfileTmp);
             setRelationState({
-                isSupplier: suppliers.some((contact) => contact.id === uid),
-                isCustomer: customers.some((contact) => contact.id === uid),
+                isSupplier: suppliers.some((contact) => contact.contact_id === uid),
+                isCustomer: customers.some((contact) => contact.contact_id === uid),
             });
             setLoading(false);
         };
@@ -320,24 +320,24 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
     }, [database, intl.locale, serverUrl, uid]);
 
     const refreshRelations = useCallback(async () => {
-        if (!currentUserId || !uid) {
+        if (!currentUserId || !uid || !serverUrl) {
             return;
         }
-        const relationRes = await fetchAllEmployeeContacts(currentUserId);
+        const relationRes = await fetchAllEmployeeContacts(serverUrl, currentUserId);
         const suppliers = relationRes.data?.suppliers ?? [];
         const customers = relationRes.data?.customers ?? [];
         setRelationState({
-            isSupplier: suppliers.some((contact) => contact.id === uid),
-            isCustomer: customers.some((contact) => contact.id === uid),
+            isSupplier: suppliers.some((contact) => contact.contact_id === uid),
+            isCustomer: customers.some((contact) => contact.contact_id === uid),
         });
-    }, [currentUserId, uid]);
+    }, [currentUserId, serverUrl, uid]);
 
-    const addRelation = usePreventDoubleTap(useCallback(async (kind: typeof EmployeeContactTypes.Supplier | typeof EmployeeContactTypes.Customer) => {
-        if (!currentUserId || !uid || saving || uid === currentUserId) {
+    const addRelation = usePreventDoubleTap(useCallback(async (kind: typeof MMEmployeeContactTypes.Supplier | typeof MMEmployeeContactTypes.Customer) => {
+        if (!currentUserId || !uid || !serverUrl || saving || uid === currentUserId) {
             return;
         }
         setSaving(true);
-        const result = await addEmployeeContact(currentUserId, {
+        const result = await addEmployeeContact(serverUrl, currentUserId, {
             contact_id: uid,
             contact_type: kind,
         });
@@ -354,18 +354,18 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
         if (forcedEmployeeContactType) {
             dismissModal({componentId});
         }
-    }, [componentId, currentUserId, forcedEmployeeContactType, intl, refreshRelations, saving, uid]));
+    }, [componentId, currentUserId, forcedEmployeeContactType, intl, refreshRelations, saving, serverUrl, uid]));
 
     const hasAnyRelation = relationState.isSupplier || relationState.isCustomer;
     const allRelationsAdded = relationState.isSupplier && relationState.isCustomer;
     const isSelf = Boolean(uid && currentUserId && uid === currentUserId);
     const isForcedMode =
-        forcedEmployeeContactType === EmployeeContactTypes.Supplier ||
-        forcedEmployeeContactType === EmployeeContactTypes.Customer;
+        forcedEmployeeContactType === MMEmployeeContactTypes.Supplier ||
+        forcedEmployeeContactType === MMEmployeeContactTypes.Customer;
     let forcedTypeAlreadyAdded = false;
-    if (forcedEmployeeContactType === EmployeeContactTypes.Supplier) {
+    if (forcedEmployeeContactType === MMEmployeeContactTypes.Supplier) {
         forcedTypeAlreadyAdded = relationState.isSupplier;
-    } else if (forcedEmployeeContactType === EmployeeContactTypes.Customer) {
+    } else if (forcedEmployeeContactType === MMEmployeeContactTypes.Customer) {
         forcedTypeAlreadyAdded = relationState.isCustomer;
     }
     const mainButtonDisabled = isForcedMode? saving || isSelf || forcedTypeAlreadyAdded: saving || allRelationsAdded || isSelf;
@@ -373,7 +373,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
     let addContactButtonId = 'add_user_to_friends.add_contact';
     let addContactButtonDefault = 'Add contact';
     if (isForcedMode) {
-        if (forcedEmployeeContactType === EmployeeContactTypes.Supplier) {
+        if (forcedEmployeeContactType === MMEmployeeContactTypes.Supplier) {
             addContactButtonId = 'add_user_to_friends.add_as_supplier_button';
             addContactButtonDefault = 'Add as supplier';
         } else {
@@ -634,7 +634,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                             <TouchableOpacity
                                 style={[styles.sheetOption, relationState.isSupplier && styles.sheetOptionDisabled]}
                                 disabled={relationState.isSupplier || saving}
-                                onPress={() => addRelation(EmployeeContactTypes.Supplier)}
+                                onPress={() => addRelation(MMEmployeeContactTypes.Supplier)}
                                 testID='add_user_to_friends.add_supplier'
                             >
                                 <View>
@@ -663,7 +663,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                             <TouchableOpacity
                                 style={[styles.sheetOption, relationState.isCustomer && styles.sheetOptionDisabled]}
                                 disabled={relationState.isCustomer || saving}
-                                onPress={() => addRelation(EmployeeContactTypes.Customer)}
+                                onPress={() => addRelation(MMEmployeeContactTypes.Customer)}
                                 testID='add_user_to_friends.add_customer'
                             >
                                 <View>

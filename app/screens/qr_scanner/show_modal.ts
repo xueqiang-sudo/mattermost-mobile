@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 import {OptionsModalPresentationStyle} from 'react-native-navigation';
 
-import {EmployeeContactTypes} from '@client/rest/employee_contact';
+import {MMEmployeeContactTypes} from '@client/rest/team_department';
 import {Screens} from '@constants';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
 import {logInfo} from '@utils/log';
@@ -88,12 +88,12 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                     }
                     const forcedType = options?.extra?.forcedEmployeeContactType;
                     const title =
-                        forcedType === EmployeeContactTypes.Supplier
+                        forcedType === MMEmployeeContactTypes.Supplier
                             ? intl.formatMessage({
                                 id: 'add_user_to_friends.modal_title_add_supplier',
                                 defaultMessage: 'Add supplier',
                             })
-                            : forcedType === EmployeeContactTypes.Customer
+                            : forcedType === MMEmployeeContactTypes.Customer
                                 ? intl.formatMessage({
                                     id: 'add_user_to_friends.modal_title_add_customer',
                                     defaultMessage: 'Add customer',

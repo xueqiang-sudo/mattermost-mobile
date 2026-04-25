@@ -97,4 +97,3 @@ class Client extends mix(ClientBase).with(
 }
 
 export {Client, DEFAULT_LIMIT_AFTER, DEFAULT_LIMIT_BEFORE, HEADER_X_VERSION_ID};
-export {ContactService} from './contact';

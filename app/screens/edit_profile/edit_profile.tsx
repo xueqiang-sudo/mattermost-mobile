@@ -8,7 +8,6 @@ import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {updateLocalUser} from '@actions/local/user';
-import {updateContactEmployee} from '@actions/remote/contact';
 import {fetchCustomProfileAttributes, updateCustomProfileAttributes} from '@actions/remote/custom_profile';
 import {setDefaultProfileImage, updateMe, uploadUserProfileImage} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
@@ -19,7 +18,6 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, popTopScreen, setButtons} from '@screens/navigation';
 import {realPhone} from '@utils/form-rule';
@@ -239,46 +237,6 @@ const EditProfile = ({
                 if (newUserInfo.nickname !== undefined) {
                     await DatabaseManager.updateServerDisplayName(serverUrl, newUserInfo.nickname);
                 }
-            }
-
-
-            // 同步更新企业通讯录中的个人信息
-            try {
-                logDebug('[EditProfile] Starting to sync contact employee info');
-
-                const nameFromProfile = `${(userInfo.firstName.trim() || '')}${(userInfo.lastName.trim() || '')}`.trim();
-                const name = userInfo.nickname.trim() || nameFromProfile || userInfo.username;
-
-                const contactUpdates: {name?: string; email?: string; position?: string; phone?: string} = {};
-
-                if (name) {
-                    contactUpdates.name = name;
-                }
-                if (userInfo.email.trim()) {
-                    contactUpdates.email = userInfo.email.trim();
-                }
-                if (userInfo.position.trim()) {
-                    contactUpdates.position = userInfo.position.trim();
-                }
-                if (userInfo.phone.trim()) {
-                    contactUpdates.phone = userInfo.phone.trim();
-                }
-
-                logDebug('[EditProfile] Contact updates to send:', contactUpdates);
-
-                if (Object.keys(contactUpdates).length > 0) {
-                    logDebug('[EditProfile] Calling updateContactEmployee for user:', currentUser.id);
-                    const result = await updateContactEmployee(currentUser.id, contactUpdates);
-                    if (result.error) {
-                        logError('[EditProfile] Error from updateContactEmployee:', result.error);
-                    } else {
-                        logDebug('[EditProfile] updateContactEmployee successful');
-                    }
-                } else {
-                    logDebug('[EditProfile] No contact updates to send');
-                }
-            } catch (contactError) {
-                logError('[EditProfile] Error updating contact employee info', contactError);
             }
 
             // Update custom attributes if changed and not SAML-linked

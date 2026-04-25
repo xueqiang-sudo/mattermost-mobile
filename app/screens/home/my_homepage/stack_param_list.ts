@@ -3,14 +3,14 @@
 
 import {Screens} from '@constants';
 
-import type {EmployeeContactType} from '@client/rest/employee_contact';
+import type {MMEmployeeContactType} from '@client/rest/team_department';
 
 export type MyHomepageStackParamList = {
     [Screens.MY_HOMEPAGE]: undefined;
     [Screens.MY_SUPPLIERS]: undefined;
     [Screens.MY_CUSTOMERS]: undefined;
     [Screens.SUPPLIER_CUSTOMER_FORM]: {
-        kind: EmployeeContactType;
+        kind: MMEmployeeContactType;
         ownerId: string;
         existingContactId?: string;
         initialContactName?: string;

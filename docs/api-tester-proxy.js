@@ -9,6 +9,7 @@ const path = require('path');
 
 const PORT = 3456;
 const DEPARTMENT_HTML_FILE = path.join(__dirname, 'department-api-tester.html');
+const MATTERMOST_HTML_FILE = path.join(__dirname, 'mattermost-api-tester.html');
 
 function formatTime() {
     const now = new Date();
@@ -148,6 +149,19 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (url.pathname === '/mattermost-api-tester.html') {
+        fs.readFile(MATTERMOST_HTML_FILE, 'utf8', (err, data) => {
+            if (err) {
+                res.writeHead(500);
+                res.end('500 - Failed to read HTML');
+                return;
+            }
+            res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
+            res.end(data);
+        });
+        return;
+    }
+
     res.writeHead(404);
     res.end('404 - Not Found');
 });
@@ -155,4 +169,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
     console.log('\n  API 测试工具代理已启动（Department）');
     console.log(`  请在浏览器访问: http://localhost:${PORT}/department-api-tester.html\n`);
+    console.log(`  Mattermost 测试页: http://localhost:${PORT}/mattermost-api-tester.html\n`);
 });

@@ -21,6 +21,7 @@ export interface ClientTeamsMix {
     getMyTeamMembers: (groupLabel?: RequestGroupLabel) => Promise<TeamMembership[]>;
     getTeamMembers: (teamId: string, page?: number, perPage?: number) => Promise<TeamMembership[]>;
     getTeamMember: (teamId: string, userId: string, groupLabel?: RequestGroupLabel) => Promise<TeamMembership>;
+    transferTeamOwnership: (teamId: string, newOwnerId: string, reason?: string) => Promise<{team_id: string; old_owner_id: string; new_owner_id: string; new_owner_name: string; transferred_at: number; reason?: string}>;
     getTeamMembersByIds: (teamId: string, userIds: string[]) => Promise<TeamMembership[]>;
     addToTeam: (teamId: string, userId: string) => Promise<TeamMembership>;
     addUsersToTeamGracefully: (teamId: string, userIds: string[]) => Promise<TeamMemberWithError[]>;
@@ -115,6 +116,13 @@ const ClientTeams = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         return this.doFetch(
             `${this.getTeamMemberRoute(teamId, userId)}`,
             {method: 'get', groupLabel},
+        );
+    };
+
+    transferTeamOwnership = async (teamId: string, newOwnerId: string, reason?: string) => {
+        return this.doFetch(
+            `${this.getTeamRoute(teamId)}/ownership/transfer`,
+            {method: 'post', body: {new_owner_id: newOwnerId, reason}},
         );
     };
 

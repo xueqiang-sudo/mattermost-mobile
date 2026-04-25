@@ -3,19 +3,19 @@
 
 import {buildDepartmentScopeDisplayFromBreadcrumb, cascadePathLabel, filterValidSearchItems} from './contact_employee_search_path';
 
-import type {ContactEmployeeSearchItem} from '@client/rest/contact';
+import type {TeamMemberSearchItem} from '@types/team_member_search';
 
 describe('contact_employee_search_path', () => {
     it('should filter invalid search items', () => {
         const validItem = {
-            employee: {id: 'emp-1', name: 'Alice'},
+            employee: {id: 'emp-1', username: 'alice', nickname: 'Alice'} as UserProfile,
             cascade_departments: [],
-        } as ContactEmployeeSearchItem;
+        } as TeamMemberSearchItem;
 
         const invalidItem = {
             employee: undefined,
             cascade_departments: [],
-        } as unknown as ContactEmployeeSearchItem;
+        } as unknown as TeamMemberSearchItem;
 
         const filtered = filterValidSearchItems([validItem, invalidItem]);
         expect(filtered).toHaveLength(1);
@@ -24,12 +24,12 @@ describe('contact_employee_search_path', () => {
 
     it('should build cascade path label with leaf and parent path', () => {
         const item = {
-            employee: {id: 'e1', name: 'Bob'},
+            employee: {id: 'e1', username: 'bob', nickname: 'Bob'} as UserProfile,
             cascade_departments: [[
                 {id: 1, name: 'DeptA'},
                 {id: 2, name: 'DeptB'},
             ]],
-        } as unknown as ContactEmployeeSearchItem;
+        } as unknown as TeamMemberSearchItem;
 
         const label = cascadePathLabel(item, 'Default', 'Acme');
         expect(label).toContain('DeptB');
@@ -38,12 +38,12 @@ describe('contact_employee_search_path', () => {
 
     it('should support flat cascade departments payload', () => {
         const item = {
-            employee: {id: 'e2', name: 'Carol'},
+            employee: {id: 'e2', username: 'carol', nickname: 'Carol'} as UserProfile,
             cascade_departments: [
                 {id: 1, name: 'DeptA'},
                 {id: 2, name: 'DeptB'},
             ],
-        } as unknown as ContactEmployeeSearchItem;
+        } as unknown as TeamMemberSearchItem;
 
         const label = cascadePathLabel(item, 'Default', 'Acme');
         expect(label).toContain('DeptB');

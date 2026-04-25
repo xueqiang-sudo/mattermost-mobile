@@ -184,6 +184,7 @@ export interface ClientTeamDepartmentMix {
     getDepartmentChildren: (teamId: string, departmentId: number) => Promise<MMDepartment[]>;
     getDepartmentAncestors: (teamId: string, departmentId: number) => Promise<MMDepartmentAncestor[]>;
     getDepartmentMembers: (teamId: string, departmentId: number, opts?: {page?: number; perPage?: number}) => Promise<MMDepartmentMembersWithCount>;
+    getDepartmentWithoutMembers: (teamId: string, opts?: {page?: number; perPage?: number}) => Promise<MMDepartmentMembersWithCount>;
     addDepartmentMember: (teamId: string, departmentId: number, body: MMAddDepartmentMemberRequest) => Promise<MMStatusOK>;
     removeDepartmentMember: (teamId: string, departmentId: number, userId: string) => Promise<MMStatusOK>;
     batchAddDepartmentMembers: (teamId: string, departmentId: number, body: MMBatchDepartmentMembersRequest) => Promise<MMStatusOK>;
@@ -213,6 +214,10 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         return `${this.getTeamRoute(teamId)}/departments`;
     }
 
+    #doMyFetch = async (url: string, options: ClientOptions, returnDataOnly = true) => {
+        return this.doFetch(url, options, returnDataOnly).then((res) => (typeof res === 'string' && res === 'null' ? null : res));
+    };
+
     async #resolveTeamStructureVersion(teamId: string): Promise<string> {
         const now = Date.now();
         const cached = this.#versionByTeam.get(teamId);
@@ -226,7 +231,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         }
 
         const p = (async () => {
-            const data = (await this.doFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'get'})) as MMTeamVersion;
+            const data = (await this.#doMyFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'get'})) as MMTeamVersion;
             const v = data.version;
             this.#versionByTeam.set(teamId, {version: v, at: Date.now()});
             return v;
@@ -252,14 +257,14 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
 
     async #doRequestTeamStructureGet<T>(teamId: string, path: string): Promise<T> {
         if (!MM_TEAM_DEPARTMENT_ENABLE_CACHE) {
-            return (await this.doFetch(path, {method: 'get'})) as T;
+            return (await this.#doMyFetch(path, {method: 'get'})) as T;
         }
 
         let version: string;
         try {
             version = await this.#resolveTeamStructureVersion(teamId);
         } catch {
-            return (await this.doFetch(path, {method: 'get'})) as T;
+            return (await this.#doMyFetch(path, {method: 'get'})) as T;
         }
 
         let map = this.#responseByTeam.get(teamId);
@@ -281,7 +286,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             }
         }
 
-        const data = (await this.doFetch(path, {method: 'get'})) as T;
+        const data = (await this.#doMyFetch(path, {method: 'get'})) as T;
         map.set(path, {version, data, at: Date.now()});
         if (MM_TEAM_DEPARTMENT_ENABLE_DISK_CACHE && baseUrl) {
             await writeContactDiskCache(baseUrl, teamDiskScopeKey(teamId), path, version, data);
@@ -302,7 +307,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
         }
 
         const p = (async () => {
-            const data = (await this.doFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'get'})) as MMContactVersionInfo;
+            const data = (await this.#doMyFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'get'})) as MMContactVersionInfo;
             const v = data.version;
             this.#versionByUserContacts.set(userId, {version: v, at: Date.now()});
             return v;
@@ -328,14 +333,14 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
 
     async #doRequestUserContactsGet<T>(userId: string, path: string): Promise<T> {
         if (!MM_TEAM_DEPARTMENT_ENABLE_CACHE) {
-            return (await this.doFetch(path, {method: 'get'})) as T;
+            return (await this.#doMyFetch(path, {method: 'get'})) as T;
         }
 
         let version: string;
         try {
             version = await this.#resolveUserContactsVersion(userId);
         } catch {
-            return (await this.doFetch(path, {method: 'get'})) as T;
+            return (await this.#doMyFetch(path, {method: 'get'})) as T;
         }
 
         let map = this.#responseByUserContacts.get(userId);
@@ -357,7 +362,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             }
         }
 
-        const data = (await this.doFetch(path, {method: 'get'})) as T;
+        const data = (await this.#doMyFetch(path, {method: 'get'})) as T;
         map.set(path, {version, data, at: Date.now()});
         if (MM_TEAM_DEPARTMENT_ENABLE_DISK_CACHE && baseUrl) {
             await writeContactDiskCache(baseUrl, userContactsDiskScopeKey(userId), path, version, data);
@@ -367,7 +372,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
 
     /** 返回团队结构当前版本（不参与「按版本缓存业务 GET」的封装，便于外部轮询）；会写入短期 version 缓存供后续 GET 命中 */
     getTeamVersion = async (teamId: string) => {
-        const data = (await this.doFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'get'})) as MMTeamVersion;
+        const data = (await this.#doMyFetch(`${this.getTeamRoute(teamId)}/version`, {method: 'get'})) as MMTeamVersion;
         this.#versionByTeam.set(teamId, {version: data.version, at: Date.now()});
         return data;
     };
@@ -379,13 +384,18 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             q.parent_id = parentId;
         }
         const path = `${this.#departmentsBase(teamId)}${buildQueryString(q)}`;
-        return this.#doRequestTeamStructureGet<MMGetDepartmentsResponse>(teamId, path);
+        return this.#doRequestTeamStructureGet<MMGetDepartmentsResponse>(teamId, path).then((res) => {
+            if (!res.departments) {
+                res.departments = [];
+            }
+            return res;
+        });
     };
 
     createDepartment = async (teamId: string, body: MMCreateDepartmentRequest) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(this.#departmentsBase(teamId), {method: 'post', body})) as MMDepartment;
+            const res = (await this.#doMyFetch(this.#departmentsBase(teamId), {method: 'post', body})) as MMDepartment;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -402,7 +412,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     updateDepartment = async (teamId: string, departmentId: number, body: MMUpdateDepartmentRequest) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}`, {method: 'put', body})) as MMDepartment;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/${departmentId}`, {method: 'put', body})) as MMDepartment;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -414,7 +424,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     deleteDepartment = async (teamId: string, departmentId: number) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}`, {method: 'delete'})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/${departmentId}`, {method: 'delete'})) as MMStatusOK;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -430,30 +440,47 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             q.parent_id = parentId;
         }
         const path = `${this.#departmentsBase(teamId)}/tree${buildQueryString(q)}`;
-        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
+        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path).then((res) => res || []);
     };
 
     getDepartmentChildren = (teamId: string, departmentId: number) => {
         const path = `${this.#departmentsBase(teamId)}/${departmentId}/children`;
-        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
+        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path).then((res) => res || []);
     };
 
     getDepartmentAncestors = (teamId: string, departmentId: number) => {
         const path = `${this.#departmentsBase(teamId)}/${departmentId}/ancestors`;
-        return this.#doRequestTeamStructureGet<MMDepartmentAncestor[]>(teamId, path);
+        return this.#doRequestTeamStructureGet<MMDepartmentAncestor[]>(teamId, path).then((res) => res || []);
     };
 
     getDepartmentMembers = (teamId: string, departmentId: number, opts?: {page?: number; perPage?: number}) => {
         const {page = 0, perPage = PER_PAGE_DEFAULT} = opts || {};
         const q: Record<string, number> = {page, per_page: perPage};
         const path = `${this.#departmentsBase(teamId)}/${departmentId}/members${buildQueryString(q)}`;
-        return this.#doRequestTeamStructureGet<MMDepartmentMembersWithCount>(teamId, path);
+        return this.#doRequestTeamStructureGet<MMDepartmentMembersWithCount>(teamId, path).then((res) => {
+            if (!res.members) {
+                res.members = [];
+            }
+            return res;
+        });
+    };
+
+    getDepartmentWithoutMembers = (teamId: string, opts?: {page?: number; perPage?: number}) => {
+        const {page = 0, perPage = PER_PAGE_DEFAULT} = opts || {};
+        const q: Record<string, number> = {page, per_page: perPage};
+        const path = `${this.#departmentsBase(teamId)}/without-members${buildQueryString(q)}`;
+        return this.#doRequestTeamStructureGet<MMDepartmentMembersWithCount>(teamId, path).then((res) => {
+            if (!res.members) {
+                res.members = [];
+            }
+            return res;
+        });
     };
 
     addDepartmentMember = async (teamId: string, departmentId: number, body: MMAddDepartmentMemberRequest) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members`, {method: 'post', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members`, {method: 'post', body})) as MMStatusOK;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -465,7 +492,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     removeDepartmentMember = async (teamId: string, departmentId: number, userId: string) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/${encodeURIComponent(userId)}`, {method: 'delete'})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/${encodeURIComponent(userId)}`, {method: 'delete'})) as MMStatusOK;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -477,7 +504,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     batchAddDepartmentMembers = async (teamId: string, departmentId: number, body: MMBatchDepartmentMembersRequest) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'post', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'post', body})) as MMStatusOK;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -489,7 +516,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     batchRemoveDepartmentMembers = async (teamId: string, departmentId: number, body: MMBatchDepartmentMembersRequest) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'delete', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/batch`, {method: 'delete', body})) as MMStatusOK;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -501,7 +528,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     moveDepartmentMember = async (teamId: string, departmentId: number, body: MMMoveDepartmentMemberRequest) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/move`, {method: 'post', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/${departmentId}/members/move`, {method: 'post', body})) as MMStatusOK;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -513,7 +540,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     batchMoveDepartmentMembers = async (teamId: string, body: MMBatchMoveDepartmentMembersRequest) => {
         await this.#invalidateTeamStructureCache(teamId);
         try {
-            const res = (await this.doFetch(`${this.#departmentsBase(teamId)}/members/move-batch`, {method: 'post', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.#departmentsBase(teamId)}/members/move-batch`, {method: 'post', body})) as MMStatusOK;
             await this.#invalidateTeamStructureCache(teamId);
             return res;
         } catch (e) {
@@ -524,7 +551,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
 
     getUserDepartments = (userId: string, teamId: string) => {
         const path = `${this.getUserRoute(userId)}/departments${buildQueryString({team_id: teamId})}`;
-        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path);
+        return this.#doRequestTeamStructureGet<MMDepartment[]>(teamId, path).then((res) => res || []);
     };
 
     getDepartmentStats = (teamId: string, departmentId?: number) => {
@@ -544,13 +571,13 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             q.granularity = opts.granularity;
         }
         const path = `${this.getUserRoute(userId)}/contacts${buildQueryString(q)}`;
-        return this.#doRequestUserContactsGet<MMEmployeeContact[]>(userId, path);
+        return this.#doRequestUserContactsGet<MMEmployeeContact[]>(userId, path).then((res) => res || []);
     };
 
     addEmployeeContact = async (userId: string, body: MMUpsertEmployeeContactRequest) => {
         await this.#invalidateUserContactsCache(userId);
         try {
-            const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'post', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'post', body})) as MMStatusOK;
             await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {
@@ -562,7 +589,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     updateEmployeeContact = async (userId: string, body: MMUpsertEmployeeContactRequest) => {
         await this.#invalidateUserContactsCache(userId);
         try {
-            const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'put', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'put', body})) as MMStatusOK;
             await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {
@@ -574,7 +601,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     deleteEmployeeContact = async (userId: string, body: MMDeleteEmployeeContactRequest) => {
         await this.#invalidateUserContactsCache(userId);
         try {
-            const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'delete', body})) as MMStatusOK;
+            const res = (await this.#doMyFetch(`${this.getUserRoute(userId)}/contacts`, {method: 'delete', body})) as MMStatusOK;
             await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {
@@ -584,7 +611,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     };
 
     getUserContactVersion = async (userId: string) => {
-        const data = (await this.doFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'get'})) as MMContactVersionInfo;
+        const data = (await this.#doMyFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'get'})) as MMContactVersionInfo;
         this.#versionByUserContacts.set(userId, {version: data.version, at: Date.now()});
         return data;
     };
@@ -592,7 +619,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
     updateUserContactVersion = async (userId: string, body: MMUpdateContactVersionRequest) => {
         await this.#invalidateUserContactsCache(userId);
         try {
-            const res = (await this.doFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'put', body})) as MMUpdateContactVersionResponse;
+            const res = (await this.#doMyFetch(`${this.getUserRoute(userId)}/contacts/version`, {method: 'put', body})) as MMUpdateContactVersionResponse;
             await this.#invalidateUserContactsCache(userId);
             return res;
         } catch (e) {

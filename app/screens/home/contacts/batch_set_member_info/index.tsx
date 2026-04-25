@@ -6,15 +6,16 @@ import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {updateContactEmployee} from '@actions/remote/contact';
-import {type ContactEmployee} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
+import NetworkManager from '@managers/network_manager';
 import {dismissModal} from '@screens/navigation';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -30,7 +31,7 @@ type Props = {
     companyId: string;
     departmentId: number;
     departmentName: string;
-    initialEmployees: ContactEmployee[];
+    initialEmployees: UserProfile[];
     onSuccess?: () => void;
 };
 
@@ -173,6 +174,7 @@ const ContactsBatchSetMemberInfo = ({
     onSuccess,
 }: Props) => {
     const theme = useTheme();
+    const serverUrl = useServerUrl();
     const intl = useIntl();
     const styles = getStyleSheet(theme);
     const effectiveCloseId = closeButtonId ?? CLOSE_BUTTON_ID;
@@ -208,6 +210,9 @@ const ContactsBatchSetMemberInfo = ({
     const canSubmit = selectedIds.size > 0 && hasUpdates && !submitting;
 
     const handleConfirm = usePreventDoubleTap(useCallback(async () => {
+        if (!serverUrl) {
+            return;
+        }
         if (!canSubmit) {
             if (selectedIds.size === 0) {
                 Alert.alert(
@@ -234,10 +239,13 @@ const ContactsBatchSetMemberInfo = ({
             updates.email = email.trim();
         }
 
+        const client = NetworkManager.getClient(serverUrl);
         let failed = 0;
-        for (const employeeId of selectedIds) {
-            const res = await updateContactEmployee(employeeId, updates);
-            if (res.error) {
+        for (const userId of selectedIds) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await client.patchUser({id: userId, ...updates});
+            } catch {
                 failed += 1;
             }
         }
@@ -254,7 +262,7 @@ const ContactsBatchSetMemberInfo = ({
         }
         onSuccess?.();
         handleClose();
-    }, [canSubmit, email, hasUpdates, intl, onSuccess, phone, position, selectedIds, handleClose]));
+    }, [canSubmit, email, hasUpdates, intl, onSuccess, phone, position, selectedIds, serverUrl, handleClose]));
 
     useNavButtonPressed(effectiveCloseId, componentId, handleClose, [handleClose]);
     useAndroidHardwareBackHandler(componentId, handleClose);
@@ -328,7 +336,7 @@ const ContactsBatchSetMemberInfo = ({
                                         name='check'
                                         size={14}
                                         color='#fff'
-                                                                />}
+                                    />}
                                 </View>
                                 <View style={styles.listItemAvatar}>
                                     <ContactAvatar
@@ -339,7 +347,7 @@ const ContactsBatchSetMemberInfo = ({
                                 <Text
                                     style={styles.listItemName}
                                     numberOfLines={1}
-                                >{emp.name}</Text>
+                                >{getContactListDisplayName(emp)}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>

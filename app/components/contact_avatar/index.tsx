@@ -7,13 +7,12 @@ import {Platform, Text, View} from 'react-native';
 import CompassIcon from '@components/compass_icon';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
 import {useTheme} from '@context/theme';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {ContactEmployee} from '@client/rest/contact';
-
 type Props = {
-    employee: ContactEmployee;
+    employee: UserProfile;
     size?: number;
 };
 
@@ -51,7 +50,8 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
 
-    const initials = useMemo(() => getInitials(employee.name ?? ''), [employee.name]);
+    const displayName = useMemo(() => getContactListDisplayName(employee), [employee]);
+    const initials = useMemo(() => getInitials(displayName), [displayName]);
 
     const containerStyle = useMemo(() => [
         styles.container,

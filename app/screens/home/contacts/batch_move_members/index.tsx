@@ -7,24 +7,26 @@ import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
-    fetchCompany,
     fetchContactDirectoryContent,
     fetchDefaultDepartmentId,
     moveContactEmployeeToDepartment,
     updateContactDepartment,
-} from '@actions/remote/contact';
-import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+} from '@actions/remote/contact_new';
+import {fetchTeamById} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {dismissModal} from '@screens/navigation';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {MMDepartment} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-batch-move';
@@ -268,13 +270,14 @@ const ContactsBatchMoveMembers = ({
     const effectiveCloseId = closeButtonId ?? CLOSE_BUTTON_ID;
     const theme = useTheme();
     const intl = useIntl();
+    const serverUrl = useServerUrl();
     const mounted = useRef(false);
     const styles = getStyleSheet(theme);
 
     const [phase, setPhase] = useState<'members' | 'target'>(() => (
         singleEmployeeId ? 'target' : 'members'
     ));
-    const [employees, setEmployees] = useState<ContactEmployee[]>([]);
+    const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
         singleEmployeeId ? new Set([singleEmployeeId]) : new Set(),
     );
@@ -289,7 +292,7 @@ const ContactsBatchMoveMembers = ({
     const [selectedDepartmentPaths, setSelectedDepartmentPaths] = useState<Record<number, number[]>>({});
     const [selectedMemberPaths, setSelectedMemberPaths] = useState<Record<string, number[]>>({});
     const [loading, setLoading] = useState(true);
-    const [memberDepartments, setMemberDepartments] = useState<ContactDepartment[]>([]);
+    const [memberDepartments, setMemberDepartments] = useState<MMDepartment[]>([]);
 
     /** 成员选择阶段的部门栈：默认从当前部门开始，可回退到根目录再浏览其它部门 */
     const [memberStack, setMemberStack] = useState<TargetLevel[]>(() => {
@@ -314,7 +317,7 @@ const ContactsBatchMoveMembers = ({
 
         return [{departmentId: null, departmentName: undefined}];
     });
-    const [targetDepartments, setTargetDepartments] = useState<ContactDepartment[]>([]);
+    const [targetDepartments, setTargetDepartments] = useState<MMDepartment[]>([]);
     const [targetLoading, setTargetLoading] = useState(false);
     const [defaultDepartmentId, setDefaultDepartmentId] = useState<number | null>(null);
     const [moving, setMoving] = useState(false);
@@ -374,16 +377,20 @@ const ContactsBatchMoveMembers = ({
 
     const loadEmployees = useCallback(async () => {
         setLoading(true);
+        if (!serverUrl) {
+            setLoading(false);
+            return;
+        }
 
         // 根目录：需要显示「子部门 + 默认部门成员」
         if (!currentMember?.departmentId) {
-            const rootRes = await fetchContactDirectoryContent(companyId, undefined);
+            const rootRes = await fetchContactDirectoryContent(serverUrl, companyId, undefined);
             if (!mounted.current) {
                 return;
             }
 
-            let employeesFromDefault: ContactEmployee[] = [];
-            let departmentsFromRoot: ContactDepartment[] = [];
+            let employeesFromDefault: UserProfile[] = [];
+            let departmentsFromRoot: MMDepartment[] = [];
 
             if (rootRes.data) {
                 departmentsFromRoot = rootRes.data.departments;
@@ -392,7 +399,7 @@ const ContactsBatchMoveMembers = ({
             // 再拉一次默认部门的成员，用于根目录成员列表展示
             let effectiveDefaultId = defaultDepartmentId;
             if (effectiveDefaultId == null) {
-                const defaultResId = await fetchDefaultDepartmentId(companyId);
+                const defaultResId = await fetchDefaultDepartmentId(serverUrl, companyId);
                 if (!mounted.current) {
                     return;
                 }
@@ -402,7 +409,7 @@ const ContactsBatchMoveMembers = ({
             }
 
             if (effectiveDefaultId != null) {
-                const defaultRes = await fetchContactDirectoryContent(companyId, effectiveDefaultId);
+                const defaultRes = await fetchContactDirectoryContent(serverUrl, companyId, effectiveDefaultId);
                 if (!mounted.current) {
                     return;
                 }
@@ -418,7 +425,7 @@ const ContactsBatchMoveMembers = ({
         }
 
         // 非根目录：按当前部门 ID 加载
-        const res = await fetchContactDirectoryContent(companyId, currentMember.departmentId);
+        const res = await fetchContactDirectoryContent(serverUrl, companyId, currentMember.departmentId);
         if (!mounted.current) {
             return;
         }
@@ -431,11 +438,15 @@ const ContactsBatchMoveMembers = ({
             setMemberDepartments([]);
         }
         setLoading(false);
-    }, [companyId, currentMember?.departmentId, defaultDepartmentId]);
+    }, [companyId, currentMember?.departmentId, defaultDepartmentId, serverUrl]);
 
     const loadTargetLevel = useCallback(async (departmentId: number | null) => {
         setTargetLoading(true);
-        const res = await fetchContactDirectoryContent(companyId, departmentId ?? undefined);
+        if (!serverUrl) {
+            setTargetLoading(false);
+            return;
+        }
+        const res = await fetchContactDirectoryContent(serverUrl, companyId, departmentId ?? undefined);
         if (!mounted.current) {
             return;
         }
@@ -445,7 +456,7 @@ const ContactsBatchMoveMembers = ({
             setTargetDepartments([]);
         }
         setTargetLoading(false);
-    }, [companyId]);
+    }, [companyId, serverUrl]);
 
     useEffect(() => {
         mounted.current = true;
@@ -468,11 +479,11 @@ const ContactsBatchMoveMembers = ({
 
     /** 尽早拉取默认部门 ID，便于在「选择目标部门」阶段点击「移动到根目录」时 canMoveToTarget 为 true */
     useEffect(() => {
-        if (!companyId) {
+        if (!companyId || !serverUrl) {
             return;
         }
         let cancelled = false;
-        fetchDefaultDepartmentId(companyId).then((res) => {
+        fetchDefaultDepartmentId(serverUrl, companyId).then((res) => {
             if (!cancelled && mounted.current && res.data != null) {
                 setDefaultDepartmentId(res.data);
             }
@@ -480,16 +491,16 @@ const ContactsBatchMoveMembers = ({
         return () => {
             cancelled = true;
         };
-    }, [companyId]);
+    }, [companyId, serverUrl]);
 
     /** 目标阶段在根目录时若尚未拿到默认部门 ID 再拉一次，确保「移动到根目录」可点 */
     const atRootInTargetPhase = phase === 'target' && targetDepartmentId === null;
     useEffect(() => {
-        if (!atRootInTargetPhase || defaultDepartmentId != null || !companyId) {
+        if (!atRootInTargetPhase || defaultDepartmentId != null || !companyId || !serverUrl) {
             return;
         }
         let cancelled = false;
-        fetchDefaultDepartmentId(companyId).then((res) => {
+        fetchDefaultDepartmentId(serverUrl, companyId).then((res) => {
             if (!cancelled && mounted.current && res.data != null) {
                 setDefaultDepartmentId(res.data);
             }
@@ -497,22 +508,26 @@ const ContactsBatchMoveMembers = ({
         return () => {
             cancelled = true;
         };
-    }, [atRootInTargetPhase, defaultDepartmentId, companyId]);
+    }, [atRootInTargetPhase, defaultDepartmentId, companyId, serverUrl]);
 
     useEffect(() => {
         if (phase !== 'target' && phase !== 'members') {
             return;
         }
+        if (!serverUrl) {
+            return;
+        }
         let cancelled = false;
-        fetchCompany(companyId).then((res) => {
-            if (!cancelled && mounted.current && res.data?.name) {
-                setEnterpriseName(res.data.name);
+        fetchTeamById(serverUrl, companyId).then((res) => {
+            const display = res.team?.display_name || res.team?.name;
+            if (!cancelled && mounted.current && display) {
+                setEnterpriseName(display);
             }
         });
         return () => {
             cancelled = true;
         };
-    }, [companyId, phase]);
+    }, [companyId, phase, serverUrl]);
 
     /** 当已选部门包含某成员/子部门时，从选中中移除：取包含最多的目录，其下的不在 chips 显示
      * 在 selectedDepartmentIds 变化后清理被包含的成员和子部门（含 handleToggleSelectAll 全选场景）
@@ -800,11 +815,11 @@ const ContactsBatchMoveMembers = ({
         setPhase('target');
     }, [selectedIds.size, selectedDepartmentIds.size]);
 
-    const handleSelectTargetDepartment = useCallback((dept: ContactDepartment) => {
+    const handleSelectTargetDepartment = useCallback((dept: MMDepartment) => {
         setTargetStack((prev) => [...prev, {departmentId: dept.id, departmentName: dept.name}]);
     }, []);
 
-    const handleEnterMemberDepartment = useCallback((dept: ContactDepartment) => {
+    const handleEnterMemberDepartment = useCallback((dept: MMDepartment) => {
         setMemberStack((prev) => [...prev, {departmentId: dept.id, departmentName: dept.name}]);
     }, []);
 
@@ -900,7 +915,7 @@ const ContactsBatchMoveMembers = ({
             setSelectedMemberNames((prev) => {
                 const next = {...prev};
                 membersToAdd.forEach((e) => {
-                    next[e.id] = e.name;
+                    next[e.id] = getContactListDisplayName(e);
                 });
                 return next;
             });
@@ -935,6 +950,9 @@ const ContactsBatchMoveMembers = ({
     ]);
 
     const handleMoveHere = usePreventDoubleTap(useCallback(async () => {
+        if (!serverUrl) {
+            return;
+        }
         const hasMembers = selectedIds.size > 0;
         const hasDepartments = selectedDepartmentIds.size > 0;
         const allowedByTarget = isAtRootLevel ? canMoveToRoot : canMoveToTarget;
@@ -945,7 +963,7 @@ const ContactsBatchMoveMembers = ({
         /** 根目录且尚未有默认部门 ID 时，先拉取再执行 */
         let resolvedTargetId = effectiveTargetDepartmentId;
         if (isAtRootLevel && resolvedTargetId == null) {
-            const defaultRes = await fetchDefaultDepartmentId(companyId);
+            const defaultRes = await fetchDefaultDepartmentId(serverUrl, companyId);
             if (defaultRes.error || defaultRes.data == null) {
                 Alert.alert(
                     intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
@@ -960,9 +978,7 @@ const ContactsBatchMoveMembers = ({
         }
         const memberCount = selectedIds.size;
         const deptCount = selectedDepartmentIds.size;
-        const targetName = isAtRootLevel
-            ? intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'})
-            : (currentTarget?.departmentName ?? '');
+        const targetName = isAtRootLevel? intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'}): (currentTarget?.departmentName ?? '');
         const memberNames = Array.from(selectedIds).map((id) => selectedMemberNames[id] ?? id).filter(Boolean);
         const deptNames = Array.from(selectedDepartmentIds).map((id) => selectedDepartmentNames[id] ?? '').filter(Boolean);
         let confirmLine: string;
@@ -1015,7 +1031,7 @@ const ContactsBatchMoveMembers = ({
                 continue;
             }
             const newParentId = isAtRootLevel ? null : effectiveTargetDepartmentId;
-            const res = await updateContactDepartment(deptId, companyId, name, newParentId);
+            const res = await updateContactDepartment(serverUrl, companyId, deptId, name, newParentId);
             if (res.error) {
                 deptFailed += 1;
             }
@@ -1029,8 +1045,9 @@ const ContactsBatchMoveMembers = ({
                 continue;
             }
             const res = await moveContactEmployeeToDepartment(
-                employeeId,
+                serverUrl,
                 companyId,
+                employeeId,
                 srcDept,
                 resolvedTargetId,
             );
@@ -1063,7 +1080,7 @@ const ContactsBatchMoveMembers = ({
         }
         onSuccess?.();
         handleClose();
-    }, [canMoveToRoot, canMoveToTarget, companyId, currentTarget?.departmentName, defaultDepartmentId, effectiveSourceDepartmentId, effectiveTargetDepartmentId, intl, isAtRootLevel, onSuccess, selectedIds, selectedDepartmentIds, selectedDepartmentNames, selectedMemberNames, selectedMemberSourceDepts, handleClose]));
+    }, [canMoveToRoot, canMoveToTarget, companyId, currentTarget?.departmentName, defaultDepartmentId, effectiveSourceDepartmentId, effectiveTargetDepartmentId, intl, isAtRootLevel, onSuccess, selectedIds, selectedDepartmentIds, selectedDepartmentNames, selectedMemberNames, selectedMemberSourceDepts, serverUrl, handleClose]));
 
     useNavButtonPressed(effectiveCloseId, componentId, handleClose, [handleClose]);
 
@@ -1073,9 +1090,7 @@ const ContactsBatchMoveMembers = ({
 
     const rootSubtitle = enterpriseName ?? intl.formatMessage({id: 'contacts.enterprise_root', defaultMessage: 'Enterprise'});
     const memberSubtitle = currentMember?.departmentName ?? rootSubtitle;
-    const subtitle = phase === 'members'
-        ? memberSubtitle
-        : (currentTarget?.departmentName ?? rootSubtitle);
+    const subtitle = phase === 'members'? memberSubtitle: (currentTarget?.departmentName ?? rootSubtitle);
 
     if (phase === 'members') {
         const showMemberBackArrow = memberStack.length > 1;
@@ -1118,9 +1133,7 @@ const ContactsBatchMoveMembers = ({
                             testID='contacts.batch_move.select_all'
                         >
                             <Text style={styles.headerSelectAllText}>
-                                {allCurrentSelected
-                                    ? intl.formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'})
-                                    : intl.formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})}
+                                {allCurrentSelected? intl.formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'}): intl.formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})}
                             </Text>
                         </TouchableOpacity>
                     )}
@@ -1173,16 +1186,14 @@ const ContactsBatchMoveMembers = ({
                                             <View
                                                 style={[
                                                     styles.checkbox,
-                                                    deptDisabled
-                                                        ? styles.checkboxSelectedDisabled
-                                                        : (deptSelected ? styles.checkboxSelected : styles.checkboxUnselected),
+                                                    deptDisabled? styles.checkboxSelectedDisabled: (deptSelected ? styles.checkboxSelected : styles.checkboxUnselected),
                                                 ]}
                                             >
                                                 {deptVisuallySelected && <CompassIcon
                                                     name='check'
                                                     size={14}
                                                     color='#fff'
-                                                                         />}
+                                                />}
                                             </View>
                                         </TouchableOpacity>
                                         <TouchableOpacity
@@ -1219,23 +1230,21 @@ const ContactsBatchMoveMembers = ({
                                     <TouchableOpacity
                                         key={emp.id}
                                         style={[styles.listItem, empSelected && styles.listItemSelected]}
-                                        onPress={() => !empDisabled && toggleMember(emp.id, emp.name)}
+                                        onPress={() => !empDisabled && toggleMember(emp.id, getContactListDisplayName(emp))}
                                         activeOpacity={0.7}
                                         testID={`contacts.batch_move.member.${emp.id}`}
                                     >
                                         <View
                                             style={[
                                                 styles.checkbox,
-                                                empDisabled
-                                                    ? styles.checkboxSelectedDisabled
-                                                    : (empSelected ? styles.checkboxSelected : styles.checkboxUnselected),
+                                                empDisabled? styles.checkboxSelectedDisabled: (empSelected ? styles.checkboxSelected : styles.checkboxUnselected),
                                             ]}
                                         >
                                             {empVisuallySelected && <CompassIcon
                                                 name='check'
                                                 size={14}
                                                 color='#fff'
-                                                                    />}
+                                            />}
                                         </View>
                                         <View style={styles.listItemAvatar}>
                                             <ContactAvatar
@@ -1246,7 +1255,7 @@ const ContactsBatchMoveMembers = ({
                                         <Text
                                             style={styles.listItemName}
                                             numberOfLines={1}
-                                        >{emp.name}</Text>
+                                        >{getContactListDisplayName(emp)}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -1489,12 +1498,10 @@ const ContactsBatchMoveMembers = ({
                             testID='contacts.batch_move.move_here'
                         >
                             <Text style={styles.bottomButtonText}>
-                                {isAtRootLevel
-                                    ? intl.formatMessage({id: 'contacts.move_to_root', defaultMessage: 'Move to root (default department)'})
-                                    : intl.formatMessage(
-                                        {id: 'contacts.move_here', defaultMessage: 'Move here ({name})'},
-                                        {name: currentTarget?.departmentName ?? ''},
-                                    )}
+                                {isAtRootLevel? intl.formatMessage({id: 'contacts.move_to_root', defaultMessage: 'Move to root (default department)'}): intl.formatMessage(
+                                    {id: 'contacts.move_here', defaultMessage: 'Move here ({name})'},
+                                    {name: currentTarget?.departmentName ?? ''},
+                                )}
                             </Text>
                         </TouchableOpacity>
                     </View>

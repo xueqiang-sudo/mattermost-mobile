@@ -1,24 +1,26 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useDatabase} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchEmployeesOfCompaniesByType} from '@actions/remote/contact';
+import {fetchEmployeeContactsWithDetails} from '@actions/remote/employee_contact_new';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
-import {Screens} from '@constants';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
+import {getCurrentUserId} from '@queries/servers/system';
 import {dismissModal} from '@screens/navigation';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {ContactCompanyType} from '@actions/remote/contact';
-import type {ContactEmployee} from '@client/rest/contact';
+import type {MMEmployeeContactType} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-employee-list';
@@ -28,7 +30,7 @@ const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 type Props = {
     componentId: AvailableScreens;
     closeButtonId?: string;
-    type: ContactCompanyType;
+    type: MMEmployeeContactType;
     title: string;
 };
 
@@ -73,10 +75,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const database = useDatabase();
+    const serverUrl = useServerUrl();
     const mounted = useRef(false);
     const styles = getStyleSheet(theme);
 
-    const [employees, setEmployees] = useState<ContactEmployee[]>([]);
+    const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
 
@@ -93,14 +97,31 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
         setServiceError(false);
 
         const fetchData = async () => {
-            const res = await fetchEmployeesOfCompaniesByType(type);
+            if (!serverUrl) {
+                if (!mounted.current) {
+                    return;
+                }
+                setServiceError(true);
+                setLoading(false);
+                return;
+            }
+            const userId = await getCurrentUserId(database);
+            if (!userId) {
+                if (!mounted.current) {
+                    return;
+                }
+                setServiceError(true);
+                setLoading(false);
+                return;
+            }
+            const res = await fetchEmployeeContactsWithDetails(serverUrl, userId, type);
             if (!mounted.current) {
                 return;
             }
             if (res.error) {
                 setServiceError(true);
             } else {
-                setEmployees(res.data ?? []);
+                setEmployees((res.data ?? []).map((row) => row.contact));
             }
             setLoading(false);
         };
@@ -109,7 +130,7 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
         return () => {
             mounted.current = false;
         };
-    }, [type]);
+    }, [database, serverUrl, type]);
 
     const renderContent = () => {
         if (serviceError) {
@@ -158,7 +179,7 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
                             style={styles.listItemName}
                             numberOfLines={1}
                         >
-                            {item.name}
+                            {getContactListDisplayName(item)}
                         </Text>
                     </View>
                 ))}

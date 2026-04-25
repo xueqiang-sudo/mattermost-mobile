@@ -16,9 +16,7 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 
 const enhance = withObservables([], ({database}: WithDatabaseArgs) => {
     const currentTeam = observeCurrentTeam(database);
-
     const currentUser = observeCurrentUser(database);
-
     const isEnterpriseManager = combineLatest([currentUser, currentTeam]).pipe(
         switchMap(([u, t]) => observePermissionForTeam(database, t, u, Permissions.MANAGE_TEAM, false)),
     );

@@ -5,20 +5,22 @@ import React from 'react';
 import {useIntl} from 'react-intl';
 import {Text, TouchableOpacity, View} from 'react-native';
 
-import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {useTheme} from '@context/theme';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {MMDepartment} from '@client/rest/team_department';
+
 export type ContactDirectoryListProps = {
-    departments: ContactDepartment[];
-    employees: ContactEmployee[];
+    departments: MMDepartment[];
+    employees: UserProfile[];
     memberCount: number;
-    onDepartmentPress: (dept: ContactDepartment) => void;
-    onEmployeePress: (emp: ContactEmployee) => void;
+    onDepartmentPress: (dept: MMDepartment) => void;
+    onEmployeePress: (emp: UserProfile) => void;
     loading?: boolean;
     error?: boolean;
     emptyMessage?: string;
@@ -184,7 +186,7 @@ const ContactDirectoryList = ({
                             style={styles.listItemName}
                             numberOfLines={1}
                         >
-                            {emp.name}
+                            {getContactListDisplayName(emp)}
                         </Text>
                     </TouchableOpacity>
                     {empIdx < employees.length - 1 ? (

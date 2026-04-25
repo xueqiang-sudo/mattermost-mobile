@@ -7,14 +7,11 @@ import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {
-    createEnterpriseForEmployee,
-    fetchManageEnterpriseList,
-    joinEnterprise,
-    type FetchManageEnterpriseListResult,
-    type ManageEnterpriseEntry,
-} from '@actions/remote/contact';
-import {ContactCompanyTypes} from '@client/rest/contact';
+import {ensureTeamDefaultDepartment, syncTeamMembersToDefaultDepartment} from '@actions/remote/contact_new';
+import {addCurrentUserToTeam, createTeamByName} from '@actions/remote/team';
+import {getActiveServerUrl} from '@queries/app/servers';
+import {getTeamById, queryMyTeams} from '@queries/servers/team';
+import {cleanUpUrlable} from '@utils/url';
 import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
@@ -27,6 +24,8 @@ import {observeCurrentUser} from '@queries/servers/user';
 import {dismissModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
+import type {ManageEnterpriseEntry} from './types';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
@@ -57,16 +56,10 @@ function getEnterpriseAvatarStyle(displayName: string) {
 }
 
 function getSourceLabel(
-    entry: ManageEnterpriseEntry,
+    _entry: ManageEnterpriseEntry,
     formatMessage: (descriptor: {id: string; defaultMessage: string}) => string,
 ): string {
-    if (entry.isMattermostTeam && entry.hasContactCompanyRecord) {
-        return formatMessage({id: 'enterprise.manage.source.mm_and_contact', defaultMessage: 'Mattermost enterprise · Contact directory'});
-    }
-    if (entry.isMattermostTeam) {
-        return formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost enterprise only'});
-    }
-    return formatMessage({id: 'enterprise.manage.source.contact_only', defaultMessage: 'Contact directory'});
+    return formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost enterprise only'});
 }
 
 function getEnterpriseInitials(displayName: string): string {
@@ -249,14 +242,24 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
             setLoading(true);
         }
         setError(undefined);
-        const res: FetchManageEnterpriseListResult = await fetchManageEnterpriseList(database, employeeId);
-        const newEntries = res.data ?? [];
-        if (res.error && !newEntries.length) {
-            setError(res.error);
-            setEntries([]);
-        } else {
+        let newEntries: ManageEnterpriseEntry[] = [];
+        try {
+            const myTeams = await queryMyTeams(database).fetch();
+            for (const mt of myTeams) {
+                const team = await getTeamById(database, mt.id);
+                if (team) {
+                    newEntries.push({
+                        id: team.id,
+                        name: team.displayName || team.name,
+                    });
+                }
+            }
             setError(undefined);
             setEntries(newEntries);
+        } catch (e) {
+            setError(e);
+            newEntries = [];
+            setEntries([]);
         }
         if (opts?.isRefresh) {
             setRefreshing(false);
@@ -300,16 +303,24 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
         if (!inputValue?.trim()) {
             return;
         }
-        const res = await createEnterpriseForEmployee(employeeId, {
-            name: inputValue.trim(),
-            type: ContactCompanyTypes.Team,
-        });
-        if (res.error) {
+        const serverUrl = await getActiveServerUrl();
+        if (!serverUrl) {
             Alert.alert(
                 intl.formatMessage({id: 'enterprise.manage.create_failed', defaultMessage: 'Failed to create enterprise'}),
             );
             return;
         }
+        const displayName = inputValue.trim();
+        const teamName = cleanUpUrlable(displayName);
+        const res = await createTeamByName(serverUrl, teamName, displayName, 'O');
+        if (res.error || !res.team) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.manage.create_failed', defaultMessage: 'Failed to create enterprise'}),
+            );
+            return;
+        }
+        await ensureTeamDefaultDepartment(serverUrl, res.team.id);
+        await syncTeamMembersToDefaultDepartment(serverUrl, res.team.id);
         await loadCompanies();
     }, [employeeId, intl, loadCompanies, createInputModal]));
 
@@ -333,7 +344,14 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
         if (!companyId?.trim()) {
             return;
         }
-        const res = await joinEnterprise(employeeId, companyId.trim());
+        const serverUrl = await getActiveServerUrl();
+        if (!serverUrl) {
+            Alert.alert(
+                intl.formatMessage({id: 'enterprise.manage.join_failed', defaultMessage: 'Failed to join enterprise. Please check the ID and try again.'}),
+            );
+            return;
+        }
+        const res = await addCurrentUserToTeam(serverUrl, companyId.trim());
         if (res.error) {
             Alert.alert(
                 intl.formatMessage({id: 'enterprise.manage.join_failed', defaultMessage: 'Failed to join enterprise. Please check the ID and try again.'}),
@@ -348,8 +366,6 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId}: Props) => {
         goToScreen(Screens.MANAGE_ENTERPRISE_DETAIL, title, {
             companyId: entry.id,
             companyName: entry.name,
-            isMattermostTeam: entry.isMattermostTeam,
-            hasContactCompanyRecord: entry.hasContactCompanyRecord,
             isCurrentTeam: entry.id === currentTeamId,
         });
     }, [intl, currentTeamId]));

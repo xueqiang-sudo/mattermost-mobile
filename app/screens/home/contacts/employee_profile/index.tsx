@@ -8,8 +8,8 @@ import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} fro
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
-import {deleteContactEmployee, fetchCompany} from '@actions/remote/contact';
-import {updateEmployeeContact} from '@actions/remote/employee_contact';
+import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
+import {fetchTeamById, removeUserFromTeam} from '@actions/remote/team';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
@@ -24,13 +24,14 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {buildClipboardTextFromLines} from '@utils/contact_profile_clipboard';
 import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {ContactEmployee} from '@client/rest/contact';
+import type {MMEmployeeContactType} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-employee-profile';
@@ -40,7 +41,7 @@ const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 type Props = {
     componentId: AvailableScreens;
     closeButtonId?: string;
-    employee: ContactEmployee;
+    employee: UserProfile;
     departmentName?: string;
     departmentParentPath?: string;
     currentUserId?: string;
@@ -279,15 +280,15 @@ const ContactsEmployeeProfile = ({
         let cancelled = false;
 
         const loadCompanyOwner = async () => {
-            if (!fromManage || !companyIdProp) {
+            if (!fromManage || !companyIdProp || !serverUrl) {
                 if (!cancelled) {
                     setIsCompanyOwner(false);
                 }
                 return;
             }
 
-            const result = await fetchCompany(companyIdProp);
-            const ownerId = result.data?.owner_id ?? (result.data as {ownerId?: string} | undefined)?.ownerId;
+            const result = await fetchTeamById(serverUrl, companyIdProp);
+            const ownerId = result.team?.creator_id;
             if (!cancelled) {
                 setIsCompanyOwner(Boolean(ownerId && ownerId === employee.id));
             }
@@ -298,7 +299,7 @@ const ContactsEmployeeProfile = ({
         return () => {
             cancelled = true;
         };
-    }, [companyIdProp, employee.id, fromManage]);
+    }, [companyIdProp, employee.id, fromManage, serverUrl]);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -313,7 +314,7 @@ const ContactsEmployeeProfile = ({
         if (!relationType || !currentUserId) {
             return false;
         }
-        const result = await updateEmployeeContact(currentUserId, employee.id, relationType as 'supplier' | 'customer', {
+        const result = await updateEmployeeContact(serverUrl, currentUserId, employee.id, relationType as MMEmployeeContactType, {
             remark: nextRemark.trim() || undefined,
             description: nextDescription.trim() || undefined,
         });
@@ -328,7 +329,7 @@ const ContactsEmployeeProfile = ({
         setRelationDescription(nextDescription.trim());
         DeviceEventEmitter.emit(Events.SUPPLIER_CUSTOMER_CONTACTS_CHANGED, {contactType: relationType});
         return true;
-    }, [currentUserId, employee.id, intl, relationType]);
+    }, [currentUserId, employee.id, intl, relationType, serverUrl]);
 
     const handleEditRemark = usePreventDoubleTap(useCallback(async () => {
         if (!canEditRelationFields) {
@@ -391,11 +392,12 @@ const ContactsEmployeeProfile = ({
                 intl.formatMessage({
                     id: 'mobile.direct_message.error',
                     defaultMessage: "We couldn't open a DM with {displayName}.",
-                }, {displayName: employee.name}),
+                }, {displayName: getContactListDisplayName(employee)}),
             );
             return;
         }
-        const result = await makeDirectChannel(serverUrl, userId, employee.name, true);
+        const displayName = getContactListDisplayName(employee);
+        const result = await makeDirectChannel(serverUrl, userId, displayName, true);
         setSending(false);
         if (result.error) {
             Alert.alert(
@@ -403,12 +405,12 @@ const ContactsEmployeeProfile = ({
                 intl.formatMessage({
                     id: 'mobile.direct_message.error',
                     defaultMessage: "We couldn't open a DM with {displayName}.",
-                }, {displayName: employee.name}),
+                }, {displayName}),
             );
             return;
         }
         handleClose();
-    }, [serverUrl, sending, isSelf, resolveMattermostUserId, employee.name, intl, handleClose]));
+    }, [serverUrl, sending, isSelf, resolveMattermostUserId, employee, intl, handleClose]));
 
     const canSendMessage = !isSelf && Boolean(employee.email || employee.id);
 
@@ -429,7 +431,7 @@ const ContactsEmployeeProfile = ({
                 sourceDepartmentId: departmentId ?? null,
                 sourceDepartmentName: sourceName,
                 singleEmployeeId: employee.id,
-                singleEmployeeName: employee.name,
+                singleEmployeeName: getContactListDisplayName(employee),
                 onSuccess: handleClose,
             },
             {useBackIcon: true, topBar: {visible: false}},
@@ -466,7 +468,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         const relationLabel = relationType === 'supplier'? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}): intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
-        const confirmName = relationRemark.trim() || employee.name;
+        const confirmName = relationRemark.trim() || getContactListDisplayName(employee);
         const ok = await new Promise<boolean>((resolve) => {
             Alert.alert(
                 intl.formatMessage({id: 'supplier_customer.delete_relation', defaultMessage: 'Remove {relation}'}, {relation: relationLabel}),
@@ -484,7 +486,11 @@ const ContactsEmployeeProfile = ({
             return;
         }
         setDeleting(true);
-        const result = await deleteContactEmployee(employee.id);
+        if (!serverUrl || !currentUserId || !relationType) {
+            setDeleting(false);
+            return;
+        }
+        const result = await removeEmployeeContact(serverUrl, currentUserId, employee.id, relationType as MMEmployeeContactType);
         setDeleting(false);
         if (result.error) {
             Alert.alert(
@@ -494,7 +500,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [isSupplierCustomer, relationType, deleting, employee.id, employee.name, relationRemark, handleClose, intl]));
+    }, [isSupplierCustomer, relationType, deleting, employee.id, relationRemark, handleClose, intl, serverUrl, currentUserId]));
 
     const handleDeleteMember = usePreventDoubleTap(useCallback(async () => {
         if (isSupplierCustomer) {
@@ -509,7 +515,7 @@ const ContactsEmployeeProfile = ({
                 intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Remove from enterprise'}),
                 intl.formatMessage(
                     {id: 'contacts.delete_member_confirm', defaultMessage: 'Remove {name} from this enterprise and all associated departments? This action cannot be undone.'},
-                    {name: employee.name},
+                    {name: getContactListDisplayName(employee)},
                 ),
                 [
                     {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel', onPress: () => resolve(false)},
@@ -520,8 +526,11 @@ const ContactsEmployeeProfile = ({
         if (!ok) {
             return;
         }
+        if (!serverUrl || !companyIdProp) {
+            return;
+        }
         setDeleting(true);
-        const result = await deleteContactEmployee(employee.id);
+        const result = await removeUserFromTeam(serverUrl, companyIdProp, employee.id);
         setDeleting(false);
         if (result.error) {
             Alert.alert(
@@ -531,7 +540,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [canDeleteEnterpriseMember, deleting, employee.id, employee.name, handleClose, intl]));
+    }, [canDeleteEnterpriseMember, deleting, employee.id, companyIdProp, handleClose, intl, serverUrl]));
 
     const handleCopyBasicInfo = usePreventDoubleTap(
         useCallback(() => {
@@ -540,7 +549,7 @@ const ContactsEmployeeProfile = ({
                 id: 'supplier_customer.directory_name_subtitle',
                 defaultMessage: 'Nickname',
             });
-            lines.push({label: nicknameLbl, value: employee.name});
+            lines.push({label: nicknameLbl, value: getContactListDisplayName(employee)});
             if (relationRemark.trim()) {
                 lines.push({
                     label: intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'}),
@@ -606,7 +615,7 @@ const ContactsEmployeeProfile = ({
             departmentClipboardValue,
             employee.email,
             employee.id,
-            employee.name,
+            employee,
             employee.phone,
             employee.position,
             intl,
@@ -639,7 +648,7 @@ const ContactsEmployeeProfile = ({
                         style={styles.name}
                         numberOfLines={2}
                     >
-                        {relationRemark.trim() || employee.name}
+                        {relationRemark.trim() || getContactListDisplayName(employee)}
                     </Text>
                     {relationRemark.trim() ? (
                         <Text
@@ -651,7 +660,7 @@ const ContactsEmployeeProfile = ({
                                 defaultMessage: 'Nickname',
                             })}
                             {': '}
-                            {employee.name}
+                            {getContactListDisplayName(employee)}
                         </Text>
                     ) : null}
                     {isSelf ? (

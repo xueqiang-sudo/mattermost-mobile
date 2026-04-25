@@ -7,6 +7,7 @@ import type MyTeamModel from './my_team';
 import type TeamChannelHistoryModel from './team_channel_history';
 import type TeamMembershipModel from './team_membership';
 import type TeamSearchHistoryModel from './team_search_history';
+import type UserModel from './user';
 import type {Query, Relation, Model} from '@nozbe/watermelondb';
 import type {Associations} from '@nozbe/watermelondb/Model';
 import type PlaybookRunModel from '@playbooks/types/database/models/playbook_run';
@@ -71,6 +72,9 @@ declare class TeamModel extends Model {
 
     /** teamSearchHistories : All the searches performed on this team */
     teamSearchHistories: Query<TeamSearchHistoryModel>;
+
+    /** creator : The USER who created this TEAM*/
+    creator: Relation<UserModel>;
 }
 
 export default TeamModel;

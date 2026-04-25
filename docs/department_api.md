@@ -21,12 +21,13 @@
     - [2.3 Get Department Ancestors](#23-get-department-ancestors)
   - [3. Department Member Operations](#3-department-member-operations)
     - [3.1 Get Department Members](#31-get-department-members)
-    - [3.2 Add Department Member](#32-add-department-member)
-    - [3.3 Remove Department Member](#33-remove-department-member)
-    - [3.4 Batch Add Members](#34-batch-add-members)
-    - [3.5 Batch Remove Members](#35-batch-remove-members)
-    - [3.6 Move Department Member](#36-move-department-member)
-    - [3.7 Batch Move Members](#37-batch-move-members)
+    - [3.2 Get Users Without Department Membership](#32-get-users-without-department-membership)
+    - [3.3 Add Department Member](#33-add-department-member)
+    - [3.4 Remove Department Member](#34-remove-department-member)
+    - [3.5 Batch Add Members](#35-batch-add-members)
+    - [3.6 Batch Remove Members](#36-batch-remove-members)
+    - [3.7 Move Department Member](#37-move-department-member)
+    - [3.8 Batch Move Members](#38-batch-move-members)
   - [4. User Department Operations](#4-user-department-operations)
     - [4.1 Get User Departments](#41-get-user-departments)
   - [5. Employee Contact Operations](#5-employee-contact-operations)
@@ -151,7 +152,8 @@ curl -X GET \
 {
   "name": "Marketing",
   "description": "Marketing Department",
-  "parent_id": null
+  "parent_id": null,
+  "is_unique_name": true
 }
 ```
 
@@ -161,6 +163,7 @@ curl -X GET \
 | name        | string | Yes      | Department name (max 255 chars)               |
 | description | string | No       | Department description (max 65535 chars)      |
 | parent_id   | number | No       | Parent department ID (null for root level)    |
+| is_unique_name | boolean | No   | 控制部门名是否唯一 |
 
 **Response:** `201 Created`
 ```json
@@ -182,7 +185,7 @@ curl -X POST \
   'http://localhost:8065/api/v4/teams/abc123/departments' \
   -H 'Authorization: Bearer TOKEN' \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Marketing","description":"Marketing Department"}'
+  -d '{"name":"Marketing","description":"Marketing Department","is_unique_name":true}'
 ```
 
 ---
@@ -504,7 +507,55 @@ curl -X GET \
 
 ---
 
-### 3.2 Add Department Member
+### 3.2 Get Users Without Department Membership
+
+获取团队中未加入任何部门的用户列表（带总数）。
+
+**Endpoint:** `GET /teams/{team_id}/departments/without-members`
+
+**Permissions:** `PermissionViewTeam`
+
+**Path Parameters:**
+| Parameter | Type   | Required | Description     |
+|-----------|--------|----------|-----------------|
+| team_id   | string | Yes      | The team ID     |
+
+**Query Parameters:**
+| Parameter | Type   | Required | Description     | Default |
+|-----------|--------|----------|-----------------|---------|
+| page      | number | No       | Page number     | 0       |
+| per_page  | number | No       | Items per page  | 60      |
+
+**Response:** `200 OK`
+```json
+{
+  "members": [
+    {
+      "id": "user123",
+      "username": "zhangsan",
+      "email": "zhangsan@example.com",
+      "first_name": "三",
+      "last_name": "张"
+    },
+    {
+      "id": "user456",
+      "username": "lisi"
+    }
+  ],
+  "total_count": 25
+}
+```
+
+**Example:**
+```bash
+curl -X GET \
+  'http://localhost:8065/api/v4/teams/abc123/departments/without-members?page=0&per_page=50' \
+  -H 'Authorization: Bearer TOKEN'
+```
+
+---
+
+### 3.3 Add Department Member
 
 添加成员到部门。
 
@@ -547,7 +598,7 @@ curl -X POST \
 
 ---
 
-### 3.3 Remove Department Member
+### 3.4 Remove Department Member
 
 从部门移除成员。
 
@@ -582,7 +633,7 @@ curl -X DELETE \
 
 ---
 
-### 3.4 Batch Add Members
+### 3.5 Batch Add Members
 
 批量添加成员到部门。
 
@@ -626,7 +677,7 @@ curl -X POST \
 
 ---
 
-### 3.5 Batch Remove Members
+### 3.6 Batch Remove Members
 
 批量从部门移除成员。
 
@@ -665,7 +716,7 @@ curl -X DELETE \
 
 ---
 
-### 3.6 Move Department Member
+### 3.7 Move Department Member
 
 将成员从一个部门移动到另一个部门。
 
@@ -710,7 +761,7 @@ curl -X POST \
 
 ---
 
-### 3.7 Batch Move Members
+### 3.8 Batch Move Members
 
 批量移动成员到另一个部门。
 
@@ -827,6 +878,7 @@ curl -X GET \
 | contact_type| string | No       | Filter by type: "customer" or "supplier" |
 | page        | number | No       | Page number                          |
 | per_page    | number | No       | Items per page                       |
+| granularity | number | No       | 控制返回的 contact 粒度, 不传: 不返回 contact，1: 完整 contact，1， 2: 简洁 contact |
 
 **Response:** `200 OK`
 ```json

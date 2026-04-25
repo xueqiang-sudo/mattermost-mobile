@@ -3,19 +3,19 @@
 
 import {filterValidSearchItems} from '@utils/contact_employee_search_path';
 
-import type {ContactEmployeeSearchItem} from '@client/rest/contact';
+import type {TeamMemberSearchItem} from '@types/team_member_search';
 
 describe('contacts_search filterValidSearchItems', () => {
     it('should drop invalid search items without employee id', () => {
         const validItem = {
-            employee: {id: 'emp-1', name: 'Alice'},
+            employee: {id: 'emp-1', username: 'alice', nickname: 'Alice'} as UserProfile,
             cascade_departments: [],
-        } as ContactEmployeeSearchItem;
+        } as TeamMemberSearchItem;
 
         const invalidItem = {
             employee: undefined,
             cascade_departments: [],
-        } as unknown as ContactEmployeeSearchItem;
+        } as unknown as TeamMemberSearchItem;
 
         const filtered = filterValidSearchItems([validItem, invalidItem]);
         expect(filtered).toHaveLength(1);

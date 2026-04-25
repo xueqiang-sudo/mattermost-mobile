@@ -8,7 +8,7 @@ import {useIntl} from 'react-intl';
 import {InteractionManager, ScrollView, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import Animated, {FadeIn} from 'react-native-reanimated';
 
-import {syncTeamToContactAfterCreate} from '@actions/remote/contact';
+import {ensureTeamDefaultDepartment, syncTeamMembersToDefaultDepartment} from '@actions/remote/contact_new';
 import {createTeamByName} from '@actions/remote/team';
 import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
@@ -417,10 +417,9 @@ const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serv
                 throw createTeamError;
             }
 
-            // 同步创建通讯录企业并将当前用户加入
-            if (userId) {
-                await syncTeamToContactAfterCreate(serverUrl, team, userId);
-            }
+            // 仅确保默认部门并与团队成员对齐（不再写独立通讯录企业）
+            await ensureTeamDefaultDepartment(serverUrl, team.id);
+            await syncTeamMembersToDefaultDepartment(serverUrl, team.id);
             dismissModal({componentId});
             InteractionManager.runAfterInteractions(() => {
                 const createdName = team.display_name ?? enterpriseName;

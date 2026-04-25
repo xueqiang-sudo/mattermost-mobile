@@ -19,10 +19,13 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
+    type EmployeeContactDetailRow,
     fetchEmployeeContactsWithDetails,
     removeEmployeeContact,
-} from '@actions/remote/employee_contact';
-import {EmployeeContactTypes, type EmployeeContactDetail, type EmployeeContactType} from '@client/rest/employee_contact';
+} from '@actions/remote/employee_contact_new';
+import {MMEmployeeContactTypes, type MMEmployeeContactType} from '@client/rest/team_department';
+import {useServerUrl} from '@context/server';
+import {getContactListDisplayName} from '@utils/contact_section';
 import ContactAvatar from '@components/contact_avatar';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
@@ -38,7 +41,7 @@ import type {MyHomepageStackParamList} from '@screens/home/my_homepage/stack_par
 import type UserModel from '@typings/database/models/servers/user';
 
 type Props = {
-    kind: EmployeeContactType;
+    kind: MMEmployeeContactType;
     currentUser?: UserModel;
 };
 
@@ -134,26 +137,26 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 type RowProps = {
-    item: EmployeeContactDetail;
+    item: EmployeeContactDetailRow;
     isLast: boolean;
     theme: Theme;
     styles: ReturnType<typeof getStyleSheet>;
     onEditId: (contactId: string) => void;
     onDeleteId: (contactId: string) => void;
-    onViewProfile: (contact: EmployeeContactDetail) => void;
+    onViewProfile: (contact: EmployeeContactDetailRow) => void;
     relationDescriptionLabel: string;
 };
 
-function formatContactSubtitle(detail: EmployeeContactDetail, relationLabel: string): string {
+function formatContactSubtitle(detail: EmployeeContactDetailRow, relationLabel: string): string {
     if (!detail.description?.trim()) {
         return '';
     }
     return `${relationLabel}: ${detail.description.trim()}`;
 }
 
-function getContactDisplayName(detail: EmployeeContactDetail): string {
+function getContactDisplayName(detail: EmployeeContactDetailRow): string {
     const r = detail.remark?.trim();
-    return r || detail.contact.name;
+    return r || getContactListDisplayName(detail.contact);
 }
 
 const SupplierCustomerListRow = memo(({
@@ -196,7 +199,7 @@ const SupplierCustomerListRow = memo(({
                             style={styles.listItemSub}
                             numberOfLines={1}
                         >
-                            {item.contact.name}
+                            {getContactListDisplayName(item.contact)}
                         </Text>
                     ) : null}
                     {sub ? (
@@ -250,15 +253,16 @@ SupplierCustomerListRow.displayName = 'SupplierCustomerListRow';
 const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const serverUrl = useServerUrl();
     const isFocused = useIsFocused();
     const navigation = useNavigation<ListNav>();
     const styles = getStyleSheet(theme);
 
-    const [items, setItems] = useState<EmployeeContactDetail[]>([]);
+    const [items, setItems] = useState<EmployeeContactDetailRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    const isSupplierKind = kind === EmployeeContactTypes.Supplier;
+    const isSupplierKind = kind === MMEmployeeContactTypes.Supplier;
     const ownerId = currentUser?.id;
 
     const titleMessage = useMemo(
@@ -278,7 +282,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     });
 
     const loadData = useCallback(async (opts?: {silent?: boolean}) => {
-        if (!ownerId) {
+        if (!ownerId || !serverUrl) {
             setItems([]);
             setLoading(false);
             return;
@@ -288,7 +292,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             setLoading(true);
         }
         try {
-            const result = await fetchEmployeeContactsWithDetails(ownerId, kind);
+            const result = await fetchEmployeeContactsWithDetails(serverUrl, ownerId, kind);
             if (!result.error && result.data) {
                 setItems(result.data);
             }
@@ -297,22 +301,22 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 setLoading(false);
             }
         }
-    }, [kind, ownerId]);
+    }, [kind, ownerId, serverUrl]);
 
     const onRefresh = useCallback(async () => {
-        if (!ownerId) {
+        if (!ownerId || !serverUrl) {
             return;
         }
         setRefreshing(true);
         try {
-            const result = await fetchEmployeeContactsWithDetails(ownerId, kind);
+            const result = await fetchEmployeeContactsWithDetails(serverUrl, ownerId, kind);
             if (!result.error && result.data) {
                 setItems(result.data);
             }
         } finally {
             setRefreshing(false);
         }
-    }, [kind, ownerId]);
+    }, [kind, ownerId, serverUrl]);
 
     useEffect(() => {
         if (isFocused) {
@@ -323,7 +327,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener(
             Events.SUPPLIER_CUSTOMER_CONTACTS_CHANGED,
-            (payload?: {contactType?: EmployeeContactType}) => {
+            (payload?: {contactType?: MMEmployeeContactType}) => {
                 if (payload?.contactType !== undefined && payload.contactType !== kind) {
                     return;
                 }
@@ -375,7 +379,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             const row = items.find((i) => i.contact.id === contactId);
             openForm({
                 existingContactId: contactId,
-                initialContactName: row?.contact.name,
+                initialContactName: row ? getContactListDisplayName(row.contact) : undefined,
                 initialDescription: row?.description,
                 initialRemark: row?.remark,
                 initialContactEmail: row?.contact.email,
@@ -396,7 +400,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                     if (!ownerId) {
                         return;
                     }
-                    const result = await removeEmployeeContact(ownerId, contactId, kind);
+                    const result = await removeEmployeeContact(serverUrl, ownerId, contactId, kind);
                     if (!result.error) {
                         setItems(items.filter((entry) => entry.contact.id !== contactId));
                     }
@@ -420,13 +424,13 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                     ],
                 );
             },
-            [intl, isSupplierKind, items, kind, ownerId],
+            [intl, isSupplierKind, items, kind, ownerId, serverUrl],
         ),
     );
 
     const handleViewProfile = usePreventDoubleTap(
         useCallback(
-            (contact: EmployeeContactDetail) => {
+            (contact: EmployeeContactDetailRow) => {
                 const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
                 showModalWithBackButton(
                     Screens.CONTACTS_EMPLOYEE_PROFILE,
@@ -453,7 +457,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     }), []);
 
     const renderItem = useCallback(
-        ({item, index}: {item: EmployeeContactDetail; index: number}) => (
+        ({item, index}: {item: EmployeeContactDetailRow; index: number}) => (
             <SupplierCustomerListRow
                 item={item}
                 isLast={index === items.length - 1}
@@ -468,7 +472,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         [handleDeleteId, handleEditId, handleViewProfile, items.length, relationDescriptionLabel, styles, theme],
     );
 
-    const keyExtractor = useCallback((item: EmployeeContactDetail) => item.contact.id, []);
+    const keyExtractor = useCallback((item: EmployeeContactDetailRow) => item.contact.id, []);
 
     const listHeader = (
         <View style={styles.header}>

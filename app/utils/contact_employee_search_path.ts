@@ -1,8 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {DEFAULT_DEPARTMENT_NAME, type ContactEmployeeSearchItem} from '@client/rest/contact';
+import {DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
 import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
+
+import type {TeamMemberSearchItem} from '@actions/remote/contact_new';
 
 /**
  * 搜索范围 / 个人信息式部门展示：末级部门名 + 可选上级路径行（与 {@link formatPathForDisplay} 省略号规则一致）。
@@ -36,18 +38,18 @@ export function buildDepartmentScopeDisplayFromBreadcrumb(
 }
 
 export function normalizeDepartmentName(name: string, defaultDepartmentLabel: string): string {
-    return name === DEFAULT_DEPARTMENT_NAME ? defaultDepartmentLabel : name;
+    if (name === DEFAULT_TEAM_DEPARTMENT_NAME || name === 'FORCE_DEFAULT_DEPARTMENT') {
+        return defaultDepartmentLabel;
+    }
+    return name;
 }
 
-export function cascadePathParts(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string): string[] {
+export function cascadePathParts(item: TeamMemberSearchItem, defaultDepartmentLabel: string): string[] {
     const rawPaths = item.cascade_departments as unknown;
     if (!Array.isArray(rawPaths) || rawPaths.length === 0) {
         return [];
     }
 
-    // 兼容后端返回两种结构：
-    // 1) Department[][]（历史约定）
-    // 2) Department[]（部分接口当前实际返回）
     const firstEntry = rawPaths[0];
     const chain = (Array.isArray(firstEntry) ? firstEntry : rawPaths).filter(
         (d): d is {name: string} => Boolean(d && typeof d === 'object' && 'name' in d),
@@ -56,7 +58,7 @@ export function cascadePathParts(item: ContactEmployeeSearchItem, defaultDepartm
     return chain.map((d) => normalizeDepartmentName(d.name, defaultDepartmentLabel));
 }
 
-export function cascadePathLabel(item: ContactEmployeeSearchItem, defaultDepartmentLabel: string, enterpriseLabel: string): string {
+export function cascadePathLabel(item: TeamMemberSearchItem, defaultDepartmentLabel: string, enterpriseLabel: string): string {
     const parts = cascadePathParts(item, defaultDepartmentLabel);
     if (!parts.length) {
         return '';
@@ -73,10 +75,10 @@ export function cascadePathLabel(item: ContactEmployeeSearchItem, defaultDepartm
     return parentPath ? `${leaf}\n${parentPath}` : leaf;
 }
 
-function isValidSearchItem(item: ContactEmployeeSearchItem | undefined): item is ContactEmployeeSearchItem {
+function isValidSearchItem(item: TeamMemberSearchItem | undefined): item is TeamMemberSearchItem {
     return Boolean(item?.employee?.id);
 }
 
-export function filterValidSearchItems(items: ContactEmployeeSearchItem[] = []) {
+export function filterValidSearchItems(items: TeamMemberSearchItem[] = []) {
     return items.filter(isValidSearchItem);
 }

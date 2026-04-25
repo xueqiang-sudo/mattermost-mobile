@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useDatabase} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
@@ -13,10 +12,8 @@ import {
     fetchContactDepartment,
     fetchContactDirectoryContent,
     fetchEmployeeCountOfDepartment,
-    syncEnterpriseDisplayNameWithMattermost,
     updateContactDepartment,
-} from '@actions/remote/contact';
-import {type ContactDepartment, type ContactEmployee} from '@client/rest/contact';
+} from '@actions/remote/contact_new';
 import CompassIcon from '@components/compass_icon';
 import ContactDirectoryList from '@components/contact_directory_list';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
@@ -28,13 +25,14 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {queryMyTeams} from '@queries/servers/team';
+import NetworkManager from '@managers/network_manager';
 import {bottomSheet, dismissBottomSheet, dismissModals, showModal, showModalWithBackButton} from '@screens/navigation';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {MMDepartment} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-manage';
@@ -135,10 +133,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 const loadContent = async (
+    serverUrlArg: string | undefined,
     companyIdArg: string,
     departmentIdArg: number | undefined,
-    setDepartmentsArg: React.Dispatch<React.SetStateAction<ContactDepartment[]>>,
-    setEmployeesArg: React.Dispatch<React.SetStateAction<ContactEmployee[]>>,
+    setDepartmentsArg: React.Dispatch<React.SetStateAction<MMDepartment[]>>,
+    setEmployeesArg: React.Dispatch<React.SetStateAction<UserProfile[]>>,
     setMemberCountArg: React.Dispatch<React.SetStateAction<number>>,
     setErrorArg: React.Dispatch<React.SetStateAction<boolean>>,
     setLoadingArg: React.Dispatch<React.SetStateAction<boolean>>,
@@ -146,7 +145,17 @@ const loadContent = async (
 ) => {
     setLoadingArg(true);
     setErrorArg(false);
-    const res = await fetchContactDirectoryContent(companyIdArg, departmentIdArg);
+    if (!serverUrlArg) {
+        if (mounted.current) {
+            setErrorArg(true);
+            setDepartmentsArg([]);
+            setEmployeesArg([]);
+            setMemberCountArg(0);
+            setLoadingArg(false);
+        }
+        return;
+    }
+    const res = await fetchContactDirectoryContent(serverUrlArg, companyIdArg, departmentIdArg);
     if (!mounted.current) {
         return;
     }
@@ -172,7 +181,6 @@ const ContactsManage = ({
     departmentName: initialDepartmentName,
     breadcrumb: initialBreadcrumb = [],
 }: Props) => {
-    const database = useDatabase();
     const serverUrl = useServerUrl();
     const theme = useTheme();
     const intl = useIntl();
@@ -188,8 +196,8 @@ const ContactsManage = ({
         departmentName: initialDepartmentName,
         breadcrumb: initialBreadcrumb,
     }]);
-    const [departments, setDepartments] = useState<ContactDepartment[]>([]);
-    const [employees, setEmployees] = useState<ContactEmployee[]>([]);
+    const [departments, setDepartments] = useState<MMDepartment[]>([]);
+    const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [memberCount, setMemberCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -219,6 +227,7 @@ const ContactsManage = ({
 
     const refetch = useCallback(() => {
         loadContent(
+            serverUrl,
             companyId,
             currentDeptIdRef.current ?? undefined,
             setDepartments,
@@ -228,7 +237,7 @@ const ContactsManage = ({
             setLoading,
             mounted,
         );
-    }, [companyId]);
+    }, [companyId, serverUrl]);
 
     useNavButtonPressed(effectiveCloseButtonId, componentId, handleClose, [handleClose]);
     const handleHardwareBack = useCallback(() => {
@@ -255,6 +264,7 @@ const ContactsManage = ({
             return;
         }
         loadContent(
+            serverUrl,
             companyId,
             top.departmentId ?? undefined,
             setDepartments,
@@ -264,7 +274,7 @@ const ContactsManage = ({
             setLoading,
             mounted,
         );
-    }, [companyId, manageStack]);
+    }, [companyId, manageStack, serverUrl]);
 
     useEffect(() => {
         if (currentDepartmentId == null && companyName != null) {
@@ -272,7 +282,7 @@ const ContactsManage = ({
         }
     }, [currentDepartmentId, companyName]);
 
-    const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: ContactDepartment) => {
+    const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: MMDepartment) => {
         const top = manageStack[manageStack.length - 1];
         const prevBreadcrumb = top?.breadcrumb ?? [];
         const prevDeptName = top?.departmentName;
@@ -288,7 +298,7 @@ const ContactsManage = ({
         }]);
     }, [manageStack, intl]));
 
-    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: ContactEmployee) => {
+    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         const deptName = currentDepartmentName ?? intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});
         const currentBreadcrumb = currentLevel?.breadcrumb ?? [];
@@ -365,7 +375,7 @@ const ContactsManage = ({
         if (!name) {
             return;
         }
-        const res = await createSubDepartment(companyId, name, currentDepartmentId ?? undefined);
+        const res = await createSubDepartment(serverUrl, companyId, name, currentDepartmentId ?? undefined);
         if (res.error) {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'}),
@@ -374,7 +384,7 @@ const ContactsManage = ({
         } else {
             refetch();
         }
-    }, [companyId, currentDepartmentId, intl, refetch, subDeptInput]));
+    }, [companyId, currentDepartmentId, intl, refetch, serverUrl, subDeptInput]));
 
     const handleModifyDepartmentName = useCallback(async () => {
         if (currentDepartmentId == null || currentDepartmentName == null) {
@@ -394,7 +404,7 @@ const ContactsManage = ({
         if (!name) {
             return;
         }
-        const deptRes = await fetchContactDepartment(companyId, currentDepartmentId);
+        const deptRes = await fetchContactDepartment(serverUrl, companyId, currentDepartmentId);
         if (deptRes.error || !deptRes.data) {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
@@ -403,8 +413,9 @@ const ContactsManage = ({
             return;
         }
         const res = await updateContactDepartment(
-            currentDepartmentId,
+            serverUrl,
             companyId,
+            currentDepartmentId,
             name,
             deptRes.data.parent_id,
         );
@@ -416,7 +427,7 @@ const ContactsManage = ({
         } else {
             refetch();
         }
-    }, [companyId, currentDepartmentId, currentDepartmentName, intl, modifyDeptNameInput, refetch]);
+    }, [companyId, currentDepartmentId, currentDepartmentName, intl, modifyDeptNameInput, refetch, serverUrl]);
 
     const handleModifyEnterpriseName = useCallback(async () => {
         if (currentDepartmentId != null) {
@@ -433,24 +444,18 @@ const ContactsManage = ({
         if (!name) {
             return;
         }
-        const myTeams = await queryMyTeams(database).fetch();
-        const isMattermostTeam = myTeams.some((m) => m.id === companyId);
-        const res = await syncEnterpriseDisplayNameWithMattermost(serverUrl, {
-            companyId,
-            displayName: name,
-            hasContactCompanyRecord: true,
-            isMattermostTeam,
-        });
-        if (res.error) {
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            await client.patchTeam({id: companyId, display_name: name.trim()});
+            setEnterpriseDisplayName(name.trim());
+            refetch();
+        } catch {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
                 intl.formatMessage({id: 'contacts.update_enterprise_failed', defaultMessage: 'Failed to update enterprise. Please try again.'}),
             );
-        } else {
-            setEnterpriseDisplayName(name);
-            refetch();
         }
-    }, [companyId, database, intl, modifyEnterpriseNameInput, refetch, enterpriseDisplayName, companyName, currentDepartmentId, serverUrl]);
+    }, [companyId, intl, modifyEnterpriseNameInput, refetch, enterpriseDisplayName, companyName, currentDepartmentId, serverUrl]);
 
     const handleMore = usePreventDoubleTap(useCallback(() => {
         /* 批量设置成员信息暂不启用，enterSubFirst 仅该功能使用
@@ -557,7 +562,7 @@ const ContactsManage = ({
                             if (!ok || deptId == null) {
                                 return;
                             }
-                            const countRes = await fetchEmployeeCountOfDepartment(companyId, deptId);
+                            const countRes = await fetchEmployeeCountOfDepartment(serverUrl, companyId, deptId);
                             if (countRes.error || (countRes.data ?? 0) > 0) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
@@ -565,7 +570,7 @@ const ContactsManage = ({
                                 );
                                 return;
                             }
-                            const delRes = await deleteContactDepartmentForce(companyId, deptId);
+                            const delRes = await deleteContactDepartmentForce(serverUrl, companyId, deptId);
                             if (delRes.error) {
                                 Alert.alert(
                                     intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
@@ -597,7 +602,7 @@ const ContactsManage = ({
             theme,
             title: intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
         });
-    }, [companyId, currentDepartmentId, currentDepartmentName, employees, intl, memberCount, refetch, theme, handleBack, handleModifyDepartmentName, handleModifyEnterpriseName]));
+    }, [companyId, currentDepartmentId, currentDepartmentName, employees, intl, memberCount, refetch, serverUrl, theme, handleBack, handleModifyDepartmentName, handleModifyEnterpriseName]));
 
     return (
         <SafeAreaView

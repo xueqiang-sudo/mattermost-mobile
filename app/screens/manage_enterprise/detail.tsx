@@ -20,20 +20,8 @@ import {
 } from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {
-    dissolveEnterprise,
-    fetchCanDissolveTeam,
-    fetchCompany,
-    fetchEmployeeCountOfCompany,
-    fetchSearchContactEmployees,
-    quitEnterprise,
-    syncEnterpriseDisplayNameWithMattermost,
-    transferContactCompanyOwnership,
-    type FetchCompanyResult,
-    type FetchEmployeeCountOfCompanyResult,
-} from '@actions/remote/contact';
-import {deleteTeam, fetchTeamMemberCount, removeCurrentUserFromTeam} from '@actions/remote/team';
-import {type ContactCompany, type ContactEmployee, type ContactEmployeeSearchItem} from '@client/rest/contact';
+import {fetchSearchContactEmployees, type TeamMemberSearchItem} from '@actions/remote/contact_new';
+import {deleteTeam, fetchTeamMemberCount, fetchUserCanDissolveTeam, removeCurrentUserFromTeam, transferTeamOwnership} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
@@ -43,9 +31,11 @@ import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
+import NetworkManager from '@managers/network_manager';
 import {observeCurrentUser} from '@queries/servers/user';
 import {popTopScreen} from '@screens/navigation';
 import {cascadePathLabel, filterValidSearchItems} from '@utils/contact_employee_search_path';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -53,17 +43,18 @@ import {typography} from '@utils/typography';
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type UserModel from '@typings/database/models/servers/user';
 
-type TransferOwnershipListEntry = {mode: 'search'; item: ContactEmployeeSearchItem};
+type TeamCompanyView = {
+    id: string;
+    name?: string;
+    type: 'team';
+    owner_id?: string;
+};
+
+type TransferOwnershipListEntry = {mode: 'search'; item: TeamMemberSearchItem};
 
 type Props = {
     companyId: string;
     companyName?: string;
-
-    /** 企业对应 Mattermost 团队（companyId = teamId），用于获取创建者判断解散权限 */
-    isMattermostTeam?: boolean;
-
-    /** 通讯录中是否有该企业记录 */
-    hasContactCompanyRecord?: boolean;
 
     /** 是否为当前选中的企业 */
     isCurrentTeam?: boolean;
@@ -330,21 +321,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam, hasContactCompanyRecord = true, isCurrentTeam = false, currentUser, componentId}: Props) => {
+const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = false, currentUser, componentId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const insets = useSafeAreaInsets();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
-    const [company, setCompany] = useState<ContactCompany | undefined>();
+    const [company, setCompany] = useState<TeamCompanyView | undefined>();
     const [memberCount, setMemberCount] = useState<number | undefined>();
     const [isCreator, setIsCreator] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<unknown>();
     const [transferVisible, setTransferVisible] = useState(false);
     const [transferSearchQuery, setTransferSearchQuery] = useState('');
-    const [transferSearchMembers, setTransferSearchMembers] = useState<ContactEmployeeSearchItem[]>([]);
+    const [transferSearchMembers, setTransferSearchMembers] = useState<TeamMemberSearchItem[]>([]);
     const [transferSearchRawCount, setTransferSearchRawCount] = useState(0);
     const [transferSearchPending, setTransferSearchPending] = useState(false);
     const transferSearchSeq = useRef(0);
@@ -365,29 +356,34 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
     }, [transferSearchQuery, transferSearchMembers]);
     const hasTransferSearchQuery = transferSearchQuery.trim().length > 0;
     const transferSearchOnlySelf = hasTransferSearchQuery && transferSearchRawCount > 0 && transferListEntries.length === 0;
-    const transferEmptyText = hasTransferSearchQuery ?
-        (transferSearchOnlySelf ?
-            intl.formatMessage({
-                id: 'enterprise.detail.transfer.self_only_result',
-                defaultMessage: 'Search result only contains yourself. Ownership cannot be transferred to yourself.',
-            }) :
-            intl.formatMessage({
-                id: 'contacts.search.no_results',
-                defaultMessage: 'No matching contacts',
-            })) :
-        intl.formatMessage({
-            id: 'contacts.search.hint',
-            defaultMessage: 'Please enter a nickname, email, or phone number to search',
-        });
+    const transferEmptyText = hasTransferSearchQuery ?(transferSearchOnlySelf ?intl.formatMessage({
+        id: 'enterprise.detail.transfer.self_only_result',
+        defaultMessage: 'Search result only contains yourself. Ownership cannot be transferred to yourself.',
+    }) :intl.formatMessage({
+        id: 'contacts.search.no_results',
+        defaultMessage: 'No matching contacts',
+    })) :intl.formatMessage({
+        id: 'contacts.search.hint',
+        defaultMessage: 'Please enter a nickname, email, or phone number to search',
+    });
 
     const employeeId = currentUser?.id;
     const editNameModal = useCustomInputModal();
 
     const refreshCompanyAfterRename = useCallback(async (fallbackName: string) => {
-        const companyRes = await fetchCompany(companyId);
-        if (!companyRes.error && companyRes.data) {
-            setCompany(companyRes.data);
-        } else {
+        if (!serverUrl) {
+            return;
+        }
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            const team = await client.getTeam(companyId);
+            setCompany({
+                id: team.id,
+                name: team.display_name,
+                type: 'team',
+                owner_id: team.creator_id,
+            });
+        } catch {
             setCompany((prev) => ({
                 id: companyId,
                 name: fallbackName,
@@ -396,7 +392,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             }));
         }
         DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
-    }, [companyId]);
+    }, [companyId, serverUrl]);
 
     useEffect(() => {
         const load = async () => {
@@ -404,52 +400,47 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             setError(undefined);
             setIsCreator(null);
 
-            const loadPair = async () =>
-                Promise.all([
-                    fetchCompany(companyId),
-                    fetchEmployeeCountOfCompany(companyId),
-                ]) as Promise<[FetchCompanyResult, FetchEmployeeCountOfCompanyResult]>;
-
-            const [companyRes, countRes] = await loadPair();
-
-            if (companyRes.error || !companyRes.data) {
-                if (!hasContactCompanyRecord && companyName) {
-                    setCompany({
-                        id: companyId,
-                        name: companyName,
-                        type: 'team' as const,
-                    });
-                } else {
-                    setError(companyRes.error ?? new Error('Company not found'));
-                }
-            } else {
-                setCompany(companyRes.data);
+            if (!serverUrl) {
+                setError(new Error('No server'));
+                setLoading(false);
+                return;
             }
-
-            // 成员数：通讯录有且>0则用通讯录；若通讯录无/报错/为0 且为 MM 团队，则用 Mattermost 成员数
-            const contactCount = (!countRes.error && typeof countRes.data === 'number') ? countRes.data : undefined;
-            const shouldUseMattermost = isMattermostTeam && serverUrl && (!hasContactCompanyRecord || contactCount === undefined || contactCount === 0);
-
-            if (shouldUseMattermost) {
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const team = await client.getTeam(companyId);
+                setCompany({
+                    id: team.id,
+                    name: team.display_name,
+                    type: 'team',
+                    owner_id: team.creator_id,
+                });
+                setError(undefined);
                 const mmCountRes = await fetchTeamMemberCount(serverUrl, companyId);
                 if (!mmCountRes.error && typeof mmCountRes.data === 'number') {
                     setMemberCount(mmCountRes.data);
-                } else if (contactCount !== undefined) {
-                    setMemberCount(contactCount);
                 }
-            } else if (contactCount !== undefined) {
-                setMemberCount(contactCount);
+            } catch (e) {
+                if (companyName) {
+                    setCompany({
+                        id: companyId,
+                        name: companyName,
+                        type: 'team',
+                    });
+                    setError(undefined);
+                } else {
+                    setError(e);
+                }
             }
             setLoading(false);
         };
 
         load();
-    }, [companyId, companyName, hasContactCompanyRecord, isMattermostTeam, serverUrl]);
+    }, [companyId, companyName, serverUrl]);
 
     // 判断是否显示「解散」：需求1/2/3 综合逻辑
     // - 需求2: 通讯录有且 owner_id 有效 → 以 owner_id === employeeId 为准
-    // - 需求1: 通讯录无（仅 MM）→ 以 Mattermost 创建者或管理员为准
-    // - 需求3: 通讯录有但 owner_id 为空 → 以 Mattermost 创建者或管理员为准
+    // - 需求1: 通讯录无（仅 MM）→ 仅 Mattermost 创建者可解散
+    // - 需求3: 通讯录有但 owner_id 为空 → 仅 Mattermost 创建者可解散
     useEffect(() => {
         const checkCreator = async () => {
             if (!employeeId) {
@@ -461,15 +452,15 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                 setIsCreator(ownerId === employeeId);
                 return;
             }
-            if (!isMattermostTeam || !serverUrl) {
+            if (!serverUrl) {
                 setIsCreator(false);
                 return;
             }
-            const canDissolve = await fetchCanDissolveTeam(serverUrl, companyId, employeeId);
-            setIsCreator(canDissolve);
+            const canDissolve = await fetchUserCanDissolveTeam(serverUrl, companyId, employeeId);
+            setIsCreator(Boolean(canDissolve.data));
         };
         checkCreator();
-    }, [company, companyId, employeeId, isMattermostTeam, serverUrl]);
+    }, [company, companyId, employeeId, serverUrl]);
 
     const handleSuccessAndBack = useCallback((isDissolve: boolean, enterpriseDisplayName: string) => {
         const name = enterpriseDisplayName.trim() || companyId;
@@ -486,13 +477,9 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
     const handleQuitOrDissolve = usePreventDoubleTap(useCallback(() => {
         const isDissolve = isCreator === true;
 
-        const title = isDissolve ?
-            intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :
-            intl.formatMessage({id: 'enterprise.detail.quit', defaultMessage: 'Leave enterprise'});
+        const title = isDissolve ?intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :intl.formatMessage({id: 'enterprise.detail.quit', defaultMessage: 'Leave enterprise'});
 
-        const message = isDissolve ?
-            intl.formatMessage({id: 'enterprise.detail.dissolve_confirm', defaultMessage: 'This will permanently delete this enterprise and all of its data in the contact system. This action cannot be undone. Continue?'}) :
-            intl.formatMessage({id: 'enterprise.detail.quit_confirm', defaultMessage: 'You will no longer receive notifications or updates from this enterprise. Continue to leave?'});
+        const message = isDissolve ?intl.formatMessage({id: 'enterprise.detail.dissolve_confirm', defaultMessage: 'This will permanently delete this enterprise and all of its data in the contact system. This action cannot be undone. Continue?'}) :intl.formatMessage({id: 'enterprise.detail.quit_confirm', defaultMessage: 'You will no longer receive notifications or updates from this enterprise. Continue to leave?'});
 
         Alert.alert(
             title,
@@ -508,69 +495,42 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                     onPress: async () => {
                         const resolvedName = (company?.name || companyName || companyId).trim() || companyId;
                         if (isDissolve) {
-                            // 解散：先操作通讯录，再操作 Mattermost
-                            if (hasContactCompanyRecord) {
-                                const contactRes = await dissolveEnterprise(companyId);
-                                if (contactRes.error) {
-                                    Alert.alert(
-                                        intl.formatMessage(
-                                            {id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve {name}.'},
-                                            {name: resolvedName},
-                                        ),
-                                    );
-                                    return;
-                                }
+                            if (!serverUrl) {
+                                return;
                             }
-                            if (isMattermostTeam && serverUrl) {
-                                const mmRes = await deleteTeam(serverUrl, companyId);
-                                if (mmRes.error) {
-                                    Alert.alert(
-                                        intl.formatMessage(
-                                            {id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve {name}.'},
-                                            {name: resolvedName},
-                                        ),
-                                    );
-                                    return;
-                                }
+                            const mmRes = await deleteTeam(serverUrl, companyId);
+                            if (mmRes.error) {
+                                Alert.alert(
+                                    intl.formatMessage(
+                                        {id: 'enterprise.detail.dissolve_failed', defaultMessage: 'Failed to dissolve {name}.'},
+                                        {name: resolvedName},
+                                    ),
+                                );
+                                return;
                             }
                             handleSuccessAndBack(true, resolvedName);
                             return;
                         }
 
-                        // 退出：先操作通讯录，再操作 Mattermost
-                        if (!employeeId) {
+                        if (!employeeId || !serverUrl) {
                             return;
                         }
-                        if (hasContactCompanyRecord) {
-                            const contactRes = await quitEnterprise(employeeId, companyId);
-                            if (contactRes.error) {
-                                Alert.alert(
-                                    intl.formatMessage(
-                                        {id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave {name}.'},
-                                        {name: resolvedName},
-                                    ),
-                                );
-                                return;
-                            }
-                        }
-                        if (isMattermostTeam && serverUrl) {
-                            const mmRes = await removeCurrentUserFromTeam(serverUrl, companyId);
-                            if (mmRes.error) {
-                                Alert.alert(
-                                    intl.formatMessage(
-                                        {id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave {name}.'},
-                                        {name: resolvedName},
-                                    ),
-                                );
-                                return;
-                            }
+                        const mmRes = await removeCurrentUserFromTeam(serverUrl, companyId);
+                        if (mmRes.error) {
+                            Alert.alert(
+                                intl.formatMessage(
+                                    {id: 'enterprise.detail.quit_failed', defaultMessage: 'Failed to leave {name}.'},
+                                    {name: resolvedName},
+                                ),
+                            );
+                            return;
                         }
                         handleSuccessAndBack(false, resolvedName);
                     },
                 },
             ],
         );
-    }, [company, companyId, companyName, employeeId, handleSuccessAndBack, hasContactCompanyRecord, intl, isCreator, isMattermostTeam, serverUrl]));
+    }, [company, companyId, companyName, employeeId, handleSuccessAndBack, intl, isCreator, serverUrl]));
 
     const handleEditEnterprise = usePreventDoubleTap(useCallback(async () => {
         const current = (company?.name || companyName || '').trim();
@@ -585,13 +545,13 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             return;
         }
         const trimmed = name.trim();
-        const res = await syncEnterpriseDisplayNameWithMattermost(serverUrl, {
-            companyId,
-            displayName: trimmed,
-            hasContactCompanyRecord,
-            isMattermostTeam: Boolean(isMattermostTeam),
-        });
-        if (res.error) {
+        if (!serverUrl) {
+            return;
+        }
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            await client.patchTeam({id: companyId, display_name: trimmed});
+        } catch {
             Alert.alert(
                 intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name_title', defaultMessage: 'Modify enterprise name'}),
                 intl.formatMessage({id: 'enterprise.detail.edit_failed', defaultMessage: 'Failed to update enterprise. Please try again.'}),
@@ -603,36 +563,38 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
             intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name_title', defaultMessage: 'Modify enterprise name'}),
             intl.formatMessage({id: 'enterprise.detail.edit_success', defaultMessage: 'Enterprise name was updated.'}),
         );
-    }, [company?.name, companyId, companyName, editNameModal, hasContactCompanyRecord, intl, isMattermostTeam, refreshCompanyAfterRename, serverUrl]));
+    }, [company?.name, companyId, companyName, editNameModal, intl, refreshCompanyAfterRename, serverUrl]));
 
     const runTransferToUserId = useCallback(async (newOwnerId: string) => {
-        if (!employeeId) {
+        if (!serverUrl) {
             return;
         }
-        const tr = await transferContactCompanyOwnership(employeeId, companyId, newOwnerId);
-        if (tr.error) {
+
+        const result = await transferTeamOwnership(serverUrl, companyId, newOwnerId);
+        if (result.error) {
             Alert.alert(
                 intl.formatMessage({id: 'enterprise.detail.transfer_title', defaultMessage: 'Transfer ownership'}),
                 intl.formatMessage({id: 'enterprise.detail.transfer_failed', defaultMessage: 'Failed to transfer ownership. Please try again.'}),
             );
             return;
         }
+
         setTransferVisible(false);
-        setCompany((prev) => prev ? {...prev, owner_id: newOwnerId} : prev);
-        setIsCreator(false);
+        setCompany((prev) => (prev ? {...prev, owner_id: newOwnerId} : prev));
         DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
         Alert.alert(
             intl.formatMessage({id: 'enterprise.detail.transfer_title', defaultMessage: 'Transfer ownership'}),
             intl.formatMessage({id: 'enterprise.detail.transfer_success', defaultMessage: 'Ownership was transferred.'}),
         );
-    }, [companyId, employeeId, intl]);
+    }, [companyId, intl, serverUrl]);
 
-    const handlePickTransferMember = usePreventDoubleTap(useCallback((member: ContactEmployee) => {
+    const handlePickTransferMember = usePreventDoubleTap(useCallback((member: UserProfile) => {
+        const displayName = getContactListDisplayName(member);
         Alert.alert(
             intl.formatMessage({id: 'enterprise.detail.transfer_confirm_title', defaultMessage: 'Transfer ownership?'}),
             intl.formatMessage(
                 {id: 'enterprise.detail.transfer_confirm_message', defaultMessage: 'Make {name} the new owner of this enterprise?'},
-                {name: member.name},
+                {name: displayName},
             ),
             [
                 {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
@@ -671,7 +633,11 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
         setTransferSearchPending(true);
         const seq = ++transferSearchSeq.current;
         const handle = setTimeout(async () => {
-            const res = await fetchSearchContactEmployees(companyId, q);
+            if (!serverUrl) {
+                setTransferSearchPending(false);
+                return;
+            }
+            const res = await fetchSearchContactEmployees(serverUrl, companyId, q);
             if (seq !== transferSearchSeq.current) {
                 return;
             }
@@ -682,11 +648,16 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                 return;
             }
             setTransferSearchRawCount(res.data.length);
-            const mapped = filterValidSearchItems(res.data).filter((item) => item.employee.id !== employeeId);
-            setTransferSearchMembers(mapped);
+            const mapped: TeamMemberSearchItem[] = res.data.map((u) => ({
+                employee: u,
+                cascade_departments: [],
+                company_id: companyId,
+            }));
+            const filtered = filterValidSearchItems(mapped).filter((item) => item.employee.id !== employeeId);
+            setTransferSearchMembers(filtered);
         }, 320);
         return () => clearTimeout(handle);
-    }, [transferSearchQuery, transferVisible, companyId, employeeId]);
+    }, [transferSearchQuery, transferVisible, companyId, employeeId, serverUrl]);
 
     const renderBody = () => {
         if (loading && !company) {
@@ -793,26 +764,24 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                                     {intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name', defaultMessage: 'Modify enterprise name'})}
                                 </Text>
                             </TouchableOpacity>
-                            {hasContactCompanyRecord && (
-                                <>
-                                    <View style={styles.managementCardDivider} />
-                                    <TouchableOpacity
-                                        style={styles.managementCardRow}
-                                        onPress={openTransferSheet}
-                                        activeOpacity={0.7}
-                                        testID='enterprise.detail.transfer.button'
-                                    >
-                                        <CompassIcon
-                                            name='account-outline'
-                                            size={20}
-                                            color={theme.buttonBg}
-                                        />
-                                        <Text style={styles.secondaryButtonText}>
-                                            {intl.formatMessage({id: 'enterprise.detail.transfer', defaultMessage: 'Transfer ownership'})}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </>
-                            )}
+                            <>
+                                <View style={styles.managementCardDivider}/>
+                                <TouchableOpacity
+                                    style={styles.managementCardRow}
+                                    onPress={openTransferSheet}
+                                    activeOpacity={0.7}
+                                    testID='enterprise.detail.transfer.button'
+                                >
+                                    <CompassIcon
+                                        name='account-outline'
+                                        size={20}
+                                        color={theme.buttonBg}
+                                    />
+                                    <Text style={styles.secondaryButtonText}>
+                                        {intl.formatMessage({id: 'enterprise.detail.transfer', defaultMessage: 'Transfer ownership'})}
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
                         </View>
                     )}
 
@@ -828,9 +797,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                             color={theme.errorTextColor}
                         />
                         <Text style={styles.dangerButtonText}>
-                            {isCreator ?
-                                intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :
-                                intl.formatMessage({id: 'enterprise.detail.quit', defaultMessage: 'Leave enterprise'})}
+                            {isCreator ?intl.formatMessage({id: 'enterprise.detail.dissolve', defaultMessage: 'Dissolve enterprise'}) :intl.formatMessage({id: 'enterprise.detail.quit', defaultMessage: 'Leave enterprise'})}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -913,16 +880,14 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                                     data={transferListEntries}
                                     keyExtractor={(entry: TransferOwnershipListEntry) => `s-${entry.item.employee.id}`}
                                     ListEmptyComponent={(
-                                        transferSearchQuery.trim() && transferSearchPending ?
-                                            <View style={{paddingVertical: 24, alignItems: 'center'}}>
-                                                <Loading
-                                                    color={theme.centerChannelColor}
-                                                    size='small'
-                                                />
-                                            </View> :
-                                            <Text style={styles.transferHint}>
-                                                {transferEmptyText}
-                                            </Text>
+                                        transferSearchQuery.trim() && transferSearchPending ?<View style={{paddingVertical: 24, alignItems: 'center'}}>
+                                            <Loading
+                                                color={theme.centerChannelColor}
+                                                size='small'
+                                            />
+                                        </View> :<Text style={styles.transferHint}>
+                                            {transferEmptyText}
+                                        </Text>
                                     )}
                                     contentContainerStyle={
                                         transferListEntries.length === 0 ? {flexGrow: 1} : undefined
@@ -948,7 +913,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isMattermostTeam,
                                                         style={styles.transferMemberName}
                                                         numberOfLines={1}
                                                     >
-                                                        {employee.name}
+                                                        {getContactListDisplayName(employee)}
                                                     </Text>
                                                     {path ? (
                                                         <Text

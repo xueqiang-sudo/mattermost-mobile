@@ -14,6 +14,7 @@ import {
     syncTeamMembersToDefaultDepartment,
     fetchDepartmentsByTeam,
     fetchEmployeesOfDefaultDepartment,
+    ensureTeamDefaultDepartment,
 } from '@actions/remote/contact_new';
 import {fetchTeamMemberCount} from '@actions/remote/team';
 import {DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
@@ -27,6 +28,7 @@ import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {showModal, showModalWithBackButton} from '@screens/navigation';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -34,7 +36,6 @@ import {typography} from '@utils/typography';
 import {type ContactsStackParamList} from './contacts_stack_param_list';
 
 import type {MMDepartment} from '@client/rest/team_department';
-import type {Database} from '@nozbe/watermelondb';
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -44,7 +45,6 @@ const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 type Props = {
     currentUser?: UserModel;
     currentTeam?: TeamModel;
-    database?: Database;
     isEnterpriseManager: boolean;
 
     /** RNN Home componentId；关管理弹窗时 Home 会 willAppear，用于刷新列表 */
@@ -177,7 +177,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     subSection: {},
 }));
 
-const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager, rnnHomeComponentId}: Props) => {
+const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeComponentId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
@@ -263,6 +263,7 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
             setServiceError(false);
 
             if (!currentTeamId) {
+                logDebug('[ContactsScreen.fetchEnterprise] currentTeamId is false, return');
                 setLoading(false);
                 return;
             }
@@ -277,9 +278,22 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
                 return;
             }
 
-            if (isEnterpriseManager && !deptRes.data?.find((d) => d.name === DEFAULT_TEAM_DEPARTMENT_NAME)) {
-                // 创建默认部门 && 同步团队成员到默认部门
-                await syncTeamMembersToDefaultDepartment(serverUrl, currentTeamId);
+            if (isEnterpriseManager) {
+                let isNewCreate = false;
+                if (!deptRes.data?.find((d) => d.name === DEFAULT_TEAM_DEPARTMENT_NAME)) {
+                    // 没有默认部门，则创建默认部门
+                    logDebug('没有默认部门，则创建默认部门');
+                    const ensureRes = await ensureTeamDefaultDepartment(serverUrl, currentTeamId);
+                    if (ensureRes.isNewCreate !== undefined) {
+                        isNewCreate = ensureRes.isNewCreate;
+                    }
+                }
+                if (!isNewCreate) {
+                    // 同步团队成员到默认部门
+                    const syncRes = await syncTeamMembersToDefaultDepartment(serverUrl, currentTeamId);
+                    // eslint-disable-next-line no-unused-expressions
+                    syncRes.data && syncRes.data.length && logDebug('同步团队成员到默认部门成功, 个数:', syncRes.data.length, ' ,uids:', syncRes.data.join(','));
+                }
             }
 
             setTopLevelDepartments((deptRes.data || []).filter((d) => d.name !== DEFAULT_TEAM_DEPARTMENT_NAME));
@@ -308,7 +322,7 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, currentUserId, database, isFocused, serverUrl, homeReappearTick, isEnterpriseManager]);
+    }, [currentTeamId, currentUserId, isFocused, serverUrl, homeReappearTick, isEnterpriseManager]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: MMDepartment) => {
         const breadcrumb = [
@@ -422,7 +436,7 @@ const ContactsScreen = ({currentUser, currentTeam, database, isEnterpriseManager
                                 style={styles.listItemName}
                                 numberOfLines={1}
                             >
-                                {emp.name}
+                                {getContactListDisplayName(emp)}
                             </Text>
                         </TouchableOpacity>
                         {empIdx < defaultDepartmentEmployees.length - 1 ? (

@@ -5,7 +5,7 @@ import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native'
 import {createStackNavigator, type StackNavigationProp} from '@react-navigation/stack';
 import React from 'react';
 
-import {EmployeeContactTypes} from '@client/rest/employee_contact';
+import {MMEmployeeContactTypes} from '@client/rest/team_department';
 import {Screens} from '@constants';
 
 import SupplierCustomerFormScreen from '../supplier_customer/supplier_customer_form';
@@ -60,7 +60,7 @@ export function MyHomepageStack({currentUser}: MyHomepageStackProps) {
             <Stack.Screen name={Screens.MY_SUPPLIERS}>
                 {() => (
                     <SupplierCustomerListScreen
-                        kind={EmployeeContactTypes.Supplier}
+                        kind={MMEmployeeContactTypes.Supplier}
                         currentUser={currentUser}
                     />
                 )}
@@ -68,7 +68,7 @@ export function MyHomepageStack({currentUser}: MyHomepageStackProps) {
             <Stack.Screen name={Screens.MY_CUSTOMERS}>
                 {() => (
                     <SupplierCustomerListScreen
-                        kind={EmployeeContactTypes.Customer}
+                        kind={MMEmployeeContactTypes.Customer}
                         currentUser={currentUser}
                     />
                 )}

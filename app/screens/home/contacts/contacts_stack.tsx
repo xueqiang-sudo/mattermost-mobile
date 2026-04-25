@@ -10,9 +10,10 @@ import {Screens} from '@constants';
 
 import ContactsScreen from './contacts';
 import ContactsSearchScreen from './contacts_search';
-import ContactsDepartmentDetail from './department_detail';
 import {type ContactsStackParamList} from './contacts_stack_param_list';
+import ContactsDepartmentDetail from './department_detail';
 
+import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
 
 const Stack = createStackNavigator<ContactsStackParamList>();
@@ -22,8 +23,8 @@ export const ContactsRnnHomeComponentIdContext = createContext<string | undefine
 
 type ContactsStackProps = {
     currentUser?: UserModel;
-    currentTeamId?: string;
-    database?: import('@nozbe/watermelondb').Database;
+    currentTeam?: TeamModel;
+    isEnterpriseManager: boolean;
     rnnHomeComponentId?: string;
 };
 
@@ -57,9 +58,7 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
                     defaultMessage: 'Enterprise Contacts',
                 });
                 const departmentBreadcrumb =
-                    params.breadcrumb && params.breadcrumb.length > 0 ?
-                        params.breadcrumb :
-                        [enterpriseLabel, params.departmentName];
+                    params.breadcrumb && params.breadcrumb.length > 0 ?params.breadcrumb :[enterpriseLabel, params.departmentName];
                 navigation.navigate(Screens.CONTACTS_SEARCH, {
                     companyId: params.companyId,
                     companyName: params.companyName,
@@ -102,7 +101,7 @@ function ContactsSearchWrapper({currentUserId}: {currentUserId?: string}) {
     );
 }
 
-export function ContactsStack({currentUser, currentTeamId, database, rnnHomeComponentId}: ContactsStackProps) {
+export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rnnHomeComponentId}: ContactsStackProps) {
     return (
         <ContactsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
             <Stack.Navigator
@@ -113,8 +112,8 @@ export function ContactsStack({currentUser, currentTeamId, database, rnnHomeComp
                     {() => (
                         <ContactsScreen
                             currentUser={currentUser}
-                            currentTeamId={currentTeamId}
-                            database={database}
+                            currentTeam={currentTeam}
+                            isEnterpriseManager={isEnterpriseManager}
                             rnnHomeComponentId={rnnHomeComponentId}
                         />
                     )}

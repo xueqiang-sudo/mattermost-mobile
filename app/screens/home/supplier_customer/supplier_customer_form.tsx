@@ -21,9 +21,9 @@ import {
     addEmployeeContact,
     searchEmployeeContacts,
     updateEmployeeContact,
-    type ContactEmployeeSearchRow,
-} from '@actions/remote/employee_contact';
-import {EmployeeContactTypes, type EmployeeContactType} from '@client/rest/employee_contact';
+    type EmployeeContactSearchRow,
+} from '@actions/remote/employee_contact_new';
+import {MMEmployeeContactTypes, type MMEmployeeContactType} from '@client/rest/team_department';
 import ContactAvatar from '@components/contact_avatar';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
@@ -35,11 +35,12 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {logError} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {ContactEmployee} from '@client/rest/contact';
+import type {UserProfile} from '@typings/api/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 /** Stack/Modal 内：统一由 SafeAreaView 处理四边，避免 topInset 条带与导航层叠加 */
@@ -340,7 +341,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 export type SupplierCustomerFormProps = {
-    kind: EmployeeContactType;
+    kind: MMEmployeeContactType;
     ownerId: string;
     existingContactId?: string;
     initialContactName?: string;
@@ -382,7 +383,7 @@ const SupplierCustomerFormScreen = ({
     const styles = getStyleSheet(theme);
 
     const [searchKeyword, setSearchKeyword] = useState('');
-    const [searchResults, setSearchResults] = useState<ContactEmployeeSearchRow[]>([]);
+    const [searchResults, setSearchResults] = useState<EmployeeContactSearchRow[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     /** 按搜索结果下标选择，避免多条记录 id 相同时无法区分；也避免从列表中过滤已选项导致无法改选 */
@@ -403,7 +404,7 @@ const SupplierCustomerFormScreen = ({
     }, [componentId, onBack]);
 
     const isEdit = Boolean(existingContactId);
-    const isSupplierKind = kind === EmployeeContactTypes.Supplier;
+    const isSupplierKind = kind === MMEmployeeContactTypes.Supplier;
 
     useEffect(() => {
         setDescription(initialDescription ?? '');
@@ -444,14 +445,24 @@ const SupplierCustomerFormScreen = ({
     }, [existingContactId, initialContactEmail, isEdit, mattermostUserIdForAvatar, serverUrl]);
 
     const displayContactEmployee = useMemo(
-        (): ContactEmployee => ({
-            id: existingContactId ?? 'contact',
-            name: initialContactName ?? '',
-            email: initialContactEmail,
+        (): UserProfile => ({
+            id: mattermostUserIdForAvatar ?? existingContactId ?? 'contact-placeholder',
+            username: existingContactId ?? 'contact',
+            email: initialContactEmail ?? '',
+            nickname: initialContactName ?? '',
+            first_name: '',
+            last_name: '',
+            position: initialContactPosition ?? '',
+            roles: '',
+            locale: '',
             phone: initialContactPhone,
-            position: initialContactPosition,
+            create_at: 0,
+            update_at: 0,
+            delete_at: 0,
+            auth_service: '',
+            notify_props: {} as UserNotifyProps,
         }),
-        [existingContactId, initialContactEmail, initialContactName, initialContactPhone, initialContactPosition],
+        [existingContactId, initialContactEmail, initialContactName, initialContactPhone, initialContactPosition, mattermostUserIdForAvatar],
     );
     const typeLabel = isSupplierKind ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}) : intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
     const addScreenTitle = intl.formatMessage({id: 'supplier_customer.form_add_title', defaultMessage: 'Add'});
@@ -469,12 +480,16 @@ const SupplierCustomerFormScreen = ({
                 setSelectedSearchIndex(null);
                 return;
             }
+            if (!serverUrl || !ownerId) {
+                setSearchResults([]);
+                return;
+            }
             setSearchLoading(true);
             setHasSearched(true);
             setSelectedSearchIndex(null);
             try {
-                const contactType = isSupplierKind ? EmployeeContactTypes.Supplier : EmployeeContactTypes.Customer;
-                const result = await searchEmployeeContacts(contactType, ownerId, kw.trim());
+                const contactType = isSupplierKind ? MMEmployeeContactTypes.Supplier : MMEmployeeContactTypes.Customer;
+                const result = await searchEmployeeContacts(serverUrl, contactType, ownerId, kw.trim());
                 if (result.error || !result.data) {
                     setSearchResults([]);
                     return;
@@ -485,7 +500,7 @@ const SupplierCustomerFormScreen = ({
                 setSearchLoading(false);
             }
         },
-        [isSupplierKind, ownerId],
+        [isSupplierKind, ownerId, serverUrl],
     );
 
     const handleSearch = usePreventDoubleTap(useCallback(() => {
@@ -498,8 +513,8 @@ const SupplierCustomerFormScreen = ({
             showQrScannerModal(intl, {
                 extra: {
                     forcedEmployeeContactType: isSupplierKind
-                        ? EmployeeContactTypes.Supplier
-                        : EmployeeContactTypes.Customer,
+                        ? MMEmployeeContactTypes.Supplier
+                        : MMEmployeeContactTypes.Customer,
                 },
             });
         }
@@ -510,7 +525,7 @@ const SupplierCustomerFormScreen = ({
         transform: [{translateX: withTiming(0, {duration: 150})}],
     }), []);
 
-    const selectedEmployee = useMemo((): ContactEmployee | null => {
+    const selectedEmployee = useMemo((): UserProfile | null => {
         if (selectedSearchIndex === null) {
             return null;
         }
@@ -553,7 +568,7 @@ const SupplierCustomerFormScreen = ({
                 if (!existingContactId || !canSaveEdit) {
                     return;
                 }
-                if (!ownerId) {
+                if (!ownerId || !serverUrl) {
                     showErrorAlert(
                         intl.formatMessage({
                             id: 'supplier_customer.error_missing_owner',
@@ -566,7 +581,7 @@ const SupplierCustomerFormScreen = ({
                 try {
                     const trimmedDesc = description.trim();
                     const trimmedRemark = remark.trim();
-                    const result = await updateEmployeeContact(ownerId, existingContactId, kind, {
+                    const result = await updateEmployeeContact(serverUrl, ownerId, existingContactId, kind, {
                         description: trimmedDesc || undefined,
                         remark: trimmedRemark || undefined,
                     });
@@ -594,9 +609,13 @@ const SupplierCustomerFormScreen = ({
             if (!selectedEmployee || !canSaveAdd) {
                 return;
             }
+            if (!serverUrl || !ownerId) {
+                showErrorAlert();
+                return;
+            }
             setSaving(true);
             try {
-                const result = await addEmployeeContact(ownerId, {
+                const result = await addEmployeeContact(serverUrl, ownerId, {
                     contact_id: selectedEmployee.id,
                     contact_type: kind,
                     description: description.trim() || undefined,
@@ -627,6 +646,7 @@ const SupplierCustomerFormScreen = ({
             onRemarkSaved,
             ownerId,
             selectedEmployee,
+            serverUrl,
             showErrorAlert,
         ]),
     );
@@ -744,7 +764,7 @@ const SupplierCustomerFormScreen = ({
                                                 />
                                             </View>
                                             <View style={styles.flex}>
-                                                <Text style={styles.searchResultName}>{employee.name}</Text>
+                                                <Text style={styles.searchResultName}>{getContactListDisplayName(employee)}</Text>
                                                 {meta ? <Text style={styles.searchResultMeta}>{meta}</Text> : null}
                                                 {isSelf ? (
                                                     <Text style={styles.searchResultSelfHint}>

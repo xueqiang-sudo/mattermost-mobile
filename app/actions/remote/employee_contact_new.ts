@@ -6,6 +6,12 @@ import {logDebug} from '@utils/log';
 
 import type {MMEmployeeContact, MMEmployeeContactType, MMUpsertEmployeeContactRequest} from '@client/rest/team_department';
 
+/** 供应商/客户搜索行：与 {@link searchEmployeeContacts} 返回结构一致 */
+export type EmployeeContactSearchRow = {
+    employee: UserProfile;
+    alreadyAdded: boolean;
+};
+
 /**
  * 获取指定员工的联系人列表
  */
@@ -40,6 +46,76 @@ export const fetchAllEmployeeContacts = async (
         return {data: {customers: customersRes.data ?? [], suppliers: suppliersRes.data ?? []}};
     } catch (error) {
         logDebug('[fetchAllEmployeeContacts] catch error', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 供应商/客户列表行（对齐原 EmployeeContactDetail 在 UI 上的用法） */
+export type EmployeeContactDetailRow = {
+    contact: UserProfile;
+    contact_type: MMEmployeeContactType;
+    description?: string;
+    remark?: string;
+    created_at: number;
+};
+
+function profileFromMmEmployeeContact(row: MMEmployeeContact): UserProfile {
+    const embedded = row.contact;
+    if (embedded && typeof embedded === 'object' && 'username' in embedded) {
+        return embedded as UserProfile;
+    }
+    const simple = embedded as SimpleUserProfile | undefined;
+    if (simple?.username) {
+        return {
+            ...simple,
+            create_at: row.create_at,
+            update_at: row.update_at,
+            delete_at: 0,
+            auth_service: '',
+            notify_props: {} as UserNotifyProps,
+        } as UserProfile;
+    }
+    return {
+        id: row.contact_id,
+        username: row.contact_id,
+        email: '',
+        nickname: '',
+        first_name: '',
+        last_name: '',
+        position: '',
+        roles: '',
+        locale: '',
+        create_at: row.create_at,
+        update_at: row.update_at,
+        delete_at: 0,
+        auth_service: '',
+        notify_props: {} as UserNotifyProps,
+    };
+}
+
+/**
+ * 获取带展示信息的联系人列表（Mattermost 员工联系人 API，granularity=2）
+ */
+export const fetchEmployeeContactsWithDetails = async (
+    serverUrl: string,
+    employeeId: string,
+    contactType: MMEmployeeContactType,
+): Promise<FetchRemoteResult<EmployeeContactDetailRow[]>> => {
+    try {
+        const res = await fetchEmployeeContacts(serverUrl, employeeId, contactType, {granularity: 2});
+        if (res.error) {
+            return {error: res.error};
+        }
+        const data = (res.data ?? []).map((row) => ({
+            contact: profileFromMmEmployeeContact(row),
+            contact_type: row.contact_type,
+            description: row.description,
+            remark: row.remark,
+            created_at: row.create_at,
+        }));
+        return {data};
+    } catch (error) {
+        logDebug('[fetchEmployeeContactsWithDetails]', getFullErrorMessage(error));
         return {error};
     }
 };
@@ -109,7 +185,7 @@ export const searchEmployeeContacts = async (
     contactType: MMEmployeeContactType,
     employeeId: string,
     searchQuery: string,
-): Promise<FetchRemoteResult<Array<{employee: UserProfile; alreadyAdded: boolean}>>> => {
+): Promise<FetchRemoteResult<EmployeeContactSearchRow[]>> => {
     try {
         const client = NetworkManager.getClient(serverUrl);
         const employees = await client.searchUsers(searchQuery, {exact_match: true});
@@ -117,11 +193,11 @@ export const searchEmployeeContacts = async (
             return {data: []};
         }
         const myContacts = (await fetchEmployeeContacts(serverUrl, employeeId, contactType)).data ?? [];
-        const addedIds = new Set(myContacts.map((c) => c.id));
+        const addedContactIds = new Set(myContacts.map((c) => c.contact_id));
         return {
             data: employees.map((employee) => ({
                 employee,
-                alreadyAdded: addedIds.has(employee.id),
+                alreadyAdded: addedContactIds.has(employee.id),
             })),
         };
     } catch (error) {

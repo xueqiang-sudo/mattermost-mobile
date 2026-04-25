@@ -17,37 +17,37 @@ export type ContactDirectoryContent = {
     memberCount: number;
 };
 
-export const syncTeamMembersToDefaultDepartment = async (serverUrl: string, teamId: string) => {
+/**
+ * 团队内成员搜索结果行（Mattermost UserProfile + 可选部门路径），
+ * 替代原独立通讯录 {@link ContactEmployeeSearchItem}。
+ */
+export type TeamMemberCascadePath = {id?: number; name: string};
+
+export type TeamMemberSearchItem = {
+    employee: UserProfile;
+    cascade_departments: TeamMemberCascadePath[] | TeamMemberCascadePath[][];
+    company_id?: string;
+};
+
+export const syncTeamMembersToDefaultDepartment = async (serverUrl: string, teamId: string, defDepartmentId?: number) => {
     // eslint-disable-next-line no-warning-comments
     // TODO qgs: 考虑让服务器来进行同步到默认部门
     try {
-        const res = await ensureTeamDefaultDepartment(serverUrl, teamId);
-        if (res.error) {
-            throw res.error;
+        if (typeof defDepartmentId !== 'number') {
+            const res = await fetchDefaultDepartmentId(serverUrl, teamId);
+            if (res.error) {
+                throw res.error;
+            }
+            // eslint-disable-next-line no-param-reassign
+            defDepartmentId = res.data as number;
         }
-        const department = res.data as MMDepartment;
         const client = NetworkManager.getClient(serverUrl);
-
-        // 所有部门
-        const allDepartments = (await client.getDepartments(teamId, {perPage: 10000})).departments || [];
-
-        // 所有部门员工 ids
-        const allDepartmentMemberIds: Set<string> = new Set();
-        const allDepartmentMemberPromises = [];
-        for (const departmentItem of allDepartments) {
-            const deptMemberPromise = client.getDepartmentMembers(teamId, departmentItem.id, {perPage: 10000}).then((membersRes) => membersRes.members.forEach((memberItem) => allDepartmentMemberIds.add(memberItem.id)));
-            allDepartmentMemberPromises.push(deptMemberPromise);
+        const withoutMemberIds = await client.getDepartmentWithoutMembers(teamId, {perPage: 10000}).then((res) => res.members.map((item) => item.id));
+        if (withoutMemberIds.length) {
+            await client.batchAddDepartmentMembers(teamId, defDepartmentId, {user_ids: withoutMemberIds});
+            return {data: withoutMemberIds};
         }
-        await Promise.all(allDepartmentMemberPromises);
-
-        // 获取团队所有用户Id
-        const allUids = (await client.getTeamMembers(teamId, 0, 10000)).map((item) => item.user_id);
-
-        const needAddUserIds: string[] = allUids.filter((uid) => !allDepartmentMemberIds.has(uid));
-        if (needAddUserIds.length) {
-            await client.batchAddDepartmentMembers(teamId, department.id, {user_ids: needAddUserIds});
-        }
-        return {data: true};
+        return {data: []};
     } catch (error) {
         logDebug('[syncTeamMembersToDefaultDepartment] catch error', getFullErrorMessage(error));
         forceLogoutIfNecessary(serverUrl, error);
@@ -66,6 +66,7 @@ export const ensureTeamDefaultDepartment = async (serverUrl: string, teamId: str
         }
         const client = NetworkManager.getClient(serverUrl);
         const department = await client.createDepartment(teamId, {name: DEFAULT_TEAM_DEPARTMENT_NAME, is_unique_name: true});
+        await syncTeamMembersToDefaultDepartment(serverUrl, teamId, department.id);
         return {data: department, isNewCreate: true};
     } catch (error) {
         logDebug('[ensureTeamDefaultDepartment] catch error', getFullErrorMessage(error));
@@ -131,7 +132,7 @@ export const fetchDepartmentsByTeam = async (serverUrl: string, teamId: string, 
     try {
         const client = NetworkManager.getClient(serverUrl);
         if (opts && opts.useChildApi && typeof opts.parentId === 'number') {
-            const childrenDepartments = await client.getDepartmentChildren(teamId, opts.parentId) || [];
+            const childrenDepartments = await client.getDepartmentChildren(teamId, opts.parentId);
             return {data: childrenDepartments, totalCount: childrenDepartments.length, totalPages: 1, currentPage: 1, hasMore: false};
         }
         const currPage = opts?.page ?? 0;

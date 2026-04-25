@@ -19,7 +19,7 @@ import {
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {EmployeeContactTypes} from '@client/rest/employee_contact';
+import {MMEmployeeContactTypes} from '@client/rest/team_department';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
@@ -177,7 +177,7 @@ const MyHomepageMain = ({currentUser}: Props) => {
     const handleAddSupplier = usePreventDoubleTap(() => {
         if (currentUser?.id) {
             navigation.navigate(Screens.SUPPLIER_CUSTOMER_FORM, {
-                kind: EmployeeContactTypes.Supplier,
+                kind: MMEmployeeContactTypes.Supplier,
                 ownerId: currentUser.id,
             });
         }
@@ -189,7 +189,7 @@ const MyHomepageMain = ({currentUser}: Props) => {
     const handleAddCustomer = usePreventDoubleTap(() => {
         if (currentUser?.id) {
             navigation.navigate(Screens.SUPPLIER_CUSTOMER_FORM, {
-                kind: EmployeeContactTypes.Customer,
+                kind: MMEmployeeContactTypes.Customer,
                 ownerId: currentUser.id,
             });
         }

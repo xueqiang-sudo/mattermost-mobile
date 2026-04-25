@@ -291,7 +291,8 @@
               <textarea class="body-input" id="body_dept_create" rows="5">{
   "name": "市场部",
   "description": "负责市场推广",
-  "parent_id": null
+  "parent_id": null,
+  "is_unique_name": false
 }</textarea>
             </div>
           </div>
@@ -423,6 +424,16 @@
             </div>
           </div>
           <button class="btn" onclick="callApi('GET', pathMembersList(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/without-members</span>
+            </div>
+            <p class="status">未加入任何部门的成员列表（使用与成员列表相同的 page/per_page）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathWithoutMembers(), null)">调用</button>
         </div>
         <div class="endpoint">
           <div style="flex:1">
@@ -567,9 +578,10 @@
               <span class="method get">GET</span>
               <span class="path">/api/v4/users/{user_id}/contacts</span>
             </div>
-            <p class="status">可选 contact_type、page、per_page</p>
+            <p class="status">可选 contact_type、page、per_page、<strong>granularity</strong>（不传：不返回 contact 对象；1：完整 contact；2：简洁 contact）</p>
             <div class="params">
               <input id="q_contacts_type" placeholder="contact_type">
+              <input id="q_contacts_granularity" placeholder="granularity（1/2）" title="不传则不附带 contact；1 完整；2 简洁">
               <input id="q_contacts_page" placeholder="page" value="0">
               <input id="q_contacts_per_page" placeholder="per_page" value="60">
             </div>
@@ -768,6 +780,21 @@
       return base + (qs ? '?' + qs : '');
     }
 
+    function pathWithoutMembers() {
+      const base = pathTeamDepartments() + '/without-members';
+      const q = new URLSearchParams();
+      const page = paramVal('q_mem_page');
+      const perPage = paramVal('q_mem_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
     function pathMemberRemove() {
       const uid = encodeURIComponent(paramVal('member_user_id'));
       return pathTeamDepartmentById() + '/members/' + uid;
@@ -795,10 +822,14 @@
       const base = pathUserContactsBase();
       const q = new URLSearchParams();
       const ct = paramVal('q_contacts_type');
+      const granularity = paramVal('q_contacts_granularity');
       const page = paramVal('q_contacts_page');
       const perPage = paramVal('q_contacts_per_page');
       if (ct) {
         q.set('contact_type', ct);
+      }
+      if (granularity !== '') {
+        q.set('granularity', granularity);
       }
       if (page !== '') {
         q.set('page', page);
