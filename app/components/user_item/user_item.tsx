@@ -40,8 +40,10 @@ type Props = {
     viewRef?: React.LegacyRef<View>;
     padding?: number;
     hideGuestTags: boolean;
+
     /** 联系人多选等场景：更大行高、字号与头像，便于阅读与点击 */
     contactSelectLayout?: boolean;
+    showCurrentUserSuffix?: boolean;
 }
 
 const getThemedStyles = makeStyleSheetFromTheme((theme: Theme) => {
@@ -130,8 +132,6 @@ const UserItem = ({
     isCustomStatusEnabled,
     showBadges = false,
     locale,
-    teammateNameDisplay: _teammateNameDisplay,
-    teammateNameDisplayOverride: _teammateNameDisplayOverride,
     leftDecorator,
     rightDecorator,
     avatarBorderRadius,
@@ -144,6 +144,7 @@ const UserItem = ({
     includeMargin,
     hideGuestTags,
     contactSelectLayout = false,
+    showCurrentUserSuffix = true,
 }: Props) => {
     const theme = useTheme();
     const style = getThemedStyles(theme);
@@ -166,7 +167,7 @@ const UserItem = ({
         !fullDisplay.startsWith(`${shortDisplay} (`),
     );
     let displayName = fullDisplay;
-    if (isCurrentUser) {
+    if (isCurrentUser && showCurrentUserSuffix) {
         displayName = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName: fullDisplay});
     }
 

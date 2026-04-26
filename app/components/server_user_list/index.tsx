@@ -4,10 +4,10 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import UserList from '@components/user_list';
-import {General, Screens} from '@constants';
+import {General} from '@constants';
 import {useDebounce} from '@hooks/utils';
-import {filterProfilesMatchingTerm} from '@utils/user';
 import {createContactSectionsByNickname} from '@utils/contact_section';
+import {filterProfilesMatchingTerm} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {SectionListData} from 'react-native';
@@ -24,6 +24,7 @@ type Props = {
     location: AvailableScreens;
     customSection?: (profiles: UserProfile[]) => Array<SectionListData<UserProfile>>;
     contactSelectLayout?: boolean;
+    disableClientFilter?: boolean;
 }
 
 /**
@@ -43,6 +44,7 @@ export default function ServerUserList({
     location,
     customSection,
     contactSelectLayout = true,
+    disableClientFilter = false,
 }: Props) {
     const searchTimeoutId = useRef<NodeJS.Timeout | null>(null);
     const next = useRef(true);
@@ -122,6 +124,9 @@ export default function ServerUserList({
 
     const data = useMemo(() => {
         if (isSearch) {
+            if (disableClientFilter) {
+                return searchResults.length ? searchResults : profiles;
+            }
             const exactMatches: UserProfile[] = [];
             const filterByTerm = createFilter(exactMatches, term);
 
@@ -130,7 +135,7 @@ export default function ServerUserList({
             return [...exactMatches, ...results];
         }
         return profiles;
-    }, [isSearch, profiles, createFilter, term, searchResults]);
+    }, [isSearch, profiles, createFilter, term, searchResults, disableClientFilter]);
 
     return (
         <UserList

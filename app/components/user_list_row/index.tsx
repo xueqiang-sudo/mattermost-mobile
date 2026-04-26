@@ -6,6 +6,8 @@ import {defineMessages, useIntl} from 'react-intl';
 import {
     InteractionManager,
     Platform,
+    StyleSheet,
+    Text,
     View,
 } from 'react-native';
 
@@ -29,6 +31,7 @@ const CONTACT_SELECT_AVATAR_SIZE = 40;
 
 type Props = {
     contactSelectLayout?: boolean;
+
     /** 与 {@link contactSelectLayout} 联用：区内行下标，用于斑马纹卡片行背景 */
     listRowIndex?: number;
     highlight?: boolean;
@@ -47,6 +50,9 @@ type Props = {
     user: UserProfile;
 }
 
+type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
+type CandidateUserProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
+
 const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
     return {
         selector: {
@@ -61,6 +67,30 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
         rowDivider: {
             borderBottomWidth: 1,
             borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        },
+        userItemWithTags: {
+            alignItems: 'flex-start',
+            paddingTop: 6,
+        },
+        tagRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            marginTop: 2,
+            gap: 6,
+        },
+        tagItem: {
+            borderRadius: 5,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+        },
+        tagText: {
+            color: changeOpacity(theme.centerChannelColor, 0.72),
+            fontSize: 11,
+            lineHeight: 12,
+            fontWeight: '500',
         },
         selectorManage: {
             alignItems: 'center',
@@ -120,6 +150,7 @@ function UserListRow({
     const style = getStyleFromTheme(theme);
     const {formatMessage} = useIntl();
     const tutorialShown = useRef(false);
+    const candidateTags = (user as CandidateUserProfile).mmCandidateTags ?? [];
 
     const startTutorial = () => {
         viewRef.current?.measureInWindow((x, y, w, h) => {
@@ -203,6 +234,23 @@ function UserListRow({
         );
     }, [selectable, selected, theme.buttonBg, theme.centerChannelColor, style.selector, style.selectorLeft, contactSelectLayout]);
 
+    const getCandidateTagText = useCallback((tag: CandidateTag) => {
+        switch (tag) {
+            case 'self':
+                return formatMessage({id: 'invite.tag.self', defaultMessage: 'Me'});
+            case 'exactMatch':
+                return formatMessage({id: 'invite.tag.exact_match', defaultMessage: 'Exact match'});
+            case 'customer':
+                return formatMessage({id: 'invite.tag.customer', defaultMessage: 'My customer'});
+            case 'supplier':
+                return formatMessage({id: 'invite.tag.supplier', defaultMessage: 'My supplier'});
+            case 'enterprise':
+                return formatMessage({id: 'invite.tag.enterprise', defaultMessage: 'Enterprise'});
+            default:
+                return '';
+        }
+    }, [formatMessage]);
+
     const userItemTestID = `${testID}.${id}`;
     const avatarBorderRadius = contactSelectLayout ? Math.round(CONTACT_SELECT_AVATAR_SIZE * AVATAR_ROUNDED_SQUARE_RATIO) : undefined;
     const decorator = manageMode ? manageModeIcon : icon;
@@ -224,11 +272,27 @@ function UserListRow({
                 onUserPress={handlePress}
                 showBadges={true}
                 testID={userItemTestID}
+                containerStyle={contactSelectLayout && candidateTags.length > 0 ? style.userItemWithTags : undefined}
+                FooterComponent={contactSelectLayout && candidateTags.length > 0 ? (
+                    <View style={style.tagRow}>
+                        {candidateTags.map((tag) => (
+                            <View
+                                key={`${id}.${tag}`}
+                                style={style.tagItem}
+                            >
+                                <Text style={style.tagText}>
+                                    {getCandidateTagText(tag)}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                ) : undefined}
                 leftDecorator={contactSelectLayout ? decorator : undefined}
-                rightDecorator={!contactSelectLayout ? decorator : undefined}
+                rightDecorator={contactSelectLayout ? undefined : decorator}
                 avatarBorderRadius={avatarBorderRadius}
                 size={contactSelectLayout ? CONTACT_SELECT_AVATAR_SIZE : 24}
                 contactSelectLayout={contactSelectLayout}
+                showCurrentUserSuffix={!candidateTags.includes('self')}
                 disabled={!(selectable || selected || !disabled)}
                 viewRef={viewRef}
                 padding={contactSelectLayout ? 16 : 20}

@@ -6,14 +6,14 @@ import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, type LayoutChangeEvent, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
-import {fetchProfiles, fetchProfilesInTeam, searchProfiles} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import Search from '@components/search';
 import SelectedUsers from '@components/selected_users';
 import ServerUserList from '@components/server_user_list';
-import {General, Preferences, Screens} from '@constants';
+import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -63,9 +63,45 @@ type Props = {
     componentId: AvailableScreens;
     currentTeamId: string;
     currentUserId: string;
-    restrictDirectMessage: boolean;
     teammateNameDisplay: string;
     tutorialWatched: boolean;
+}
+
+type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
+type CandidateProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
+
+function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
+    const tags: CandidateTag[] = [];
+    if (draft.sourceFlags.globalSearch) {
+        tags.push('exactMatch');
+    }
+    if (draft.sourceFlags.customer) {
+        tags.push('customer');
+    }
+    if (draft.sourceFlags.supplier) {
+        tags.push('supplier');
+    }
+    if (draft.sourceFlags.enterpriseSearch) {
+        tags.push('enterprise');
+    }
+    if (draft.sourceFlags.self) {
+        tags.push('self');
+    }
+    return tags;
+}
+
+function mapCandidateDraftsToProfiles(drafts: CandidateDraft[]): CandidateProfile[] {
+    const profiles: CandidateProfile[] = [];
+    for (const draft of drafts) {
+        if (!draft.user) {
+            continue;
+        }
+        profiles.push({
+            ...draft.user,
+            mmCandidateTags: getCandidateTags(draft),
+        });
+    }
+    return profiles;
 }
 
 /**
@@ -162,7 +198,6 @@ export default function CreateDirectMessage({
     componentId,
     currentTeamId,
     currentUserId,
-    restrictDirectMessage,
     teammateNameDisplay,
     tutorialWatched,
 }: Props) {
@@ -265,7 +300,6 @@ export default function CreateDirectMessage({
         if (user.id === currentUserId) {
             return;
         }
-        clearSearch();
         setSelectedIds((current) => {
             if (current.has(user.id)) {
                 return removeProfileFromList(current, user.id);
@@ -281,7 +315,7 @@ export default function CreateDirectMessage({
 
             return newSelectedIds;
         });
-    }, [currentUserId, clearSearch, selectedCount]);
+    }, [currentUserId, selectedCount]);
 
     /**
      * 处理布局变化
@@ -316,56 +350,32 @@ export default function CreateDirectMessage({
      * 获取用户列表
      */
     const userFetchFunction = useCallback(async (page: number) => {
-        let results;
-        if (restrictDirectMessage) {
-            results = await fetchProfilesInTeam(serverUrl, currentTeamId, page, General.PROFILE_CHUNK_SIZE, '', {active: true});
-        } else {
-            results = await fetchProfiles(serverUrl, page, General.PROFILE_CHUNK_SIZE, {active: true});
+        if (page > 0) {
+            return [];
         }
-
-        if (results.users?.length) {
-            return results.users;
-        }
-
-        return [];
-    }, [serverUrl, currentTeamId, restrictDirectMessage]);
+        const candidates = await getEmployeeCandidates(serverUrl, currentTeamId, currentUserId);
+        return mapCandidateDraftsToProfiles(candidates);
+    }, [currentTeamId, currentUserId, serverUrl]);
 
     /**
      * 搜索用户
      */
     const userSearchFunction = useCallback(async (searchTerm: string) => {
-        const lowerCasedTerm = searchTerm.toLowerCase();
-        let results;
-        if (restrictDirectMessage) {
-            results = await searchProfiles(serverUrl, lowerCasedTerm, {team_id: currentTeamId, allow_inactive: false});
-        } else {
-            results = await searchProfiles(serverUrl, lowerCasedTerm, {allow_inactive: false});
+        const trimmedTerm = searchTerm.trim();
+        if (!trimmedTerm) {
+            return [];
         }
 
-        if (results.data) {
-            return results.data;
-        }
-
-        return [];
-    }, [serverUrl, currentTeamId, restrictDirectMessage]);
+        const candidates = await searchEmployeeCandidates(serverUrl, currentTeamId, currentUserId, trimmedTerm);
+        return mapCandidateDraftsToProfiles(candidates);
+    }, [currentTeamId, currentUserId, serverUrl]);
 
     /**
      * 创建用户过滤器
      */
-    const createUserFilter = useCallback((exactMatches: UserProfile[], searchTerm: string) => {
-        return (p: UserProfile) => {
-            if (p.id === currentUserId) {
-                return false;
-            }
-
-            if (p.username === searchTerm || p.username.startsWith(searchTerm)) {
-                exactMatches.push(p);
-                return false;
-            }
-
-            return true;
-        };
-    }, [currentUserId]);
+    const createUserFilter = useCallback(() => {
+        return () => true;
+    }, []);
 
     useNavButtonPressed(CLOSE_BUTTON, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
@@ -439,6 +449,7 @@ export default function CreateDirectMessage({
                         createFilter={createUserFilter}
                         location={Screens.CREATE_DIRECT_MESSAGE}
                         customSection={createContactSectionsByNickname}
+                        disableClientFilter={true}
                     />
                 </View>
                 <SelectedUsers
@@ -455,7 +466,7 @@ export default function CreateDirectMessage({
                     )}
                     selectedIds={selectedIds}
                     onRemove={handleRemoveProfile}
-                    teammateNameDisplay={Preferences.DISPLAY_PREFER_NICKNAME}
+                    teammateNameDisplay={teammateNameDisplay}
                     onPress={startConversation}
                     buttonIcon={'forum-outline'}
                     buttonText={primaryActionLabel}

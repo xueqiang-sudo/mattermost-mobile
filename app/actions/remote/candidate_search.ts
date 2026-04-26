@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import {searchContactEmployees} from '@actions/remote/contact_new';
-import {searchEmployeeContacts} from '@actions/remote/employee_contact_new';
-import {searchProfiles} from '@actions/remote/user';
+import {fetchAllEmployeeContacts, searchEmployeeContacts} from '@actions/remote/employee_contact_new';
+import {searchProfiles, fetchProfilesInTeam} from '@actions/remote/user';
 import {MMEmployeeContactTypes} from '@client/rest/team_department';
 
 export type CandidateDraft = {
@@ -45,7 +45,7 @@ function ensureDraft(uidSet: Set<string>, map: Map<string, CandidateDraft>, user
 
 /** 候选联系人搜索
  * 1. 精准全局搜索联系人
- * 2. 模拟搜索企业员工(通讯录员工)
+ * 2. 模糊搜索企业员工(通讯录员工)
  * 2. 模糊匹配我的联系人
  */
 export async function searchEmployeeCandidates(
@@ -97,5 +97,42 @@ export async function searchEmployeeCandidates(
         }
     });
 
+    return candidateDrafts;
+}
+
+/** 获取候选联系人列表
+ * 1. 企业员工(通讯录员工)
+ * 2. 获取我的联系人(供应商/客户)
+ */
+export async function getEmployeeCandidates(
+    serverUrl: string,
+    teamId: string,
+    currentUserId: string,
+): Promise<CandidateDraft[]> {
+    const drafts = new Map<string, CandidateDraft>();
+    const draftUids = new Set<string>();
+    const [enterpriseRes, fullEmployeeContactsRes] = await Promise.all([
+        fetchProfilesInTeam(serverUrl, teamId, undefined, undefined, undefined, undefined, true),
+        fetchAllEmployeeContacts(serverUrl, currentUserId, {granularity: 2}),
+    ]);
+    for (const user of enterpriseRes.users ?? []) {
+        const draft = ensureDraft(draftUids, drafts, user, currentUserId);
+        draft.sourceFlags.enterpriseSearch = true;
+    }
+    for (const employeeContact of fullEmployeeContactsRes.data?.suppliers ?? []) {
+        const draft = ensureDraft(draftUids, drafts, employeeContact.contact as SimpleUserProfile, currentUserId);
+        draft.sourceFlags.supplier = true;
+    }
+    for (const employeeContact of fullEmployeeContactsRes.data?.customers ?? []) {
+        const draft = ensureDraft(draftUids, drafts, employeeContact.contact as SimpleUserProfile, currentUserId);
+        draft.sourceFlags.customer = true;
+    }
+    const candidateDrafts: CandidateDraft[] = [];
+    draftUids.forEach((uid) => {
+        const draft = drafts.get(uid);
+        if (draft) {
+            candidateDrafts.push(draft);
+        }
+    });
     return candidateDrafts;
 }
