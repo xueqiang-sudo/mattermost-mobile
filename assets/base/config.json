@@ -30,8 +30,6 @@
     "ShowOnboarding": false,
 
     "ExperimentalNormalizeMarkdownLinks": false,
-    "ContactServiceUrl": "http://118.195.136.154:8088",
-    "ContactServiceApiKey": "b3cz8fsbrfd4ukmfmssf864pqr",
     "CustomRequestHeaders": {},
     "CollectNetworkMetrics": false
 }

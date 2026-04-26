@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {fetchSearchContactEmployees, type TeamMemberSearchItem} from '@actions/remote/contact_new';
+import {searchContactEmployees, type TeamMemberSearchItem} from '@actions/remote/contact_new';
 import {
     deleteTeam,
     fetchTeamMemberCount,
@@ -705,7 +705,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
                 setTransferSearchPending(false);
                 return;
             }
-            const res = await fetchSearchContactEmployees(serverUrl, companyId, q);
+            const res = await searchContactEmployees(serverUrl, companyId, q);
             if (seq !== transferSearchSeq.current) {
                 return;
             }

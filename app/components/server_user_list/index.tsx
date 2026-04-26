@@ -7,6 +7,7 @@ import UserList from '@components/user_list';
 import {General, Screens} from '@constants';
 import {useDebounce} from '@hooks/utils';
 import {filterProfilesMatchingTerm} from '@utils/user';
+import {createContactSectionsByNickname} from '@utils/contact_section';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {SectionListData} from 'react-native';
@@ -22,8 +23,14 @@ type Props = {
     testID: string;
     location: AvailableScreens;
     customSection?: (profiles: UserProfile[]) => Array<SectionListData<UserProfile>>;
+    contactSelectLayout?: boolean;
 }
 
+/**
+ * ServerUserList 组件
+ * 用于从服务器获取和展示用户列表的通用组件
+ * 默认使用 contactSelectLayout 样式和 createContactSectionsByNickname 分组逻辑
+ */
 export default function ServerUserList({
     tutorialWatched,
     handleSelectProfile,
@@ -35,6 +42,7 @@ export default function ServerUserList({
     testID,
     location,
     customSection,
+    contactSelectLayout = true,
 }: Props) {
     const searchTimeoutId = useRef<NodeJS.Timeout | null>(null);
     const next = useRef(true);
@@ -46,6 +54,11 @@ export default function ServerUserList({
     const [loading, setLoading] = useState(false);
 
     const isSearch = Boolean(term);
+
+    // 默认使用 createContactSectionsByNickname 进行分组，允许自定义覆盖
+    const effectiveCustomSection = useMemo(() => {
+        return customSection || createContactSectionsByNickname;
+    }, [customSection]);
 
     const loadedProfiles = (users: UserProfile[]) => {
         if (mounted.current) {
@@ -130,10 +143,10 @@ export default function ServerUserList({
             term={term}
             testID={testID}
             tutorialWatched={tutorialWatched}
-            includeUserMargin={location !== Screens.CREATE_DIRECT_MESSAGE}
+            includeUserMargin={!contactSelectLayout}
             location={location}
-            customSection={customSection}
-            contactSelectLayout={location === Screens.CREATE_DIRECT_MESSAGE}
+            customSection={effectiveCustomSection}
+            contactSelectLayout={contactSelectLayout}
         />
     );
 }

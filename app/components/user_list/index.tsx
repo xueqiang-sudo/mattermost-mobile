@@ -173,10 +173,9 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             justifyContent: 'center' as const,
         },
         sectionContainer: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+            backgroundColor: theme.centerChannelColor,
             paddingLeft: 16,
             justifyContent: 'center',
-            height: 24,
         },
         sectionContainerContactSelect: {
             backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
@@ -194,11 +193,11 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
         },
         sectionText: {
             color: theme.centerChannelColor,
-            ...typography('Body', 75, 'SemiBold'),
+            ...typography('Body', 300, 'SemiBold'),
         },
         sectionTextContactSelect: {
-            color: changeOpacity(theme.centerChannelColor, 0.56),
-            ...typography('Body', 75, 'SemiBold'),
+            color: theme.centerChannelColor,
+            ...typography('Body', 300, 'SemiBold'),
         },
     };
 });

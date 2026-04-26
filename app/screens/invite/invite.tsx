@@ -3,21 +3,20 @@
 
 import React, {useCallback, useEffect, useState, useRef} from 'react';
 import {type IntlShape, useIntl} from 'react-intl';
-import {Keyboard, View, type LayoutChangeEvent} from 'react-native';
+import {Keyboard} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {searchEmployeeCandidates} from '@actions/remote/candidate_search';
 import {addUserToDefaultDepartment, addUserToDepartment} from '@actions/remote/contact_new';
-import {searchProfiles} from '@actions/remote/user';
+import {getTeamMembersByIds} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {useKeyboardOverlap} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, setButtons} from '@screens/navigation';
-import {isEmail} from '@utils/helpers';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
@@ -26,11 +25,12 @@ import {sendGuestInvites, sendMembersInvites} from './actions';
 import Selection from './selection';
 import Summary from './summary';
 
-import type {EmailInvite, Result, SearchResult, SendOptions} from './types';
+import type {InviteCandidate, InviteCandidateTag, InviteResult, Result, SearchResult, SendOptions} from './types';
 import type {AvailableScreens, NavButtons} from '@typings/screens/navigation';
 import type {OptionsTopBarButton} from 'react-native-navigation';
 
 const CLOSE_BUTTON_ID = 'close-invite';
+const SELECT_ALL_BUTTON_ID = 'select-all-invite';
 const SEND_BUTTON_ID = 'send-invite';
 const TIMEOUT_MILLISECONDS = 200;
 const DEFAULT_RESULT = {sent: [], notSent: []};
@@ -41,11 +41,34 @@ const makeLeftButton = (theme: Theme): OptionsTopBarButton => ({
     testID: 'invite.close.button',
 });
 
-const makeRightButton = (theme: Theme, formatMessage: IntlShape['formatMessage'], enabled: boolean): OptionsTopBarButton => ({
+const makeRightButton = (
+    theme: Theme,
+    formatMessage: IntlShape['formatMessage'],
+    enabled: boolean,
+): OptionsTopBarButton => ({
     id: SEND_BUTTON_ID,
-    text: formatMessage({id: 'invite.send_invite', defaultMessage: 'Send'}),
+    text: formatMessage({id: 'invite.add_selected', defaultMessage: 'Add to enterprise'}),
     showAsAction: 'always',
     testID: 'invite.send.button',
+    color: theme.sidebarHeaderTextColor,
+    disabledColor: changeOpacity(theme.sidebarHeaderTextColor, 0.4),
+    enabled,
+});
+
+const makeSelectAllButton = (
+    theme: Theme,
+    formatMessage: IntlShape['formatMessage'],
+    enabled: boolean,
+    allSelected: boolean,
+): OptionsTopBarButton => ({
+    id: SELECT_ALL_BUTTON_ID,
+    text: allSelected ? (
+        formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'})
+    ) : (
+        formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})
+    ),
+    showAsAction: 'always',
+    testID: 'invite.select_all.button',
     color: theme.sidebarHeaderTextColor,
     disabledColor: changeOpacity(theme.sidebarHeaderTextColor, 0.4),
     enabled,
@@ -82,44 +105,39 @@ type InviteProps = {
     teamDisplayName: string;
     teamLastIconUpdate: number;
     teamInviteId: string;
-    teammateNameDisplay: string;
     isAdmin: boolean;
-    emailInvitationsEnabled: boolean;
     canInviteGuests: boolean;
     allowGuestMagicLink: boolean;
+    currentUserId?: string;
 
     /** 从企业通讯录入口打开邀请时，传入目标部门 ID（null 表示默认部门） */
     contactTargetDepartmentId?: number | null;
 }
 
-export default function Invite({
-    componentId,
-    teamId,
-    teamDisplayName,
-    teamLastIconUpdate,
-    teamInviteId,
-    teammateNameDisplay,
-    isAdmin,
-    emailInvitationsEnabled,
-    canInviteGuests,
-    allowGuestMagicLink,
-    contactTargetDepartmentId,
-}: InviteProps) {
+export default function Invite(props: InviteProps) {
+    const {
+        componentId,
+        teamId,
+        teamDisplayName,
+        teamLastIconUpdate,
+        teamInviteId,
+        isAdmin,
+        canInviteGuests,
+        allowGuestMagicLink,
+        currentUserId,
+        contactTargetDepartmentId,
+    } = props;
     const intl = useIntl();
     const {formatMessage} = intl;
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
 
-    const mainView = useRef<View>(null);
-    const [wrapperHeight, setWrapperHeight] = useState(0);
-    const keyboardOverlap = useKeyboardOverlap(mainView, wrapperHeight);
-
     const searchTimeoutId = useRef<NodeJS.Timeout | null>(null);
     const retryTimeoutId = useRef<NodeJS.Timeout | null>(null);
 
     const [term, setTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [searchResults, setSearchResults] = useState<InviteCandidate[]>([]);
     const [selectedIds, setSelectedIds] = useState<{[id: string]: SearchResult}>({});
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<Result>(DEFAULT_RESULT);
@@ -139,10 +157,10 @@ export default function Invite({
 
     const selectedCount = Object.keys(selectedIds).length;
     const hasSelection = selectedCount > 0;
-
-    const onLayoutWrapper = useCallback((e: LayoutChangeEvent) => {
-        setWrapperHeight(e.nativeEvent.layout.height);
-    }, []);
+    const selectableCandidates = searchResults.filter((candidate) => !candidate.isAlreadyJoined);
+    const selectableIds = selectableCandidates.map((candidate) => candidate.user.id);
+    const hasSelectable = selectableIds.length > 0;
+    const isAllSelectableSelected = hasSelectable && selectableIds.every((id) => Boolean(selectedIds[id]));
 
     const handleClearSearch = useCallback(() => {
         setTerm('');
@@ -155,15 +173,53 @@ export default function Invite({
             return;
         }
 
-        const {data} = await searchProfiles(serverUrl, searchTerm.toLowerCase(), {});
-        const results: SearchResult[] = data ?? [];
+        const candidates = await searchEmployeeCandidates(serverUrl, teamId, currentUserId ?? '', searchTerm.toLowerCase());
+        const users = candidates.map((candidate) => candidate.user).filter(Boolean) as UserProfile[];
+        const userIds = users.map((u) => u.id);
+        const alreadyJoinedIds = new Set<string>();
 
-        if (!results.length && isEmail(searchTerm.trim()) && emailInvitationsEnabled) {
-            results.push(searchTerm.trim() as EmailInvite);
+        if (userIds.length) {
+            const {members = []} = await getTeamMembersByIds(serverUrl, teamId, userIds);
+            for (const member of members) {
+                alreadyJoinedIds.add(member.user_id);
+            }
         }
 
+        const candidateByUserId = new Map(candidates.map((candidate) => [candidate.userId, candidate]));
+        const results: InviteCandidate[] = users.map((user) => {
+            const matched = candidateByUserId.get(user.id);
+            const tags: InviteCandidateTag[] = [];
+            if (matched?.sourceFlags.globalSearch) {
+                tags.push('exactMatch');
+            }
+            if (matched?.sourceFlags.self) {
+                tags.push('self');
+            }
+            if (matched?.sourceFlags.customer) {
+                tags.push('customer');
+            }
+            if (matched?.sourceFlags.supplier) {
+                tags.push('supplier');
+            }
+            if (matched?.sourceFlags.enterpriseSearch) {
+                tags.push('enterprise');
+            }
+            return {
+                user,
+                tags,
+                isAlreadyJoined: alreadyJoinedIds.has(user.id),
+            };
+        });
+
+        results.sort((a, b) => {
+            if (a.isAlreadyJoined === b.isAlreadyJoined) {
+                return 0;
+            }
+            return a.isAlreadyJoined ? 1 : -1;
+        });
+
         setSearchResults(results);
-    }, [emailInvitationsEnabled, handleClearSearch, serverUrl]);
+    }, [currentUserId, handleClearSearch, serverUrl, teamId]);
 
     const handleReset = useCallback(() => {
         setSendError('');
@@ -175,6 +231,9 @@ export default function Invite({
 
     const handleSearchChange = useCallback((text: string) => {
         setLoading(true);
+        if (text !== term) {
+            setSelectedIds({});
+        }
         setTerm(text);
 
         if (searchTimeoutId.current) {
@@ -185,27 +244,71 @@ export default function Invite({
             await searchUsers(text);
             setLoading(false);
         }, TIMEOUT_MILLISECONDS);
-    }, [searchUsers]);
+    }, [searchUsers, term]);
 
     const handleSelectItem = useCallback((item: SearchResult) => {
         const email = typeof item === 'string';
-        const id = email ? item : (item as UserProfile).id;
+        const id = email ? item : item.id;
         const newSelectedIds = Object.assign({}, selectedIds);
 
-        if (!secureGetFromRecord(selectedIds, id)) {
+        if (secureGetFromRecord(selectedIds, id)) {
+            Reflect.deleteProperty(newSelectedIds, id);
+        } else {
             newSelectedIds[id] = item;
         }
 
         setSelectedIds(newSelectedIds);
-
-        handleClearSearch();
-    }, [selectedIds, handleClearSearch]);
+    }, [selectedIds]);
 
     const handleSendError = useCallback(() => {
         setSendError(formatMessage({id: 'invite.send_error', defaultMessage: 'Something went wrong while trying to send invitations. Please check your network connection and try again.'}));
         setResult(DEFAULT_RESULT);
         setStage(Stage.RESULT);
     }, [formatMessage]);
+
+    const handleSelectAll = useCallback(() => {
+        if (!hasSelectable) {
+            return;
+        }
+
+        const updated = {...selectedIds};
+
+        if (isAllSelectableSelected) {
+            for (const id of selectableIds) {
+                Reflect.deleteProperty(updated, id);
+            }
+            setSelectedIds(updated);
+            return;
+        }
+
+        for (const candidate of selectableCandidates) {
+            updated[candidate.user.id] = candidate.user;
+        }
+        setSelectedIds(updated);
+    }, [hasSelectable, isAllSelectableSelected, selectableCandidates, selectableIds, selectedIds]);
+
+    const addSentUsersToDepartment = useCallback(async (sent: InviteResult[]) => {
+        const targetDepartmentId = (typeof contactTargetDepartmentId === 'number') ? contactTargetDepartmentId : null;
+
+        await Promise.all(sent.map(async (item) => {
+            if (!item.userId) {
+                return;
+            }
+
+            const selected = selectedIds[item.userId];
+            if (!selected || typeof selected === 'string') {
+                return;
+            }
+
+            const uid = selected.id;
+            if (typeof targetDepartmentId === 'number') {
+                await addUserToDepartment(serverUrl, teamId, targetDepartmentId, uid);
+                return;
+            }
+
+            await addUserToDefaultDepartment(serverUrl, teamId, uid);
+        }));
+    }, [contactTargetDepartmentId, selectedIds, serverUrl, teamId]);
 
     const handleSend = useCallback(async () => {
         if (!hasSelection) {
@@ -218,23 +321,7 @@ export default function Invite({
             const {sent, notSent} = await sendGuestInvites(serverUrl, teamId, selectedIds, sendOptions, formatMessage);
             setResult({sent, notSent});
             setStage(Stage.RESULT);
-
-            const targetDepartmentId = (typeof contactTargetDepartmentId === 'number') ? contactTargetDepartmentId : null;
-            for (const item of sent) {
-                if (!item.userId) {
-                    continue;
-                }
-                const selected = selectedIds[item.userId];
-                if (!selected || typeof selected === 'string') {
-                    continue;
-                }
-                const uid = (selected as UserProfile).id;
-                if (typeof targetDepartmentId === 'number') {
-                    await addUserToDepartment(serverUrl, teamId, targetDepartmentId, uid);
-                } else {
-                    await addUserToDefaultDepartment(serverUrl, teamId, uid);
-                }
-            }
+            await addSentUsersToDepartment(sent);
             return;
         }
 
@@ -244,25 +331,9 @@ export default function Invite({
         } else {
             setResult({sent, notSent});
             setStage(Stage.RESULT);
-
-            const targetDepartmentId = (typeof contactTargetDepartmentId === 'number') ? contactTargetDepartmentId : null;
-            for (const item of sent) {
-                if (!item.userId) {
-                    continue;
-                }
-                const selected = selectedIds[item.userId];
-                if (!selected || typeof selected === 'string') {
-                    continue;
-                }
-                const uid = (selected as UserProfile).id;
-                if (typeof targetDepartmentId === 'number') {
-                    await addUserToDepartment(serverUrl, teamId, targetDepartmentId, uid);
-                } else {
-                    await addUserToDefaultDepartment(serverUrl, teamId, uid);
-                }
-            }
+            await addSentUsersToDepartment(sent);
         }
-    }, [contactTargetDepartmentId, formatMessage, handleSendError, isAdmin, hasSelection, selectedIds, sendOptions, serverUrl, teamDisplayName, teamId]);
+    }, [addSentUsersToDepartment, formatMessage, handleSendError, isAdmin, hasSelection, selectedIds, sendOptions, serverUrl, teamDisplayName, teamId]);
 
     const handleRetry = useCallback(() => {
         setSendError('');
@@ -274,16 +345,20 @@ export default function Invite({
     }, [handleSend]);
 
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, closeModal, [closeModal]);
+    useNavButtonPressed(SELECT_ALL_BUTTON_ID, componentId, handleSelectAll, [handleSelectAll]);
     useNavButtonPressed(SEND_BUTTON_ID, componentId, handleSend, [handleSend]);
 
     useEffect(() => {
         const buttons: NavButtons = {
             leftButtons: [makeLeftButton(theme)],
-            rightButtons: isSelecting ? [makeRightButton(theme, formatMessage, hasSelection)] : [],
+            rightButtons: isSelecting ? [
+                makeRightButton(theme, formatMessage, hasSelection),
+                makeSelectAllButton(theme, formatMessage, hasSelectable, isAllSelectableSelected),
+            ] : [],
         };
 
         setButtons(componentId, buttons);
-    }, [theme, componentId, hasSelection, isSelecting, formatMessage]);
+    }, [theme, componentId, hasSelectable, hasSelection, isSelecting, formatMessage, isAllSelectableSelected]);
 
     useEffect(() => {
         mergeNavigationOptions(componentId, {
@@ -291,9 +366,9 @@ export default function Invite({
                 title: {
                     color: theme.sidebarHeaderTextColor,
                     text: isResult ? (
-                        formatMessage({id: 'invite.title.summary', defaultMessage: 'Invite summary'})
+                        formatMessage({id: 'invite.title.summary', defaultMessage: 'Invitation results'})
                     ) : (
-                        formatMessage({id: 'invite.title', defaultMessage: 'Invite'})
+                        formatMessage({id: 'invite.title', defaultMessage: 'Invite people to enterprise'})
                     ),
                 },
             },
@@ -311,14 +386,6 @@ export default function Invite({
             }
         };
     }, []);
-
-    const handleRemoveItem = useCallback((id: string) => {
-        const newSelectedIds = Object.assign({}, selectedIds);
-
-        Reflect.deleteProperty(newSelectedIds, id);
-
-        setSelectedIds(newSelectedIds);
-    }, [selectedIds]);
 
     useAndroidHardwareBackHandler(componentId, closeModal);
 
@@ -351,24 +418,19 @@ export default function Invite({
                         teamDisplayName={teamDisplayName}
                         teamLastIconUpdate={teamLastIconUpdate}
                         teamInviteId={teamInviteId}
-                        teammateNameDisplay={teammateNameDisplay}
                         serverUrl={serverUrl}
                         term={term}
                         searchResults={searchResults}
                         selectedIds={selectedIds}
-                        keyboardOverlap={keyboardOverlap}
-                        wrapperHeight={wrapperHeight}
                         loading={loading}
                         onSearchChange={handleSearchChange}
                         onSelectItem={handleSelectItem}
-                        onRemoveItem={handleRemoveItem}
                         onClose={closeModal}
                         testID='invite.screen.selection'
                         sendOptions={sendOptions}
                         onSendOptionsChange={setSendOptions}
                         canInviteGuests={canInviteGuests}
                         allowGuestMagicLink={allowGuestMagicLink}
-                        emailInvitationsEnabled={emailInvitationsEnabled}
                     />
                 );
         }
@@ -377,8 +439,6 @@ export default function Invite({
     return (
         <SafeAreaView
             style={styles.container}
-            onLayout={onLayoutWrapper}
-            ref={mainView}
             testID='invite.screen'
             nativeID={SecurityManager.getShieldScreenId(componentId)}
         >

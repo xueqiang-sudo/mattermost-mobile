@@ -1,59 +1,35 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState, useMemo} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {
-    Keyboard,
-    Platform,
+    Text,
     View,
-    type LayoutChangeEvent,
-    useWindowDimensions,
     FlatList,
     type ListRenderItemInfo,
-    ScrollView,
 } from 'react-native';
-import Animated, {useAnimatedStyle, useDerivedValue} from 'react-native-reanimated';
 
-import SelectedChip from '@components/chips/selected_chip';
-import SelectedUserChip from '@components/chips/selected_user_chip';
 import FloatingTextInput from '@components/floating_input/floating_text_input_label';
 import OptionItem from '@components/option_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
-import UserItem from '@components/user_item';
 import {Screens} from '@constants';
-import {MAX_LIST_HEIGHT, MAX_LIST_TABLET_DIFF} from '@constants/autocomplete';
 import {useTheme} from '@context/theme';
-import {useAutocompleteDefaultAnimatedValues} from '@hooks/autocomplete';
-import {useIsTablet} from '@hooks/device';
 import {goToScreen} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
+import {displayUsername} from '@utils/user';
 
-import InviteHowItWorks from './invite_how_it_works';
 import SelectionSearchBar from './selection_search_bar';
 import SelectionTeamBar from './selection_team_bar';
 import TextItem from './text_item';
-import {TextItemType, type SearchResult, type SendOptions} from './types';
+import {TextItemType, type InviteCandidate, type InviteCandidateTag, type SearchResult, type SendOptions} from './types';
 
-const AUTOCOMPLETE_ADJUST = 5;
-
-const INITIAL_BATCH_TO_RENDER = 15;
-const SCROLL_EVENT_THROTTLE = 60;
+const INITIAL_BATCH_TO_RENDER = 20;
 const SCREEN_PADDING_H = 16;
 const LIST_CORNER_RADIUS = 12;
+const RESULT_ITEM_RADIUS = 12;
 
-const keyboardDismissProp = Platform.select({
-    android: {
-        onScrollBeginDrag: Keyboard.dismiss,
-    },
-    ios: {
-        keyboardDismissMode: 'on-drag' as const,
-    },
-});
-
-const keyExtractor = (item: SearchResult) => (
-    typeof item === 'string' ? item : (item as UserProfile).id
-);
+const keyExtractor = (item: InviteCandidate) => item.user.id;
 
 /**
  * 生成主题相关的样式表
@@ -67,54 +43,124 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 1,
             backgroundColor: theme.centerChannelBg,
         },
-        searchList: {
-            left: SCREEN_PADDING_H,
-            right: SCREEN_PADDING_H,
-            position: 'absolute',
-            bottom: Platform.select({ios: 'auto', default: undefined}),
-        },
-        searchListBorder: {
+        resultsContainer: {
+            marginTop: 12,
+            flex: 1,
             borderWidth: 1,
             borderColor: changeOpacity(theme.centerChannelColor, 0.1),
             borderRadius: LIST_CORNER_RADIUS,
-            elevation: 2,
-        },
-        searchListPadding: {
-            paddingVertical: 8,
-            flex: 1,
-        },
-        searchListShadow: {
-            shadowColor: theme.centerChannelColor,
-            shadowOpacity: 0.06,
-            shadowRadius: 8,
-            shadowOffset: {
-                width: 0,
-                height: 4,
-            },
-            borderRadius: LIST_CORNER_RADIUS,
-            backgroundColor: theme.centerChannelBg,
+            overflow: 'hidden',
         },
         searchListFlatList: {
             backgroundColor: theme.centerChannelBg,
             borderRadius: LIST_CORNER_RADIUS,
-            paddingHorizontal: 8,
-        },
-        selectedItems: {
-            display: 'flex',
-            maxHeight: 120,
-        },
-        selectedItemsContainer: {
-            alignItems: 'flex-start',
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            marginVertical: 12,
-            marginHorizontal: 0,
-            gap: 8,
+            flex: 1,
         },
         contentContainer: {
+            flex: 1,
             paddingHorizontal: SCREEN_PADDING_H,
             paddingTop: 4,
             paddingBottom: 16,
+        },
+        resultItem: {
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        },
+        resultItemSelected: {
+            backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+        },
+        resultItemLast: {
+            borderBottomWidth: 0,
+        },
+        resultItemContent: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+        },
+        resultInfo: {
+            flex: 1,
+            minWidth: 0,
+        },
+        resultItemMain: {
+            flexDirection: 'row',
+            alignItems: 'center',
+        },
+        resultItemName: {
+            flex: 1,
+            color: theme.centerChannelColor,
+            fontSize: 16,
+            lineHeight: 22,
+            fontWeight: '500',
+        },
+        resultTagRow: {
+            marginTop: 6,
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+        },
+        resultTag: {
+            borderRadius: 12,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderWidth: 1,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        },
+        resultTagText: {
+            color: changeOpacity(theme.centerChannelColor, 0.72),
+            fontSize: 12,
+            lineHeight: 16,
+            fontWeight: '500',
+        },
+        resultActionButton: {
+            minWidth: 68,
+            height: 32,
+            borderRadius: RESULT_ITEM_RADIUS,
+            borderWidth: 1,
+            borderColor: theme.buttonBg,
+            paddingHorizontal: 12,
+            paddingVertical: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        resultActionButtonSelected: {
+            backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        },
+        resultActionButtonDisabled: {
+            borderColor: changeOpacity(theme.centerChannelColor, 0.2),
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        },
+        resultActionText: {
+            fontSize: 13,
+            lineHeight: 16,
+            fontWeight: '600',
+            color: theme.buttonBg,
+        },
+        resultActionTextDisabled: {
+            color: changeOpacity(theme.centerChannelColor, 0.45),
+        },
+        emptyStateContainer: {
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 24,
+            paddingVertical: 32,
+        },
+        emptyStateTitle: {
+            color: changeOpacity(theme.centerChannelColor, 0.72),
+            fontSize: 15,
+            lineHeight: 22,
+            fontWeight: '600',
+            textAlign: 'center',
+        },
+        emptyStateBody: {
+            marginTop: 8,
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            fontSize: 13,
+            lineHeight: 20,
+            textAlign: 'center',
         },
         optionsContainer: {
             marginTop: 16,
@@ -144,24 +190,19 @@ type SelectionProps = {
     teamDisplayName: string;
     teamLastIconUpdate: number;
     teamInviteId: string;
-    teammateNameDisplay: string;
     serverUrl: string;
     term: string;
-    searchResults: SearchResult[];
+    searchResults: InviteCandidate[];
     selectedIds: {[id: string]: SearchResult};
-    keyboardOverlap: number;
-    wrapperHeight: number;
     loading: boolean;
     testID: string;
     sendOptions: SendOptions;
     onSendOptionsChange: React.Dispatch<React.SetStateAction<SendOptions>>;
     onSearchChange: (text: string) => void;
     onSelectItem: (item: SearchResult) => void;
-    onRemoveItem: (id: string) => void;
     onClose: () => Promise<void>;
     canInviteGuests: boolean;
     allowGuestMagicLink: boolean;
-    emailInvitationsEnabled: boolean;
 }
 
 /**
@@ -173,18 +214,14 @@ export default function Selection({
     teamDisplayName,
     teamLastIconUpdate,
     teamInviteId,
-    teammateNameDisplay,
     serverUrl,
     term,
     searchResults,
     selectedIds,
-    keyboardOverlap,
-    wrapperHeight,
     loading,
     testID,
     onSearchChange,
     onSelectItem,
-    onRemoveItem,
     onClose,
     sendOptions: {
         inviteAsGuest,
@@ -196,16 +233,10 @@ export default function Selection({
     onSendOptionsChange,
     canInviteGuests,
     allowGuestMagicLink,
-    emailInvitationsEnabled,
 }: SelectionProps) {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
-    const dimensions = useWindowDimensions();
-    const isTablet = useIsTablet();
     const intl = useIntl();
-
-    const [teamBarHeight, setTeamBarHeight] = useState(0);
-    const [searchBarHeight, setSearchBarHeight] = useState(0);
 
     const hasChannelsSelected = selectedChannels.length > 0;
 
@@ -213,84 +244,44 @@ export default function Selection({
      * 处理团队栏布局变化
      * @param e - 布局变化事件
      */
-    const onLayoutSelectionTeamBar = useCallback((e: LayoutChangeEvent) => {
-        setTeamBarHeight(e.nativeEvent.layout.height);
+    const onLayoutSelectionTeamBar = useCallback(() => {
+        // No-op: result list is rendered inline, no overlay positioning needed.
     }, []);
 
     /**
      * 处理搜索栏布局变化
      * @param e - 布局变化事件
      */
-    const onLayoutSearchBar = useCallback((e: LayoutChangeEvent) => {
-        setSearchBarHeight(e.nativeEvent.layout.height);
+    const onLayoutSearchBar = useCallback(() => {
+        // No-op: result list is rendered inline, no overlay positioning needed.
     }, []);
-
-    /**
-     * 处理移除已选择项
-     * @param id - 要移除的项的ID
-     */
-    const handleOnRemoveItem = useCallback((id: string) => {
-        onRemoveItem(id);
-    }, [onRemoveItem]);
-
-    const otherElementsSize = teamBarHeight + searchBarHeight;
-    const workingSpace = wrapperHeight - keyboardOverlap;
-    const spaceOnTop = otherElementsSize - AUTOCOMPLETE_ADJUST;
-    const spaceOnBottom = workingSpace - otherElementsSize;
-    const autocompletePosition = spaceOnBottom > spaceOnTop ? (
-        otherElementsSize
-    ) : (
-        workingSpace - otherElementsSize
-    );
-    const autocompleteAvailableSpace = spaceOnBottom > spaceOnTop ? spaceOnBottom : spaceOnTop;
-    const isLandscape = dimensions.width > dimensions.height;
-    const maxHeightAdjust = (isTablet && isLandscape) ? MAX_LIST_TABLET_DIFF : 0;
-    const defaultMaxHeight = MAX_LIST_HEIGHT - maxHeightAdjust;
-
-    const [animatedAutocompletePosition, animatedAutocompleteAvailableSpace] = useAutocompleteDefaultAnimatedValues(autocompletePosition, autocompleteAvailableSpace);
-
-    const maxHeight = useDerivedValue(() => {
-        return Math.min(animatedAutocompleteAvailableSpace.value, defaultMaxHeight);
-    }, [animatedAutocompleteAvailableSpace, defaultMaxHeight]);
-
-    const searchListContainerAnimatedStyle = useAnimatedStyle(() => ({
-        top: animatedAutocompletePosition.value,
-        maxHeight: maxHeight.value,
-    }), [animatedAutocompletePosition, maxHeight]);
-
-    const searchListContainerStyle = useMemo(() => {
-        const style = [];
-
-        style.push(
-            styles.searchList,
-            searchListContainerAnimatedStyle,
-        );
-
-        if (Platform.OS === 'ios') {
-            style.push(styles.searchListShadow);
-        }
-
-        return style;
-    }, [styles, searchListContainerAnimatedStyle]);
-
-    const searchListFlatListStyle = useMemo(() => {
-        const style = [];
-
-        style.push(styles.searchListFlatList);
-
-        if (searchResults.length || (term && !loading)) {
-            style.push(styles.searchListBorder, styles.searchListPadding);
-        }
-
-        return style;
-    }, [loading, searchResults.length, styles, term]);
+    const searchListFlatListStyle = useMemo(() => [styles.searchListFlatList], [styles.searchListFlatList]);
 
     /**
      * 渲染无搜索结果的提示
      */
     const renderNoResults = useCallback(() => {
-        if (!term || loading) {
+        if (loading) {
             return null;
+        }
+
+        if (!term) {
+            return (
+                <View style={styles.emptyStateContainer}>
+                    <Text style={styles.emptyStateTitle}>
+                        {intl.formatMessage({
+                            id: 'invite.search.empty_title',
+                            defaultMessage: 'Search to select people to invite',
+                        })}
+                    </Text>
+                    <Text style={styles.emptyStateBody}>
+                        {intl.formatMessage({
+                            id: 'invite.search.empty_body',
+                            defaultMessage: 'Enter a name, phone number, or username to see candidates.',
+                        })}
+                    </Text>
+                </View>
+            );
         }
 
         return (
@@ -300,42 +291,106 @@ export default function Selection({
                 testID='invite.search_list_no_results'
             />
         );
-    }, [term, loading]);
+    }, [intl, loading, styles.emptyStateBody, styles.emptyStateContainer, styles.emptyStateTitle, term]);
 
-    /**
-     * 渲染搜索结果列表项
-     * @param item - 列表项数据
-     */
-    const renderItem = useCallback(({item}: ListRenderItemInfo<SearchResult>) => {
+    const getTagText = useCallback((tag: InviteCandidateTag) => {
+        switch (tag) {
+            case 'alreadyJoined':
+                return intl.formatMessage({id: 'invite.tag.already_joined', defaultMessage: 'Already added'});
+            case 'self':
+                return intl.formatMessage({id: 'invite.tag.self', defaultMessage: 'Me'});
+            case 'exactMatch':
+                return intl.formatMessage({id: 'invite.tag.exact_match', defaultMessage: 'Exact match'});
+            case 'customer':
+                return intl.formatMessage({id: 'invite.tag.customer', defaultMessage: 'My customer'});
+            case 'supplier':
+                return intl.formatMessage({id: 'invite.tag.supplier', defaultMessage: 'My supplier'});
+            case 'enterprise':
+                return intl.formatMessage({id: 'invite.tag.enterprise', defaultMessage: 'Enterprise'});
+            default:
+                return '';
+        }
+    }, [intl]);
+
+    const getDisplayName = useCallback((user: UserProfile) => {
+        return displayUsername(user, 'full_name') || user.username || user.nickname || user.email || user.id;
+    }, []);
+
+    const renderItem = useCallback(({item, index}: ListRenderItemInfo<InviteCandidate>) => {
         const key = keyExtractor(item);
+        const isSelected = Boolean(selectedIds[item.user.id]);
+        const isDisabled = item.isAlreadyJoined;
+        const isLast = index === searchResults.length - 1;
+        let actionText = intl.formatMessage({id: 'invite.action.choose', defaultMessage: 'Select'});
+        if (isDisabled) {
+            actionText = intl.formatMessage({id: 'invite.action.already_added', defaultMessage: 'Added'});
+        } else if (isSelected) {
+            actionText = '✓';
+        }
 
-        return typeof item === 'string' ? (
+        const actionStyle = [
+            styles.resultActionButton,
+            isSelected && styles.resultActionButtonSelected,
+            isDisabled && styles.resultActionButtonDisabled,
+        ];
+        const actionTextStyle = [
+            styles.resultActionText,
+            isDisabled && styles.resultActionTextDisabled,
+        ];
+        const rowStyle = [
+            styles.resultItem,
+            isSelected && !isDisabled && styles.resultItemSelected,
+            isLast && styles.resultItemLast,
+        ];
+
+        const onPress = () => {
+            if (!isDisabled) {
+                onSelectItem(item.user);
+            }
+        };
+
+        return (
             <TouchableWithFeedback
                 key={key}
                 index={key}
-                onPress={() => onSelectItem(item)}
+                onPress={onPress}
                 underlayColor={changeOpacity(theme.buttonBg, 0.08)}
                 type='native'
                 testID={`invite.search_list_item.${key}`}
             >
-                <TextItem
-                    text={item}
-                    type={TextItemType.SEARCH_INVITE}
-                    testID='invite.search_list_text_item'
-                />
+                <View style={rowStyle}>
+                    <View style={styles.resultItemContent}>
+                        <View style={styles.resultInfo}>
+                            <View style={styles.resultItemMain}>
+                                <Text style={styles.resultItemName}>
+                                    {getDisplayName(item.user)}
+                                </Text>
+                            </View>
+                            {item.tags.length > 0 && (
+                                <View style={styles.resultTagRow}>
+                                    {item.tags.map((tag) => (
+                                        <View
+                                            key={`${item.user.id}.${tag}`}
+                                            style={styles.resultTag}
+                                        >
+                                            <Text style={styles.resultTagText}>
+                                                {getTagText(tag)}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                        <View style={actionStyle}>
+                            <Text style={actionTextStyle}>
+                                {actionText}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
             </TouchableWithFeedback>
-        ) : (
-            <View style={{borderRadius: 12, overflow: 'hidden'}}>
-                <UserItem
-                    user={item}
-                    testID='invite.search_list_user_item'
-                    onUserPress={onSelectItem}
-                    padding={12}
-                    includeMargin={false}
-                />
-            </View>
         );
-    }, [theme.buttonBg, onSelectItem]);
+    }, [getDisplayName, getTagText, intl, onSelectItem, searchResults.length, selectedIds, styles, theme.buttonBg]);
 
     /**
      * 跳转到频道选择器界面
@@ -400,37 +455,6 @@ export default function Selection({
         }));
     }, [onSendOptionsChange]);
 
-    /**
-     * 渲染已选择的项
-     */
-    const renderSelectedItems = () => {
-        const selectedItems = [];
-
-        for (const id of Object.keys(selectedIds)) {
-            const selectedItem = selectedIds[id];
-
-            selectedItems.push(typeof selectedItem === 'string' ? (
-                <SelectedChip
-                    id={id}
-                    key={id}
-                    text={selectedItem}
-                    onRemove={handleOnRemoveItem}
-                    testID={`invite.selected_item.${selectedItem}`}
-                />
-            ) : (
-                <SelectedUserChip
-                    key={id}
-                    user={selectedItem}
-                    teammateNameDisplay={teammateNameDisplay}
-                    onPress={handleOnRemoveItem}
-                    testID='invite.selected_item'
-                />
-            ));
-        }
-
-        return selectedItems;
-    };
-
     return (
         <View
             style={styles.container}
@@ -446,21 +470,23 @@ export default function Selection({
                 onClose={onClose}
             />
             <View style={styles.contentContainer}>
-                <InviteHowItWorks emailInvitationsEnabled={emailInvitationsEnabled}/>
                 <SelectionSearchBar
                     term={term}
                     onSearchChange={onSearchChange}
                     onLayoutContainer={onLayoutSearchBar}
                 />
-                {Object.keys(selectedIds).length > 0 && (
-                    <ScrollView
-                        style={styles.selectedItems}
-                        contentContainerStyle={styles.selectedItemsContainer}
-                        testID='invite.selected_items'
-                    >
-                        {renderSelectedItems()}
-                    </ScrollView>
-                )}
+                <View style={styles.resultsContainer}>
+                    <FlatList
+                        data={searchResults}
+                        keyExtractor={keyExtractor}
+                        initialNumToRender={INITIAL_BATCH_TO_RENDER}
+                        ListEmptyComponent={renderNoResults}
+                        maxToRenderPerBatch={INITIAL_BATCH_TO_RENDER + 1}
+                        renderItem={renderItem}
+                        testID='invite.search_list'
+                        style={searchListFlatListStyle}
+                    />
+                </View>
                 <View style={styles.optionsContainer}>
                     {canInviteGuests && (
                         <View style={styles.optionCard}>
@@ -515,21 +541,6 @@ export default function Selection({
                     )}
                 </View>
             </View>
-            <Animated.View style={searchListContainerStyle}>
-                <FlatList
-                    data={searchResults}
-                    keyboardShouldPersistTaps='always'
-                    {...keyboardDismissProp}
-                    keyExtractor={keyExtractor}
-                    initialNumToRender={INITIAL_BATCH_TO_RENDER}
-                    ListEmptyComponent={renderNoResults}
-                    maxToRenderPerBatch={INITIAL_BATCH_TO_RENDER + 1}
-                    renderItem={renderItem}
-                    scrollEventThrottle={SCROLL_EVENT_THROTTLE}
-                    testID='invite.search_list'
-                    style={searchListFlatListStyle}
-                />
-            </Animated.View>
         </View>
     );
 }

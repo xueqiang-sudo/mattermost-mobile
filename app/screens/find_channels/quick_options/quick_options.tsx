@@ -60,21 +60,12 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
      */
     const openDirectMessage = useCallback(async () => {
         const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Create Direct Message'});
-        const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
+        const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = await CompassIcon.getImageSource('close', 24, closeIconColor);
 
         await close();
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
-        }, {
-            topBar: {
-                background: {color: theme.centerChannelBg},
-                title: {color: theme.centerChannelColor},
-                leftButtonColor: closeIconColor,
-            },
-            statusBar: {
-                backgroundColor: theme.centerChannelBg,
-            },
         });
     }, [intl, theme]);
 

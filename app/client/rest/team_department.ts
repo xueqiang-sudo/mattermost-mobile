@@ -108,6 +108,9 @@ export type MMEmployeeContact = {
     update_at: number;
 };
 
+export type MMEmployeeContactDetail = MMEmployeeContact & {contact: UserProfile};
+export type MMEmployeeContactSimple = MMEmployeeContact & {contact: SimpleUserProfile};
+
 export type MMContactVersionInfo = {
     user_id: string;
     version: string;
@@ -193,7 +196,7 @@ export interface ClientTeamDepartmentMix {
     batchMoveDepartmentMembers: (teamId: string, body: MMBatchMoveDepartmentMembersRequest) => Promise<MMStatusOK>;
     getUserDepartments: (userId: string, teamId: string) => Promise<MMDepartment[]>;
     getDepartmentStats: (teamId: string, departmentId?: number) => Promise<MMDepartmentStats>;
-    getEmployeeContacts: (userId: string, opts?: {contactType?: MMEmployeeContactType; granularity?: 1 | 2; page?: number; perPage?: number}) => Promise<MMEmployeeContact[]>;
+    getEmployeeContacts: (userId: string, opts?: {contactType?: MMEmployeeContactType; granularity?: 1 | 2; page?: number; perPage?: number}) => Promise<MMEmployeeContact[] | MMEmployeeContactSimple[] | MMEmployeeContactDetail[]>;
     addEmployeeContact: (userId: string, body: MMUpsertEmployeeContactRequest) => Promise<MMStatusOK>;
     updateEmployeeContact: (userId: string, body: MMUpsertEmployeeContactRequest) => Promise<MMStatusOK>;
     deleteEmployeeContact: (userId: string, body: MMDeleteEmployeeContactRequest) => Promise<MMStatusOK>;
@@ -583,7 +586,7 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             q.granularity = opts.granularity;
         }
         const path = `${this.getUserRoute(userId)}/contacts${buildQueryString(q)}`;
-        return this.#doRequestUserContactsGet<MMEmployeeContact[]>(userId, path).then((res) => res || []);
+        return this.#doRequestUserContactsGet<MMEmployeeContact[] | MMEmployeeContactSimple[] | MMEmployeeContactDetail[]>(userId, path).then((res) => res || []);
     };
 
     addEmployeeContact = async (userId: string, body: MMUpsertEmployeeContactRequest) => {

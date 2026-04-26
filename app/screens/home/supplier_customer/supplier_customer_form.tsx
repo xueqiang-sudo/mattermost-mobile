@@ -19,13 +19,13 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
     addEmployeeContact,
-    searchEmployeeContacts,
+    searchExactGlobalEmployeeContacts,
     updateEmployeeContact,
     type EmployeeContactSearchRow,
 } from '@actions/remote/employee_contact_new';
 import {MMEmployeeContactTypes, type MMEmployeeContactType} from '@client/rest/team_department';
-import ContactAvatar from '@components/contact_avatar';
 import CompassIcon from '@components/compass_icon';
+import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import ProfilePicture from '@components/profile_picture';
 import {Events} from '@constants';
@@ -386,6 +386,7 @@ const SupplierCustomerFormScreen = ({
     const [searchResults, setSearchResults] = useState<EmployeeContactSearchRow[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+
     /** 按搜索结果下标选择，避免多条记录 id 相同时无法区分；也避免从列表中过滤已选项导致无法改选 */
     const [selectedSearchIndex, setSelectedSearchIndex] = useState<number | null>(null);
     const [description, setDescription] = useState(initialDescription ?? '');
@@ -466,11 +467,7 @@ const SupplierCustomerFormScreen = ({
     );
     const typeLabel = isSupplierKind ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}) : intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
     const addScreenTitle = intl.formatMessage({id: 'supplier_customer.form_add_title', defaultMessage: 'Add'});
-    const headerTitle = isEdit
-        ? (isSupplierKind
-            ? intl.formatMessage({id: 'supplier_customer.form_edit_supplier_title', defaultMessage: 'Edit supplier'})
-            : intl.formatMessage({id: 'supplier_customer.form_edit_customer_title', defaultMessage: 'Edit customer'}))
-        : `${addScreenTitle} ${typeLabel}`;
+    const headerTitle = isEdit? (isSupplierKind? intl.formatMessage({id: 'supplier_customer.form_edit_supplier_title', defaultMessage: 'Edit supplier'}): intl.formatMessage({id: 'supplier_customer.form_edit_customer_title', defaultMessage: 'Edit customer'})): `${addScreenTitle} ${typeLabel}`;
 
     const runSearch = useCallback(
         async (kw: string) => {
@@ -489,7 +486,7 @@ const SupplierCustomerFormScreen = ({
             setSelectedSearchIndex(null);
             try {
                 const contactType = isSupplierKind ? MMEmployeeContactTypes.Supplier : MMEmployeeContactTypes.Customer;
-                const result = await searchEmployeeContacts(serverUrl, contactType, ownerId, kw.trim());
+                const result = await searchExactGlobalEmployeeContacts(serverUrl, contactType, ownerId, kw.trim());
                 if (result.error || !result.data) {
                     setSearchResults([]);
                     return;
@@ -512,9 +509,7 @@ const SupplierCustomerFormScreen = ({
         if (!isEdit) {
             showQrScannerModal(intl, {
                 extra: {
-                    forcedEmployeeContactType: isSupplierKind
-                        ? MMEmployeeContactTypes.Supplier
-                        : MMEmployeeContactTypes.Customer,
+                    forcedEmployeeContactType: isSupplierKind? MMEmployeeContactTypes.Supplier: MMEmployeeContactTypes.Customer,
                 },
             });
         }
@@ -851,7 +846,7 @@ const SupplierCustomerFormScreen = ({
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
                     autoCorrect={false}
                 />
-                <View style={styles.fieldDivider} />
+                <View style={styles.fieldDivider}/>
                 <Text style={styles.label}>{relationDescriptionLabel}</Text>
                 <Text style={styles.fieldGroupHint}>
                     {intl.formatMessage({
@@ -994,7 +989,7 @@ const SupplierCustomerFormScreen = ({
                     autoCorrect={false}
                     testID='supplier_customer.form.edit.remark'
                 />
-                <View style={styles.fieldDivider} />
+                <View style={styles.fieldDivider}/>
                 <Text style={styles.label}>{relationDescriptionLabel}</Text>
                 <Text style={styles.fieldGroupHint}>{relationDescriptionHint}</Text>
                 <TextInput

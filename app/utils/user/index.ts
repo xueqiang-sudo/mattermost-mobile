@@ -41,7 +41,7 @@ export type UsernameToNicknameOptions = {
  * 将用户展示名统一为昵称优先（可选附带姓名），不跟随 TeammateNameDisplay。
  * 无可用信息时回退到 username；无 user 时依 locale 返回「Someone」或空串。
  */
-export function username2Nickname(user?: UserProfile | UserModel | null, opts?: UsernameToNicknameOptions): string {
+export function username2Nickname(user?: UserProfile | SimpleUserProfile | UserModel | null, opts?: UsernameToNicknameOptions): string {
     const {
         includeFullName = true,
         locale = DEFAULT_LOCALE,
@@ -103,7 +103,7 @@ export function displayUsername(user?: UserProfile | UserModel | null, locale?: 
     return name;
 }
 
-export function user2FullPhone(user?: UserProfile | UserModel | null): string {
+export function user2FullPhone(user?: UserProfile | SimpleUserProfile | UserModel | null): string {
     if (!user) {
         return '';
     }
@@ -112,7 +112,7 @@ export function user2FullPhone(user?: UserProfile | UserModel | null): string {
     return `${countryCode} ${phone}`;
 }
 
-export function displayGroupMessageName(users: Array<UserProfile | UserModel>, locale?: string, _teammateDisplayNameSetting?: string, excludeUserId?: string) {
+export function displayGroupMessageName(users: Array<UserProfile | SimpleUserProfile | UserModel>, locale?: string, _teammateDisplayNameSetting?: string, excludeUserId?: string) {
     const names: string[] = [];
     const sortUsernames = (a: string, b: string) => {
         return a.localeCompare(b, locale || DEFAULT_LOCALE, {numeric: true});
@@ -127,7 +127,7 @@ export function displayGroupMessageName(users: Array<UserProfile | UserModel>, l
     return names.sort(sortUsernames).join(', ').trim();
 }
 
-export function getFullName(user: UserProfile | UserModel): string {
+export function getFullName(user: UserProfile | SimpleUserProfile | UserModel): string {
     let firstName: string;
     let lastName: string;
 

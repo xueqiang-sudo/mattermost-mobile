@@ -12,7 +12,7 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 type Props = {
-    employee: UserProfile;
+    employee: UserProfile | SimpleUserProfile;
     size?: number;
 };
 

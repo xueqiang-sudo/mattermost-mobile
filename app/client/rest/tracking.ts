@@ -22,7 +22,7 @@ import type {APIClientInterface, ClientHeaders, ClientResponse, ClientResponseMe
 
 // eslint-disable-next-line no-negated-condition
 const isEnvFlagEnabled = (value?: string, trueOtherVaue?: string) => (trueOtherVaue !== undefined ? value === trueOtherVaue : (value === 'true' || value === '1'));
-const shouldLogFetchData = () => isEnvFlagEnabled(MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
+const shouldLogFetchData = () =>  true; // || isEnvFlagEnabled(MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
 
 type UrlData = {
     count: number;
@@ -391,8 +391,9 @@ export default class ClientTracking {
         const performanceRequestId = NetworkPerformanceManager.startRequestTracking(this.apiClient.baseUrl, url);
 
         let response: ClientResponse;
+        const requestOptions = this.buildRequestOptions(options);
         try {
-            response = await request!(url, this.buildRequestOptions(options));
+            response = await request!(url, requestOptions);
         } catch (error) {
             NetworkPerformanceManager.cancelRequestTracking(this.apiClient.baseUrl, performanceRequestId);
             const response_error = error as ClientError;
@@ -446,6 +447,7 @@ export default class ClientTracking {
                     options,
                     ' ,data:',
                     response.data,
+                    ' ,requestOptions:', requestOptions,
                 );
             } else {
                 logDebug(new Date().toISOString() + ' -- request is success, url:', url, ' ,method:', method);

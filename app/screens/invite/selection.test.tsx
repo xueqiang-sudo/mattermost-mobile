@@ -3,17 +3,12 @@
 
 import React, {type ComponentProps} from 'react';
 
-import SelectedChip from '@components/chips/selected_chip';
-import SelectedUserChip from '@components/chips/selected_user_chip';
 import FloatingTextInput from '@components/floating_input/floating_text_input_label';
 import OptionItem from '@components/option_item';
-import UserItem from '@components/user_item';
 import {Screens} from '@constants';
 import {goToScreen} from '@screens/navigation';
 import {fireEvent, renderWithIntl} from '@test/intl-test-helper';
-import TestHelper from '@test/test_helper';
 
-import InviteHowItWorks from './invite_how_it_works';
 import Selection from './selection';
 import SelectionSearchBar from './selection_search_bar';
 import SelectionTeamBar from './selection_team_bar';
@@ -30,32 +25,15 @@ jest.mocked(SelectionTeamBar).mockImplementation(
     (props) => React.createElement('SelectionTeamBar', {testID: 'selection-team-bar', ...props}),
 );
 
-jest.mock('./invite_how_it_works');
-jest.mocked(InviteHowItWorks).mockImplementation(
-    (props) => React.createElement('InviteHowItWorks', {testID: 'invite-how-it-works', ...props}),
-);
-
 jest.mock('./text_item');
 jest.mocked(TextItem).mockImplementation(
     (props) => React.createElement('TextItem', {...props}),
 );
 
-jest.mock('@components/chips/selected_chip');
-jest.mocked(SelectedChip).mockImplementation(
-    (props) => React.createElement('SelectedChip', {testID: 'selected-chip', ...props}),
-);
-
-jest.mock('@components/chips/selected_user_chip');
-jest.mocked(SelectedUserChip).mockImplementation(
-    (props) => React.createElement('SelectedUserChip', {testID: 'selected-user-chip', ...props}),
-);
-
-jest.mock('@components/user_item');
-jest.mocked(UserItem).mockImplementation(
-    (props) => React.createElement('UserItem', {testID: 'user-item', ...props}),
-);
-
-jest.mock('@components/option_item');
+jest.mock('@components/option_item', () => ({
+    __esModule: true,
+    default: jest.fn(),
+}));
 jest.mocked(OptionItem).mockImplementation(
     (props) => React.createElement('OptionItem', {testID: 'option-item', ...props}),
 );
@@ -75,7 +53,6 @@ jest.mock('@screens/navigation', () => ({
 describe('Selection', () => {
     const mockOnSearchChange = jest.fn();
     const mockOnSelectItem = jest.fn();
-    const mockOnRemoveItem = jest.fn();
     const mockOnClose = jest.fn().mockResolvedValue(undefined);
     const mockOnSendOptionsChange = jest.fn();
 
@@ -85,13 +62,10 @@ describe('Selection', () => {
             teamDisplayName: 'Test Team',
             teamLastIconUpdate: 1234567890,
             teamInviteId: 'invite-id-1',
-            teammateNameDisplay: 'username',
             serverUrl: 'https://test.server.com',
             term: '',
             searchResults: [],
             selectedIds: {},
-            keyboardOverlap: 0,
-            wrapperHeight: 800,
             loading: false,
             testID: 'invite.selection',
             sendOptions: {
@@ -104,11 +78,9 @@ describe('Selection', () => {
             onSendOptionsChange: mockOnSendOptionsChange,
             onSearchChange: mockOnSearchChange,
             onSelectItem: mockOnSelectItem,
-            onRemoveItem: mockOnRemoveItem,
             onClose: mockOnClose,
             canInviteGuests: true,
             allowGuestMagicLink: true,
-            emailInvitationsEnabled: true,
         };
     }
 
@@ -122,62 +94,47 @@ describe('Selection', () => {
 
         expect(getByTestId('selection-search-bar')).toBeTruthy();
         expect(getByTestId('selection-team-bar')).toBeTruthy();
-        expect(getByTestId('invite-how-it-works')).toBeTruthy();
-    });
-
-    it('renders selected items correctly', () => {
-        const props = getBaseProps();
-        const user = TestHelper.fakeUser({id: 'user-1', username: 'user1'});
-        props.selectedIds = {
-            'user-1': user,
-            'email-1': 'test@example.com',
-        };
-
-        const {getByTestId} = renderWithIntl(<Selection {...props}/>);
-
-        expect(getByTestId('invite.selected_items')).toBeTruthy();
-        const userChip = getByTestId('invite.selected_item');
-        expect(userChip).toHaveProp('user', user);
-        expect(userChip).toHaveProp('teammateNameDisplay', 'username');
-        userChip.props.onPress('user-1');
-        expect(mockOnRemoveItem).toHaveBeenCalledTimes(1);
-        expect(mockOnRemoveItem).toHaveBeenCalledWith('user-1');
-        const chip = getByTestId('invite.selected_item.test@example.com');
-        expect(chip).toHaveProp('id', 'email-1');
-        expect(chip).toHaveProp('text', 'test@example.com');
-        chip.props.onRemove('email-1');
-        expect(mockOnRemoveItem).toHaveBeenCalledTimes(2);
-        expect(mockOnRemoveItem).toHaveBeenCalledWith('email-1');
-    });
-
-    it('does not render selected items when empty', () => {
-        const props = getBaseProps();
-        const {queryByTestId} = renderWithIntl(<Selection {...props}/>);
-
-        expect(queryByTestId('invite.selected_items')).toBeNull();
     });
 
     it('renders search results correctly', () => {
         const props = getBaseProps();
-        const user = TestHelper.fakeUser({id: 'user-1', username: 'user1'});
-        props.searchResults = [user, 'test@example.com'];
+        const user = {id: 'user-1', username: 'user1'} as UserProfile;
+        props.searchResults = [{
+            user,
+            tags: ['exactMatch', 'customer'],
+            isAlreadyJoined: false,
+        }];
         props.term = 'test';
 
-        const {getByTestId} = renderWithIntl(<Selection {...props}/>);
+        const {getByTestId, getByText} = renderWithIntl(<Selection {...props}/>);
 
         expect(getByTestId('invite.search_list')).toBeVisible();
-        const userItem = getByTestId('invite.search_list_user_item');
-        expect(userItem).toHaveProp('user', user);
-        expect(userItem).toHaveProp('onUserPress', mockOnSelectItem);
-        userItem.props.onUserPress(user);
+        expect(getByText('user1')).toBeTruthy();
+        expect(getByText('Exact match')).toBeTruthy();
+        expect(getByText('Choose')).toBeTruthy();
+        expect(getByText('My customer')).toBeTruthy();
+        const row = getByTestId('invite.search_list_item.user-1');
+        fireEvent.press(row);
         expect(mockOnSelectItem).toHaveBeenCalledTimes(1);
         expect(mockOnSelectItem).toHaveBeenCalledWith(user);
-        const textItem = getByTestId('invite.search_list_text_item');
-        expect(textItem).toHaveProp('text', 'test@example.com');
-        expect(textItem).toHaveProp('type', TextItemType.SEARCH_INVITE);
-        fireEvent.press(textItem);
-        expect(mockOnSelectItem).toHaveBeenCalledTimes(2);
-        expect(mockOnSelectItem).toHaveBeenCalledWith('test@example.com');
+    });
+
+    it('does not trigger selection for already joined users', () => {
+        const props = getBaseProps();
+        const user = {id: 'joined-user', username: 'joined'} as UserProfile;
+        props.searchResults = [{
+            user,
+            tags: ['alreadyJoined'],
+            isAlreadyJoined: true,
+        }];
+        props.term = 'joined';
+
+        const {getByTestId, getByText} = renderWithIntl(<Selection {...props}/>);
+
+        expect(getByText('Added')).toBeTruthy();
+        const row = getByTestId('invite.search_list_item.joined-user');
+        fireEvent.press(row);
+        expect(mockOnSelectItem).not.toHaveBeenCalled();
     });
 
     it('renders no results message when term exists and no results', () => {
@@ -191,6 +148,18 @@ describe('Selection', () => {
         const textItem = getByTestId('invite.search_list_no_results');
         expect(textItem).toHaveProp('text', 'nonexistent');
         expect(textItem).toHaveProp('type', TextItemType.SEARCH_NO_RESULTS);
+    });
+
+    it('renders empty hint when term is empty', () => {
+        const props = getBaseProps();
+        props.term = '';
+        props.searchResults = [];
+        props.loading = false;
+
+        const {getByText} = renderWithIntl(<Selection {...props}/>);
+
+        expect(getByText('Search to select people to invite')).toBeTruthy();
+        expect(getByText('Enter a name, phone number, or username to see candidates.')).toBeTruthy();
     });
 
     it('renders invite as guest option when canInviteGuests is true', () => {
@@ -323,14 +292,5 @@ describe('Selection', () => {
         expect(teamBar.onClose).toBe(mockOnClose);
     });
 
-    it('passes emailInvitationsEnabled to InviteHowItWorks', () => {
-        const props = getBaseProps();
-        props.emailInvitationsEnabled = false;
-
-        renderWithIntl(<Selection {...props}/>);
-
-        const howItWorks = jest.mocked(InviteHowItWorks).mock.calls[0][0];
-        expect(howItWorks.emailInvitationsEnabled).toBe(false);
-    });
 });
 

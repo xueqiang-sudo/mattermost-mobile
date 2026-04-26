@@ -5,24 +5,17 @@ import React, {useCallback, useState, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {View, TextInput, type LayoutChangeEvent} from 'react-native';
 
-import FormattedText from '@components/formatted_text';
 import {useTheme} from '@context/theme';
 import {makeStyleSheetFromTheme, changeOpacity, getKeyboardAppearanceFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-const SEARCH_BAR_TITLE_MARGIN_TOP = 0;
-const SEARCH_BAR_MARGIN_TOP = 12;
+const SEARCH_BAR_MARGIN_TOP = 8;
 const INPUT_RADIUS = 12;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
             display: 'flex',
-        },
-        searchBarTitleText: {
-            marginTop: SEARCH_BAR_TITLE_MARGIN_TOP,
-            color: theme.centerChannelColor,
-            ...typography('Body', 100, 'SemiBold'),
         },
         searchBar: {
             marginTop: SEARCH_BAR_MARGIN_TOP,
@@ -102,12 +95,6 @@ export default function SelectionSearchBar({
             onLayout={onLayoutSearchBar}
             testID='invite.search_bar'
         >
-            <FormattedText
-                id='invite.sendInvitationsTo'
-                defaultMessage='Send invitations to…'
-                style={styles.searchBarTitleText}
-                testID='invite.search_bar_title'
-            />
             <View style={styles.searchBar}>
                 <TextInput
                     autoCorrect={false}
@@ -118,7 +105,7 @@ export default function SelectionSearchBar({
                     enablesReturnKeyAutomatically={true}
                     returnKeyType='search'
                     style={searchInputStyle}
-                    placeholder={formatMessage({id: 'invite.searchPlaceholder', defaultMessage: 'Type a name or email address…'})}
+                    placeholder={formatMessage({id: 'invite.searchPlaceholder', defaultMessage: 'Search by name, phone, or username'})}
                     placeholderTextColor={styles.searchInputPlaceholder.color}
                     onChangeText={handleSearchChange}
                     onFocus={onTextInputFocus}

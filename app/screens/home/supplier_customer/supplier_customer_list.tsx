@@ -19,20 +19,19 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
-    type EmployeeContactDetailRow,
-    fetchEmployeeContactsWithDetails,
+    fetchEmployeeContacts,
     removeEmployeeContact,
 } from '@actions/remote/employee_contact_new';
-import {MMEmployeeContactTypes, type MMEmployeeContactType} from '@client/rest/team_department';
-import {useServerUrl} from '@context/server';
-import {getContactListDisplayName, getSupplierCustomerDisplayName} from '@utils/contact_section';
-import ContactAvatar from '@components/contact_avatar';
+import {MMEmployeeContactTypes, type MMEmployeeContactSimple, type MMEmployeeContactType} from '@client/rest/team_department';
 import CompassIcon from '@components/compass_icon';
+import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {Events, Screens} from '@constants';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {showModalWithBackButton} from '@screens/navigation';
+import {getContactListDisplayName, getSupplierCustomerDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -137,24 +136,24 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 type RowProps = {
-    item: EmployeeContactDetailRow;
+    item: MMEmployeeContactSimple;
     isLast: boolean;
     theme: Theme;
     styles: ReturnType<typeof getStyleSheet>;
     onEditId: (contactId: string) => void;
     onDeleteId: (contactId: string) => void;
-    onViewProfile: (contact: EmployeeContactDetailRow) => void;
+    onViewProfile: (contact: MMEmployeeContactSimple) => void;
     relationDescriptionLabel: string;
 };
 
-function formatContactSubtitle(detail: EmployeeContactDetailRow, relationLabel: string): string {
+function formatContactSubtitle(detail: MMEmployeeContactSimple, relationLabel: string): string {
     if (!detail.description?.trim()) {
         return '';
     }
     return `${relationLabel}: ${detail.description.trim()}`;
 }
 
-function getContactDisplayName(detail: EmployeeContactDetailRow): string {
+function getContactDisplayName(detail: MMEmployeeContactSimple): string {
     return getSupplierCustomerDisplayName(detail.remark, detail.contact);
 }
 
@@ -248,7 +247,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     const navigation = useNavigation<ListNav>();
     const styles = getStyleSheet(theme);
 
-    const [items, setItems] = useState<EmployeeContactDetailRow[]>([]);
+    const [items, setItems] = useState<MMEmployeeContactSimple[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -282,9 +281,9 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             setLoading(true);
         }
         try {
-            const result = await fetchEmployeeContactsWithDetails(serverUrl, ownerId, kind);
+            const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
             if (!result.error && result.data) {
-                setItems(result.data);
+                setItems(result.data as MMEmployeeContactSimple[]);
             }
         } finally {
             if (!silent) {
@@ -299,9 +298,9 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         }
         setRefreshing(true);
         try {
-            const result = await fetchEmployeeContactsWithDetails(serverUrl, ownerId, kind);
+            const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
             if (!result.error && result.data) {
-                setItems(result.data);
+                setItems(result.data as MMEmployeeContactSimple[]);
             }
         } finally {
             setRefreshing(false);
@@ -420,7 +419,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
 
     const handleViewProfile = usePreventDoubleTap(
         useCallback(
-            (contact: EmployeeContactDetailRow) => {
+            (contact: MMEmployeeContactSimple) => {
                 const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
                 showModalWithBackButton(
                     Screens.CONTACTS_EMPLOYEE_PROFILE,
@@ -447,7 +446,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     }), []);
 
     const renderItem = useCallback(
-        ({item, index}: {item: EmployeeContactDetailRow; index: number}) => (
+        ({item, index}: {item: MMEmployeeContactSimple; index: number}) => (
             <SupplierCustomerListRow
                 item={item}
                 isLast={index === items.length - 1}
@@ -462,7 +461,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         [handleDeleteId, handleEditId, handleViewProfile, items.length, relationDescriptionLabel, styles, theme],
     );
 
-    const keyExtractor = useCallback((item: EmployeeContactDetailRow) => item.contact.id, []);
+    const keyExtractor = useCallback((item: MMEmployeeContactSimple) => item.contact.id, []);
 
     const listHeader = (
         <View style={styles.header}>
@@ -502,39 +501,39 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             >
                 <Animated.View style={[styles.flex, animated]}>
                     {listHeader}
-                        {loading && items.length === 0 ? (
-                            <View style={styles.loadingContainer}>
-                                <Loading
-                                    color={theme.centerChannelColor}
-                                    size='small'
-                                />
-                            </View>
-                        ) : (
-                            <FlatList
-                                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
-                                contentContainerStyle={[
-                                    styles.listContent,
-                                    {paddingBottom: 24},
-                                    items.length === 0 ? {flexGrow: 1} : undefined,
-                                ]}
-                                data={items}
-                                keyExtractor={keyExtractor}
-                                renderItem={renderItem}
-                                refreshControl={
-                                    <RefreshControl
-                                        refreshing={refreshing}
-                                        onRefresh={onRefresh}
-                                        tintColor={theme.centerChannelColor}
-                                    />
-                                }
-                                ListEmptyComponent={
-                                    loading ? null : (
-                                        <Text style={styles.emptyMessage}>{emptyMessage}</Text>
-                                    )
-                                }
-                                testID='supplier_customer.list.flatlist'
+                    {loading && items.length === 0 ? (
+                        <View style={styles.loadingContainer}>
+                            <Loading
+                                color={theme.centerChannelColor}
+                                size='small'
                             />
-                        )}
+                        </View>
+                    ) : (
+                        <FlatList
+                            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
+                            contentContainerStyle={[
+                                styles.listContent,
+                                {paddingBottom: 24},
+                                items.length === 0 ? {flexGrow: 1} : undefined,
+                            ]}
+                            data={items}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderItem}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}
+                                    tintColor={theme.centerChannelColor}
+                                />
+                            }
+                            ListEmptyComponent={
+                                loading ? null : (
+                                    <Text style={styles.emptyMessage}>{emptyMessage}</Text>
+                                )
+                            }
+                            testID='supplier_customer.list.flatlist'
+                        />
+                    )}
                 </Animated.View>
             </SafeAreaView>
         </Freeze>

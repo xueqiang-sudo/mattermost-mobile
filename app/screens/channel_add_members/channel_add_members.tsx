@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {defineMessage, useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, Platform, View} from 'react-native';
+import {defineMessage, defineMessages, useIntl} from 'react-intl';
+import {Keyboard, type LayoutChangeEvent, Platform, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {addMembersToChannel} from '@actions/remote/channel';
@@ -35,6 +35,14 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 const CLOSE_BUTTON_ID = 'close-add-member';
 const TEST_ID = 'add_members';
 const CLOSE_BUTTON_TEST_ID = 'close.button';
+const SCREEN_PADDING_H = 16;
+
+const messages = defineMessages({
+    selectionHintPrefix: {
+        id: 'channel_add_members.selection_hint_prefix',
+        defaultMessage: 'Select users to add to this channel',
+    },
+});
 
 export const getHeaderOptions = async (theme: Theme, displayName: string, inModal = false) => {
     let leftButtons;
@@ -78,11 +86,41 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
             flex: 1,
+            backgroundColor: theme.centerChannelBg,
+        },
+        contentContainer: {
+            flex: 1,
+            paddingHorizontal: SCREEN_PADDING_H,
+            paddingTop: 12,
+        },
+        listFlex: {
+            flex: 1,
+            minHeight: 0,
+            marginTop: 16,
+        },
+        searchCard: {
+            borderRadius: 12,
+            padding: 12,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
         },
         searchBar: {
-            marginLeft: 12,
-            marginRight: Platform.select({ios: 4, default: 12}),
-            marginVertical: 12,
+            marginBottom: 0,
+        },
+        selectionHintPrefix: {
+            fontWeight: '600',
+            fontSize: 14,
+            color: changeOpacity(theme.centerChannelColor, 0.8),
+            paddingTop: 8,
+        },
+        searchBarContainer: {
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+            borderRadius: 8,
+            height: 56,
+        },
+        searchBarInput: {
+            backgroundColor: 'transparent',
         },
         loadingContainer: {
             alignItems: 'center',
@@ -291,40 +329,57 @@ export default function ChannelAddMembers({
                     squareCorners={true}
                 />
             )}
-            <View style={style.searchBar}>
-                <Search
-                    testID={`${TEST_ID}.search_bar`}
-                    placeholder={formatMessage({id: 'search_bar.search', defaultMessage: 'Search'})}
-                    cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                    onChangeText={onTextChange}
-                    onCancel={clearSearch}
-                    autoCapitalize='none'
-                    keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
-                    value={term}
+            <View style={style.contentContainer}>
+                <View style={style.searchCard}>
+                    <View style={style.searchBar}>
+                        <Search
+                            testID={`${TEST_ID}.search_bar`}
+                            placeholder={formatMessage({id: 'search_bar.search', defaultMessage: 'Search'})}
+                            cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                            onChangeText={onTextChange}
+                            onCancel={clearSearch}
+                            autoCapitalize='none'
+                            keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
+                            value={term}
+                            inputContainerStyle={style.searchBarContainer}
+                            inputStyle={style.searchBarInput}
+                        />
+                    </View>
+                    <Text
+                        style={style.selectionHintPrefix}
+                        testID={`${TEST_ID}.selection_hint`}
+                        allowFontScaling={false}
+                        maxFontSizeMultiplier={1}
+                    >
+                        {formatMessage(messages.selectionHintPrefix)}
+                    </Text>
+                </View>
+                <View style={style.listFlex}>
+                    <ServerUserList
+                        handleSelectProfile={handleSelectProfile}
+                        selectedIds={selectedIds}
+                        term={term}
+                        testID={`${TEST_ID}.user_list`}
+                        tutorialWatched={tutorialWatched}
+                        fetchFunction={userFetchFunction}
+                        searchFunction={userSearchFunction}
+                        createFilter={createUserFilter}
+                        location={Screens.CHANNEL_ADD_MEMBERS}
+                        contactSelectLayout={true}
+                    />
+                </View>
+                <SelectedUsers
+                    keyboardOverlap={keyboardOverlap}
+                    selectedIds={selectedIds}
+                    onRemove={handleRemoveProfile}
+                    teammateNameDisplay={teammateNameDisplay}
+                    onPress={addMembers}
+                    buttonIcon={'account-plus-outline'}
+                    buttonText={formatMessage({id: 'channel_add_members.add_members.button', defaultMessage: 'Add Members'})}
+                    testID={`${TEST_ID}.selected`}
                 />
             </View>
-            <ServerUserList
-                handleSelectProfile={handleSelectProfile}
-                selectedIds={selectedIds}
-                term={term}
-                testID={`${TEST_ID}.user_list`}
-                tutorialWatched={tutorialWatched}
-                fetchFunction={userFetchFunction}
-                searchFunction={userSearchFunction}
-                createFilter={createUserFilter}
-                location={Screens.CHANNEL_ADD_MEMBERS}
-            />
-            <SelectedUsers
-                keyboardOverlap={keyboardOverlap}
-                selectedIds={selectedIds}
-                onRemove={handleRemoveProfile}
-                teammateNameDisplay={teammateNameDisplay}
-                onPress={addMembers}
-                buttonIcon={'account-plus-outline'}
-                buttonText={formatMessage({id: 'channel_add_members.add_members.button', defaultMessage: 'Add Members'})}
-                testID={`${TEST_ID}.selected`}
-            />
         </SafeAreaView>
     );
 }

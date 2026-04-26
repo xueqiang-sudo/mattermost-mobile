@@ -10,7 +10,7 @@ import type {SectionListData} from 'react-native';
 /**
  * 联系人列表排序用展示名：昵称优先（与选人列表展示一致），无则回退 username。
  */
-export function getContactListDisplayName(user: UserProfile): string {
+export function getContactListDisplayName(user: UserProfile | SimpleUserProfile): string {
     const fromNickname = username2Nickname(user, {includeFullName: true, useFallbackUsername: true});
     const trimmed = (fromNickname || '').trim();
     if (trimmed) {
@@ -24,7 +24,7 @@ export function getContactListDisplayName(user: UserProfile): string {
  * - 没有设置备注：显示昵称
  * - 设置了备注：显示「备注（昵称）」
  */
-export function getSupplierCustomerDisplayName(remark: string | null | undefined, contact: UserProfile): string {
+export function getSupplierCustomerDisplayName(remark: string | null | undefined, contact: UserProfile | SimpleUserProfile): string {
     const nickname = getContactListDisplayName(contact);
     const trimmedRemark = remark?.trim();
     if (trimmedRemark) {
@@ -48,7 +48,7 @@ export function getContactSectionId(displayName: string): string {
     if (/^[0-9]$/.test(firstChar)) {
         return firstChar;
     }
-    if (/^[a-z]$/i.test(firstChar)) {
+    if (/^[a-zA-Z]$/i.test(firstChar)) {
         return firstChar.toUpperCase();
     }
     if (CJK_RE.test(firstChar)) {

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchSearchContactEmployees, type TeamMemberSearchItem} from '@actions/remote/contact_new';
+import {searchContactEmployees, type TeamMemberSearchItem} from '@actions/remote/contact_new';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import ContactSearchScopeHint from '@components/contact_search_scope_hint';
@@ -156,7 +156,7 @@ const ContactsSearchContent = ({
             setResults([]);
             return;
         }
-        const res = await fetchSearchContactEmployees(serverUrl, companyId, kw, {
+        const res = await searchContactEmployees(serverUrl, companyId, kw, {
             departmentId,
         });
         if (!mounted.current) {

@@ -6,7 +6,7 @@ import {useIntl} from 'react-intl';
 import {Alert, FlatList, Modal, Platform, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {fetchSearchContactEmployees} from '@actions/remote/contact_new';
+import {searchContactEmployees} from '@actions/remote/contact_new';
 import {fetchTeamManagers, setTeamManagerRole} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
@@ -297,7 +297,7 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
                 setSearchPending(false);
                 return;
             }
-            const res = await fetchSearchContactEmployees(serverUrl, companyId, q);
+            const res = await searchContactEmployees(serverUrl, companyId, q);
             if (seq !== searchSeq.current) {
                 return;
             }

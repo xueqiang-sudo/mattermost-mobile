@@ -39,14 +39,12 @@ export function getChannelListModalRowSurfaceStyle(theme: Theme): ViewStyle {
 }
 
 /**
- * 联系人多选：分组列表内的行样式（无外边框、无阴影），奇偶行浅斑马纹 + 选中态左侧强调条。
+ * 联系人多选：分组列表内的行样式（无外边框、无阴影），选中态左侧强调条。
  */
 export function getContactPickerGroupedRowStyle(theme: Theme, listRowIndex: number, selected: boolean): ViewStyle {
-    const stripe = listRowIndex % 2 === 1;
-    const stripeBg = changeOpacity(theme.centerChannelColor, 0.04);
     const selectedBg = changeOpacity(theme.buttonBg, 0.1);
     return {
-        backgroundColor: selected ? selectedBg : stripe ? stripeBg : 'transparent',
+        backgroundColor: selected ? selectedBg : 'transparent',
         borderLeftWidth: selected ? 3 : 0,
         borderLeftColor: selected ? theme.buttonBg : 'transparent',
     };

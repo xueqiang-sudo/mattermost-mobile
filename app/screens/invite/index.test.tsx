@@ -3,7 +3,7 @@
 
 import React, {type ComponentProps} from 'react';
 
-import {General, Permissions, Preferences} from '@constants';
+import {Permissions} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import {act, renderWithEverything, waitFor} from '@test/intl-test-helper';
@@ -52,9 +52,7 @@ describe('InviteContainer', () => {
         expect(invite).toBeTruthy();
         expect(invite.props.teamId).toBeUndefined();
         expect(invite.props.teamDisplayName).toBeUndefined();
-        expect(invite.props.teammateNameDisplay).toBe(General.TEAMMATE_NAME_DISPLAY.SHOW_USERNAME);
         expect(invite.props.isAdmin).toBe(false);
-        expect(invite.props.emailInvitationsEnabled).toBe(false);
         expect(invite.props.canInviteGuests).toBe(false);
         expect(invite.props.allowGuestMagicLink).toBe(false);
     });
@@ -88,22 +86,10 @@ describe('InviteContainer', () => {
     });
 
     it('should render correctly with system config', async () => {
-        await operator.handleConfigs({
-            configs: [
-                {
-                    id: 'EnableEmailInvitations',
-                    value: 'true',
-                },
-            ],
-            prepareRecordsOnly: false,
-            configsToDelete: [],
-        });
-
         const props = getBaseProps();
         const {getByTestId} = renderWithEverything(<InviteContainer {...props}/>, {database});
 
         const invite = getByTestId('invite-component');
-        expect(invite.props.emailInvitationsEnabled).toBe(true);
         expect(invite.props.allowGuestMagicLink).toBe(false);
 
         await act(async () => {
@@ -120,27 +106,8 @@ describe('InviteContainer', () => {
         });
 
         await waitFor(() => {
-            expect(invite.props.emailInvitationsEnabled).toBe(true);
             expect(invite.props.allowGuestMagicLink).toBe(true);
         });
-    });
-
-    it('should render correctly with user preferences', async () => {
-        await operator.handlePreferences({
-            preferences: [{
-                category: Preferences.CATEGORIES.DISPLAY_SETTINGS,
-                name: Preferences.NAME_NAME_FORMAT,
-                value: General.TEAMMATE_NAME_DISPLAY.SHOW_FULLNAME,
-                user_id: 'user-id',
-            }],
-            prepareRecordsOnly: false,
-        });
-
-        const props = getBaseProps();
-        const {getByTestId} = renderWithEverything(<InviteContainer {...props}/>, {database});
-
-        const invite = getByTestId('invite-component');
-        expect(invite.props.teammateNameDisplay).toBe(General.TEAMMATE_NAME_DISPLAY.SHOW_FULLNAME);
     });
 
     it('should render correctly with admin user', async () => {

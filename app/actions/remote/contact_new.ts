@@ -207,7 +207,7 @@ export const fetchEmployeeCountOfDepartment = async (serverUrl: string, teamId: 
 /**
  * 通讯录员工搜索：公司范围或指定部门范围（departmentId 有值时添加 department_id 过滤）。
  */
-export const fetchSearchContactEmployees = async (
+export const searchContactEmployees = async (
     serverUrl: string,
     teamId: string,
     keyword: string,
@@ -228,7 +228,7 @@ export const fetchSearchContactEmployees = async (
         const users = await client.searchUsers(kw, searchOpts);
         return {data: users || []};
     } catch (error) {
-        logDebug('[fetchSearchContactEmployees] catch error', getFullErrorMessage(error));
+        logDebug('[searchContactEmployees] catch error', getFullErrorMessage(error));
         forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }

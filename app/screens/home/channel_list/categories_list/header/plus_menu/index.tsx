@@ -34,19 +34,10 @@ const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
         await dismissBottomSheet();
 
         const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Start a private chat'});
-        const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
+        const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
-        }, {
-            topBar: {
-                background: {color: theme.centerChannelBg},
-                title: {color: theme.centerChannelColor},
-                leftButtonColor: closeIconColor,
-            },
-            statusBar: {
-                backgroundColor: theme.centerChannelBg,
-            },
         });
     }, [intl, theme]);
 

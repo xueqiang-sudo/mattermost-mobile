@@ -7,7 +7,7 @@ import {useIntl} from 'react-intl';
 import {ScrollView, Text, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchEmployeeContactsWithDetails} from '@actions/remote/employee_contact_new';
+import {fetchEmployeeContacts} from '@actions/remote/employee_contact_new';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
@@ -80,7 +80,7 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
     const mounted = useRef(false);
     const styles = getStyleSheet(theme);
 
-    const [employees, setEmployees] = useState<UserProfile[]>([]);
+    const [employees, setEmployees] = useState<SimpleUserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [serviceError, setServiceError] = useState(false);
 
@@ -114,14 +114,14 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
                 setLoading(false);
                 return;
             }
-            const res = await fetchEmployeeContactsWithDetails(serverUrl, userId, type);
+            const res = await fetchEmployeeContacts(serverUrl, userId, type, {granularity: 2});
             if (!mounted.current) {
                 return;
             }
             if (res.error) {
                 setServiceError(true);
             } else {
-                setEmployees((res.data ?? []).map((row) => row.contact));
+                setEmployees((res.data ?? []).map((row) => row.contact as SimpleUserProfile));
             }
             setLoading(false);
         };
