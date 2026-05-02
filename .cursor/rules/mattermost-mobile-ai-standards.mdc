@@ -1,0 +1,118 @@
+---
+description: Mattermost Mobile AI 开发 Rules（架构、高端 UI、工程落地、代码、主题、性能）
+globs:
+  - app/**/*.tsx
+  - app/**/*.ts
+  - share_extension/**/*.tsx
+  - share_extension/**/*.ts
+alwaysApply: true
+---
+
+# Mattermost Mobile：AI 开发 Rules
+
+**交付自检 Skills（A–G）** 不在 Rules 目录：见项目 Cursor Skill [`.cursor/skills/mattermost-mobile-delivery/SKILL.md`](../skills/mattermost-mobile-delivery/SKILL.md)。Rules 规定「必须怎么做」；Skill 规定「交付前如何逐项自检」。实现 `app/` 或 `share_extension/` 功能时须 **读取并执行** 该 Skill。
+
+与 [CLAUDE.md](../../CLAUDE.md) 一并遵守。用户要求「开始实现」前，先按 [功能 Plan 模板](../../docs/development/ai-feature-plan-template.md) 输出书面 Plan，且 Plan 须含 **UI 结构草图、视觉规格、设计理由**（见模板）；**禁止跳过设计直接写代码**。
+
+## 国际化优先级
+
+- **上游 / Weblate 流程**：新增默认用户文案**仅**改 `assets/base/i18n/en.json`，`defaultMessage` 与 JSON 一致（见 CLAUDE.md）。
+- **本仓库另有规则**：若 `.cursor/rules/i18n-zh-en.mdc` 因 glob 命中 i18n 文件而激活，按其要求同步 `zh-CN` / `zh-TW`；与上条冲突时以**当前任务说明**或**团队约定**为准。
+
+---
+
+## Rules：架构
+
+- 屏幕编排与订阅；重 UI 拆到同目录 `components/`；跨 2+ 屏复用进 `app/components` 或 `app/products/<product>/`。
+- 新屏：`app/screens/<feature>/`；产品能力优先 `app/products/<product>/`。
+- 独立展示单元需在 `app/screens/index.tsx` 的 RNN 注册模式中注册。
+- 产品 API 使用各 product 下 `client/rest.ts` 的 ClientMix，避免在 action 中散写 `doFetch`。
+- 持久数据：WatermelonDB + `@queries/*` + `@actions/local|remote`；短时状态：`app/store/*`（如 EphemeralStore）。
+
+## Rules：高端移动端 UI（顶级标准，强制执行）
+
+目标：**高级、克制、统一、专业**——对齐一线 SaaS / 效率工具 / 现代金融 App（结构清晰）与 iOS Human Interface 的简洁感；**不是「能用」的 demo**。
+
+### 间距系统 Spacing
+
+- **仅允许**使用刻度：`4 / 8 / 12 / 16 / 20 / 24 / 32`（及由其组成的叠加，如 `16+8` 区块间距仍应用常量表达）。
+- **禁止**无命名的「随意间距」（如 `13`、`17`、`19`）；页面**左右 padding 全屏统一**，通常 **`16` 或 `20`**，同一任务内不得混用。
+- 在文件顶部用命名常量声明本屏 gutter、sectionGap、cardPadding 等，例如 `SCREEN_PADDING_H = 16`。
+
+### 字体层级 Typography
+
+- **四级固定语义**（同一屏内不得混用未定义字号）：
+  - **Title**：大标题（如导航下首屏标题）。
+  - **Section**：分区标题。
+  - **Body**：正文。
+  - **Caption**：辅助说明、时间戳、元信息。
+- 字号从**受限集合**选取并与行高成对定义（提升可读性）：例如 Title `20–22` / `lineHeight ~28–30`，Section `17–18` / `~24–26`，Body `15–16` / `~22–24`，Caption `12–14` / `~16–20`；具体数值写入样式常量，**禁止**同级出现两种相近却不同的字号。
+- Caption / 次要信息：`changeOpacity(theme.centerChannelColor, 0.56)`（或项目内既有辅助色惯例），与 Body 区分层级。
+
+### 颜色系统 Color
+
+- **全部**来自 `theme.*` + `changeOpacity`；单屏**主色角色不超过 3–4 种**（背景、主文、次要文、强调/链接或错误其一）。
+- **Primary 强调**（如 `theme.buttonBg` / `theme.linkColor`）**仅用于**主按钮、关键链接等关键操作，不得铺满装饰。
+- 卡片分割优先 **subtle border**（`changeOpacity(theme.centerChannelColor, 0.08–0.12)`）优于重阴影；阴影若用须**极轻**。
+
+### 布局 Layout
+
+- **分区 Section** + **卡片 Card**：列表/表单块用卡片承载，块间留白；**左对齐为主**，避免挤满一屏。
+- 信息密度服从「**一眼扫清层级**」：先 Title / Section，再 Body，Caption 最后。
+
+### 组件 Component
+
+- UI **组件化**；同任务内 **Button / Card / ListItem** 风格一致，优先复用 `app/components` 已有模式或抽新共享组件，禁止一屏一种按钮样式。
+
+### 视觉高级感
+
+- **留白**：区块间用 spacing 刻度拉开，禁止贴边堆叠。
+- **圆角统一**：全屏选用 `8` **或** `12` **或** `16` 之一作为主圆角，卡片/按钮/输入框一致（特殊组件需在 Plan 说明例外理由）。
+
+### 交互 UX
+
+- **Loading / Empty / Error** 三态必须在 Plan 与实现中落实；主按钮 **disabled** 态（降低透明度或背景语义色）；列表行 **`activeOpacity` / press 反馈**（与现有 Touchable/Button 一致）。
+
+### 风格参考
+
+- iOS 原生式克制、高级 SaaS（如 Notion / Linear 式信息架构）、现代金融 App 式清晰分区。
+
+### UI 禁止项（廉价感）
+
+- 紧凑杂乱、不对齐、乱用高饱和装饰色、组件风格混用、忽略留白、重阴影、无设计说明直接堆代码。
+
+---
+
+## Rules：UI（工程落地）
+
+- 样式：`makeStyleSheetFromTheme` + `useTheme()`；语义色必须用 `theme.*`，半透明用 `changeOpacity(theme.xxx, n)`。
+- 禁止用硬编码 `#rrggbb` 表达链接/错误/主按钮等语义（中性几何色若不可避免须在 PR 说明）。
+- 布局：优先 flex；动画用 **react-native-reanimated**，不用 RN `Animated`。
+- 列表：优先 `@shopify/flash-list`；稳定 `keyExtractor`；列表项避免 `onPress={() => ...}`，子组件持 id + 父级 `useCallback`。
+- `getStyleSheet` / `makeStyleSheetFromTheme` 放在文件顶部（import 之后、组件之前）；与 CLAUDE 一致。
+
+## Rules：代码
+
+- `useEffect` 依赖完整；省略依赖须 eslint-disable + **具体原因**。
+- 命名：组件 PascalCase；hook `use*`；props 优先 `ComponentProps<typeof Child>`；避免 `any` 与非空断言滥用。
+- 导入：同模块合并一行；`import {a, type B}` 内联 type。
+- 日志：`logError` / `logDebug`，带 `[ClassName.method]` 前缀；不向日志打敏感信息。
+- 兼容：禁止使用 `Object.hasOwn`（RN/JS 目标限制）。
+
+## Rules：主题
+
+- 导航栏/状态栏随主题时，使用 `@utils/theme` 中与导航相关的现有工具（如 `setNavigatorStyles`）。
+
+## Rules：性能
+
+- `useMemo` 仅用于昂贵计算或稳定引用；`useCallback` 用于传给子组件或列表的处理器。
+- WatermelonDB：`observe*` + `withObservables` 时注意列依赖与批处理。
+
+---
+
+## 执行契约（与 Skills 配合）
+
+1. 先书面 Plan（[模板](../../docs/development/ai-feature-plan-template.md)，含 UI 草图 / 视觉规格 / 设计理由），用户说「开始实现」后再改代码。
+2. UI 须达 **高级、克制、统一、专业**（非 demo）；代码可复用、可维护。
+3. 颜色来自 `theme`；文案 i18n。
+4. 输出前按交付 Skill [../skills/mattermost-mobile-delivery/SKILL.md](../skills/mattermost-mobile-delivery/SKILL.md) 完成 **Skill A–G**（尤其 **A** 与 **G**）。

@@ -223,6 +223,9 @@ dependencies {
     implementation project(':reactnativenotifications')
     implementation project(':watermelondb-jsi')
 
+    // MLKit for QR Code scanning from images
+    implementation 'com.google.mlkit:barcode-scanning:17.3.0'
+
     api('io.jsonwebtoken:jjwt-api:0.12.5')
     runtimeOnly('io.jsonwebtoken:jjwt-impl:0.12.5')
     runtimeOnly('io.jsonwebtoken:jjwt-orgjson:0.12.5') {

@@ -8,8 +8,8 @@ import ViewReactNativeStyleAttributes from 'react-native/Libraries/Components/Vi
 import 'react-native-gesture-handler';
 import {Navigation} from 'react-native-navigation';
 
+import './app/utils/bootstrap_text_scaling';
 import {start} from './app/init/app';
-import setFontFamily from './app/utils/font_family';
 import {logInfo} from './app/utils/log';
 
 declare const global: { HermesInternal: null | {} };
@@ -36,8 +36,6 @@ if (__DEV__) {
         LogBox.ignoreAllLogs(true);
     }
 }
-
-setFontFamily();
 
 if (global.HermesInternal) {
     // Polyfills required to use Intl with Hermes engine

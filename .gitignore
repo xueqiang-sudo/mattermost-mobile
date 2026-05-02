@@ -37,6 +37,7 @@ DerivedData
 *.xcuserstate
 project.xcworkspace
 ios/Pods
+net-cache-resources
 .podinstall
 ios/.xcode.env.local
 
@@ -56,6 +57,7 @@ android/build
 .settings
 .project
 .classpath
+.trae
 
 # node.js
 #
@@ -123,6 +125,10 @@ libraries/**/**/.build
 # Android sounds
 android/app/src/main/res/raw/*
 .aider*
+android/app/src/main/res/drawable-*dpi/dist_assets_images_*
+android/app/src/main/res/drawable-*dpi/node_modules_rneui_base_node_modules_*
+android/app/src/main/res/drawable-*dpi/node_modules_reactnavigation_elements_lib_module_assets_*
+android/app/src/main/assets/index.android.bundle
 
 # Intune submodule (private repository - internal builds only)
 # Track submodule reference but ignore content
@@ -133,3 +139,5 @@ libraries/@mattermost/intune/*
 node_modules/@mattermost/intune
 # Claude Code
 .claude/settings.local.json
+
+.cursor/plans

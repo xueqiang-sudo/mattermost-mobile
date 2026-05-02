@@ -256,7 +256,7 @@ lane :upload_file_to_s3 do |options|
     else
       version_number = os_type == "android" ?
         android_get_version_name(gradle_file: './android/app/build.gradle') :
-        get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+        get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
       build_number = os_type == "android" ?
         android_get_version_code(gradle_file: './android/app/build.gradle') :
         get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
@@ -417,7 +417,7 @@ platform :ios do
   lane :unsigned do
     UI.success('Building unsigned iOS app')
 
-    ENV['APP_NAME'] = 'Mattermost'
+    ENV['APP_NAME'] = 'Optibot'
     ENV['REPLACE_ASSETS'] = 'true'
     ENV['BUILD_FOR_RELEASE'] = 'true'
     ENV['APP_SCHEME'] = 'mattermost'
@@ -481,7 +481,7 @@ platform :ios do
 
   lane :update_settings do
     # Configure Main app settings
-    app_name = ENV['APP_NAME'] || 'Mattermost Beta'
+    app_name = ENV['APP_NAME'] || 'Optibot Beta'
     app_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.mattermost.rnbeta'
     app_group_id = ENV['IOS_APP_GROUP'] || 'group.com.mattermost.rnbeta'
     icloud_container = ENV['IOS_ICLOUD_CONTAINER'] || 'iCloud.com.mattermost.rnbeta'
@@ -662,7 +662,7 @@ platform :ios do
       sh 'cp -R ../dist/assets/release/splash_screen/ios/SplashIcon.imageset ../ios/Mattermost/Images.xcassets/'
     end
 
-    app_name =  ENV['APP_NAME'] || 'Mattermost Beta'
+    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
     localization_base_path = '../dist/assets/i18n/'
     Dir.glob('*.json', base: localization_base_path) do |item|
       localization_file = File.read(localization_base_path + item)
@@ -684,6 +684,11 @@ platform :ios do
 
       plist_strings.gsub!('{applicationName}', "#{app_name}")
       localized_strings.gsub!('{applicationName}', "#{app_name}")
+      
+      # Use locale-specific app display name for CFBundleDisplayName (home screen name)
+      display_name = json['mobile.app.display_name'] || app_name
+      display_name_escaped = display_name.gsub('"', '\"')
+      plist_strings = "CFBundleDisplayName = \"#{display_name_escaped}\";\n" + plist_strings
 
       language = item.split('.').first
       project_localization_path = "../ios/Mattermost/i18n/#{language}.lproj"
@@ -702,7 +707,7 @@ platform :ios do
   end
 
   error do |lane, exception|
-    version = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+    version = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
     build_number = get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
     send_message_to_mattermost({
                                    :version_number => version,
@@ -723,7 +728,7 @@ platform :ios do
     )
 
     ENV['MATCH_APP_IDENTIFIER'].split(',').each do |id|
-      target = 'Mattermost'
+      target = 'Optibot'
       if id.include? 'NotificationService'
         target = 'NotificationService'
       elsif id.include? 'MattermostShare'
@@ -744,7 +749,7 @@ platform :ios do
   end
 
   def build_ios
-    app_name =  ENV['APP_NAME'] || 'Mattermost Beta'
+    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
     app_name_sub = app_name.gsub(" ", "_")
     config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
     method = ENV['IOS_BUILD_EXPORT_METHOD'].nil? || ENV['IOS_BUILD_EXPORT_METHOD'].empty? ? 'ad-hoc' : ENV['IOS_BUILD_EXPORT_METHOD']
@@ -756,7 +761,7 @@ platform :ios do
 
     gym(
         clean: true,
-        scheme: 'Mattermost',
+        scheme: 'Optibot',
         configuration: config_mode,
         workspace: './ios/Mattermost.xcworkspace',
         export_method: method,
@@ -775,7 +780,7 @@ platform :ios do
     root_dir = Dir[File.expand_path('..')].first
     ios_build_dir = "#{root_dir}/ios/Build/Products"
 
-    ENV['APP_NAME'] = 'Mattermost'
+    ENV['APP_NAME'] = 'Optibot'
     ENV['REPLACE_ASSETS'] = 'true'
     ENV['BUILD_FOR_RELEASE'] = 'true'
     ENV['APP_SCHEME'] = 'mattermost'
@@ -809,7 +814,7 @@ platform :android do
   lane :unsigned do
     UI.success('Building unsigned Android app')
 
-    ENV['APP_NAME'] = 'Mattermost'
+    ENV['APP_NAME'] = 'Optibot'
     ENV['REPLACE_ASSETS'] = 'true'
     ENV['BUILD_FOR_RELEASE'] = 'true'
     ENV['APP_SCHEME'] = 'mattermost'
@@ -839,7 +844,7 @@ platform :android do
 
   lane :update_identifiers do
     # Set the name for the app
-    app_name =  ENV['APP_NAME'] || 'Mattermost Beta'
+    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
     sh "echo '#{app_name}' > ../fastlane/metadata/android/en-US/title.txt"
     android_change_string_app_name(
         newName: app_name,
@@ -987,7 +992,7 @@ platform :android do
   end
 
   def move_android_to_root
-    app_name =  ENV['APP_NAME'] || 'Mattermost Beta'
+    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
     app_name_sub = app_name.gsub(" ", "_")
     build_task = ENV['ANDROID_BUILD_TASK'].nil? || ENV['ANDROID_BUILD_TASK'].empty? ? 'assemble' : ENV['ANDROID_BUILD_TASK']
     build_task = build_task.split(",")
@@ -1130,7 +1135,7 @@ def submit_to_testflight(ipa_path)
   end
 
   filename = File.basename(ipa)
-  version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+  version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
   build_number = get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
   s3_folder = "#{ENV['AWS_FOLDER_NAME']}/#{version_number}/#{build_number}"
   public_link = "https://#{ENV['AWS_BUCKET_DNS_NAME']}/#{s3_folder}/#{filename}"

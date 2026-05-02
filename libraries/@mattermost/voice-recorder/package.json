@@ -1,0 +1,18 @@
+{
+  "name": "@mattermost/voice-recorder",
+  "version": "0.0.0",
+  "description": "Native voice recorder for Mattermost app",
+  "main": "src/index",
+  "codegenConfig": {
+    "name": "VoiceRecorderSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.mattermost.voicerecorder"
+    }
+  },
+  "author": "Mattermost, Inc.",
+  "license": "Apache 2.0",
+  "private": true,
+  "homepage": "#readme"
+}
