@@ -47,7 +47,7 @@ fun getCurrentUserLocale(db: WMDatabase): String {
 
 fun handleUsers(db: WMDatabase, users: ReadableArray) {
     for (i in 0 until users.size()) {
-        val user = users.getMap(i)
+        val user = users.getMap(i)!!
         val roles =  user.getString("roles") ?: ""
         val isBot = try {
             user.getBoolean("is_bot")

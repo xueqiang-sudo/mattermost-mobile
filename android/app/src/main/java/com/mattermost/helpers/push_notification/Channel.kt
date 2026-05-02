@@ -14,7 +14,7 @@ import java.util.Locale
 
 suspend fun PushNotificationDataRunnable.Companion.fetchMyChannel(db: WMDatabase, serverUrl: String, channelId: String, isCRTEnabled: Boolean): Triple<ReadableMap?, ReadableMap?, ReadableArray?> {
     val channel = fetch(serverUrl, "/api/v4/channels/$channelId")
-    var channelData = channel?.getMap("data")
+    var channelData = channel?.getMap("data")!!
     val myChannelData = channelData?.let { fetchMyChannelData(serverUrl, channelId, isCRTEnabled, it) }
     val channelType = channelData?.getString("type")
     var profilesArray: ReadableArray? = null
@@ -26,7 +26,7 @@ suspend fun PushNotificationDataRunnable.Companion.fetchMyChannel(db: WMDatabase
             "D" -> {
                 profilesArray = fetchProfileInChannel(db, serverUrl, channelId)
                 if ((profilesArray?.size() ?: 0) > 0) {
-                    val displayName = displayUsername(profilesArray!!.getMap(0), displayNameSetting)
+                    val displayName = displayUsername(profilesArray!!.getMap(0)!!, displayNameSetting)
                     val data = Arguments.createMap()
                     data.merge(channelData)
                     data.putString("display_name", displayName)
@@ -60,7 +60,7 @@ suspend fun PushNotificationDataRunnable.Companion.fetchMyChannel(db: WMDatabase
 private suspend fun PushNotificationDataRunnable.Companion.fetchMyChannelData(serverUrl: String, channelId: String, isCRTEnabled: Boolean, channelData: ReadableMap): ReadableMap? {
     try {
         val myChannel = fetch(serverUrl, "/api/v4/channels/$channelId/members/me")
-        val myChannelData = myChannel?.getMap("data")
+        val myChannelData = myChannel?.getMap("data")!!
         if (myChannelData != null) {
             val data = Arguments.createMap()
             data.merge(myChannelData)
@@ -116,7 +116,7 @@ private suspend fun PushNotificationDataRunnable.Companion.fetchProfileInChannel
         val result = Arguments.createArray()
         if (profilesArray != null) {
             for (i in 0 until profilesArray.size()) {
-                val profile = profilesArray.getMap(i)
+                val profile = profilesArray.getMap(i)!!
                 if (profile.getString("id") != currentUserId) {
                     result.pushMap(profile)
                 }
@@ -151,7 +151,7 @@ private fun PushNotificationDataRunnable.Companion.displayUsername(user: Readabl
 private fun PushNotificationDataRunnable.Companion.displayGroupMessageName(profilesArray: ReadableArray, locale: Locale, displayNameSetting: String): String {
     val names = ArrayList<String>()
     for (i in 0 until profilesArray.size()) {
-        val profile = profilesArray.getMap(i)
+        val profile = profilesArray.getMap(i)!!
         names.add(displayUsername(profile, displayNameSetting))
     }
 

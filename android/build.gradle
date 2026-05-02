@@ -5,12 +5,11 @@ buildscript {
         compileSdkVersion = 35
         targetSdkVersion = 35
         supportLibVersion = "35.0.0"
-        androidXVersion = "1.7.0"
-        kotlinVersion = "1.9.25"
+        kotlinVersion = "2.0.21"
         kotlin_version = kotlinVersion
         RNNKotlinVersion = kotlinVersion
         firebaseVersion = "24.1.0"
-        ndkVersion = "26.1.10909125"
+        ndkVersion = "27.1.12297006"
     }
     repositories {
         mavenCentral()
@@ -21,7 +20,8 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath('com.google.gms:google-services:4.4.2')
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21")
+        classpath("org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:2.0.21")
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -35,9 +35,6 @@ buildscript {
 allprojects {
     repositories {
         mavenLocal()
-        // Maven Central: required for transitive deps (e.g. react-native-compressor → isoparser, jlayer)
-        // that are not on Google Maven; also avoids failing the whole resolve when google() times out.
-        mavenCentral()
         google()
         maven {
             url "$rootDir/../detox/node_modules/detox/Detox-android"
