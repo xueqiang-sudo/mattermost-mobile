@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, TouchableOpacity} from 'react-native';
 
@@ -11,7 +11,6 @@ import SettingSeparator from '@components/settings/separator';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useDidMount from '@hooks/did_mount';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {goToScreen, popTopScreen} from '@screens/navigation';
 import {deleteFileCache, getAllFilesInCachesDirectory, getFormattedFileSize} from '@utils/file';
@@ -52,7 +51,7 @@ const AdvancedSettings = ({
                         defaultMessage: '\nThis will delete all files downloaded through the app for this server. Please confirm to proceed.\n',
                     }),
                     [
-                        {text: formatMessage({id: 'settings.advanced.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
+                        {text: formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
                         {
                             text: formatMessage({id: 'settings.advanced.delete', defaultMessage: 'Delete'}),
                             style: 'destructive',
@@ -77,9 +76,9 @@ const AdvancedSettings = ({
         goToScreen(screen, title);
     }, [intl]);
 
-    useDidMount(() => {
+    useEffect(() => {
         getAllCachedFiles();
-    });
+    }, []);
 
     const close = useCallback(() => {
         popTopScreen(componentId);

@@ -1,7 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {waitFor} from '@testing-library/react-native';
+/* eslint-disable max-lines */
+
+jest.mock('@actions/local/channel', () => ({
+    switchToChannel: jest.fn(() => Promise.resolve({})),
+}));
 
 import {ActionType} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
@@ -20,10 +24,8 @@ import {
     loadEarlierThreads,
     fetchAndSwitchToThread,
     syncThreadsIfNeeded,
-    batchTeamThreadSync,
 } from './thread';
 
-import type {Client} from '@client/rest';
 import type ServerDataOperator from '@database/operator/server_data_operator';
 
 const serverUrl = 'baseHandler.test.com';
@@ -64,15 +66,14 @@ const throwFunc = () => {
     throw Error('error');
 };
 
-const partialClient: Partial<Client> = {
-    getThread: jest.fn((userId: string, _teamId: string, threadId: string) => Promise.resolve({...thread1, id: threadId})),
+const mockClient = {
+    getThread: jest.fn((userId: string, _teamId: string, threadId: string) => ({...thread1, id: threadId})),
     updateTeamThreadsAsRead: jest.fn(),
     markThreadAsRead: jest.fn(),
     markThreadAsUnread: jest.fn(),
     updateThreadFollow: jest.fn(),
-    getThreads: jest.fn(() => Promise.resolve({threads, total: threads.length, total_unread_mentions: 0, total_unread_threads: 0})),
+    getThreads: jest.fn(() => ({threads})),
 };
-const mockClient = partialClient as Client;
 
 let mockGetIsCRTEnabled: jest.Mock;
 jest.mock('@queries/servers/thread', () => {
@@ -85,7 +86,7 @@ jest.mock('@queries/servers/thread', () => {
 });
 
 beforeAll(() => {
-
+    // eslint-disable-next-line
     // @ts-ignore
     NetworkManager.getClient = () => mockClient;
 });
@@ -101,7 +102,7 @@ afterEach(async () => {
 
 describe('get threads', () => {
     it('fetchThread - handle error', async () => {
-        jest.mocked(mockClient.getThread).mockImplementationOnce(jest.fn(throwFunc));
+        mockClient.getThread.mockImplementationOnce(jest.fn(throwFunc));
         const result = await fetchThread(serverUrl, teamId, thread1.id);
         expect(result).toBeDefined();
         expect(result.error).toBeDefined();
@@ -209,30 +210,32 @@ describe('get threads', () => {
         expect(result.models?.length).toBe(4); // 1 thread, 1 thread participant, 1 thread in team, 1 team thread sync
     });
 
-    it('fetchAndSwitchToThread - handle error', async () => {
-        const result = await fetchAndSwitchToThread('foo', '');
-        expect(result).toBeDefined();
-        expect(result.error).toBeTruthy();
-    });
-
-    it('fetchAndSwitchToThread - base case', async () => {
-        await operator.handlePosts({
-            actionType: ActionType.POSTS.RECEIVED_IN_CHANNEL,
-            order: [post1.id],
-            posts: [post1],
-            prepareRecordsOnly: false,
+    describe('fetchAndSwitchToThread', () => {
+        it('handle error', async () => {
+            const result = await fetchAndSwitchToThread('foo', '');
+            expect(result).toBeDefined();
+            expect(result.error).toBeTruthy();
         });
-        await operator.handleThreads({threads, prepareRecordsOnly: false, teamId: team.id});
 
-        const result = await fetchAndSwitchToThread(serverUrl, thread1.id);
-        expect(result).toBeDefined();
-        expect(result.error).toBeUndefined();
+        it('base case', async () => {
+            await operator.handlePosts({
+                actionType: ActionType.POSTS.RECEIVED_IN_CHANNEL,
+                order: [post1.id],
+                posts: [post1],
+                prepareRecordsOnly: false,
+            });
+            await operator.handleThreads({threads, prepareRecordsOnly: false, teamId: team.id});
+
+            const result = await fetchAndSwitchToThread(serverUrl, thread1.id);
+            expect(result).toBeDefined();
+            expect(result.error).toBeUndefined();
+        });
     });
 });
 
 describe('update threads', () => {
     it('updateTeamThreadsAsRead - handle error', async () => {
-        jest.mocked(mockClient.updateTeamThreadsAsRead).mockImplementationOnce(jest.fn(throwFunc));
+        mockClient.updateTeamThreadsAsRead.mockImplementationOnce(jest.fn(throwFunc));
         const result = await updateTeamThreadsAsRead(serverUrl, teamId);
         expect(result).toBeDefined();
         expect(result.error).toBeDefined();
@@ -303,111 +306,5 @@ describe('update threads', () => {
         const result = await updateThreadFollowing(serverUrl, '', thread1.id, true, true);
         expect(result).toBeDefined();
         expect(result.error).toBeUndefined();
-    });
-});
-
-describe('batchTeamThreadSync', () => {
-    // We don't use fake timers since they break the
-    // database operations.
-
-    beforeEach(() => {
-        jest.mocked(mockClient.getThreads).mockClear();
-    });
-
-    const teamFilter = (id: string) => {
-        return (call: unknown[]) => call[1] === id && call[6] === undefined;
-    };
-
-    // fetchThreads calls twice the function, one for the unreads and one for
-    // the latests. We expect that part to work correctly and if one is called
-    // for unreads, the one for the latest is also called.
-    const allCallsFilter = (call: unknown[]) => call[6] === undefined;
-
-    it('returns early when CRT is disabled', async () => {
-        mockGetIsCRTEnabled.mockResolvedValueOnce(false);
-
-        await batchTeamThreadSync(serverUrl, teamId);
-
-        await waitFor(() => expect(mockClient.getThreads).not.toHaveBeenCalled(), {timeout: 600});
-    });
-
-    it('schedules sync after timeout when CRT is enabled', async () => {
-        mockGetIsCRTEnabled.mockResolvedValue(true);
-        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_USER_ID, value: user1.id}], prepareRecordsOnly: false});
-        await operator.handleUsers({users: [user1], prepareRecordsOnly: false});
-
-        await batchTeamThreadSync(serverUrl, teamId);
-        expect(mockClient.getThreads).not.toHaveBeenCalled();
-
-        await waitFor(() => expect(mockClient.getThreads).toHaveBeenCalled());
-        const getThreadsCalls = jest.mocked(mockClient.getThreads).mock.calls;
-        expect(getThreadsCalls.filter(teamFilter(teamId))).toHaveLength(1);
-        expect(getThreadsCalls.filter(allCallsFilter)).toHaveLength(1);
-    });
-
-    it('batches multiple teamIds and syncs each after timeout', async () => {
-        mockGetIsCRTEnabled.mockResolvedValue(true);
-        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_USER_ID, value: user1.id}], prepareRecordsOnly: false});
-        await operator.handleUsers({users: [user1], prepareRecordsOnly: false});
-
-        await batchTeamThreadSync(serverUrl, teamId);
-        await batchTeamThreadSync(serverUrl, 'teamid2');
-        expect(mockClient.getThreads).not.toHaveBeenCalled();
-
-        await waitFor(() => expect(mockClient.getThreads).toHaveBeenCalled());
-        const getThreadsCalls = jest.mocked(mockClient.getThreads).mock.calls;
-        expect(getThreadsCalls.filter(teamFilter(teamId))).toHaveLength(1);
-        expect(getThreadsCalls.filter(teamFilter('teamid2'))).toHaveLength(1);
-        expect(getThreadsCalls.filter(allCallsFilter)).toHaveLength(2);
-    });
-
-    it('calling several times for the same team id does not create multiple calls', async () => {
-        mockGetIsCRTEnabled.mockResolvedValue(true);
-        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_USER_ID, value: user1.id}], prepareRecordsOnly: false});
-        await operator.handleUsers({users: [user1], prepareRecordsOnly: false});
-
-        await batchTeamThreadSync(serverUrl, teamId);
-        await batchTeamThreadSync(serverUrl, teamId);
-
-        await waitFor(() => expect(mockClient.getThreads).toHaveBeenCalled());
-        const getThreadsCalls = jest.mocked(mockClient.getThreads).mock.calls;
-        expect(getThreadsCalls.filter(teamFilter(teamId))).toHaveLength(1);
-        expect(getThreadsCalls.filter(allCallsFilter)).toHaveLength(1);
-    });
-
-    it('includes direct channels when empty teamId is in batch only once', async () => {
-        mockGetIsCRTEnabled.mockResolvedValue(true);
-        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_USER_ID, value: user1.id}], prepareRecordsOnly: false});
-        await operator.handleUsers({users: [user1], prepareRecordsOnly: false});
-
-        await batchTeamThreadSync(serverUrl, '');
-        await batchTeamThreadSync(serverUrl, teamId);
-        await batchTeamThreadSync(serverUrl, 'teamid2');
-        await batchTeamThreadSync(serverUrl, 'teamid3');
-
-        await waitFor(() => expect(mockClient.getThreads).toHaveBeenCalled());
-        expect(mockClient.getThreads).toHaveBeenCalled();
-        const getThreadsCalls = jest.mocked(mockClient.getThreads).mock.calls;
-        expect(getThreadsCalls.filter(teamFilter(teamId)).length).toBe(1);
-        expect(getThreadsCalls.filter(teamFilter('teamid2')).length).toBe(1);
-        expect(getThreadsCalls.filter(teamFilter('teamid3')).length).toBe(1);
-        expect(getThreadsCalls.filter(allCallsFilter)).toHaveLength(3);
-        expect(getThreadsCalls.filter((call) => call[10] === false && call[6] === undefined).length).toBe(1);
-    });
-
-    it('logs error when syncTeamThreads returns error', async () => {
-        mockGetIsCRTEnabled.mockResolvedValue(true);
-        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_USER_ID, value: user1.id}], prepareRecordsOnly: false});
-        await operator.handleUsers({users: [user1], prepareRecordsOnly: false});
-        const logErrorSpy = jest.spyOn(require('@utils/log'), 'logError').mockImplementation(() => {});
-        jest.mocked(mockClient.getThreads).mockImplementationOnce(() => {
-            throw new Error('sync failed');
-        });
-
-        await batchTeamThreadSync(serverUrl, teamId);
-
-        await waitFor(() => expect(logErrorSpy).toHaveBeenCalled());
-        expect(logErrorSpy).toHaveBeenCalledWith('batchTeamThreadSync: Error', expect.any(Error));
-        logErrorSpy.mockRestore();
     });
 });

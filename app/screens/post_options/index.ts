@@ -3,24 +3,23 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {combineLatest, of as of$, Observable} from 'rxjs';
-import {combineLatestWith, distinctUntilChanged, switchMap} from 'rxjs/operators';
+import {switchMap} from 'rxjs/operators';
 
-import {Permissions, Post, Screens} from '@constants';
+import {Permissions, Post} from '@constants';
 import {AppBindingLocations} from '@constants/apps';
 import {MAX_ALLOWED_REACTIONS} from '@constants/emoji';
-import {DEFAULT_LOCALE} from '@i18n';
 import AppsManager from '@managers/apps_manager';
-import {observeChannel, observeIsReadOnlyChannel, observeIsChannelAutotranslated, observeChannelInfo} from '@queries/servers/channel';
-import {observePost, observePostSaved} from '@queries/servers/post';
+import {observeChannel, observeIsReadOnlyChannel} from '@queries/servers/channel';
+import {observePost} from '@queries/servers/post';
 import {observeReactionsForPost} from '@queries/servers/reaction';
 import {observePermissionForChannel, observePermissionForPost} from '@queries/servers/role';
 import {observeConfigIntValue, observeConfigValue, observeLicense} from '@queries/servers/system';
 import {observeIsCRTEnabled, observeThreadById} from '@queries/servers/thread';
 import {observeCurrentUser} from '@queries/servers/user';
-import {isBoRPost, isOwnBoRPost, isUnrevealedBoRPost} from '@utils/bor';
+import {isBoRPost, isUnrevealedBoRPost} from '@utils/bor';
 import {toMilliseconds} from '@utils/datetime';
 import {isMinimumServerVersion} from '@utils/helpers';
-import {getPostTranslation, isFromWebhook, isSystemMessage} from '@utils/post';
+import {isSystemMessage} from '@utils/post';
 import {getPostIdsForCombinedUserActivityPost} from '@utils/post_list';
 
 import PostOptions from './post_options';
@@ -40,6 +39,8 @@ type EnhancedProps = WithDatabaseArgs & {
     sourceScreen: AvailableScreens;
     serverUrl: string;
 }
+
+const POST_RECALL_TIME_LIMIT_MS = 2 * 60 * 1000;
 
 const observeCanEditPost = (database: Database, isOwner: boolean, post: PostModel, postEditTimeLimit: number, isLicensed: boolean, channel: ChannelModel, user: UserModel) => {
     if (!post || isSystemMessage(post)) {
@@ -76,9 +77,13 @@ const withPost = withObservables([], ({post, database}: {post: Post | PostModel}
     };
 });
 
-const enhanced = withObservables([], ({combinedPost, post, showAddReaction, sourceScreen, database, serverUrl}: EnhancedProps) => {
+const enhanced = withObservables([], ({combinedPost, post, showAddReaction, database, serverUrl}: EnhancedProps) => {
+    const hasBeenDeleted = (post.deleteAt !== 0);
+    const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
+    const textMessage = Boolean(post.messageSource || post.message);
+    const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
+
     const channel = observeChannel(database, post.channelId);
-    const channelInfo = observeChannelInfo(database, post.channelId);
     const channelIsArchived = channel.pipe(switchMap((ch: ChannelModel) => of$(ch.deleteAt !== 0)));
     const currentUser = observeCurrentUser(database);
     const isLicensed = observeLicense(database).pipe(switchMap((lcs) => of$(lcs?.IsLicensed === 'true')));
@@ -87,6 +92,7 @@ const enhanced = withObservables([], ({combinedPost, post, showAddReaction, sour
     const postEditTimeLimit = observeConfigIntValue(database, 'PostEditTimeLimit', -1);
     const bindings = AppsManager.observeBindings(serverUrl, AppBindingLocations.POST_MENU_ITEM);
     const borPost = isBoRPost(post);
+    const unrevealedBoRPost = isUnrevealedBoRPost(post);
 
     const canPostPermission = combineLatest([channel, currentUser]).pipe(switchMap(([c, u]) => observePermissionForChannel(database, c, u, Permissions.CREATE_POST, false)));
     const hasAddReactionPermission = currentUser.pipe(switchMap((u) => observePermissionForPost(database, post, u, Permissions.ADD_REACTION, true)));
@@ -112,14 +118,12 @@ const enhanced = withObservables([], ({combinedPost, post, showAddReaction, sour
     );
 
     const canReply = borPost ? of$(false) : combineLatest([channelIsArchived, channelIsReadOnly, canPostPermission]).pipe(switchMap(([isArchived, isReadOnly, canPost]) => {
-        return of$(!isArchived && !isReadOnly && sourceScreen !== Screens.THREAD && !isSystemMessage(post) && canPost);
+        return of$(!isArchived && !isReadOnly && !hasBeenDeleted && !isSystemMessage(post) && canPost);
     }));
 
     const canPin = borPost ? of$(false) : combineLatest([channelIsArchived, channelIsReadOnly]).pipe(switchMap(([isArchived, isReadOnly]) => {
         return of$(!isSystemMessage(post) && !isArchived && !isReadOnly);
     }));
-
-    const isSaved = observePostSaved(database, post.id);
 
     const canEdit = borPost ? of$(false) : combineLatest([postEditTimeLimit, isLicensed, channel, currentUser, channelIsArchived, channelIsReadOnly, canEditUntil, canPostPermission]).pipe(
         switchMap(([lt, ls, c, u, isArchived, isReadOnly, until, canPost]) => {
@@ -128,80 +132,57 @@ const enhanced = withObservables([], ({combinedPost, post, showAddReaction, sour
             const timeNotReached = (until === -1) || (until > Date.now());
             return canEditPostPermission.pipe(
                 // eslint-disable-next-line max-nested-callbacks
-                switchMap((canEditPost) => of$(canEditPost && !isArchived && !isReadOnly && timeNotReached && canPost)),
+                switchMap((canEditPost) => of$(canEditPost && !hasBeenDeleted && within2MinFromCreateAt && !isArchived && !isReadOnly && timeNotReached && canPost)),
             );
         }),
     );
 
-    const canMarkAsUnread = combineLatest([currentUser, channelIsArchived]).pipe(
-        switchMap(([user, isArchived]) => of$(
-            !isArchived && (
-                (user?.id !== post.userId && !isSystemMessage(post)) || isFromWebhook(post)
-            ),
-        )),
-    );
-
-    const canAddReaction = combineLatest([hasAddReactionPermission, channelIsReadOnly, isUnderMaxAllowedReactions, channelIsArchived, currentUser]).pipe(
-        switchMap(([permission, readOnly, maxAllowed, isArchived, user]) => {
-            // Can't react on unrevealed BoR posts of other users
-            const preventBoRReaction = isUnrevealedBoRPost(post) && post.userId !== user?.id;
-            return of$(!isSystemMessage(post) && permission && !readOnly && !isArchived && maxAllowed && showAddReaction && !preventBoRReaction);
+    const canAddReaction = unrevealedBoRPost ? of$(false) : combineLatest([hasAddReactionPermission, channelIsReadOnly, isUnderMaxAllowedReactions, channelIsArchived]).pipe(
+        switchMap(([permission, readOnly, maxAllowed, isArchived]) => {
+            return of$(!isSystemMessage(post) && permission && !readOnly && !isArchived && maxAllowed && showAddReaction);
         }),
     );
 
-    const canDelete = combineLatest([canDeletePostPermission, channelIsArchived, channelIsReadOnly, canPostPermission, currentUser]).pipe(switchMap(([permission, isArchived, isReadOnly, canPost, user]) => {
-        const canDeleteBoRPost = borPost ? post.userId === user?.id : true;
-        return of$(permission && !isArchived && !isReadOnly && canPost && canDeleteBoRPost);
-    }));
+    const canDelete = combineLatest([canDeletePostPermission, currentUser, channelIsArchived, channelIsReadOnly, canPostPermission]).pipe(
+        switchMap(([permission, user, isArchived, isReadOnly, canPost]) => {
+            const isOwner = user?.id === post.userId;
+            return of$(permission && isOwner && !isArchived && !isReadOnly && canPost && !hasBeenDeleted && within2MinFromCreateAt);
+        }),
+    );
+
+    const canRecallEdit = combineLatest([currentUser, channelIsArchived, channelIsReadOnly]).pipe(
+        switchMap(([user, isArchived, isReadOnly]) => {
+            const isOwner = user?.id === post.userId;
+            return of$(
+                Boolean(
+                    isOwner &&
+                    !isArchived &&
+                    !isReadOnly &&
+                    within2MinFromCreateAt &&
+                    isRecallInferred &&
+                    !isSystemMessage(post) &&
+                    textMessage,
+                ),
+            );
+        }),
+    );
 
     const thread = observeIsCRTEnabled(database).pipe(
         switchMap((enabled) => (enabled ? observeThreadById(database, post.id) : of$(undefined))),
     );
 
-    const canViewTranslation = observeIsChannelAutotranslated(database, post.channelId).pipe(
-        combineLatestWith(currentUser),
-        switchMap(([isAutotranslated, user]) => {
-            const translation = getPostTranslation(post, user?.locale || DEFAULT_LOCALE);
-            return of$(isAutotranslated && post.type === '' && translation?.state === 'ready');
-        }),
-        distinctUntilChanged(),
-    );
-
-    const showBoRReadReceipts = combineLatest([currentUser]).pipe(
-        switchMap(([user]) => {
-            return of$(isOwnBoRPost(post, user?.id));
-        }),
-    );
-
-    const borReceiptData = combineLatest([channelInfo]).pipe(
-        switchMap(([info]) => {
-            const revealedCount = post.metadata?.recipients?.length || 0;
-            const totalRecipients = info ? Math.max(0, info.memberCount - 1) : 0;
-
-            return of$({
-                revealedCount,
-                totalRecipients,
-            });
-        }),
-    );
-
     return {
-        canMarkAsUnread,
         canAddReaction,
         canDelete,
         canReply,
         canPin,
         combinedPost: of$(combinedPost),
-        isSaved,
         canEdit,
-        canViewTranslation,
+        canRecallEdit,
         post,
         thread,
         bindings,
         isBoRPost: of$(borPost),
-        showBoRReadReceipts,
-        borReceiptData,
-        currentUser,
     };
 });
 

@@ -21,11 +21,21 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 const enhanced = withObservables(['channelId'], ({database, channelId}: {channelId: string} & WithDatabaseArgs) => {
     const isCRTEnabledObserver = observeIsCRTEnabled(database);
     const postsInChannelObserver = queryPostsInChannel(database, channelId).observeWithColumns(['earliest', 'latest']);
+    const myChannelObserver = observeMyChannel(database, channelId);
 
     return {
         isCRTEnabled: isCRTEnabledObserver,
-        lastViewedAt: observeMyChannel(database, channelId).pipe(
+        lastViewedAt: myChannelObserver.pipe(
             switchMap((myChannel) => of$(myChannel?.viewedAt)),
+            distinctUntilChanged(),
+        ),
+        unreadCount: myChannelObserver.pipe(
+            switchMap((myChannel) => {
+                if (!myChannel) {
+                    return of$(0);
+                }
+                return of$(myChannel.messageCount || 0);
+            }),
             distinctUntilChanged(),
         ),
         posts: combineLatest([isCRTEnabledObserver, postsInChannelObserver]).pipe(

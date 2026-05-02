@@ -15,11 +15,13 @@ import YouTube from './youtube';
 
 import type PostModel from '@typings/database/models/servers/post';
 import type {AvailableScreens} from '@typings/screens/navigation';
+import type {GestureResponderEvent} from 'react-native';
 
 type ContentProps = {
     isReplyPost: boolean;
     layoutWidth?: number;
     location: AvailableScreens;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     post: PostModel;
     theme: Theme;
     showPermalinkPreviews: boolean;
@@ -34,7 +36,7 @@ const contentType: Record<string, string> = {
     youtube: 'youtube',
 };
 
-const Content = ({isReplyPost, layoutWidth, location, post, theme, showPermalinkPreviews}: ContentProps) => {
+const Content = ({isReplyPost, layoutWidth, location, onLongPress, post, theme, showPermalinkPreviews}: ContentProps) => {
     let type: string | undefined = post.metadata?.embeds?.[0].type;
 
     const nAppBindings = Array.isArray(post.props?.app_bindings) ? post.props.app_bindings.length : 0;
@@ -56,6 +58,7 @@ const Content = ({isReplyPost, layoutWidth, location, post, theme, showPermalink
                     layoutWidth={layoutWidth}
                     location={location}
                     metadata={post.metadata}
+                    onLongPress={onLongPress}
                     postId={post.id}
                     theme={theme}
                 />
@@ -77,6 +80,7 @@ const Content = ({isReplyPost, layoutWidth, location, post, theme, showPermalink
                     layoutWidth={layoutWidth}
                     location={location}
                     metadata={post.metadata}
+                    onLongPress={onLongPress}
                     postId={post.id}
                     removeLinkPreview={post.props?.remove_link_preview === 'true'}
                     theme={theme}
@@ -91,6 +95,7 @@ const Content = ({isReplyPost, layoutWidth, location, post, theme, showPermalink
                         layoutWidth={layoutWidth}
                         location={location}
                         metadata={post.metadata}
+                        onLongPress={onLongPress}
                         postId={post.id}
                         theme={theme}
                     />

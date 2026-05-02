@@ -14,7 +14,12 @@ export type ShowSnackBarArgs = {
     messageValues?: Record<string, PrimitiveType>;
     customMessage?: string;
     type?: SnackBarConfig['type'];
-    actionText?: string;
+
+    /** When true, snack bar will not hide on screen navigation (e.g. for success toasts after modal dismiss) */
+    ignoreNavigationEvents?: boolean;
+
+    /** Display duration in ms (default 3000). Used with ignoreNavigationEvents for toast-style messages */
+    duration?: number;
 };
 
 export const showSnackBar = (passProps: ShowSnackBarArgs) => {
@@ -69,15 +74,6 @@ export const showScheduledPostCreationErrorSnackbar = (errorMessage: string) => 
 export const showPlaybookErrorSnackbar = () => {
     return showSnackBar({
         barType: SNACK_BAR_TYPE.PLAYBOOK_ERROR,
-    });
-};
-
-export const showEnableTranslationSnackbar = (onAction: () => void, location: AvailableScreens) => {
-    return showSnackBar({
-        onAction,
-        barType: SNACK_BAR_TYPE.ENABLE_TRANSLATION,
-        sourceScreen: location,
-        actionText: 'Enable',
     });
 };
 

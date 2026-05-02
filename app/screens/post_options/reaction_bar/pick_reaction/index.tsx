@@ -44,7 +44,7 @@ const PickReaction = ({openEmojiPicker, width, height}: PickReactionProps) => {
             width,
             height,
         },
-    ], [styles, width, height]);
+    ], [width, height]);
 
     return (
         <Pressable

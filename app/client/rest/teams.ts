@@ -21,6 +21,8 @@ export interface ClientTeamsMix {
     getMyTeamMembers: (groupLabel?: RequestGroupLabel) => Promise<TeamMembership[]>;
     getTeamMembers: (teamId: string, page?: number, perPage?: number) => Promise<TeamMembership[]>;
     getTeamMember: (teamId: string, userId: string, groupLabel?: RequestGroupLabel) => Promise<TeamMembership>;
+    updateTeamMemberRoles: (teamId: string, userId: string, roles: string) => Promise<TeamMembership>;
+    transferTeamOwnership: (teamId: string, newOwnerId: string, reason?: string) => Promise<{team_id: string; old_owner_id: string; new_owner_id: string; new_owner_name: string; transferred_at: number; reason?: string}>;
     getTeamMembersByIds: (teamId: string, userIds: string[]) => Promise<TeamMembership[]>;
     addToTeam: (teamId: string, userId: string) => Promise<TeamMembership>;
     addUsersToTeamGracefully: (teamId: string, userIds: string[]) => Promise<TeamMemberWithError[]>;
@@ -28,8 +30,9 @@ export interface ClientTeamsMix {
     sendGuestEmailInvitesToTeamGracefully: (teamId: string, emails: string[], channels: string[], message?: string, magicLink?: boolean) => Promise<TeamInviteWithError[]>;
     joinTeam: (inviteId: string) => Promise<TeamMembership>;
     removeFromTeam: (teamId: string, userId: string) => Promise<any>;
-    getTeamStats: (teamId: string) => Promise<any>;
+    getTeamStats: (teamId: string) => Promise<{team_id: string; total_member_count: number}>;
     getTeamIconUrl: (teamId: string, lastTeamIconUpdate: number) => string;
+    existsTeam: (name: string) => Promise<boolean>;
 }
 
 const ClientTeams = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
@@ -117,6 +120,20 @@ const ClientTeams = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         );
     };
 
+    updateTeamMemberRoles = async (teamId: string, userId: string, roles: string) => {
+        return this.doFetch(
+            `${this.getTeamMemberRoute(teamId, userId)}/roles`,
+            {method: 'put', body: {roles}},
+        );
+    };
+
+    transferTeamOwnership = async (teamId: string, newOwnerId: string, reason?: string) => {
+        return this.doFetch(
+            `${this.getTeamRoute(teamId)}/ownership/transfer`,
+            {method: 'post', body: {new_owner_id: newOwnerId, reason}},
+        );
+    };
+
     getTeamMembersByIds = (teamId: string, userIds: string[]) => {
         return this.doFetch(
             `${this.getTeamMembersRoute(teamId)}/ids`,
@@ -191,6 +208,13 @@ const ClientTeams = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         }
 
         return `${this.getTeamRoute(teamId)}/image${buildQueryString(params)}`;
+    };
+
+    existsTeam = async (name: string) => {
+        return this.doFetch(
+            `${this.getTeamsRoute()}/name/${name}/exists`,
+            {method: 'get'},
+        ).then((response: {exists: boolean}) => response.exists);
     };
 };
 

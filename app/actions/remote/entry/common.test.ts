@@ -430,8 +430,8 @@ describe('actions/remote/entry/common', () => {
             expect(setCurrentTeamAndChannelId).toHaveBeenCalled();
         });
 
-        it('should handle current channel switch during loading - thread mounted', async () => {
-            jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.THREAD]);
+        it('should handle current channel switch during loading - home only (no channel screen)', async () => {
+            jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.HOME]);
             jest.mocked(getCurrentTeamId).mockResolvedValueOnce('team1');
             jest.mocked(getCurrentChannelId).mockResolvedValueOnce('channel2');
             await handleEntryAfterLoadNavigation(
@@ -445,11 +445,11 @@ describe('actions/remote/entry/common', () => {
                 true,
             );
 
-            expect(handleKickFromChannel).toHaveBeenCalled();
+            expect(setCurrentTeamAndChannelId).toHaveBeenCalled();
         });
 
-        it('should handle initial channel switch during loading - thread mounted', async () => {
-            jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.THREAD]);
+        it('should handle initial channel mismatch during loading - home only (no channel screen)', async () => {
+            jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.HOME]);
             jest.mocked(getCurrentTeamId).mockResolvedValueOnce('team1');
             jest.mocked(getCurrentChannelId).mockResolvedValueOnce('channel1');
             await handleEntryAfterLoadNavigation(
@@ -463,7 +463,7 @@ describe('actions/remote/entry/common', () => {
                 true,
             );
 
-            expect(handleKickFromChannel).toHaveBeenCalled();
+            expect(setCurrentTeamAndChannelId).toHaveBeenCalled();
         });
 
         it('should handle error gracefully', async () => {
@@ -521,8 +521,8 @@ describe('actions/remote/entry/common', () => {
             expect(mockOperator.handleSystem).toHaveBeenCalled();
         });
 
-        it('should handle threads screen mounted scenario', async () => {
-            jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.THREAD]);
+        it('should handle home screen mounted scenario', async () => {
+            jest.spyOn(NavigationStore, 'getScreensInStack').mockReturnValue([Screens.HOME]);
             jest.spyOn(require('@utils/helpers'), 'isTablet').mockReturnValue(false);
 
             await handleEntryAfterLoadNavigation(

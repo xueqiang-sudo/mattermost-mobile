@@ -7,14 +7,19 @@ import {Channel, General, Permissions} from '@constants';
 import {hasPermission} from '@utils/role';
 
 import {
+    channelSupportsAnnouncementUx,
     compareNotifyProps,
     filterChannelsMatchingTerm,
     generateChannelNameFromDisplayName,
+    getChannelTitleDisplayName,
     getDirectChannelName,
     isArchived,
     isDefaultChannel,
+    isDirectMessageChannel,
     isDMorGM,
     isTypeDMorGM,
+    permissionForEditingChannelAnnouncement,
+    usesDiscussionGroupChannelCopy,
     selectDefaultChannelForTeam,
     sortChannelsByDisplayName,
     sortChannelsModelByDisplayName,
@@ -58,6 +63,50 @@ describe('isTypeDMorGM', () => {
     it('should return false for other channel types', () => {
         expect(isTypeDMorGM(General.OPEN_CHANNEL)).toBe(false);
         expect(isTypeDMorGM(undefined)).toBe(false);
+    });
+});
+
+describe('isDirectMessageChannel', () => {
+    it('is true only for one-to-one DM', () => {
+        expect(isDirectMessageChannel(General.DM_CHANNEL)).toBe(true);
+        expect(isDirectMessageChannel(General.GM_CHANNEL)).toBe(false);
+        expect(isDirectMessageChannel(General.OPEN_CHANNEL)).toBe(false);
+        expect(isDirectMessageChannel(undefined)).toBe(false);
+    });
+});
+
+describe('channelSupportsAnnouncementUx', () => {
+    it('is true for private group, group message, and open channel', () => {
+        expect(channelSupportsAnnouncementUx(General.PRIVATE_CHANNEL)).toBe(true);
+        expect(channelSupportsAnnouncementUx(General.GM_CHANNEL)).toBe(true);
+        expect(channelSupportsAnnouncementUx(General.OPEN_CHANNEL)).toBe(true);
+    });
+
+    it('is false for DM', () => {
+        expect(channelSupportsAnnouncementUx(General.DM_CHANNEL)).toBe(false);
+        expect(channelSupportsAnnouncementUx(undefined)).toBe(false);
+    });
+});
+
+describe('permissionForEditingChannelAnnouncement', () => {
+    it('maps channel types to edit-header permissions', () => {
+        expect(permissionForEditingChannelAnnouncement(General.PRIVATE_CHANNEL)).toBe(Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES);
+        expect(permissionForEditingChannelAnnouncement(General.GM_CHANNEL)).toBe(Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES);
+        expect(permissionForEditingChannelAnnouncement(General.OPEN_CHANNEL)).toBe(Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES);
+        expect(permissionForEditingChannelAnnouncement(General.DM_CHANNEL)).toBeUndefined();
+    });
+});
+
+describe('usesDiscussionGroupChannelCopy', () => {
+    it('should return true for group messages only', () => {
+        expect(usesDiscussionGroupChannelCopy(General.GM_CHANNEL)).toBe(true);
+        expect(usesDiscussionGroupChannelCopy(General.PRIVATE_CHANNEL)).toBe(false);
+    });
+
+    it('should return false for DM and open channels', () => {
+        expect(usesDiscussionGroupChannelCopy(General.DM_CHANNEL)).toBe(false);
+        expect(usesDiscussionGroupChannelCopy(General.OPEN_CHANNEL)).toBe(false);
+        expect(usesDiscussionGroupChannelCopy(undefined)).toBe(false);
     });
 });
 
@@ -270,5 +319,37 @@ describe('isDefaultChannel', () => {
 
     it('should return false if channel is undefined', () => {
         expect(isDefaultChannel(undefined)).toBe(false);
+    });
+});
+
+describe('getChannelTitleDisplayName', () => {
+    it('should use team display name for open channel when provided', () => {
+        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道', type: General.OPEN_CHANNEL} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Acme Corp')).toBe('Acme Corp');
+    });
+
+    it('should fall back to channel display name when team is missing on open channel', () => {
+        const channel = {name: General.DEFAULT_CHANNEL, displayName: '公共频道', type: General.OPEN_CHANNEL} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, '')).toBe('公共频道');
+        expect(getChannelTitleDisplayName(channel, null)).toBe('公共频道');
+    });
+
+    it('should return channel display name for private channels', () => {
+        const channel = {name: 'off-topic', displayName: 'Off-Topic', type: General.PRIVATE_CHANNEL} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Team')).toBe('Off-Topic');
+    });
+
+    it('should return channel display name for group messages', () => {
+        const channel = {name: 'gm1', displayName: 'Project Group', type: General.GM_CHANNEL} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Team')).toBe('Project Group');
+    });
+
+    it('should return channel display name for non-default open channels', () => {
+        const channel = {name: 'marketing', displayName: 'Marketing', type: General.OPEN_CHANNEL} as ChannelModel;
+        expect(getChannelTitleDisplayName(channel, 'Acme Corp')).toBe('Marketing');
+    });
+
+    it('should return empty string when channel is undefined', () => {
+        expect(getChannelTitleDisplayName(undefined, 'Team')).toBe('');
     });
 });

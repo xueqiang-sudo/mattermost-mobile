@@ -41,7 +41,7 @@ export async function setOwner(serverUrl: string, playbookRunId: string, ownerId
     }
 }
 
-export async function updatePlaybookRun(serverUrl: string, playbookRunId: string, name: string, summary?: string) {
+export async function renamePlaybookRun(serverUrl: string, playbookRunId: string, name: string) {
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const run = await getPlaybookRunById(database, playbookRunId);
@@ -49,23 +49,15 @@ export async function updatePlaybookRun(serverUrl: string, playbookRunId: string
             return {error: `Playbook run not found: ${playbookRunId}`};
         }
 
-        // Validate name is not empty or whitespace-only
-        if (!name || !name.trim()) {
-            return {error: 'Name cannot be empty or whitespace-only'};
-        }
-
         await database.write(async () => {
             run.update((r) => {
-                r.name = name.trim();
-                if (summary !== undefined) {
-                    r.summary = summary.trim();
-                }
+                r.name = name;
             });
         });
 
         return {data: true};
     } catch (error) {
-        logError('[updatePlaybookRun]', error);
+        logError('failed to rename playbook run', error);
         return {error};
     }
 }

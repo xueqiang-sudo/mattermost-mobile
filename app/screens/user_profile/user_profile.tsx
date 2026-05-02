@@ -3,14 +3,14 @@
 
 import moment from 'moment';
 import mtz from 'moment-timezone';
-import React, {useMemo} from 'react';
+import React, {useEffect, useMemo} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
+import {View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {fetchTeamAndChannelMembership} from '@actions/remote/user';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
-import useDidMount from '@hooks/did_mount';
 import {getLocaleFromLanguage} from '@i18n';
 import BottomSheet from '@screens/bottom_sheet';
 import {bottomSheetSnapPoint} from '@utils/helpers';
@@ -18,6 +18,7 @@ import {getUserCustomStatus, getUserTimezone, isCustomStatusExpired} from '@util
 
 import ManageUserOptions, {DIVIDER_MARGIN} from './manage_user_options';
 import UserProfileOptions, {type OptionsType} from './options';
+import PickerProfileDetails, {getPickerProfileDetailsHeight} from './picker_profile_details';
 import UserProfileTitle, {HEADER_TEXT_HEIGHT} from './title';
 import UserInfo from './user_info';
 
@@ -35,7 +36,7 @@ type Props = {
     isChannelAdmin: boolean;
     canManageAndRemoveMembers?: boolean;
     isCustomStatusEnabled: boolean;
-    isDirectMessageWithUser: boolean;
+    isDirectMessage: boolean;
     isDefaultChannel: boolean;
     isMilitaryTime: boolean;
     isSystemAdmin: boolean;
@@ -65,23 +66,11 @@ const messages = defineMessages({
         defaultMessage: 'Manage member',
     },
 });
-const channelContextScreens: AvailableScreens[] = [Screens.CHANNEL, Screens.THREAD];
+const channelContextScreens: AvailableScreens[] = [Screens.CHANNEL];
 
-type ShouldShowUserProfileOptionsProps = {
-    channelContext: boolean;
-    isDirectMessageWithUser: boolean;
-    manageMode: boolean;
-    override: boolean;
-};
-
-export function shouldShowUserProfileOptions({
-    channelContext,
-    isDirectMessageWithUser,
-    manageMode,
-    override,
-}: ShouldShowUserProfileOptionsProps) {
-    return (!isDirectMessageWithUser || !channelContext) && !override && !manageMode;
-}
+const PICKER_PREVIEW_TITLE_BLOCK = 96;
+/** PickerProfileDetails 卡片 marginTop + marginBottom，未计入 getPickerProfileDetailsHeight */
+const PICKER_PROFILE_CARD_VERTICAL_MARGIN = 12;
 
 const UserProfile = ({
     canChangeMemberRoles,
@@ -94,7 +83,7 @@ const UserProfile = ({
     isChannelAdmin,
     isCustomStatusEnabled,
     isDefaultChannel,
-    isDirectMessageWithUser,
+    isDirectMessage,
     isMilitaryTime,
     isSystemAdmin,
     isTeamAdmin,
@@ -112,6 +101,7 @@ const UserProfile = ({
     const {formatMessage, locale} = useIntl();
     const serverUrl = useServerUrl();
     const channelContext = location ? channelContextScreens.includes(location) : false;
+    const isPickerPreview = Boolean(location === Screens.CREATE_DIRECT_MESSAGE && !manageMode);
     const showOptions: OptionsType = channelContext && !user.isBot ? 'all' : 'message';
     const override = Boolean(userIconOverride || usernameOverride);
     const {bottom} = useSafeAreaInsets();
@@ -130,19 +120,55 @@ const UserProfile = ({
     }
 
     const showCustomStatus = isCustomStatusEnabled && Boolean(customStatus) && !user.isBot && !isCustomStatusExpired(user);
-    const showUserProfileOptions = shouldShowUserProfileOptions({
-        channelContext,
-        isDirectMessageWithUser,
-        manageMode,
-        override,
-    });
+    const showUserProfileOptions = (!isDirectMessage || !channelContext) && !override && !manageMode;
     const showNickname = Boolean(user.nickname) && !override && !user.isBot && !manageMode;
     const showPosition = Boolean(user.position) && !override && !user.isBot && !manageMode;
     const showLocalTime = Boolean(localTime) && !override && !user.isBot && !manageMode;
 
+    /** 选人预览：灰色卡片已含职位；标题已有昵称；不展示两地时间与下方重复项 */
+    const userInfoShowNickname = isPickerPreview ? false : showNickname;
+    const userInfoShowPosition = isPickerPreview ? false : showPosition;
+    const userInfoShowLocalTime = isPickerPreview ? false : showLocalTime;
+
     const headerText = manageMode ? formatMessage(messages.manageMember) : undefined;
 
+    const pickerDetailsHeight = isPickerPreview ? getPickerProfileDetailsHeight(user) : 0;
+
     const snapPoints = useMemo(() => {
+        if (isPickerPreview) {
+            let title = PICKER_PREVIEW_TITLE_BLOCK;
+
+            if (headerText) {
+                title += HEADER_TEXT_HEIGHT;
+            }
+
+            if (showUserProfileOptions) {
+                title += showOptions === 'all' ? OPTIONS_HEIGHT : SINGLE_OPTION_HEIGHT;
+            }
+
+            const optionsCount = [
+                showCustomStatus,
+                userInfoShowNickname,
+                userInfoShowPosition,
+                userInfoShowLocalTime,
+            ].reduce((acc, v) => {
+                return v ? acc + 1 : acc;
+            }, 0);
+
+            const userInfoSnapHeight = optionsCount > 0 ? bottomSheetSnapPoint(optionsCount, LABEL_HEIGHT) : 0;
+            const bottomComfort = Math.min(bottom, 16);
+
+            return [
+                1,
+                title +
+                    userInfoSnapHeight +
+                    bottomComfort +
+                    pickerDetailsHeight +
+                    PICKER_PROFILE_CARD_VERTICAL_MARGIN,
+                '88%',
+            ];
+        }
+
         let title = TITLE_HEIGHT;
 
         if (headerText) {
@@ -180,24 +206,29 @@ const UserProfile = ({
             '90%',
         ];
     }, [
+        isPickerPreview,
         headerText,
         showUserProfileOptions,
         showCustomStatus,
         showNickname,
         showPosition,
         showLocalTime,
+        userInfoShowNickname,
+        userInfoShowPosition,
+        userInfoShowLocalTime,
         manageMode,
         bottom,
         showOptions,
         canChangeMemberRoles,
         canManageAndRemoveMembers,
+        pickerDetailsHeight,
     ]);
 
-    useDidMount(() => {
+    useEffect(() => {
         if (currentUserId !== user.id) {
             fetchTeamAndChannelMembership(serverUrl, user.id, teamId, channelId);
         }
-    });
+    }, []);
 
     const renderContent = () => {
         return (
@@ -206,7 +237,7 @@ const UserProfile = ({
                     enablePostIconOverride={enablePostIconOverride}
                     enablePostUsernameOverride={enablePostUsernameOverride}
                     headerText={headerText}
-                    imageSize={manageMode ? MANAGE_ICON_HEIGHT : undefined}
+                    imageSize={manageMode ? MANAGE_ICON_HEIGHT : (isPickerPreview ? 72 : undefined)}
                     isChannelAdmin={isChannelAdmin}
                     isSystemAdmin={isSystemAdmin}
                     isTeamAdmin={isTeamAdmin}
@@ -215,6 +246,7 @@ const UserProfile = ({
                     userIconOverride={userIconOverride}
                     usernameOverride={usernameOverride}
                     hideGuestTags={hideGuestTags}
+                    pickerPreview={isPickerPreview}
                 />
                 {showUserProfileOptions &&
                     <UserProfileOptions
@@ -224,17 +256,22 @@ const UserProfile = ({
                         userId={user.id}
                     />
                 }
+                {isPickerPreview && !manageMode &&
+                    <PickerProfileDetails user={user}/>
+                }
                 {!manageMode && (
-                    <UserInfo
-                        localTime={localTime}
-                        showCustomStatus={showCustomStatus}
-                        showNickname={showNickname}
-                        showPosition={showPosition}
-                        showLocalTime={showLocalTime}
-                        user={user}
-                        enableCustomAttributes={enableCustomAttributes}
-                        customAttributesSet={customAttributesSet}
-                    />
+                    <View style={isPickerPreview ? {marginTop: 8} : undefined}>
+                        <UserInfo
+                            localTime={localTime}
+                            showCustomStatus={showCustomStatus}
+                            showNickname={userInfoShowNickname}
+                            showPosition={userInfoShowPosition}
+                            showLocalTime={userInfoShowLocalTime}
+                            user={user}
+                            enableCustomAttributes={enableCustomAttributes}
+                            customAttributesSet={customAttributesSet}
+                        />
+                    </View>
                 )}
                 {manageMode && channelId && (canManageAndRemoveMembers || canChangeMemberRoles) &&
                     <ManageUserOptions
@@ -257,6 +294,7 @@ const UserProfile = ({
             initialSnapIndex={1}
             snapPoints={snapPoints}
             testID='user_profile'
+            contentStyle={isPickerPreview ? {flex: 0} : undefined}
         />
     );
 };

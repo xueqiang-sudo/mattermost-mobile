@@ -108,10 +108,10 @@ export async function pushNotificationEntry(serverUrl: string, notification: Not
 
             if (actualRootId) {
                 PerformanceMetricsManager.setLoadTarget('THREAD');
-                await fetchAndSwitchToThread(serverUrl, actualRootId, true, groupLabel);
+                await fetchAndSwitchToThread(serverUrl, actualRootId, true, groupLabel, true);
             } else if (post) {
                 PerformanceMetricsManager.setLoadTarget('THREAD');
-                await fetchAndSwitchToThread(serverUrl, rootId, true, groupLabel);
+                await fetchAndSwitchToThread(serverUrl, rootId, true, groupLabel, true);
             } else {
                 emitNotificationError('Post');
             }

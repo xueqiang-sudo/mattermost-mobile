@@ -46,7 +46,6 @@ describe('Header', () => {
         teammateNameDisplay: '',
         hideGuestTags: false,
         currentUser,
-        isChannelAutotranslated: false,
     };
 
     it('Should show BoR icon for own BoR post', () => {
@@ -86,5 +85,25 @@ describe('Header', () => {
         );
 
         expect(screen.queryByTestId('expiry-timer')).toBeVisible();
+    });
+
+    it('Should show time only for WeChat own row (no self display name)', () => {
+        const author = TestHelper.fakeUserModel({username: 'self_user'});
+        const post = TestHelper.fakePostModel({
+            userId: author.id,
+        });
+
+        renderWithIntlAndTheme(
+            <Header
+                {...defaultProps}
+                author={author}
+                location='Channel'
+                post={post}
+                timeOnly={true}
+            />,
+        );
+
+        expect(screen.getByTestId('post_header.date_time')).toBeTruthy();
+        expect(screen.queryByTestId('post_header.display_name')).toBeNull();
     });
 });

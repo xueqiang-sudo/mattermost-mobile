@@ -1,0 +1,385 @@
+23:04:34.668 detox[66400] B detox/node_modules/detox/local-cli/cli.js test -C /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/.detoxrc.json -c android.emu.debug --reuse --record-logs failing --take-screenshots failing --testPathPattern message_recall_reedit_quote_chain --artifacts-location /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test
+  data: {
+    "id": "0471de32-c11f-5c59-82b2-a5417421c1e3",
+    "detoxConfig": {
+      "configurationName": "android.emu.debug",
+      "apps": {
+        "default": {
+          "type": "android.apk",
+          "binaryPath": "../android/app/build/outputs/apk/debug/app-debug.apk",
+          "build": "cd ../android && ./gradlew clean && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug && cd ../detox"
+        }
+      },
+      "artifacts": {
+        "rootDir": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test/android.emu.debug.2026-03-25 15-04-34Z",
+        "plugins": {
+          "log": {
+            "enabled": true,
+            "keepOnlyFailedTestsArtifacts": true
+          },
+          "screenshot": {
+            "enabled": true,
+            "shouldTakeAutomaticSnapshots": true,
+            "keepOnlyFailedTestsArtifacts": true
+          },
+          "video": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "instruments": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "uiHierarchy": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          }
+        },
+        "pathBuilder": "./e2e/path_builder.js"
+      },
+      "behavior": {
+        "init": {
+          "keepLockFile": false,
+          "reinstallApp": false,
+          "launchApp": false,
+          "exposeGlobals": true
+        },
+        "cleanup": {
+          "shutdownDevice": false
+        },
+        "launchApp": "auto"
+      },
+      "cli": {
+        "artifactsLocation": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test",
+        "recordLogs": "failing",
+        "takeScreenshots": "failing",
+        "configPath": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/.detoxrc.json",
+        "configuration": "android.emu.debug",
+        "reuse": true,
+        "start": true
+      },
+      "commands": [
+        {
+          "appName": "default",
+          "build": "cd ../android && ./gradlew clean && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug && cd ../detox"
+        }
+      ],
+      "device": {
+        "type": "android.emulator",
+        "device": {
+          "avdName": "detox_pixel_4_xl_api_34"
+        }
+      },
+      "logger": {
+        "level": "info",
+        "overrideConsole": true,
+        "options": {
+          "showLoggerName": true,
+          "showPid": true,
+          "showLevel": false,
+          "showMetadata": false,
+          "basepath": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src",
+          "prefixers": {},
+          "stringifiers": {}
+        }
+      },
+      "testRunner": {
+        "retries": 0,
+        "forwardEnv": false,
+        "detached": false,
+        "bail": false,
+        "jest": {
+          "setupTimeout": 300000,
+          "teardownTimeout": 30000,
+          "retryAfterCircusRetries": false,
+          "reportWorkerAssign": true
+        },
+        "args": {
+          "$0": "jest",
+          "_": [],
+          "config": "e2e/config.js",
+          "testPathPattern": "message_recall_reedit_quote_chain",
+          "--": []
+        },
+        "$0": "jest"
+      },
+      "session": {
+        "autoStart": true,
+        "debugSynchronization": 5000,
+        "sessionId": "mobile-test-session"
+      }
+    },
+    "detoxIPCServer": "primary-66400",
+    "testResults": [],
+    "testSessionIndex": 0,
+    "workersCount": 0
+  }
+23:04:35.049 detox[66400] i Server path not specified, so defaulting to ipc.config.socketRoot + ipc.config.appspace + ipc.config.id /tmp/detox.primary-66400
+23:04:35.067 detox[66400] i starting server on  /tmp/detox.primary-66400 
+23:04:35.067 detox[66400] i starting TLS server false
+23:04:35.069 detox[66400] i starting server as Unix || Windows Socket
+23:04:35.089 detox[66400] i Detox server listening on localhost:60380...
+23:04:35.109 detox[66400] i Serialized the session state at: /private/var/folders/sj/3n38y4r17qg9v06fpf2lxpkw0000gn/T/0471de32-c11f-5c59-82b2-a5417421c1e3.detox.json
+23:04:35.121 detox[66400] B jest --config e2e/config.js --testPathPattern message_recall_reedit_quote_chain
+23:04:44.278 detox[66522] i Service path not specified, so defaulting to ipc.config.socketRoot + ipc.config.appspace + id 
+23:04:44.286 detox[66522] i requested connection to  primary-66400 /tmp/detox.primary-66400
+23:04:44.286 detox[66522] i Connecting client on Unix Socket : /tmp/detox.primary-66400
+23:04:44.341 detox[66522] i retrying reset
+23:04:44.357 detox[66522] i dispatching event to  primary-66400 /tmp/detox.primary-66400  :  registerContext , { id: 'secondary-66522' }
+23:04:44.362 detox[66400] i ## socket connection to server detected ##
+23:04:44.392 detox[66400] i received event of :  registerContext { id: 'secondary-66522' }
+23:04:44.397 detox[66400] i dispatching event to socket  :  registerContextDone {
+  testResults: [],
+  testSessionIndex: 0,
+  unsafe_earlyTeardown: undefined
+}
+23:04:44.403 detox[66522] i ## received events ##
+23:04:44.406 detox[66522] i detected event registerContextDone { testResults: [], testSessionIndex: 0 }
+23:04:48.962 detox[66522] B detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts
+23:04:49.063 detox[66522] B set up environment
+23:04:49.070 detox[66522] i dispatching event to  primary-66400 /tmp/detox.primary-66400  :  registerWorker , { workerId: 'w1' }
+23:04:49.240 detox[66400] i received event of :  registerWorker { workerId: 'w1' }
+23:04:49.260 detox[66400] i dispatching event to socket  :  registerWorkerDone { workersCount: 1 }
+23:04:49.268 detox[66522] i ## received events ##
+23:04:49.269 detox[66522] i detected event registerWorkerDone { workersCount: 1 }
+23:04:49.270 detox[66400] i broadcasting event to all known sockets listening to  /tmp/detox.primary-66400  :   sessionStateUpdate { workersCount: 1 }
+23:04:52.193 detox[66522] i ## received events ##
+23:04:52.193 detox[66522] i detected event sessionStateUpdate { workersCount: 1 }
+23:04:52.522 detox[66522] i opened web socket to: ws://localhost:60380
+23:04:52.535 detox[66400] B connection :60380<->:60499
+23:04:52.542 detox[66522] i send message
+  data: {"type":"login","params":{"sessionId":"mobile-test-session","role":"tester"},"messageId":0}
+23:04:52.558 detox[66400] i get
+  data: {"type":"login","params":{"sessionId":"mobile-test-session","role":"tester"},"messageId":0}
+23:04:52.561 detox[66400] i created session mobile-test-session
+23:04:52.564 detox[66400] i send
+  data: {
+    "type": "loginSuccess",
+    "params": {
+      "testerConnected": true,
+      "appConnected": false
+    },
+    "messageId": 0
+  }
+23:04:52.572 detox[66400] i tester joined session mobile-test-session
+23:04:52.574 detox[66522] i get message
+  data: {"type":"loginSuccess","params":{"testerConnected":true,"appConnected":false},"messageId":0}
+   
+23:04:54.147 detox[66522] i dispatching event to  primary-66400 /tmp/detox.primary-66400  :  allocateDevice , {
+  deviceConfig: {
+    type: 'android.emulator',
+    device: { avdName: 'detox_pixel_4_xl_api_34' }
+  }
+}
+23:04:54.167 detox[66400] i received event of :  allocateDevice {
+  deviceConfig: {
+    type: 'android.emulator',
+    device: { avdName: 'detox_pixel_4_xl_api_34' }
+  }
+}
+23:04:54.833 detox[66400] B init
+  args: ()
+23:04:54.877 detox[66400] E init
+23:04:54.877 detox[66400] B allocate
+  data: {
+    "type": "android.emulator",
+    "device": {
+      "avdName": "detox_pixel_4_xl_api_34"
+    }
+  }
+23:04:58.338 detox[66400] E allocate
+  error: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'
+  
+  HINT: Make sure you choose one of the available emulators: Pixel_9a
+23:04:58.359 detox[66400] i dispatching event to socket  :  allocateDeviceDone {
+  error: {
+    name: 'DetoxRuntimeError',
+    message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+      '\n' +
+      'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+    stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+      '\n' +
+      'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+      '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+      '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+      '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+      '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+  }
+}
+23:04:58.366 detox[66522] i ## received events ##
+23:04:58.384 detox[66522] i detected event allocateDeviceDone {
+  error: {
+    name: 'DetoxRuntimeError',
+    message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+      '\n' +
+      'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+    stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+      '\n' +
+      'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+      '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+      '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+      '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+      '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+  }
+}
+23:04:58.415 detox[66522] E set up environment
+  error: DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'
+  
+  HINT: Make sure you choose one of the available emulators: Pixel_9a
+      at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)
+      at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)
+      at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)
+      at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22
+23:04:58.440 detox[66522] B tear down environment
+23:04:58.444 detox[66522] B onBeforeCleanup
+  args: ()
+23:04:58.469 detox[66522] E onBeforeCleanup
+23:04:58.511 detox[66400] i tester exited session mobile-test-session
+23:04:58.530 detox[66400] E connection :60380<->:60499
+23:04:58.548 detox[66522] E tear down environment
+23:04:58.549 detox[66522] E detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts
+23:04:59.011 detox[66522] i dispatching event to  primary-66400 /tmp/detox.primary-66400  :  reportTestResults , {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+        stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+          '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+          '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+          '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+          '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:04:59.086 detox[66400] i received event of :  reportTestResults {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+        stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+          '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+          '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+          '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+          '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:04:59.105 detox[66400] i dispatching event to socket  :  reportTestResultsDone {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+        stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+          '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+          '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+          '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+          '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:04:59.120 detox[66522] i ## received events ##
+23:04:59.123 detox[66522] i detected event reportTestResultsDone {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+        stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+          '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+          '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+          '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+          '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:04:59.127 detox[66400] i broadcasting event to all known sockets listening to  /tmp/detox.primary-66400  :   sessionStateUpdate {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+        stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+          '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+          '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+          '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+          '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:04:59.208 detox[66522] i ## received events ##
+23:04:59.216 detox[66522] i detected event sessionStateUpdate {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: "Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a',
+        stack: "DetoxRuntimeError: Cannot boot Android Emulator with the name: 'detox_pixel_4_xl_api_34'\n" +
+          '\n' +
+          'HINT: Make sure you choose one of the available emulators: Pixel_9a\n' +
+          '    at AVDValidator._assertAVDMatch (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:36:13)\n' +
+          '    at AVDValidator.validate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/AVDValidator.js:18:16)\n' +
+          '    at async EmulatorAllocDriver.allocate (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/drivers/android/emulator/EmulatorAllocDriver.js:59:5)\n' +
+          '    at async /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src/devices/allocation/DeviceAllocator.js:44:22'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:04:59.354 detox[66522] i 📦 report is created on: /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test/android-report.html
+23:05:00.020 detox[66522] i connection closed primary-66400 /tmp/detox.primary-66400 0 tries remaining of 0
+23:05:00.021 detox[66522] i secondary-66522 exceeded connection rety amount of  or stopRetrying flag set.
+23:05:00.025 detox[66400] i socket disconnected secondary-66522
+23:05:00.420 detox[66400] E Command failed with exit code = 1:
+jest --config e2e/config.js --testPathPattern message_recall_reedit_quote_chain
+23:05:00.445 detox[66400] B cleanup
+  args: ()
+23:05:00.466 detox[66400] E cleanup
+23:05:00.471 detox[66400] i Detox server has been closed gracefully
+23:05:00.498 detox[66400] E detox/node_modules/detox/local-cli/cli.js test -C /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/.detoxrc.json -c android.emu.debug --reuse --record-logs failing --take-screenshots failing --testPathPattern message_recall_reedit_quote_chain --artifacts-location /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test

@@ -26,7 +26,8 @@ import {
 } from '@support/ui/screen';
 import {expect} from 'detox';
 
-describe('Account - Settings - Notification Settings', () => {
+// Skipped: Notifications is not listed on the main Settings screen (product customization).
+describe.skip('Account - Settings - Notification Settings', () => {
     const serverOneDisplayName = 'Server 1';
     let testUser: any;
 

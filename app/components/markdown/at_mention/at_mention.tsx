@@ -3,7 +3,7 @@
 
 import {useManagedConfig} from '@mattermost/react-native-emm';
 import Clipboard from '@react-native-clipboard/clipboard';
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {type GestureResponderEvent, type StyleProp, StyleSheet, Text, type TextStyle, View} from 'react-native';
 
@@ -11,11 +11,10 @@ import {fetchUserOrGroupsByMentionsInBatch} from '@actions/remote/user';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {useServerUrl} from '@context/server';
 import GroupModel from '@database/models/server/group';
-import useDidMount from '@hooks/did_mount';
 import {useMemoMentionedGroup, useMemoMentionedUser} from '@hooks/markdown';
 import {bottomSheet, dismissBottomSheet, openUserProfileModal} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type GroupMembershipModel from '@typings/database/models/servers/group_membership';
 import type UserModelType from '@typings/database/models/servers/user';
@@ -51,7 +50,7 @@ const AtMention = ({
     mentionName,
     mentionKeys,
     mentionStyle,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     textStyle,
     users,
     groups,
@@ -82,12 +81,15 @@ const AtMention = ({
     const group = useMemoMentionedGroup(groups, user, mentionName);
 
     // Effects
-    useDidMount(() => {
+    useEffect(() => {
         // Fetches and updates the local db store with the mention
         if (!user?.username && !group?.name) {
             fetchUserOrGroupsByMentionsInBatch(serverUrl, mentionName);
         }
-    });
+
+        // Only fetch the user or group on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const openUserProfile = () => {
         if (!user) {
@@ -130,7 +132,7 @@ const AtMention = ({
                                 dismissBottomSheet();
                             }}
                             testID='at_mention.bottom_sheet.cancel'
-                            text={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                            text={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                         />
                     </View>
                 );
@@ -167,7 +169,7 @@ const AtMention = ({
     if (user?.username) {
         suffix = mentionName.substring(user.username.length);
         highlighted = userMentionKeys.some((item) => item.key.includes(user.username));
-        mention = displayUsername(user, user.locale, teammateNameDisplay);
+        mention = username2Nickname(user, {locale: user.locale});
         isMention = true;
         canPress = true;
     } else if (group?.name) {

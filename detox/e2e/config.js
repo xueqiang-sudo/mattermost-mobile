@@ -6,9 +6,9 @@ const shard = process.env.CI_NODE_INDEX ? process.env.CI_NODE_INDEX : '';
 
 module.exports = {
     setupFilesAfterEnv: ['./test/setup.ts'],
-    maxWorkers: process.env.CI ? 1 : 2,
+    maxWorkers: 1,
     testSequencer: './custom_sequencer.js',
-    testTimeout: process.env.LOW_BANDWIDTH_MODE === 'true' ? 240000 : 180000,
+    testTimeout: 180000,
     rootDir: '.',
     testMatch: ['<rootDir>/test/**/*.e2e.ts'],
     transform: {

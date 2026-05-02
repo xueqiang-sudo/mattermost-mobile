@@ -8,6 +8,7 @@ import {ServerScreen, LoginScreen, ChannelScreen, ChannelListScreen, ThreadScree
 describe.skip('Playbooks - Basic', () => {
     const serverOneDisplayName = 'Server 1';
     const channelsCategory = 'channels';
+
     let testUser: any;
     let testTeam: any;
     let testChannel: any;

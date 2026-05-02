@@ -5,7 +5,7 @@ import React, {useMemo} from 'react';
 import {useIntl} from 'react-intl';
 
 import ProfilePicture from '@components/profile_picture';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import BaseChip from './base_chip';
 
@@ -21,15 +21,22 @@ type SelectedChipProps = {
         onPress?: (id: string) => void;
     };
     showAnimation?: boolean;
+    avatarBorderRadius?: number;
+    /** 限制标签最大宽度，避免底部横向 chips 中单条过宽 */
+    labelMaxWidth?: number;
 }
+
+const CHIP_AVATAR_SIZE = 20;
 
 export default function UserChip({
     testID,
     user,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     onPress: receivedOnPress,
     action: receivedAction,
     showAnimation,
+    avatarBorderRadius,
+    labelMaxWidth,
 }: SelectedChipProps) {
     const intl = useIntl();
 
@@ -48,16 +55,17 @@ export default function UserChip({
         return {icon: receivedAction.icon, onPress: onActionPress};
     }, [receivedAction, user.id]);
 
-    const name = displayUsername(user, intl.locale, teammateNameDisplay);
+    const name = username2Nickname(user, {locale: intl.locale});
     const picture = useMemo(() => (
         <ProfilePicture
             author={user}
-            size={20}
-            iconSize={20}
+            size={CHIP_AVATAR_SIZE}
+            iconSize={CHIP_AVATAR_SIZE}
             testID={`${testID}.profile_picture`}
             showStatus={false}
+            borderRadius={avatarBorderRadius}
         />
-    ), [testID, user]);
+    ), [testID, user, avatarBorderRadius]);
 
     return (
         <BaseChip
@@ -67,6 +75,7 @@ export default function UserChip({
             showAnimation={showAnimation}
             label={name}
             prefix={picture}
+            maxWidth={labelMaxWidth}
         />
     );
 }

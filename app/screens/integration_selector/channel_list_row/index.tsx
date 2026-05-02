@@ -26,7 +26,7 @@ const getIconForChannel = (selectedChannel: Channel): string => {
     let icon = 'globe';
 
     if (selectedChannel.type === 'P') {
-        icon = 'lock-outline';
+        icon = 'padlock';
     }
 
     if (selectedChannel.delete_at) {

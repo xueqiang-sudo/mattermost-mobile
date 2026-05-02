@@ -1,32 +1,22 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback} from 'react';
-import {defineMessage, useIntl} from 'react-intl';
+import React, {useCallback, useMemo} from 'react';
+import {defineMessage, type MessageDescriptor, useIntl} from 'react-intl';
 
 import SettingContainer from '@components/settings/container';
 import SettingItem from '@components/settings/item';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useUserTimezoneProps from '@hooks/user_timezone';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {getLocaleFromLanguage} from '@i18n';
 import {goToScreen, popTopScreen} from '@screens/navigation';
 import {gotoSettingsScreen} from '@screens/settings/config';
+import {getUserTimezoneProps} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
-
-const CRT_FORMAT = [
-    defineMessage({
-        id: 'display_settings.crt.on',
-        defaultMessage: 'On',
-    }),
-    defineMessage({
-        id: 'display_settings.crt.off',
-        defaultMessage: 'Off',
-    }),
-];
 
 const TIME_FORMAT = [
     defineMessage({
@@ -50,20 +40,42 @@ const TIMEZONE_FORMAT = [
     }),
 ];
 
+const LANGUAGE_LABEL_EN: MessageDescriptor = {
+    id: 'mobile.display_settings.language.english',
+    defaultMessage: 'English',
+};
+const LANGUAGE_LABEL_ZH_CN: MessageDescriptor = {
+    id: 'mobile.display_settings.language.simplified_chinese',
+    defaultMessage: 'Simplified Chinese',
+};
+const LANGUAGE_LABEL_ZH_TW: MessageDescriptor = {
+    id: 'mobile.display_settings.language.traditional_chinese',
+    defaultMessage: 'Traditional Chinese',
+};
+
+function getAppLocaleLabelMessage(locale: string): MessageDescriptor {
+    const normalized = getLocaleFromLanguage(locale);
+    switch (normalized) {
+        case 'zh-CN':
+            return LANGUAGE_LABEL_ZH_CN;
+        case 'zh-TW':
+            return LANGUAGE_LABEL_ZH_TW;
+        default:
+            return LANGUAGE_LABEL_EN;
+    }
+}
+
 type DisplayProps = {
     componentId: AvailableScreens;
     currentUser?: UserModel;
     hasMilitaryTimeFormat: boolean;
-    isCRTEnabled: boolean;
-    isCRTSwitchEnabled: boolean;
     isThemeSwitchingEnabled: boolean;
 }
 
-const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled, isCRTSwitchEnabled, isThemeSwitchingEnabled}: DisplayProps) => {
+const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isThemeSwitchingEnabled}: DisplayProps) => {
     const intl = useIntl();
     const theme = useTheme();
-
-    const timezone = useUserTimezoneProps(currentUser);
+    const timezone = useMemo(() => getUserTimezoneProps(currentUser), [currentUser?.timezone]);
 
     const goToThemeSettings = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.SETTINGS_DISPLAY_THEME;
@@ -83,11 +95,16 @@ const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled,
         gotoSettingsScreen(screen, title);
     }, [intl]));
 
-    const goToCRTSettings = usePreventDoubleTap(useCallback(() => {
-        const screen = Screens.SETTINGS_DISPLAY_CRT;
-        const title = intl.formatMessage({id: 'display_settings.crt', defaultMessage: 'Collapsed Reply Threads'});
+    const goToLanguageSettings = usePreventDoubleTap(useCallback(() => {
+        const screen = Screens.SETTINGS_DISPLAY_LANGUAGE;
+        const title = intl.formatMessage({id: 'mobile.display_settings.language.title', defaultMessage: 'Language'});
         gotoSettingsScreen(screen, title);
     }, [intl]));
+
+    const languageInfo = useMemo(
+        () => intl.formatMessage(getAppLocaleLabelMessage(currentUser?.locale ?? '')),
+        [currentUser?.locale, intl],
+    );
 
     const close = useCallback(() => {
         popTopScreen(componentId);
@@ -117,14 +134,12 @@ const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled,
                 info={intl.formatMessage(timezone.useAutomaticTimezone ? TIMEZONE_FORMAT[0] : TIMEZONE_FORMAT[1])}
                 testID='display_settings.timezone.option'
             />
-            {isCRTSwitchEnabled && (
-                <SettingItem
-                    optionName='crt'
-                    onPress={goToCRTSettings}
-                    info={intl.formatMessage(isCRTEnabled ? CRT_FORMAT[0] : CRT_FORMAT[1])}
-                    testID='display_settings.crt.option'
-                />
-            )}
+            <SettingItem
+                optionName='language'
+                onPress={goToLanguageSettings}
+                info={languageInfo}
+                testID='display_settings.language.option'
+            />
         </SettingContainer>
     );
 };

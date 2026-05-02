@@ -3,8 +3,10 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
+import {switchMap} from 'rxjs/operators';
 
 import {observeChannel, observeChannelInfo} from '@queries/servers/channel';
+import {observeTeam} from '@queries/servers/team';
 
 import CreateOrEditChannel from './create_or_edit_channel';
 
@@ -17,9 +19,13 @@ type OwnProps = {
 const enhanced = withObservables([], ({database, channelId}: WithDatabaseArgs & OwnProps) => {
     const channel = channelId ? observeChannel(database, channelId) : of$(undefined);
     const channelInfo = channelId ? observeChannelInfo(database, channelId) : of$(undefined);
+    const team = channel.pipe(
+        switchMap((c) => (c?.teamId ? observeTeam(database, c.teamId) : of$(undefined))),
+    );
     return {
         channel,
         channelInfo,
+        team,
     };
 });
 

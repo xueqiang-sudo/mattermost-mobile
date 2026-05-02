@@ -6,26 +6,25 @@ import {useIntl} from 'react-intl';
 import {DeviceEventEmitter} from 'react-native';
 
 import {getChannelTimezones} from '@actions/remote/channel';
-import {executeCommand, handleGotoLocation} from '@actions/remote/command';
+import {uploadFile} from '@actions/remote/file';
 import {createPost} from '@actions/remote/post';
 import {handleReactionToLatestPost} from '@actions/remote/reactions';
 import {createScheduledPost} from '@actions/remote/scheduled_post';
-import {setStatus} from '@actions/remote/user';
-import {handleCallsSlashCommand} from '@calls/actions';
-import {Events, Screens} from '@constants';
+import {Events, PostTypes, Screens} from '@constants';
 import {NOTIFY_ALL_MEMBERS} from '@constants/post_draft';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import DraftUploadManager from '@managers/draft_upload_manager';
 import * as DraftUtils from '@utils/draft';
+import {isDraftVideoLocalProcessingFile} from '@utils/file/draft_video_local_processing';
 import {isReactionMatch} from '@utils/emoji/helpers';
-import {getErrorMessage, getFullErrorMessage} from '@utils/errors';
+import {getErrorMessage} from '@utils/errors';
 import {scheduledPostFromPost} from '@utils/post';
 import {canPostDraftInChannelOrThread} from '@utils/scheduled_post';
 import {showSnackBar} from '@utils/snack_bar';
-import {confirmOutOfOfficeDisabled} from '@utils/user';
 
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
+import { logDebug, logError } from '@utils/log';
 
 export type CreateResponse = {
     data?: boolean;
@@ -37,6 +36,7 @@ type Props = {
     value: string;
     channelId: string;
     rootId: string;
+    quotedPostId?: string;
     maxMessageLength: number;
     files: FileInfo[];
     customEmojis: CustomEmojiModel[];
@@ -53,22 +53,20 @@ type Props = {
     channelIsArchived?: boolean;
     channelIsReadOnly?: boolean;
     deactivatedChannel?: boolean;
-    postBoRConfig?: PostBoRConfig;
 }
 
 export const useHandleSendMessage = ({
     value,
     channelId,
     rootId,
+    quotedPostId = '',
     files,
     maxMessageLength,
     customEmojis,
     enableConfirmNotificationsToChannel,
     useChannelMentions,
     membersCount = 0,
-    userIsOutOfOffice,
     currentUserId,
-    channelType,
     postPriority,
     isFromDraftView,
     canPost,
@@ -76,7 +74,6 @@ export const useHandleSendMessage = ({
     channelIsReadOnly,
     deactivatedChannel,
     clearDraft,
-    postBoRConfig,
 }: Props) => {
     const intl = useIntl();
     const serverUrl = useServerUrl();
@@ -95,6 +92,9 @@ export const useHandleSendMessage = ({
         }
 
         if (files.length) {
+            if (files.some((file) => isDraftVideoLocalProcessingFile(file))) {
+                return false;
+            }
             const loadingComplete = !files.some((file) => DraftUploadManager.isUploading(file.clientId!));
             return loadingComplete;
         }
@@ -109,6 +109,11 @@ export const useHandleSendMessage = ({
     }, [serverUrl, rootId, clearDraft]);
 
     const doSubmitMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
+        if (files.some((f) => isDraftVideoLocalProcessingFile(f))) {
+            setSendingMessage(false);
+            return;
+        }
+
         const postFiles = files.filter((f) => !f.failed);
         const post = {
             user_id: currentUserId,
@@ -116,6 +121,13 @@ export const useHandleSendMessage = ({
             root_id: rootId,
             message: value,
         } as Post;
+
+        if (quotedPostId) {
+            post.props = {
+                ...(post.props || {}),
+                quoted_post_id: quotedPostId,
+            };
+        }
 
         if (!rootId && (
             postPriority.priority ||
@@ -125,10 +137,6 @@ export const useHandleSendMessage = ({
             post.metadata = {
                 priority: postPriority,
             };
-        }
-
-        if (postBoRConfig?.enabled) {
-            post.type = 'burn_on_read';
         }
 
         let response: CreateResponse;
@@ -155,23 +163,29 @@ export const useHandleSendMessage = ({
             });
 
             if (!shouldClearDraft) {
+                setSendingMessage(false);
                 return;
             }
 
-            createPost(serverUrl, post, postFiles);
+            const draftViewPostPromise = createPost(serverUrl, post, postFiles);
             clearDraft();
+            await draftViewPostPromise;
 
             // Early return to avoid calling DeviceEventEmitter.emit
+            setSendingMessage(false);
             return;
         } else {
-            // Response error is handled at the post level so don't have to wait to clear draft
-            createPost(serverUrl, post, postFiles);
+            // Optimistic clear: same UX as before; await keeps sendingMessage true until request settles
+            const postPromise = createPost(serverUrl, post, postFiles);
             clearDraft();
+            await postPromise;
         }
 
         setSendingMessage(false);
-        DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, rootId ? Screens.THREAD : Screens.CHANNEL);
-    }, [files, currentUserId, channelId, rootId, value, postPriority, postBoRConfig?.enabled, isFromDraftView, serverUrl, clearDraft, intl, canPost, channelIsArchived, channelIsReadOnly, deactivatedChannel]);
+        DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
+        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
+    }, [files, currentUserId, channelId, rootId, quotedPostId, value, postPriority, isFromDraftView, serverUrl, intl, canPost, channelIsArchived, channelIsReadOnly, deactivatedChannel, clearDraft]);
 
     const showSendToAllOrChannelOrHereAlert = useCallback((calculatedMembersCount: number, atHere: boolean, schedulingInfo?: SchedulingInfo) => {
         const notifyAllMessage = DraftUtils.buildChannelWideMentionMessage(intl, calculatedMembersCount, channelTimezoneCount, atHere);
@@ -186,71 +200,26 @@ export const useHandleSendMessage = ({
         DraftUtils.alertChannelWideMention(intl, notifyAllMessage, doSubmitMessageScheduledPostWrapper, cancel);
     }, [intl, channelTimezoneCount, doSubmitMessage]);
 
-    const sendCommand = useCallback(async () => {
-        if (value && value.trim().startsWith('/call')) {
-            const {handled, error} = await handleCallsSlashCommand(value.trim(), serverUrl, channelId, channelType ?? '', rootId, currentUserId, intl);
-            if (handled) {
-                setSendingMessage(false);
-                clearDraft();
-                return;
-            }
-            if (error) {
-                setSendingMessage(false);
-                DraftUtils.alertSlashCommandFailed(intl, error);
-                return;
-            }
-        }
-
-        const status = DraftUtils.getStatusFromSlashCommand(value);
-        if (userIsOutOfOffice && status) {
-            const updateStatus = (newStatus: string) => {
-                setStatus(serverUrl, {
-                    status: newStatus,
-                    last_activity_at: Date.now(),
-                    manual: true,
-                    user_id: currentUserId,
-                });
-            };
-            confirmOutOfOfficeDisabled(intl, status, updateStatus);
-            setSendingMessage(false);
-            return;
-        }
-
-        const {data, error} = await executeCommand(serverUrl, intl, value, channelId, rootId);
-        setSendingMessage(false);
-
-        if (error) {
-            const errorMessage = getFullErrorMessage(error);
-            DraftUtils.alertSlashCommandFailed(intl, errorMessage);
-            return;
-        }
-
-        clearDraft();
-
-        if (data?.goto_location && value && !value.startsWith('/leave')) {
-            handleGotoLocation(serverUrl, intl, data.goto_location);
-        }
-    }, [value, userIsOutOfOffice, serverUrl, intl, channelId, rootId, clearDraft, channelType, currentUserId]);
-
     const sendMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
         const notificationsToChannel = enableConfirmNotificationsToChannel && useChannelMentions;
-        const toAllOrChannel = value ? DraftUtils.textContainsAtAllAtChannel(value) : false;
-        const toHere = value ? DraftUtils.textContainsAtHere(value) : false;
+        const toAllOrChannel = DraftUtils.textContainsAtAllAtChannel(value);
+        const toHere = DraftUtils.textContainsAtHere(value);
 
-        if (value.indexOf('/') === 0 && !schedulingInfo) {
-            // Don't execute slash command when scheduling message
-            sendCommand();
-        } else if (notificationsToChannel && membersCount > NOTIFY_ALL_MEMBERS && (toAllOrChannel || toHere)) {
+        if (notificationsToChannel && membersCount > NOTIFY_ALL_MEMBERS && (toAllOrChannel || toHere)) {
             showSendToAllOrChannelOrHereAlert(membersCount, toHere && !toAllOrChannel, schedulingInfo);
         } else {
             return doSubmitMessage(schedulingInfo);
         }
 
         return Promise.resolve();
-    }, [enableConfirmNotificationsToChannel, useChannelMentions, value, membersCount, sendCommand, showSendToAllOrChannelOrHereAlert, doSubmitMessage]);
+    }, [enableConfirmNotificationsToChannel, useChannelMentions, value, membersCount, showSendToAllOrChannelOrHereAlert, doSubmitMessage]);
 
     const handleSendMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
         if (!canSend) {
+            return Promise.resolve();
+        }
+
+        if (files.some((f) => isDraftVideoLocalProcessingFile(f))) {
             return Promise.resolve();
         }
 
@@ -280,6 +249,84 @@ export const useHandleSendMessage = ({
         return Promise.resolve();
     }, [canSend, value, customEmojis, files, handleReaction, intl, sendMessage]);
 
+    const sendVoiceAsr = useCallback(async (voiceFiles: FileInfo[], onError?: (message: string) => void) => {
+        if (!voiceFiles.length) {
+            return;
+        }
+        logDebug('[sendVoiceAsr] 开始上传语音文件');
+        setSendingMessage(true);
+        try {
+            const uploadedFiles: FileInfo[] = [];
+            for (const file of voiceFiles) {
+                logDebug(`[sendVoiceAsr] 开始上传语音文件 ${file.clientId}, 大小 ${file.size}, 路径 ${file.localPath}`);
+                const uploaded = await new Promise<FileInfo>((resolve, reject) => {
+                    const {error, cancel} = uploadFile(
+                        serverUrl,
+                        file,
+                        channelId,
+                        () => {/* progress */},
+                        (response) => {
+                            if (response.code !== 201 || !response.data?.file_infos?.length) {
+                                reject(new Error((response.data?.message as string) || 'Failed to upload voice'));
+                                return;
+                            }
+                            const fi = response.data.file_infos[0] as FileInfo;
+                            fi.clientId = file.clientId;
+                            fi.localPath = file.localPath;
+                            resolve(fi);
+                        },
+                        (err) => reject(new Error(err?.message || 'Upload failed')),
+                    );
+                    if (error) {
+                        reject(error);
+                    }
+                });
+                uploadedFiles.push(uploaded);
+            }
+
+            // Server should create a separate normal post with transcript; this post stays hidden in the list (see selectOrderedPosts).
+            const post = {
+                user_id: currentUserId,
+                channel_id: channelId,
+                root_id: rootId,
+                message: '',
+                type: PostTypes.CUSTOM_VOICE_ASR,
+            } as Post;
+            
+            // 添加优先级信息
+            if (!rootId && (
+                postPriority.priority ||
+                postPriority.requested_ack ||
+                postPriority.persistent_notifications)
+            ) {
+                post.metadata = {
+                    priority: postPriority,
+                };
+            }
+
+            logDebug('[[sendVoiceAsr] 开始创建帖子');
+            await createPost(serverUrl, post, uploadedFiles);
+            logDebug('[[sendVoiceAsr] 帖子创建完成');
+            DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
+            DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+            DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
+        } catch (err) {
+            logError('[[sendVoiceAsr] 创建帖子失败]', err);
+            const errorMessage = getErrorMessage(err);
+            if (onError) {
+                onError(errorMessage as string);
+            } else {
+                showSnackBar({
+                    barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
+                    customMessage: errorMessage as string,
+                    type: MESSAGE_TYPE.ERROR,
+                });
+            }
+        } finally {
+            setSendingMessage(false);
+        }
+    }, [serverUrl, channelId, rootId, currentUserId, postPriority, createPost, showSnackBar]);
+
     useEffect(() => {
         getChannelTimezones(serverUrl, channelId).then(({channelTimezones}) => {
             setChannelTimezoneCount(channelTimezones?.length || 0);
@@ -289,5 +336,6 @@ export const useHandleSendMessage = ({
     return {
         handleSendMessage,
         canSend,
+        sendVoiceAsr,
     };
 };

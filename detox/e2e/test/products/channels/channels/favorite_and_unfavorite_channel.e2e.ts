@@ -132,7 +132,6 @@ describe('Channels - Favorite and Unfavorite Channel', () => {
         await ChannelScreen.postMessage('test');
         await ChannelScreen.back();
         await ChannelListScreen.getChannelItemDisplayName(directMessagesCategory, directMessageChannel.name).tap();
-        await waitFor(ChannelScreen.introFavoriteAction).toBeVisible().withTimeout(timeouts.TEN_SEC);
         await ChannelScreen.introFavoriteAction.tap();
         await ChannelScreen.back();
 

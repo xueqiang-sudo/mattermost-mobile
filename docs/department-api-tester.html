@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>部门管理 API 测试工具</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+    .config {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .config-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .config label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    .config input {
+      width: 320px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .config input.short { width: 180px; }
+    .config-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+    .section {
+      margin-bottom: 16px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-header:hover { background: #334155; }
+    .section-header::before {
+      content: '▼';
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+    .section.collapsed .section-header::before { transform: rotate(-90deg); }
+    .section-body { display: none; padding: 16px; }
+    .section:not(.collapsed) .section-body {
+      display: block;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+    }
+    .endpoint {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .endpoint:last-child { border-bottom: none; }
+    .endpoint-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .method {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .method.get { background: #22c55e33; color: #22c55e; }
+    .method.post { background: #3b82f633; color: #3b82f6; }
+    .method.put { background: #f59e0b33; color: #f59e0b; }
+    .method.delete { background: #ef444433; color: #ef4444; }
+    .path { font-family: monospace; font-size: 0.875rem; }
+    .params {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .params input {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.875rem;
+      width: 120px;
+    }
+    .params input.wide { width: 220px; }
+    .params input::placeholder { color: var(--text-muted); }
+    .body-input {
+      width: 100%;
+      min-height: 60px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: monospace;
+      font-size: 0.8125rem;
+      resize: vertical;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .response-panel {
+      position: sticky;
+      bottom: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #334155;
+    }
+    .response-body {
+      padding: 16px;
+      max-height: 200px;
+      overflow: auto;
+      font-family: monospace;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .response-body.success { color: var(--success); }
+    .response-body.error { color: var(--error); }
+    .status { font-size: 0.75rem; color: var(--text-muted); }
+    .inline-body { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>部门管理 API 测试工具</h1>
+    <p style="color: var(--text-muted); margin-bottom: 8px;">基于 <code>docs/department_api.md</code>（含第 9 节用户搜索）、<code>docs/team_version_api.md</code> — Mattermost <code>/api/v4</code></p>
+    <p class="config-hint" style="margin-bottom: 24px;">认证：<strong>Authorization: Bearer</strong>（Personal Access Token 或等价令牌）。与通讯录测试页的 <code>X-API-KEY</code> 不同。</p>
+
+    <div class="config">
+      <div class="config-row">
+        <label>
+          服务地址（Mattermost 根 URL）
+          <input type="text" id="baseUrl" placeholder="https://your-server.example" value="http://118.195.136.154:8065">
+        </label>
+        <label>
+          访问令牌（Bearer）
+          <input type="text" id="accessToken" placeholder="Personal Access Token" autocomplete="off">
+        </label>
+      </div>
+      <div class="config-row" style="margin-top: 12px;">
+        <label>
+          登录 ID（用户名/邮箱）
+          <input type="text" id="loginId" placeholder="Username or Email" autocomplete="off" value="qiuapitest163">
+        </label>
+        <label>
+          密码
+          <input type="text" id="password" placeholder="Password" autocomplete="off" value="qiuapitest163">
+        </label>
+        <button class="btn" onclick="login()" style="margin-top: 18px;">登录</button>
+      </div>
+      <div class="config-row" style="margin-top: 12px;">
+        <label>
+          默认 team_id
+          <input type="text" id="defaultTeamId" class="short" placeholder="26 字符团队 ID" value="patnbfmb5iyapma5udb55hawbw">
+        </label>
+        <label>
+          默认 department_id
+          <input type="text" id="defaultDeptId" class="short" placeholder="数字部门 ID">
+        </label>
+        <label>
+          默认 user_id
+          <input type="text" id="defaultUserId" class="short" placeholder="用户 ID">
+        </label>
+        <label>
+          默认 contact_id
+          <input type="text" id="defaultContactId" class="short" placeholder="联系人用户 ID">
+        </label>
+      </div>
+      <p class="config-hint">下方「路径参数」输入框会随默认 ID 一键填充；修改默认项并失焦后会保存到本地。</p>
+      <p class="config-hint" id="proxyHint" style="margin-top: 4px;"></p>
+    </div>
+
+    <div class="section">
+      <div class="section-header">路径参数（当前请求上下文）</div>
+      <div class="section-body">
+        <div class="params" style="align-items: flex-end;">
+          <label style="flex-direction:column;display:flex;gap:4px;color:var(--text-muted);font-size:0.875rem;">
+            team_id
+            <input id="shared_team_id" class="wide" placeholder="teams/{team_id}/...">
+          </label>
+          <label style="flex-direction:column;display:flex;gap:4px;color:var(--text-muted);font-size:0.875rem;">
+            department_id
+            <input id="shared_dept_id" placeholder="部门 ID">
+          </label>
+          <label style="flex-direction:column;display:flex;gap:4px;color:var(--text-muted);font-size:0.875rem;">
+            user_id（/users/...）
+            <input id="shared_user_id" class="wide" placeholder="用户 ID">
+          </label>
+          <label style="flex-direction:column;display:flex;gap:4px;color:var(--text-muted);font-size:0.875rem;">
+            成员操作目标 user_id
+            <input id="member_user_id" class="wide" placeholder="要添加/移除的成员">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">部门管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments</span>
+            </div>
+            <p class="status">部门列表；查询参数 parent_id、page、per_page（parent_id 不传则不指定， -1: 根部门, >= 0: 指定 parent id）</p>
+            <div class="params">
+              <input id="q_dept_parent_id" placeholder="指定 parent id" value="">
+              <input id="q_dept_page" placeholder="page" value="0">
+              <input id="q_dept_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathDepartmentsList(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams/{team_id}/departments</span>
+            </div>
+            <p class="status">创建部门</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_dept_create" rows="5">{
+  "name": "市场部",
+  "description": "负责市场推广",
+  "parent_id": null,
+  "is_unique_name": false
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathTeamDepartments(), document.getElementById('body_dept_create').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}</span>
+            </div>
+            <p class="status">获取单个部门</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamDepartmentById(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}</span>
+            </div>
+            <p class="status">更新部门</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_dept_put" rows="5">{
+  "name": "技术研发部",
+  "description": "研发与支持",
+  "parent_id": null
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT', pathTeamDepartmentById(), document.getElementById('body_dept_put').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}</span>
+            </div>
+            <p class="status">软删除部门</p>
+          </div>
+          <button class="btn" onclick="callApi('DELETE', pathTeamDepartmentById(), null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">团队版本与部门统计</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/version</span>
+            </div>
+            <p class="status">团队结构版本（缓存同步用，见 team_version_api）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamVersion(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v4/teams/{team_id}/version</span>
+            </div>
+            <p class="status">手动更新团队版本号（调试/缓存同步验证，无需请求体）</p>
+          </div>
+          <button class="btn" onclick="callApi('PUT', pathTeamVersion(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/stats</span>
+            </div>
+            <p class="status">部门统计；可选查询参数 department_id：不传为全团队，传则按该部门（以服务端为准）</p>
+            <div class="params">
+              <input id="q_stats_department_id" placeholder="department_id（可选）">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathDepartmentStats(), null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">部门树形结构</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/tree</span>
+            </div>
+            <p class="status">部门树（可选 parent_id、page、per_page）</p>
+            <div class="params">
+              <input id="q_tree_parent_id" placeholder="parent_id（可选）">
+              <input id="q_tree_page" placeholder="page" value="0">
+              <input id="q_tree_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathDepartmentsTree(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}/children</span>
+            </div>
+            <p class="status">直接子部门</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamDepartmentById() + '/children', null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}/ancestors</span>
+            </div>
+            <p class="status">祖先部门链</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamDepartmentById() + '/ancestors', null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">部门成员管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}/members</span>
+            </div>
+            <p class="status">成员列表</p>
+            <div class="params">
+              <input id="q_mem_page" placeholder="page" value="0">
+              <input id="q_mem_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathMembersList(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/without-members</span>
+            </div>
+            <p class="status">未加入任何部门的成员列表（使用与成员列表相同的 page/per_page）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathWithoutMembers(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}/members</span>
+            </div>
+            <p class="status">添加单个成员（JSON：user_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_mem_add" rows="3">{
+  "user_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathTeamDepartmentById() + '/members', document.getElementById('body_mem_add').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">.../members/batch</span>
+            </div>
+            <p class="status">批量添加成员</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_mem_batch_add" rows="4">{
+  "user_ids": ["user1", "user2"]
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathTeamDepartmentById() + '/members/batch', document.getElementById('body_mem_batch_add').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">.../members/batch</span>
+            </div>
+            <p class="status">批量移除成员（请求体 JSON）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_mem_batch_del" rows="4">{
+  "user_ids": ["user1", "user2"]
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE', pathTeamDepartmentById() + '/members/batch', document.getElementById('body_mem_batch_del').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}/members/{user_id}</span>
+            </div>
+            <p class="status">移除单个成员（使用「成员操作目标 user_id」）</p>
+          </div>
+          <button class="btn" onclick="callApi('DELETE', pathMemberRemove(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/{department_id}/members/move</span>
+            </div>
+            <p class="status">将成员从当前「路径中的 department_id」移到目标部门（body：user_id、target_department_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_mem_move" rows="4">{
+  "user_id": "",
+  "target_department_id": 0
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathTeamDepartmentById() + '/members/move', document.getElementById('body_mem_move').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams/{team_id}/departments/members/move-batch</span>
+            </div>
+            <p class="status">批量移动（请求体 JSON）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_mem_move_batch" rows="5">{
+  "source_department_id": 0,
+  "target_department_id": 0,
+  "user_ids": []
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathMembersMoveBatch(), document.getElementById('body_mem_move_batch').value)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">用户部门查询</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/users/{user_id}/departments</span>
+            </div>
+            <p class="status">查询参数 <code>team_id</code> 必填</p>
+            <div class="params">
+              <input id="q_user_dept_team" class="wide" placeholder="team_id（可与默认 team 不同）">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathUserDepartments(), null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">用户搜索（Mattermost SearchUsers）</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/users/search</span>
+            </div>
+            <p class="status">官方 <a href="https://developers.mattermost.com/api-documentation/#/operations/SearchUsers" style="color: var(--accent);" target="_blank" rel="noopener noreferrer">SearchUsers</a>；请求体 JSON：<code>term</code> 必填，可选 <code>team_id</code>、<code>in_channel_id</code>、<code>allow_inactive</code>、<code>limit</code> 等（见 <code>docs/department_api.md</code> §9）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_users_search" rows="8">{
+  "term": "1",
+  "team_id": "",
+  "allow_inactive": false,
+  "limit": 50
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathUsersSearch(), document.getElementById('body_users_search').value)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">员工联系人管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/users/{user_id}/contacts</span>
+            </div>
+            <p class="status">可选 contact_type、page、per_page、<strong>granularity</strong>（不传：不返回 contact 对象；1：完整 contact；2：简洁 contact）</p>
+            <div class="params">
+              <input id="q_contacts_type" placeholder="contact_type">
+              <input id="q_contacts_granularity" placeholder="granularity（1/2）" title="不传则不附带 contact；1 完整；2 简洁">
+              <input id="q_contacts_page" placeholder="page" value="0">
+              <input id="q_contacts_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathUserContacts(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/users/{user_id}/contacts</span>
+            </div>
+            <p class="status">添加员工联系人</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_contact_post" rows="6">{
+  "contact_id": "",
+  "contact_type": "customer",
+  "description": "主要业务联系人",
+  "remark": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathUserContactsBase(), document.getElementById('body_contact_post').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v4/users/{user_id}/contacts</span>
+            </div>
+            <p class="status">更新员工联系人</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_contact_put" rows="6">{
+  "contact_id": "",
+  "contact_type": "customer",
+  "description": "更新后的描述",
+  "remark": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT', pathUserContactsBase(), document.getElementById('body_contact_put').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v4/users/{user_id}/contacts</span>
+            </div>
+            <p class="status">删除关系（请求体 JSON）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_contact_del" rows="4">{
+  "contact_id": "",
+  "contact_type": "customer"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE', pathUserContactsBase(), document.getElementById('body_contact_del').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/users/{user_id}/contacts/version</span>
+            </div>
+            <p class="status">联系人数据版本（缓存同步）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathUserContactsVersion(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v4/users/{user_id}/contacts/version</span>
+            </div>
+            <p class="status">更新联系人版本（变更联系人数据后可调用）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_contact_version_put" rows="4">{
+  "version": "v1713340800000"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT', pathUserContactsVersion(), document.getElementById('body_contact_version_put').value)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="response-panel">
+      <div class="response-header">
+        <span>响应</span>
+        <span class="status" id="respStatus"></span>
+      </div>
+      <div class="response-body" id="responseBody">尚未发起请求</div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'departmentApiTesterDefaults';
+
+    function paramVal(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }
+
+    function pathTeam() {
+      const t = paramVal('shared_team_id');
+      return encodeURIComponent(t);
+    }
+
+    function pathDeptSegment() {
+      const d = paramVal('shared_dept_id');
+      return encodeURIComponent(d);
+    }
+
+    function pathUser() {
+      const u = paramVal('shared_user_id');
+      return encodeURIComponent(u);
+    }
+
+    function pathTeamDepartments() {
+      return '/api/v4/teams/' + pathTeam() + '/departments';
+    }
+
+    function pathTeamDepartmentById() {
+      return pathTeamDepartments() + '/' + pathDeptSegment();
+    }
+
+    function pathDepartmentsList() {
+      const base = pathTeamDepartments();
+      const q = new URLSearchParams();
+      const parentId = paramVal('q_dept_parent_id');
+      const page = paramVal('q_dept_page');
+      const perPage = paramVal('q_dept_per_page');
+      if (parentId !== '') {
+        q.set('parent_id', parentId);
+      }
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathDepartmentsTree() {
+      const base = pathTeamDepartments() + '/tree';
+      const q = new URLSearchParams();
+      const parentId = paramVal('q_tree_parent_id');
+      const page = paramVal('q_tree_page');
+      const perPage = paramVal('q_tree_per_page');
+      if (parentId !== '') {
+        q.set('parent_id', parentId);
+      }
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathTeamVersion() {
+      return '/api/v4/teams/' + pathTeam() + '/version';
+    }
+
+    function pathDepartmentStats() {
+      const base = pathTeamDepartments() + '/stats';
+      const q = new URLSearchParams();
+      const deptId = paramVal('q_stats_department_id');
+      if (deptId !== '') {
+        q.set('department_id', deptId);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathMembersMoveBatch() {
+      return pathTeamDepartments() + '/members/move-batch';
+    }
+
+    function pathMembersList() {
+      const base = pathTeamDepartmentById() + '/members';
+      const q = new URLSearchParams();
+      const page = paramVal('q_mem_page');
+      const perPage = paramVal('q_mem_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathWithoutMembers() {
+      const base = pathTeamDepartments() + '/without-members';
+      const q = new URLSearchParams();
+      const page = paramVal('q_mem_page');
+      const perPage = paramVal('q_mem_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathMemberRemove() {
+      const uid = encodeURIComponent(paramVal('member_user_id'));
+      return pathTeamDepartmentById() + '/members/' + uid;
+    }
+
+    function pathUserDepartments() {
+      const teamQ = paramVal('q_user_dept_team') || paramVal('shared_team_id');
+      const q = new URLSearchParams();
+      if (teamQ) {
+        q.set('team_id', teamQ);
+      }
+      const qs = q.toString();
+      return '/api/v4/users/' + pathUser() + '/departments' + (qs ? '?' + qs : '');
+    }
+
+    function pathUsersSearch() {
+      return '/api/v4/users/search';
+    }
+
+    function pathUserContactsBase() {
+      return '/api/v4/users/' + pathUser() + '/contacts';
+    }
+
+    function pathUserContacts() {
+      const base = pathUserContactsBase();
+      const q = new URLSearchParams();
+      const ct = paramVal('q_contacts_type');
+      const granularity = paramVal('q_contacts_granularity');
+      const page = paramVal('q_contacts_page');
+      const perPage = paramVal('q_contacts_per_page');
+      if (ct) {
+        q.set('contact_type', ct);
+      }
+      if (granularity !== '') {
+        q.set('granularity', granularity);
+      }
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return base + (qs ? '?' + qs : '');
+    }
+
+    function pathUserContactsVersion() {
+      return pathUserContactsBase() + '/version';
+    }
+
+    function getDefaults() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function saveDefaults() {
+      const defaults = {
+        baseUrl: document.getElementById('baseUrl').value,
+        accessToken: document.getElementById('accessToken').value,
+        teamId: document.getElementById('defaultTeamId').value.trim(),
+        deptId: document.getElementById('defaultDeptId').value.trim(),
+        userId: document.getElementById('defaultUserId').value.trim(),
+        contactId: document.getElementById('defaultContactId').value.trim()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    }
+
+    function applyDefaults() {
+      const team = (document.getElementById('defaultTeamId')?.value || '').trim();
+      const dept = (document.getElementById('defaultDeptId')?.value || '').trim();
+      const user = (document.getElementById('defaultUserId')?.value || '').trim();
+      const contact = (document.getElementById('defaultContactId')?.value || '').trim();
+
+      const st = document.getElementById('shared_team_id');
+      if (st && team) {
+        st.value = team;
+      }
+      const sd = document.getElementById('shared_dept_id');
+      if (sd && dept) {
+        sd.value = dept;
+      }
+      const su = document.getElementById('shared_user_id');
+      if (su && user) {
+        su.value = user;
+      }
+      const mu = document.getElementById('member_user_id');
+      if (mu && user) {
+        mu.value = user;
+      }
+      const qTeam = document.getElementById('q_user_dept_team');
+      if (qTeam && team) {
+        qTeam.value = team;
+      }
+
+      const elUsersSearch = document.getElementById('body_users_search');
+      if (elUsersSearch) {
+        try {
+          const teamVal = (document.getElementById('shared_team_id') && document.getElementById('shared_team_id').value.trim()) || team;
+          const obj = elUsersSearch.value.trim() ? JSON.parse(elUsersSearch.value) : { term: '1', allow_inactive: false, limit: 50 };
+          if (teamVal) {
+            obj.team_id = teamVal;
+          }
+          elUsersSearch.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+
+      const memUser = (document.getElementById('member_user_id') && document.getElementById('member_user_id').value.trim()) || user;
+      const elMemAdd = document.getElementById('body_mem_add');
+      if (elMemAdd && memUser) {
+        try {
+          const obj = elMemAdd.value.trim() ? JSON.parse(elMemAdd.value) : {};
+          if ('user_id' in obj) {
+            obj.user_id = memUser;
+          }
+          elMemAdd.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+
+      const elMemMove = document.getElementById('body_mem_move');
+      if (elMemMove && memUser) {
+        try {
+          const obj = elMemMove.value.trim() ? JSON.parse(elMemMove.value) : {};
+          if ('user_id' in obj) {
+            obj.user_id = memUser;
+          }
+          elMemMove.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+
+      const sdDept = (document.getElementById('shared_dept_id') && document.getElementById('shared_dept_id').value.trim()) || dept;
+      const qSrc = document.getElementById('q_batch_move_source');
+      const qTgt = document.getElementById('q_batch_move_target');
+      if (qSrc && sdDept && !qSrc.value.trim()) {
+        qSrc.value = sdDept;
+      }
+      const elMoveBatch = document.getElementById('body_mem_move_batch');
+      if (elMoveBatch && sdDept) {
+        try {
+          const obj = elMoveBatch.value.trim() ? JSON.parse(elMoveBatch.value) : {};
+          if ('source_department_id' in obj && (obj.source_department_id === 0 || obj.source_department_id === '0')) {
+            obj.source_department_id = parseInt(sdDept, 10) || obj.source_department_id;
+          }
+          elMoveBatch.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+
+      ['body_contact_post', 'body_contact_put', 'body_contact_del'].forEach(function (key) {
+        const el = document.getElementById(key);
+        if (!el || !contact) {
+          return;
+        }
+        try {
+          const obj = el.value.trim() ? JSON.parse(el.value) : {};
+          if ('contact_id' in obj) {
+            obj.contact_id = contact;
+          }
+          el.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      });
+    }
+
+    function loadStoredDefaults() {
+      const d = getDefaults();
+      if (d.baseUrl) {
+        document.getElementById('baseUrl').value = d.baseUrl;
+      }
+      if (d.accessToken) {
+        document.getElementById('accessToken').value = d.accessToken;
+      }
+      if (d.teamId) {
+        document.getElementById('defaultTeamId').value = d.teamId;
+      }
+      if (d.deptId) {
+        document.getElementById('defaultDeptId').value = d.deptId;
+      }
+      if (d.userId) {
+        document.getElementById('defaultUserId').value = d.userId;
+      }
+      if (d.contactId) {
+        document.getElementById('defaultContactId').value = d.contactId;
+      }
+    }
+
+    document.querySelectorAll('.section-header').forEach(function (el) {
+      el.addEventListener('click', function () {
+        el.parentElement.classList.toggle('collapsed');
+      });
+    });
+
+    loadStoredDefaults();
+    applyDefaults();
+
+    const proxyHint = document.getElementById('proxyHint');
+    proxyHint.textContent = useProxy()
+      ? '已通过本地代理请求（CORS 已解决）'
+      : '直接请求可能因 CORS 失败。运行 node docs/contact-api-proxy.js 后访问 http://localhost:3456/department-api-tester.html';
+
+    ['baseUrl', 'accessToken', 'defaultTeamId', 'defaultDeptId', 'defaultUserId', 'defaultContactId'].forEach(function (key) {
+      const el = document.getElementById(key);
+      el.addEventListener('change', function () {
+        saveDefaults();
+        if (['defaultTeamId', 'defaultDeptId', 'defaultUserId', 'defaultContactId'].indexOf(key) !== -1) {
+          applyDefaults();
+        }
+      });
+      el.addEventListener('blur', function () {
+        saveDefaults();
+        if (['defaultTeamId', 'defaultDeptId', 'defaultUserId', 'defaultContactId'].indexOf(key) !== -1) {
+          applyDefaults();
+        }
+      });
+    });
+
+    function useProxy() {
+      return window.location.port === '3456' && window.location.hostname === 'localhost';
+    }
+
+    async function login() {
+        const base = document.getElementById('baseUrl').value.replace(/\/$/, '');
+        const loginId = document.getElementById('loginId').value.trim();
+        const password = document.getElementById('password').value;
+        const respEl = document.getElementById('responseBody');
+        const statusEl = document.getElementById('respStatus');
+
+        if (!base) {
+            respEl.textContent = '请输入服务地址';
+            respEl.className = 'response-body error';
+            statusEl.textContent = 'Error';
+            return;
+        }
+
+        if (!loginId || !password) {
+            respEl.textContent = '请输入登录 ID 和密码';
+            respEl.className = 'response-body error';
+            statusEl.textContent = 'Error';
+            return;
+        }
+
+        respEl.textContent = '登录中...';
+        respEl.className = 'response-body';
+        statusEl.textContent = '';
+
+        const url = base + '/api/v4/users/login';
+        const reqBody = JSON.stringify({ login_id: loginId, password: password });
+
+        try {
+            let status;
+            let statusText;
+            let text;
+            let token;
+            let proxyData;
+            if (useProxy()) {
+                const proxyRes = await fetch('/proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        targetUrl: url,
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: reqBody
+                    })
+                });
+                proxyData = await proxyRes.json();
+                status = proxyData.status;
+                statusText = proxyData.statusText;
+                // Node.js http 模块会将响应头键名转换为小写
+                if (proxyData.headers && proxyData.headers.token) {
+                    token = proxyData.headers.token;
+                }
+                text = proxyData.body || '';
+            } else {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: reqBody
+                });
+                status = res.status;
+                statusText = res.statusText;
+                text = await res.text();
+                token = res.headers.get('Token') || res.headers.get('token');
+            }
+
+            let displayText = '[' + status + '] ' + statusText + '\n\n';
+            if (useProxy()) {
+                displayText += '--- 响应头 ---\n';
+                for (const [key, value] of Object.entries(proxyData.headers || {})) {
+                    displayText += `${key}: ${value}\n`;
+                }
+                displayText += '\n--- 响应体 ---\n';
+                try {
+                    displayText += JSON.stringify(JSON.parse(text), null, 2);
+                } catch (e) {
+                    displayText += text;
+                }
+            } else {
+                try {
+                    displayText += JSON.stringify(JSON.parse(text), null, 2);
+                } catch (e) {
+                    displayText += text;
+                }
+            }
+            
+            respEl.textContent = displayText;
+            respEl.className = 'response-body ' + (status >= 200 && status < 300 ? 'success' : 'error');
+            statusEl.textContent = status + ' ' + statusText;
+
+            if (status >= 200 && status < 300) {
+                if (token) {
+                    document.getElementById('accessToken').value = token;
+                    saveDefaults();
+                    respEl.textContent += '\n\n登录成功！令牌已自动填充到访问令牌字段。';
+                } else {
+                    respEl.textContent += '\n\n登录成功，但未能从响应中获取到 token。请手动输入 token。';
+                }
+            }
+        } catch (e) {
+            respEl.textContent = '登录失败：' + e.message + '\n\n若因 CORS 限制，请运行: node docs/contact-api-proxy.js\n然后访问: http://localhost:3456/department-api-tester.html';
+            respEl.className = 'response-body error';
+            statusEl.textContent = 'Error';
+        }
+    }
+
+    async function callApi(method, path, body) {
+      const base = document.getElementById('baseUrl').value.replace(/\/$/, '');
+      const token = document.getElementById('accessToken').value;
+      const url = base + path;
+      const respEl = document.getElementById('responseBody');
+      const statusEl = document.getElementById('respStatus');
+
+      let reqBody = '';
+      if (body && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
+        try {
+          reqBody = body.trim() ? JSON.stringify(JSON.parse(body)) : '{}';
+        } catch (e) {
+          respEl.textContent = '请求体 JSON 格式错误：' + e.message;
+          respEl.className = 'response-body error';
+          statusEl.textContent = '';
+          return;
+        }
+      }
+
+      respEl.textContent = '请求中...';
+      respEl.className = 'response-body';
+      statusEl.textContent = '';
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      };
+
+      try {
+        let status;
+        let statusText;
+        let text;
+        if (useProxy()) {
+          const proxyRes = await fetch('/proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUrl: url,
+              method: method,
+              headers: headers,
+              body: reqBody
+            })
+          });
+          const proxyData = await proxyRes.json();
+          status = proxyData.status;
+          statusText = proxyData.statusText;
+          text = proxyData.body || '';
+        } else {
+          const res = await fetch(url, {
+            method: method,
+            headers: headers,
+            body: reqBody || undefined
+          });
+          status = res.status;
+          statusText = res.statusText;
+          text = await res.text();
+        }
+
+        let formatted = text;
+        try {
+          formatted = JSON.stringify(JSON.parse(text), null, 2);
+        } catch (_) {}
+
+        respEl.textContent = '[' + status + '] ' + statusText + '\n\n' + formatted;
+        respEl.className = 'response-body ' + (status >= 200 && status < 300 ? 'success' : 'error');
+        statusEl.textContent = status + ' ' + statusText;
+      } catch (e) {
+        respEl.textContent = '请求失败：' + e.message + '\n\n若因 CORS 限制，请运行: node docs/contact-api-proxy.js\n然后访问: http://localhost:3456/department-api-tester.html';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+      }
+    }
+  </script>
+</body>
+</html>

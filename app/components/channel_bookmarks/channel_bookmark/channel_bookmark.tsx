@@ -107,10 +107,6 @@ const ChannelBookmark = ({
         if (action === 'none' && bookmark.id) {
             dismissOverlay(bookmark.id);
         }
-
-    // We don't care about `bookmark.id` changes as long as
-    // it is up to date when the effect runs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [action]);
 
     if (isDocumentFile) {

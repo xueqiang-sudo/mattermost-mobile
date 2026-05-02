@@ -113,7 +113,10 @@ const ProfileImagePicker = ({
             closeButtonId: 'close-edit-profile',
             renderContent,
             snapPoints: [1, snapPoint],
-            title: 'Change profile photo',
+            title: intl.formatMessage({
+                id: 'user.edit_profile.profile_photo.change_photo',
+                defaultMessage: 'Change profile photo',
+            }),
             theme,
         });
     }, [canRemovePicture, isTablet, onRemoveProfileImage, pictureUtils, styles.title, theme]));

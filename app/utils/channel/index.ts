@@ -33,6 +33,47 @@ export function isTypeDMorGM(channelType: ChannelType | undefined): boolean {
     return Boolean(channelType && DIRECT_TYPES.includes(channelType));
 }
 
+/** 一对一私聊（不含讨论组 GM）。 */
+export function isDirectMessageChannel(channelType: ChannelType | undefined): boolean {
+    return channelType === General.DM_CHANNEL;
+}
+
+/** 使用「公告」编辑与展示体系的频道类型（P 群、讨论组、公开/企业频道、私聊）。 */
+export function channelSupportsAnnouncementUx(channelType: ChannelType | undefined): boolean {
+    if (!channelType) {
+        return false;
+    }
+    return (
+        channelType === General.PRIVATE_CHANNEL ||
+        channelType === General.GM_CHANNEL ||
+        channelType === General.OPEN_CHANNEL ||
+        channelType === General.DM_CHANNEL
+    );
+}
+
+/** 编辑频道 header（公告/备注）所需的权限常量。 */
+export function permissionForEditingChannelAnnouncement(channelType: ChannelType | undefined): string | undefined {
+    if (channelType === General.DM_CHANNEL) {
+        // 私聊备注：无需特殊权限，直接可编辑。
+        return undefined;
+    }
+    if (channelType === General.PRIVATE_CHANNEL) {
+        return Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES;
+    }
+    if (channelType === General.GM_CHANNEL || channelType === General.OPEN_CHANNEL) {
+        return Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES;
+    }
+    return undefined;
+}
+
+/**
+ * 讨论组（Mattermost GM）专用文案；P/O 类型群聊走「群聊」体系，勿与讨论组合用。
+ * @see `app/screens/channel/header/header.tsx` 标题角标
+ */
+export function usesDiscussionGroupChannelCopy(channelType: ChannelType | undefined): boolean {
+    return channelType === General.GM_CHANNEL;
+}
+
 export function isArchived(channel: Channel | ChannelModel): boolean {
     const deleteAt = 'delete_at' in channel ? channel.delete_at : channel.deleteAt;
     return deleteAt > 0;
@@ -161,4 +202,22 @@ export function filterChannelsMatchingTerm(channels: Channel[], term: string): C
 
 export function isDefaultChannel(channel: Channel | ChannelModel | undefined): boolean {
     return channel?.name === General.DEFAULT_CHANNEL;
+}
+
+/**
+ * Only the team default public channel (town-square / 企业总群) shows the team/enterprise name in the header.
+ * Other open channels, group messages (GM), DMs, and P-type group chats use the channel display name.
+ */
+export function getChannelTitleDisplayName(
+    channel: Pick<ChannelModel, 'name' | 'displayName' | 'type'> | undefined,
+    teamDisplayName?: string | null,
+): string {
+    if (!channel) {
+        return '';
+    }
+    if (channel.type === General.OPEN_CHANNEL && isDefaultChannel(channel)) {
+        const team = teamDisplayName?.trim();
+        return team || channel.displayName;
+    }
+    return channel.displayName;
 }

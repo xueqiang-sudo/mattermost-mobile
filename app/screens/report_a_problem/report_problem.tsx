@@ -1,23 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {View, Text, ScrollView} from 'react-native';
 
-import {savePreference} from '@actions/remote/preference';
-import Button from '@components/button';
 import MenuDivider from '@components/menu_divider';
-import SettingOption from '@components/settings/option';
-import {Preferences} from '@constants';
-import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {popTopScreen} from '@screens/navigation';
-import {logDebug} from '@utils/log';
-import {emailLogs, getDefaultReportAProblemLink, shareLogs} from '@utils/share_logs';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {tryOpenURL} from '@utils/url';
 
 import AppLogs from './app_logs';
 import CopyMetadata from './copy_metadata';
@@ -33,8 +25,6 @@ type Props = {
     reportAProblemLink?: string;
     siteName?: string;
     allowDownloadLogs: boolean;
-    attachLogsEnabled: boolean;
-    currentUserId: string;
     reportAProblemType?: string;
     isLicensed: boolean;
     metadata: ReportAProblemMetadata;
@@ -62,79 +52,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
     detailsSection: {
         gap: 8,
     },
-    buttonContainer: {
-        paddingHorizontal: 20,
-        marginTop: 'auto',
-        borderTopWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
-        width: '100%',
-        paddingTop: 20,
-    },
 }));
 
-const ReportProblem = ({
-    componentId,
-    reportAProblemMail,
-    reportAProblemLink,
-    siteName,
-    allowDownloadLogs,
-    attachLogsEnabled,
-    currentUserId,
-    reportAProblemType,
-    isLicensed,
-    metadata,
-}: Props) => {
+const ReportProblem = (props: Props) => {
+    const {componentId, allowDownloadLogs, metadata} = props;
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const intl = useIntl();
-    const serverUrl = useServerUrl();
-    const [attachLogsToggle, setAttachLogsToggle] = useState(attachLogsEnabled);
-
-    useEffect(() => {
-        setAttachLogsToggle(attachLogsEnabled);
-    }, [attachLogsEnabled]);
-
-    const handleToggleAttachLogs = useCallback(async (value: boolean) => {
-        setAttachLogsToggle(value);
-        const {error} = await savePreference(serverUrl, [{
-            user_id: currentUserId,
-            category: Preferences.CATEGORIES.ADVANCED_SETTINGS,
-            name: Preferences.ATTACH_APP_LOGS,
-            value: String(value),
-        }]);
-        if (error) {
-            setAttachLogsToggle(!value);
-        }
-    }, [serverUrl, currentUserId]);
-
-    const handleReport = useCallback(async () => {
-        switch (reportAProblemType) {
-            case 'email':
-                await emailLogs(metadata, siteName, reportAProblemMail, !allowDownloadLogs);
-                return;
-            case 'link': {
-                let linkToUse = reportAProblemLink;
-                if (!linkToUse) {
-                    logDebug('Report a problem link is not set');
-                    linkToUse = getDefaultReportAProblemLink(isLicensed);
-                }
-                tryOpenURL(linkToUse);
-                return;
-            }
-            case 'default': {
-                tryOpenURL(getDefaultReportAProblemLink(isLicensed));
-                return;
-            }
-        }
-
-        // Old servers where reportAProblemType is not defined
-        if (!reportAProblemLink) {
-            await shareLogs(metadata, siteName, undefined, false);
-            return;
-        }
-
-        tryOpenURL(reportAProblemLink);
-    }, [reportAProblemType, reportAProblemLink, reportAProblemMail, metadata, siteName, allowDownloadLogs, isLicensed]);
 
     const close = useCallback(() => {
         popTopScreen(componentId);
@@ -172,41 +96,11 @@ const ReportProblem = ({
                     {allowDownloadLogs && (
                         <>
                             <MenuDivider/>
-                            <SettingOption
-                                label={intl.formatMessage({
-                                    id: 'screen.report_problem.enable_log_attachments',
-                                    defaultMessage: 'Enable app log attachments',
-                                })}
-                                description={intl.formatMessage({
-                                    id: 'screen.report_problem.enable_log_attachments.description',
-                                    defaultMessage: 'Show an option to attach app logs in the file attachment menu',
-                                })}
-                                selected={attachLogsToggle}
-                                type='toggle'
-                                action={handleToggleAttachLogs}
-                                testID='report_problem.enable_log_attachments'
-                            />
-                            <MenuDivider/>
                             <AppLogs/>
                         </>
                     )}
                 </ScrollView>
             </View>
-            {reportAProblemType !== 'hidden' && (
-                <View style={styles.buttonContainer}>
-                    <Button
-                        theme={theme}
-                        text={intl.formatMessage({
-                            id: 'screen.report_problem.button',
-                            defaultMessage: 'Report a problem',
-                        })}
-                        onPress={handleReport}
-                        iconName='open-in-new'
-                        size='lg'
-                        isIconOnTheRight={true}
-                    />
-                </View>
-            )}
         </View>
     );
 };

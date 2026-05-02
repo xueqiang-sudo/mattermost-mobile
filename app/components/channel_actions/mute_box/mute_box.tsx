@@ -26,7 +26,7 @@ const MutedBox = ({channelId, containerStyle, isMuted, showSnackBar = false, tes
     const handleOnPress = useCallback(async () => {
         await dismissBottomSheet();
         toggleMuteChannel(serverUrl, channelId, showSnackBar);
-    }, [channelId, serverUrl, showSnackBar]);
+    }, [channelId, isMuted, serverUrl, showSnackBar]);
 
     const muteActionTestId = isMuted ? `${testID}.unmute.action` : `${testID}.mute.action`;
 

@@ -21,9 +21,11 @@ import ClientGeneral, {type ClientGeneralMix} from './general';
 import ClientGroups, {type ClientGroupsMix} from './groups';
 import ClientIntegrations, {type ClientIntegrationsMix} from './integrations';
 import ClientNPS, {type ClientNPSMix} from './nps';
+import ClientGateway, {type ClientGatewayMix} from './plugin_gateway';
 import ClientPosts, {type ClientPostsMix} from './posts';
 import ClientPreferences, {type ClientPreferencesMix} from './preferences';
 import ClientScheduledPost, {type ClientScheduledPostMix} from './scheduled_post';
+import ClientTeamDepartment, {type ClientTeamDepartmentMix} from './team_department';
 import ClientTeams, {type ClientTeamsMix} from './teams';
 import ClientThreads, {type ClientThreadsMix} from './threads';
 import ClientTos, {type ClientTosMix} from './tos';
@@ -45,7 +47,9 @@ interface Client extends ClientBase,
     ClientPostsMix,
     ClientPreferencesMix,
     ClientScheduledPostMix,
+    ClientGatewayMix,
     ClientTeamsMix,
+    ClientTeamDepartmentMix,
     ClientThreadsMix,
     ClientTosMix,
     ClientUsersMix,
@@ -73,7 +77,9 @@ class Client extends mix(ClientBase).with(
     ClientPosts,
     ClientPreferences,
     ClientScheduledPost,
+    ClientGateway,
     ClientTeams,
+    ClientTeamDepartment,
     ClientThreads,
     ClientTos,
     ClientUsers,

@@ -26,7 +26,7 @@ internal fun DatabaseHelper.saveToDatabase(db: WMDatabase, data: ReadableMap, te
         data.getArray("threads")?.let {
             val threadsArray = ArrayList<ReadableMap>()
             for (i in 0 until it.size()) {
-                it.getMap(i)?.let { map -> threadsArray.add(map) }
+                threadsArray.add(it.getMap(i))
             }
             handleThreads(db, threadsArray, teamId)
         }

@@ -281,3 +281,8 @@ export function getUrlDomain(url: string): string {
     const parsed = urlParse(url);
     return parsed.hostname || url;
 }
+
+export function getUrlQueryParam(url: string, key: string) {
+    const parsed = urlParse(url, true);
+    return parsed.query[key] || '';
+}

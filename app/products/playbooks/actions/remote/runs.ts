@@ -6,14 +6,12 @@ import {PER_PAGE_DEFAULT} from '@client/rest/constants';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {updateLastPlaybookRunsFetchAt} from '@playbooks/actions/local/channel';
-import {handlePlaybookRuns, setOwner as localSetOwner, updatePlaybookRun as localUpdatePlaybookRun} from '@playbooks/actions/local/run';
+import {handlePlaybookRuns, setOwner as localSetOwner, renamePlaybookRun as localRenamePlaybookRun} from '@playbooks/actions/local/run';
 import {getLastPlaybookRunsFetchAt} from '@playbooks/database/queries/run';
 import {getMaxRunUpdateAt} from '@playbooks/utils/run';
 import EphemeralStore from '@store/ephemeral_store';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
-
-import {fetchPlaybookRunPropertyFields} from './property_fields';
 
 type PlaybookRunsRequest = {
     runs?: PlaybookRun[];
@@ -102,14 +100,6 @@ export const fetchPlaybookRun = async (serverUrl: string, runId: string, fetchOn
                 logDebug('error on handlePlaybookRuns', getFullErrorMessage(result.error));
                 return {error: result.error};
             }
-
-            // Fetch property fields and values for the run
-            const propertyFieldsResult = await fetchPlaybookRunPropertyFields(serverUrl, runId, fetchOnly);
-            if (propertyFieldsResult.error) {
-                logDebug('error on fetchPlaybookRunPropertyFields', getFullErrorMessage(propertyFieldsResult.error));
-
-                // Don't return error - property fields are not critical, just log it
-            }
         }
 
         return {run};
@@ -146,24 +136,16 @@ export const setOwner = async (serverUrl: string, playbookRunId: string, ownerId
     }
 };
 
-export const updatePlaybookRun = async (serverUrl: string, playbookRunId: string, name: string, summary: string, canEditSummary: boolean) => {
+export const renamePlaybookRun = async (serverUrl: string, playbookRunId: string, newName: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        const updates: Partial<PlaybookRun> = {name};
-        if (canEditSummary) {
-            updates.summary = summary;
-        }
-        await client.patchPlaybookRun(playbookRunId, updates);
+        await client.patchPlaybookRun(playbookRunId, {name: newName});
 
         // Update local database
-        const result = await localUpdatePlaybookRun(serverUrl, playbookRunId, name, canEditSummary ? summary : undefined);
-        if (result.error) {
-            logDebug('[updatePlaybookRun] local update failed after successful API call', getFullErrorMessage(result.error));
-            return result;
-        }
-        return {data: true};
+        const result = await localRenamePlaybookRun(serverUrl, playbookRunId, newName);
+        return result.error ? result : {data: true};
     } catch (error) {
-        logDebug('[updatePlaybookRun]', getFullErrorMessage(error));
+        logDebug('error on renamePlaybookRun', getFullErrorMessage(error));
         forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }
@@ -214,7 +196,7 @@ export const finishRun = async (serverUrl: string, playbookRunId: string) => {
     }
 };
 
-export const fetchPlaybookRunsPageForParticipant = async (serverUrl: string, participantId: string, teamId: string, page = 0) => {
+export const fetchPlaybookRunsPageForParticipant = async (serverUrl: string, participantId: string, page = 0) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
 
@@ -224,7 +206,6 @@ export const fetchPlaybookRunsPageForParticipant = async (serverUrl: string, par
             participant_id: participantId,
             sort: 'create_at',
             direction: 'desc',
-            team_id: teamId,
         });
 
         return {runs, hasMore: has_more};

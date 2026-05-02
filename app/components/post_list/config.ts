@@ -13,6 +13,7 @@ export const SCROLL_POSITION_CONFIG = {
     autoscrollToTopThreshold: 60,
 };
 export const VIEWABILITY_CONFIG = {
-    itemVisiblePercentThreshold: 50,
-    minimumViewTime: 500,
+    /** 略降低阈值，便于「即将滚入」时提前触发媒体懒加载 */
+    itemVisiblePercentThreshold: 15,
+    minimumViewTime: 120,
 };

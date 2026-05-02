@@ -53,22 +53,27 @@ type CustomProfileAttribute = {
     delete_at: number;
 }
 
-type UserProfile = {
+type SimpleUserProfile = {
     id: string;
-    create_at: number;
-    update_at: number;
-    delete_at: number;
     username: string;
-    auth_data?: string;
-    auth_service: string;
     email: string;
-    email_verified?: boolean;
     nickname: string;
     first_name: string;
     last_name: string;
     position: string;
     roles: string;
     locale: string;
+    country_code?: string;
+    phone?: string;
+}
+
+type UserProfile = SimpleUserProfile & {
+    create_at: number;
+    update_at: number;
+    delete_at: number;
+    auth_data?: string;
+    auth_service: string;
+    email_verified?: boolean;
     notify_props: UserNotifyProps;
     props?: UserProps;
     terms_of_service_id?: string;
@@ -140,8 +145,10 @@ type SearchUserOptions = {
 	in_group_id?: string;
 	group_constrained?: boolean;
 	allow_inactive?: boolean;
-	without_team?: string;
-	limit?: string;
+	without_team?: boolean;
+	limit?: number;
+    department_id?: number;
+    exact_match?: boolean;
 };
 
 type GetUsersOptions = {
@@ -163,4 +170,4 @@ type GetUsersOptions = {
 	team_roles?: string;
 };
 
-type LoginType = '' | 'magic_link';
+type LoginType = '' | 'guest_magic_link';

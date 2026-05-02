@@ -5,19 +5,19 @@
 
 import {Database, Model, Q, Query, Relation} from '@nozbe/watermelondb';
 import {of as of$, Observable, combineLatest} from 'rxjs';
-import {map as map$, switchMap, distinctUntilChanged, combineLatestWith, map} from 'rxjs/operators';
+import {map as map$, switchMap, distinctUntilChanged, combineLatestWith} from 'rxjs/operators';
 
 import {General, Permissions} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
 import EphemeralStore from '@store/ephemeral_store';
-import {isDefaultChannel, isDMorGM} from '@utils/channel';
+import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
-import {isSystemAdmin} from '@utils/user';
+import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
 
 import {prepareDeletePost} from './post';
 import {queryRoles} from './role';
-import {observeCurrentChannelId, getCurrentChannelId, observeCurrentUserId, observeConfigBooleanValue} from './system';
+import {observeCurrentChannelId, observeCurrentTeamId, getCurrentChannelId, observeCurrentUserId, observeConfigBooleanValue} from './system';
 import {observeCurrentUser, observeTeammateNameDisplay} from './user';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
@@ -88,15 +88,15 @@ const buildChannelInfos = async (database: Database, channels: Channel[]) => {
     const channelInfos: ChannelInfo[] = [];
 
     const channelsQuery = await queryAllChannels(database);
-    const storedChannelsMap = channelsQuery.reduce<Record<string, ChannelModel>>((acc, channel) => {
-        acc[channel.id] = channel;
-        return acc;
+    const storedChannelsMap = channelsQuery.reduce<Record<string, ChannelModel>>((map, channel) => {
+        map[channel.id] = channel;
+        return map;
     }, {});
 
     const channelInfosQuery = await queryAllChannelsInfo(database);
-    const storedChannelInfosMap = channelInfosQuery.reduce<Record<string, ChannelInfoModel>>((acc, info) => {
-        acc[info.id] = info;
-        return acc;
+    const storedChannelInfosMap = channelInfosQuery.reduce<Record<string, ChannelInfoModel>>((map, info) => {
+        map[info.id] = info;
+        return map;
     }, {});
 
     for (const c of channels) {
@@ -285,30 +285,6 @@ export const observeMyChannelRoles = (database: Database, channelId: string) => 
     );
 };
 
-export const observeChannelAutotranslation = (database: Database, channelId: string) => {
-    const enableAutoTranslation = observeConfigBooleanValue(database, 'EnableAutoTranslation');
-    const restrictDMAndGMAutotranslation = observeConfigBooleanValue(database, 'RestrictDMAndGMAutotranslation');
-    const channel = observeChannel(database, channelId);
-    return combineLatest([enableAutoTranslation, restrictDMAndGMAutotranslation, channel]).pipe(
-        map$(([et, r, c]) => {
-            if (!et) {
-                return false;
-            }
-
-            if (!c?.autotranslation) {
-                return false;
-            }
-
-            if (isDMorGM(c) && r) {
-                return false;
-            }
-
-            return true;
-        }),
-        distinctUntilChanged(),
-    );
-};
-
 export const getChannelById = async (database: Database, channelId: string) => {
     try {
         const channel = await database.get<ChannelModel>(CHANNEL).find(channelId);
@@ -493,19 +469,6 @@ export const queryMyChannelsByTeam = (database: Database, teamId: string, includ
     );
 };
 
-export const queryMyChannelsByChannelIds = (database: Database, ids: string[]) => {
-    return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.where('id', Q.oneOf(ids)),
-    );
-};
-
-export const queryMyChannelsWithAutotranslation = (database: Database) => {
-    return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(CHANNEL, Q.where('autotranslation', Q.eq(true))),
-        Q.where('autotranslation_disabled', Q.eq(false)),
-    );
-};
-
 export const observeChannelInfo = (database: Database, channelId: string) => {
     return database.get<ChannelInfoModel>(CHANNEL_INFO).query(Q.where('id', channelId), Q.take(1)).observe().pipe(
         switchMap((result) => (result.length ? result[0].observe() : of$(undefined))),
@@ -613,6 +576,273 @@ export function queryMyRecentChannels(database: Database, take: number) {
     );
 }
 
+function observeChannelsForMyChannelsList(
+    database: Database,
+    myChannelsList$: Observable<MyChannelModel[]>,
+    orderedByLastViewedAt: boolean,
+): Observable<ChannelModel[]> {
+    return myChannelsList$.pipe(
+        switchMap((myChannels) => {
+            const ids = myChannels.map((m) => m.id);
+            if (!ids.length) {
+                return of$([]);
+            }
+            const idsStr = `'${ids.join("','")}'`;
+            const order = orderedByLastViewedAt ? 'order by my.last_viewed_at desc' : '';
+            return database.get<ChannelModel>(CHANNEL).query(
+                Q.unsafeSqlQuery(`select distinct c.* from ${MY_CHANNEL} my
+                inner join ${CHANNEL} c on c.id=my.id and c.id in (${idsStr})
+                ${order}`),
+            ).observe();
+        }),
+    );
+}
+
+export function queryMyJoinedTeamChannels(database: Database) {
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.eq(0)),
+            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+/**
+ * Joined open and P-type (invite-only group chat) channels for a single team (e.g. current enterprise).
+ * When teamId is empty, yields no rows.
+ */
+export function queryMyJoinedTeamChannelsForTeam(database: Database, teamId: string) {
+    if (!teamId) {
+        return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
+    }
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.eq(0)),
+            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
+            Q.where('team_id', Q.eq(teamId)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+export function queryMyGroupMessageChannels(database: Database) {
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.eq(0)),
+            Q.where('type', Q.eq(General.GM_CHANNEL)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+/**
+ * Archived open and P-type channels the user still has in my_channels, scoped to one team.
+ */
+export function queryMyArchivedTeamChannelsForTeam(database: Database, teamId: string) {
+    if (!teamId) {
+        return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
+    }
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.gt(0)),
+            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
+            Q.where('team_id', Q.eq(teamId)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+/** Archived group messages still in my_channels (delete_at > 0 on channel row). */
+export function queryMyArchivedGroupMessageChannels(database: Database) {
+    return queryAllMyChannel(database).extend(
+        Q.on(CHANNEL, Q.and(
+            Q.where('delete_at', Q.gt(0)),
+            Q.where('type', Q.eq(General.GM_CHANNEL)),
+        )),
+        Q.sortBy('last_viewed_at', Q.desc),
+    );
+}
+
+export const observeMyJoinedTeamChannels = (database: Database): Observable<ChannelModel[]> => {
+    return observeChannelsForMyChannelsList(
+        database,
+        queryMyJoinedTeamChannels(database).observeWithColumns(['last_viewed_at']),
+        true,
+    );
+};
+
+/** Open and P-type channels joined in the current team only (follows system current_team_id). */
+export const observeMyJoinedTeamChannelsForCurrentTeam = (database: Database): Observable<ChannelModel[]> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((teamId) => observeChannelsForMyChannelsList(
+            database,
+            queryMyJoinedTeamChannelsForTeam(database, teamId).observeWithColumns(['last_viewed_at']),
+            true,
+        )),
+    );
+};
+
+export const observeMyGroupMessageChannels = (database: Database): Observable<ChannelModel[]> => {
+    return observeChannelsForMyChannelsList(
+        database,
+        queryMyGroupMessageChannels(database).observeWithColumns(['last_viewed_at']),
+        true,
+    );
+};
+
+/** Archived open/private for current team (follows system current_team_id). */
+export const observeMyArchivedTeamChannelsForCurrentTeam = (database: Database): Observable<ChannelModel[]> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((teamId) => observeChannelsForMyChannelsList(
+            database,
+            queryMyArchivedTeamChannelsForTeam(database, teamId).observeWithColumns(['last_viewed_at']),
+            true,
+        )),
+    );
+};
+
+export const observeMyArchivedGroupMessageChannels = (database: Database): Observable<ChannelModel[]> => {
+    return observeChannelsForMyChannelsList(
+        database,
+        queryMyArchivedGroupMessageChannels(database).observeWithColumns(['last_viewed_at']),
+        true,
+    );
+};
+
+/**
+ * Merge archived team channels and GMs for joined-archived UI; sort by channel recency (update_at desc).
+ */
+export const sortChannelsForJoinedArchivedList = (channels: ChannelModel[]): ChannelModel[] => {
+    return [...channels].sort((a, b) => (b.updateAt || 0) - (a.updateAt || 0));
+};
+
+/** Mattermost DM/GM `channel.name`: sorted user ids joined by `__`. */
+export const MATTERMOST_USER_ID_IN_CHANNEL_NAME_RE = /^[a-z0-9]{26}$/;
+
+/**
+ * Parses user ids from a DM or GM channel name when it follows the standard Mattermost format.
+ * Otherwise returns `undefined` (caller should load members from `ChannelMembership`).
+ */
+export function parseUserIdsFromGroupedChannelName(channelName: string): string[] | undefined {
+    const parts = channelName.split('__').filter(Boolean);
+    if (parts.length < 2) {
+        return undefined;
+    }
+    if (!parts.every((p) => MATTERMOST_USER_ID_IN_CHANNEL_NAME_RE.test(p))) {
+        return undefined;
+    }
+    return parts;
+}
+
+/**
+ * Home "current team" conversation list: includes all channels bound to `teamId`, plus DMs/GMs with no team
+ * (`team_id` empty). Does not require the other party or every GM member to appear in team membership,
+ * so DMs/GMs are not dropped when the roster is incomplete.
+ */
+export function channelBelongsToTeamScopedConversations(
+    channel: ChannelModel,
+    teamId: string,
+    currentUserId: string,
+    _teamUserIds: ReadonlySet<string>,
+    _gmMemberIdsByChannelId: ReadonlyMap<string, string[]>,
+): boolean {
+    const boundTeam = channel.teamId ?? '';
+    if (boundTeam === teamId) {
+        return true;
+    }
+    if (channel.type === General.DM_CHANNEL && boundTeam === '') {
+        const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
+        if (!teammateId || teammateId === currentUserId) {
+            return false;
+        }
+        return true;
+    }
+    if (channel.type === General.GM_CHANNEL && boundTeam === '') {
+        return true;
+    }
+    return false;
+}
+
+function sortRecentConversationEntries(
+    entries: Array<{channel: ChannelModel; myChannel: MyChannelModel}>,
+): ChannelModel[] {
+    return [...entries].sort((a, b) => {
+        const isUnreadA = a.myChannel.isUnread || a.myChannel.mentionsCount > 0;
+        const isUnreadB = b.myChannel.isUnread || b.myChannel.mentionsCount > 0;
+
+        if (isUnreadA && !isUnreadB) {
+            return -1;
+        }
+        if (!isUnreadA && isUnreadB) {
+            return 1;
+        }
+
+        const sortTimeA = Math.max(a.myChannel.lastPostAt || 0, a.myChannel.lastViewedAt || 0, a.channel.createAt || 0);
+        const sortTimeB = Math.max(b.myChannel.lastPostAt || 0, b.myChannel.lastViewedAt || 0, b.channel.createAt || 0);
+        return sortTimeB - sortTimeA;
+    }).map((s) => s.channel);
+}
+
+/**
+ * Home sidebar: whether the current team has any visible recent conversation (after enterprise/team scoping).
+ */
+export const observeHasRecentConversationsForTeam = (database: Database): Observable<boolean> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((id) => {
+            if (!id) {
+                return of$(false);
+            }
+            return observeRecentConversationsForTeam(database, id).pipe(
+                map$((channels) => channels.length > 0),
+                distinctUntilChanged(),
+            );
+        }),
+    );
+};
+
+export const observeRecentConversationsForTeam = (database: Database, teamId: string): Observable<ChannelModel[]> => {
+    const myChannelsQuery = queryAllMyChannelsForTeam(database, teamId).extend(
+        Q.on(CHANNEL, Q.where('delete_at', Q.eq(0))),
+        Q.sortBy('last_post_at', Q.desc),
+    );
+
+    return myChannelsQuery.observeWithColumns(['last_post_at', 'last_viewed_at', 'is_unread', 'mentions_count', 'message_count']).pipe(
+        combineLatestWith(observeCurrentUserId(database)),
+        switchMap(([myChannels, currentUserId]) => {
+            if (myChannels.length === 0 || !currentUserId) {
+                return of$([]);
+            }
+
+            return combineLatest(myChannels.map((mc) => mc.channel.observe())).pipe(
+                map$((channels) => {
+                    const channelMap = new Map<string, {channel: ChannelModel; myChannel: MyChannelModel}>();
+                    channels.forEach((channel, index) => {
+                        if (channel && index < myChannels.length) {
+                            channelMap.set(channel.id, {channel, myChannel: myChannels[index]});
+                        }
+                    });
+
+                    const values = [...channelMap.values()];
+                    const emptyTeamUserIds = new Set<string>();
+                    const emptyGmMembers = new Map<string, string[]>();
+                    const filtered = values.filter(({channel}) => channelBelongsToTeamScopedConversations(
+                        channel,
+                        teamId,
+                        currentUserId,
+                        emptyTeamUserIds,
+                        emptyGmMembers,
+                    ));
+                    return sortRecentConversationEntries(filtered);
+                }),
+            );
+        }),
+    );
+};
+
 export const observeDirectChannelsByTerm = (database: Database, term: string, take = 20, matchStart = false) => {
     const onlyDMs = term.startsWith('@') ? "AND c.type='D'" : '';
     const value = sanitizeLikeString(term.startsWith('@') ? term.substring(1) : term);
@@ -677,7 +907,7 @@ export const observeNotDirectChannelsByTerm = (database: Database, term: string,
     );
 };
 
-export const observeJoinedChannelsByTerm = (database: Database, term: string, take = 20, matchStart = false) => {
+export const observeJoinedChannelsByTerm = (database: Database, term: string, take = 20, matchStart = false, scopeTeamId?: string) => {
     if (term.startsWith('@')) {
         return of$([]);
     }
@@ -687,27 +917,32 @@ export const observeJoinedChannelsByTerm = (database: Database, term: string, ta
     if (!matchStart) {
         displayname = `c.display_name LIKE '%${value}%' AND c.display_name NOT LIKE '${value}%'`;
     }
+    const teamScopeClause = scopeTeamId ? ` AND c.team_id='${scopeTeamId.replace(/'/g, "''")}'` : '';
     return database.get<MyChannelModel>(MY_CHANNEL).query(
         Q.unsafeSqlQuery(`SELECT DISTINCT my.* FROM ${MY_CHANNEL} my
-        INNER JOIN ${CHANNEL} c ON c.id=my.id AND c.delete_at=0 AND c.team_id !='' AND ${displayname}
+        INNER JOIN ${CHANNEL} c ON c.id=my.id AND c.delete_at=0 AND c.team_id !=''${teamScopeClause} AND ${displayname}
         ORDER BY my.last_viewed_at DESC
         LIMIT ${take}`),
     ).observe();
 };
 
-export const observeArchiveChannelsByTerm = (database: Database, term: string, take = 20) => {
+export const observeArchiveChannelsByTerm = (database: Database, term: string, take = 20, scopeTeamId?: string) => {
     if (term.startsWith('@')) {
         return of$([]);
     }
 
     const value = sanitizeLikeString(term);
     const displayname = `%${value}%`;
+    const channelConditions: Q.Where[] = [
+        Q.where('delete_at', Q.gt(0)),
+        Q.where('team_id', Q.notEq('')),
+        Q.where('display_name', Q.like(displayname)),
+    ];
+    if (scopeTeamId) {
+        channelConditions.push(Q.where('team_id', Q.eq(scopeTeamId)));
+    }
     return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(CHANNEL, Q.and(
-            Q.where('delete_at', Q.gt(0)),
-            Q.where('team_id', Q.notEq('')),
-            Q.where('display_name', Q.like(displayname)),
-        )),
+        Q.on(CHANNEL, Q.and(...channelConditions)),
         Q.sortBy('last_viewed_at'),
         Q.take(take),
     ).observe();
@@ -809,30 +1044,4 @@ export const observeIsReadOnlyChannel = (database: Database, channelId: string) 
     return combineLatest([channel, user, experimentalTownSquareIsReadOnly]).pipe(
         switchMap(([c, u, readOnly]) => of$(isDefaultChannel(c) && !isSystemAdmin(u?.roles || '') && readOnly)),
     );
-};
-
-export const observeIsChannelAutotranslated = (database: Database, channelId: string) => {
-    const enableAutoTranslation = observeConfigBooleanValue(database, 'EnableAutoTranslation');
-    const restrictDMAndGMAutotranslation = observeConfigBooleanValue(database, 'RestrictDMAndGMAutotranslation');
-    const channel = observeChannel(database, channelId);
-    const myChannel = observeMyChannel(database, channelId);
-    return combineLatest([enableAutoTranslation, restrictDMAndGMAutotranslation, channel, myChannel]).pipe(map(([et, r, c, mc]) => {
-        if (!et) {
-            return false;
-        }
-
-        if (!c?.autotranslation) {
-            return false;
-        }
-
-        if (mc?.autotranslationDisabled) {
-            return false;
-        }
-
-        if (isDMorGM(c) && r) {
-            return false;
-        }
-
-        return true;
-    }));
 };

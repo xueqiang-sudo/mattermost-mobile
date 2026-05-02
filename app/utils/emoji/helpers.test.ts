@@ -23,6 +23,9 @@ import {
     getSkin,
     getEmojis,
     searchEmojis,
+    emojiShortNameToMarkdownToken,
+    emojiImageHexToUnicode,
+    emojiShortNameToUnicodeString,
 } from './helpers';
 
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
@@ -31,6 +34,38 @@ import type SystemModel from '@typings/database/models/servers/system';
 jest.mock('@database/models/server/system');
 
 describe('helpers.ts tests', () => {
+    describe('emojiShortNameToMarkdownToken', () => {
+        it('should wrap bare emoji aliases with colons', () => {
+            expect(emojiShortNameToMarkdownToken('sweat_smile')).toBe(':sweat_smile:');
+            expect(emojiShortNameToMarkdownToken('+1')).toBe(':+1:');
+        });
+
+        it('should leave already-marked tokens unchanged', () => {
+            expect(emojiShortNameToMarkdownToken(':smile:')).toBe(':smile:');
+        });
+
+        it('should return empty string for empty input', () => {
+            expect(emojiShortNameToMarkdownToken('')).toBe('');
+        });
+    });
+
+    describe('emojiImageHexToUnicode', () => {
+        it('should convert single-codepoint hex to a string', () => {
+            expect(emojiImageHexToUnicode('1f600')).toBe('😀');
+        });
+    });
+
+    describe('emojiShortNameToUnicodeString', () => {
+        it('should return unicode for built-in aliases', () => {
+            expect(emojiShortNameToUnicodeString('smile', 'default', [])).toBe('😄');
+            expect(emojiShortNameToUnicodeString('sweat_smile', 'default', [])).toBe('😅');
+        });
+
+        it('should return null for names marked as server custom', () => {
+            expect(emojiShortNameToUnicodeString('my_custom', 'default', ['my_custom'])).toBe(null);
+        });
+    });
+
     describe('isEmoticon', () => {
         it('should return true for valid emoticons', () => {
             expect(isEmoticon(':)')).toBe(true);

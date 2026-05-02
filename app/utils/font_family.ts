@@ -11,10 +11,12 @@
 import {cloneElement} from 'react';
 import {StyleSheet, Text} from 'react-native';
 
+/**
+ * 设置默认文本样式，但不指定字体，让其跟随系统默认字体
+ */
 const setFontFamily = () => {
     const styles = StyleSheet.create({
         defaultText: {
-            fontFamily: 'OpenSans',
             fontSize: 16,
         },
     });
@@ -26,6 +28,8 @@ const setFontFamily = () => {
     Text.render = function render(...args) {
         const origin = oldRender.call(this, ...args);
         return cloneElement(origin, {
+            allowFontScaling: origin.props.allowFontScaling ?? true,
+            maxFontSizeMultiplier: origin.props.maxFontSizeMultiplier,
             style: [styles.defaultText, origin.props.style],
         });
     };

@@ -11,7 +11,6 @@ import EditedIndicator from '@components/edited_indicator';
 import FormattedText from '@components/formatted_text';
 import FormattedTime from '@components/formatted_time';
 import Markdown from '@components/markdown';
-import TranslateIcon from '@components/post_list/post/header/translate_icon';
 import ProfilePicture from '@components/profile_picture';
 import {View as ViewConstants} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -19,10 +18,9 @@ import {useTheme} from '@context/theme';
 import {useUserLocale} from '@context/user_locale';
 import {useIsTablet, useWindowDimensions} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {getPostTranslatedMessage, getPostTranslation} from '@utils/post';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getUserTimezone} from '@utils/user';
+import {getUserTimezone, username2Nickname} from '@utils/user';
 
 import Opengraph from '../opengraph';
 
@@ -48,7 +46,6 @@ type PermalinkPreviewProps = {
     location: AvailableScreens;
     parentLocation?: string;
     parentPostId?: string;
-    autotranslationsEnabled: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -80,7 +77,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginLeft: 12,
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 8,
         },
         authorName: {
             color: theme.centerChannelColor,
@@ -89,6 +85,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         timestamp: {
             color: changeOpacity(theme.centerChannelColor, 0.64),
             ...typography('Body', 75),
+            marginLeft: 8,
         },
         messageContainer: {
             marginBottom: 8,
@@ -127,13 +124,12 @@ const PermalinkPreview = ({
     author,
     currentUser,
     isMilitaryTime,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     post,
     isOriginPostDeleted,
     location,
     parentLocation,
     parentPostId,
-    autotranslationsEnabled,
 }: PermalinkPreviewProps) => {
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -174,15 +170,8 @@ const PermalinkPreview = ({
         channel_type,
     } = embedData;
 
-    const translation = embedPost ? getPostTranslation(embedPost, locale) : undefined;
-
     const truncatedMessage = useMemo(() => {
-        let msg = embedPost?.message ?? '';
-        if (autotranslationsEnabled && embedPost?.type === '') {
-            if (translation?.state === 'ready') {
-                msg = getPostTranslatedMessage(msg, translation);
-            }
-        }
+        const msg = embedPost?.message;
         if (!msg || typeof msg !== 'string') {
             return '';
         }
@@ -194,13 +183,13 @@ const PermalinkPreview = ({
         }
 
         return cleanMessage;
-    }, [autotranslationsEnabled, embedPost?.message, embedPost?.type, translation]);
+    }, [embedPost?.message]);
 
     const isEdited = useMemo(() => embedData && embedData.post && embedData.post.edit_at > 0, [embedData]);
 
     const authorDisplayName = useMemo(() => {
-        return displayUsername(author, locale, teammateNameDisplay);
-    }, [author, locale, teammateNameDisplay]);
+        return username2Nickname(author, {locale});
+    }, [author, locale]);
 
     const channelContextText = useMemo(() => {
         const displayName = channel_type === 'D' ? authorDisplayName : channel_display_name;
@@ -265,14 +254,9 @@ const PermalinkPreview = ({
                             <FormattedTime
                                 timezone={getUserTimezone(currentUser)}
                                 isMilitaryTime={isMilitaryTime}
-                                value={embedPost?.create_at ?? 0}
+                                value={embedPost.create_at}
                                 style={styles.timestamp}
                             />
-                            {autotranslationsEnabled && embedPost?.type === '' && (
-                                <TranslateIcon
-                                    translationState={translation?.state}
-                                />
-                            )}
                         </View>
                     </View>
 

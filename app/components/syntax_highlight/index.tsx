@@ -60,7 +60,7 @@ const Highlighter = ({code, language, textStyle, selectable = false}: SyntaxHigl
                 selectable={selectable}
             />
         );
-    }, [style.hljs.color, theme.centerChannelColor, textStyle, selectable]);
+    }, [textStyle, theme, style]);
 
     const preTag = useCallback((info: any) => (
         <View

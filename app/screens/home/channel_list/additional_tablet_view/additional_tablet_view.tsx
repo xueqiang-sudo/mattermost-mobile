@@ -7,7 +7,6 @@ import {DeviceEventEmitter} from 'react-native';
 import {Navigation, Screens} from '@constants';
 import Channel from '@screens/channel';
 import GlobalDraftsAndScheduledPosts from '@screens/global_drafts';
-import GlobalThreads from '@screens/global_threads';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -17,7 +16,7 @@ type SelectedView = {
     params?: unknown;
 }
 
-type SelectedScreens = Extract<AvailableScreens, 'CHANNEL' | 'GLOBAL_DRAFTS' | 'GLOBAL_THREADS'>;
+type SelectedScreens = Extract<AvailableScreens, 'CHANNEL' | 'GLOBAL_DRAFTS'>;
 
 type Props = {
     onTeam: boolean;
@@ -26,17 +25,14 @@ type Props = {
 
 const ComponentsList: Record<string, React.ComponentType<any>> = {
     [Screens.CHANNEL]: Channel,
-    [Screens.GLOBAL_THREADS]: GlobalThreads,
     [Screens.GLOBAL_DRAFTS]: GlobalDraftsAndScheduledPosts,
 };
 
 const channelScreen: SelectedView = {id: Screens.CHANNEL, Component: Channel};
-const globalThreadsScreen: SelectedView = {id: Screens.GLOBAL_THREADS, Component: GlobalThreads};
 const globalDraftsScreen: SelectedView = {id: Screens.GLOBAL_DRAFTS, Component: GlobalDraftsAndScheduledPosts};
 
 const views = new Map([
     [Screens.CHANNEL, channelScreen],
-    [Screens.GLOBAL_THREADS, globalThreadsScreen],
     [Screens.GLOBAL_DRAFTS, globalDraftsScreen],
 ]);
 

@@ -21,7 +21,7 @@ const TutorialHighlight = ({children, itemBounds, itemBorderRadius, onDismiss, o
         if (onShow) {
             setTimeout(onShow, 1000);
         }
-    }, [onShow]);
+    }, [itemBounds]);
 
     return (
         <Modal

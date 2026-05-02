@@ -59,13 +59,17 @@ const CustomAttributes = ({nickname, position, localTime, customAttributes}: Pro
 
     // remove any empty objects
     const attributes: CustomAttribute[] = mergeAttributes.filter((v: CustomAttribute) => Object.entries(v).length !== 0);
+    if (attributes.length === 0) {
+        return null;
+    }
+
     return (
         <View style={styles.container}>
             <FlatList
                 data={attributes}
                 renderItem={renderAttribute}
                 showsVerticalScrollIndicator={true}
-                scrollEnabled={true}
+                scrollEnabled={attributes.length > 6}
                 removeClippedSubviews={true}
             />
         </View>
@@ -75,7 +79,7 @@ const CustomAttributes = ({nickname, position, localTime, customAttributes}: Pro
 const styles = StyleSheet.create({
     container: {
         marginTop: 12,
-        flex: 1,
+        alignSelf: 'stretch',
     },
 });
 

@@ -2,15 +2,21 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {useIntl} from 'react-intl';
-import {type LayoutChangeEvent, ScrollView, useWindowDimensions, View} from 'react-native';
+import {
+    type LayoutChangeEvent,
+    ScrollView,
+    type StyleProp,
+    StyleSheet,
+    type TextStyle,
+    useWindowDimensions,
+    View,
+} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import Markdown from '@components/markdown';
 import {isChannelMentions} from '@components/markdown/channel_mention/channel_mention';
-import {SEARCH} from '@constants/screens';
+import {CHANNEL, PERMALINK, SEARCH, THREAD} from '@constants/screens';
 import {useShowMoreAnimatedStyle} from '@hooks/show_more';
-import {getPostTranslatedMessage, getPostTranslation} from '@utils/post';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -22,6 +28,7 @@ import type {HighlightWithoutNotificationKey, SearchPattern} from '@typings/glob
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type MessageProps = {
+    baseTextStyle?: StyleProp<TextStyle>;
     currentUser?: UserModel;
     isHighlightWithoutNotificationLicensed?: boolean;
     highlight: boolean;
@@ -30,10 +37,16 @@ type MessageProps = {
     isReplyPost: boolean;
     layoutWidth?: number;
     location: AvailableScreens;
+
+    /**
+     * 微信气泡等：Markdown 区域随内容完整增高，不使用半屏 maxHeight +「展开」裁剪。
+     * 为 false 时保持频道内长帖折叠逻辑（仅频道/线程/固定链接在 height 未测量前用无界首帧）。
+     */
+    unboundedMarkdownHeight?: boolean;
     post: PostModel;
     searchPatterns?: SearchPattern[];
     theme: Theme;
-    isChannelAutotranslated: boolean;
+    value?: string;
 }
 
 const SHOW_MORE_HEIGHT = 54;
@@ -59,27 +72,31 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const Message = ({
-    currentUser,
-    isHighlightWithoutNotificationLicensed,
-    highlight,
-    isEdited,
-    isPendingOrFailed,
-    isReplyPost,
-    layoutWidth,
-    location,
-    post,
-    searchPatterns,
-    theme,
-    isChannelAutotranslated,
-}: MessageProps) => {
+const Message = ({baseTextStyle, currentUser, isHighlightWithoutNotificationLicensed, highlight, isEdited, isPendingOrFailed, isReplyPost, layoutWidth, location, unboundedMarkdownHeight = false, post, searchPatterns, theme, value}: MessageProps) => {
+    const messageValue = value ?? post.message;
+
     const [open, setOpen] = useState(false);
     const [height, setHeight] = useState<number|undefined>();
     const dimensions = useWindowDimensions();
     const maxHeight = Math.round((dimensions.height * 0.5) + SHOW_MORE_HEIGHT);
     const animatedStyle = useShowMoreAnimatedStyle(height, maxHeight, open);
     const style = getStyleSheet(theme);
-    const intl = useIntl();
+
+    /** 气泡仅传 color 时须与默认排版合并，否则丢失字号/行高会导致英文被裁切 */
+    const textStyle = useMemo(
+        () => (baseTextStyle ? [style.message, baseTextStyle] : style.message),
+        [baseTextStyle, style.message],
+    );
+
+    /** 微信等无界 Markdown：段落根 Text 与叶子共用 flatten 后的排版，避免英文长文测量与裁切不一致 */
+    const baseParagraphStyle = useMemo((): StyleProp<TextStyle> | undefined => {
+        if (!unboundedMarkdownHeight) {
+            return undefined;
+        }
+        return StyleSheet.flatten(textStyle);
+    }, [textStyle, unboundedMarkdownHeight]);
+
+    const isChannelThreadPermalink = location === CHANNEL || location === PERMALINK || location === THREAD;
 
     // We need to memoize these two values because they are actually getters that return a new list
     // on every render. We need to trust that changes in the currentUser will trigger the recalculation.
@@ -93,57 +110,66 @@ const Message = ({
 
     const onLayout = useCallback((event: LayoutChangeEvent) => {
         const h = event.nativeEvent.layout.height;
-        if (h > maxHeight) {
+        if (h > maxHeight && !unboundedMarkdownHeight) {
             setHeight(event.nativeEvent.layout.height);
         }
-    }, [maxHeight]);
+    }, [maxHeight, unboundedMarkdownHeight]);
     const onPress = () => setOpen(!open);
 
     const channelMentions = useMemo(() => {
         return isChannelMentions(post.props?.channel_mentions) ? post.props.channel_mentions : {};
     }, [post.props?.channel_mentions]);
 
-    const translation = getPostTranslation(post, intl.locale);
-    let message = post.message;
-    if (isChannelAutotranslated && post.type === '' && translation?.state === 'ready') {
-        message = getPostTranslatedMessage(post.message, translation);
-    }
+    /**
+     * 微信气泡：始终无界。否则保持原逻辑：频道/线程/固定链接仅在 height 未记录前无界，长文记录后套半屏折叠。
+     */
+    const useSimpleUnboundedBody = unboundedMarkdownHeight || (isChannelThreadPermalink && height === undefined);
+    const wrapperStyle = useSimpleUnboundedBody ? {} : animatedStyle;
+
+    const messageInner = (
+        <View
+            style={[style.messageContainer, (isReplyPost && style.reply), (isPendingOrFailed && style.pendingPost)]}
+            onLayout={onLayout}
+        >
+            <Markdown
+                baseParagraphStyle={baseParagraphStyle}
+                baseTextStyle={textStyle}
+                channelId={post.channelId}
+                channelMentions={channelMentions}
+                imagesMetadata={post.metadata?.images}
+                isEdited={isEdited}
+                isReplyPost={isReplyPost}
+                isSearchResult={location === SEARCH}
+                layoutWidth={layoutWidth}
+                location={location}
+                postId={post.id}
+                value={messageValue}
+                mentionKeys={mentionKeys}
+                highlightKeys={highlightKeys}
+                searchPatterns={searchPatterns}
+                theme={theme}
+                isUnsafeLinksPost={Boolean(post.props?.unsafe_links && post.props.unsafe_links !== '')}
+            />
+        </View>
+    );
 
     return (
         <>
-            <Animated.View style={animatedStyle}>
-                <ScrollView
-                    keyboardShouldPersistTaps={'always'}
-                    scrollEnabled={false}
-                    showsVerticalScrollIndicator={false}
-                    showsHorizontalScrollIndicator={false}
-                >
-                    <View
-                        style={[style.messageContainer, (isReplyPost && style.reply), (isPendingOrFailed && style.pendingPost)]}
-                        onLayout={onLayout}
+            <Animated.View style={wrapperStyle}>
+                {useSimpleUnboundedBody ? (
+                    messageInner
+                ) : (
+                    <ScrollView
+                        keyboardShouldPersistTaps={'always'}
+                        scrollEnabled={false}
+                        showsVerticalScrollIndicator={false}
+                        showsHorizontalScrollIndicator={false}
                     >
-                        <Markdown
-                            baseTextStyle={style.message}
-                            channelId={post.channelId}
-                            channelMentions={channelMentions}
-                            imagesMetadata={post.metadata?.images}
-                            isEdited={isEdited}
-                            isReplyPost={isReplyPost}
-                            isSearchResult={location === SEARCH}
-                            layoutWidth={layoutWidth}
-                            location={location}
-                            postId={post.id}
-                            value={message}
-                            mentionKeys={mentionKeys}
-                            highlightKeys={highlightKeys}
-                            searchPatterns={searchPatterns}
-                            theme={theme}
-                            isUnsafeLinksPost={Boolean(post.props?.unsafe_links && post.props.unsafe_links !== '')}
-                        />
-                    </View>
-                </ScrollView>
+                        {messageInner}
+                    </ScrollView>
+                )}
             </Animated.View>
-            {(height || 0) > maxHeight &&
+            {!unboundedMarkdownHeight && (height || 0) > maxHeight &&
             <ShowMoreButton
                 highlight={highlight}
                 theme={theme}

@@ -37,15 +37,9 @@ class HomeScreen {
     };
 
     logout = async (serverDisplayName: string | null = null) => {
-        try {
-            await AccountScreen.open();
-            await AccountScreen.logout(serverDisplayName);
-            await expect(this.channelListTab).not.toBeVisible();
-        } catch (error) {
-            // Logout may fail if app is in unexpected state during cleanup
-            // Log error but don't throw to allow test cleanup to continue
-            console.warn('[HomeScreen.logout] Logout failed:', error); // eslint-disable-line no-console
-        }
+        await AccountScreen.open();
+        await AccountScreen.logout(serverDisplayName);
+        await expect(this.channelListTab).not.toBeVisible();
     };
 }
 

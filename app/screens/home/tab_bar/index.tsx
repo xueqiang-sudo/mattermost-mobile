@@ -2,7 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useEffect, useState} from 'react';
-import {DeviceEventEmitter, View, TouchableOpacity} from 'react-native';
+import {useIntl} from 'react-intl';
+import {DeviceEventEmitter, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Shadow} from 'react-native-shadow-2';
@@ -12,11 +13,10 @@ import {useWindowDimensions} from '@hooks/device';
 import NavigationStore from '@store/navigation_store';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import Account from './account';
+import AIAgent from './ai_agent';
+import Contacts from './contacts';
 import Home from './home';
-import Mentions from './mentions';
-import SavedMessages from './saved_messages';
-import Search from './search';
+import MyHomepage from './my_homepage';
 
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 
@@ -32,6 +32,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         flex: 1,
         justifyContent: 'center',
+    },
+    label: {
+        fontSize: 11,
+        marginTop: 2,
     },
     separator: {
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
@@ -60,14 +64,21 @@ const shadowSides = {top: true, bottom: false, end: false, start: false};
 const shadowOffset: [x: number | string, y: number | string] = [0, -0.5];
 
 const TabComponents: Record<string, any> = {
-    Account,
-    Home,
-    Mentions,
-    SavedMessages,
-    Search,
+    [Screens.HOME_TAB_AI_AGENT]: AIAgent,
+    [Screens.HOME_TAB_CHAT]: Home,
+    [Screens.HOME_TAB_CONTACTS]: Contacts,
+    [Screens.HOME_TAB_MY_HOMEPAGE]: MyHomepage,
+};
+
+const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
+    [Screens.HOME_TAB_AI_AGENT]: {id: 'tab_bar.ai_agent.label', defaultMessage: 'AI Agent'},
+    [Screens.HOME_TAB_CHAT]: {id: 'tab_bar.home.label', defaultMessage: 'Chat'},
+    [Screens.HOME_TAB_CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
+    [Screens.HOME_TAB_MY_HOMEPAGE]: {id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'},
 };
 
 function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {theme: Theme}) {
+    const intl = useIntl();
     const [visible, setVisible] = useState<boolean|undefined>();
     const {width} = useWindowDimensions();
     const tabWidth = width / state.routes.length;
@@ -84,8 +95,8 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
 
     useEffect(() => {
         const listner = DeviceEventEmitter.addListener(NavigationConstants.NAVIGATION_HOME, () => {
-            NavigationStore.setVisibleTap(Screens.HOME);
-            navigation.navigate(Screens.HOME);
+            NavigationStore.setVisibleTap(Screens.HOME_TAB_CHAT);
+            navigation.navigate(Screens.HOME_TAB_CHAT);
         });
 
         return () => listner.remove();
@@ -114,10 +125,6 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
         });
 
         return () => listner.remove();
-
-    // We only care about the state changes.
-    // navigation should stay stable for the lifetime of the component.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state]);
 
     const transform = useAnimatedStyle(() => {
@@ -132,7 +139,7 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
             return {transform: [{translateY: -safeareaInsets.bottom}]};
         }
 
-        const height = visible ? withTiming(-safeareaInsets.bottom, {duration: 200}) : withTiming(52 + safeareaInsets.bottom, {duration: 150});
+        const height = visible ? withTiming(-safeareaInsets.bottom, {duration: 200}) : withTiming(ViewConstants.BOTTOM_TAB_HEIGHT + safeareaInsets.bottom, {duration: 150});
         return {
             transform: [{translateY: height}],
         };
@@ -199,6 +206,9 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
                     return null;
                 };
 
+                const tabLabel = TAB_LABELS[route.name];
+                const labelColor = isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.48);
+
                 return (
                     <TouchableOpacity
                         key={route.name}
@@ -210,7 +220,17 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
                         onLongPress={onLongPress}
                         style={style.item}
                     >
-                        {renderOption()}
+                        <View style={{alignItems: 'center'}}>
+                            {renderOption()}
+                            {tabLabel ? (
+                                <Text
+                                    style={[style.label, {color: labelColor}]}
+                                    numberOfLines={1}
+                                >
+                                    {intl.formatMessage(tabLabel)}
+                                </Text>
+                            ) : null}
+                        </View>
                     </TouchableOpacity>
                 );
             })}

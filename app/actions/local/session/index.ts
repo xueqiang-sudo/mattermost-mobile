@@ -7,7 +7,7 @@ import {Platform} from 'react-native';
 import {removePushDisabledInServerAcknowledged} from '@actions/app/global';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
-import {resetMomentLocale} from '@i18n';
+import {DEFAULT_LOCALE, resetMomentLocale} from '@i18n';
 import {getAllServerCredentials, removeServerCredentials} from '@init/credentials';
 import PushNotifications from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
@@ -15,8 +15,10 @@ import WebsocketManager from '@managers/websocket_manager';
 import {getDeviceToken} from '@queries/app/global';
 import {getExpiredSession} from '@queries/servers/system';
 import {getCurrentUser} from '@queries/servers/user';
+import EphemeralStore from '@store/ephemeral_store';
+import {getErrorMessage} from '@utils/errors';
 import {deleteFileCache, deleteFileCacheByDir} from '@utils/file';
-import {logError, logWarning} from '@utils/log';
+import {logError, logInfo, logWarning} from '@utils/log';
 import {clearCookiesForServer, getCSRFFromCookie, urlSafeBase64Encode} from '@utils/security';
 
 const resetLocale = async () => {
@@ -25,6 +27,7 @@ const resetLocale = async () => {
         const user = await getCurrentUser(serverDatabase!);
         resetMomentLocale(user?.locale);
     } else {
+        EphemeralStore.setCurrentLocale(DEFAULT_LOCALE);
         resetMomentLocale();
     }
 };
@@ -83,7 +86,7 @@ export const cancelSessionNotification = async (serverUrl: string) => {
     try {
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const expiredSession = await getExpiredSession(database);
-        const rechable = (await NetInfo.fetch()).isInternetReachable;
+        const rechable = (await NetInfo.fetch()).isConnected; // .isInternetReachable
 
         if (expiredSession?.notificationId && rechable) {
             PushNotifications.cancelScheduleNotification(parseInt(expiredSession.notificationId, 10));
@@ -98,7 +101,11 @@ export const cancelSessionNotification = async (serverUrl: string) => {
 
         return {};
     } catch (e) {
-        logError('cancelSessionNotification', e);
+        if (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string' && e.message.includes('database not found')) {
+            logInfo('cancelSessionNotification database not found, err:', getErrorMessage(e));
+        } else {
+            logError('cancelSessionNotification', e);
+        }
         return {error: e};
     }
 };

@@ -86,10 +86,6 @@ const messages = defineMessages({
         defaultMessage: 'Clock Display',
         id: 'mobile.display_settings.clockDisplay',
     },
-    crt: {
-        defaultMessage: 'Collapsed Reply Threads',
-        id: 'mobile.display_settings.crt',
-    },
     theme: {
         defaultMessage: 'Theme',
         id: 'mobile.display_settings.theme',
@@ -97,6 +93,14 @@ const messages = defineMessages({
     timezone: {
         defaultMessage: 'Timezone',
         id: 'mobile.display_settings.timezone',
+    },
+    language: {
+        defaultMessage: 'Language',
+        id: 'mobile.display_settings.language',
+    },
+    manage_enterprise: {
+        defaultMessage: 'Manage enterprises',
+        id: 'settings.manage_enterprise',
     },
 });
 
@@ -118,6 +122,12 @@ export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
         i18nId: messages.advanced_settings.id,
         icon: 'tune',
         testID: messages.advanced_settings.id,
+    },
+    manage_enterprise: {
+        defaultMessage: messages.manage_enterprise.defaultMessage,
+        i18nId: messages.manage_enterprise.id,
+        icon: 'sitemap',
+        testID: messages.manage_enterprise.id,
     },
     about: {
         defaultMessage: messages.about.defaultMessage,
@@ -180,12 +190,6 @@ export const DisplayOptionConfig: Record<string, SettingConfigDetails> = {
         icon: 'clock-outline',
         testID: messages.clock_display.id,
     },
-    crt: {
-        defaultMessage: messages.crt.defaultMessage,
-        i18nId: messages.crt.id,
-        icon: 'message-text-outline',
-        testID: messages.crt.id,
-    },
     theme: {
         defaultMessage: messages.theme.defaultMessage,
         i18nId: messages.theme.id,
@@ -197,6 +201,12 @@ export const DisplayOptionConfig: Record<string, SettingConfigDetails> = {
         i18nId: messages.timezone.id,
         icon: 'globe',
         testID: messages.timezone.id,
+    },
+    language: {
+        defaultMessage: messages.language.defaultMessage,
+        i18nId: messages.language.id,
+        icon: 'format-letter-case',
+        testID: messages.language.id,
     },
 };
 

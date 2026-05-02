@@ -1,6 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
-
+import {MM_MOBILE_LOG_FETCH} from '@env';
 import {defineMessage} from 'react-intl';
 import {DeviceEventEmitter, Platform} from 'react-native';
 
@@ -19,6 +19,10 @@ import * as ClientConstants from './constants';
 import ClientError from './error';
 
 import type {APIClientInterface, ClientHeaders, ClientResponse, ClientResponseMetrics, RequestOptions} from '@mattermost/react-native-network-client';
+
+// eslint-disable-next-line no-negated-condition
+const isEnvFlagEnabled = (value?: string, trueOtherVaue?: string) => (trueOtherVaue !== undefined ? value === trueOtherVaue : (value === 'true' || value === '1'));
+const shouldLogFetchData = () =>  true; // || isEnvFlagEnabled(MM_MOBILE_LOG_FETCH); // MM_MOBILE_LOG_FETCH = '1' or 'true'
 
 type UrlData = {
     count: number;
@@ -387,8 +391,9 @@ export default class ClientTracking {
         const performanceRequestId = NetworkPerformanceManager.startRequestTracking(this.apiClient.baseUrl, url);
 
         let response: ClientResponse;
+        const requestOptions = this.buildRequestOptions(options);
         try {
-            response = await request!(url, this.buildRequestOptions(options));
+            response = await request!(url, requestOptions);
         } catch (error) {
             NetworkPerformanceManager.cancelRequestTracking(this.apiClient.baseUrl, performanceRequestId);
             const response_error = error as ClientError;
@@ -432,8 +437,25 @@ export default class ClientTracking {
         }
 
         if (response.ok) {
+            if (shouldLogFetchData()) {
+                logInfo(
+                    new Date().toISOString() + ' -- request data, url:',
+                    url,
+                    ' ,method:',
+                    method,
+                    ' ,options:',
+                    options,
+                    ' ,data:',
+                    response.data,
+                    ' ,requestOptions:', requestOptions,
+                );
+            } else {
+                logDebug(new Date().toISOString() + ' -- request is success, url:', url, ' ,method:', method);
+            }
             return returnDataOnly ? (response.data || {}) : response;
         }
+
+        logInfo(new Date().toISOString() + ' -- request is failed, url:', this.apiClient.baseUrl+url, ' ,options:', options, ' ,status_code:', response.code, ' ,data:', response.data);
 
         throw new ClientError(this.apiClient.baseUrl, {
             message: response.data?.message as string || `Response with status code ${response.code}`,

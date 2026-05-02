@@ -29,6 +29,11 @@ jest.mock('@calls/state', () => ({
     }),
 }));
 
+jest.mock('@hooks/device', () => ({
+    ...jest.requireActual('@hooks/device'),
+    useIsTablet: () => true,
+}));
+
 const serverUrl = 'some.server.url';
 jest.mock('@context/server');
 jest.mocked(useServerUrl).mockReturnValue(serverUrl);
@@ -37,6 +42,7 @@ describe('ChannelHeader', () => {
     function getBaseProps(): ComponentProps<typeof ChannelHeader> {
         return {
             channelId: 'channel-id',
+            channelName: General.DEFAULT_CHANNEL,
             channelType: 'O',
             currentUserId: 'current-user-id',
             displayName: 'Test Channel',
@@ -54,7 +60,6 @@ describe('ChannelHeader', () => {
             isOwnDirectMessage: false,
             shouldRenderChannelBanner: false,
             isPlaybooksEnabled: true,
-            isChannelAutotranslated: false,
         };
     }
 

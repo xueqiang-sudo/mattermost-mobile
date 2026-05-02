@@ -8,6 +8,8 @@ export const PostTypes = {
     CHANNEL_UNARCHIVED: 'system_channel_restored',
     DISPLAYNAME_CHANGE: 'system_displayname_change',
     CONVERT_CHANNEL: 'system_convert_channel',
+    /** Public ⟷ invite-only group chat privacy change (server `PostTypeChangeChannelPrivacy`) */
+    CHANGE_CHANNEL_PRIVACY: 'system_change_chan_privacy',
     EPHEMERAL: 'system_ephemeral',
     EPHEMERAL_ADD_TO_CHANNEL: 'system_ephemeral_add_to_channel',
     HEADER_CHANGE: 'system_header_change',
@@ -38,6 +40,7 @@ export const PostTypes = {
 
     CUSTOM_LLMBOT: 'custom_llmbot',
     CUSTOM_LLM_POSTBACK: 'custom_llm_postback',
+    CUSTOM_VOICE_ASR: 'custom_voice_asr',
 
     BURN_ON_READ: 'burn_on_read',
 } as const;

@@ -21,52 +21,70 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+const SCREEN_PADDING_H = 16;
+const CARD_RADIUS = 12;
+const TEAM_ICON_SIZE = 48;
+
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
-        container: {
-            display: 'flex',
+        outer: {
+            paddingHorizontal: SCREEN_PADDING_H,
+            paddingTop: 16,
+            paddingBottom: 12,
+            backgroundColor: theme.centerChannelBg,
+        },
+        card: {
             flexDirection: 'row',
             alignItems: 'center',
             width: '100%',
             paddingVertical: 16,
-            paddingHorizontal: 20,
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+            paddingHorizontal: 16,
+            borderRadius: CARD_RADIUS,
+            borderWidth: 1,
+            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+            backgroundColor: theme.centerChannelBg,
         },
         iconContainer: {
-            width: 40,
-            height: 40,
+            width: TEAM_ICON_SIZE,
+            height: TEAM_ICON_SIZE,
+            borderRadius: 12,
+            overflow: 'hidden',
         },
         textContainer: {
-            display: 'flex',
+            flex: 1,
             flexDirection: 'column',
+            marginLeft: 12,
+            minWidth: 0,
         },
         teamText: {
             color: theme.centerChannelColor,
-            marginLeft: 12,
-            ...typography('Body', 200, 'SemiBold'),
+            ...typography('Body', 100, 'SemiBold'),
         },
         serverText: {
-            color: changeOpacity(theme.centerChannelColor, 0.72),
-            marginLeft: 12,
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            marginTop: 4,
             ...typography('Body', 75, 'Regular'),
         },
         shareLink: {
-            display: 'flex',
-            marginLeft: 'auto',
+            marginLeft: 8,
         },
         shareLinkButton: {
-            display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
-            height: 40,
-            paddingHorizontal: 20,
-            backgroundColor: changeOpacity(theme.buttonBg, 0.08),
-            borderRadius: 4,
+            justifyContent: 'center',
+            minHeight: 40,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: changeOpacity(theme.buttonBg, 0.45),
+            backgroundColor: 'transparent',
         },
         shareLinkText: {
             color: theme.buttonBg,
-            ...typography('Body', 100, 'SemiBold'),
-            paddingLeft: 7,
+            ...typography('Body', 75, 'SemiBold'),
+            marginLeft: 6,
+            flexShrink: 1,
         },
         shareLinkIcon: {
             color: theme.buttonBg,
@@ -104,7 +122,7 @@ export default function SelectionTeamBar({
 
     const handleShareLink = usePreventDoubleTap(useCallback(async () => {
         const url = `${serverUrl}/signup_user_complete/?id=${teamInviteId}`;
-        const title = formatMessage({id: 'invite_people_to_team.title', defaultMessage: 'Join the {team} team'}, {team: teamDisplayName});
+        const title = formatMessage({id: 'invite_people_to_team.title', defaultMessage: 'Join the {team} enterprise'}, {team: teamDisplayName});
         const message = formatMessage({id: 'invite_people_to_team.message', defaultMessage: 'Here’s a link to collaborate and communicate with us on Mattermost.'});
         const icon = 'data:<data_type>/<file_extension>;base64,<base64_data>';
 
@@ -157,56 +175,60 @@ export default function SelectionTeamBar({
 
     return (
         <View
-            style={styles.container}
+            style={styles.outer}
             onLayout={handleOnLayoutContainer}
         >
-            <View style={styles.iconContainer}>
-                <TeamIcon
-                    id={teamId}
-                    displayName={teamDisplayName}
-                    lastIconUpdate={teamLastIconUpdate}
-                    selected={false}
-                    textColor={theme.centerChannelColor}
-                    backgroundColor={changeOpacity(theme.centerChannelColor, 0.16)}
-                    testID='invite.team_icon'
-                />
-            </View>
-            <View style={styles.textContainer}>
-                <Text
-                    style={styles.teamText}
-                    numberOfLines={1}
-                    testID='invite.team_display_name'
-                >
-                    {teamDisplayName}
-                </Text>
-                <Text
-                    style={styles.serverText}
-                    numberOfLines={1}
-                    testID='invite.server_display_name'
-                >
-                    {serverDisplayName}
-                </Text>
-            </View>
-            <TouchableOpacity
-                onPress={handleShareLink}
-                style={styles.shareLink}
-            >
-                <View
-                    style={styles.shareLinkButton}
-                    testID='invite.share_link.button'
-                >
-                    <CompassIcon
-                        name='export-variant'
-                        size={18}
-                        style={styles.shareLinkIcon}
-                    />
-                    <FormattedText
-                        id='invite.shareLink'
-                        defaultMessage='Share link'
-                        style={styles.shareLinkText}
+            <View style={styles.card}>
+                <View style={styles.iconContainer}>
+                    <TeamIcon
+                        id={teamId}
+                        displayName={teamDisplayName}
+                        lastIconUpdate={teamLastIconUpdate}
+                        selected={false}
+                        textColor={theme.centerChannelColor}
+                        backgroundColor={changeOpacity(theme.centerChannelColor, 0.12)}
+                        testID='invite.team_icon'
                     />
                 </View>
-            </TouchableOpacity>
+                <View style={styles.textContainer}>
+                    <Text
+                        style={styles.teamText}
+                        numberOfLines={1}
+                        testID='invite.team_display_name'
+                    >
+                        {teamDisplayName}
+                    </Text>
+                    <Text
+                        style={styles.serverText}
+                        numberOfLines={1}
+                        testID='invite.server_display_name'
+                    >
+                        {serverDisplayName}
+                    </Text>
+                </View>
+                <TouchableOpacity
+                    onPress={handleShareLink}
+                    style={styles.shareLink}
+                    accessibilityRole='button'
+                >
+                    <View
+                        style={styles.shareLinkButton}
+                        testID='invite.share_link.button'
+                    >
+                        <CompassIcon
+                            name='export-variant'
+                            size={18}
+                            style={styles.shareLinkIcon}
+                        />
+                        <FormattedText
+                            id='invite.shareLink'
+                            defaultMessage='Share link'
+                            style={styles.shareLinkText}
+                            numberOfLines={1}
+                        />
+                    </View>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 }

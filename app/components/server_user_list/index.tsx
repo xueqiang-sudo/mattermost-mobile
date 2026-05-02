@@ -5,8 +5,8 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import UserList from '@components/user_list';
 import {General} from '@constants';
-import useDidMount from '@hooks/did_mount';
 import {useDebounce} from '@hooks/utils';
+import {createContactSectionsByNickname} from '@utils/contact_section';
 import {filterProfilesMatchingTerm} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -23,8 +23,15 @@ type Props = {
     testID: string;
     location: AvailableScreens;
     customSection?: (profiles: UserProfile[]) => Array<SectionListData<UserProfile>>;
+    contactSelectLayout?: boolean;
+    disableClientFilter?: boolean;
 }
 
+/**
+ * ServerUserList 组件
+ * 用于从服务器获取和展示用户列表的通用组件
+ * 默认使用 contactSelectLayout 样式和 createContactSectionsByNickname 分组逻辑
+ */
 export default function ServerUserList({
     tutorialWatched,
     handleSelectProfile,
@@ -36,6 +43,8 @@ export default function ServerUserList({
     testID,
     location,
     customSection,
+    contactSelectLayout = true,
+    disableClientFilter = false,
 }: Props) {
     const searchTimeoutId = useRef<NodeJS.Timeout | null>(null);
     const next = useRef(true);
@@ -47,6 +56,11 @@ export default function ServerUserList({
     const [loading, setLoading] = useState(false);
 
     const isSearch = Boolean(term);
+
+    // 默认使用 createContactSectionsByNickname 进行分组，允许自定义覆盖
+    const effectiveCustomSection = useMemo(() => {
+        return customSection || createContactSectionsByNickname;
+    }, [customSection]);
 
     const loadedProfiles = (users: UserProfile[]) => {
         if (mounted.current) {
@@ -97,16 +111,22 @@ export default function ServerUserList({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [term]);
 
-    useDidMount(() => {
+    useEffect(() => {
         mounted.current = true;
         getProfiles();
         return () => {
             mounted.current = false;
         };
-    });
+
+        // We only want to get the profiles on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const data = useMemo(() => {
         if (isSearch) {
+            if (disableClientFilter) {
+                return searchResults.length ? searchResults : profiles;
+            }
             const exactMatches: UserProfile[] = [];
             const filterByTerm = createFilter(exactMatches, term);
 
@@ -115,7 +135,7 @@ export default function ServerUserList({
             return [...exactMatches, ...results];
         }
         return profiles;
-    }, [isSearch, profiles, createFilter, term, searchResults]);
+    }, [isSearch, profiles, createFilter, term, searchResults, disableClientFilter]);
 
     return (
         <UserList
@@ -128,9 +148,10 @@ export default function ServerUserList({
             term={term}
             testID={testID}
             tutorialWatched={tutorialWatched}
-            includeUserMargin={true}
+            includeUserMargin={!contactSelectLayout}
             location={location}
-            customSection={customSection}
+            customSection={effectiveCustomSection}
+            contactSelectLayout={contactSelectLayout}
         />
     );
 }

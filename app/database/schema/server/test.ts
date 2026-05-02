@@ -52,7 +52,7 @@ const {PLAYBOOK_RUN, PLAYBOOK_CHECKLIST, PLAYBOOK_CHECKLIST_ITEM, PLAYBOOK_RUN_A
 describe('*** Test schema for SERVER database ***', () => {
     it('=> The SERVER SCHEMA should strictly match', () => {
         expect(serverSchema).toEqual({
-            version: 18,
+            version: 15,
             unsafeSql: undefined,
             tables: {
                 [CATEGORY]: {
@@ -130,7 +130,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         update_at: {name: 'update_at', type: 'number'},
                         banner_info: {name: 'banner_info', type: 'string', isOptional: true},
                         abac_policy_enforced: {name: 'abac_policy_enforced', type: 'boolean', isOptional: true},
-                        autotranslation: {name: 'autotranslation', type: 'boolean', isOptional: true},
                     },
                     columnArray: [
                         {name: 'create_at', type: 'number'},
@@ -145,7 +144,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         {name: 'update_at', type: 'number'},
                         {name: 'banner_info', type: 'string', isOptional: true},
                         {name: 'abac_policy_enforced', type: 'boolean', isOptional: true},
-                        {name: 'autotranslation', type: 'boolean', isOptional: true},
                     ],
                 },
                 [CHANNEL_BOOKMARK]: {
@@ -271,7 +269,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         viewed_at: {name: 'viewed_at', type: 'number'},
                         last_fetched_at: {name: 'last_fetched_at', type: 'number', isIndexed: true},
                         last_playbook_runs_fetch_at: {name: 'last_playbook_runs_fetch_at', type: 'number'},
-                        autotranslation_disabled: {name: 'autotranslation_disabled', type: 'boolean', isOptional: true},
                     },
                     columnArray: [
                         {name: 'is_unread', type: 'boolean'},
@@ -284,7 +281,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         {name: 'viewed_at', type: 'number'},
                         {name: 'last_fetched_at', type: 'number', isIndexed: true},
                         {name: 'last_playbook_runs_fetch_at', type: 'number'},
-                        {name: 'autotranslation_disabled', type: 'boolean', isOptional: true},
                     ],
                 },
                 [MY_CHANNEL_SETTINGS]: {
@@ -321,7 +317,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         root_id: {name: 'root_id', type: 'string', isIndexed: true},
                         metadata: {name: 'metadata', type: 'string', isOptional: true},
                         update_at: {name: 'update_at', type: 'number'},
-                        type: {name: 'type', type: 'string', isOptional: true},
                     },
                     columnArray: [
                         {name: 'channel_id', type: 'string', isIndexed: true},
@@ -330,7 +325,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         {name: 'root_id', type: 'string', isIndexed: true},
                         {name: 'metadata', type: 'string', isOptional: true},
                         {name: 'update_at', type: 'number'},
-                        {name: 'type', type: 'string', isOptional: true},
                     ],
                 },
                 [FILE]: {
@@ -594,13 +588,11 @@ describe('*** Test schema for SERVER database ***', () => {
                         attribute_id: {name: 'attribute_id', type: 'string', isIndexed: true},
                         run_id: {name: 'run_id', type: 'string', isIndexed: true},
                         value: {name: 'value', type: 'string'},
-                        update_at: {name: 'update_at', type: 'number'},
                     },
                     columnArray: [
                         {name: 'attribute_id', type: 'string', isIndexed: true},
                         {name: 'run_id', type: 'string', isIndexed: true},
                         {name: 'value', type: 'string'},
-                        {name: 'update_at', type: 'number'},
                     ],
                 },
                 [POSTS_IN_THREAD]: {
@@ -725,7 +717,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         scheduled_at: {name: 'scheduled_at', type: 'number'},
                         processed_at: {name: 'processed_at', type: 'number'},
                         error_code: {name: 'error_code', type: 'string'},
-                        type: {name: 'type', type: 'string', isOptional: true},
                     },
                     columnArray: [
                         {name: 'channel_id', type: 'string', isIndexed: true},
@@ -738,7 +729,6 @@ describe('*** Test schema for SERVER database ***', () => {
                         {name: 'scheduled_at', type: 'number'},
                         {name: 'processed_at', type: 'number'},
                         {name: 'error_code', type: 'string'},
-                        {name: 'type', type: 'string', isOptional: true},
                     ],
                 },
                 [SYSTEM]: {

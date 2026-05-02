@@ -27,8 +27,8 @@ const CLOSE_BUTTON_ID = 'channel-banner-close';
 
 const getStyleSheet = (bannerTextColor: string) => ({
     container: {
-        paddingTop: 2,
-        paddingBottom: 2,
+        paddingTop: 5,
+        paddingBottom: 5,
         paddingLeft: 16,
         paddingRight: 16,
         height: CHANNEL_BANNER_HEIGHT,
@@ -51,6 +51,7 @@ const getStyleSheet = (bannerTextColor: string) => ({
     },
     bannerText: {
         textAlign: 'center' as const,
+
     },
 });
 

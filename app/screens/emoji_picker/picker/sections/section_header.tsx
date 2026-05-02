@@ -29,10 +29,9 @@ const getStyleSheetFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
             height: SECTION_HEADER_HEIGHT,
             justifyContent: 'center',
             backgroundColor: theme.centerChannelBg,
-            paddingHorizontal: 12,
         },
         sectionTitle: {
-            color: changeOpacity(theme.centerChannelColor, 0.56),
+            color: changeOpacity(theme.centerChannelColor, 0.2),
             textTransform: 'uppercase',
             ...typography('Heading', 75, 'SemiBold'),
         },

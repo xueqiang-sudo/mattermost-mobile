@@ -2,14 +2,13 @@
 // See LICENSE.txt for license information.
 
 import {BottomSheetFlatList} from '@gorhom/bottom-sheet';
-import React, {useCallback, useRef} from 'react';
+import React, {useCallback, useEffect, useRef} from 'react';
 import {type ListRenderItemInfo, type NativeScrollEvent, type NativeSyntheticEvent} from 'react-native';
 import {FlatList} from 'react-native-gesture-handler';
 
 import {fetchUsersByIds} from '@actions/remote/user';
 import {useServerUrl} from '@context/server';
 import {useBottomSheetListsFix} from '@hooks/bottom_sheet_lists_fix';
-import useDidMount from '@hooks/did_mount';
 
 import Reactor from './reactor';
 
@@ -31,21 +30,21 @@ const ReactorsList = ({location, reactions, type = 'FlatList'}: Props) => {
             location={location}
             reaction={item}
         />
-    ), [location]);
+    ), [reactions]);
 
     const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         if (e.nativeEvent.contentOffset.y <= 0 && enabled && direction === 'down') {
             setEnabled(false);
             listRef.current?.scrollToOffset({animated: true, offset: 0});
         }
-    }, [enabled, direction, setEnabled]);
+    }, [enabled, direction]);
 
-    useDidMount(() => {
+    useEffect(() => {
         const userIds = reactions.map((r) => r.userId);
 
         // Fetch any missing user
         fetchUsersByIds(serverUrl, userIds);
-    });
+    }, []);
 
     if (type === 'BottomSheetFlatList') {
         return (

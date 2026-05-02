@@ -23,6 +23,9 @@ type Props = {
     size: number;
     source?: ImageSource | string;
     url?: string;
+
+    /** When set, uses this instead of size/2 for a rounded-square shape. Omit for circular. */
+    borderRadius?: number;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -33,7 +36,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const Image = ({author, forwardRef, iconSize, size, source, url}: Props) => {
+const Image = ({author, forwardRef, iconSize, size, source, url, borderRadius}: Props) => {
     const theme = useTheme();
     let serverUrl = useServerUrl();
     serverUrl = url || serverUrl;
@@ -41,11 +44,11 @@ const Image = ({author, forwardRef, iconSize, size, source, url}: Props) => {
     const style = getStyleSheet(theme);
     const lastPictureUpdateAt = author ? getLastPictureUpdate(author) : 0;
     const fIStyle = useMemo(() => ({
-        borderRadius: size / 2,
+        borderRadius: borderRadius ?? size / 2,
         backgroundColor: theme.centerChannelBg,
         height: size,
         width: size,
-    }), [size, theme.centerChannelBg]);
+    }), [size, theme.centerChannelBg, borderRadius]);
 
     const imgSource = useMemo(() => {
         if (!author || typeof source === 'string') {

@@ -20,7 +20,6 @@ import {Screens} from '@constants/index';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useDidMount from '@hooks/did_mount';
 import SecurityManager from '@managers/security_manager';
 import {dismissOverlay} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
@@ -95,7 +94,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
 });
 
 const TermsOfService = ({
-    siteName = 'Mattermost',
+    siteName = 'Optibot',
     showToS,
     componentId,
 }: Props) => {
@@ -138,7 +137,7 @@ const TermsOfService = ({
                 defaultMessage: 'Unable to complete the request. If this issue persists, contact your System Administrator.',
             }),
             [{
-                text: intl.formatMessage({id: 'terms_of_service.alert_cancel', defaultMessage: 'Cancel'}),
+                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                 style: 'cancel',
                 onPress: closeTermsAndLogout,
             }, {
@@ -191,9 +190,12 @@ const TermsOfService = ({
         }
     }, [declineTerms, closeTermsAndLogout, getTermsError]);
 
-    useDidMount(() => {
+    useEffect(() => {
         getTerms();
-    });
+
+        // Only get the terms on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         return () => {

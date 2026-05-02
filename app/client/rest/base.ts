@@ -215,6 +215,19 @@ export default class ClientBase extends ClientTracking {
         return `${this.getUsersRoute()}/${userId}/custom_profile_attributes`;
     }
 
+    // SMS/Email Gateway routes
+    getSmsEmailGatewayRoute() {
+        return '/plugins/com.mattermost.sms-email-gateway/api';
+    }
+
+    getAccountSendCodeRoute() {
+        return `${this.getSmsEmailGatewayRoute()}/send-code`;
+    }
+
+    getAccountVerifyCodeRoute() {
+        return `${this.getSmsEmailGatewayRoute()}/verify-code`;
+    }
+
     doFetch = async (url: string, options: ClientOptions, returnDataOnly = true) => {
         return this.doFetchWithTracking(url, options, returnDataOnly);
     };

@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Management API 测试工具</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+    .config {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .config-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .config label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    .config input {
+      width: 320px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .config input.short { width: 180px; }
+    .config-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+    .section {
+      margin-bottom: 16px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-header:hover { background: #334155; }
+    .section-header::before {
+      content: '▼';
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+    .section.collapsed .section-header::before { transform: rotate(-90deg); }
+    .section-body { display: none; padding: 16px; }
+    .section:not(.collapsed) .section-body {
+      display: block;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+    }
+    .endpoint {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .endpoint:last-child { border-bottom: none; }
+    .endpoint-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .method {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .method.get { background: #22c55e33; color: #22c55e; }
+    .method.post { background: #3b82f633; color: #3b82f6; }
+    .method.put { background: #f59e0b33; color: #f59e0b; }
+    .method.delete { background: #ef444433; color: #ef4444; }
+    .path { font-family: monospace; font-size: 0.875rem; }
+    .params {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .params input {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.875rem;
+      width: 120px;
+    }
+    .params input::placeholder { color: var(--text-muted); }
+    .body-input {
+      width: 100%;
+      min-height: 60px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: monospace;
+      font-size: 0.8125rem;
+      resize: vertical;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .response-panel {
+      position: sticky;
+      bottom: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #334155;
+    }
+    .response-body {
+      padding: 16px;
+      max-height: 200px;
+      overflow: auto;
+      font-family: monospace;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .response-body.success { color: var(--success); }
+    .response-body.error { color: var(--error); }
+    .status { font-size: 0.75rem; color: var(--text-muted); }
+    .inline-body { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Contact Management API 测试工具</h1>
+    <p style="color: var(--text-muted); margin-bottom: 8px;">通信录 / 供应商 / 客户列表 API</p>
+    <p class="config-hint" style="margin-bottom: 8px;">数据模型与文档一致：公司无 <code>address</code>/<code>phone</code>/<code>email</code>；员工无 <code>department_id</code>（通过员工-部门关联表）。</p>
+    <p class="config-hint" style="margin-bottom: 24px;">创建公司字段 <code style="color: var(--accent);">type</code>：<strong>team</strong>（本公司/团队）| <strong>supplier</strong>（供应商）| <strong>customer</strong>（客户）</p>
+
+    <div class="config">
+      <div class="config-row">
+        <label>
+          服务地址
+          <input type="text" id="baseUrl" value="http://118.195.136.154:8088">
+        </label>
+        <label>
+          API Key
+          <input type="text" id="apiKey" value="b3cz8fsbrfd4ukmfmssf864pqr">
+        </label>
+      </div>
+      <div class="config-row" style="margin-top: 12px;">
+        <label>
+          默认企业ID
+          <input type="text" id="defaultCompanyId" class="short" placeholder="自动填入公司相关接口">
+        </label>
+        <label>
+          默认部门ID
+          <input type="text" id="defaultDeptId" class="short" placeholder="自动填入部门相关接口">
+        </label>
+        <label>
+          默认员工ID
+          <input type="text" id="defaultEmpId" class="short" placeholder="自动填入员工相关接口">
+        </label>
+        <label>
+          默认用户ID
+          <input type="text" id="defaultUserId" class="short" placeholder="users/:userId 相关接口">
+        </label>
+      </div>
+      <p class="config-hint">以上默认 ID 会保存到本地，刷新页面后自动填充到各接口的对应输入框</p>
+      <p class="config-hint" id="proxyHint" style="margin-top: 4px;"></p>
+    </div>
+
+    <div class="section">
+      <div class="section-header">公共端点</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/health</span>
+            </div>
+            <p class="status">健康检查</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/health',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/</span>
+            </div>
+            <p class="status">API 基本信息（name、version）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/docs</span>
+            </div>
+            <p class="status">API 端点列表（无需认证）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/docs',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">公司管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/companies</span>
+            </div>
+            <p class="status">创建公司（id 通常由客户端生成 UUID；需 owner_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_company_create" rows="6" placeholder='{"id":"","name":"","type":"team","description":"","owner_id":""}'>{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "示例公司",
+  "type": "team",
+  "description": "测试用公司",
+  "owner_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/companies',document.getElementById('body_company_create').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies</span>
+            </div>
+            <p class="status">获取所有公司</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">获取单个公司</p>
+            <div class="params">
+              <input id="company_id" placeholder="公司ID">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies/'+paramVal('company_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">更新公司</p>
+            <div class="params"><input id="company_put_id" placeholder="公司ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_company_put" rows="5" placeholder='{"name":"","type":"team","description":"","owner_id":""}'>{
+  "name": "新公司名称",
+  "type": "team",
+  "description": "更新后的描述",
+  "owner_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/companies/'+paramVal('company_put_id'),document.getElementById('body_company_put').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">删除公司</p>
+            <div class="params"><input id="company_del_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/companies/'+paramVal('company_del_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/companies/:id/force</span>
+            </div>
+            <p class="status">强制删除公司（含级联）</p>
+            <div class="params"><input id="company_force_del_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/companies/'+paramVal('company_force_del_id')+'/force',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies/:id/departments</span>
+            </div>
+            <p class="status">获取公司所有部门（含公司自身信息）</p>
+            <div class="params"><input id="company_dept_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies/'+paramVal('company_dept_id')+'/departments',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies/:id/employees</span>
+            </div>
+            <p class="status">获取公司所有员工（含公司自身信息）</p>
+            <div class="params"><input id="company_emp_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies/'+paramVal('company_emp_id')+'/employees',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">部门管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/departments</span>
+            </div>
+            <p class="status">创建部门</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_dept_create" rows="5" placeholder='{"company_id":"","name":"","description":"","parent_id":null}'>{
+  "company_id": "",
+  "name": "技术部",
+  "description": "研发技术部门",
+  "parent_id": null
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/departments',document.getElementById('body_dept_create').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/departments/:id</span>
+            </div>
+            <p class="status">获取单个部门（id 为数字）</p>
+            <div class="params"><input id="dept_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/departments/'+paramVal('dept_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/departments/:id</span>
+            </div>
+            <p class="status">更新部门</p>
+            <div class="params"><input id="dept_put_id" placeholder="部门ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_dept_put" rows="5" placeholder='{"company_id":"","name":"","description":"","parent_id":null}'>{
+  "company_id": "",
+  "name": "新部门名称",
+  "description": "新描述",
+  "parent_id": null
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/departments/'+paramVal('dept_put_id'),document.getElementById('body_dept_put').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/departments/:id</span>
+            </div>
+            <p class="status">删除部门</p>
+            <div class="params"><input id="dept_del_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/departments/'+paramVal('dept_del_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/departments/:id/force</span>
+            </div>
+            <p class="status">强制删除部门（含级联）</p>
+            <div class="params"><input id="dept_force_del_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/departments/'+paramVal('dept_force_del_id')+'/force',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/departments/:id/employees</span>
+            </div>
+            <p class="status">获取部门员工（含部门信息）</p>
+            <div class="params"><input id="dept_emp_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/departments/'+paramVal('dept_emp_id')+'/employees',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/departments/:id/children</span>
+            </div>
+            <p class="status">获取子部门（children）</p>
+            <div class="params"><input id="dept_children_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/departments/'+paramVal('dept_children_id')+'/children',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/departments/:id/sub-departments</span>
+            </div>
+            <p class="status">获取下级子部门列表</p>
+            <div class="params"><input id="dept_sub_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/departments/'+paramVal('dept_sub_id')+'/sub-departments',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/departments/:id/ancestors</span>
+            </div>
+            <p class="status">获取部门祖先路径</p>
+            <div class="params"><input id="dept_ancestors_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/departments/'+encodeURIComponent(paramVal('dept_ancestors_id'))+'/ancestors',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">员工管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/employees</span>
+            </div>
+            <p class="status">创建员工（不含部门；入部门见「员工-部门关联」）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_emp_create" rows="6" placeholder='{"id":"","name":"","email":"","position":"","phone":""}'>{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "name": "张三",
+  "email": "zhangsan@example.com",
+  "position": "软件工程师",
+  "phone": "13800138000"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/employees',document.getElementById('body_emp_create').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/:id</span>
+            </div>
+            <p class="status">获取单个员工</p>
+            <div class="params"><input id="emp_id" placeholder="员工ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/employees/'+paramVal('emp_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/search</span>
+            </div>
+            <p class="status">全局搜索员工：查询参数 <code>keyword</code> 必填；与 <code>name</code>（昵称）、<code>phone</code>、<code>email</code> 精确匹配（非模糊）</p>
+            <div class="params">
+              <input id="emp_search_keyword" placeholder="keyword" style="width:220px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathEmployeesSearch(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/employees/:id</span>
+            </div>
+            <p class="status">更新员工</p>
+            <div class="params"><input id="emp_put_id" placeholder="员工ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_emp_put" rows="5" placeholder='{"name":"","email":"","position":"","phone":""}'>{
+  "name": "新姓名",
+  "email": "new@example.com",
+  "phone": "新电话",
+  "position": "新职位"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/employees/'+paramVal('emp_put_id'),document.getElementById('body_emp_put').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/employees/:id</span>
+            </div>
+            <p class="status">删除员工</p>
+            <div class="params"><input id="emp_del_id" placeholder="员工ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/employees/'+paramVal('emp_del_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/:id/check-delete</span>
+            </div>
+            <p class="status">检查员工是否可以删除</p>
+            <div class="params"><input id="emp_check_del_id" placeholder="员工ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/employees/'+encodeURIComponent(paramVal('emp_check_del_id'))+'/check-delete',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/:id/owned-companies</span>
+            </div>
+            <p class="status">获取员工拥有的企业</p>
+            <div class="params"><input id="emp_owned_companies_id" placeholder="员工ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/employees/'+encodeURIComponent(paramVal('emp_owned_companies_id'))+'/owned-companies',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">用户相关</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/users/:userId/companies</span>
+            </div>
+            <p class="status">获取用户所在企业</p>
+            <div class="params"><input id="user_companies_uid" placeholder="userId"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/users/'+encodeURIComponent(paramVal('user_companies_uid'))+'/companies',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/users/:userId/owned-companies</span>
+            </div>
+            <p class="status">获取用户拥有的企业</p>
+            <div class="params"><input id="user_owned_uid" placeholder="userId"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/users/'+encodeURIComponent(paramVal('user_owned_uid'))+'/owned-companies',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/users/:userId/transfer-ownership/:id</span>
+            </div>
+            <p class="status">转移企业所有权（userId 为当前所有者；id 为公司 ID）</p>
+            <div class="params">
+              <input id="transfer_user_id" placeholder="userId（当前所有者）">
+              <input id="transfer_company_id" placeholder="公司ID" style="width:200px">
+            </div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_transfer_ownership" rows="3" placeholder='{"new_owner_id":""}'>{
+  "new_owner_id": "8f14e45f-ceea-267a-9b99-b840d4ffcb76"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/users/'+encodeURIComponent(paramVal('transfer_user_id'))+'/transfer-ownership/'+encodeURIComponent(paramVal('transfer_company_id')),document.getElementById('body_transfer_ownership').value)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">员工-公司关联</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/employees/:id/companies</span>
+            </div>
+            <p class="status">添加员工到公司</p>
+            <div class="params"><input id="emp_comp_emp_id" placeholder="员工ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_emp_comp" rows="3" placeholder='{"company_id":""}'>{
+  "company_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/employees/'+paramVal('emp_comp_emp_id')+'/companies',document.getElementById('body_emp_comp').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/employees/:id/companies</span>
+            </div>
+            <p class="status">从公司移除员工</p>
+            <div class="params"><input id="emp_comp_del_emp" placeholder="员工ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_emp_comp_del" rows="3" placeholder='{"company_id":""}'>{
+  "company_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/employees/'+paramVal('emp_comp_del_emp')+'/companies',document.getElementById('body_emp_comp_del').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/:id/companies</span>
+            </div>
+            <p class="status">获取员工所属公司</p>
+            <div class="params"><input id="emp_comp_get_id" placeholder="员工ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/employees/'+paramVal('emp_comp_get_id')+'/companies',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/company-employees/:companyId/employees</span>
+            </div>
+            <p class="status">获取公司下所有员工</p>
+            <div class="params"><input id="comp_emp_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/company-employees/'+paramVal('comp_emp_id')+'/employees',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">员工-部门关联</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/employees/:id/departments</span>
+            </div>
+            <p class="status">添加员工到部门</p>
+            <div class="params"><input id="emp_dept_emp_id" placeholder="员工ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_emp_dept" rows="4" placeholder='{"department_id":1,"company_id":""}'>{
+  "department_id": 1,
+  "company_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/employees/'+paramVal('emp_dept_emp_id')+'/departments',document.getElementById('body_emp_dept').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/employees/:id/departments</span>
+            </div>
+            <p class="status">从部门移除员工</p>
+            <div class="params"><input id="emp_dept_del_emp" placeholder="员工ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_emp_dept_del" rows="4" placeholder='{"department_id":1,"company_id":""}'>{
+  "department_id": 1,
+  "company_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/employees/'+paramVal('emp_dept_del_emp')+'/departments',document.getElementById('body_emp_dept_del').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/department-employees/:departmentId/employees</span>
+            </div>
+            <p class="status">获取部门下所有员工</p>
+            <div class="params"><input id="dept_emp_list_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/department-employees/'+paramVal('dept_emp_list_id')+'/employees',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">批量查询 / 过滤 / 版本</div>
+      <div class="section-body">
+        <p class="status" style="margin-bottom: 12px;">对应文档：公司-员工与部门-员工批量统计与搜索、按公司过滤部门、员工级联部门、移动部门、通讯录版本（GET/PUT 无 body）。</p>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/company-employees/:companyId/total-employees</span>
+            </div>
+            <p class="status">公司总人数（去重）</p>
+            <div class="params"><input id="ext_total_emp_company_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/company-employees/'+encodeURIComponent(paramVal('ext_total_emp_company_id'))+'/total-employees',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/department-employees/:departmentId/total-employees</span>
+            </div>
+            <p class="status">部门总人数（含子部门，去重）</p>
+            <div class="params"><input id="ext_total_dept_id" placeholder="部门ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/department-employees/'+encodeURIComponent(paramVal('ext_total_dept_id'))+'/total-employees',null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/employees/:id/move-department</span>
+            </div>
+            <p class="status">移动员工部门：from_department_id、to_department_id、company_id</p>
+            <div class="params"><input id="ext_move_emp_id" placeholder="员工ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_move_department" rows="5">{
+  "from_department_id": 10,
+  "to_department_id": 15,
+  "company_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/employees/'+encodeURIComponent(paramVal('ext_move_emp_id'))+'/move-department',document.getElementById('body_move_department').value)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/by_companies/:companyId/departments</span>
+            </div>
+            <p class="status">公司部门列表；可选查询 parent_department_id：不传=全部，-1=仅顶级，≥0=某父部门子部门</p>
+            <div class="params">
+              <input id="ext_by_comp_company_id" placeholder="公司ID">
+              <input id="ext_parent_dept_filter" placeholder="parent_department_id（可选）" style="width:200px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathByCompaniesDepartments(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/employees/:id/cascade-departments</span>
+            </div>
+            <p class="status">员工在指定公司的级联部门；必填查询参数 company_id</p>
+            <div class="params">
+              <input id="ext_cascade_emp_id" placeholder="员工ID">
+              <input id="ext_cascade_company_id" placeholder="company_id" style="width:200px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathCascadeDepartments(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/company-employees/:companyId/search</span>
+            </div>
+            <p class="status">公司内搜索：keyword 必填；可选 department_id 限定部门及子部门</p>
+            <div class="params">
+              <input id="ext_search_company_id" placeholder="公司ID">
+              <input id="ext_search_keyword" placeholder="keyword" style="width:140px">
+              <input id="ext_search_dept_filter" placeholder="department_id（可选）" style="width:160px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathCompanyEmployeeSearch(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/department-employees/:departmentId/search</span>
+            </div>
+            <p class="status">部门范围内搜索：keyword、company_id 均为查询参数</p>
+            <div class="params">
+              <input id="ext_search_dept_id" placeholder="部门ID">
+              <input id="ext_search_dept_keyword" placeholder="keyword" style="width:120px">
+              <input id="ext_search_dept_company_id" placeholder="company_id" style="width:180px">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathDepartmentEmployeeSearch(), null)">调用</button>
+        </div>
+
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/versions/companies/:companyId/contacts</span>
+            </div>
+            <p class="status">获取通讯录版本（客户端缓存）</p>
+            <div class="params"><input id="ext_version_company_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/versions/companies/'+encodeURIComponent(paramVal('ext_version_company_id'))+'/contacts',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/versions/companies/:companyId/contacts</span>
+            </div>
+            <p class="status">更新联系人版本（无请求体，由服务端 bump）</p>
+            <div class="params"><input id="ext_version_put_company_id" placeholder="公司ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/versions/companies/'+encodeURIComponent(paramVal('ext_version_put_company_id'))+'/contacts',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="response-panel">
+      <div class="response-header">
+        <span>响应</span>
+        <span class="status" id="respStatus"></span>
+      </div>
+      <pre class="response-body" id="responseBody">点击上方按钮调用接口，响应将显示在此处</pre>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'contact-api-tester-defaults';
+
+    function paramVal(domId) {
+      return document.getElementById(domId).value.trim() || '_';
+    }
+
+    function pathByCompaniesDepartments() {
+      var cid = document.getElementById('ext_by_comp_company_id').value.trim() || '_';
+      var p = document.getElementById('ext_parent_dept_filter').value.trim();
+      var path = '/api/v1/by_companies/' + encodeURIComponent(cid) + '/departments';
+      if (p !== '') {
+        path += '?parent_department_id=' + encodeURIComponent(p);
+      }
+      return path;
+    }
+
+    function pathCascadeDepartments() {
+      var eid = document.getElementById('ext_cascade_emp_id').value.trim() || '_';
+      var comp = document.getElementById('ext_cascade_company_id').value.trim();
+      var q = new URLSearchParams();
+      if (comp) {
+        q.set('company_id', comp);
+      }
+      var qs = q.toString();
+      return '/api/v1/employees/' + encodeURIComponent(eid) + '/cascade-departments' + (qs ? '?' + qs : '');
+    }
+
+    function pathEmployeesSearch() {
+      var kw = document.getElementById('emp_search_keyword').value.trim();
+      var q = new URLSearchParams();
+      if (kw) {
+        q.set('keyword', kw);
+      }
+      var qs = q.toString();
+      return '/api/v1/employees/search' + (qs ? '?' + qs : '');
+    }
+
+    function pathCompanyEmployeeSearch() {
+      var cid = document.getElementById('ext_search_company_id').value.trim() || '_';
+      var kw = document.getElementById('ext_search_keyword').value.trim();
+      var dept = document.getElementById('ext_search_dept_filter').value.trim();
+      var q = new URLSearchParams();
+      if (kw) {
+        q.set('keyword', kw);
+      }
+      if (dept !== '') {
+        q.set('department_id', dept);
+      }
+      var qs = q.toString();
+      return '/api/v1/company-employees/' + encodeURIComponent(cid) + '/search' + (qs ? '?' + qs : '');
+    }
+
+    function pathDepartmentEmployeeSearch() {
+      var did = document.getElementById('ext_search_dept_id').value.trim() || '_';
+      var kw = document.getElementById('ext_search_dept_keyword').value.trim();
+      var comp = document.getElementById('ext_search_dept_company_id').value.trim();
+      var q = new URLSearchParams();
+      if (kw) {
+        q.set('keyword', kw);
+      }
+      if (comp) {
+        q.set('company_id', comp);
+      }
+      var qs = q.toString();
+      return '/api/v1/department-employees/' + encodeURIComponent(did) + '/search' + (qs ? '?' + qs : '');
+    }
+
+    function getDefaults() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function saveDefaults() {
+      const defaults = {
+        baseUrl: document.getElementById('baseUrl').value,
+        apiKey: document.getElementById('apiKey').value,
+        companyId: document.getElementById('defaultCompanyId').value.trim(),
+        deptId: document.getElementById('defaultDeptId').value.trim(),
+        empId: document.getElementById('defaultEmpId').value.trim(),
+        userId: document.getElementById('defaultUserId').value.trim()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    }
+
+    function applyDefaults() {
+      // 从输入框读取当前默认值（与 UI 同步）
+      const cid = (document.getElementById('defaultCompanyId')?.value || '').trim();
+      const did = (document.getElementById('defaultDeptId')?.value || '').trim();
+      const eid = (document.getElementById('defaultEmpId')?.value || '').trim();
+      const uid = (document.getElementById('defaultUserId')?.value || '').trim();
+
+      // 路径参数：公司 ID
+      ['company_id','company_put_id','company_del_id','company_force_del_id','company_dept_id','company_emp_id','comp_emp_id','ext_total_emp_company_id','ext_by_comp_company_id','ext_search_company_id','ext_version_company_id','ext_version_put_company_id','transfer_company_id'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if (el) el.value = cid;
+      });
+
+      // 路径参数：部门 ID
+      ['dept_id','dept_put_id','dept_del_id','dept_force_del_id','dept_emp_id','dept_children_id','dept_sub_id','dept_ancestors_id','dept_emp_list_id','ext_total_dept_id','ext_search_dept_id'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if (el) el.value = did;
+      });
+
+      // 路径参数：员工 ID
+      ['emp_id','emp_put_id','emp_del_id','emp_check_del_id','emp_owned_companies_id','emp_comp_emp_id','emp_comp_del_emp','emp_comp_get_id','emp_dept_emp_id','emp_dept_del_emp','ext_move_emp_id','ext_cascade_emp_id'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if (el) el.value = eid;
+      });
+
+      // 路径参数：用户 ID
+      ['user_companies_uid','user_owned_uid','transfer_user_id'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if (el) el.value = uid;
+      });
+
+      const elCascadeComp = document.getElementById('ext_cascade_company_id');
+      if (elCascadeComp && cid) elCascadeComp.value = cid;
+      const elSearchDeptComp = document.getElementById('ext_search_dept_company_id');
+      if (elSearchDeptComp && cid) elSearchDeptComp.value = cid;
+
+      // JSON body：包含 company_id 的接口
+      ['body_emp_comp','body_emp_comp_del','body_dept_create','body_dept_put','body_emp_dept','body_emp_dept_del','body_move_department'].forEach(key => {
+        const el = document.getElementById(key);
+        if (!el) return;
+        try {
+          const obj = el.value.trim() ? JSON.parse(el.value) : {};
+          if ('company_id' in obj) obj.company_id = cid;
+          if ('department_id' in obj && did) obj.department_id = /^\d+$/.test(did) ? parseInt(did, 10) : did;
+          el.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      });
+
+      // JSON body：创建公司时的 id / owner_id 用默认 ID
+      const companyCreateEl = document.getElementById('body_company_create');
+      if (companyCreateEl && cid) {
+        try {
+          const obj = companyCreateEl.value.trim() ? JSON.parse(companyCreateEl.value) : {};
+          if ('id' in obj) obj.id = cid;
+          if ('owner_id' in obj && eid) obj.owner_id = eid;
+          companyCreateEl.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+
+      // JSON body：创建员工时的 id 字段用默认员工ID
+      const empCreateEl = document.getElementById('body_emp_create');
+      if (empCreateEl && eid) {
+        try {
+          const obj = empCreateEl.value.trim() ? JSON.parse(empCreateEl.value) : {};
+          if ('id' in obj) obj.id = eid;
+          empCreateEl.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      }
+    }
+
+    function loadStoredDefaults() {
+      const d = getDefaults();
+      if (d.baseUrl) document.getElementById('baseUrl').value = d.baseUrl;
+      if (d.apiKey) document.getElementById('apiKey').value = d.apiKey;
+      if (d.companyId) document.getElementById('defaultCompanyId').value = d.companyId;
+      if (d.deptId) document.getElementById('defaultDeptId').value = d.deptId;
+      if (d.empId) document.getElementById('defaultEmpId').value = d.empId;
+      if (d.userId) document.getElementById('defaultUserId').value = d.userId;
+    }
+
+    document.querySelectorAll('.section-header').forEach(el => {
+      el.addEventListener('click', () => {
+        el.parentElement.classList.toggle('collapsed');
+      });
+    });
+
+    loadStoredDefaults();
+    applyDefaults();
+
+    const proxyHint = document.getElementById('proxyHint');
+    proxyHint.textContent = useProxy()
+      ? '✓ 已通过本地代理请求（CORS 已解决）'
+      : '⚠ 直接请求可能因 CORS 失败。运行 node docs/contact-api-proxy.js 后访问 http://localhost:3456/contact-api-tester.html';
+
+    ['baseUrl','apiKey','defaultCompanyId','defaultDeptId','defaultEmpId','defaultUserId'].forEach(key => {
+      document.getElementById(key).addEventListener('change', () => {
+        saveDefaults();
+        if (['defaultCompanyId','defaultDeptId','defaultEmpId','defaultUserId'].includes(key)) {
+          applyDefaults();
+        }
+      });
+      document.getElementById(key).addEventListener('blur', () => {
+        saveDefaults();
+        if (['defaultCompanyId','defaultDeptId','defaultEmpId','defaultUserId'].includes(key)) {
+          applyDefaults();
+        }
+      });
+    });
+
+    function useProxy() {
+      return window.location.port === '3456' && window.location.hostname === 'localhost';
+    }
+
+    async function callApi(method, path, body) {
+      const base = document.getElementById('baseUrl').value.replace(/\/$/, '');
+      const apiKey = document.getElementById('apiKey').value;
+      const url = base + path;
+      const respEl = document.getElementById('responseBody');
+      const statusEl = document.getElementById('respStatus');
+
+      let reqBody = '';
+      if (body && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
+        try {
+          reqBody = body.trim() ? JSON.stringify(JSON.parse(body)) : '{}';
+        } catch (e) {
+          respEl.textContent = '请求体 JSON 格式错误：' + e.message;
+          respEl.className = 'response-body error';
+          statusEl.textContent = '';
+          return;
+        }
+      }
+
+      respEl.textContent = '请求中...';
+      respEl.className = 'response-body';
+      statusEl.textContent = '';
+
+      try {
+        const headers = { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' };
+
+        let status, statusText, text;
+        if (useProxy()) {
+          const proxyRes = await fetch('/proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUrl: url,
+              method,
+              headers,
+              body: reqBody
+            })
+          });
+          const proxyData = await proxyRes.json();
+          status = proxyData.status;
+          statusText = proxyData.statusText;
+          text = proxyData.body || '';
+        } else {
+          const res = await fetch(url, {
+            method,
+            headers,
+            body: reqBody || undefined
+          });
+          status = res.status;
+          statusText = res.statusText;
+          text = await res.text();
+        }
+
+        let formatted = text;
+        try {
+          formatted = JSON.stringify(JSON.parse(text), null, 2);
+        } catch (_) {}
+
+        respEl.textContent = `[${status}] ${statusText}\n\n${formatted}`;
+        respEl.className = 'response-body ' + (status >= 200 && status < 300 ? 'success' : 'error');
+        statusEl.textContent = status + ' ' + statusText;
+      } catch (e) {
+        respEl.textContent = '请求失败：' + e.message + '\n\n若因 CORS 限制，请运行: node docs/contact-api-proxy.js\n然后访问: http://localhost:3456/contact-api-tester.html';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+      }
+    }
+  </script>
+</body>
+</html>

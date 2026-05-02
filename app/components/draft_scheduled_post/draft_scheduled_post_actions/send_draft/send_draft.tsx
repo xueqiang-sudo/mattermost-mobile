@@ -124,7 +124,7 @@ const SendDraft: React.FC<Props> = ({
                         defaultMessage: 'Post has been create successfully but failed to delete. Please delete the scheduled post manually from the scheduled post list.',
                     }),
                     [{
-                        text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}),
+                        text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                         style: 'cancel',
                     },
                     ], {cancelable: false},

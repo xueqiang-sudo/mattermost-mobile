@@ -1,14 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {forwardRef} from 'react';
+import React, {forwardRef, useMemo} from 'react';
 import Animated, {useAnimatedStyle, useDerivedValue} from 'react-native-reanimated';
 
 import {SEARCH_INPUT_HEIGHT, SEARCH_INPUT_MARGIN} from '@constants/view';
 import {useTheme} from '@context/theme';
 import useHeaderHeight, {MAX_OVERSCROLL} from '@hooks/header';
 import {clamp} from '@utils/gallery';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Header, {type HeaderRightButton} from './header';
 import NavigationHeaderLargeTitle from './large';
@@ -30,7 +30,10 @@ type Props = SearchProps & {
     subtitle?: string;
     subtitleCompanion?: React.ReactElement;
     title?: string;
-    titleCompanion?: React.ReactElement;
+    titleTag?: string;
+
+    /** 用于聊天界面：浅灰背景、更简洁的视觉效果 */
+    useChatStyle?: boolean;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -55,12 +58,15 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
     subtitle,
     subtitleCompanion,
     title = '',
-    titleCompanion,
+    titleTag,
+    useChatStyle = false,
     hideHeader,
     ...searchProps
 }: Props, ref) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
+    const chatHeaderBackground = useMemo(() => getChatListBackdropColor(theme), [theme]);
+    const containerStyle = useChatStyle ? [styles.container, {backgroundColor: chatHeaderBackground}] : styles.container;
 
     const {largeHeight, defaultHeight, headerOffset} = useHeaderHeight();
 
@@ -87,7 +93,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
     }, [lockValue, headerOffset]);
 
     return (
-        <Animated.View style={[styles.container, containerHeight]}>
+        <Animated.View style={[containerStyle, containerHeight]}>
             <Header
                 defaultHeight={defaultHeight}
                 hasSearch={hasSearch}
@@ -103,7 +109,8 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
                 subtitleCompanion={subtitleCompanion}
                 theme={theme}
                 title={title}
-                titleCompanion={titleCompanion}
+                titleTag={titleTag}
+                backgroundColor={useChatStyle ? chatHeaderBackground : undefined}
             />
             {isLargeTitle &&
                 <NavigationHeaderLargeTitle

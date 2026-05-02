@@ -44,7 +44,6 @@ type Props = {
     text: string;
     isLast: boolean;
     isSelected: boolean;
-    testID?: string;
 }
 function RadioEntry({
     handleChange,
@@ -52,7 +51,6 @@ function RadioEntry({
     text,
     isLast,
     isSelected,
-    testID,
 }: Props) {
     const theme = useTheme();
     const style = getStyleSheet(theme);
@@ -64,7 +62,6 @@ function RadioEntry({
         <TouchableOpacity
             onPress={onPress}
             key={value}
-            testID={testID}
         >
             <View style={style.container}>
                 <View style={style.rowContainer}>

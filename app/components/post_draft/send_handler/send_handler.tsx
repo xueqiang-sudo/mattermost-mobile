@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 
-import {updateDraftBoRConfig, updateDraftPriority} from '@actions/local/draft';
+import {updateDraftPriority} from '@actions/local/draft';
 import SendDraft from '@components/draft_scheduled_post/draft_scheduled_post_actions/send_draft';
 import DraftInput from '@components/post_draft/draft_input/';
 import {PostPriorityType} from '@constants/post';
@@ -11,6 +11,15 @@ import {useServerUrl} from '@context/server';
 import {useHandleSendMessage} from '@hooks/handle_send_message';
 
 import type {DraftType} from '@constants/draft';
+import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
+
+const noopDraftVideoBridge: DraftVideoProcessingBridge = {
+    currentUserId: '',
+    addVideoPlaceholder: () => undefined,
+    updateVideoPlaceholder: async () => undefined,
+    completeVideoProcessing: () => undefined,
+    removeVideoPlaceholder: () => undefined,
+};
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -20,7 +29,9 @@ type Props = {
     channelType?: ChannelType;
     channelName?: string;
     rootId: string;
+    quotedPostId?: string;
     canShowPostPriority?: boolean;
+    useChatInputStyle?: boolean;
     setIsFocused: (isFocused: boolean) => void;
 
     // From database
@@ -32,6 +43,9 @@ type Props = {
     useChannelMentions: boolean;
     userIsOutOfOffice: boolean;
     customEmojis: CustomEmojiModel[];
+    customEmojisEnabled: boolean;
+    recentEmojis: string[];
+    skinTone: string;
 
     // DRAFT Handler
     value: string;
@@ -41,11 +55,14 @@ type Props = {
     updateCursorPosition: React.Dispatch<React.SetStateAction<number>>;
     updatePostInputTop: (top: number) => void;
     addFiles: (file: FileInfo[]) => void;
+    draftVideoProcessingBridge?: DraftVideoProcessingBridge;
+
+    /** Immediate image-only post (local sticker); does not modify draft. */
+    sendStandaloneStickerImage: (file: FileInfo) => Promise<void>;
     uploadFileError: React.ReactNode;
     persistentNotificationInterval: number;
     persistentNotificationMaxRecipients: number;
     postPriority: PostPriority;
-    postBoRConfig?: PostBoRConfig;
 
     draftType?: DraftType;
     postId?: string;
@@ -53,7 +70,6 @@ type Props = {
     channelDisplayName?: string;
     isFromDraftView?: boolean;
     draftReceiverUserName?: string;
-    location?: AvailableScreens;
 }
 
 export const INITIAL_PRIORITY = {
@@ -75,14 +91,21 @@ export default function SendHandler({
     membersCount = 0,
     cursorPosition,
     rootId,
+    quotedPostId = '',
     canShowPostPriority,
+    useChatInputStyle,
     useChannelMentions,
     userIsOutOfOffice,
     customEmojis,
+    customEmojisEnabled,
+    recentEmojis,
+    skinTone,
     value,
     clearDraft,
     updateValue,
     addFiles,
+    draftVideoProcessingBridge,
+    sendStandaloneStickerImage,
     uploadFileError,
     updateCursorPosition,
     updatePostInputTop,
@@ -95,8 +118,6 @@ export default function SendHandler({
     isFromDraftView,
     draftType,
     postId,
-    postBoRConfig,
-    location,
 }: Props) {
     const serverUrl = useServerUrl();
 
@@ -104,14 +125,11 @@ export default function SendHandler({
         updateDraftPriority(serverUrl, channelId, rootId, priority);
     }, [serverUrl, channelId, rootId]);
 
-    const handlePostBoRStatus = useCallback((config: PostBoRConfig) => {
-        updateDraftBoRConfig(serverUrl, channelId, rootId, config);
-    }, [channelId, rootId, serverUrl]);
-
-    const {handleSendMessage, canSend} = useHandleSendMessage({
+    const {handleSendMessage, canSend, sendVoiceAsr} = useHandleSendMessage({
         value,
         channelId,
         rootId,
+        quotedPostId,
         files,
         maxMessageLength,
         customEmojis,
@@ -123,7 +141,6 @@ export default function SendHandler({
         channelType,
         postPriority,
         clearDraft,
-        postBoRConfig,
     });
 
     if (isFromDraftView) {
@@ -131,6 +148,7 @@ export default function SendHandler({
             <SendDraft
                 channelId={channelId}
                 rootId={rootId}
+                quotedPostId={quotedPostId}
                 channelType={channelType}
                 currentUserId={currentUserId}
                 channelName={channelName}
@@ -163,25 +181,30 @@ export default function SendHandler({
             currentUserId={currentUserId}
             rootId={rootId}
             canShowPostPriority={canShowPostPriority}
+            useChatInputStyle={useChatInputStyle}
             cursorPosition={cursorPosition}
             updateCursorPosition={updateCursorPosition}
             value={value}
             files={files}
             updateValue={updateValue}
             addFiles={addFiles}
+            draftVideoProcessingBridge={draftVideoProcessingBridge ?? noopDraftVideoBridge}
+            sendStandaloneStickerImage={sendStandaloneStickerImage}
             uploadFileError={uploadFileError}
             sendMessage={handleSendMessage}
+            sendVoiceAsr={sendVoiceAsr}
             canSend={canSend}
             maxMessageLength={maxMessageLength}
             updatePostInputTop={updatePostInputTop}
             postPriority={postPriority}
-            postBoRConfig={postBoRConfig}
             updatePostPriority={handlePostPriority}
-            updatePostBoRStatus={handlePostBoRStatus}
             persistentNotificationInterval={persistentNotificationInterval}
             persistentNotificationMaxRecipients={persistentNotificationMaxRecipients}
             setIsFocused={setIsFocused}
-            location={location}
+            customEmojis={customEmojis}
+            customEmojisEnabled={customEmojisEnabled}
+            recentEmojis={recentEmojis}
+            skinTone={skinTone}
         />
     );
 }

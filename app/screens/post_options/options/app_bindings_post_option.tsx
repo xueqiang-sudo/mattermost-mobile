@@ -77,7 +77,6 @@ const BindingOptionItem = ({binding, onPress}: {binding: AppBinding; onPress: (b
     return (
         <OptionItem
             label={binding.label || ''}
-            labelNumberOfLines={1}
             icon={binding.icon}
             action={handlePress}
             type='default'

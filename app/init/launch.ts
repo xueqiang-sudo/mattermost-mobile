@@ -1,19 +1,23 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {CONNECT_URL} from '@env';
 import Emm from '@mattermost/react-native-emm';
 import {Alert, AppState, DeviceEventEmitter, Linking, Platform} from 'react-native';
 import {Notifications} from 'react-native-notifications';
 
 import {removePost} from '@actions/local/post';
+import {terminateSession} from '@actions/local/session';
 import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
+import {logout} from '@actions/remote/session';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import LocalConfig from '@assets/config.json';
 import {DeepLink, Events, Launch, PushNotification} from '@constants';
 import {PostTypes} from '@constants/post';
 import DatabaseManager from '@database/manager';
 import {getActiveServerUrl, getServerCredentials, removeServerCredentials} from '@init/credentials';
+import {getAutoClient} from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {getLastViewedChannelIdAndServer, getOnboardingViewed, getLastViewedThreadIdAndServer} from '@queries/app/global';
 import {getAllServers} from '@queries/app/servers';
@@ -21,7 +25,7 @@ import {queryPostsByType} from '@queries/servers/post';
 import {getThemeForCurrentTeam} from '@queries/servers/preference';
 import {getCurrentUserId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
-import {resetToHome, resetToSelectServer, resetToTeams, resetToOnboarding} from '@screens/navigation';
+import {resetToHome, resetToLogin, resetToTeams, resetToOnboarding} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
 import {logInfo} from '@utils/log';
@@ -33,8 +37,10 @@ import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 const initialNotificationTypes = [PushNotification.NOTIFICATION_TYPE.MESSAGE, PushNotification.NOTIFICATION_TYPE.SESSION];
 
 export const initialLaunch = async () => {
+    logInfo('[Launch.startup] initialLaunch started');
     const deepLinkUrl = await Linking.getInitialURL();
     if (deepLinkUrl) {
+        logInfo('[Launch.startup] Launch from deeplink', {deepLinkUrl});
         return launchAppFromDeepLink(deepLinkUrl, true);
     }
 
@@ -50,12 +56,14 @@ export const initialLaunch = async () => {
         tapped = delivered.find((d) => (d as unknown as NotificationData).ack_id === notification?.payload.ack_id) == null;
     }
     if (initialNotificationTypes.includes(notification?.payload?.type) && tapped) {
+        logInfo('[Launch.startup] Launch from notification', {type: notification?.payload?.type});
         const notificationData = convertToNotificationData(notification!);
         EphemeralStore.setProcessingNotification(notificationData.identifier);
         return launchAppFromNotification(notificationData, true);
     }
 
     const coldStart = notification ? (tapped || AppState.currentState === 'active') : true;
+    logInfo('[Launch.startup] Launch as normal flow', {coldStart});
     return launchApp({launchType: Launch.Normal, coldStart});
 };
 
@@ -77,6 +85,12 @@ const launchAppFromNotification = async (notification: NotificationWithData, col
  * @returns a redirection to a screen, either onboarding, add_server, login or home depending on the scenario
  */
 export const launchApp = async (props: LaunchProps) => {
+    logInfo('[Launch.startup] launchApp entered', {
+        launchType: props?.launchType,
+        hasExtra: Boolean(props?.extra),
+        launchError: Boolean(props?.launchError),
+        hasServerUrlInProps: Boolean(props?.serverUrl),
+    });
     let serverUrl: string | undefined;
     switch (props?.launchType) {
         case Launch.DeepLink:
@@ -115,7 +129,10 @@ export const launchApp = async (props: LaunchProps) => {
             break;
         }
         default:
-            serverUrl = await getActiveServerUrl();
+            // serverUrl = await getActiveServerUrl()
+            // qgs: 写死服务器地址
+            serverUrl = CONNECT_URL || LocalConfig.DefaultServerUrl;
+            logInfo('[Launch.startup] Using configured startup server url', {serverUrl});
             break;
     }
 
@@ -123,11 +140,22 @@ export const launchApp = async (props: LaunchProps) => {
         serverUrl = await getActiveServerUrl();
     }
 
+    logInfo('[Launch.startup] Scheduling ephemeral post cleanup');
     cleanupEphemeralPosts();
 
     if (serverUrl) {
-        const credentials = await getServerCredentials(serverUrl);
-        if (credentials) {
+        logInfo('[Launch.startup] Validating startup credentials', {serverUrl});
+        let hasCredentials = Boolean(await getServerCredentials(serverUrl));
+        const myUser = await (await getAutoClient(serverUrl)).getMe().catch(() => null);
+        if (!(myUser && myUser.nickname)) {
+            hasCredentials = false;
+            logInfo('not exist user launchToLogin', Boolean(myUser));
+            await logout(serverUrl, undefined, {skipServerLogout: true, skipEvents: true}).then(() => logInfo('logout success')).catch((errTmp) => logInfo('logout error', errTmp));
+            await terminateSession(serverUrl, false).catch((errTmp) => logInfo('terminateSession error', errTmp));
+        }
+
+        if (hasCredentials) {
+            logInfo('exist user launchToHome', myUser && myUser.nickname);
             const database = DatabaseManager.serverDatabases[serverUrl]?.database;
             let hasCurrentUser = false;
             if (database) {
@@ -165,14 +193,17 @@ export const launchApp = async (props: LaunchProps) => {
         }
     }
 
+    logInfo('[Launch.startup] Checking onboarding viewed state', LocalConfig.ShowOnboarding);
     const onboardingViewed = LocalConfig.ShowOnboarding && await getOnboardingViewed();
 
     // if the config value is set and the onboarding has not been seeing yet, show the onboarding
     if (LocalConfig.ShowOnboarding && !onboardingViewed) {
+        logInfo('[Launch.startup] Routing to onboarding');
         return resetToOnboarding(props);
     }
 
-    return resetToSelectServer(props);
+    logInfo('[Launch.startup] Routing to login', {serverUrl});
+    return resetToLogin({...props, serverUrl});
 };
 
 export const launchToHome = async (props: LaunchProps) => {
@@ -201,7 +232,7 @@ export const launchToHome = async (props: LaunchProps) => {
 
                 if (lastViewedThread && lastViewedThread.server_url === props.serverUrl && lastViewedThread.thread_id) {
                     PerformanceMetricsManager.setLoadTarget('THREAD');
-                    fetchAndSwitchToThread(props.serverUrl!, lastViewedThread.thread_id);
+                    fetchAndSwitchToThread(props.serverUrl!, lastViewedThread.thread_id, false, undefined, true);
                 } else if (lastViewedChannel && lastViewedChannel.server_url === props.serverUrl && lastViewedChannel.channel_id) {
                     PerformanceMetricsManager.setLoadTarget('CHANNEL');
                     switchToChannelById(props.serverUrl!, lastViewedChannel.channel_id);

@@ -1,8 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {fetchAgents} from '@agents/actions/remote/agents';
-
 import {setLastServerVersionCheck} from '@actions/local/systems';
 import {fetchConfigAndLicense} from '@actions/remote/systems';
 import DatabaseManager from '@database/manager';
@@ -36,9 +34,6 @@ export async function appEntry(serverUrl: string, since = 0) {
     WebsocketManager.openAll('Cold Start');
 
     verifyPushProxy(serverUrl);
-
-    // Fetch agents to determine if AI features are available
-    fetchAgents(serverUrl);
 
     return {};
 }

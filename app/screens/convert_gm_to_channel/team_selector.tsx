@@ -20,8 +20,8 @@ type Props = {
 export const TeamSelector = ({commonTeams, onSelectTeam, selectedTeamId}: Props) => {
     const {formatMessage} = useIntl();
 
-    const label = formatMessage({id: 'channel_into.convert_gm_to_channel.team_selector.label', defaultMessage: 'Team'});
-    const placeholder = formatMessage({id: 'channel_into.convert_gm_to_channel.team_selector.placeholder', defaultMessage: 'Select a Team'});
+    const label = formatMessage({id: 'channel_into.convert_gm_to_channel.team_selector.label', defaultMessage: 'Enterprise'});
+    const placeholder = formatMessage({id: 'channel_into.convert_gm_to_channel.team_selector.placeholder', defaultMessage: 'Select an enterprise'});
 
     const selectedTeam = useMemo(() => commonTeams.find((t) => t.id === selectedTeamId), [commonTeams, selectedTeamId]);
 
@@ -34,7 +34,7 @@ export const TeamSelector = ({commonTeams, onSelectTeam, selectedTeamId}: Props)
 
     const goToTeamSelectorList = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
-        const title = formatMessage({id: 'channel_info.convert_gm_to_channel.team_selector_list.title', defaultMessage: 'Select Team'});
+        const title = formatMessage({id: 'channel_info.convert_gm_to_channel.team_selector_list.title', defaultMessage: 'Select Enterprise'});
         goToScreen(Screens.TEAM_SELECTOR_LIST, title, {teams: commonTeams, selectTeam, selectedTeamId});
     }, [commonTeams, formatMessage, selectTeam, selectedTeamId]));
 

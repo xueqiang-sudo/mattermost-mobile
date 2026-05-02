@@ -21,6 +21,7 @@ import {
 import {Navigation} from 'react-native-navigation';
 import {RTCView} from 'react-native-webrtc';
 
+import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import {muteMyself, unmuteMyself} from '@calls/actions';
 import {leaveCallConfirmation, startCallRecording, stopCallRecording} from '@calls/actions/calls';
 import {
@@ -57,7 +58,6 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useIsTablet} from '@hooks/device';
-import useDidMount from '@hooks/did_mount';
 import SecurityManager from '@managers/security_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {
@@ -65,7 +65,6 @@ import {
     bottomSheet,
     dismissAllModalsAndPopToScreen,
     dismissBottomSheet,
-    goToScreen,
     openAsBottomSheet,
     popTopScreen,
     setScreensOrientation,
@@ -75,7 +74,7 @@ import {bottomSheetSnapPoint} from '@utils/helpers';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {CallSession, CallsTheme, CurrentCall} from '@calls/types/calls';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -364,10 +363,14 @@ const CallScreen = ({
         id: 'mobile.calls_stop_recording',
         defaultMessage: 'Stop Recording',
     });
+    const openChannelOptionTitle = intl.formatMessage({
+        id: 'mobile.calls_open_channel',
+        defaultMessage: 'Open Channel',
+    });
     const showCCTitle = intl.formatMessage({id: 'mobile.calls_show_cc', defaultMessage: 'Show live captions'});
     const hideCCTitle = intl.formatMessage({id: 'mobile.calls_hide_cc', defaultMessage: 'Hide live captions'});
 
-    useDidMount(() => {
+    useEffect(() => {
         const setOrientation = () => {
             mergeNavigationOptions('Call', {
                 layout: {
@@ -415,7 +418,7 @@ const CallScreen = ({
 
             unsetOrientation();
         };
-    });
+    }, []);
 
     const leaveCallHandler = useCallback(() => {
         leaveCallConfirmation(intl, otherParticipants, isAdmin, isHost, serverUrl, currentCall?.channelId || '', popTopScreen);
@@ -445,7 +448,7 @@ const CallScreen = ({
         }
 
         await startCallRecording(currentCall.serverUrl, currentCall.channelId);
-    }, [currentCall]);
+    }, [currentCall?.channelId, currentCall?.serverUrl]);
 
     const stopRecording = useCallback(async () => {
         const stop = await stopRecordingConfirmationAlert(intl, EnableTranscriptions);
@@ -461,7 +464,7 @@ const CallScreen = ({
         }
 
         await stopCallRecording(currentCall.serverUrl, currentCall.channelId);
-    }, [intl, EnableTranscriptions, currentCall]);
+    }, [currentCall?.channelId, currentCall?.serverUrl, EnableTranscriptions]);
 
     const toggleCC = useCallback(async () => {
         Keyboard.dismiss();
@@ -479,7 +482,8 @@ const CallScreen = ({
 
         const activeUrl = await DatabaseManager.getActiveServerUrl();
         if (activeUrl === currentCall.serverUrl) {
-            await dismissAllModalsAndPopToScreen(Screens.THREAD, callThreadOptionTitle, {rootId: currentCall.threadId});
+            await dismissAllModalsAndPopToScreen(Screens.CHANNEL, '', undefined, {topBar: {visible: false}});
+            await fetchAndSwitchToThread(currentCall.serverUrl, currentCall.threadId, false, undefined, true);
             return;
         }
 
@@ -487,12 +491,12 @@ const CallScreen = ({
         //  https://mattermost.atlassian.net/browse/MM-45752
         await popTopScreen(componentId);
         if (fromThreadScreen) {
-            await popTopScreen(Screens.THREAD);
+            await popTopScreen(Screens.CHANNEL);
         }
         await DatabaseManager.setActiveServerDatabase(currentCall.serverUrl);
         WebsocketManager.initializeClient(currentCall.serverUrl, 'Server Switch');
-        await goToScreen(Screens.THREAD, callThreadOptionTitle, {rootId: currentCall.threadId});
-    }, [currentCall, componentId, fromThreadScreen, callThreadOptionTitle]);
+        await fetchAndSwitchToThread(currentCall.serverUrl, currentCall.threadId, false, undefined, true);
+    }, [currentCall?.serverUrl, currentCall?.threadId, fromThreadScreen, componentId]);
 
     // The user should receive a recording alert if all of the following conditions apply:
     // - Recording has started, recording has not ended
@@ -578,26 +582,10 @@ const CallScreen = ({
             title: intl.formatMessage({id: 'post.options.title', defaultMessage: 'Options'}),
             theme,
         });
-    }, [
-        isHost,
-        EnableRecordings,
-        ccAvailable,
-        intl,
-        theme,
-        showStartRecording,
-        startRecording,
-        recordOptionTitle,
-        showStopRecording,
-        style,
-        stopRecording,
-        stopRecordingOptionTitle,
-        switchToThread,
-        callThreadOptionTitle,
-        toggleCC,
-        showCC,
-        hideCCTitle,
-        showCCTitle,
-    ]);
+    }, [intl, theme, isHost, EnableRecordings, waitingForRecording, recording, startRecording,
+        recordOptionTitle, stopRecording, stopRecordingOptionTitle, style, switchToThread,
+        callThreadOptionTitle, openChannelOptionTitle, ccAvailable, toggleCC, showCC, hideCCTitle,
+        showCCTitle]);
 
     const collapse = useCallback(() => {
         popTopScreen(componentId);
@@ -624,10 +612,6 @@ const CallScreen = ({
         } else {
             setCenterUsers(true);
         }
-
-    // We don't care about `avatarSize`, `screenShareOn`, and `smallerAvatar` changes as long as
-    // it is up to date when the effect runs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [layout, numSessions]);
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
@@ -676,7 +660,7 @@ const CallScreen = ({
                     <FormattedText
                         id={'mobile.calls_viewing_screen'}
                         defaultMessage={'You are viewing {name}\'s screen'}
-                        values={{name: displayUsername(sessionsDict[currentCall.screenOn].userModel, intl.locale, teammateNameDisplay)}}
+                        values={{name: username2Nickname(sessionsDict[currentCall.screenOn].userModel, {locale: intl.locale})}}
                         style={style.screenShareText}
                     />
                 }

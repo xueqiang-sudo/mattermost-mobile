@@ -30,6 +30,8 @@ type Props = {
     publicLinkEnabled: boolean;
     showInInfo: boolean;
     separator?: boolean;
+    /** When true with `showInInfo`, do not show the large "add bookmark" control when there are no bookmarks. */
+    hideAddBookmarkWhenEmptyInInfo?: boolean;
 }
 
 const GRADIENT_LOCATIONS: LinearGradientProps['locations'] = [0, 0.64, 1];
@@ -70,6 +72,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ChannelBookmarks = ({
     bookmarks, canAddBookmarks, canDeleteBookmarks, canDownloadFiles, canEditBookmarks, canUploadFiles,
     channelId, currentUserId, enableSecureFilePreview, publicLinkEnabled, showInInfo, separator = true,
+    hideAddBookmarkWhenEmptyInInfo = false,
 }: Props) => {
     const galleryIdentifier = `${channelId}-bookmarks`;
     const theme = useTheme();
@@ -122,7 +125,7 @@ const ChannelBookmarks = ({
         changeOpacity(theme.centerChannelBg, 0),
     ], [theme]);
 
-    if (!bookmarks.length && showInInfo && canAddBookmarks) {
+    if (!bookmarks.length && showInInfo && canAddBookmarks && !hideAddBookmarkWhenEmptyInInfo) {
         return (
             <AddBookmark
                 bookmarksCount={0}

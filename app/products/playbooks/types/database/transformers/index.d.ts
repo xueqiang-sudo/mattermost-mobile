@@ -18,7 +18,5 @@ type PartialPlaybookRun = PartialWithId<PlaybookRun>;
 type PartialChecklist = PartialWithId<PlaybookChecklist> & WithRunId;
 type PartialChecklistItem = PartialWithId<PlaybookChecklistItem> & WithChecklistId;
 
-// Types matching API naming (property_field/property_value)
-type PartialPlaybookRunPropertyField = PartialWithId<PlaybookRunPropertyField>;
-
-type PartialPlaybookRunPropertyValue = PartialWithId<PlaybookRunPropertyValue>;
+type PartialPlaybookRunAttribute = PartialWithId<PlaybookRunAttribute>;
+type PartialPlaybookRunAttributeValue = PartialWithId<PlaybookRunAttributeValue> & WithRunId & WithAttributeId;

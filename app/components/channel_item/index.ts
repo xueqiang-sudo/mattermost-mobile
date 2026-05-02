@@ -3,18 +3,24 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
-import {of as of$} from 'rxjs';
-import {switchMap, distinctUntilChanged} from 'rxjs/operators';
+import {asyncScheduler, combineLatest, of as of$} from 'rxjs';
+import {distinctUntilChanged, map, shareReplay, switchMap, throttleTime} from 'rxjs/operators';
 
 import {observeChannelsWithCalls} from '@calls/state';
-import {General} from '@constants';
+import {General, Preferences} from '@constants';
 import {withServerUrl} from '@context/server';
-import {observeIsMutedSetting, observeMyChannel, queryChannelMembers} from '@queries/servers/channel';
+import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
+import {observeIsMutedSetting, observeMyChannel, queryChannelMembers, observeChannelInfo} from '@queries/servers/channel';
 import {queryDraft} from '@queries/servers/drafts';
+import {observeLastPostInChannel} from '@queries/servers/post';
+import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {observeCurrentChannelId, observeCurrentUserId} from '@queries/servers/system';
 import {observeTeam} from '@queries/servers/team';
+import {observeCurrentUser} from '@queries/servers/user';
+import {getTimezone} from '@utils/user';
 
-import ChannelItem from './channel_item';
+import ChannelItem, {ROW_HEIGHT, ROW_HEIGHT_CENTER_LIST, ROW_HEIGHT_CONVERSATION, ROW_HEIGHT_WITH_TEAM} from './channel_item';
+import {HOME_CONVERSATION_LAST_POST_THROTTLE_MS} from './conversation_list_constants';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type ChannelModel from '@typings/database/models/servers/channel';
@@ -25,15 +31,18 @@ type EnhanceProps = WithDatabaseArgs & {
     serverUrl?: string;
     shouldHighlightActive?: boolean;
     shouldHighlightState?: boolean;
+    isOnHome?: boolean;
+    showChannelTypeTag?: boolean;
 }
 
-const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActive', 'shouldHighlightState'], ({
+const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHighlightState', 'isOnHome', 'showTeamName'], ({
     channel,
     database,
     serverUrl,
-    showTeamName = false,
     shouldHighlightActive = false,
     shouldHighlightState = false,
+    isOnHome = false,
+    showTeamName,
 }: EnhanceProps) => {
     const currentUserId = observeCurrentUserId(database);
     const myChannel = observeMyChannel(database, channel.id);
@@ -73,15 +82,19 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
         ) : of$(false);
 
     const teamId = 'teamId' in channel ? channel.teamId : channel.team_id;
-    const teamDisplayName = (teamId && showTeamName) ?
-        observeTeam(database, teamId).pipe(
+    const shouldLoadTeamName = Boolean(teamId && showTeamName !== false);
+    const teamDisplayName = shouldLoadTeamName ?
+        observeTeam(database, teamId!).pipe(
             switchMap((team) => of$(team?.displayName || '')),
             distinctUntilChanged(),
         ) : of$('');
 
-    const membersCount = channel.type === General.GM_CHANNEL ?
-        queryChannelMembers(database, channel.id).observeCount(false) :
-        of$(0);
+    const membersCount =
+        channel.type === General.GM_CHANNEL ||
+        channel.type === General.OPEN_CHANNEL ||
+        channel.type === General.PRIVATE_CHANNEL ?
+            queryChannelMembers(database, channel.id).observeCount(false) :
+            of$(0);
 
     const isUnread = shouldHighlightState ?
         myChannel.pipe(
@@ -91,7 +104,13 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
 
     const mentionsCount = shouldHighlightState ?
         myChannel.pipe(
-            switchMap((mc) => of$(mc?.mentionsCount)),
+            switchMap((mc) => of$(mc?.mentionsCount ?? 0)),
+            distinctUntilChanged(),
+        ) : of$(0);
+
+    const messageCount = shouldHighlightState ?
+        myChannel.pipe(
+            switchMap((mc) => of$(mc?.messageCount ?? 0)),
             distinctUntilChanged(),
         ) : of$(0);
 
@@ -100,18 +119,86 @@ const enhance = withObservables(['channel', 'showTeamName', 'shouldHighlightActi
         distinctUntilChanged(),
     );
 
+    const lastPostSource = observeLastPostInChannel(database, channel.id).pipe(
+        shareReplay({bufferSize: 1, refCount: true}),
+    );
+    const lastPost = isOnHome ?
+        lastPostSource.pipe(
+            throttleTime(HOME_CONVERSATION_LAST_POST_THROTTLE_MS, asyncScheduler, {leading: true, trailing: true}),
+            shareReplay({bufferSize: 1, refCount: true}),
+        ) :
+        lastPostSource;
+    const lastPostAt = (isOnHome && shouldHighlightState) ?
+        combineLatest([lastPost, myChannel]).pipe(
+            map(([post, mc]) => Math.max(post?.createAt ?? 0, mc?.lastPostAt ?? 0)),
+            distinctUntilChanged(),
+        ) : of$(0);
+
+    const lastPostWithFiles = isOnHome ?
+        lastPost.pipe(
+            switchMap((post) => {
+                if (!post) {
+                    return of$({post: null, files: []});
+                }
+                return post.files.observe().pipe(
+                    map((files) => ({post, files})),
+                );
+            }),
+            shareReplay({bufferSize: 1, refCount: true}),
+        ) : of$({post: null, files: []});
+
+    const channelInfoObservable = isOnHome ? observeChannelInfo(database, channel.id) : of$(undefined);
+
+    const lastPostPreview = isOnHome ?
+        combineLatest([lastPostWithFiles, channelInfoObservable]).pipe(
+            switchMap(([postWithFiles, channelInfo]) => of$({
+                message: postWithFiles?.post?.message ?? '',
+                files: postWithFiles?.files?.map((f) => ({
+                    mimeType: f.mimeType,
+                    name: f.name,
+                })) ?? [],
+                header: channelInfo?.header ?? '',
+                channelType: channel.type,
+            })),
+            distinctUntilChanged((a, b) => a.message === b.message && JSON.stringify(a.files) === JSON.stringify(b.files) && a.header === b.header),
+        ) : of$({message: '', files: [], header: '', channelType: channel.type});
+
+    const lastPostType = isOnHome ?
+        lastPost.pipe(
+            switchMap((post) => of$(post?.type ?? '')),
+            distinctUntilChanged(),
+        ) : of$('');
+
+    const currentTimezone = observeCurrentUser(database).pipe(
+        map((user) => getTimezone(user?.timezone) || null),
+        distinctUntilChanged(),
+    );
+
+    const isMilitaryTime = queryDisplayNamePreferences(database).
+        observeWithColumns(['value']).pipe(
+            map((prefs) => getDisplayNamePreferenceAsBool(prefs, Preferences.USE_MILITARY_TIME)),
+            distinctUntilChanged(),
+        );
+
     return {
         channel: 'observe' in channel ? channel.observe() : of$(channel),
         currentUserId,
+        currentTimezone,
         hasDraft,
         isActive,
         isMuted,
         membersCount,
         isUnread,
         mentionsCount,
+        messageCount,
         teamDisplayName,
         hasCall,
+        lastPostAt,
+        lastPostPreview,
+        lastPostType,
+        isMilitaryTime,
     };
 });
 
+export {ROW_HEIGHT, ROW_HEIGHT_CENTER_LIST, ROW_HEIGHT_CONVERSATION, ROW_HEIGHT_WITH_TEAM};
 export default React.memo(withDatabase(withServerUrl(enhance(ChannelItem))));

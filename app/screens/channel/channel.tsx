@@ -1,28 +1,29 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState, useMemo} from 'react';
-import {Platform, DeviceEventEmitter, type LayoutChangeEvent, StyleSheet} from 'react-native';
-import {KeyboardProvider} from 'react-native-keyboard-controller';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import React, {useCallback, useEffect, useState} from 'react';
+import {type LayoutChangeEvent, StyleSheet, View} from 'react-native';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
-import {fetchPostsForChannel} from '@actions/remote/post';
 import FloatingCallContainer from '@calls/components/floating_call_container';
+import ConnectionBanner from '@components/connection_banner';
 import FreezeScreen from '@components/freeze_screen';
-import {Events} from '@constants';
-import {useServerUrl} from '@context/server';
+import PostDraft from '@components/post_draft';
+import ScheduledPostIndicator from '@components/scheduled_post_indicator';
+import {Screens} from '@constants';
+import {ExtraKeyboardProvider} from '@context/extra_keyboard';
+import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useChannelSwitch} from '@hooks/channel_switch';
-import {useIsTablet} from '@hooks/device';
 import {useDefaultHeaderHeight} from '@hooks/header';
 import {useTeamSwitch} from '@hooks/team_switch';
-import {useIsScreenVisible} from '@hooks/use_screen_visibility';
 import SecurityManager from '@managers/security_manager';
 import {popTopScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
+import {getChatListBackdropColor} from '@utils/theme';
 
-import ChannelContent from './channel_content';
+import ChannelPostList from './channel_post_list';
 import ChannelHeader from './header';
 import useGMasDMNotice from './use_gm_as_dm_notice';
 
@@ -47,9 +48,21 @@ type ChannelProps = {
     scheduledPostCount: number;
 };
 
+const edges: Edge[] = ['left', 'right'];
+
 const styles = StyleSheet.create({
     flex: {
         flex: 1,
+    },
+    messageArea: {
+        flex: 1,
+        flexDirection: 'column',
+    },
+
+    /** 断网条在 FlatList 之上，避免 Android elevation 盖住条带（仍低于顶栏 zIndex 10） */
+    connectionBannerWrap: {
+        zIndex: 2,
+        elevation: 2,
     },
 });
 
@@ -70,53 +83,28 @@ const Channel = ({
     includeChannelBanner,
     scheduledPostCount,
 }: ChannelProps) => {
+    const theme = useTheme();
     useGMasDMNotice(currentUserId, channelType, dismissedGMasDMNotice, hasGMasDMFeature);
-    const isTablet = useIsTablet();
-    const insets = useSafeAreaInsets();
-    const [shouldRenderPosts, setShouldRenderPosts] = useState(false);
     const switchingTeam = useTeamSwitch();
     const switchingChannels = useChannelSwitch();
     const defaultHeight = useDefaultHeaderHeight();
     const [containerHeight, setContainerHeight] = useState(0);
-    const serverUrl = useServerUrl();
-    const shouldRender = !switchingTeam && !switchingChannels && shouldRenderPosts && Boolean(channelId);
-    const isVisible = useIsScreenVisible(componentId);
-    const [isEmojiSearchFocused, setIsEmojiSearchFocused] = useState(false);
 
-    const safeAreaViewEdges: Edge[] = useMemo(() => {
-        if (isTablet) {
-            return ['left', 'right'];
-        }
-        if (isEmojiSearchFocused) {
-            return ['left', 'right'];
-        }
-        return ['left', 'right', 'bottom'];
-    }, [isTablet, isEmojiSearchFocused]);
-
+    /** 与 channelId 同步即可；勿用「首帧 false + rAF 再 true」否则刚进频道会长时间只有顶栏、无消息区与输入栏 */
+    const shouldRender = !switchingTeam && !switchingChannels && Boolean(channelId);
     const handleBack = useCallback(() => {
         popTopScreen(componentId);
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, handleBack);
 
+    /**
+     * 与绝对定位顶栏对齐；略小于 defaultHeight，避免部分机型上顶栏视觉底边低于占位高度时出现「顶栏—断网条」白条隙。
+     * 仍显著高于旧版 (defaultHeight - insets.top - 40)，断网条不会被顶栏盖住。
+     */
+    const marginTop = defaultHeight - 16;
     useEffect(() => {
-        const listener = DeviceEventEmitter.addListener(Events.POST_DELETED_FOR_CHANNEL, ({serverUrl: url, channelId: id}) => {
-            if (serverUrl === url && channelId === id) {
-                fetchPostsForChannel(serverUrl, channelId, false, true);
-            }
-        });
-        return () => listener.remove();
-    }, [serverUrl, channelId]);
-
-    const marginTop = defaultHeight + (isTablet ? 0 : -insets.top);
-    useEffect(() => {
-        // This is done so that the header renders
-        // and the screen does not look totally blank
-        const raf = requestAnimationFrame(() => {
-            setShouldRenderPosts(Boolean(channelId));
-        });
-
-        // This is done to give time to the WS event
+        // Give time to the WS event
         const t = setTimeout(() => {
             EphemeralStore.removeSwitchingToChannel(channelId);
         }, 500);
@@ -124,7 +112,6 @@ const Channel = ({
         storeLastViewedChannelIdAndServer(channelId);
 
         return () => {
-            cancelAnimationFrame(raf);
             clearTimeout(t);
             removeLastViewedChannelIdAndServer();
             EphemeralStore.removeSwitchingToChannel(channelId);
@@ -140,9 +127,9 @@ const Channel = ({
     return (
         <FreezeScreen>
             <SafeAreaView
-                style={styles.flex}
+                style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
                 mode='margin'
-                edges={safeAreaViewEdges}
+                edges={edges}
                 testID='channel.screen'
                 onLayout={onLayout}
                 nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
@@ -156,31 +143,34 @@ const Channel = ({
                     shouldRenderBookmarks={shouldRender}
                     shouldRenderChannelBanner={includeChannelBanner}
                 />
-                {Platform.OS === 'ios' ? (
-                    <KeyboardProvider>
-                        {shouldRender && (
-                            <ChannelContent
+                {shouldRender &&
+                <ExtraKeyboardProvider>
+                    <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
+                        <View style={styles.connectionBannerWrap}>
+                            <ConnectionBanner isChatUI={true}/>
+                        </View>
+                        <View style={{flex: 1}}>
+                            <ChannelPostList
                                 channelId={channelId}
-                                marginTop={marginTop}
-                                scheduledPostCount={scheduledPostCount}
-                                containerHeight={containerHeight}
-                                enabled={isVisible || shouldRender}
-                                onEmojiSearchFocusChange={setIsEmojiSearchFocused}
+                                nativeID={channelId}
                             />
-                        )}
-                    </KeyboardProvider>
-                ) : (
-                    shouldRender && (
-                        <ChannelContent
-                            channelId={channelId}
-                            marginTop={marginTop}
-                            scheduledPostCount={scheduledPostCount}
-                            containerHeight={containerHeight}
-                            enabled={isVisible || shouldRender}
-                            onEmojiSearchFocusChange={setIsEmojiSearchFocused}
-                        />
-                    )
-                )}
+                        </View>
+                    </View>
+                    <>
+                        {scheduledPostCount > 0 &&
+                            <ScheduledPostIndicator scheduledPostCount={scheduledPostCount}/>
+                        }
+                    </>
+                    <PostDraft
+                        channelId={channelId}
+                        testID='channel.post_draft'
+                        containerHeight={containerHeight}
+                        isChannelScreen={true}
+                        canShowPostPriority={true}
+                        location={Screens.CHANNEL}
+                    />
+                </ExtraKeyboardProvider>
+                }
                 {showFloatingCallContainer && shouldRender &&
                     <FloatingCallContainer
                         channelId={channelId}

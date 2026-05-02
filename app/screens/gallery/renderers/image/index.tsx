@@ -56,20 +56,11 @@ function ImageRenderer({
         image,
         targetDimensions,
         targetHeight,
-    }), [
-        interactionsEnabled,
-        isPagerInProgress,
-        scale,
-        scaleOffset,
-        translation,
-        panVelocity,
-        offset,
-        scaleTranslation,
-        canvas,
-        image,
-        targetDimensions,
-        targetHeight,
-    ]);
+
+    // the rest of the values are shared values,
+    // so they don't need to be included in the deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [targetDimensions, targetHeight, canvas]);
 
     return (
         <TransfrormerProvider sharedValues={sharedValues}>

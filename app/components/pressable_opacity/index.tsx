@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 import {Pressable} from 'react-native-gesture-handler';
-import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import type {StyleProp, ViewStyle} from 'react-native';
 
@@ -24,22 +24,20 @@ export default function PressableOpacity({children, onPress, style}: Props) {
 
     const cancelPressIn = useCallback(() => {
         cancelOpacity.value = withTiming(0.5, {duration: 100});
-    }, [cancelOpacity]);
+    }, []);
 
     const cancelPressOut = useCallback(() => {
-        cancelOpacity.value = withTiming(1, {duration: 300});
-    }, [cancelOpacity]);
+        cancelOpacity.value = withTiming(1, {duration: 100});
+    }, []);
 
     return (
         <Pressable
             onPressIn={cancelPressIn}
             onPressOut={cancelPressOut}
             onPress={onPress}
-            style={[style]}
+            style={[style, cancelAnimatedStyle]}
         >
-            <Animated.View style={cancelAnimatedStyle}>
-                {children}
-            </Animated.View>
+            {children}
         </Pressable>
     );
 }

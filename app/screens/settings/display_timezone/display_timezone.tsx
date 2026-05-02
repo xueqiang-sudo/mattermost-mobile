@@ -11,7 +11,6 @@ import SettingSeparator from '@components/settings/separator';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useInitialValue from '@hooks/initial_value';
 import useBackNavigation from '@hooks/navigate_back';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {goToScreen, popTopScreen} from '@screens/navigation';
@@ -28,8 +27,7 @@ type DisplayTimezoneProps = {
 const DisplayTimezone = ({currentUser, componentId}: DisplayTimezoneProps) => {
     const intl = useIntl();
     const serverUrl = useServerUrl();
-
-    const initialTimezone = useInitialValue(() => getUserTimezoneProps(currentUser));
+    const initialTimezone = useMemo(() => getUserTimezoneProps(currentUser), [/* dependency array should remain empty */]);
     const [userTimezone, setUserTimezone] = useState(initialTimezone);
 
     const updateAutomaticTimezone = (useAutomaticTimezone: boolean) => {

@@ -5,11 +5,12 @@
 
 import {ActionType, Post, ServerErrors} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
+import {PostPriorityType} from '@constants/post';
 import DatabaseManager from '@database/manager';
 import PostModel from '@database/models/server/post';
 import NetworkManager from '@managers/network_manager';
+import {getPostById} from '@queries/servers/post';
 import TestHelper from '@test/test_helper';
-import {getFullErrorMessage} from '@utils/errors';
 
 import {
     createPost,
@@ -33,7 +34,6 @@ import {
     fetchPostById,
     fetchSavedPosts,
     fetchPinnedPosts,
-    burnPostNow,
 } from './post';
 import * as PostAuxilaryFunctions from './post.auxiliary';
 
@@ -96,7 +96,6 @@ const mockClient = {
     pinPost: jest.fn(),
     unpinPost: jest.fn(),
     deletePost: jest.fn(),
-    burnPostNow: jest.fn(),
     getChannel: jest.fn((_channelId: string) => ({id: _channelId, name: 'channel1', creatorId: user1.id, total_msg_count: 100})),
     getChannelMember: jest.fn((_channelId: string, userId: string) => ({id: userId + '-' + _channelId, user_id: userId, channel_id: _channelId, roles: '', msg_count: 100, mention_count: 0})),
     getMyChannelMember: jest.fn((_channelId: string) => ({id: user1.id + '-' + _channelId, user_id: user1.id, channel_id: _channelId, roles: '', msg_count: 100, mention_count: 0})),
@@ -278,6 +277,48 @@ describe('create, update & delete posts', () => {
         expect(result.data).toBeTruthy();
     });
 
+    it('createPost - keeps priority metadata when create response omits metadata', async () => {
+        mockClient.createPost.mockImplementationOnce((post: Post) => {
+            return {
+                id: 'newid-without-metadata',
+                create_at: post.create_at,
+                update_at: post.update_at,
+                edit_at: post.edit_at,
+                delete_at: post.delete_at,
+                is_pinned: post.is_pinned,
+                user_id: post.user_id,
+                channel_id: post.channel_id,
+                root_id: post.root_id,
+                original_id: post.original_id,
+                message: post.message,
+                message_source: post.message_source,
+                type: post.type,
+                props: post.props,
+                pending_post_id: post.pending_post_id,
+                file_ids: post.file_ids,
+            } as Post;
+        });
+        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.CURRENT_USER_ID, value: user1.id}], prepareRecordsOnly: false});
+
+        const postWithPriority: Post = {
+            ...post1,
+            metadata: {
+                priority: {
+                    priority: PostPriorityType.IMPORTANT,
+                    requested_ack: false,
+                    persistent_notifications: false,
+                },
+            },
+        };
+
+        const result = await createPost(serverUrl, postWithPriority);
+        expect(result.error).toBeUndefined();
+        expect(result.data).toBeTruthy();
+
+        const createdPost = await getPostById(operator.database, 'newid-without-metadata');
+        expect(createdPost?.metadata?.priority?.priority).toBe(PostPriorityType.IMPORTANT);
+    });
+
     it('retryFailedPost - handle database not found', async () => {
         const result = await retryFailedPost('foo', mockPostModel());
         expect(result).toBeDefined();
@@ -383,51 +424,6 @@ describe('create, update & delete posts', () => {
         expect(result).toBeDefined();
         expect(result.error).toBeUndefined();
         expect(result.post).toBeDefined();
-    });
-
-    it('burnPostNow - handle error', async () => {
-        mockClient.burnPostNow.mockImplementationOnce(jest.fn(throwFunc));
-        const result = await burnPostNow('foo', {} as PostModel);
-        expect(result).toBeDefined();
-        expect(result.error).toBeTruthy();
-    });
-
-    it('burnPostNow - base case', async () => {
-        mockClient.burnPostNow.mockReset();
-        const borPost = TestHelper.fakePost({channel_id: channelId, id: 'bor_postid1', user_id: user1.id, type: 'burn_on_read'});
-
-        const postModels = await operator.handlePosts({
-            actionType: ActionType.POSTS.RECEIVED_IN_CHANNEL,
-            order: [borPost.id],
-            posts: [borPost],
-            prepareRecordsOnly: false,
-        });
-
-        // verify post exists in database before burn
-        const {database} = operator;
-        const existingPost = await database.get('Post').find(borPost.id);
-        expect(existingPost).toBeDefined();
-
-        const result = await burnPostNow(serverUrl, postModels[0] as PostModel);
-        expect(result).toBeDefined();
-        expect(result.error).toBeUndefined();
-        expect(result.post).toBeDefined();
-
-        // Verify that the post is deleted from the database
-        try {
-            await database.get('Post').find(borPost.id);
-            expect(true).toBe(false); // Should not reach here
-        } catch (error) {
-            expect(error).toBeDefined();
-            expect(getFullErrorMessage(error)).toBe('Record Post#bor_postid1 not found');
-        }
-    });
-
-    it('burnPostNow - returns error for non-BoR posts', async () => {
-        const result = await burnPostNow('foo', {} as PostModel);
-        expect(result).toBeDefined();
-        expect(result.error).toBeTruthy();
-        expect(result.error).toBe('Post is not a Burn-on-Read post');
     });
 
     it('deletePost - system post', async () => {

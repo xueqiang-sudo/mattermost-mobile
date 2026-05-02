@@ -1,31 +1,43 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo, useState} from 'react';
-import {useIntl} from 'react-intl';
-import {type LayoutChangeEvent, type StyleProp, View, type ViewStyle} from 'react-native';
+import React, {type ReactNode, useCallback, useMemo, useState} from 'react';
+import {DeviceEventEmitter, Dimensions, type GestureResponderEvent, type LayoutChangeEvent, Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle} from 'react-native';
+import tinyColor from 'tinycolor2';
 
+import {updateDraftMessage} from '@actions/local/draft';
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
-import ErrorBoundary from '@components/markdown/error_boundary';
-import {Screens} from '@constants';
+import {Events, Screens} from '@constants';
+import {PostTypes} from '@constants/post';
 import {THREAD} from '@constants/screens';
+import {useServerUrl} from '@context/server';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
 import {PLAYBOOKS_UPDATE_STATUS_POST_TYPE} from '@playbooks/constants/plugin';
-import {isEdited as postEdited, isPostFailed} from '@utils/post';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {isEdited as postEdited, isPostFailed, isSystemMessage} from '@utils/post';
+import {blendColors, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Acknowledgements from './acknowledgements';
 import AddMembers from './add_members';
 import Content from './content';
 import Failed from './failed';
 import Message from './message';
+import QuotedPostPreview from './quoted_post_preview';
 import Reactions from './reactions';
 
 import type PostModel from '@typings/database/models/servers/post';
+import type UserModel from '@typings/database/models/servers/user';
 import type {SearchPattern} from '@typings/global/markdown';
 import type {AvailableScreens} from '@typings/screens/navigation';
+
+/** 三角与气泡上沿留白，避免负 margin 参与异常拉伸；略对齐头像侧 */
+const WECHAT_BUBBLE_TAIL_MARGIN_TOP = 6;
+
+/** 微信气泡（含尾巴）相对屏宽上限（本人右栏另用 90% 约束整列） */
+const WECHAT_BUBBLE_MAX_WIDTH_SCREEN_RATIO = 0.80;
+
+const POST_RECALL_TIME_LIMIT_MS = 2 * 60 * 1000;
 
 type BodyProps = {
     appsEnabled: boolean;
@@ -38,6 +50,8 @@ type BodyProps = {
     isFirstReply?: boolean;
     isJumboEmoji: boolean;
     isLastReply?: boolean;
+    isOwnPost?: boolean;
+    author?: UserModel;
     isPendingOrFailed: boolean;
     isPostAcknowledgementEnabled?: boolean;
     isPostAddChannelMember: boolean;
@@ -46,7 +60,7 @@ type BodyProps = {
     searchPatterns?: SearchPattern[];
     showAddReaction?: boolean;
     theme: Theme;
-    isChannelAutotranslated: boolean;
+    onLongPress?: (event?: GestureResponderEvent) => void;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -58,9 +72,97 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignContent: 'flex-start',
             marginTop: 12,
         },
+        ackAndReactionsOwnWeChat: {
+            flex: 0,
+            alignSelf: 'flex-end',
+            justifyContent: 'flex-end',
+        },
+        bubble: {
+            borderRadius: 12,
+            maxWidth: '85%',
+            overflow: 'hidden',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+        },
+
+        /** 微信风格：小圆角 5px；visible 避免与主文测量舍入叠加后裁切最后一行（配合 messageBodyWeChat 底边距） */
+        bubbleWeChat: {
+            borderRadius: 5,
+            overflow: 'visible',
+        },
+
+        /** 微信风格：气泡+尾巴容器；alignItems 避免子项在交叉轴被 stretch 拉高 */
+        bubbleWithTailWrapper: {
+            flexDirection: 'row',
+            alignSelf: 'flex-start',
+            alignItems: 'flex-start',
+        },
+        bubbleWithTailWrapperOwn: {
+            alignSelf: 'flex-end',
+            alignItems: 'flex-start',
+        },
+
+        /** 气泡三角尾巴：向左指（他人消息） */
+        bubbleTailLeft: {
+            width: 0,
+            height: 0,
+            borderTopWidth: 5,
+            borderBottomWidth: 5,
+            borderRightWidth: 6,
+            borderTopColor: 'transparent',
+            borderBottomColor: 'transparent',
+            marginRight: -1,
+            marginTop: WECHAT_BUBBLE_TAIL_MARGIN_TOP,
+        },
+
+        /** 气泡三角尾巴：向右指（本人消息），borderLeftColor 需动态传入 */
+        bubbleTailRight: {
+            width: 0,
+            height: 0,
+            borderLeftWidth: 6,
+            borderTopWidth: 5,
+            borderBottomWidth: 5,
+            borderTopColor: 'transparent',
+            borderBottomColor: 'transparent',
+            marginLeft: -1,
+            marginTop: WECHAT_BUBBLE_TAIL_MARGIN_TOP,
+        },
+
+        /** Own messages: width capped by bubbleWithTailWrapper maxWidth — WeChat-style. Right alignment uses bubbleWithTailWrapperOwn only. */
+        bubbleOwnWeChat: {
+            maxWidth: '100%',
+        },
+
+        /** Others' messages: inner bubble fills wrapper (wrapper limits screen width). */
+        bubbleOthersWeChat: {
+            maxWidth: '100%',
+        },
         messageBody: {
             paddingVertical: 2,
             flex: 1,
+        },
+
+        /** WeChat: same body wrapper for own and others (others path was the stable baseline). */
+        messageBodyWeChat: {
+            flex: 0,
+            alignSelf: 'stretch',
+            paddingBottom: 4,
+        },
+
+        // 纯媒体消息（仅图片/视频）不需要气泡内边距，避免出现微信里没有的大面积填充色。
+        messageBodyMediaOnlyWeChat: {
+            paddingVertical: 0,
+            paddingBottom: 0,
+        },
+
+        /** 纯媒体 + 本人：子项在加宽的 messageBody 内靠右，避免附件相对气泡左偏 */
+        messageBodyMediaOnlyOwnWeChat: {
+            alignItems: 'flex-end',
+        },
+
+        /** 本人 + 正文 + 附件：与纯媒体一致靠右，配合 Files alignAttachmentsEnd */
+        messageBodyOwnWeChatAttachmentsEnd: {
+            alignItems: 'flex-end',
         },
         messageContainer: {width: '100%'},
         replyBar: {
@@ -84,40 +186,52 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         messageContainerWithReplyBar: {
             flexDirection: 'row',
+        },
+        messageContainerFullWidth: {
             width: '100%',
+        },
+        messageRowOwnWeChat: {
+            alignSelf: 'flex-end',
+            maxWidth: '100%',
         },
     };
 });
 
+const useWeChatStyle = (location: AvailableScreens) =>
+    location === Screens.CHANNEL || location === Screens.PERMALINK;
+
 const Body = ({
-    appsEnabled,
-    hasFiles,
-    hasReactions,
-    highlight,
-    highlightReplyBar,
-    isCRTEnabled,
-    isEphemeral,
-    isFirstReply,
-    isJumboEmoji,
-    isLastReply,
-    isPendingOrFailed,
-    isPostAcknowledgementEnabled,
-    isPostAddChannelMember,
-    location,
-    post,
-    searchPatterns,
-    showAddReaction,
-    theme,
-    isChannelAutotranslated,
+    appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
+    isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isOwnPost, author, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
+    location, post, searchPatterns, showAddReaction, theme, onLongPress,
 }: BodyProps) => {
-    const intl = useIntl();
     const style = getStyleSheet(theme);
     const isEdited = postEdited(post);
     const isFailed = isPostFailed(post);
     const [layoutWidth, setLayoutWidth] = useState(0);
     const hasBeenDeleted = Boolean(post.deleteAt);
+    const serverUrl = useServerUrl();
     let body;
     let message;
+
+    /**
+     * 处理重新编辑按钮点击
+     * 将撤回的消息内容重新填充到输入框
+     */
+    const handleReedit = useCallback(async () => {
+        const draftRootId = post.rootId || '';
+        const textMessage = post.messageSource || post.message;
+
+        if (draftRootId) {
+            DeviceEventEmitter.emit(Events.POST_DRAFT_SET_REPLY_ROOT, {channelId: post.channelId, rootId: draftRootId});
+        } else {
+            DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
+        }
+
+        await updateDraftMessage(serverUrl, post.channelId, draftRootId, textMessage);
+
+        DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
+    }, [post.channelId, post.messageSource, post.rootId, post, serverUrl]);
 
     const nBindings = Array.isArray(post.props?.app_bindings) ? post.props?.app_bindings.length : 0;
     const nAttachments = Array.isArray(post.props?.attachments) ? post.props?.attachments.length : 0;
@@ -148,19 +262,138 @@ const Body = ({
     }, [highlightReplyBar, isCRTEnabled, isFirstReply, isLastReply, isReplyPost, location, style]);
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
-        if (location === Screens.SAVED_MESSAGES) {
-            setLayoutWidth(e.nativeEvent.layout.width);
+        setLayoutWidth(e.nativeEvent.layout.width);
+    }, []);
+
+    const weChatStyleActive = useWeChatStyle(location);
+    const weChatBubbleMaxWidth = useMemo(
+        () => Math.floor(Dimensions.get('window').width * WECHAT_BUBBLE_MAX_WIDTH_SCREEN_RATIO),
+        [],
+    );
+    const weChatContentMaxWidth = useMemo(() => {
+        return Math.floor(weChatBubbleMaxWidth - 24);
+    }, [weChatBubbleMaxWidth]);
+    const chatBubbleSurface = useMemo(() => {
+        if (!weChatStyleActive) {
+            return null;
         }
-    }, [location]);
+        const isLightTheme = tinyColor(theme.centerChannelBg).isLight();
+
+        // 主题自适应：弱化高饱和块状色，让气泡与主界面更融合（深色主题尤为明显）。
+        const ownBg = isLightTheme ?
+            blendColors(theme.centerChannelBg, theme.buttonBg, 0.38, true) :
+            blendColors(theme.centerChannelBg, theme.buttonBg, 0.3, true);
+        const othersBg = isLightTheme ?
+            blendColors(theme.centerChannelBg, '#FFFFFF', 0.72, true) :
+            blendColors(theme.centerChannelBg, '#FFFFFF', 0.1, true);
+        const border = isLightTheme ?
+            blendColors(othersBg, theme.centerChannelColor, 0.16, true) :
+            blendColors(othersBg, '#FFFFFF', 0.14, true);
+        const ownText = tinyColor(ownBg).isDark() ? '#FFFFFF' : theme.centerChannelColor;
+
+        return {
+            ownBg,
+            othersBg,
+            border,
+            ownText,
+        };
+    }, [theme, weChatStyleActive]);
+
+    const displayMessage = post.message || post.messageSource;
+    const quotedPostId = post.props?.quoted_post_id;
+    const hasTextMessage = Boolean(displayMessage.length || isEdited);
+    const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
+    const isSystemPost = isSystemMessage(post);
+    const showBubble = weChatStyleActive && !hasBeenDeleted && !isSystemPost;
+
+    /** 微信附件宽度：与他人同一内容上限；本人带正文+附件由 Files 的 maxPortraitWidth 约束 */
+    const filesPassLayoutWidth = useMemo(() => {
+        if (!weChatStyleActive || !hasFiles) {
+            return 0;
+        }
+        if (isOwnPost && hasTextMessage) {
+            return 0;
+        }
+        return weChatContentMaxWidth;
+    }, [weChatStyleActive, hasFiles, hasTextMessage, isOwnPost, weChatContentMaxWidth]);
+
+    const filesMaxPortraitWidth = useMemo(() => {
+        if (weChatStyleActive && hasFiles && isOwnPost && hasTextMessage) {
+            return weChatContentMaxWidth;
+        }
+        return undefined;
+    }, [weChatStyleActive, hasFiles, hasTextMessage, isOwnPost, weChatContentMaxWidth]);
+    const bubbleStyle = useMemo(() => {
+        if (!showBubble || !chatBubbleSurface) {
+            return undefined;
+        }
+        const base = [style.bubble, style.bubbleWeChat];
+        const borderShell = {
+            borderWidth: StyleSheet.hairlineWidth * 2,
+            borderColor: chatBubbleSurface.border,
+        };
+        if (isOwnPost) {
+            return [...base, style.bubbleOwnWeChat, {
+                backgroundColor: chatBubbleSurface.ownBg,
+                borderTopRightRadius: 0,
+                ...borderShell,
+            }];
+        }
+        return [...base, style.bubbleOthersWeChat, {
+            backgroundColor: chatBubbleSurface.othersBg,
+            borderTopLeftRadius: 0,
+            ...borderShell,
+        }];
+    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
 
     if (hasBeenDeleted) {
-        body = (
-            <FormattedText
-                style={style.message}
-                id='post_body.deleted'
-                defaultMessage='(message deleted)'
-            />
-        );
+        const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
+        const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
+        const textMessage = post.messageSource || post.message;
+        const canRecallEditPost = isOwnPost && isRecallInferred && within2MinFromCreateAt && Boolean(textMessage);
+
+        if (isRecallInferred) {
+            if (isOwnPost) {
+                body = (
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                        <FormattedText
+                            style={style.message}
+                            id='mobile.post_body.recalled_self'
+                            defaultMessage='你撤回了一条消息'
+                        />
+                        {canRecallEditPost && (
+                            <Pressable onPress={handleReedit}>
+                                <Text style={[style.message, {color: theme.buttonBg, marginLeft: 8}]}>
+                                    重新编辑
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
+                );
+            } else {
+                const rawUsername = author?.username || '';
+                let username = '';
+                if (rawUsername) {
+                    username = rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`;
+                }
+                body = (
+                    <FormattedText
+                        style={style.message}
+                        id='mobile.post_body.recalled_other'
+                        defaultMessage='{username}撤回了一条消息'
+                        values={{username}}
+                    />
+                );
+            }
+        } else {
+            body = (
+                <FormattedText
+                    style={style.message}
+                    id='post_body.deleted'
+                    defaultMessage='(message deleted)'
+                />
+            );
+        }
     } else if (post.type === PLAYBOOKS_UPDATE_STATUS_POST_TYPE && post.props != null) {
         message = (
             <StatusUpdatePost
@@ -178,57 +411,82 @@ const Body = ({
             />
         );
     } else if (isJumboEmoji) {
+        const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <JumboEmoji
-                baseTextStyle={style.message}
+                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? [style.message, {color: chatBubbleSurface.ownText}] : style.message}
+                compactWeChat={weChatStyleActive}
                 isEdited={isEdited}
                 value={post.message}
             />
         );
-    } else if (post.message.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
+    } else if (displayMessage.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
+        const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <Message
+                baseTextStyle={weChatOwnBubble && chatBubbleSurface ? [style.message, {color: chatBubbleSurface.ownText}] : undefined}
                 highlight={highlight}
                 isEdited={isEdited}
                 isPendingOrFailed={isPendingOrFailed}
                 isReplyPost={isReplyPost}
-                layoutWidth={layoutWidth}
+                layoutWidth={weChatStyleActive ? weChatContentMaxWidth : layoutWidth}
                 location={location}
                 post={post}
                 searchPatterns={searchPatterns}
                 theme={theme}
-                isChannelAutotranslated={isChannelAutotranslated}
+                unboundedMarkdownHeight={weChatStyleActive}
+                value={displayMessage}
             />
         );
     }
 
     const acknowledgementsVisible = isPostAcknowledgementEnabled && post.metadata?.priority?.requested_ack;
     const reactionsVisible = hasReactions && showAddReaction;
-
     if (!hasBeenDeleted) {
         body = (
-            <View style={style.messageBody}>
+            <View
+                style={[
+                    style.messageBody,
+                    weChatStyleActive && style.messageBodyWeChat,
+                    isMediaOnlyWeChat && style.messageBodyMediaOnlyWeChat,
+                    isMediaOnlyWeChat && isOwnPost && style.messageBodyMediaOnlyOwnWeChat,
+                    weChatStyleActive && isOwnPost && hasFiles && !isMediaOnlyWeChat && style.messageBodyOwnWeChatAttachmentsEnd,
+                ]}
+            >
+                {Boolean(quotedPostId) && (
+                    <QuotedPostPreview
+                        quotedPostId={quotedPostId}
+                        channelId={post.channelId}
+                        location={location}
+                        isOwnPost={isOwnPost}
+                    />
+                )}
                 {message}
                 {hasContent &&
                 <Content
                     isReplyPost={isReplyPost}
-                    layoutWidth={layoutWidth}
+                    layoutWidth={weChatStyleActive ? weChatContentMaxWidth : layoutWidth}
                     location={location}
+                    onLongPress={onLongPress}
                     post={post}
                     theme={theme}
                 />
                 }
-                {hasFiles &&
+                {hasFiles && post.type !== PostTypes.CUSTOM_VOICE_ASR &&
                 <Files
                     failed={isFailed}
-                    layoutWidth={layoutWidth}
+                    alignAttachmentsEnd={weChatStyleActive && Boolean(isOwnPost)}
+                    layoutWidth={filesPassLayoutWidth > 0 ? filesPassLayoutWidth : undefined}
+                    maxPortraitWidth={filesMaxPortraitWidth}
                     location={location}
                     post={post}
                     isReplyPost={isReplyPost}
+                    isMediaOnlyMessage={isMediaOnlyWeChat}
+                    shrinkWrapNonImage={weChatStyleActive}
                 />
                 }
                 {(acknowledgementsVisible || reactionsVisible) && (
-                    <View style={style.ackAndReactionsContainer}>
+                    <View style={[style.ackAndReactionsContainer, weChatStyleActive && isOwnPost && style.ackAndReactionsOwnWeChat]}>
                         {acknowledgementsVisible && (
                             <Acknowledgements
                                 hasReactions={hasReactions}
@@ -250,25 +508,79 @@ const Body = ({
         );
     }
 
-    return (
-        <ErrorBoundary
-            error={intl.formatMessage({id: 'post.error', defaultMessage: 'There has been an error rendering this post.'})}
-            theme={theme}
-        >
+    let bubbleSection: ReactNode;
+    if (!bubbleStyle) {
+        bubbleSection = body;
+    } else if (weChatStyleActive && chatBubbleSurface) {
+        bubbleSection = (
             <View
-                style={style.messageContainerWithReplyBar}
-                onLayout={onLayout}
+                style={[
+                    style.bubbleWithTailWrapper,
+                    isOwnPost && style.bubbleWithTailWrapperOwn,
+                    {maxWidth: weChatBubbleMaxWidth},
+                ]}
             >
-                <View style={replyBarStyle}/>
-                {body}
-                {isFailed &&
-                <Failed
-                    post={post}
-                    theme={theme}
-                />
-                }
+                {!isOwnPost && (
+                    <View
+                        style={[
+                            style.bubbleTailLeft,
+                            {borderRightColor: chatBubbleSurface.othersBg},
+                        ]}
+                    />
+                )}
+                <View style={bubbleStyle}>
+                    {body}
+                </View>
+                {isOwnPost && (
+                    <View
+                        style={[
+                            style.bubbleTailRight,
+                            {borderLeftColor: chatBubbleSurface.ownBg},
+                        ]}
+                    />
+                )}
             </View>
-        </ErrorBoundary>
+        );
+    } else {
+        bubbleSection = (
+            <View style={bubbleStyle}>
+                {body}
+            </View>
+        );
+    }
+
+    const bubbleContent = (
+        <Pressable
+            onLongPress={onLongPress}
+            delayLongPress={200}
+        >
+            {bubbleSection}
+        </Pressable>
+    );
+
+    const content = (
+        <>
+            <View style={replyBarStyle}/>
+            {bubbleContent}
+            {isFailed &&
+            <Failed
+                post={post}
+                theme={theme}
+            />
+            }
+        </>
+    );
+
+    return (
+        <View
+            style={[
+                style.messageContainerWithReplyBar,
+                weChatStyleActive && isOwnPost ? style.messageRowOwnWeChat : style.messageContainerFullWidth,
+            ]}
+            onLayout={onLayout}
+        >
+            {content}
+        </View>
     );
 };
 

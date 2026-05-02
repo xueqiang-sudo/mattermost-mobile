@@ -4,15 +4,18 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 import {of as of$} from 'rxjs';
-import {combineLatestWith, distinctUntilChanged, switchMap} from 'rxjs/operators';
+import {combineLatestWith, distinctUntilChanged, map, switchMap} from 'rxjs/operators';
 
 import {General} from '@constants';
 import {queryPlaybookRunsPerChannel} from '@playbooks/database/queries/run';
 import {observeIsPlaybooksEnabled} from '@playbooks/database/queries/version';
-import {observeChannel, observeChannelInfo, observeIsChannelAutotranslated} from '@queries/servers/channel';
+import {observeChannel, observeChannelInfo} from '@queries/servers/channel';
+import {observePermissionForChannel} from '@queries/servers/role';
 import {observeCanAddBookmarks, queryBookmarks} from '@queries/servers/channel_bookmark';
 import {observeConfigBooleanValue, observeCurrentTeamId, observeCurrentUserId} from '@queries/servers/system';
-import {observeIsUserLanguageSupportedByAutotranslation, observeUser} from '@queries/servers/user';
+import {observeTeam} from '@queries/servers/team';
+import {observeCurrentUser, observeUser} from '@queries/servers/user';
+import {getChannelTitleDisplayName, permissionForEditingChannelAnnouncement} from '@utils/channel';
 import {
     getUserCustomStatus,
     getUserIdFromChannelName,
@@ -34,7 +37,26 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     const channel = observeChannel(database, channelId);
 
     const channelType = channel.pipe(switchMap((c) => of$(c?.type)));
+    const channelName = channel.pipe(
+        switchMap((c) => of$(c?.name ?? '')),
+        distinctUntilChanged(),
+    );
     const channelInfo = observeChannelInfo(database, channelId);
+    const announcementMarkdown = channelInfo.pipe(
+        switchMap((ci) => of$(ci?.header ?? '')),
+        distinctUntilChanged(),
+    );
+    const currentUser = observeCurrentUser(database);
+    const canEditAnnouncement = channel.pipe(
+        combineLatestWith(currentUser),
+        switchMap(([ch, u]) => {
+            const perm = permissionForEditingChannelAnnouncement(ch?.type);
+            if (!ch || !u || !perm) {
+                return of$(false);
+            }
+            return observePermissionForChannel(database, ch, u, perm, false);
+        }),
+    );
 
     const dmUser = currentUserId.pipe(
         combineLatestWith(channel),
@@ -63,14 +85,6 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
 
     const isCustomStatusEnabled = observeConfigBooleanValue(database, 'EnableCustomUserStatuses');
     const isPlaybooksEnabled = observeIsPlaybooksEnabled(database);
-    const isChannelAutotranslatedBase = observeIsChannelAutotranslated(database, channelId);
-    const isUserLanguageSupported = observeIsUserLanguageSupportedByAutotranslation(database);
-
-    const isChannelAutotranslated = isChannelAutotranslatedBase.pipe(
-        combineLatestWith(isUserLanguageSupported),
-        switchMap(([isAutotranslated, isLanguageSupported]) => of$(isAutotranslated && isLanguageSupported)),
-        distinctUntilChanged(),
-    );
 
     // const searchTerm = channel.pipe(
     //     combineLatestWith(dmUser),
@@ -85,7 +99,15 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     //     }),
     // );
 
-    const displayName = channel.pipe(switchMap((c) => of$(c?.displayName)));
+    const teamForChannel = channel.pipe(
+        switchMap((c) => (c?.teamId ? observeTeam(database, c.teamId) : of$(undefined))),
+    );
+
+    const displayName = channel.pipe(
+        combineLatestWith(teamForChannel),
+        map(([c, t]) => getChannelTitleDisplayName(c, t?.displayName)),
+        distinctUntilChanged(),
+    );
     const memberCount = channelInfo.pipe(
         combineLatestWith(dmUser),
         switchMap(([ci, dm]) => of$(dm ? undefined : ci?.memberCount)));
@@ -117,14 +139,16 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     );
 
     return {
+        announcementMarkdown,
         canAddBookmarks,
+        canEditAnnouncement,
+        channelName,
         channelType,
         currentUserId,
         customStatus,
         displayName,
         hasBookmarks,
         isBookmarksEnabled,
-        isChannelAutotranslated,
         isCustomStatusEnabled,
         isCustomStatusExpired,
         isOwnDirectMessage,

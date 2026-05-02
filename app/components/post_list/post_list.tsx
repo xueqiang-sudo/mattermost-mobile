@@ -3,12 +3,11 @@
 
 import {FlatList} from '@stream-io/flat-list-mvcp';
 import React, {type ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {DeviceEventEmitter, type GestureResponderEvent, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
-import {useKeyboardState} from 'react-native-keyboard-controller';
-import Animated, {runOnJS, useAnimatedProps, useAnimatedReaction, useSharedValue, type AnimatedStyle} from 'react-native-reanimated';
+import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
+import Animated, {type AnimatedStyle} from 'react-native-reanimated';
 
 import {removePost} from '@actions/local/post';
-import {fetchPosts, fetchPostThread} from '@actions/remote/post';
+import {fetchPosts} from '@actions/remote/post';
 import CombinedUserActivity from '@components/post_list/combined_user_activity';
 import DateSeparator from '@components/post_list/date_separator';
 import NewMessagesLine from '@components/post_list/new_message_line';
@@ -16,11 +15,10 @@ import Post from '@components/post_list/post';
 import ThreadOverview from '@components/post_list/thread_overview';
 import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
-import {useKeyboardAnimationContext} from '@context/keyboard_animation';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {DEFAULT_INPUT_ACCESSORY_HEIGHT} from '@hooks/useInputAccessoryView';
 import {getDateForDateLine, preparePostList} from '@utils/post_list';
+import {changeOpacity, getChatListBackdropColor} from '@utils/theme';
 
 import {INITIAL_BATCH_TO_RENDER, SCROLL_POSITION_CONFIG, VIEWABILITY_CONFIG} from './config';
 import MoreMessages from './more_messages';
@@ -45,6 +43,7 @@ type Props = {
     isPostAcknowledgementEnabled?: boolean;
     lastViewedAt: number;
     location: AvailableScreens;
+    nativeID: string;
     onEndReached?: () => void;
     posts: PostModel[];
     rootId?: string;
@@ -57,10 +56,8 @@ type Props = {
     testID: string;
     currentCallBarVisible?: boolean;
     savedPostIds: Set<string>;
-    isChannelAutotranslated: boolean;
-    listRef?: React.RefObject<FlatList<string | PostModel>>;
-    onTouchMove?: (event: GestureResponderEvent) => void;
-    onTouchEnd?: () => void;
+    unreadCount?: number;
+    isManualUnread?: boolean;
 }
 
 type onScrollEndIndexListenerEvent = (endIndex: number) => void;
@@ -73,6 +70,9 @@ type ScrollIndexFailed = {
 
 const CONTENT_OFFSET_THRESHOLD = 160;
 const SCROLL_EVENT_THROTTLE = Platform.select({android: 17, default: 60});
+
+/** 与当前可视项 ±N 行的帖子一并标记可加载媒体，便于即将滚入时预加载 */
+const POST_MEDIA_NEAR_VIEWPORT_RANGE = 5;
 
 const keyExtractor = (item: PostListItem | PostListOtherItem) => (item.type === 'post' ? item.value.currentPost.id : item.value);
 
@@ -102,73 +102,51 @@ const PostList = ({
     isPostAcknowledgementEnabled,
     lastViewedAt,
     location,
+    nativeID,
     onEndReached,
     posts,
     rootId,
     shouldRenderReplyButton = true,
     shouldShowJoinLeaveMessages,
     showMoreMessages,
-    showNewMessageLine = true,
+    showNewMessageLine = false,
     testID,
     savedPostIds,
-    isChannelAutotranslated,
-    listRef,
-    onTouchMove,
-    onTouchEnd,
+    unreadCount = 0,
+    isManualUnread = false,
 }: Props) => {
     const firstIdInPosts = posts[0]?.id;
 
-    const {
-        keyboardTranslateY: keyboardHeightValue,
-        bottomInset: contentInset,
-        onScroll: onScrollProp,
-        postInputContainerHeight,
-        keyboardHeight,
-        isKeyboardFullyOpen,
-        isKeyboardFullyClosed,
-        inputAccessoryViewAnimatedHeight,
-        isInputAccessoryViewMode,
-    } = useKeyboardAnimationContext();
-
+    const listRef = useRef<FlatList<string | PostModel>>(null);
     const onScrollEndIndexListener = useRef<onScrollEndIndexListenerEvent>();
     const onViewableItemsChangedListener = useRef<ViewableItemsChangedListenerEvent>();
     const scrolledToHighlighted = useRef(false);
+    const [jumpHighlightPostId, setJumpHighlightPostId] = useState<string | undefined>();
+    const effectiveHighlightedId = jumpHighlightPostId || highlightedId;
     const [refreshing, setRefreshing] = useState(false);
     const [showScrollToEndBtn, setShowScrollToEndBtn] = useState(false);
     const [lastPostId, setLastPostId] = useState<string | undefined>(firstIdInPosts);
-    const [progressViewOffset, setProgressViewOffset] = useState(postInputContainerHeight);
-    const [emojiPickerPadding, setEmojiPickerPadding] = useState(0);
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const {isVisible: isKeyboardVisible} = useKeyboardState();
-
-    // Update progressViewOffset to position RefreshControl correctly when keyboard-aware props are applied.
-    // Only update when keyboard state changes (fully open ↔ fully closed) to prevent flickering during animation.
-    const prevIsFullyOpen = useSharedValue(false);
-    const prevIsFullyClosed = useSharedValue(true);
-    useAnimatedReaction(
-        () => ({
-            isFullyOpen: isKeyboardFullyOpen.value,
-            isFullyClosed: isKeyboardFullyClosed.value,
-            keyboardTranslateY: keyboardHeightValue.value,
-        }),
-        ({isFullyOpen, isFullyClosed, keyboardTranslateY}) => {
-            // Only update when state actually changes (transition detected)
-            const stateChanged = (prevIsFullyClosed.value !== isFullyClosed) || (prevIsFullyOpen.value !== isFullyOpen);
-
-            if (stateChanged && (isFullyOpen || isFullyClosed)) {
-                const offset = postInputContainerHeight + keyboardTranslateY;
-                runOnJS(setProgressViewOffset)(offset);
-            }
-            prevIsFullyOpen.value = isFullyOpen;
-            prevIsFullyClosed.value = isFullyClosed;
-        },
-        [postInputContainerHeight],
-    );
-
+    const listContentStyle = useMemo(() => {
+        const isChatStyle = location === Screens.CHANNEL || location === Screens.PERMALINK;
+        if (!isChatStyle) {
+            return undefined;
+        }
+        const base = {backgroundColor: getChatListBackdropColor(theme)};
+        /** 频道倒序列表：flexGrow 在消息少时会在视觉顶部与断网条之间撑出多余空隙 */
+        if (location === Screens.CHANNEL) {
+            return base;
+        }
+        return {...base, flexGrow: 1};
+    }, [location, theme]);
     const orderedPosts = useMemo(() => {
-        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, location === Screens.THREAD, savedPostIds);
-    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, location, savedPostIds]);
+        const isThreadView = Boolean(rootId);
+        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
+    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
+
+    const orderedPostsRef = useRef(orderedPosts);
+    orderedPostsRef.current = orderedPosts;
 
     const initialIndex = useMemo(() => {
         return orderedPosts.findIndex((i) => i.type === 'start-of-new-messages');
@@ -176,14 +154,9 @@ const PostList = ({
 
     const isNewMessage = lastPostId ? firstIdInPosts !== lastPostId : false;
 
-    const scrollToEnd = useCallback(() => {
-        const activeHeight = Math.max(keyboardHeight.value, inputAccessoryViewAnimatedHeight.value);
-        const targetOffset = -activeHeight;
-
-        listRef?.current?.scrollToOffset({offset: targetOffset, animated: true});
-
-        setShowScrollToEndBtn(false);
-    }, [inputAccessoryViewAnimatedHeight, keyboardHeight, listRef]);
+    const scrollToEnd = useCallback((animated = true) => {
+        listRef.current?.scrollToOffset({offset: 0, animated});
+    }, []);
 
     useEffect(() => {
         const t = setTimeout(() => {
@@ -197,7 +170,7 @@ const PostList = ({
         const scrollToBottom = (screen: string) => {
             if (screen === location) {
                 const scrollToBottomTimer = setTimeout(() => {
-                    scrollToEnd();
+                    scrollToEnd(false);
                     clearTimeout(scrollToBottomTimer);
                 }, 400);
             }
@@ -210,6 +183,36 @@ const PostList = ({
         };
     }, [location, scrollToEnd]);
 
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener(
+            Events.POST_LIST_JUMP_TO_POST,
+            ({postId, channelId: eventChannelId, location: eventLocation}: {postId: string; channelId: string; location: AvailableScreens}) => {
+                if (eventChannelId === channelId && eventLocation === location) {
+                    setJumpHighlightPostId(postId);
+                }
+            },
+        );
+        return () => sub.remove();
+    }, [channelId, location]);
+
+    useEffect(() => {
+        if (!jumpHighlightPostId) {
+            return undefined;
+        }
+        const t = setTimeout(() => setJumpHighlightPostId(undefined), 2500);
+        return () => clearTimeout(t);
+    }, [jumpHighlightPostId]);
+
+    useEffect(() => {
+        if (jumpHighlightPostId) {
+            scrolledToHighlighted.current = false;
+        }
+    }, [jumpHighlightPostId]);
+
+    useEffect(() => {
+        scrolledToHighlighted.current = false;
+    }, [highlightedId]);
+
     const onRefresh = useCallback(async () => {
         if (disablePullToRefresh) {
             return;
@@ -217,37 +220,24 @@ const PostList = ({
         setRefreshing(true);
         if (location === Screens.CHANNEL && channelId) {
             await fetchPosts(serverUrl, channelId);
-        } else if (location === Screens.THREAD && rootId) {
-            const options: FetchPaginatedThreadOptions = {};
-            const lastPost = posts[0];
-            if (lastPost) {
-                options.fromCreateAt = lastPost.createAt;
-                options.fromPost = lastPost.id;
-                options.direction = 'down';
-            }
-            await fetchPostThread(serverUrl, rootId, options);
         }
         const removalPromises = posts.
             filter((post) => post.type === PostTypes.EPHEMERAL).
             map((post) => removePost(serverUrl, post));
         await Promise.all(removalPromises);
         setRefreshing(false);
-    }, [disablePullToRefresh, location, channelId, rootId, posts, serverUrl]);
+    }, [disablePullToRefresh, location, channelId, posts, serverUrl]);
 
     const scrollToIndex = useCallback((index: number, animated = true, applyOffset = true) => {
-        if (index < 0 || !listRef?.current) {
-            return;
-        }
-
-        listRef.current.scrollToIndex({
+        listRef.current?.scrollToIndex({
             animated,
             index,
             viewOffset: applyOffset ? Platform.select({ios: -45, default: 0}) : 0,
             viewPosition: 1, // 0 is at bottom
         });
-    }, [listRef]);
+    }, []);
 
-    const internalOnScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const {y} = event.nativeEvent.contentOffset;
         const isThresholdReached = y > CONTENT_OFFSET_THRESHOLD;
 
@@ -263,25 +253,42 @@ const PostList = ({
     const onScrollToIndexFailed = useCallback((info: ScrollIndexFailed) => {
         const index = Math.min(info.highestMeasuredFrameIndex, info.index);
 
-        if (!highlightedId) {
+        if (!effectiveHighlightedId) {
             if (onScrollEndIndexListener.current) {
                 onScrollEndIndexListener.current(index);
             }
             scrollToIndex(index);
         }
-    }, [highlightedId, scrollToIndex]);
+    }, [effectiveHighlightedId, scrollToIndex]);
 
     const onViewableItemsChanged = useCallback(({viewableItems}: ViewableItemsChanged) => {
         if (!viewableItems.length) {
             return;
         }
 
-        const viewableItemsMap = viewableItems.reduce((acc: Record<string, boolean>, {item, isViewable}) => {
-            if (isViewable && item.type === 'post') {
-                acc[`${location}-${item.value.currentPost.id}`] = true;
+        const list = orderedPostsRef.current;
+        const viewableItemsMap: Record<string, boolean> = {};
+
+        const markPost = (entry: PostListItem | PostListOtherItem | undefined) => {
+            if (entry?.type === 'post') {
+                viewableItemsMap[`${location}-${entry.value.currentPost.id}`] = true;
             }
-            return acc;
-        }, {});
+        };
+
+        for (const {item, isViewable, index} of viewableItems) {
+            if (!isViewable || item.type !== 'post') {
+                continue;
+            }
+            markPost(item);
+            if (typeof index === 'number' && !Number.isNaN(index)) {
+                for (let d = -POST_MEDIA_NEAR_VIEWPORT_RANGE; d <= POST_MEDIA_NEAR_VIEWPORT_RANGE; d++) {
+                    const j = index + d;
+                    if (j >= 0 && j < list.length) {
+                        markPost(list[j]);
+                    }
+                }
+            }
+        }
 
         DeviceEventEmitter.emit(Events.ITEM_IN_VIEWPORT, viewableItemsMap);
 
@@ -322,6 +329,7 @@ const PostList = ({
                 return (
                     <DateSeparator
                         key={item.value}
+                        compact={location === Screens.CHANNEL || location === Screens.PERMALINK}
                         date={getDateForDateLine(item.value)}
                         timezone={currentTimezone}
                     />
@@ -354,13 +362,13 @@ const PostList = ({
             default: {
                 const post = item.value.currentPost;
                 const {isSaved, nextPost, previousPost} = item.value;
-                const skipSaveddHeader = (location === Screens.THREAD && post.id === rootId);
+                const skipSaveddHeader = false;
                 const postProps = {
                     appsEnabled,
                     customEmojiNames,
                     isCRTEnabled,
                     isPostAcknowledgementEnabled,
-                    highlight: highlightedId === post.id,
+                    highlight: effectiveHighlightedId === post.id,
                     highlightPinnedOrSaved,
                     isSaved,
                     location,
@@ -371,7 +379,6 @@ const PostList = ({
                     shouldRenderReplyButton,
                     skipSaveddHeader,
                     testID: `${testID}.post`,
-                    isChannelAutotranslated,
                 };
 
                 return (
@@ -382,15 +389,15 @@ const PostList = ({
                 );
             }
         }
-    }, [appsEnabled, currentTimezone, currentUsername, customEmojiNames, highlightPinnedOrSaved, highlightedId, isCRTEnabled, isChannelAutotranslated, isPostAcknowledgementEnabled, location, rootId, shouldRenderReplyButton, shouldShowJoinLeaveMessages, testID, theme]);
+    }, [appsEnabled, currentTimezone, currentUsername, customEmojiNames, highlightPinnedOrSaved, effectiveHighlightedId, isCRTEnabled, isPostAcknowledgementEnabled, location, rootId, shouldRenderReplyButton, shouldShowJoinLeaveMessages, testID, theme]);
 
     useEffect(() => {
         const t = setTimeout(() => {
-            if (highlightedId && orderedPosts && !scrolledToHighlighted.current) {
+            if (effectiveHighlightedId && orderedPosts && !scrolledToHighlighted.current) {
                 scrolledToHighlighted.current = true;
                 // eslint-disable-next-line max-nested-callbacks
-                const index = orderedPosts.findIndex((p) => p.type === 'post' && p.value.currentPost.id === highlightedId);
-                if (index >= 0 && listRef?.current) {
+                const index = orderedPosts.findIndex((p) => p.type === 'post' && p.value.currentPost.id === effectiveHighlightedId);
+                if (index >= 0 && listRef.current) {
                     listRef.current?.scrollToIndex({
                         animated: true,
                         index,
@@ -402,51 +409,12 @@ const PostList = ({
         }, 500);
 
         return () => clearTimeout(t);
-
-    // - listRef is a ref (stable reference, doesn't need to be in deps)
-    // - scrolledToHighlighted is a ref (stable reference, doesn't need to be in deps)
-    // - We only need to re-run when the posts list changes or the highlighted post changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [orderedPosts, highlightedId]);
-
-    // Sync emoji picker padding from SharedValue to React state
-    // This ensures the padding updates when SharedValues change
-    useAnimatedReaction(
-        () => {
-            const shouldAddEmojiPickerPadding = Platform.OS === 'android' && !isKeyboardVisible && isInputAccessoryViewMode.value;
-            const emojiPickerHeight = shouldAddEmojiPickerPadding ? (inputAccessoryViewAnimatedHeight.value || DEFAULT_INPUT_ACCESSORY_HEIGHT) : 0;
-            return emojiPickerHeight;
-        },
-        (emojiPickerHeight) => {
-            runOnJS(setEmojiPickerPadding)(emojiPickerHeight);
-        },
-        [isKeyboardVisible],
-    );
-
-    // Combine contentContainerStyle with padding style
-    // Use regular style with state value synced from SharedValues
-    const contentContainerStyleWithPadding = useMemo(() => {
-        const paddingStyle = {paddingTop: location === Screens.PERMALINK ? 0 : postInputContainerHeight + emojiPickerPadding};
-        return contentContainerStyle ? [contentContainerStyle, paddingStyle] : paddingStyle;
-    }, [location, postInputContainerHeight, emojiPickerPadding, contentContainerStyle]);
-
-    // contentInset only for dynamic keyboard height
-    const animatedProps = useAnimatedProps(
-        () => ({
-            contentInset: {
-                top: contentInset.value, // For inverted FlatList, applies to visual bottom
-            },
-        }),
-        [contentInset],
-    );
+    }, [orderedPosts, effectiveHighlightedId]);
 
     return (
-        <>
+        <View style={styles.container}>
             <Animated.FlatList
-                animatedProps={animatedProps}
-                automaticallyAdjustContentInsets={false}
-                contentInsetAdjustmentBehavior='never'
-                contentContainerStyle={contentContainerStyleWithPadding}
+                contentContainerStyle={[listContentStyle, contentContainerStyle]}
                 data={orderedPosts}
                 keyboardDismissMode='interactive'
                 keyboardShouldPersistTaps='handled'
@@ -456,13 +424,12 @@ const PostList = ({
                 ListFooterComponent={footer}
                 maintainVisibleContentPosition={SCROLL_POSITION_CONFIG}
                 maxToRenderPerBatch={10}
+                nativeID={nativeID}
                 onEndReached={onEndReached}
                 onEndReachedThreshold={0.9}
-                onScroll={onScrollProp}
-                onMomentumScrollEnd={internalOnScroll}
+                onScroll={onScroll}
                 onScrollToIndexFailed={onScrollToIndexFailed}
                 onViewableItemsChanged={onViewableItemsChanged}
-                progressViewOffset={progressViewOffset}
                 ref={listRef}
                 removeClippedSubviews={true}
                 renderItem={renderItem}
@@ -472,16 +439,15 @@ const PostList = ({
                 testID={`${testID}.flat_list`}
                 inverted={true}
                 refreshing={refreshing}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
                 onRefresh={onRefresh}
             />
             {location !== Screens.PERMALINK &&
             <ScrollToEndView
-                onPress={scrollToEnd}
+                onPress={() => scrollToEnd(true)}
                 isNewMessage={isNewMessage}
                 showScrollToEndBtn={showScrollToEndBtn}
                 location={location}
+                isThreadReply={Boolean(rootId)}
                 testID={'scroll-to-end-view'}
             />
             }
@@ -497,9 +463,11 @@ const PostList = ({
                 scrollToIndex={scrollToIndex}
                 theme={theme}
                 testID={`${testID}.more_messages_button`}
+                unreadCount={unreadCount}
+                isManualUnread={isManualUnread}
             />
             }
-        </>
+        </View>
     );
 };
 

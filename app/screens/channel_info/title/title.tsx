@@ -18,8 +18,8 @@ type Props = {
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: 16,
-        marginTop: 24,
+        marginBottom: 0,
+        marginTop: 0,
     },
 });
 
@@ -47,6 +47,7 @@ const Title = ({channelId, displayName, type}: Props) => {
                 <PublicPrivate
                     channelId={channelId}
                     displayName={displayName}
+                    type={type}
                 />
 
             );

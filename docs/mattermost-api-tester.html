@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mattermost API 测试工具</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    .config {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .config-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .config label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    .config input {
+      width: 320px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .config input.short { width: 220px; }
+    .config-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+    .section { margin-bottom: 16px; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-header:hover { background: #334155; }
+    .section-header::before {
+      content: '▼';
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+    .section.collapsed .section-header::before { transform: rotate(-90deg); }
+    .section-body { display: none; padding: 16px; }
+    .section:not(.collapsed) .section-body {
+      display: block;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+    }
+    .endpoint {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .endpoint:last-child { border-bottom: none; }
+    .endpoint-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .method {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .method.get { background: #22c55e33; color: #22c55e; }
+    .method.post { background: #3b82f633; color: #3b82f6; }
+    .method.delete { background: #ef444433; color: #ef4444; }
+    .path { font-family: monospace; font-size: 0.875rem; }
+    .params { display: flex; gap: 8px; flex-wrap: wrap; }
+    .params input {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.875rem;
+      width: 180px;
+    }
+    .params input.wide { width: 280px; }
+    .body-input {
+      width: 100%;
+      min-height: 60px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: monospace;
+      font-size: 0.8125rem;
+      resize: vertical;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .response-panel {
+      position: sticky;
+      bottom: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #334155;
+    }
+    .response-body {
+      padding: 16px;
+      max-height: 240px;
+      overflow: auto;
+      font-family: monospace;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .response-body.success { color: var(--success); }
+    .response-body.error { color: var(--error); }
+    .status { font-size: 0.75rem; color: var(--text-muted); }
+    .inline-body { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Mattermost API 测试工具</h1>
+    <p style="color: var(--text-muted); margin-bottom: 8px;">
+      认证与代理逻辑对齐 <code>department-api-tester.html</code>，接口文档见官方 API Reference。
+    </p>
+
+    <div class="config">
+      <div class="config-row">
+        <label>
+          服务地址（Mattermost 根 URL）
+          <input type="text" id="baseUrl" placeholder="https://your-server.example" value="http://118.195.136.154:8065">
+        </label>
+        <label>
+          访问令牌（Bearer）
+          <input type="text" id="accessToken" placeholder="Personal Access Token" autocomplete="off">
+        </label>
+      </div>
+      <div class="config-row" style="margin-top: 12px;">
+        <label>
+          登录 ID（用户名/邮箱）
+          <input type="text" id="loginId" placeholder="Username or Email" autocomplete="off" value="qiuapitest163">
+        </label>
+        <label>
+          密码
+          <input type="text" id="password" placeholder="Password" autocomplete="off" value="qiuapitest163">
+        </label>
+        <button class="btn" onclick="login()" style="margin-top: 18px;">登录</button>
+      </div>
+      <div class="config-row" style="margin-top: 12px;">
+        <label>
+          默认 team_id
+          <input type="text" id="defaultTeamId" class="short" placeholder="26 字符团队 ID" value="patnbfmb5iyapma5udb55hawbw">
+        </label>
+        <label>
+          默认 channel_id
+          <input type="text" id="defaultChannelId" class="short" placeholder="26 字符频道 ID">
+        </label>
+        <label>
+          默认 user_id
+          <input type="text" id="defaultUserId" class="short" placeholder="26 字符用户 ID">
+        </label>
+      </div>
+      <p class="config-hint">认证方式：Bearer token（通过上方登录自动获取并填充）。</p>
+      <p class="config-hint" id="proxyHint" style="margin-top: 4px;"></p>
+    </div>
+
+    <div class="section">
+      <div class="section-header">路径参数（当前请求上下文）</div>
+      <div class="section-body">
+        <div class="params" style="align-items: flex-end;">
+          <label style="flex-direction:column;display:flex;gap:4px;color:var(--text-muted);font-size:0.875rem;">
+            team_id
+            <input id="shared_team_id" class="wide" placeholder="teams/{team_id}/...">
+          </label>
+          <label style="flex-direction:column;display:flex;gap:4px;color:var(--text-muted);font-size:0.875rem;">
+            channel_id
+            <input id="shared_channel_id" class="wide" placeholder="channels/{channel_id}/...">
+          </label>
+          <label style="flex-direction:column;display:flex;gap:4px;color:var(--text-muted);font-size:0.875rem;">
+            user_id（成员操作）
+            <input id="shared_user_id" class="wide" placeholder="users/{user_id}">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">频道创建</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/channels</span>
+            </div>
+            <p class="status">CreateChannel</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_create_channel" rows="8">{
+  "team_id": "",
+  "name": "api-test-channel",
+  "display_name": "API Test Channel",
+  "type": "P",
+  "purpose": "Created by mattermost-api-tester",
+  "header": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', '/api/v4/channels', document.getElementById('body_create_channel').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/channels/direct</span>
+            </div>
+            <p class="status">CreateDirectChannel（body 为 2 个 user_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_create_direct_channel" rows="5">[
+  "",
+  ""
+]</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', '/api/v4/channels/direct', document.getElementById('body_create_direct_channel').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/channels/group</span>
+            </div>
+            <p class="status">CreateGroupChannel（body 为 >=3 个 user_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_create_group_channel" rows="6">[
+  "",
+  "",
+  ""
+]</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', '/api/v4/channels/group', document.getElementById('body_create_group_channel').value)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">频道成员管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/channels/{channel_id}/members</span>
+            </div>
+            <p class="status">AddChannelMember</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_add_channel_member" rows="4">{
+  "user_id": "",
+  "post_root_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathChannelMembers(), document.getElementById('body_add_channel_member').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v4/channels/{channel_id}/members/{user_id}</span>
+            </div>
+            <p class="status">RemoveUserFromChannel</p>
+          </div>
+          <button class="btn" onclick="callApi('DELETE', pathRemoveChannelMember(), null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">列表查询</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/channels</span>
+            </div>
+            <p class="status">GetAllChannels（分页参数 page / per_page，可选 not_associated_to_group）</p>
+            <div class="params">
+              <input id="q_channels_page" placeholder="page" value="0">
+              <input id="q_channels_per_page" placeholder="per_page" value="60">
+              <input id="q_channels_not_group" class="wide" placeholder="not_associated_to_group（可选）">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathAllChannels(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/users</span>
+            </div>
+            <p class="status">GetUsers（分页参数 page / per_page，可选 in_team / in_channel）</p>
+            <div class="params">
+              <input id="q_users_page" placeholder="page" value="0">
+              <input id="q_users_per_page" placeholder="per_page" value="60">
+              <input id="q_users_in_team" class="wide" placeholder="in_team（可选）">
+              <input id="q_users_in_channel" class="wide" placeholder="in_channel（可选）">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathUsers(), null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">团队与团队频道</div>
+      <div class="section-body">
+        <p class="status" style="margin:0 0 12px;">
+          官方文档：
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/GetPublicChannelsForTeam" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">GetPublicChannelsForTeam</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/GetPrivateChannelsForTeam" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">GetPrivateChannelsForTeam</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/GetDeletedChannelsForTeam" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">GetDeletedChannelsForTeam</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/CreateTeam" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">CreateTeam</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/GetAllTeams" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">GetAllTeams</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/GetTeam" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">GetTeam</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/AddTeamMember" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">AddTeamMember</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/GetTeamMembers" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">GetTeamMembers</a>、
+          <a href="https://developers.mattermost.com/api-documentation/#/operations/RemoveTeamMember" target="_blank" rel="noopener noreferrer" style="color: var(--accent);">RemoveTeamMember</a>
+        </p>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/channels</span>
+            </div>
+            <p class="status">GetPublicChannelsForTeam</p>
+            <div class="params">
+              <input id="q_team_ch_page" placeholder="page" value="0">
+              <input id="q_team_ch_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamPublicChannels(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/channels/private</span>
+            </div>
+            <p class="status">GetPrivateChannelsForTeam</p>
+            <div class="params">
+              <input id="q_team_private_page" placeholder="page" value="0">
+              <input id="q_team_private_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamPrivateChannels(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/channels/deleted</span>
+            </div>
+            <p class="status">GetDeletedChannelsForTeam</p>
+            <div class="params">
+              <input id="q_team_deleted_page" placeholder="page" value="0">
+              <input id="q_team_deleted_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamDeletedChannels(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams</span>
+            </div>
+            <p class="status">CreateTeam</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_create_team" rows="8">{
+  "name": "api-test-team",
+  "display_name": "API Test Team",
+  "type": "O",
+  "company_name": "",
+  "allow_open_invite": false
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', '/api/v4/teams', document.getElementById('body_create_team').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams</span>
+            </div>
+            <p class="status">GetAllTeams（可选 page / per_page）</p>
+            <div class="params">
+              <input id="q_all_teams_page" placeholder="page" value="0">
+              <input id="q_all_teams_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathAllTeams(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}</span>
+            </div>
+            <p class="status">GetTeam</p>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamById(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v4/teams/{team_id}/members</span>
+            </div>
+            <p class="status">AddTeamMember（body：team_id、user_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_add_team_member" rows="4">{
+  "team_id": "",
+  "user_id": ""
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST', pathTeamMembers(), document.getElementById('body_add_team_member').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v4/teams/{team_id}/members</span>
+            </div>
+            <p class="status">GetTeamMembers</p>
+            <div class="params">
+              <input id="q_team_members_page" placeholder="page" value="0">
+              <input id="q_team_members_per_page" placeholder="per_page" value="60">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET', pathTeamMembersList(), null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v4/teams/{team_id}/members/{user_id}</span>
+            </div>
+            <p class="status">RemoveTeamMember（使用路径中的 user_id）</p>
+          </div>
+          <button class="btn" onclick="callApi('DELETE', pathRemoveTeamMember(), null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="response-panel">
+      <div class="response-header">
+        <span>响应</span>
+        <span class="status" id="respStatus"></span>
+      </div>
+      <div class="response-body" id="responseBody">尚未发起请求</div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'mattermostApiTesterDefaults';
+
+    function paramVal(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }
+
+    function pathChannelMembers() {
+      return '/api/v4/channels/' + encodeURIComponent(paramVal('shared_channel_id')) + '/members';
+    }
+
+    function pathRemoveChannelMember() {
+      return pathChannelMembers() + '/' + encodeURIComponent(paramVal('shared_user_id'));
+    }
+
+    function pathAllChannels() {
+      const q = new URLSearchParams();
+      const page = paramVal('q_channels_page');
+      const perPage = paramVal('q_channels_per_page');
+      const notGroup = paramVal('q_channels_not_group');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      if (notGroup !== '') {
+        q.set('not_associated_to_group', notGroup);
+      }
+      const qs = q.toString();
+      return '/api/v4/channels' + (qs ? '?' + qs : '');
+    }
+
+    function pathUsers() {
+      const q = new URLSearchParams();
+      const page = paramVal('q_users_page');
+      const perPage = paramVal('q_users_per_page');
+      const inTeam = paramVal('q_users_in_team');
+      const inChannel = paramVal('q_users_in_channel');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      if (inTeam !== '') {
+        q.set('in_team', inTeam);
+      }
+      if (inChannel !== '') {
+        q.set('in_channel', inChannel);
+      }
+      const qs = q.toString();
+      return '/api/v4/users' + (qs ? '?' + qs : '');
+    }
+
+    function pathTeamByIdSegment() {
+      return '/api/v4/teams/' + encodeURIComponent(paramVal('shared_team_id'));
+    }
+
+    function pathTeamPublicChannels() {
+      const q = new URLSearchParams();
+      const page = paramVal('q_team_ch_page');
+      const perPage = paramVal('q_team_ch_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return pathTeamByIdSegment() + '/channels' + (qs ? '?' + qs : '');
+    }
+
+    function pathTeamPrivateChannels() {
+      const q = new URLSearchParams();
+      const page = paramVal('q_team_private_page');
+      const perPage = paramVal('q_team_private_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return pathTeamByIdSegment() + '/channels/private' + (qs ? '?' + qs : '');
+    }
+
+    function pathTeamDeletedChannels() {
+      const q = new URLSearchParams();
+      const page = paramVal('q_team_deleted_page');
+      const perPage = paramVal('q_team_deleted_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return pathTeamByIdSegment() + '/channels/deleted' + (qs ? '?' + qs : '');
+    }
+
+    function pathAllTeams() {
+      const q = new URLSearchParams();
+      const page = paramVal('q_all_teams_page');
+      const perPage = paramVal('q_all_teams_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return '/api/v4/teams' + (qs ? '?' + qs : '');
+    }
+
+    function pathTeamById() {
+      return pathTeamByIdSegment();
+    }
+
+    function pathTeamMembers() {
+      return pathTeamByIdSegment() + '/members';
+    }
+
+    function pathTeamMembersList() {
+      const q = new URLSearchParams();
+      const page = paramVal('q_team_members_page');
+      const perPage = paramVal('q_team_members_per_page');
+      if (page !== '') {
+        q.set('page', page);
+      }
+      if (perPage !== '') {
+        q.set('per_page', perPage);
+      }
+      const qs = q.toString();
+      return pathTeamMembers() + (qs ? '?' + qs : '');
+    }
+
+    function pathRemoveTeamMember() {
+      return pathTeamMembers() + '/' + encodeURIComponent(paramVal('shared_user_id'));
+    }
+
+    function getDefaults() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function saveDefaults() {
+      const defaults = {
+        baseUrl: document.getElementById('baseUrl').value,
+        accessToken: document.getElementById('accessToken').value,
+        teamId: document.getElementById('defaultTeamId').value.trim(),
+        channelId: document.getElementById('defaultChannelId').value.trim(),
+        userId: document.getElementById('defaultUserId').value.trim(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    }
+
+    function syncJsonField(fieldId, key, value) {
+      if (!value) {
+        return;
+      }
+      const el = document.getElementById(fieldId);
+      if (!el) {
+        return;
+      }
+      try {
+        const obj = el.value.trim() ? JSON.parse(el.value) : {};
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          obj[key] = value;
+          el.value = JSON.stringify(obj, null, 2);
+        }
+      } catch (_) {}
+    }
+
+    function applyDefaults() {
+      const team = paramVal('defaultTeamId');
+      const channel = paramVal('defaultChannelId');
+      const user = paramVal('defaultUserId');
+
+      if (team) {
+        document.getElementById('shared_team_id').value = team;
+      }
+      if (channel) {
+        document.getElementById('shared_channel_id').value = channel;
+      }
+      if (user) {
+        document.getElementById('shared_user_id').value = user;
+      }
+
+      if (team && !paramVal('q_users_in_team')) {
+        document.getElementById('q_users_in_team').value = team;
+      }
+      if (channel && !paramVal('q_users_in_channel')) {
+        document.getElementById('q_users_in_channel').value = channel;
+      }
+
+      syncJsonField('body_create_channel', 'team_id', paramVal('shared_team_id') || team);
+      syncJsonField('body_add_channel_member', 'user_id', paramVal('shared_user_id') || user);
+      syncJsonField('body_add_team_member', 'team_id', paramVal('shared_team_id') || team);
+      syncJsonField('body_add_team_member', 'user_id', paramVal('shared_user_id') || user);
+    }
+
+    function loadStoredDefaults() {
+      const d = getDefaults();
+      if (d.baseUrl) {
+        document.getElementById('baseUrl').value = d.baseUrl;
+      }
+      if (d.accessToken) {
+        document.getElementById('accessToken').value = d.accessToken;
+      }
+      if (d.teamId) {
+        document.getElementById('defaultTeamId').value = d.teamId;
+      }
+      if (d.channelId) {
+        document.getElementById('defaultChannelId').value = d.channelId;
+      }
+      if (d.userId) {
+        document.getElementById('defaultUserId').value = d.userId;
+      }
+    }
+
+    function useProxy() {
+      return window.location.port === '3456' && window.location.hostname === 'localhost';
+    }
+
+    document.querySelectorAll('.section-header').forEach(function (el) {
+      el.addEventListener('click', function () {
+        el.parentElement.classList.toggle('collapsed');
+      });
+    });
+
+    loadStoredDefaults();
+    applyDefaults();
+
+    const proxyHint = document.getElementById('proxyHint');
+    proxyHint.textContent = useProxy()
+      ? '已通过本地代理请求（CORS 已解决）'
+      : '直接请求可能因 CORS 失败。运行 node docs/api-tester-proxy.js 后访问 http://localhost:3456/mattermost-api-tester.html';
+
+    ['baseUrl', 'accessToken', 'defaultTeamId', 'defaultChannelId', 'defaultUserId'].forEach(function (key) {
+      const el = document.getElementById(key);
+      el.addEventListener('change', function () {
+        saveDefaults();
+        if (key !== 'baseUrl' && key !== 'accessToken') {
+          applyDefaults();
+        }
+      });
+      el.addEventListener('blur', function () {
+        saveDefaults();
+        if (key !== 'baseUrl' && key !== 'accessToken') {
+          applyDefaults();
+        }
+      });
+    });
+
+    async function login() {
+      const base = document.getElementById('baseUrl').value.replace(/\/$/, '');
+      const loginId = document.getElementById('loginId').value.trim();
+      const password = document.getElementById('password').value;
+      const respEl = document.getElementById('responseBody');
+      const statusEl = document.getElementById('respStatus');
+
+      if (!base) {
+        respEl.textContent = '请输入服务地址';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+        return;
+      }
+
+      if (!loginId || !password) {
+        respEl.textContent = '请输入登录 ID 和密码';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+        return;
+      }
+
+      respEl.textContent = '登录中...';
+      respEl.className = 'response-body';
+      statusEl.textContent = '';
+
+      const url = base + '/api/v4/users/login';
+      const reqBody = JSON.stringify({login_id: loginId, password: password});
+
+      try {
+        let status;
+        let statusText;
+        let text;
+        let token;
+        let proxyData;
+        if (useProxy()) {
+          const proxyRes = await fetch('/proxy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              targetUrl: url,
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: reqBody,
+            }),
+          });
+          proxyData = await proxyRes.json();
+          status = proxyData.status;
+          statusText = proxyData.statusText;
+          if (proxyData.headers && proxyData.headers.token) {
+            token = proxyData.headers.token;
+          }
+          text = proxyData.body || '';
+        } else {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: reqBody,
+          });
+          status = res.status;
+          statusText = res.statusText;
+          text = await res.text();
+          token = res.headers.get('Token') || res.headers.get('token');
+        }
+
+        let displayText = '[' + status + '] ' + statusText + '\n\n';
+        try {
+          displayText += JSON.stringify(JSON.parse(text), null, 2);
+        } catch (_) {
+          displayText += text;
+        }
+
+        respEl.textContent = displayText;
+        respEl.className = 'response-body ' + (status >= 200 && status < 300 ? 'success' : 'error');
+        statusEl.textContent = status + ' ' + statusText;
+
+        if (status >= 200 && status < 300) {
+          if (token) {
+            document.getElementById('accessToken').value = token;
+            saveDefaults();
+            respEl.textContent += '\n\n登录成功！令牌已自动填充到访问令牌字段。';
+          } else {
+            respEl.textContent += '\n\n登录成功，但未能从响应中获取到 token。请手动输入 token。';
+          }
+        }
+      } catch (e) {
+        respEl.textContent = '登录失败：' + e.message + '\n\n若因 CORS 限制，请运行: node docs/api-tester-proxy.js\n然后访问: http://localhost:3456/mattermost-api-tester.html';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+      }
+    }
+
+    async function callApi(method, path, body) {
+      const base = document.getElementById('baseUrl').value.replace(/\/$/, '');
+      const token = document.getElementById('accessToken').value.trim();
+      const url = base + path;
+      const respEl = document.getElementById('responseBody');
+      const statusEl = document.getElementById('respStatus');
+
+      if (!base) {
+        respEl.textContent = '请输入服务地址';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+        return;
+      }
+      if (!token) {
+        respEl.textContent = '请先登录或手动填写访问令牌';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+        return;
+      }
+
+      let reqBody = '';
+      if (body && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
+        try {
+          reqBody = body.trim() ? JSON.stringify(JSON.parse(body)) : '{}';
+        } catch (e) {
+          respEl.textContent = '请求体 JSON 格式错误：' + e.message;
+          respEl.className = 'response-body error';
+          statusEl.textContent = '';
+          return;
+        }
+      }
+
+      respEl.textContent = '请求中...';
+      respEl.className = 'response-body';
+      statusEl.textContent = '';
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      };
+
+      try {
+        let status;
+        let statusText;
+        let text;
+        if (useProxy()) {
+          const proxyRes = await fetch('/proxy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              targetUrl: url,
+              method: method,
+              headers: headers,
+              body: reqBody,
+            }),
+          });
+          const proxyData = await proxyRes.json();
+          status = proxyData.status;
+          statusText = proxyData.statusText;
+          text = proxyData.body || '';
+        } else {
+          const res = await fetch(url, {
+            method: method,
+            headers: headers,
+            body: reqBody || undefined,
+          });
+          status = res.status;
+          statusText = res.statusText;
+          text = await res.text();
+        }
+
+        let formatted = text;
+        try {
+          formatted = JSON.stringify(JSON.parse(text), null, 2);
+        } catch (_) {}
+
+        respEl.textContent = '[' + status + '] ' + statusText + '\n\n' + formatted;
+        respEl.className = 'response-body ' + (status >= 200 && status < 300 ? 'success' : 'error');
+        statusEl.textContent = status + ' ' + statusText;
+      } catch (e) {
+        respEl.textContent = '请求失败：' + e.message + '\n\n若因 CORS 限制，请运行: node docs/api-tester-proxy.js\n然后访问: http://localhost:3456/mattermost-api-tester.html';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+      }
+    }
+  </script>
+</body>
+</html>

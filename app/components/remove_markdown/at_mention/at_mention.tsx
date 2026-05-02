@@ -1,15 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React from 'react';
+import React, {useEffect} from 'react';
 import {type StyleProp, Text, type TextStyle} from 'react-native';
 
 import {fetchUserOrGroupsByMentionsInBatch} from '@actions/remote/user';
 import {useServerUrl} from '@context/server';
 import GroupModel from '@database/models/server/group';
-import useDidMount from '@hooks/did_mount';
 import {useMemoMentionedGroup, useMemoMentionedUser} from '@hooks/markdown';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type UserModelType from '@typings/database/models/servers/user';
 
@@ -23,7 +22,7 @@ type AtMentionProps = {
 
 const AtMention = ({
     mentionName,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     textStyle,
     users,
     groups,
@@ -34,17 +33,20 @@ const AtMention = ({
     const group = useMemoMentionedGroup(groups, user, mentionName);
 
     // Effects
-    useDidMount(() => {
+    useEffect(() => {
         // Fetches and updates the local db store with the mention
         if (!user?.username && !group?.name) {
             fetchUserOrGroupsByMentionsInBatch(serverUrl, mentionName);
         }
-    });
+
+        // Only fetch the user or group on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     let mention;
 
     if (user?.username) {
-        mention = displayUsername(user, user.locale, teammateNameDisplay);
+        mention = username2Nickname(user, {locale: user.locale});
     } else if (group?.name) {
         mention = group.name;
     } else {

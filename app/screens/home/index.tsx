@@ -7,30 +7,30 @@ import {NavigationContainer, DefaultTheme} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, Platform, StyleSheet, View} from 'react-native';
-import {useKeyboardState} from 'react-native-keyboard-controller';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 
 import {autoUpdateTimezone} from '@actions/remote/user';
+import LeftDrawer from '@components/left_drawer';
 import ServerVersion from '@components/server_version';
+import TeamMembershipNotice from '@components/team_membership_notice';
 import {Events, Launch, Screens} from '@constants';
+import {LeftDrawerProvider} from '@context/left_drawer';
 import {useTheme} from '@context/theme';
 import {useAppState} from '@hooks/device';
-import useDidMount from '@hooks/did_mount';
 import SecurityManager from '@managers/security_manager';
 import {getAllServers} from '@queries/app/servers';
 import {findChannels, popToRoot} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {alertInvalidDeepLink, parseAndHandleDeepLink} from '@utils/deep_link';
 import {logError} from '@utils/log';
-import {alertChannelArchived, alertChannelRemove, alertTeamRemove} from '@utils/navigation';
+import {alertChannelArchived, alertChannelRemove} from '@utils/navigation';
 import {notificationError} from '@utils/notification';
 
-import Account from './account';
 import ChannelList from './channel_list';
-import RecentMentions from './recent_mentions';
-import SavedMessages from './saved_messages';
-import Search from './search';
+import Contacts from './contacts';
 import TabBar from './tab_bar';
+import AIAgent from './ai_agent';
+import MyHomepage from './my_homepage';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 
@@ -68,22 +68,15 @@ export function HomeScreen(props: HomeProps) {
     const theme = useTheme();
     const intl = useIntl();
     const appState = useAppState();
-    const keyboardState = useKeyboardState();
-    const [isEmojiSearchFocused, setIsEmojiSearchFocused] = React.useState(false);
 
     useEffect(() => {
         SecurityManager.start();
     }, []);
 
-    useEffect(() => {
-        // Hide tab bar when keyboard opens, show when it closes
-        DeviceEventEmitter.emit(Events.TAB_BAR_VISIBLE, !keyboardState.isVisible);
-    }, [keyboardState.isVisible]);
-
     const handleFindChannels = useCallback(() => {
         if (!NavigationStore.getScreensInStack().includes(Screens.FIND_CHANNELS)) {
             findChannels(
-                intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Find Channels'}),
+                intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
                 theme,
             );
         }
@@ -103,10 +96,6 @@ export function HomeScreen(props: HomeProps) {
     }, [intl]);
 
     useEffect(() => {
-        const leaveTeamListener = DeviceEventEmitter.addListener(Events.LEAVE_TEAM, (displayName: string) => {
-            alertTeamRemove(displayName, intl);
-        });
-
         const leaveChannelListener = DeviceEventEmitter.addListener(Events.LEAVE_CHANNEL, (displayName: string) => {
             alertChannelRemove(displayName, intl);
         });
@@ -122,7 +111,6 @@ export function HomeScreen(props: HomeProps) {
         });
 
         return () => {
-            leaveTeamListener.remove();
             leaveChannelListener.remove();
             archivedChannelListener.remove();
             crtToggledListener.remove();
@@ -135,7 +123,7 @@ export function HomeScreen(props: HomeProps) {
         }
     }, [appState]);
 
-    useDidMount(() => {
+    useEffect(() => {
         if (props.launchType === Launch.DeepLink) {
             if (props.launchError) {
                 alertInvalidDeepLink(intl);
@@ -151,84 +139,73 @@ export function HomeScreen(props: HomeProps) {
                 });
             }
         }
-    });
 
-    useEffect(() => {
-        const listener = DeviceEventEmitter.addListener(Events.EMOJI_PICKER_SEARCH_FOCUSED, (focused: boolean) => {
-            setIsEmojiSearchFocused(focused);
-        });
-
-        return () => listener.remove();
+    // only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const TabBarComponent = (tabProps: BottomTabBarProps) => {
-        if (isEmojiSearchFocused) {
-            return null;
-        }
-
-        return (
-            <TabBar
-                {...tabProps}
-                theme={theme}
-            />
-        );
-    };
-    TabBarComponent.displayName = 'TabBarComponent';
 
     return (
         <View
             style={styles.flex}
             nativeID={SecurityManager.getShieldScreenId(Screens.HOME, true)}
         >
-            <NavigationContainer
-                theme={{
-                    ...DefaultTheme,
-                    dark: false,
-                    colors: {
-                        ...DefaultTheme.colors,
-                        primary: theme.centerChannelColor,
-                        background: 'transparent',
-                        card: theme.centerChannelBg,
-                        text: theme.centerChannelColor,
-                        border: 'white',
-                        notification: theme.mentionHighlightBg,
-                    },
-                }}
-            >
-                <Tab.Navigator
-                    screenOptions={{headerShown: false, freezeOnBlur: false, lazy: true}}
-                    backBehavior='none'
-                    tabBar={TabBarComponent}
+            <LeftDrawerProvider>
+                <NavigationContainer
+                    theme={{
+                        ...DefaultTheme,
+                        dark: false,
+                        colors: {
+                            ...DefaultTheme.colors,
+                            primary: theme.centerChannelColor,
+                            background: 'transparent',
+                            card: theme.centerChannelBg,
+                            text: theme.centerChannelColor,
+                            border: 'white',
+                            notification: theme.mentionHighlightBg,
+                        },
+                    }}
                 >
-                    <Tab.Screen
-                        name={Screens.HOME}
-                        options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
+                    <Tab.Navigator
+                        screenOptions={{headerShown: false, freezeOnBlur: false, lazy: true}}
+                        backBehavior='none'
+                        tabBar={(tabProps: BottomTabBarProps) => (
+                            <TabBar
+                                {...tabProps}
+                                theme={theme}
+                            />)}
                     >
-                        {() => <ChannelList {...props}/>}
-                    </Tab.Screen>
-                    <Tab.Screen
-                        name={Screens.SEARCH}
-                        component={Search}
-                        options={{tabBarButtonTestID: 'tab_bar.search.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                    <Tab.Screen
-                        name={Screens.MENTIONS}
-                        component={RecentMentions}
-                        options={{tabBarButtonTestID: 'tab_bar.mentions.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                    <Tab.Screen
-                        name={Screens.SAVED_MESSAGES}
-                        component={SavedMessages}
-                        options={{tabBarButtonTestID: 'tab_bar.saved_messages.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                    <Tab.Screen
-                        name={Screens.ACCOUNT}
-                        component={Account}
-                        options={{tabBarButtonTestID: 'tab_bar.account.tab', freezeOnBlur: true, lazy: true}}
-                    />
-                </Tab.Navigator>
-            </NavigationContainer>
-            <ServerVersion/>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_CHAT}
+                            options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
+                        >
+                            {() => <ChannelList {...props}/>}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_AI_AGENT}
+                            options={{tabBarButtonTestID: 'tab_bar.ai_agent.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => <AIAgent/>}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_MY_HOMEPAGE}
+                            options={{tabBarButtonTestID: 'tab_bar.my_homepage.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => <MyHomepage/>}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_CONTACTS}
+                            options={{tabBarButtonTestID: 'tab_bar.contacts.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => (
+                                <Contacts rnnHomeComponentId={props.componentId}/>
+                            )}
+                        </Tab.Screen>
+                    </Tab.Navigator>
+                </NavigationContainer>
+                <LeftDrawer/>
+                <ServerVersion/>
+                <TeamMembershipNotice/>
+            </LeftDrawerProvider>
         </View>
     );
 }

@@ -84,24 +84,21 @@ const Search = forwardRef<SearchRef, SearchProps>((props: SearchProps, ref) => {
     const searchCancelButtonTestID = `${props.testID}.search.cancel.button`;
     const searchInputTestID = `${props.testID}.search.input`;
 
-    const onCancelProp = props.onCancel;
-    const onClearProp = props.onClear;
-    const onChangeTextProp = props.onChangeText;
     const onCancel = useCallback(() => {
         Keyboard.dismiss();
         setValue('');
-        onCancelProp?.();
-    }, [onCancelProp]);
+        props.onCancel?.();
+    }, [props.onCancel]);
 
     const onClear = useCallback(() => {
         setValue('');
-        onClearProp?.();
-    }, [onClearProp]);
+        props.onClear?.();
+    }, [props.onClear]);
 
     const onChangeText = useCallback((text: string) => {
         setValue(text);
-        onChangeTextProp?.(text);
-    }, [onChangeTextProp]);
+        props.onChangeText?.(text);
+    }, [props.onChangeText]);
 
     const cancelButtonProps = useMemo(() => ({
         buttonTextStyle: {
@@ -166,7 +163,7 @@ const Search = forwardRef<SearchRef, SearchProps>((props: SearchProps, ref) => {
         <SearchBar
             {...props}
             cancelButtonProps={props.cancelButtonProps || cancelButtonProps}
-            cancelButtonTitle={props.cancelButtonTitle || intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+            cancelButtonTitle={props.cancelButtonTitle || intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
             cancelIcon={cancelIcon}
             clearIcon={clearIcon}
             containerStyle={[styles.containerStyle, props.containerStyle]}

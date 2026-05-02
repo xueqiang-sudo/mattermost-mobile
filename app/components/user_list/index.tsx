@@ -3,7 +3,7 @@
 
 import React, {useCallback, useMemo} from 'react';
 import {defineMessages, type IntlShape, useIntl} from 'react-intl';
-import {FlatList, Keyboard, type ListRenderItemInfo, Platform, SectionList, type SectionListData, Text, View} from 'react-native';
+import {FlatList, Keyboard, type ListRenderItemInfo, Platform, SectionList, type SectionListData, StyleSheet, Text, View} from 'react-native';
 
 import {storeProfile} from '@actions/local/user';
 import Loading from '@components/loading';
@@ -14,6 +14,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useKeyboardHeight} from '@hooks/device';
 import {openUserProfileModal} from '@screens/navigation';
+import {getContactListDisplayName, getContactSectionId, createContactSectionsByNickname} from '@utils/contact_section';
 import {
     changeOpacity,
     makeStyleSheetFromTheme,
@@ -54,8 +55,8 @@ const keyExtractor = (item: UserProfile) => {
 };
 
 const sectionKeyExtractor = (profile: UserProfile) => {
-    // Group items alphabetically by first letter of username
-    return profile.username[0].toUpperCase();
+    const displayName = getContactListDisplayName(profile);
+    return getContactSectionId(displayName);
 };
 
 const sectionRoleKeyExtractor = (cAdmin: boolean) => {
@@ -140,6 +141,21 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             backgroundColor: theme.centerChannelBg,
             flex: 1,
         },
+        listContactSelectGrouped: {
+            backgroundColor: 'transparent',
+            flex: 1,
+        },
+        groupedListShell: {
+            flex: 1,
+            minHeight: 0,
+            borderRadius: 12,
+            overflow: 'hidden',
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+            borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+            backgroundColor: theme.centerChannelBg,
+        },
         container: {
             flexGrow: 1,
         },
@@ -148,23 +164,40 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             justifyContent: 'center' as const,
             alignItems: 'center' as const,
         },
+        loadingContainerGrouped: {
+            backgroundColor: 'transparent',
+        },
         noResultContainer: {
             flexGrow: 1,
             alignItems: 'center' as const,
             justifyContent: 'center' as const,
         },
         sectionContainer: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+            backgroundColor: theme.centerChannelColor,
             paddingLeft: 16,
             justifyContent: 'center',
-            height: 24,
+        },
+        sectionContainerContactSelect: {
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            justifyContent: 'center',
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
         },
         sectionWrapper: {
             backgroundColor: theme.centerChannelBg,
         },
+        sectionWrapperContactSelect: {
+            backgroundColor: 'transparent',
+        },
         sectionText: {
             color: theme.centerChannelColor,
-            ...typography('Body', 75, 'SemiBold'),
+            ...typography('Body', 300, 'SemiBold'),
+        },
+        sectionTextContactSelect: {
+            color: theme.centerChannelColor,
+            ...typography('Body', 300, 'SemiBold'),
         },
     };
 });
@@ -185,6 +218,7 @@ type Props = {
     includeUserMargin?: boolean;
     location: AvailableScreens;
     customSection?: (profiles: UserProfile[]) => Array<SectionListData<UserProfile>>;
+    contactSelectLayout?: boolean;
 }
 
 export default function UserList({
@@ -203,6 +237,7 @@ export default function UserList({
     includeUserMargin,
     location,
     customSection,
+    contactSelectLayout = false,
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
@@ -257,6 +292,8 @@ export default function UserList({
         return (
             <UserListRow
                 key={item.id}
+                contactSelectLayout={contactSelectLayout}
+                listRowIndex={contactSelectLayout ? index : undefined}
                 highlight={section?.first && index === 0}
                 id={item.id}
                 isChannelAdmin={isChAdmin}
@@ -267,13 +304,13 @@ export default function UserList({
                 disabled={!canAdd}
                 selected={selected}
                 showManageMode={showManageMode}
-                testID={`${testID}.user_item`}
+                testID='create_direct_message.user_list.user_item'
                 tutorialWatched={tutorialWatched}
                 user={item}
                 includeMargin={includeUserMargin}
             />
         );
-    }, [selectedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, testID, tutorialWatched, includeUserMargin]);
+    }, [selectedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, tutorialWatched, includeUserMargin, contactSelectLayout]);
 
     const renderLoading = useCallback(() => {
         if (!loading) {
@@ -283,11 +320,14 @@ export default function UserList({
         return (
             <Loading
                 color={theme.buttonBg}
-                containerStyle={style.loadingContainer}
+                containerStyle={[
+                    style.loadingContainer,
+                    contactSelectLayout && style.loadingContainerGrouped,
+                ]}
                 size='large'
             />
         );
-    }, [loading, style.loadingContainer, theme.buttonBg]);
+    }, [loading, style.loadingContainer, style.loadingContainerGrouped, theme.buttonBg, contactSelectLayout]);
 
     const renderNoResults = useCallback(() => {
         if (!showNoResults || !term) {
@@ -301,21 +341,24 @@ export default function UserList({
         );
     }, [showNoResults, term, noResutsStyle]);
 
-    const renderSectionHeader = useCallback(({section}: {section: SectionListData<UserProfile>}) => {
+    const renderSectionHeader = useCallback(({section}: {section: SectionListData<UserProfile> & {id?: string; mmSectionLabel?: string}}) => {
+        const s = section as SectionListData<UserProfile> & {id?: string; mmSectionLabel?: string; title?: string};
+        const headerText = s.mmSectionLabel ?? s.title ?? s.id ?? '';
         return (
-            <View style={style.sectionWrapper}>
-                <View style={style.sectionContainer}>
-                    <Text style={style.sectionText}>{section.id}</Text>
+            <View style={[style.sectionWrapper, contactSelectLayout && style.sectionWrapperContactSelect]}>
+                <View style={[style.sectionContainer, contactSelectLayout && style.sectionContainerContactSelect]}>
+                    <Text style={[style.sectionText, contactSelectLayout && style.sectionTextContactSelect]}>{String(headerText)}</Text>
                 </View>
             </View>
         );
-    }, [style]);
+    }, [style, contactSelectLayout]);
 
     const renderFlatList = (items: UserProfile[]) => {
-        return (
+        const list = (
             <FlatList
                 contentContainerStyle={style.container}
                 data={items}
+                extraData={selectedIds}
                 keyboardShouldPersistTaps='always'
                 {...keyboardDismissProp}
                 keyExtractor={keyExtractor}
@@ -326,16 +369,26 @@ export default function UserList({
                 removeClippedSubviews={true}
                 renderItem={renderItem}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
-                style={style.list}
+                style={contactSelectLayout ? style.listContactSelectGrouped : style.list}
                 testID={`${testID}.flat_list`}
             />
         );
+
+        if (contactSelectLayout) {
+            return (
+                <View style={style.groupedListShell}>
+                    {list}
+                </View>
+            );
+        }
+        return list;
     };
 
     const renderSectionList = (sections: Array<SectionListData<UserProfile>>) => {
-        return (
+        const list = (
             <SectionList
                 contentContainerStyle={style.container}
+                extraData={selectedIds}
                 keyboardShouldPersistTaps='always'
                 {...keyboardDismissProp}
                 keyExtractor={keyExtractor}
@@ -343,17 +396,26 @@ export default function UserList({
                 ListEmptyComponent={renderNoResults}
                 ListFooterComponent={renderLoading}
                 maxToRenderPerBatch={INITIAL_BATCH_TO_RENDER + 1}
-                removeClippedSubviews={true}
+                removeClippedSubviews={!contactSelectLayout}
                 renderItem={renderItem}
                 renderSectionHeader={renderSectionHeader}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
                 sections={sections}
-                style={style.list}
+                style={contactSelectLayout ? style.listContactSelectGrouped : style.list}
                 stickySectionHeadersEnabled={false}
                 testID={`${testID}.section_list`}
                 onEndReached={fetchMore}
             />
         );
+
+        if (contactSelectLayout) {
+            return (
+                <View style={style.groupedListShell}>
+                    {list}
+                </View>
+            );
+        }
+        return list;
     };
 
     if (term) {

@@ -16,11 +16,13 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {buildNavigationButton, dismissModal, popTopScreen, setButtons} from '@screens/navigation';
 import {validateDisplayName} from '@utils/channel';
+import {changeOpacity} from '@utils/theme';
 
 import ChannelInfoForm from './channel_info_form';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelInfoModel from '@typings/database/models/servers/channel_info';
+import type TeamModel from '@typings/database/models/servers/team';
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {ImageResource} from 'react-native-navigation';
 
@@ -30,6 +32,7 @@ type Props = {
     channelInfo?: ChannelInfoModel;
     headerOnly?: boolean;
     isModal: boolean;
+    team?: TeamModel;
 }
 
 const CLOSE_BUTTON_ID = 'close-channel';
@@ -81,6 +84,7 @@ const CreateOrEditChannel = ({
     channelInfo,
     headerOnly,
     isModal,
+    team,
 }: Props) => {
     const intl = useIntl();
     const {formatMessage} = intl;
@@ -89,7 +93,13 @@ const CreateOrEditChannel = ({
 
     const editing = Boolean(channel);
 
-    const [type, setType] = useState<ChannelType>(channel?.type || General.OPEN_CHANNEL);
+    const isDefaultTownSquare = channel?.name === General.DEFAULT_CHANNEL;
+    const displayNameReadOnly = Boolean(editing && isDefaultTownSquare);
+    const isEnterpriseDefaultOpen = Boolean(
+        editing && channel && channel.name === General.DEFAULT_CHANNEL && channel.type === General.OPEN_CHANNEL,
+    );
+
+    const [type, setType] = useState<ChannelType>(channel?.type ?? General.PRIVATE_CHANNEL);
     const [canSave, setCanSave] = useState(false);
 
     const [displayName, setDisplayName] = useState<string>(channel?.displayName || '');
@@ -131,9 +141,10 @@ const CreateOrEditChannel = ({
         );
         base.enabled = canSave;
         base.showAsAction = 'always';
-        base.color = theme.sidebarHeaderTextColor;
+        // RNN 仍使用 enabled 拦截点击；禁用态降低文字对比度以明确不可提交
+        base.color = canSave ? theme.sidebarHeaderTextColor : changeOpacity(theme.sidebarHeaderTextColor, 0.38);
         return base;
-    }, [editing, formatMessage, canSave, theme.sidebarHeaderTextColor]);
+    }, [editing, theme.sidebarHeaderTextColor, intl, canSave]);
 
     useEffect(() => {
         setButtons(componentId, {
@@ -148,21 +159,39 @@ const CreateOrEditChannel = ({
                 leftButtons: [makeCloseButton(icon)],
             });
         }
-    }, [theme, isModal, componentId]);
+    }, [theme, isModal]);
+
+    // 企业总群（默认频道）：只读名称展示团队/企业显示名，而非频道 display_name（如「公共频道」）
+    useEffect(() => {
+        if (!editing || !channel || channel.name !== General.DEFAULT_CHANNEL || !team) {
+            return;
+        }
+        const teamLabel = team.displayName?.trim() || team.name?.trim() || '';
+        if (teamLabel) {
+            setDisplayName(teamLabel);
+        }
+    }, [editing, channel?.id, channel?.name, team?.id, team?.displayName, team?.name]);
 
     useEffect(() => {
+        const displayNameChanged = displayNameReadOnly ? false : displayName !== channel?.displayName;
+        const isPrivateTeamChannel = channel?.type === General.PRIVATE_CHANNEL && !isDirect(channel);
+        const headerDirty =
+            channel?.type === General.GM_CHANNEL ? false : (
+                isEnterpriseDefaultOpen ? false : (!headerOnly && isPrivateTeamChannel ? false : header !== channelInfo?.header)
+            );
         setCanSave(
             displayName.length >= MIN_CHANNEL_NAME_LENGTH && (
-                displayName !== channel?.displayName ||
+                displayNameChanged ||
                 purpose !== channelInfo?.purpose ||
-                header !== channelInfo?.header ||
-                type !== channel.type
+                headerDirty ||
+                type !== channel?.type
             ),
         );
-    }, [channel, displayName, purpose, header, type, channelInfo]);
+    }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly, headerOnly, isEnterpriseDefaultOpen]);
 
     const isValidDisplayName = useCallback((): boolean => {
-        if (isDirect(channel)) {
+        // DM 不需要验证 displayName；GM 群聊需要验证
+        if (channel?.type === General.DM_CHANNEL) {
             return true;
         }
 
@@ -175,7 +204,7 @@ const CreateOrEditChannel = ({
             return false;
         }
         return true;
-    }, [channel, displayName, intl]);
+    }, [channel, displayName]);
 
     const onCreateChannel = useCallback(async () => {
         dispatch({type: RequestActions.START});
@@ -185,7 +214,8 @@ const CreateOrEditChannel = ({
         }
 
         setCanSave(false);
-        const createdChannel = await createChannel(serverUrl, displayName, purpose, header, type);
+        const headerToCreate = type === General.PRIVATE_CHANNEL ? '' : header;
+        const createdChannel = await createChannel(serverUrl, displayName, purpose, headerToCreate, type);
         if (createdChannel.error) {
             dispatch({
                 type: RequestActions.FAILURE,
@@ -197,7 +227,7 @@ const CreateOrEditChannel = ({
         dispatch({type: RequestActions.COMPLETE});
         close(componentId, isModal);
         switchToChannelById(serverUrl, createdChannel.channel!.id, createdChannel.channel!.team_id);
-    }, [isValidDisplayName, serverUrl, displayName, purpose, header, type, componentId, isModal]);
+    }, [serverUrl, type, displayName, header, isModal, purpose, isValidDisplayName, componentId]);
 
     const onUpdateChannel = useCallback(async () => {
         if (!channel) {
@@ -209,13 +239,24 @@ const CreateOrEditChannel = ({
             return;
         }
 
-        const patchChannel: ChannelPatch = {
-            header,
-            ...!isDirect(channel) && {
-                display_name: displayName,
-                purpose,
-            },
-        };
+        const patchChannel: ChannelPatch = {};
+        const allowDisplayNamePatch = channel.name !== General.DEFAULT_CHANNEL;
+        if (channel.type === General.GM_CHANNEL) {
+            if (allowDisplayNamePatch) {
+                patchChannel.display_name = displayName;
+            }
+            patchChannel.purpose = purpose;
+        } else if (!isDirect(channel)) {
+            if (allowDisplayNamePatch) {
+                patchChannel.display_name = displayName;
+            }
+            patchChannel.purpose = purpose;
+            if (channel.type !== General.PRIVATE_CHANNEL && !isEnterpriseDefaultOpen) {
+                patchChannel.header = header;
+            }
+        } else {
+            patchChannel.header = header;
+        }
 
         setCanSave(false);
         const patchedChannel = await handlePatchChannel(serverUrl, channel.id, patchChannel);
@@ -228,11 +269,11 @@ const CreateOrEditChannel = ({
         }
         dispatch({type: RequestActions.COMPLETE});
         close(componentId, isModal);
-    }, [channel, isValidDisplayName, header, displayName, purpose, serverUrl, componentId, isModal]);
+    }, [channel, componentId, displayName, header, isEnterpriseDefaultOpen, isModal, purpose, isValidDisplayName, serverUrl]);
 
     const handleClose = useCallback(() => {
         close(componentId, isModal);
-    }, [componentId, isModal]);
+    }, [isModal]);
 
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, handleClose, [handleClose]);
     useNavButtonPressed(CREATE_BUTTON_ID, componentId, onCreateChannel, [onCreateChannel]);
@@ -247,11 +288,13 @@ const CreateOrEditChannel = ({
             <ChannelInfoForm
                 error={appState.error}
                 saving={appState.saving}
-                channelType={channel?.type}
+                channelType={channel?.type ?? type}
                 editing={editing}
                 onTypeChange={setType}
                 type={type}
                 displayName={displayName}
+                displayNameReadOnly={displayNameReadOnly}
+                hideChannelHeaderField={isEnterpriseDefaultOpen}
                 onDisplayNameChange={setDisplayName}
                 header={header}
                 headerOnly={headerOnly}

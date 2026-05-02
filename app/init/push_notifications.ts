@@ -19,7 +19,6 @@ import {requestNotifications} from 'react-native-permissions';
 
 import {storeDeviceToken} from '@actions/app/global';
 import {markChannelAsViewed} from '@actions/local/channel';
-import {updateThread} from '@actions/local/thread';
 import {backgroundNotification, openNotification} from '@actions/remote/notifications';
 import {isCallsStartedMessage} from '@calls/utils';
 import {Device, Events, Navigation, PushNotification, Screens} from '@constants';
@@ -27,9 +26,7 @@ import DatabaseManager from '@database/manager';
 import {DEFAULT_LOCALE, getLocalizedMessage} from '@i18n';
 import {getServerDisplayName} from '@queries/app/servers';
 import {getCurrentChannelId} from '@queries/servers/system';
-import {getIsCRTEnabled, getThreadById} from '@queries/servers/thread';
 import {showOverlay} from '@screens/navigation';
-import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {isBetaApp} from '@utils/general';
 import {isMainActivity, isTablet} from '@utils/helpers';
@@ -108,23 +105,7 @@ class PushNotificationsSingleton {
         const serverUrl = await this.getServerUrlFromNotification(notification);
 
         if (serverUrl && payload?.channel_id) {
-            const database = DatabaseManager.serverDatabases[serverUrl]?.database;
-            if (database) {
-                const isCRTEnabled = await getIsCRTEnabled(database);
-                if (isCRTEnabled && payload.root_id) {
-                    const thread = await getThreadById(database, payload.root_id);
-                    if (thread?.isFollowing) {
-                        const data: Partial<ThreadWithViewedAt> = {
-                            unread_mentions: 0,
-                            unread_replies: 0,
-                            last_viewed_at: Date.now(),
-                        };
-                        updateThread(serverUrl, payload.root_id, data);
-                    }
-                } else {
-                    markChannelAsViewed(serverUrl, payload.channel_id);
-                }
-            }
+            markChannelAsViewed(serverUrl, payload.channel_id);
         }
     };
 
@@ -141,7 +122,6 @@ class PushNotificationsSingleton {
             const isTabletDevice = isTablet();
             const displayName = await getServerDisplayName(serverUrl);
             const channelId = await getCurrentChannelId(database);
-            const isCRTEnabled = await getIsCRTEnabled(database);
             let serverName;
             if (Object.keys(DatabaseManager.serverDatabases).length > 1) {
                 serverName = displayName;
@@ -150,29 +130,15 @@ class PushNotificationsSingleton {
             const isThreadNotification = Boolean(payload?.root_id);
 
             const isSameChannelNotification = payload?.channel_id === channelId;
-            const isSameThreadNotification = isThreadNotification && payload?.root_id === EphemeralStore.getCurrentThreadId();
-
             let isInChannelScreen = NavigationStore.getVisibleScreen() === Screens.CHANNEL;
             if (isTabletDevice) {
                 isInChannelScreen = NavigationStore.getVisibleTab() === Screens.HOME;
             }
-            const isInThreadScreen = NavigationStore.getVisibleScreen() === Screens.THREAD;
 
-            // Conditions:
-            // 1. If not in channel screen or thread screen, show the notification
-            const condition1 = !isInChannelScreen && !isInThreadScreen;
+            const condition1 = !isInChannelScreen;
+            const condition2 = isInChannelScreen && (!isSameChannelNotification || isThreadNotification);
 
-            // 2. If is in channel screen,
-            //      - Show notification of other channels
-            //        or
-            //      - Show notification if CRT is enabled and it's a thread notification (doesn't matter if it's the same channel)
-            const condition2 = isInChannelScreen && (!isSameChannelNotification || (isCRTEnabled && isThreadNotification));
-
-            // 3. If is in thread screen,
-            //      - Show the notification if it doesn't belong to the thread
-            const condition3 = isInThreadScreen && !isSameThreadNotification;
-
-            if (condition1 || condition2 || condition3) {
+            if (condition1 || condition2) {
                 // Dismiss the screen if it's already visible or else it blocks the navigation
                 DeviceEventEmitter.emit(Navigation.NAVIGATION_SHOW_OVERLAY);
 

@@ -1,13 +1,12 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useMemo} from 'react';
+import React, {useEffect, useMemo} from 'react';
 import {type StyleProp, View, type ViewStyle} from 'react-native';
 
 import {fetchStatusInBatch} from '@actions/remote/user';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import useDidMount from '@hooks/did_mount';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Image from './image';
@@ -28,6 +27,9 @@ type ProfilePictureProps = {
     testID?: string;
     source?: ImageSource | string;
     url?: string;
+
+    /** When set, avatar is a rounded square. Omit for circular. */
+    borderRadius?: number;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -68,6 +70,7 @@ const ProfilePicture = ({
     testID,
     source,
     url,
+    borderRadius,
 }: ProfilePictureProps) => {
     const theme = useTheme();
     let serverUrl = useServerUrl();
@@ -76,15 +79,20 @@ const ProfilePicture = ({
     const style = getStyleSheet(theme);
     const isBot = author && (('isBot' in author) ? author.isBot : author.is_bot);
 
-    useDidMount(() => {
+    useEffect(() => {
         if (!isBot && author && !author.status && showStatus) {
             fetchStatusInBatch(serverUrl, author.id);
         }
-    });
+    }, []);
 
     const viewStyle = useMemo(
-        () => [style.container, {width: size, height: size}, containerStyle],
-        [style, size, containerStyle],
+        () => [
+            style.container,
+            {width: size, height: size},
+            !showStatus && {overflow: 'hidden' as const},
+            containerStyle,
+        ],
+        [style, size, showStatus, containerStyle],
     );
 
     return (
@@ -99,6 +107,7 @@ const ProfilePicture = ({
                 size={size}
                 source={source}
                 url={serverUrl}
+                borderRadius={borderRadius}
             />
             {showStatus && !isBot &&
             <Status

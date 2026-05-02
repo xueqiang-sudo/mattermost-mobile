@@ -32,18 +32,12 @@
       "device": {
         "type": "__DEVICE_NAME__",
         "os": "__DEVICE_OS_VERSION__"
-      },
-      "environment": {
-        "MM_FEATUREFLAGS_InteractiveDialogAppsForm": "true"
       }
     },
     "android.emulator": {
       "type": "android.emulator",
       "device": {
         "avdName": "detox_pixel_4_xl_api_34"
-      },
-      "environment": {
-        "MM_FEATUREFLAGS_InteractiveDialogAppsForm": "true"
       }
     }
   },
@@ -82,7 +76,7 @@
   },
   "behavior": {
     "init": {
-      "reinstallApp": false,
+      "reinstallApp": true,
       "launchApp": false
     },
     "cleanup": {
@@ -91,7 +85,7 @@
   },
   "session": {
     "sessionId": "mobile-test-session",
-    "debugSynchronization": 20000,
+    "debugSynchronization": 5000,
     "autoStart": true
   },
   "visibility": {

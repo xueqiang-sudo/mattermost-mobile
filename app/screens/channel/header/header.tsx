@@ -1,9 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useAgentsConfig} from '@agents/store/agents_config';
 import React, {useCallback, useEffect, useMemo} from 'react';
-import {useIntl} from 'react-intl';
+import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, Platform, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
@@ -12,21 +11,19 @@ import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
 import {ITEM_HEIGHT} from '@components/option_item';
-import OtherMentionsBadge from '@components/other_mentions_badge';
-import RoundedHeaderContext from '@components/rounded_header_context';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
-import {useDefaultHeaderHeight} from '@hooks/header';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
 import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@playbooks/screens/navigation';
 import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
+import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
 import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
-import {isTypeDMorGM} from '@utils/channel';
+import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -37,9 +34,35 @@ import QuickActions, {MARGIN, SEPARATOR_HEIGHT} from './quick_actions';
 import type {HeaderRightButton} from '@components/navigation_header/header';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
+const channelTypeTagMessages = defineMessages({
+    privateChat: {
+        id: 'channel_header.tag.private_chat',
+        defaultMessage: 'Private chat',
+    },
+    groupChat: {
+        id: 'channel_header.tag.group_chat',
+        defaultMessage: 'Group chat',
+    },
+    discussionGroup: {
+        id: 'channel_header.tag.discussion_group',
+        defaultMessage: 'Discussion group',
+    },
+    publicGroupChat: {
+        id: 'channel_header.tag.public_group_chat',
+        defaultMessage: 'Public group chat',
+    },
+    enterprisePublic: {
+        id: 'channel_header.tag.enterprise_public',
+        defaultMessage: 'Public channel',
+    },
+});
+
 type ChannelProps = {
+    announcementMarkdown: string;
     canAddBookmarks: boolean;
+    canEditAnnouncement: boolean;
     channelId: string;
+    channelName: string;
     channelType: ChannelType;
     currentUserId: string;
     customStatus?: UserCustomStatus;
@@ -61,7 +84,6 @@ type ChannelProps = {
     playbooksActiveRuns: number;
     isPlaybooksEnabled: boolean;
     activeRunId?: string;
-    isChannelAutotranslated: boolean;
 
     // searchTerm: string;
 };
@@ -92,8 +114,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 const ChannelHeader = ({
+    announcementMarkdown,
     canAddBookmarks,
+    canEditAnnouncement,
     channelId,
+    channelName,
     channelType,
     componentId,
     currentUserId,
@@ -115,17 +140,31 @@ const ChannelHeader = ({
     hasPlaybookRuns,
     isPlaybooksEnabled,
     activeRunId,
-    isChannelAutotranslated,
 }: ChannelProps) => {
     const intl = useIntl();
     const isTablet = useIsTablet();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
-    const defaultHeight = useDefaultHeaderHeight();
     const serverUrl = useServerUrl();
 
     const callsConfig = getCallsConfig(serverUrl);
-    const {pluginEnabled: agentsEnabled} = useAgentsConfig(serverUrl);
+
+    const titleTag = useMemo(() => {
+        switch (channelType) {
+            case General.DM_CHANNEL:
+                return intl.formatMessage(channelTypeTagMessages.privateChat);
+            case General.GM_CHANNEL:
+                return intl.formatMessage(channelTypeTagMessages.discussionGroup);
+            case General.PRIVATE_CHANNEL:
+                return intl.formatMessage(channelTypeTagMessages.groupChat);
+            case General.OPEN_CHANNEL:
+                return channelName === General.DEFAULT_CHANNEL
+                    ? intl.formatMessage(channelTypeTagMessages.enterprisePublic)
+                    : intl.formatMessage(channelTypeTagMessages.publicGroupChat);
+            default:
+                return '';
+        }
+    }, [channelName, channelType, intl]);
 
     // NOTE: callsEnabledInChannel will be true/false (not undefined) based on explicit state + the DefaultEnabled system setting
     //   which ultimately comes from channel/index.tsx, and observeIsCallsEnabledInChannel
@@ -135,17 +174,6 @@ const ChannelHeader = ({
     }
 
     const isDMorGM = isTypeDMorGM(channelType);
-    const contextStyle = useMemo(() => ({
-        top: defaultHeight,
-    }), [defaultHeight]);
-
-    const leftComponent = useMemo(() => {
-        if (isTablet || !channelId || !teamId) {
-            return undefined;
-        }
-
-        return (<OtherMentionsBadge channelId={channelId}/>);
-    }, [isTablet, channelId, teamId]);
 
     const onBackPress = useCallback(() => {
         Keyboard.dismiss();
@@ -159,10 +187,18 @@ const ChannelHeader = ({
                 title = intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'});
                 break;
             case General.GM_CHANNEL:
-                title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Group message info'});
+                title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
+                break;
+            case General.PRIVATE_CHANNEL:
+                title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
+                break;
+            case General.OPEN_CHANNEL:
+                title = channelName === General.DEFAULT_CHANNEL
+                    ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
+                    : intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
                 break;
             default:
-                title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
+                title = intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
                 break;
         }
 
@@ -179,7 +215,7 @@ const ChannelHeader = ({
             },
         };
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
-    }), [channelId, channelType, intl, theme]));
+    }), [channelId, channelName, channelType, intl, theme]));
 
     const onChannelQuickAction = useCallback(() => {
         if (isTablet) {
@@ -192,11 +228,8 @@ const ChannelHeader = ({
         if (callsAvailable && !isDMorGM) {
             items += 1;
         }
-        if (hasPlaybookRuns && !isDMorGM) {
+        if (isPlaybooksEnabled && !isDMorGM) {
             items += 1;
-        }
-        if (agentsEnabled) {
-            items += 1; // Ask Agents action (shown in all channel types)
         }
         let height = CHANNEL_ACTIONS_OPTIONS_HEIGHT + SEPARATOR_HEIGHT + MARGIN + (items * ITEM_HEIGHT);
         if (Platform.OS === 'android') {
@@ -208,8 +241,10 @@ const ChannelHeader = ({
                 <QuickActions
                     channelId={channelId}
                     callsEnabled={callsAvailable}
+                    channelDisplayName={displayName ?? ''}
                     isDMorGM={isDMorGM}
-                    hasPlaybookRuns={hasPlaybookRuns}
+                    isPlaybooksEnabled={isPlaybooksEnabled}
+                    playbooksActiveRuns={playbooksActiveRuns}
                 />
             );
         };
@@ -221,7 +256,7 @@ const ChannelHeader = ({
             theme,
             closeButtonId: 'close-channel-quick-actions',
         });
-    }, [isTablet, callsAvailable, isDMorGM, hasPlaybookRuns, agentsEnabled, theme, onTitlePress, channelId]);
+    }, [isTablet, callsAvailable, isDMorGM, hasPlaybookRuns, isPlaybooksEnabled, playbooksActiveRuns, displayName, theme, onTitlePress, channelId]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead
@@ -246,7 +281,9 @@ const ChannelHeader = ({
 
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
-        if (isPlaybooksEnabled && !isDMorGM) {
+
+        // 手机微信风格：仅保留「…」，Playbook 等收入底部菜单
+        if (isTablet && isPlaybooksEnabled && !isDMorGM) {
             buttons.push({
                 iconName: 'product-playbooks',
                 onPress: openPlaybooksRuns,
@@ -255,39 +292,42 @@ const ChannelHeader = ({
             });
         }
 
-        // {
-        //     iconName: 'magnify',
-        //     onPress: () => {
-        //         DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: 'Search', params: {searchTerm: `in: ${searchTerm}`}});
-        //         if (!isTablet) {
-        //             popTopScreen(componentId);
-        //         }
-        //     },
-        // },
         buttons.push({
-            iconName: Platform.select({android: 'dots-vertical', default: 'dots-horizontal'}),
+            iconName: 'dots-horizontal',
             onPress: onChannelQuickAction,
             buttonType: 'opacity',
             testID: 'channel_header.channel_quick_actions.button',
         });
 
         return buttons;
-    }, [isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, onChannelQuickAction, openPlaybooksRuns]);
+    }, [isTablet, isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, onChannelQuickAction, openPlaybooksRuns]);
 
     let title = displayName;
     if (isOwnDirectMessage) {
         title = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
 
-    let subtitle;
-    if (memberCount) {
+    // 手机微信风格：标题单行含人数，如「频道名 (7)」
+    const weChatPhoneTitle = !isTablet && Boolean(memberCount) && channelType !== General.DM_CHANNEL;
+    if (weChatPhoneTitle && memberCount) {
+        title = intl.formatMessage(
+            {id: 'channel_header.title_with_member_count', defaultMessage: '{name} ({count})'},
+            {name: displayName, count: memberCount},
+        );
+    }
+
+    let subtitle: string | undefined;
+    if (weChatPhoneTitle) {
+        subtitle = undefined;
+    } else if (memberCount) {
         subtitle = intl.formatMessage({id: 'channel_header.member_count', defaultMessage: '{count, plural, one {# member} other {# members}}'}, {count: memberCount});
-    } else if (!customStatus || !customStatus.text || isCustomStatusExpired) {
-        subtitle = intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
     }
 
     const subtitleCompanion = useMemo(() => {
-        if (memberCount || !customStatus || !customStatus.text || isCustomStatusExpired) {
+        if (weChatPhoneTitle) {
+            return undefined;
+        }
+        if (memberCount) {
             return (
                 <CompassIcon
                     color={changeOpacity(theme.sidebarHeaderTextColor, 0.72)}
@@ -295,7 +335,8 @@ const ChannelHeader = ({
                     size={14}
                 />
             );
-        } else if (customStatus && customStatus.text) {
+        }
+        if (customStatus?.text && !isCustomStatusExpired) {
             return (
                 <View style={styles.customStatusContainer}>
                     {isCustomStatusEnabled && Boolean(customStatus.emoji) &&
@@ -318,22 +359,17 @@ const ChannelHeader = ({
                 </View>
             );
         }
-
-        return undefined;
-    }, [memberCount, customStatus, isCustomStatusExpired, theme.sidebarHeaderTextColor, styles.customStatusContainer, styles.customStatusEmoji, styles.customStatusText, styles.subtitle, isCustomStatusEnabled]);
-
-    const titleCompanion = useMemo(() => {
-        if (isChannelAutotranslated) {
-            return (
-                <CompassIcon
-                    name='translate'
-                    size={16}
-                    color={changeOpacity(theme.sidebarHeaderTextColor, 0.72)}
-                />
-            );
+        if (channelType === General.DM_CHANNEL) {
+            return undefined;
         }
-        return undefined;
-    }, [isChannelAutotranslated, theme.sidebarHeaderTextColor]);
+        return (
+            <CompassIcon
+                color={changeOpacity(theme.sidebarHeaderTextColor, 0.72)}
+                name='chevron-right'
+                size={14}
+            />
+        );
+    }, [weChatPhoneTitle, memberCount, channelType, customStatus, isCustomStatusExpired, theme.sidebarHeaderTextColor, styles.customStatusContainer, styles.customStatusEmoji, styles.customStatusText, styles.subtitle, isCustomStatusEnabled]);
 
     useEffect(() => {
         const asyncEffect = async () => {
@@ -350,7 +386,6 @@ const ChannelHeader = ({
         <>
             <NavigationHeader
                 isLargeTitle={false}
-                leftComponent={leftComponent}
                 onBackPress={onBackPress}
                 onTitlePress={onTitlePress}
                 rightButtons={rightButtons}
@@ -358,11 +393,9 @@ const ChannelHeader = ({
                 subtitle={subtitle}
                 subtitleCompanion={subtitleCompanion}
                 title={title}
-                titleCompanion={titleCompanion}
+                titleTag={titleTag}
+                useChatStyle={true}
             />
-            <View style={contextStyle}>
-                <RoundedHeaderContext/>
-            </View>
             {showBookmarkBar &&
             <ChannelHeaderBookmarks
                 canAddBookmarks={canAddBookmarks}
@@ -374,6 +407,14 @@ const ChannelHeader = ({
                 <ChannelBanner
                     channelId={channelId}
                     isTopItem={!showBookmarkBar}
+                />
+            }
+            {(channelType === General.PRIVATE_CHANNEL || channelType === General.DM_CHANNEL) && Boolean(announcementMarkdown.trim()) &&
+                <ChannelAnnouncementBar
+                    canEditAnnouncement={canEditAnnouncement}
+                    channelId={channelId}
+                    channelType={channelType}
+                    headerMarkdown={announcementMarkdown}
                 />
             }
         </>

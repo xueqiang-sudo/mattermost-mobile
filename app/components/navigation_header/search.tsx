@@ -50,7 +50,7 @@ const NavigationSearch = forwardRef<SearchRef, Props>(({
     const onFocus = useCallback((e: NativeSyntheticEvent<TextInputFocusEventData>) => {
         hideHeader?.();
         searchProps.onFocus?.(e);
-    }, [hideHeader, searchProps]);
+    }, [hideHeader, searchProps.onFocus]);
 
     const showEmitter = useCallback(() => {
         if (Platform.OS === 'android') {

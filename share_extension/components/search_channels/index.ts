@@ -6,6 +6,7 @@ import {of as of$} from 'rxjs';
 import {combineLatestWith, switchMap} from 'rxjs/operators';
 
 import {observeArchiveChannelsByTerm, observeDirectChannelsByTerm, observeJoinedChannelsByTerm} from '@queries/servers/channel';
+import {observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams} from '@queries/servers/team';
 import {retrieveChannels} from '@screens/find_channels/utils';
 
@@ -19,8 +20,13 @@ type EnhanceProps = WithDatabaseArgs & {
 
 const enhanced = withObservables(['term', 'database'], ({database, term}: EnhanceProps) => {
     const teamsCount = queryJoinedTeams(database).observeCount();
-    const joinedChannelsMatchStart = observeJoinedChannelsByTerm(database, term, MAX_RESULTS, true);
-    const joinedChannelsMatch = observeJoinedChannelsByTerm(database, term, MAX_RESULTS);
+    const currentTeamId$ = observeCurrentTeamId(database);
+    const joinedChannelsMatchStart = currentTeamId$.pipe(
+        switchMap((teamId) => observeJoinedChannelsByTerm(database, term, MAX_RESULTS, true, teamId)),
+    );
+    const joinedChannelsMatch = currentTeamId$.pipe(
+        switchMap((teamId) => observeJoinedChannelsByTerm(database, term, MAX_RESULTS, false, teamId)),
+    );
     const directChannelsMatchStart = observeDirectChannelsByTerm(database, term, MAX_RESULTS, true);
     const directChannelsMatch = observeDirectChannelsByTerm(database, term, MAX_RESULTS);
 
@@ -36,8 +42,10 @@ const enhanced = withObservables(['term', 'database'], ({database, term}: Enhanc
         switchMap((matched) => retrieveChannels(database, matched.flat(), true)),
     );
 
-    const archivedChannels = observeArchiveChannelsByTerm(database, term, MAX_RESULTS).pipe(
-        switchMap((archived) => retrieveChannels(database, archived)),
+    const archivedChannels = currentTeamId$.pipe(
+        switchMap((teamId) => observeArchiveChannelsByTerm(database, term, MAX_RESULTS, teamId).pipe(
+            switchMap((archived) => retrieveChannels(database, archived)),
+        )),
     );
 
     return {

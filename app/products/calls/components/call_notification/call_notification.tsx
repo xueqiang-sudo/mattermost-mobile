@@ -18,13 +18,12 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {useAppState} from '@hooks/device';
-import useDidMount from '@hooks/did_mount';
 import WebsocketManager from '@managers/websocket_manager';
 import {getServerDisplayName} from '@queries/app/servers';
 import ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type ServersModel from '@typings/database/models/app/servers';
 
@@ -121,7 +120,7 @@ export const CallNotification = ({
     incomingCall,
     currentUserId,
     userStatus,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     members,
     onCallsScreen,
 }: Props) => {
@@ -133,19 +132,15 @@ export const CallNotification = ({
     const [serverName, setServerName] = useState('');
     const moreThanOneServer = servers.length > 1;
 
-    useDidMount(() => {
+    useEffect(() => {
         const channelMembers = members?.filter((m) => m.userId !== currentUserId);
         if (!channelMembers?.length) {
             fetchProfilesInChannel(serverUrl, incomingCall.channelID, currentUserId, undefined, false);
         }
-    });
+    }, []);
 
     useEffect(() => {
         playIncomingCallsRinging(incomingCall.serverUrl, incomingCall.callID, userStatus || '');
-
-    // We don't care about `userStatus` changes as long as
-    // it is up to date when the effect runs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [incomingCall.serverUrl, incomingCall.callID, appState]);
 
     // We only need to getServerDisplayName once
@@ -170,7 +165,7 @@ export const CallNotification = ({
     const onDismissPress = useCallback(() => {
         removeIncomingCall(serverUrl, incomingCall.callID, incomingCall.channelID);
         dismissIncomingCall(incomingCall.serverUrl, incomingCall.channelID);
-    }, [incomingCall, serverUrl]);
+    }, [incomingCall]);
 
     let message: React.ReactElement;
     if (incomingCall.type === ChannelType.DM) {
@@ -180,7 +175,7 @@ export const CallNotification = ({
                 defaultMessage={'<b>{name}</b> is inviting you to a call'}
                 values={{
                     b: (text: string) => <Text style={style.boldText}>{text}</Text>,
-                    name: displayUsername(incomingCall.callerModel, intl.locale, teammateNameDisplay),
+                    name: username2Nickname(incomingCall.callerModel, {locale: intl.locale}),
                 }}
                 style={style.text}
                 numberOfLines={1}
@@ -194,7 +189,7 @@ export const CallNotification = ({
                 defaultMessage={'<b>{name}</b> is inviting you to a call with  <b>{num, plural, one {# other} other {# others}}</b>'}
                 values={{
                     b: (text: string) => <Text style={style.boldText}>{text}</Text>,
-                    name: displayUsername(incomingCall.callerModel, intl.locale, teammateNameDisplay),
+                    name: username2Nickname(incomingCall.callerModel, {locale: intl.locale}),
                     num: (members?.length || 2) - 1,
                 }}
                 style={style.text}

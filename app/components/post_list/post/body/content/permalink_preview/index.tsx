@@ -6,7 +6,6 @@ import {of as of$} from 'rxjs';
 import {map, switchMap, distinctUntilChanged} from 'rxjs/operators';
 
 import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
-import {observeIsChannelAutotranslated} from '@queries/servers/channel';
 import {observePost} from '@queries/servers/post';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {observeUser, observeTeammateNameDisplay, observeCurrentUser} from '@queries/servers/user';
@@ -28,16 +27,11 @@ const enhance = withObservables(['embedData'], ({database, embedData}: WithDatab
     const post = embedData?.post_id ? observePost(database, embedData.post_id) : of$(undefined);
     const isOriginPostDeleted = post.pipe(
         switchMap((p) => {
-            const deleteAt = embedData?.post?.delete_at ?? 0;
-            const initialDeleted = Boolean(deleteAt > 0 || embedData?.post?.state === 'DELETED');
+            const initialDeleted = Boolean(embedData?.post?.delete_at > 0 || embedData?.post?.state === 'DELETED');
             return of$(p ? p.deleteAt > 0 : initialDeleted);
         }),
         distinctUntilChanged(),
     );
-
-    const channelId = embedData?.post?.channel_id;
-
-    const autotranslationsEnabled = channelId ? observeIsChannelAutotranslated(database, channelId) : of$(false);
 
     return {
         teammateNameDisplay,
@@ -46,7 +40,6 @@ const enhance = withObservables(['embedData'], ({database, embedData}: WithDatab
         author,
         post,
         isOriginPostDeleted,
-        autotranslationsEnabled,
     };
 });
 

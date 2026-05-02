@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useMemo} from 'react';
-import {Platform, Text, View} from 'react-native';
+import {Platform, StyleSheet, Text, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -38,7 +38,12 @@ type Props = {
     subtitleCompanion?: React.ReactElement;
     theme: Theme;
     title?: string;
-    titleCompanion?: React.ReactElement;
+
+    /** 聊天顶栏：频道类型标签（置于标题前） */
+    titleTag?: string;
+
+    /** 覆盖 header 背景色，用于聊天界面等 */
+    backgroundColor?: string;
 }
 
 const hitSlop = {top: 20, bottom: 20, left: 20, right: 20};
@@ -56,6 +61,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 16,
         zIndex: 10,
     },
+
+    /** 微信风格：与聊天区层次分隔的底部分割线（随主题） */
+    containerChatBottomBorder: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
     subtitleContainer: {
         flexDirection: 'row',
         justifyContent: Platform.select({android: 'flex-start', ios: 'center'}),
@@ -68,6 +79,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginBottom: 8,
         marginTop: 2,
         height: 13,
+    },
+    subtitleChatStyle: {
+        color: changeOpacity(theme.centerChannelColor, 0.72),
     },
     titleContainer: {
         alignItems: Platform.select({android: 'flex-start', ios: 'center'}),
@@ -127,10 +141,53 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.sidebarHeaderTextColor,
         ...typography('Heading', 300),
     },
+    titleChatStyle: {
+        color: theme.centerChannelColor,
+    },
     titleRow: {
-        flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        maxWidth: '100%',
+    },
+    /** 聊天顶栏：标题行与状态栏下缘留出呼吸，避免胶囊/字体贴顶裁切 */
+    titleRowChat: {
+        paddingTop: 2,
+    },
+    /** 非聊天顶栏（极少使用） */
+    titleTagBadge: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
+        borderRadius: 8,
+        marginRight: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+    },
+    titleTagText: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        ...typography('Body', 75),
+    },
+    /**
+     * 聊天顶栏：胶囊标签 — 浅底 + 细描边 + 链接色字，层次比纯灰底更清晰
+     */
+    titleTagBadgeChat: {
+        alignItems: 'center',
+        alignSelf: 'center',
+        backgroundColor: changeOpacity(theme.linkColor, 0.12),
+        borderColor: changeOpacity(theme.linkColor, 0.3),
+        borderRadius: 100,
+        borderWidth: StyleSheet.hairlineWidth,
+        justifyContent: 'center',
+        marginRight: 8,
+        minHeight: 22,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+    },
+    titleTagTextChat: {
+        color: theme.linkColor,
+        ...typography('Body', 75, 'SemiBold'),
+    },
+    titleTextFlex: {
+        flexShrink: 1,
     },
 }));
 
@@ -149,7 +206,8 @@ const Header = ({
     subtitleCompanion,
     theme,
     title,
-    titleCompanion,
+    titleTag,
+    backgroundColor,
 }: Props) => {
     const styles = getStyleSheet(theme);
     const insets = useSafeAreaInsets();
@@ -180,17 +238,34 @@ const Header = ({
     }), [defaultHeight]);
 
     const containerStyle = useMemo(() => (
-        [styles.container, containerAnimatedStyle]), [styles, containerAnimatedStyle]);
+        [
+            styles.container,
+            containerAnimatedStyle,
+            backgroundColor ? {backgroundColor} : undefined,
+            backgroundColor ? styles.containerChatBottomBorder : undefined,
+        ]), [styles, containerAnimatedStyle, backgroundColor]);
 
     const additionalTitleStyle = useMemo(() => {
+        const isChatHeader = Boolean(backgroundColor);
         return {
-            marginLeft: Platform.select({android: showBackButton && !leftComponent ? 20 : 0}),
-            paddingHorizontal: Platform.select({
-                ios: rightButtons?.length === 2 ? 90 : 60,
-                android: 8,
+            marginLeft: Platform.select({
+                android: showBackButton && !leftComponent ? (isChatHeader ? 8 : 20) : 0,
+            }),
+            ...Platform.select({
+                ios: isChatHeader
+                    ? {
+                        paddingLeft: rightButtons?.length === 2 ? 44 : 28,
+                        paddingRight: rightButtons?.length === 2 ? 80 : 52,
+                    }
+                    : {
+                        paddingHorizontal: rightButtons?.length === 2 ? 90 : 60,
+                    },
+                default: {
+                    paddingHorizontal: isChatHeader ? 4 : 8,
+                },
             }),
         };
-    }, [leftComponent, showBackButton, rightButtons]);
+    }, [leftComponent, showBackButton, rightButtons, backgroundColor]);
 
     return (
         <Animated.View style={containerStyle}>
@@ -208,7 +283,7 @@ const Header = ({
                         <CompassIcon
                             size={24}
                             name={Platform.select({android: 'arrow-left', ios: 'arrow-back-ios'})!}
-                            color={theme.sidebarHeaderTextColor}
+                            color={backgroundColor ? theme.centerChannelColor : theme.sidebarHeaderTextColor}
                         />
                         {leftComponent}
                     </Animated.View>
@@ -223,16 +298,34 @@ const Header = ({
                 >
                     <View style={styles.centered}>
                         {!hasSearch &&
-                        <View style={styles.titleRow}>
+                        <View style={[styles.titleRow, Boolean(backgroundColor) && styles.titleRowChat]}>
+                            {Boolean(titleTag) &&
+                            <View
+                                style={[
+                                    styles.titleTagBadge,
+                                    Boolean(backgroundColor) && styles.titleTagBadgeChat,
+                                ]}
+                            >
+                                <Text
+                                    numberOfLines={1}
+                                    style={[
+                                        styles.titleTagText,
+                                        Boolean(backgroundColor) && styles.titleTagTextChat,
+                                    ]}
+                                    testID='navigation.header.title_tag'
+                                >
+                                    {titleTag}
+                                </Text>
+                            </View>
+                            }
                             <Animated.Text
                                 ellipsizeMode='tail'
                                 numberOfLines={1}
-                                style={[styles.title, opacity]}
+                                style={[styles.title, styles.titleTextFlex, backgroundColor && styles.titleChatStyle, opacity]}
                                 testID='navigation.header.title'
                             >
                                 {title}
                             </Animated.Text>
-                            {titleCompanion}
                         </View>
                         }
                         {!isLargeTitle && Boolean(subtitle || subtitleCompanion) &&
@@ -240,7 +333,7 @@ const Header = ({
                             <Text
                                 ellipsizeMode='tail'
                                 numberOfLines={1}
-                                style={styles.subtitle}
+                                style={[styles.subtitle, backgroundColor && styles.subtitleChatStyle]}
                                 testID='navigation.header.subtitle'
                             >
                                 {subtitle}
@@ -268,7 +361,7 @@ const Header = ({
                             <CompassIcon
                                 size={24}
                                 name={r.iconName}
-                                color={r.color || theme.sidebarHeaderTextColor}
+                                color={r.color || (backgroundColor ? theme.centerChannelColor : theme.sidebarHeaderTextColor)}
                             />
                             {Boolean(r.count) && (
                                 <Text style={styles.title}>{r.count}</Text>

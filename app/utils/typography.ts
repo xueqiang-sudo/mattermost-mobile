@@ -3,19 +3,9 @@
 
 import {StyleSheet, type TextStyle} from 'react-native';
 
-// type FontFamilies = 'OpenSans' | 'Metropolis';
 export type FontTypes = 'Heading' | 'Body';
 export type FontStyles = 'SemiBold' | 'Regular' | 'Light';
 export type FontSizes = 25 | 50 | 75 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000 | 1200;
-
-const fontFamily = StyleSheet.create({
-    OpenSans: {
-        fontFamily: 'OpenSans',
-    },
-    Metropolis: {
-        fontFamily: 'Metropolis',
-    },
-});
 
 const fontStyle = StyleSheet.create({
     SemiBold: {
@@ -92,8 +82,11 @@ const fontSize = StyleSheet.create({
     },
 });
 
-type Typography = Pick<TextStyle, 'fontWeight' | 'fontSize' | 'fontFamily' | 'lineHeight' | 'letterSpacing'>
+type Typography = Pick<TextStyle, 'fontWeight' | 'fontSize' | 'lineHeight' | 'letterSpacing'>
 
+/**
+ * 生成排版样式，不指定字体，让其跟随系统默认字体
+ */
 export const typography = (
     type: FontTypes = 'Body',
     size: FontSizes = 100,
@@ -105,29 +98,10 @@ export const typography = (
         style = type === 'Heading' ? 'SemiBold' : 'Regular';
     }
 
-    const font = type === 'Heading' && size > 100 ? fontFamily.Metropolis : fontFamily.OpenSans;
-
     const typeStyle = {
-        ...font,
         ...fontSize[size],
         ...fontStyle[style],
     };
-
-    /*
-     * Use the appropriate font-file (i.e. OpenSans-SemiBold)
-     * This switch statement can be removed when Android supports font-weight strings
-     */
-    switch (typeStyle.fontWeight) {
-        case '300':
-            typeStyle.fontFamily = `${typeStyle.fontFamily}-${style}`;
-            break;
-        case '400':
-            typeStyle.fontFamily = `${typeStyle.fontFamily}`;
-            break;
-        case '600':
-            typeStyle.fontFamily = `${typeStyle.fontFamily}-${style}`;
-            break;
-    }
 
     return typeStyle;
 };

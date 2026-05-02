@@ -20,7 +20,7 @@ import {getUserById, observeTeammateNameDisplay} from '@queries/servers/user';
 import {goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -91,7 +91,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-async function getItemName(serverUrl: string, selected: string, teammateNameDisplay: string, intl: IntlShape, dataSource?: string, options?: DialogOption[]): Promise<string> {
+async function getItemName(serverUrl: string, selected: string, _teammateNameDisplay: string, intl: IntlShape, dataSource?: string, options?: DialogOption[]): Promise<string> {
     if (!selected) {
         return '';
     }
@@ -105,7 +105,7 @@ async function getItemName(serverUrl: string, selected: string, teammateNameDisp
             }
 
             const user = await getUserById(database, selected);
-            return displayUsername(user, intl.locale, teammateNameDisplay, true);
+            return username2Nickname(user, {locale: intl.locale});
         }
         case ViewConstants.DATA_SOURCE_CHANNELS: {
             if (!database) {
@@ -121,10 +121,10 @@ async function getItemName(serverUrl: string, selected: string, teammateNameDisp
     return option?.text || '';
 }
 
-function getTextAndValueFromSelectedItem(item: Selection, teammateNameDisplay: string, locale: string, dataSource?: string) {
+function getTextAndValueFromSelectedItem(item: Selection, _teammateNameDisplay: string, locale: string, dataSource?: string) {
     if (dataSource === ViewConstants.DATA_SOURCE_USERS) {
         const user = item as UserProfile;
-        return {text: displayUsername(user, locale, teammateNameDisplay), value: user.id};
+        return {text: username2Nickname(user, {locale}), value: user.id};
     } else if (dataSource === ViewConstants.DATA_SOURCE_CHANNELS) {
         const channel = item as Channel;
         return {text: channel.display_name, value: channel.id};
@@ -145,7 +145,7 @@ function AutoCompleteSelector({
     placeholder,
     roundedBorders = true,
     selected,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
     isMultiselect = false,
     testID,
     location,
@@ -163,7 +163,7 @@ function AutoCompleteSelector({
         }
 
         if (!Array.isArray(newSelection)) {
-            const selectedOption = getTextAndValueFromSelectedItem(newSelection, teammateNameDisplay, intl.locale, dataSource);
+            const selectedOption = getTextAndValueFromSelectedItem(newSelection, _teammateNameDisplay, intl.locale, dataSource);
             setItemText(selectedOption.text);
 
             if (onSelected) {
@@ -172,12 +172,12 @@ function AutoCompleteSelector({
             return;
         }
 
-        const selectedOptions = newSelection.map((option) => getTextAndValueFromSelectedItem(option, teammateNameDisplay, intl.locale, dataSource));
+        const selectedOptions = newSelection.map((option) => getTextAndValueFromSelectedItem(option, _teammateNameDisplay, intl.locale, dataSource));
         setItemText(selectedOptions.map((option) => option.text).join(', '));
         if (onSelected) {
             onSelected(selectedOptions);
         }
-    }, [teammateNameDisplay, intl, dataSource, onSelected]);
+    }, [_teammateNameDisplay, intl, dataSource, onSelected]);
 
     const goToSelectorScreen = usePreventDoubleTap(useCallback((() => {
         const screen = Screens.INTEGRATION_SELECTOR;
@@ -191,18 +191,18 @@ function AutoCompleteSelector({
         }
 
         if (!Array.isArray(selected)) {
-            getItemName(serverUrl, selected, teammateNameDisplay, intl, dataSource, options).then((res) => setItemText(res));
+            getItemName(serverUrl, selected, _teammateNameDisplay, intl, dataSource, options).then((res) => setItemText(res));
             return;
         }
 
         const namePromises = [];
         for (const item of selected) {
-            namePromises.push(getItemName(serverUrl, item, teammateNameDisplay, intl, dataSource, options));
+            namePromises.push(getItemName(serverUrl, item, _teammateNameDisplay, intl, dataSource, options));
         }
         Promise.all(namePromises).then((names) => {
             setItemText(names.join(', '));
         });
-    }, [dataSource, teammateNameDisplay, intl, options, selected, serverUrl]);
+    }, [dataSource, _teammateNameDisplay, intl, options, selected, serverUrl]);
 
     return (
         <View style={style.container}>
@@ -218,7 +218,6 @@ function AutoCompleteSelector({
                 onPress={goToSelectorScreen}
                 style={disabled ? style.disabled : null}
                 type='opacity'
-                testID={`${testID}.select.button`}
             >
                 <View style={roundedBorders ? style.roundedInput : style.input}>
                     <Text

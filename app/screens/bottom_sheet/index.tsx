@@ -3,7 +3,7 @@
 
 import BottomSheetM, {BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView, type BottomSheetBackdropProps} from '@gorhom/bottom-sheet';
 import React, {type ReactNode, useCallback, useEffect, useMemo, useRef} from 'react';
-import {DeviceEventEmitter, type Handle, InteractionManager, ScrollView, type StyleProp, View, type ViewStyle} from 'react-native';
+import {DeviceEventEmitter, type Handle, InteractionManager, Keyboard, ScrollView, type StyleProp, View, type ViewStyle} from 'react-native';
 import {ReduceMotion, useReducedMotion, type WithSpringConfig} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -16,7 +16,6 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal} from '@screens/navigation';
 import {hapticFeedback} from '@utils/general';
-import {dismissKeyboard} from '@utils/keyboard';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Indicator from './indicator';
@@ -39,12 +38,18 @@ type Props = {
     enableDynamicSizing?: boolean;
     testID?: string;
     scrollable?: boolean;
-    keyboardBehavior?: 'extend' | 'fillParent' | 'interactive';
-    keyboardBlurBehavior?: 'none' | 'restore';
 }
 
-const PADDING_TOP_MOBILE = 20;
+/** 内容区顶部留白（仅影响内容与 sheet 顶部的间距） */
+const PADDING_TOP_MOBILE = 12;
 const PADDING_TOP_TABLET = 8;
+
+/** 内容区底部留白（仅影响内容与 sheet 底部的间距）。底部还有一块来自 safe area 的间距，由 bottomInset 控制。 */
+const PADDING_BOTTOM_MOBILE = 8;
+const PADDING_BOTTOM_TABLET = 16;
+
+/** 内容区上下 padding 之和，用于在组件内统一把数值型 snap point 撑高，使所有底部弹窗都露出底部留白 */
+const CONTENT_VERTICAL_PADDING = PADDING_TOP_MOBILE + PADDING_BOTTOM_MOBILE;
 
 export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
@@ -69,9 +74,11 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flex: 1,
             paddingHorizontal: 20,
             paddingTop: PADDING_TOP_MOBILE,
+            paddingBottom: PADDING_BOTTOM_MOBILE,
         },
         contentTablet: {
             paddingTop: PADDING_TOP_TABLET,
+            paddingBottom: PADDING_BOTTOM_TABLET,
         },
         separator: {
             height: 1,
@@ -104,8 +111,6 @@ const BottomSheet = ({
     testID,
     enableDynamicSizing = false,
     scrollable = false,
-    keyboardBehavior = 'extend',
-    keyboardBlurBehavior = 'restore',
 }: Props) => {
     const reducedMotion = useReducedMotion();
     const sheetRef = useRef<BottomSheetM>(null);
@@ -122,6 +127,18 @@ const BottomSheet = ({
         ...animatedConfig,
         reduceMotion: reducedMotion ? ReduceMotion.Always : ReduceMotion.Never,
     }), [reducedMotion]);
+
+    const adjustedSnapPoints = useMemo(() => {
+        if (isTablet) {
+            return snapPoints;
+        }
+        return snapPoints.map((point) => {
+            if (typeof point === 'number' && point > 10) {
+                return point + CONTENT_VERTICAL_PADDING;
+            }
+            return point;
+        });
+    }, [isTablet, snapPoints]);
 
     useEffect(() => {
         interaction.current = InteractionManager.createInteractionHandle();
@@ -180,7 +197,7 @@ const BottomSheet = ({
 
     useEffect(() => {
         hapticFeedback();
-        dismissKeyboard();
+        Keyboard.dismiss();
 
         return () => {
             if (timeoutRef.current) {
@@ -261,7 +278,7 @@ const BottomSheet = ({
         <BottomSheetM
             ref={sheetRef}
             index={initialSnapIndex}
-            snapPoints={snapPoints}
+            snapPoints={adjustedSnapPoints}
             animateOnMount={true}
             backdropComponent={renderBackdrop}
             onAnimate={handleAnimationStart}
@@ -271,8 +288,8 @@ const BottomSheet = ({
             style={styles.bottomSheet}
             backgroundStyle={bottomSheetBackgroundStyle}
             footerComponent={footerComponent}
-            keyboardBehavior={keyboardBehavior}
-            keyboardBlurBehavior={keyboardBlurBehavior}
+            keyboardBehavior='extend'
+            keyboardBlurBehavior='restore'
             onClose={close}
             bottomInset={insets.bottom}
             enableDynamicSizing={enableDynamicSizing}

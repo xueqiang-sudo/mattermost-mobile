@@ -3,7 +3,7 @@
 
 import React, {useCallback, useMemo, type ReactNode} from 'react';
 import {useIntl} from 'react-intl';
-import {StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle} from 'react-native';
+import {Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
@@ -13,7 +13,7 @@ import {useTheme} from '@context/theme';
 import {nonBreakingString} from '@utils/strings';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getUserCustomStatus, isBot, isCustomStatusExpired, isDeactivated, isGuest, isShared} from '@utils/user';
+import {getUserCustomStatus, isBot, isCustomStatusExpired, isDeactivated, isGuest, isShared, username2Nickname} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -29,7 +29,10 @@ type Props = {
     showBadges?: boolean;
     locale?: string;
     teammateNameDisplay: string;
+    teammateNameDisplayOverride?: string;
+    leftDecorator?: React.ReactNode;
     rightDecorator?: React.ReactNode;
+    avatarBorderRadius?: number;
     onUserPress?: (user: UserProfile | UserModel) => void;
     onUserLongPress?: (user: UserProfile | UserModel) => void;
     onLayout?: () => void;
@@ -37,6 +40,10 @@ type Props = {
     viewRef?: React.LegacyRef<View>;
     padding?: number;
     hideGuestTags: boolean;
+
+    /** 联系人多选等场景：更大行高、字号与头像，便于阅读与点击 */
+    contactSelectLayout?: boolean;
+    showCurrentUserSuffix?: boolean;
 }
 
 const getThemedStyles = makeStyleSheetFromTheme((theme: Theme) => {
@@ -56,6 +63,16 @@ const getThemedStyles = makeStyleSheetFromTheme((theme: Theme) => {
         },
         rowUsername: {
             ...typography('Body', 100),
+            color: changeOpacity(theme.centerChannelColor, 0.64),
+        },
+        rowFullnameContactSelect: {
+            ...typography('Body', 300, 'Regular'),
+            color: theme.centerChannelColor,
+            flex: 0,
+            flexShrink: 1,
+        },
+        rowUsernameContactSelect: {
+            ...typography('Body', 200),
             color: changeOpacity(theme.centerChannelColor, 0.64),
         },
     };
@@ -82,6 +99,24 @@ const nonThemedStyles = StyleSheet.create({
     profile: {
         marginRight: 12,
     },
+    profileContactSelect: {
+        marginRight: 14,
+    },
+    leftDecorator: {
+        marginRight: 12,
+    },
+    leftDecoratorContactSelect: {
+        marginRight: 14,
+        minWidth: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rowContactSelect: {
+        minHeight: 60,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     flex: {
         flex: 1,
     },
@@ -97,8 +132,9 @@ const UserItem = ({
     isCustomStatusEnabled,
     showBadges = false,
     locale,
-    teammateNameDisplay,
+    leftDecorator,
     rightDecorator,
+    avatarBorderRadius,
     onLayout,
     onUserPress,
     onUserLongPress,
@@ -107,6 +143,8 @@ const UserItem = ({
     padding,
     includeMargin,
     hideGuestTags,
+    contactSelectLayout = false,
+    showCurrentUserSuffix = true,
 }: Props) => {
     const theme = useTheme();
     const style = getThemedStyles(theme);
@@ -121,30 +159,52 @@ const UserItem = ({
     const customStatus = getUserCustomStatus(user);
     const customStatusExpired = isCustomStatusExpired(user);
 
-    let displayName = displayUsername(user, locale, teammateNameDisplay);
-    const showTeammateDisplay = displayName !== user?.username;
-    if (isCurrentUser) {
-        displayName = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
+    const fullDisplay = username2Nickname(user, {locale});
+    const shortDisplay = username2Nickname(user, {locale, includeFullName: false});
+    const showUsernameSuffix = Boolean(
+        user &&
+        fullDisplay !== shortDisplay &&
+        !fullDisplay.startsWith(`${shortDisplay} (`),
+    );
+    let displayName = fullDisplay;
+    if (isCurrentUser && showCurrentUserSuffix) {
+        displayName = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName: fullDisplay});
     }
 
     const userItemTestId = `${testID}.${user?.id}`;
 
     const containerViewStyle = useMemo(() => {
         return [
-            nonThemedStyles.row,
+            contactSelectLayout ? nonThemedStyles.rowContactSelect : nonThemedStyles.row,
             {
                 opacity: disabled ? 0.32 : 1,
                 paddingHorizontal: padding || undefined,
             },
             includeMargin && nonThemedStyles.margin,
         ];
-    }, [disabled, padding, includeMargin]);
+    }, [disabled, padding, includeMargin, contactSelectLayout]);
 
-    const onPress = useCallback(() => {
-        if (user) {
-            onUserPress?.(user);
-        }
-    }, [user, onUserPress]);
+    const displayNameStyle = useMemo(() => {
+        return contactSelectLayout ? style.rowFullnameContactSelect : style.rowFullname;
+    }, [contactSelectLayout, style.rowFullname, style.rowFullnameContactSelect]);
+
+    const usernameSuffixStyle = useMemo(() => {
+        return contactSelectLayout ? style.rowUsernameContactSelect : style.rowUsername;
+    }, [contactSelectLayout, style.rowUsername, style.rowUsernameContactSelect]);
+
+    const leftDecoratorStyle = useMemo(() => {
+        return [
+            nonThemedStyles.leftDecorator,
+            contactSelectLayout && nonThemedStyles.leftDecoratorContactSelect,
+        ];
+    }, [contactSelectLayout]);
+
+    const profilePictureContainerStyle = useMemo(() => {
+        return [
+            nonThemedStyles.profile,
+            contactSelectLayout && nonThemedStyles.profileContactSelect,
+        ];
+    }, [contactSelectLayout]);
 
     const onLongPress = useCallback(() => {
         if (user) {
@@ -152,44 +212,59 @@ const UserItem = ({
         }
     }, [user, onUserLongPress]);
 
+    /** 处理用户点击事件 */
+    const handleOnPress = useCallback(() => {
+        if (user) {
+            onUserPress?.(user);
+        }
+    }, [user, onUserPress]);
+
     return (
-        <TouchableOpacity
-            onPress={onPress}
+        <Pressable
+            onPress={handleOnPress}
             onLongPress={onLongPress}
             disabled={!(onUserPress || onUserLongPress)}
             onLayout={onLayout}
+            android_disableSound={true}
+            android_ripple={undefined}
         >
             <View
                 ref={viewRef}
                 style={[containerViewStyle, containerStyle]}
                 testID={userItemTestId}
             >
+                {Boolean(leftDecorator) && (
+                    <View style={leftDecoratorStyle}>
+                        {leftDecorator}
+                    </View>
+                )}
                 <ProfilePicture
                     author={user}
                     size={size}
                     showStatus={false}
                     testID={`${userItemTestId}.profile_picture`}
-                    containerStyle={nonThemedStyles.profile}
+                    containerStyle={profilePictureContainerStyle}
+                    borderRadius={avatarBorderRadius}
                 />
                 <View style={nonThemedStyles.rowInfoBaseContainer}>
                     <View style={nonThemedStyles.rowInfoContainer}>
                         <Text
-                            style={style.rowFullname}
+                            style={displayNameStyle}
                             numberOfLines={1}
                             testID={`${userItemTestId}.display_name`}
                         >
                             {nonBreakingString(displayName)}
-                            {Boolean(showTeammateDisplay) && Boolean(user?.username) && (
+                            {Boolean(showUsernameSuffix) && Boolean(shortDisplay) && (
                                 <Text
-                                    style={style.rowUsername}
+                                    style={usernameSuffixStyle}
                                     testID={`${userItemTestId}.username`}
                                 >
-                                    {nonBreakingString(` @${user?.username}`)}
+                                    {nonBreakingString(` @${shortDisplay}`)}
                                 </Text>
                             )}
                             {deactivated && (
                                 <Text
-                                    style={style.rowUsername}
+                                    style={usernameSuffixStyle}
                                     testID={`${userItemTestId}.deactivated`}
                                 >
                                     {nonBreakingString(` ${intl.formatMessage({id: 'mobile.user_list.deactivated', defaultMessage: 'Deactivated'})}`)}
@@ -218,7 +293,7 @@ const UserItem = ({
                     {FooterComponent}
                 </View>
             </View>
-        </TouchableOpacity>
+        </Pressable>
     );
 };
 

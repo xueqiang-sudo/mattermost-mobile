@@ -29,7 +29,6 @@ const BaseOption = ({
             destructive={isDestructive}
             icon={iconName}
             label={intl.formatMessage(message)}
-            labelNumberOfLines={1}
             testID={testID}
             type='default'
         />

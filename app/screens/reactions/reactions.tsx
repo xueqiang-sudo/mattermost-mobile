@@ -21,16 +21,6 @@ type Props = {
     reactions?: ReactionModel[];
 }
 
-function getSortedReactions(reactions: ReactionModel[] | undefined, prevSortedReactions: string[]): string[] {
-    const rs = reactions?.map((r) => getEmojiFirstAlias(r.emojiName));
-    const sorted = new Set([...prevSortedReactions]);
-    const added = rs?.filter((r) => !sorted.has(r));
-    added?.forEach(sorted.add, sorted);
-    const removed = [...sorted].filter((s) => !rs?.includes(s));
-    removed.forEach(sorted.delete, sorted);
-    return Array.from(sorted);
-}
-
 const Reactions = ({initialEmoji, location, reactions}: Props) => {
     const isTablet = useIsTablet();
     const [sortedReactions, setSortedReactions] = useState(Array.from(new Set(reactions?.map((r) => getEmojiFirstAlias(r.emojiName)))));
@@ -77,13 +67,17 @@ const Reactions = ({initialEmoji, location, reactions}: Props) => {
                 />
             </>
         );
-    }, [index, isTablet, location, reactionsByName, sortedReactions]);
+    }, [index, location, reactions, sortedReactions]);
 
     useEffect(() => {
         // This helps keep the reactions in the same position at all times until unmounted
-        setSortedReactions((prevSortedReactions) => {
-            return getSortedReactions(reactions, prevSortedReactions);
-        });
+        const rs = reactions?.map((r) => getEmojiFirstAlias(r.emojiName));
+        const sorted = new Set([...sortedReactions]);
+        const added = rs?.filter((r) => !sorted.has(r));
+        added?.forEach(sorted.add, sorted);
+        const removed = [...sorted].filter((s) => !rs?.includes(s));
+        removed.forEach(sorted.delete, sorted);
+        setSortedReactions(Array.from(sorted));
     }, [reactions]);
 
     return (

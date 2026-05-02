@@ -3,7 +3,7 @@
 
 import {PostList} from '@support/ui/component';
 import {timeouts, wait} from '@support/utils';
-import {expect, waitFor} from 'detox';
+import {expect} from 'detox';
 
 class PermalinkScreen {
     testID = {
@@ -36,7 +36,7 @@ class PermalinkScreen {
 
     jumpToRecentMessages = async () => {
         // # Jump to recent messages
-        await waitFor(this.jumpToRecentMessagesButton).toExist().withTimeout(timeouts.TEN_SEC);
+        await wait(timeouts.ONE_SEC);
         await this.jumpToRecentMessagesButton.tap();
         await expect(this.permalinkScreen).not.toBeVisible();
     };

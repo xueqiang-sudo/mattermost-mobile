@@ -16,7 +16,7 @@ import {dismissBottomSheet} from '@screens/navigation';
 import UserProfileTitle from '@screens/user_profile/title';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {CallSession, CurrentCall} from '@calls/types/calls';
 
@@ -86,7 +86,7 @@ export const HostControls = ({
     }, [openUserProfile, session]);
 
     const removePress = useCallback(async () => {
-        const displayName = displayUsername(session.userModel, intl.locale, teammateNameDisplay, true);
+        const displayName = username2Nickname(session.userModel, {locale: intl.locale});
         removeFromCall(currentCall.serverUrl, displayName, currentCall.channelId, session.sessionId, intl);
     }, [session.userModel, intl, teammateNameDisplay, currentCall.serverUrl, currentCall.channelId, session.sessionId]);
 

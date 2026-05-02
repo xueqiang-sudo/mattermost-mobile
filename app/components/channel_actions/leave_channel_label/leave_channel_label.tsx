@@ -13,6 +13,7 @@ import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import {dismissAllModalsAndPopToRoot, dismissBottomSheet} from '@screens/navigation';
+import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 
 type Props = {
     isOptionItem?: boolean;
@@ -30,7 +31,7 @@ const messages = defineMessages({
     },
     closeGroupMessage: {
         id: 'channel_info.close_gm',
-        defaultMessage: 'Close group message',
+        defaultMessage: 'Close discussion group',
     },
     closeDirectMessageChannel: {
         id: 'channel_info.close_dm_channel',
@@ -38,22 +39,26 @@ const messages = defineMessages({
     },
     closeGroupMessageChannel: {
         id: 'channel_info.close_gm_channel',
-        defaultMessage: 'Are you sure you want to close this group message? This will remove it from your home screen, but you can always open it again.',
+        defaultMessage: 'Are you sure you want to close this discussion group? This will remove it from your home screen, but you can always open it again.',
     },
     leaveChannel: {
         id: 'channel_info.leave_channel',
         defaultMessage: 'Leave channel',
     },
+    leaveDiscussionGroup: {
+        id: 'channel_info.leave_discussion_group',
+        defaultMessage: 'Leave discussion group',
+    },
     leavePrivateChannel: {
         id: 'channel_info.leave_private_channel',
-        defaultMessage: "Are you sure you want to leave the private channel {displayName}? You cannot rejoin the channel unless you're invited again.",
+        defaultMessage: "Are you sure you want to leave the group chat {displayName}? You cannot rejoin unless you're invited again.",
     },
     leavePublicChannel: {
         id: 'channel_info.leave_public_channel',
         defaultMessage: 'Are you sure you want to leave the public channel {displayName}? You can always rejoin.',
     },
     cancel: {
-        id: 'mobile.post.cancel',
+        id: 'common.cancel',
         defaultMessage: 'Cancel',
     },
     close: {
@@ -133,8 +138,11 @@ const LeaveChannelLabel = ({canLeave, channelId, displayName, isOptionItem, type
     };
 
     const leavePrivateChannel = () => {
+        const alertTitle = type && usesDiscussionGroupChannelCopy(type)
+            ? intl.formatMessage(messages.leaveDiscussionGroup)
+            : intl.formatMessage(messages.leaveChannel);
         Alert.alert(
-            intl.formatMessage(messages.leaveChannel),
+            alertTitle,
             intl.formatMessage(messages.leavePrivateChannel, {displayName}),
             [{
                 text: intl.formatMessage(messages.cancel),
@@ -181,6 +189,12 @@ const LeaveChannelLabel = ({canLeave, channelId, displayName, isOptionItem, type
         case General.GM_CHANNEL:
             leaveText = intl.formatMessage(messages.closeGroupMessage);
             icon = 'close';
+            break;
+        case General.PRIVATE_CHANNEL:
+            leaveText = usesDiscussionGroupChannelCopy(General.PRIVATE_CHANNEL)
+                ? intl.formatMessage(messages.leaveDiscussionGroup)
+                : intl.formatMessage(messages.leaveChannel);
+            icon = 'exit-to-app';
             break;
         default:
             leaveText = intl.formatMessage(messages.leaveChannel);

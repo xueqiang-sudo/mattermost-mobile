@@ -75,7 +75,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
                 const rolesToFetch = new Set<string>([...user.roles.split(' '), ...teamRoles]);
 
                 // fetch channels / channel membership for initial team
-                chData = await fetchMyChannelsForTeam(serverUrl, initialTeam.id, false, 0, true);
+                chData = await fetchMyChannelsForTeam(serverUrl, initialTeam.id, true, 0, true);
                 if (chData.channels?.length && chData.memberships?.length) {
                     const {channels, memberships} = chData;
                     const channelIds = new Set(channels?.map((c) => c.id));
@@ -166,7 +166,7 @@ export async function retryInitialChannel(serverUrl: string, teamId: string) {
         const config = await getConfig(database);
 
         // fetch channels / channel membership for initial team
-        const chData = await fetchMyChannelsForTeam(serverUrl, teamId, false, 0, true);
+        const chData = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, true);
         if (chData.channels?.length && chData.memberships?.length) {
             const {channels, memberships} = chData;
             const channelIds = new Set(channels?.map((c) => c.id));

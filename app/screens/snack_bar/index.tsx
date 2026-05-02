@@ -28,7 +28,6 @@ import {MESSAGE_TYPE, SNACK_BAR_CONFIG} from '@constants/snack_bar';
 import {TABLET_SIDEBAR_WIDTH} from '@constants/view';
 import {useTheme} from '@context/theme';
 import {useIsTablet, useWindowDimensions} from '@hooks/device';
-import useDidMount from '@hooks/did_mount';
 import SecurityManager from '@managers/security_manager';
 import {dismissOverlay} from '@screens/navigation';
 import {makeStyleSheetFromTheme} from '@utils/theme';
@@ -39,14 +38,14 @@ import type {ShowSnackBarArgs} from '@utils/snack_bar';
 
 type SnackBarProps = {
     componentId: AvailableScreens;
-    sourceScreen: AvailableScreens;
+    sourceScreen?: AvailableScreens;
 } & ShowSnackBarArgs;
 
 const SNACK_BAR_WIDTH = 96;
 const SNACK_BAR_HEIGHT = 56;
 const SNACK_BAR_BOTTOM_RATIO = 0.04;
 
-const caseScreens: AvailableScreens[] = [Screens.PERMALINK, Screens.MANAGE_CHANNEL_MEMBERS, Screens.MENTIONS, Screens.SAVED_MESSAGES];
+const caseScreens: AvailableScreens[] = [Screens.PERMALINK, Screens.MANAGE_CHANNEL_MEMBERS];
 
 const DEFAULT_ICON = 'alert-outline';
 
@@ -55,7 +54,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         text: {
             color: theme.centerChannelBg,
         },
-        action: {
+        undo: {
             color: theme.centerChannelBg,
             ...typography('Body', 100, 'SemiBold'),
         },
@@ -102,7 +101,8 @@ const SnackBar = ({
     sourceScreen,
     customMessage,
     type,
-    actionText,
+    ignoreNavigationEvents = false,
+    duration = 3000,
 }: SnackBarProps) => {
     const [showSnackBar, setShowSnackBar] = useState<boolean | undefined>();
     const intl = useIntl();
@@ -122,7 +122,7 @@ const SnackBar = ({
         config = {
             message: defaultMessage,
             iconName: DEFAULT_ICON,
-            hasAction: false,
+            canUndo: false,
             type,
         };
     }
@@ -139,12 +139,6 @@ const SnackBar = ({
         let tabletStyle: Partial<ViewStyle>;
 
         switch (true) {
-            case sourceScreen === Screens.THREAD:
-                tabletStyle = {
-                    marginLeft: 0,
-                    width: `${SNACK_BAR_WIDTH}%`,
-                };
-                break;
             case sourceScreen === Screens.CHANNEL_INFO:
                 tabletStyle = {
                     marginBottom: 40,
@@ -234,22 +228,22 @@ const SnackBar = ({
         animateHiding(false);
     };
 
-    // This effect hides the snack bar after 3 seconds
-    useDidMount(() => {
+    // Effect hides the snack bar after duration
+    useEffect(() => {
         mounted.current = true;
         baseTimer.current = setTimeout(() => {
             if (!isPanned.value) {
                 animateHiding(false);
             }
-        }, 3000);
+        }, duration);
 
         return () => {
             stopTimers();
             mounted.current = false;
         };
-    });
+    }, [duration]);
 
-    // This effect dismisses the Navigation Overlay after we have hidden the snack bar
+    // Effect dismisses the overlay after snack bar is hidden
     useEffect(() => {
         if (showSnackBar === false) {
             if (userHasUndo?.current) {
@@ -259,8 +253,11 @@ const SnackBar = ({
         }
     }, [showSnackBar, onAction, componentId]);
 
-    // This effect checks if we are navigating away and if so, it dismisses the snack bar
+    // Effect hides snack bar when navigating away (skipped when ignoreNavigationEvents for toast-style messages)
     useEffect(() => {
+        if (ignoreNavigationEvents) {
+            return;
+        }
         const onHideSnackBar = (event?: ComponentEvent) => {
             const evtComponentId = event?.componentId;
             if ((componentId !== evtComponentId) && (sourceScreen !== evtComponentId)) {
@@ -279,7 +276,7 @@ const SnackBar = ({
             tabPress.remove();
             navigateToTab.remove();
         };
-    }, [animateHiding, componentId, sourceScreen]);
+    }, [animateHiding, componentId, ignoreNavigationEvents, sourceScreen]);
 
     const message = customMessage || intl.formatMessage(config.message, messageValues);
 
@@ -303,10 +300,10 @@ const SnackBar = ({
                             textStyle={styles.text}
                             testID='toast'
                         >
-                            {config.hasAction && onAction && (
+                            {config.canUndo && onAction && (
                                 <TouchableOpacity onPress={onUndoPressHandler}>
-                                    <Text style={styles.action}>
-                                        {actionText || intl.formatMessage({
+                                    <Text style={styles.undo}>
+                                        {intl.formatMessage({
                                             id: 'snack.bar.undo',
                                             defaultMessage: 'Undo',
                                         })}

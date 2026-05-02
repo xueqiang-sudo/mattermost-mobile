@@ -157,8 +157,8 @@ const Checklist = ({
         goToRenameChecklist(intl, theme, playbookRunName, checklist.title, handleRename);
     }, [intl, theme, playbookRunName, checklist.title, handleRename]);
 
-    const handleAddItem = useCallback(async (item: ChecklistItemInput) => {
-        const res = await addChecklistItem(serverUrl, playbookRunId, checklistNumber, item);
+    const handleAddItem = useCallback(async (title: string) => {
+        const res = await addChecklistItem(serverUrl, playbookRunId, checklistNumber, title);
         if ('error' in res && res.error) {
             showPlaybookErrorSnackbar();
             logError('error on addChecklistItem', getFullErrorMessage(res.error));
@@ -214,10 +214,7 @@ const Checklist = ({
                     </View>
                     <View style={styles.progressAndEditContainer}>
                         <Text style={styles.progressText}>{`${completed} / ${totalNumber} done`}</Text>
-                        <TouchableOpacity
-                            onPress={handleEditPress}
-                            testID='edit-checklist-button'
-                        >
+                        <TouchableOpacity onPress={handleEditPress}>
                             <CompassIcon
                                 name='pencil-outline'
                                 style={styles.editIcon}
@@ -264,7 +261,7 @@ const Checklist = ({
             >
                 {items.map((item, index) => (
                     <ChecklistItem
-                        key={`calc-${item.id}`}
+                        key={item.id}
                         item={item}
                         channelId={channelId}
                         checklistNumber={checklistNumber}

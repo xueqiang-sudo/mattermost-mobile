@@ -15,3 +15,6 @@ export const HEADER_X_VERSION_ID = 'X-Version-Id';
 export const DEFAULT_LIMIT_BEFORE = 30;
 export const DEFAULT_LIMIT_AFTER = 30;
 export const PER_PAGE_DEFAULT = 60;
+
+/** 用于识别默认部门的名称约定 */
+export const DEFAULT_TEAM_DEPARTMENT_NAME = 'FORCE_TEAM_DEFAULT_DEPARTMENT';

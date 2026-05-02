@@ -9,7 +9,7 @@ import {Permissions} from '@constants';
 import {observePermissionForTeam} from '@queries/servers/role';
 import {observeConfigBooleanValue} from '@queries/servers/system';
 import {observeCurrentTeam} from '@queries/servers/team';
-import {observeTeammateNameDisplay, observeCurrentUser} from '@queries/servers/user';
+import {observeCurrentUser} from '@queries/servers/user';
 import {isSystemAdmin} from '@utils/user';
 
 import Invite from './invite';
@@ -21,7 +21,6 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     const currentUser = observeCurrentUser(database);
 
     const guestAccountsEnabled = observeConfigBooleanValue(database, 'EnableGuestAccounts');
-    const emailInvitationsEnabled = observeConfigBooleanValue(database, 'EnableEmailInvitations');
     const isGroupConstrained = team.pipe(
         switchMap((t) => of$(Boolean(t?.isGroupConstrained))),
     );
@@ -45,12 +44,13 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
         teamInviteId: team.pipe(
             switchMap((t) => of$(t?.inviteId)),
         ),
-        teammateNameDisplay: observeTeammateNameDisplay(database),
         isAdmin: observeCurrentUser(database).pipe(
             map((user) => isSystemAdmin(user?.roles || '')),
             distinctUntilChanged(),
         ),
-        emailInvitationsEnabled,
+        currentUserId: currentUser.pipe(
+            switchMap((u) => of$(u?.id)),
+        ),
         canInviteGuests,
         allowGuestMagicLink: observeConfigBooleanValue(database, 'EnableGuestMagicLink'),
     };

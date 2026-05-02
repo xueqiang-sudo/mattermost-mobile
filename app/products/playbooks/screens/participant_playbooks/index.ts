@@ -2,11 +2,11 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import {combineLatest, of} from 'rxjs';
+import {of} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
-import {queryPlaybookRunsByParticipantAndTeam} from '@playbooks/database/queries/run';
-import {observeCurrentTeamId, observeCurrentUserId} from '@queries/servers/system';
+import {queryPlaybookRunsByParticipant} from '@playbooks/database/queries/run';
+import {observeCurrentUserId} from '@queries/servers/system';
 
 import ParticipantPlaybooks from './participant_playbooks';
 
@@ -16,13 +16,12 @@ type OwnProps = WithDatabaseArgs;
 
 const enhanced = withObservables([], ({database}: OwnProps) => {
     const currentUserId = observeCurrentUserId(database);
-    const currentTeamId = observeCurrentTeamId(database);
+
     return {
         currentUserId,
-        currentTeamId,
-        cachedPlaybookRuns: combineLatest([currentUserId, currentTeamId]).pipe(
-            switchMap(([userId, teamId]) =>
-                (userId ? queryPlaybookRunsByParticipantAndTeam(database, userId, teamId).observe() : of([])),
+        cachedPlaybookRuns: currentUserId.pipe(
+            switchMap((userId) =>
+                (userId ? queryPlaybookRunsByParticipant(database, userId).observe() : of([])),
             ),
         ),
     };

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef} from 'react';
+import React, {useCallback, useEffect, useRef} from 'react';
 import {
     View,
     useWindowDimensions,
@@ -16,7 +16,6 @@ import Animated, {useDerivedValue, useSharedValue} from 'react-native-reanimated
 
 import {storeOnboardingViewedValue} from '@actions/app/global';
 import {Screens} from '@constants';
-import useDidMount from '@hooks/did_mount';
 import {useScreenTransitionAnimation} from '@hooks/screen_transition_animation';
 import SecurityManager from '@managers/security_manager';
 import Background from '@screens/background';
@@ -77,7 +76,7 @@ const Onboarding = ({
         storeOnboardingViewedValue();
 
         goToScreen(Screens.SERVER, '', {animated: true, theme, ...props}, loginAnimationOptions());
-    }, [props, theme]);
+    }, []);
 
     const nextSlide = useCallback(() => {
         const nextSlideIndex = currentIndex.value + 1;
@@ -86,15 +85,15 @@ const Onboarding = ({
         } else if (slidesRef.current && currentIndex.value === LAST_SLIDE_INDEX) {
             signInHandler();
         }
-    }, [LAST_SLIDE_INDEX, currentIndex, moveToSlide, signInHandler]);
+    }, [currentIndex, moveToSlide, signInHandler]);
 
     const scrollHandler = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
         scrollX.value = event.nativeEvent.contentOffset.x;
-    }, [scrollX]);
+    }, []);
 
     const animatedStyles = useScreenTransitionAnimation(Screens.ONBOARDING);
 
-    useDidMount(() => {
+    useEffect(() => {
         const listener = BackHandler.addEventListener('hardwareBackPress', () => {
             if (!currentIndex.value) {
                 return false;
@@ -105,7 +104,7 @@ const Onboarding = ({
         });
 
         return () => listener.remove();
-    });
+    }, []);
 
     return (
         <View

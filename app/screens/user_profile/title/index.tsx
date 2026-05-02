@@ -16,7 +16,7 @@ import {openGalleryAtIndex} from '@utils/gallery';
 import {urlSafeBase64Encode} from '@utils/security';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import UserProfileAvatar from './avatar';
 import UserProfileTag from './tag';
@@ -37,6 +37,8 @@ type Props = {
     userIconOverride?: string;
     usernameOverride?: string;
     hideGuestTags: boolean;
+    /** Compact header when opened from DM/group picker (long-press preview) */
+    pickerPreview?: boolean;
 }
 
 export const HEADER_TEXT_HEIGHT = 30;
@@ -75,7 +77,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const UserProfileTitle = ({
     enablePostIconOverride, enablePostUsernameOverride, headerText,
     imageSize, isChannelAdmin, isSystemAdmin, isTeamAdmin,
-    teammateDisplayName, user, userIconOverride, usernameOverride, hideGuestTags,
+    teammateDisplayName: _teammateNameDisplay, user, userIconOverride, usernameOverride, hideGuestTags,
+    pickerPreview = false,
 }: Props) => {
     const galleryIdentifier = `${user.id}-avatarPreview`;
     const intl = useIntl();
@@ -89,7 +92,7 @@ const UserProfileTitle = ({
     if (override) {
         displayName = usernameOverride;
     } else {
-        displayName = displayUsername(user, intl.locale, teammateDisplayName, false);
+        displayName = username2Nickname(user, {locale: intl.locale, useFallbackUsername: false});
     }
 
     const onPress = () => {
@@ -132,7 +135,8 @@ const UserProfileTitle = ({
         onPress,
     );
 
-    const hideUsername = override || (displayName && displayName === user.username);
+    const shortDisplay = username2Nickname(user, {locale: intl.locale, includeFullName: false, useFallbackUsername: false});
+    const hideUsername = override || (Boolean(displayName) && Boolean(shortDisplay) && displayName === shortDisplay);
     const prefix = hideUsername ? '@' : '';
 
     return (
@@ -145,7 +149,12 @@ const UserProfileTitle = ({
                     {headerText}
                 </Text>
             }
-            <View style={[styles.container, isTablet && styles.tablet]}>
+            <View style={[
+                styles.container,
+                pickerPreview && {marginBottom: 12},
+                isTablet && (pickerPreview ? {marginTop: 12} : styles.tablet),
+            ]}
+            >
                 <GalleryInit galleryIdentifier={galleryIdentifier}>
                     <Animated.View style={galleryStyles}>
                         <TouchableOpacity onPress={onGestureEvent}>
@@ -159,7 +168,7 @@ const UserProfileTitle = ({
                         </TouchableOpacity>
                     </Animated.View>
                 </GalleryInit>
-                <View style={styles.details}>
+                <View style={[styles.details, pickerPreview && {marginLeft: 16}]}>
                     <UserProfileTag
                         isBot={user.isBot || Boolean(userIconOverride || usernameOverride)}
                         isChannelAdmin={isChannelAdmin}
@@ -168,7 +177,7 @@ const UserProfileTitle = ({
                         isTeamAdmin={isTeamAdmin}
                     />
                     <Text
-                        numberOfLines={1}
+                        numberOfLines={pickerPreview ? 2 : 1}
                         style={styles.displayName}
                         testID='user_profile.display_name'
                     >
@@ -180,7 +189,7 @@ const UserProfileTitle = ({
                         style={styles.username}
                         testID='user_profile.username'
                     >
-                        {`@${user.username}`}
+                        {`@${shortDisplay}`}
                     </Text>
                     }
                 </View>

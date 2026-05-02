@@ -12,13 +12,13 @@ import {DEFAULT_LOCALE} from '@i18n';
 import {getUserById} from '@queries/servers/user';
 import {toMilliseconds} from '@utils/datetime';
 import {ensureString, includes} from '@utils/types';
-import {displayUsername, getUserIdFromChannelName} from '@utils/user';
+import {getUserIdFromChannelName, username2Nickname} from '@utils/user';
 
 import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
 import type {IntlShape} from 'react-intl';
 
-export function areConsecutivePosts(post: PostModel, previousPost: PostModel, userLocale: string) {
+export function areConsecutivePosts(post: PostModel, previousPost: PostModel) {
     let consecutive = false;
 
     if (post && previousPost) {
@@ -31,14 +31,6 @@ export function areConsecutivePosts(post: PostModel, previousPost: PostModel, us
         // Were the last post and this post made by the same user within some time?
         consecutive = previousPost && isFromSameUser && isInTimeframe && !postFromWebhook &&
         !prevPostFromWebhook && isNotSystemMessage;
-    }
-
-    if (consecutive) {
-        const postTranslation = getPostTranslation(post, userLocale);
-        const previousPostTranslation = getPostTranslation(previousPost, userLocale);
-        if (postTranslation?.state !== previousPostTranslation?.state) {
-            consecutive = false;
-        }
     }
 
     return consecutive;
@@ -54,6 +46,13 @@ export function isEdited(post: PostModel): boolean {
 
 export function isPostEphemeral(post: PostModel): boolean {
     return post.type === Post.POST_TYPES.EPHEMERAL || post.type === Post.POST_TYPES.EPHEMERAL_ADD_TO_CHANNEL || post.deleteAt > 0;
+}
+
+export function isInvalidEphemeralTipPost(post: PostModel | Post): boolean {
+    if (post.type !== Post.POST_TYPES.EPHEMERAL) {
+        return false;
+    }
+    return post.props?.invalid === true;
 }
 
 export function isPostFailed(post: PostModel): boolean {
@@ -72,7 +71,7 @@ export function fromAutoResponder(post: PostModel): boolean {
     return Boolean(post.type && (post.type === Post.POST_TYPES.SYSTEM_AUTO_RESPONDER));
 }
 
-export function postUserDisplayName(post: PostModel, author?: UserModel, teammateNameDisplay?: string, enablePostUsernameOverride = false) {
+export function postUserDisplayName(post: PostModel, author?: UserModel, _teammateNameDisplay?: string, enablePostUsernameOverride = false) {
     const overrideUsername = ensureString(post.props?.override_username);
     if (
         isFromWebhook(post) &&
@@ -82,7 +81,7 @@ export function postUserDisplayName(post: PostModel, author?: UserModel, teammat
         return overrideUsername;
     }
 
-    return displayUsername(author, author?.locale || DEFAULT_LOCALE, teammateNameDisplay, true);
+    return username2Nickname(author, {locale: author?.locale || DEFAULT_LOCALE});
 }
 
 export function shouldIgnorePost(post: Post): boolean {
@@ -280,13 +279,4 @@ export function scheduledPostFromPost(post: Post, schedulingInfo: SchedulingInfo
         },
         file_ids: fileIDs,
     };
-}
-
-export function getPostTranslation(post: Post | PostModel, locale: string): PostTranslation | undefined {
-    const normalizedLocale = locale.split('-')[0];
-    return post.metadata?.translations?.[normalizedLocale];
-}
-
-export function getPostTranslatedMessage(originalMessage: string, translation: PostTranslation): string {
-    return translation.object?.message ?? originalMessage;
 }

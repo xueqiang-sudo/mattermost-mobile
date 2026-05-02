@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {loadAgentsScreen} from '@agents/screens';
 import {Provider as EMMProvider} from '@mattermost/react-native-emm';
 import React, {type ComponentType} from 'react';
 import {IntlProvider} from 'react-intl';
@@ -12,8 +11,9 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 import {Screens} from '@constants';
 import {withServerDatabase} from '@database/components';
-import {DEFAULT_LOCALE, getTranslations} from '@i18n';
+import {getTranslations} from '@i18n';
 import {loadPlaybooksScreen} from '@playbooks/screens';
+import EphemeralStore from '@store/ephemeral_store';
 import {logDebug} from '@utils/log';
 
 const withGestures = (Screen: React.ComponentType) => {
@@ -28,10 +28,14 @@ const withGestures = (Screen: React.ComponentType) => {
 
 const withIntl = (Screen: React.ComponentType) => {
     return function IntlEnabledComponent(props: any) {
+        // 从全局 EphemeralStore 获取当前语言
+        const locale = EphemeralStore.getCurrentLocale();
+        logDebug('[withIntl] 使用语言:', locale);
+
         return (
             <IntlProvider
-                locale={DEFAULT_LOCALE}
-                messages={getTranslations(DEFAULT_LOCALE)}
+                locale={locale}
+                messages={getTranslations(locale)}
             >
                 <Screen {...props}/>
             </IntlProvider>
@@ -68,8 +72,8 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.APPS_FORM:
             screen = withServerDatabase(require('@screens/apps_form').default);
             break;
-        case Screens.ATTACHMENT_OPTIONS:
-            screen = withServerDatabase(require('@screens/attachment_options').default);
+        case Screens.ACCOUNT_MODAL:
+            screen = withServerDatabase(require('@screens/account_modal').default);
             break;
         case Screens.BOTTOM_SHEET:
             screen = withServerDatabase(require('@screens/bottom_sheet').default);
@@ -86,9 +90,6 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CHANNEL_NOTIFICATION_PREFERENCES:
             screen = withServerDatabase(require('@screens/channel_notification_preferences').default);
             break;
-        case Screens.CHANNEL_SETTINGS:
-            screen = withServerDatabase(require('@screens/channel_settings').default);
-            break;
         case Screens.CHANNEL_FILES:
             screen = withServerDatabase(require('@screens/channel_files').default);
             break;
@@ -100,6 +101,30 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.CONVERT_GM_TO_CHANNEL:
             screen = withServerDatabase(require('@screens/convert_gm_to_channel').default);
+            break;
+        case Screens.CONTACTS_EMPLOYEE_LIST:
+            screen = withServerDatabase(require('@screens/home/contacts/employee_list').default);
+            break;
+        case Screens.CONTACTS_DEPARTMENT_DETAIL:
+            screen = withServerDatabase(require('@screens/home/contacts/department_detail').default);
+            break;
+        case Screens.CONTACTS_SEARCH:
+            screen = withServerDatabase(require('@screens/home/contacts/contacts_search').default);
+            break;
+        case Screens.CONTACTS_DEPARTMENT_BROWSE_FROM_PROFILE:
+            screen = withServerDatabase(require('@screens/home/contacts/department_browse_from_profile').default);
+            break;
+        case Screens.CONTACTS_EMPLOYEE_PROFILE:
+            screen = withServerDatabase(require('@screens/home/contacts/employee_profile').default);
+            break;
+        case Screens.CONTACTS_MANAGE:
+            screen = withServerDatabase(require('@screens/home/contacts/contacts_manage').default);
+            break;
+        case Screens.SUPPLIER_CUSTOMER_FORM:
+            screen = withServerDatabase(require('@screens/home/supplier_customer/supplier_customer_form').default);
+            break;
+        case Screens.CONTACTS_BATCH_MOVE_MEMBERS:
+            screen = withServerDatabase(require('@screens/home/contacts/batch_move_members').default);
             break;
         case Screens.CREATE_OR_EDIT_CHANNEL:
             screen = withServerDatabase(require('@screens/create_or_edit_channel').default);
@@ -125,6 +150,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EDIT_POST:
             screen = withServerDatabase(require('@screens/edit_post').default);
             break;
+        case Screens.EDIT_CHANNEL_ANNOUNCEMENT:
+            screen = withServerDatabase(require('@screens/edit_channel_announcement').default);
+            break;
         case Screens.EDIT_PROFILE:
             screen = withServerDatabase(require('@screens/edit_profile').default);
             break;
@@ -134,8 +162,24 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EMOJI_PICKER:
             screen = withServerDatabase(require('@screens/emoji_picker').default);
             break;
+        case Screens.EXTERNAL_PROFILE_CARD:
+            screen = withServerDatabase(require('@screens/external_profile_card').default);
+            break;
+
+        // case Screens.EXTERNAL_PROFILE_CARD_EDIT:
+        //     screen = withServerDatabase(require('@screens/external_profile_card/edit').default);
+        //     break;
+        case Screens.EXTERNAL_PROFILE_CARD_EXTERNAL_INFO:
+            screen = withServerDatabase(require('@screens/external_profile_card/external_info').default);
+            break;
+        case Screens.EXTERNAL_PROFILE_CARD_STYLE:
+            screen = withServerDatabase(require('@screens/external_profile_card/style').default);
+            break;
         case Screens.FIND_CHANNELS:
             screen = withServerDatabase(require('@screens/find_channels').default);
+            break;
+        case Screens.JOINED_CHANNELS_AND_GROUPS:
+            screen = withServerDatabase(require('@screens/joined_channels_and_groups').default);
             break;
         case Screens.FORGOT_PASSWORD:
             screen = withIntl(require('@screens/forgot_password').default);
@@ -149,14 +193,8 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.GLOBAL_DRAFTS:
             screen = withServerDatabase(require('@screens/global_drafts').default);
             break;
-        case Screens.GLOBAL_THREADS:
-            screen = withServerDatabase(require('@screens/global_threads').default);
-            break;
         case Screens.INTERACTIVE_DIALOG:
             screen = withServerDatabase(require('@screens/interactive_dialog').default);
-            break;
-        case Screens.DIALOG_ROUTER:
-            screen = withServerDatabase(require('@screens/dialog_router').default);
             break;
         case Screens.INTEGRATION_SELECTOR:
             screen = withServerDatabase(require('@screens/integration_selector').default);
@@ -176,6 +214,18 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         }
         case Screens.JOIN_TEAM:
             screen = withServerDatabase(require('@screens/join_team').default);
+            break;
+        case Screens.CREATE_TEAM:
+            screen = withServerDatabase(require('@screens/select_team/create_team').default);
+            break;
+        case Screens.JOIN_TEAM_QR:
+            screen = withServerDatabase(require('@screens/select_team/join_team_qr').default);
+            break;
+        case Screens.INVITE_USER_JOIN_TEAM:
+            screen = withServerDatabase(require('@screens/invite_user_join_team').default);
+            break;
+        case Screens.ADD_USER_TO_FRIENDS:
+            screen = withServerDatabase(require('@screens/add_user_to_friends').default);
             break;
         case Screens.LATEX:
             screen = withServerDatabase(require('@screens/latex').default);
@@ -207,6 +257,12 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.POST_PRIORITY_PICKER:
             screen = withServerDatabase(require('@screens/post_priority_picker').default);
             break;
+        case Screens.QR_SCANNER:
+            screen = withIntl(require('@screens/qr_scanner').default);
+            break;
+        case Screens.DRAFT_VIDEO_RECORDER:
+            screen = withIntl(require('@screens/draft_video_recorder').default);
+            break;
         case Screens.REACTIONS:
             screen = withServerDatabase(require('@screens/reactions').default);
             break;
@@ -231,9 +287,6 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SETTINGS_DISPLAY_CLOCK:
             screen = withServerDatabase(require('@screens/settings/display_clock').default);
             break;
-        case Screens.SETTINGS_DISPLAY_CRT:
-            screen = withServerDatabase(require('@screens/settings/display_crt').default);
-            break;
         case Screens.SETTINGS_DISPLAY_THEME:
             screen = withServerDatabase(require('@screens/settings/display_theme').default);
             break;
@@ -242,6 +295,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.SETTINGS_DISPLAY_TIMEZONE_SELECT:
             screen = withServerDatabase(require('@screens/settings/display_timezone_select').default);
+            break;
+        case Screens.SETTINGS_DISPLAY_LANGUAGE:
+            screen = withServerDatabase(require('@screens/settings/display_language').default);
             break;
         case Screens.SETTINGS_NOTIFICATION:
             screen = withServerDatabase(require('@screens/settings/notifications').default);
@@ -261,6 +317,12 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SETTINGS_NOTIFICATION_CALL:
             screen = withServerDatabase(require('@screens/settings/notification_call').default);
             break;
+        case Screens.MANAGE_ENTERPRISE:
+            screen = withServerDatabase(require('@screens/manage_enterprise').default);
+            break;
+        case Screens.MANAGE_ENTERPRISE_DETAIL:
+            screen = withServerDatabase(require('@screens/manage_enterprise/detail').default);
+            break;
         case Screens.SHARE_FEEDBACK:
             screen = withServerDatabase(require('@screens/share_feedback').default);
             break;
@@ -277,6 +339,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SSO:
             screen = withIntl(require('@screens/sso').default);
             break;
+        case Screens.STARTUP_LOADING:
+            screen = withIntl(require('@screens/startup_loading').default);
+            break;
         case Screens.TABLE:
             screen = withServerDatabase(require('@screens/table').default);
             break;
@@ -286,22 +351,8 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.TERMS_OF_SERVICE:
             screen = withServerDatabase(require('@screens/terms_of_service').default);
             break;
-        case Screens.THREAD:
-            screen = withServerDatabase(require('@screens/thread').default);
-            break;
-        case Screens.THREAD_FOLLOW_BUTTON:
-            Navigation.registerComponent(Screens.THREAD_FOLLOW_BUTTON, () => withServerDatabase(
-                require('@screens/thread/thread_follow_button').default,
-            ));
-            break;
-        case Screens.THREAD_OPTIONS:
-            screen = withServerDatabase(require('@screens/thread_options').default);
-            break;
         case Screens.USER_PROFILE:
             screen = withServerDatabase(require('@screens/user_profile').default);
-            break;
-        case Screens.SHOW_TRANSLATION:
-            screen = withServerDatabase(require('@screens/show_translation').default);
             break;
         case Screens.CALL:
             screen = withServerDatabase(require('@calls/screens/call_screen').default);
@@ -315,10 +366,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SCHEDULED_POST_OPTIONS:
             screen = withServerDatabase(require('@screens/scheduled_post_options').default);
             break;
-    }
-
-    if (!screen) {
-        screen = loadAgentsScreen(screenName);
+        case Screens.TMP_DEV_TEST:
+            screen = withIntl(require('@screens/tmp_dev_test').default);
+            break;
     }
 
     if (!screen) {
@@ -336,9 +386,11 @@ Navigation.setLazyComponentRegistrator((screenName) => {
 
 export function registerScreens() {
     const homeScreen = require('@screens/home').default;
-    const serverScreen = require('@screens/server').default;
+
+    // const serverScreen = require('@screens/server').default;
     const onboardingScreen = require('@screens/onboarding').default;
     Navigation.registerComponent(Screens.ONBOARDING, () => withGestures(withIntl(withManagedConfig(onboardingScreen))));
-    Navigation.registerComponent(Screens.SERVER, () => withSafeAreaInsets(withGestures(withIntl(withManagedConfig(serverScreen)))));
+
+    // Navigation.registerComponent(Screens.SERVER, () => withSafeAreaInsets(withGestures(withIntl(withManagedConfig(serverScreen)))));
     Navigation.registerComponent(Screens.HOME, () => withGestures(withSafeAreaInsets(withServerDatabase(withManagedConfig(homeScreen)))));
 }

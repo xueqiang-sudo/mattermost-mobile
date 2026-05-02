@@ -26,13 +26,13 @@ describe('SelectionSearchBar', () => {
     it('renders correctly', () => {
         const props = getBaseProps();
 
-        const {getByTestId, getByText} = renderWithIntl(
+        const {getByTestId} = renderWithIntl(
             <SelectionSearchBar {...props}/>,
         );
 
         expect(getByTestId('invite.search_bar')).toBeTruthy();
-        expect(getByText('Send invitations to…')).toBeTruthy();
         expect(getByTestId('invite.search_bar_input')).toBeTruthy();
+        expect(getByTestId('invite.search_bar_input').props.placeholder).toBe('Search by name, phone, or username');
     });
 
     it('calls onSearchChange when text changes', () => {

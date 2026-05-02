@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {FlatList} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
@@ -11,7 +11,6 @@ import Search from '@components/search';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useDidMount from '@hooks/did_mount';
 import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -105,11 +104,11 @@ const SelectTimezones = ({componentId, onBack, currentTimezone}: SelectTimezones
     const close = useCallback((newTimezone?: string) => {
         onBack(newTimezone || currentTimezone);
         popTopScreen(componentId);
-    }, [onBack, currentTimezone, componentId]);
+    }, [currentTimezone, componentId]);
 
     const onPressTimezone = useCallback((selectedTimezone: string) => {
         close(selectedTimezone);
-    }, [close]);
+    }, []);
 
     const renderItem = useCallback(({item: timezone}: {item: string}) => {
         return (
@@ -121,7 +120,7 @@ const SelectTimezones = ({componentId, onBack, currentTimezone}: SelectTimezones
         );
     }, [currentTimezone, onPressTimezone]);
 
-    useDidMount(() => {
+    useEffect(() => {
         // let's get all supported timezones
         const getSupportedTimezones = async () => {
             const allTzs = await getAllSupportedTimezones(serverUrl);
@@ -134,7 +133,7 @@ const SelectTimezones = ({componentId, onBack, currentTimezone}: SelectTimezones
             }
         };
         getSupportedTimezones();
-    });
+    }, []);
 
     useAndroidHardwareBackHandler(componentId, close);
 

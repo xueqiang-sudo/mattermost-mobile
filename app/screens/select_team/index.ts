@@ -6,6 +6,7 @@ import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {queryMyTeams} from '@queries/servers/team';
+import {observeCurrentUser} from '@queries/servers/user';
 
 import SelectTeam from './select_team';
 
@@ -25,6 +26,7 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     return {
         nTeams,
         firstTeamId,
+        currentUser: observeCurrentUser(database),
     };
 });
 

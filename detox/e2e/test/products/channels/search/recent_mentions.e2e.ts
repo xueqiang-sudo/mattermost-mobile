@@ -30,7 +30,6 @@ import {
     ServerScreen,
     ThreadScreen,
 } from '@support/ui/screen';
-import {timeouts} from '@support/utils';
 import {expect} from 'detox';
 
 describe('Search - Recent Mentions', () => {
@@ -92,7 +91,6 @@ describe('Search - Recent Mentions', () => {
 
         // * Verify on recent mentions screen and recent mention is displayed with channel info
         await RecentMentionsScreen.toBeVisible();
-        await RecentMentionsScreen.recentMentionPostListToBeVisible();
         const {postListPostItem: recentMentionsPostListPostItem, postListPostItemChannelInfoChannelDisplayName, postListPostItemChannelInfoTeamDisplayName} = RecentMentionsScreen.getPostListPostItem(post.id, message);
         await expect(recentMentionsPostListPostItem).toBeVisible();
         await expect(postListPostItemChannelInfoChannelDisplayName).toHaveText(testChannel.display_name);
@@ -137,10 +135,12 @@ describe('Search - Recent Mentions', () => {
         await EditPostScreen.saveButton.tap();
 
         // * Verify post message is updated and displays edited indicator '(edited)'
-        await ChannelScreen.assertPostMessageEdited(mentionPost.id, updatedMessage, 'recent_mentions_page');
+        const {postListPostItem: updatedPostListPostItem, postListPostItemEditedIndicator} = RecentMentionsScreen.getPostListPostItem(mentionPost.id, updatedMessage);
+        await expect(updatedPostListPostItem).toBeVisible();
+        await expect(postListPostItemEditedIndicator).toHaveText('Edited');
 
         // # Open post options for recent mention and tap on reply option
-        await element(by.id(`recent_mentions.post_list.post.${mentionPost.id}`)).longPress();
+        await RecentMentionsScreen.openPostOptionsFor(mentionPost.id, updatedMessage);
         await PostOptionsScreen.replyPostOption.tap();
 
         // * Verify on thread screen
@@ -159,11 +159,12 @@ describe('Search - Recent Mentions', () => {
         await ThreadScreen.back();
 
         // * Verify reply count and following button
-        await waitFor(element(by.text('1 reply'))).toBeVisible().withTimeout(timeouts.TWO_SEC);
-        await waitFor(element(by.text('Following'))).toBeVisible().withTimeout(timeouts.TWO_SEC);
+        const {postListPostItemFooterReplyCount, postListPostItemFooterFollowingButton} = RecentMentionsScreen.getPostListPostItem(mentionPost.id, updatedMessage);
+        await expect(postListPostItemFooterReplyCount).toHaveText('1 reply');
+        await expect(postListPostItemFooterFollowingButton).toBeVisible();
 
         // # Open post options for updated recent mention and delete post
-        await element(by.id(`recent_mentions.post_list.post.${mentionPost.id}`)).longPress();
+        await RecentMentionsScreen.openPostOptionsFor(mentionPost.id, updatedMessage);
         await PostOptionsScreen.deletePost({confirm: true});
 
         // * Verify updated recent mention is deleted

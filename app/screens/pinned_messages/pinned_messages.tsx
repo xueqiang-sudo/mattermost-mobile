@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {DeviceEventEmitter, FlatList, type ListRenderItemInfo, StyleSheet, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
@@ -14,7 +14,6 @@ import {ExtraKeyboardProvider} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useDidMount from '@hooks/did_mount';
 import SecurityManager from '@managers/security_manager';
 import {popTopScreen} from '@screens/navigation';
 import {getDateForDateLine, selectOrderedPosts} from '@utils/post_list';
@@ -33,7 +32,6 @@ type Props = {
     customEmojiNames: string[];
     isCRTEnabled: boolean;
     posts: PostModel[];
-    isChannelAutotranslated: boolean;
 }
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
@@ -60,14 +58,13 @@ function SavedMessages({
     customEmojiNames,
     isCRTEnabled,
     posts,
-    isChannelAutotranslated,
 }: Props) {
     const [loading, setLoading] = useState(!posts.length);
     const [refreshing, setRefreshing] = useState(false);
     const theme = useTheme();
     const serverUrl = useServerUrl();
 
-    const data = useMemo(() => selectOrderedPosts(posts, 0, false, '', '', false, currentTimezone, false).reverse(), [currentTimezone, posts]);
+    const data = useMemo(() => selectOrderedPosts(posts, 0, false, '', '', false, currentTimezone, false).reverse(), [posts]);
 
     const close = useCallback(() => {
         if (componentId) {
@@ -75,11 +72,11 @@ function SavedMessages({
         }
     }, [componentId]);
 
-    useDidMount(() => {
+    useEffect(() => {
         fetchPinnedPosts(serverUrl, channelId).finally(() => {
             setLoading(false);
         });
-    });
+    }, []);
 
     useAndroidHardwareBackHandler(componentId, close);
 
@@ -144,13 +141,12 @@ function SavedMessages({
                         skipSavedHeader={true}
                         skipPinnedHeader={true}
                         testID='pinned_messages.post_list.post'
-                        isChannelAutotranslated={isChannelAutotranslated}
                     />
                 );
             default:
                 return null;
         }
-    }, [appsEnabled, currentTimezone, customEmojiNames, isCRTEnabled, isChannelAutotranslated]);
+    }, [appsEnabled, currentTimezone, customEmojiNames, theme]);
 
     return (
         <SafeAreaView

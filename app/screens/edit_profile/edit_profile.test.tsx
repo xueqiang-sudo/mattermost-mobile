@@ -9,7 +9,6 @@ import React from 'react';
 import AvailableScreens from '@constants/screens';
 import {renderWithIntlAndTheme} from '@test/intl-test-helper';
 import TestHelper from '@test/test_helper';
-import {logError} from '@utils/log';
 
 import EditProfile from './edit_profile';
 
@@ -79,7 +78,8 @@ const mockFetchCustomProfileAttributes = jest.fn();
 // Add mock for updateCustomProfileAttributes to track calls
 const mockUpdateCustomProfileAttributes = jest.fn();
 
-const mockLogError = logError as jest.Mock;
+// Mock logError function
+const mockLogError = jest.fn();
 
 jest.mock('@actions/remote/custom_profile', () => ({
     fetchCustomProfileAttributes: (...args: any[]) => mockFetchCustomProfileAttributes(...args),
@@ -87,10 +87,7 @@ jest.mock('@actions/remote/custom_profile', () => ({
 }));
 
 jest.mock('@utils/log', () => ({
-    logError: jest.fn(),
-    logWarning: jest.fn(),
-    logDebug: jest.fn(),
-    logInfo: jest.fn(),
+    logError: (...args: any[]) => mockLogError(...args),
 }));
 
 jest.mock('@actions/remote/user', () => ({

@@ -4,7 +4,6 @@
 import {nativeApplicationVersion} from 'expo-application';
 import {RESULTS, checkNotifications} from 'react-native-permissions';
 
-import {deletePostsForChannel, deletePostsForChannelsWithAutotranslation} from '@actions/local/channel';
 import {fetchChannelById, fetchMyChannelsForTeam, handleKickFromChannel, type MyChannelsRequest} from '@actions/remote/channel';
 import {type MyPreferencesRequest, fetchMyPreferences} from '@actions/remote/preference';
 import {fetchConfigAndLicense, fetchDataRetentionPolicy} from '@actions/remote/systems';
@@ -19,12 +18,11 @@ import {selectDefaultTeam} from '@helpers/api/team';
 import {DEFAULT_LOCALE} from '@i18n';
 import NetworkManager from '@managers/network_manager';
 import {getDeviceToken} from '@queries/app/global';
-import {getChannelById, queryChannelsById, queryMyChannelsByChannelIds} from '@queries/servers/channel';
+import {getChannelById} from '@queries/servers/channel';
 import {prepareEntryModels, truncateCrtRelatedTables} from '@queries/servers/entry';
 import {getHasCRTChanged} from '@queries/servers/preference';
 import {getCurrentChannelId, getCurrentTeamId, getIsDataRetentionEnabled, getPushVerificationStatus, getLastFullSync, setCurrentTeamAndChannelId, getConfigValue} from '@queries/servers/system';
 import {getTeamChannelHistory} from '@queries/servers/team';
-import {getCurrentUser} from '@queries/servers/user';
 import NavigationStore from '@store/navigation_store';
 import {isDefaultChannel, isDMorGM, sortChannelsByDisplayName} from '@utils/channel';
 import {getFullErrorMessage} from '@utils/errors';
@@ -126,15 +124,15 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
             const existingChannel = await getChannelById(database, channelId);
             if (existingChannel && existingChannel.type === General.GM_CHANNEL) {
                 // Okay, so now we know the channel exists in mobile app's database as a GM.
-                // We now need to also check if channel on server is actually a private channel,
+                // We now need to also check if channel on server is actually type P (group chat),
                 // and if so, which team does it belong to now. That team will become the
                 // active team on mobile app after this point.
 
                 const fetchResult = await fetchChannelById(serverUrl, channelId);
 
-                // Although you can convert GM only to a private channel, a private channel can further be converted to a public channel.
+                // Although you can convert GM only to type P, a group chat can further be converted to a public channel.
                 // So between the mobile app being on the GM and reconnecting,
-                // it may have become either a public or a private channel. So we need to check for both.
+                // it may have become either a public channel or type P. So we need to check for both.
                 if (fetchResult.channel?.type === General.PRIVATE_CHANNEL || fetchResult.channel?.type === General.OPEN_CHANNEL) {
                     initialTeamId = fetchResult.channel.team_id;
                     initialChannelId = channelId;
@@ -181,8 +179,6 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
 
         const dt = Date.now();
 
-        await handleAutotranslationChanges(serverUrl, meData, chData);
-
         const modelPromises = await prepareEntryModels({operator, teamData: initialTeamData, chData, prefData, meData, isCRTEnabled});
         const models = (await Promise.all(modelPromises)).flat();
         logDebug('Process models on entry', groupLabel, models.length, `${Date.now() - dt}ms`);
@@ -193,65 +189,6 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         return {error};
     }
 };
-
-export async function handleAutotranslationChanges(serverUrl: string, meData: MyUserRequest | undefined, chData: MyChannelsRequest | undefined) {
-    try {
-        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-
-        // Config changes already handled in storeConfigAndLicense
-        const enableAutoTranslation = (await getConfigValue(operator.database, 'EnableAutoTranslation')) === 'true';
-        if (!enableAutoTranslation) {
-            return;
-        }
-
-        // If user locale changed, delete all the posts for all channels with autotranslation enabled
-        // so the posts can be refetch with the new translation
-        if (meData) {
-            const currentUser = await getCurrentUser(database);
-            if (currentUser && meData.user?.locale !== currentUser.locale) {
-                await deletePostsForChannelsWithAutotranslation(serverUrl);
-                return;
-            }
-        }
-
-        if (chData) {
-            // If a channel stop being autotranslated by the admin, delete the posts for that channel
-            // so the posts can be refetch without the translation
-            const newChannels = chData.channels || [];
-            const channels = await queryChannelsById(database, newChannels.map((c) => c.id)).fetch();
-            const chMap = new Map(channels.map((c) => [c.id, c]));
-            const promises = [];
-            for (const ch of newChannels) {
-                const channel = chMap.get(ch.id);
-                if (channel && channel.autotranslation && !ch.autotranslation) { // Autotranslation disabled
-                    promises.push(deletePostsForChannel(serverUrl, ch.id, true));
-                }
-            }
-            const chModels = (await Promise.all(promises)).map((m) => m.models).flat();
-            if (chModels.length) {
-                await operator.batchRecords(chModels, 'handleAutotranslationChanges');
-            }
-
-            // If a channel starts or stops being autotranslated by the user, delete the posts for that channel
-            // so the posts can be refetch with or without the translation
-            const newMemberships = chData.memberships || [];
-            const memberships = await queryMyChannelsByChannelIds(database, newMemberships.map((m) => m.channel_id)).fetch();
-            const membershipMap = new Map(memberships.map((m) => [m.id, m]));
-            for (const m of newMemberships) {
-                const membership = membershipMap.get(m.channel_id);
-                if (membership && membership.autotranslationDisabled !== Boolean(m.autotranslation_disabled)) { // Autotranslation modified
-                    promises.push(deletePostsForChannel(serverUrl, m.channel_id, true));
-                }
-            }
-            const membershipModels = (await Promise.all(promises)).map((m) => m.models).flat();
-            if (membershipModels.length) {
-                await operator.batchRecords(membershipModels, 'handleAutotranslationChanges');
-            }
-        }
-    } catch (error) {
-        logError('handleAutotranslationChanges', getFullErrorMessage(error));
-    }
-}
 
 export async function entryInitialChannelId(database: Database, requestedChannelId = '', requestedTeamId = '', initialTeamId: string, locale: string, channels?: Channel[], memberships?: ChannelMember[]) {
     const membershipIds = new Set(memberships?.map((m) => m.channel_id));
@@ -270,7 +207,7 @@ export async function entryInitialChannelId(database: Database, requestedChannel
     // Check if we are still members of any channel on the history
     const teamChannelHistory = await getTeamChannelHistory(database, initialTeamId);
     for (const c of teamChannelHistory) {
-        if (membershipIds.has(c) || c === Screens.GLOBAL_THREADS || c === Screens.GLOBAL_DRAFTS) {
+        if (membershipIds.has(c) || c === Screens.GLOBAL_DRAFTS) {
             return c;
         }
     }
@@ -367,7 +304,6 @@ export async function handleEntryAfterLoadNavigation(
         const currentChannelIdAfterLoad = await getCurrentChannelId(database);
         const mountedScreens = NavigationStore.getScreensInStack();
         const isChannelScreenMounted = mountedScreens.includes(Screens.CHANNEL);
-        const isThreadsMounted = mountedScreens.includes(Screens.THREAD);
         const tabletDevice = isTablet();
 
         if (!currentTeamIdAfterLoad) {
@@ -391,14 +327,14 @@ export async function handleEntryAfterLoadNavigation(
         } else if (currentChannelIdAfterLoad !== currentChannelId) {
             // Switched channels while loading
             if (!channelMembers.find((m) => m.channel_id === currentChannelIdAfterLoad)) {
-                if (tabletDevice || isChannelScreenMounted || isThreadsMounted) {
+                if (tabletDevice || isChannelScreenMounted) {
                     await handleKickFromChannel(serverUrl, currentChannelIdAfterLoad);
                 } else {
                     await setCurrentTeamAndChannelId(operator, initialTeamId, initialChannelId);
                 }
             }
         } else if (currentChannelIdAfterLoad && currentChannelIdAfterLoad !== initialChannelId) {
-            if (tabletDevice || isChannelScreenMounted || isThreadsMounted) {
+            if (tabletDevice || isChannelScreenMounted) {
                 await handleKickFromChannel(serverUrl, currentChannelIdAfterLoad);
             } else {
                 await setCurrentTeamAndChannelId(operator, initialTeamId, initialChannelId);

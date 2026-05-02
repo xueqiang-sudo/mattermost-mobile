@@ -22,7 +22,7 @@ const SetHeaderBox = ({channelId, containerStyle, isHeaderSet, inModal, testID}:
     const intl = useIntl();
 
     const onSetHeader = useCallback(async () => {
-        const title = intl.formatMessage({id: 'screens.channel_edit_header', defaultMessage: 'Edit Channel Header'});
+        const title = intl.formatMessage({id: 'screens.channel_edit_conversation_note', defaultMessage: 'Edit conversation note'});
         if (inModal) {
             goToScreen(Screens.CREATE_OR_EDIT_CHANNEL, title, {channelId, headerOnly: true});
             return;
@@ -30,13 +30,13 @@ const SetHeaderBox = ({channelId, containerStyle, isHeaderSet, inModal, testID}:
 
         await dismissBottomSheet();
         showModal(Screens.CREATE_OR_EDIT_CHANNEL, title, {channelId, headerOnly: true});
-    }, [intl, inModal, channelId]);
+    }, [intl, channelId]);
 
     let text;
     if (isHeaderSet) {
-        text = intl.formatMessage({id: 'channel_info.edit_header', defaultMessage: 'Edit Header'});
+        text = intl.formatMessage({id: 'channel_info.edit_conversation_note', defaultMessage: 'Edit conversation note'});
     } else {
-        text = intl.formatMessage({id: 'channel_info.set_header', defaultMessage: 'Set Header'});
+        text = intl.formatMessage({id: 'channel_info.set_conversation_note', defaultMessage: 'Set conversation note'});
     }
 
     return (

@@ -131,7 +131,7 @@ export default function BrowseChannels(props: Props) {
         }
 
         setButtons(componentId, buttons);
-    }, [closeButton, canCreateChannels, componentId, theme, intl]);
+    }, [closeButton, canCreateChannels, intl.locale, theme, componentId]);
 
     const onSelectChannel = useCallback(async (channel: Channel) => {
         setHeaderButtons(false);
@@ -157,7 +157,7 @@ export default function BrowseChannels(props: Props) {
             switchToChannelById(serverUrl, channel.id, currentTeamId);
             close();
         }
-    }, [setHeaderButtons, serverUrl, currentTeamId, intl]);
+    }, [setHeaderButtons, intl.locale]);
 
     const onSearch = useCallback(() => {
         searchChannels(term);
@@ -167,7 +167,7 @@ export default function BrowseChannels(props: Props) {
         const screen = Screens.CREATE_OR_EDIT_CHANNEL;
         const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
         goToScreen(screen, title);
-    }, [intl]);
+    }, [intl.locale]);
 
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, [close]);
     useNavButtonPressed(CREATE_BUTTON_ID, componentId, handleCreate, [handleCreate]);
@@ -176,7 +176,7 @@ export default function BrowseChannels(props: Props) {
     useEffect(() => {
         // Update header buttons in case anything related to the header changes
         setHeaderButtons(!adding);
-    }, [adding, setHeaderButtons]);
+    }, [theme, canCreateChannels, adding]);
 
     let content;
     if (adding) {
@@ -209,7 +209,7 @@ export default function BrowseChannels(props: Props) {
                     <Search
                         testID='browse_channels.search_bar'
                         placeholder={intl.formatMessage({id: 'search_bar.search', defaultMessage: 'Search'})}
-                        cancelButtonTitle={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                        cancelButtonTitle={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                         onChangeText={searchChannels}
                         onSubmitEditing={onSearch}

@@ -1,11 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-type PostTypesUserCreatable =
+type PostType =
     | ''
-    | 'burn_on_read';
-
-type PostType = PostTypesUserCreatable
     | 'system_add_remove'
     | 'system_add_to_channel'
     | 'system_add_to_team'
@@ -13,6 +10,7 @@ type PostType = PostTypesUserCreatable
     | 'system_channel_restored'
     | 'system_displayname_change'
     | 'system_convert_channel'
+    | 'system_change_chan_privacy'
     | 'system_ephemeral'
     | 'system_header_change'
     | 'system_join_channel'
@@ -33,7 +31,9 @@ type PostType = PostTypesUserCreatable
     | 'custom_calls_recording'
     | 'custom_run_update'
     | 'custom_llmbot'
-    | 'custom_llm_postback';
+    | 'custom_llm_postback'
+    | 'custom_voice_asr'
+    | 'burn_on_read';
 
 type PostEmbedType = 'image' | 'message_attachment' | 'opengraph' | 'permalink';
 
@@ -51,7 +51,7 @@ type PostPriority = {
 
 type PermalinkEmbedData = {
     post_id: string;
-    post?: Post;
+    post: Post;
     team_name: string;
     channel_display_name: string;
     channel_type: string;
@@ -71,15 +71,6 @@ type PostImage = {
     frame_count?: number;
 };
 
-type PostTranslationState = 'ready' | 'skipped' | 'unavailable' | 'processing';
-type PostTranslation = {
-    object: {
-        message: string;
-    };
-    state: PostTranslationState;
-    source_lang?: string;
-};
-
 type PostMetadata = {
     acknowledgements?: PostAcknowledgement[];
     embeds?: PostEmbed[];
@@ -89,9 +80,6 @@ type PostMetadata = {
     reactions?: Reaction[];
     priority?: PostPriority;
     expire_at?: number;
-    borConfig?: PostBoRConfig;
-    recipients?: string[];
-    translations?: Record<string, PostTranslation>;
 };
 
 type Post = {
@@ -189,10 +177,4 @@ type FetchPaginatedThreadOptions = {
     perPage?: number;
     fromCreateAt?: number;
     fromPost?: string;
-}
-
-type PostBoRConfig = {
-    enabled: boolean;
-    borDurationSeconds: number;
-    borMaximumTimeToLiveSeconds: number;
 }

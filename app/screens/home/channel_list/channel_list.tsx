@@ -1,8 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useManagedConfig} from '@mattermost/react-native-emm';
-import {useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
+// import {useManagedConfig} from '@mattermost/react-native-emm';
+import {useFocusEffect, useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
@@ -13,12 +13,12 @@ import {refetchCurrentUser} from '@actions/remote/user';
 import FloatingCallContainer from '@calls/components/floating_call_container';
 import AnnouncementBanner from '@components/announcement_banner';
 import ConnectionBanner from '@components/connection_banner';
-import TeamSidebar from '@components/team_sidebar';
 import {Navigation as NavigationConstants, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
+import WebsocketManager from '@managers/websocket_manager';
 import {resetToTeams, openToS} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {isMainActivity} from '@utils/helpers';
@@ -26,7 +26,7 @@ import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
 
 import AdditionalTabletView from './additional_tablet_view';
-import CategoriesList from './categories_list';
+import ConversationList from './conversation_list';
 import Servers from './servers';
 
 import type {LaunchType} from '@typings/launch';
@@ -70,7 +70,8 @@ let hasRendered = false;
 
 const ChannelListScreen = (props: ChannelProps) => {
     const theme = useTheme();
-    const managedConfig = useManagedConfig<ManagedConfig>();
+
+    // const managedConfig = useManagedConfig<ManagedConfig>();
     const intl = useIntl();
 
     const isTablet = useIsTablet();
@@ -80,11 +81,11 @@ const ChannelListScreen = (props: ChannelProps) => {
     const insets = useSafeAreaInsets();
     const serverUrl = useServerUrl();
     const params = route.params as {direction: string};
-    const canAddOtherServers = managedConfig?.allowOtherServers !== 'false';
+    const canAddOtherServers = false; //managedConfig?.allowOtherServers !== 'false';
 
     const handleBackPress = useCallback(() => {
         const isHomeScreen = NavigationStore.getVisibleScreen() === Screens.HOME;
-        const homeTab = NavigationStore.getVisibleTab() === Screens.HOME;
+        const homeTab = NavigationStore.getVisibleTab() === Screens.HOME_TAB_CHAT;
         const focused = navigation.isFocused() && isHomeScreen && homeTab;
 
         if (isMainActivity()) {
@@ -157,10 +158,6 @@ const ChannelListScreen = (props: ChannelProps) => {
         if (!props.hasCurrentUser || !props.currentUserId) {
             refetchCurrentUser(serverUrl, props.currentUserId);
         }
-
-    // - serverUrl is stable from useServerUrl hook
-    // - We only need to re-run when the current user state changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [props.currentUserId, props.hasCurrentUser]);
 
     // Init the rate app. Only run the effect on the first render if ToS is not open
@@ -172,12 +169,24 @@ const ChannelListScreen = (props: ChannelProps) => {
         if (!NavigationStore.isToSOpen()) {
             tryRunAppReview(props.launchType, props.coldStart);
         }
-    }, [props.launchType, props.coldStart]);
+    }, []);
 
     useEffect(() => {
         PerformanceMetricsManager.finishLoad('HOME', serverUrl);
         PerformanceMetricsManager.measureTimeToInteraction();
-    }, [serverUrl]);
+    }, []);
+
+    // 首页获得焦点时，若 WebSocket 未连接则尝试重连，确保能实时接收新消息
+    useFocusEffect(
+        useCallback(() => {
+            if (!serverUrl) {
+                return;
+            }
+            if (!WebsocketManager.isConnected(serverUrl)) {
+                WebsocketManager.openAll('WebSocket Reconnect');
+            }
+        }, [serverUrl]),
+    );
 
     return (
         <>
@@ -196,12 +205,8 @@ const ChannelListScreen = (props: ChannelProps) => {
                     <Animated.View
                         style={[styles.content, animated]}
                     >
-                        <TeamSidebar
+                        <ConversationList
                             iconPad={canAddOtherServers}
-                            hasMoreThanOneTeam={props.hasMoreThanOneTeam}
-                        />
-                        <CategoriesList
-                            iconPad={canAddOtherServers && !props.hasMoreThanOneTeam}
                             isCRTEnabled={props.isCRTEnabled}
                             moreThanOneTeam={props.hasMoreThanOneTeam}
                             hasChannels={props.hasChannels}

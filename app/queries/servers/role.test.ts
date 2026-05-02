@@ -14,7 +14,6 @@ import {
     observePermissionForPost,
     observeCanManageChannelMembers,
     observeCanManageChannelSettings,
-    observeCanManageChannelAutotranslations,
 } from './role';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
@@ -291,6 +290,34 @@ describe('Role Queries', () => {
                 });
             });
         });
+
+        it('should allow adding members to a group message channel', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'gm1',
+                    type: General.GM_CHANNEL,
+                    delete_at: 0,
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelMembers(
+                    database,
+                    'gm1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
     });
 
     describe('observePermissionForPost', () => {
@@ -362,30 +389,21 @@ describe('Role Queries', () => {
     });
 
     describe('observeCanManageChannelSettings', () => {
-        it('should observe manage settings permission', (done) => {
+        it('should allow system admins to manage channel settings', (done) => {
             const mockUser = TestHelper.fakeUserModel({
                 id: 'user1',
                 roles: 'system_admin',
             });
 
-            Promise.all([
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.OPEN_CHANNEL,
-                        delete_at: 0,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleRole({
-                    roles: [{
-                        id: 'system_admin',
-                        name: 'system_admin',
-                        permissions: [Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES],
-                    }],
-                    prepareRecordsOnly: false,
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.OPEN_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'someone_else',
                 })],
-            ).then(() => {
+                prepareRecordsOnly: false,
+            }).then(() => {
                 observeCanManageChannelSettings(
                     database,
                     'channel1',
@@ -393,6 +411,93 @@ describe('Role Queries', () => {
                 ).subscribe({
                     next: (canManage) => {
                         expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
+
+        it('should allow channel creator to manage settings', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.OPEN_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'user1',
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelSettings(
+                    database,
+                    'channel1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
+
+        it('should allow managing settings in a group message channel for any member', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.GM_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'someone_else',
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelSettings(
+                    database,
+                    'channel1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(true);
+                        done();
+                    },
+                    error: done,
+                });
+            });
+        });
+
+        it('should not allow manage settings when user is not creator or admin', (done) => {
+            const mockUser = TestHelper.fakeUserModel({
+                id: 'user1',
+                roles: 'system_user',
+            });
+
+            operator.handleChannel({
+                channels: [TestHelper.fakeChannel({
+                    id: 'channel1',
+                    type: General.OPEN_CHANNEL,
+                    delete_at: 0,
+                    creator_id: 'someone_else',
+                })],
+                prepareRecordsOnly: false,
+            }).then(() => {
+                observeCanManageChannelSettings(
+                    database,
+                    'channel1',
+                    mockUser,
+                ).subscribe({
+                    next: (canManage) => {
+                        expect(canManage).toBe(false);
                         done();
                     },
                     error: done,
@@ -426,223 +531,6 @@ describe('Role Queries', () => {
                     error: done,
                 });
             });
-        });
-    });
-
-    describe('observeCanManageChannelAutotranslations', () => {
-        it('should emit false when EnableAutoTranslation is false', async () => {
-            const mockUser = TestHelper.fakeUserModel({id: 'user1', roles: 'system_user'});
-
-            await Promise.all([
-                operator.handleConfigs({
-                    configs: [
-                        {id: 'EnableAutoTranslation', value: 'false'},
-                        {id: 'RestrictDMAndGMAutotranslation', value: 'false'},
-                    ],
-                    configsToDelete: [],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.OPEN_CHANNEL,
-                        delete_at: 0,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-            ]);
-
-            const subscriptionNext = jest.fn();
-            const result = observeCanManageChannelAutotranslations(database, 'channel1', mockUser);
-            result.subscribe({next: subscriptionNext});
-
-            expect(subscriptionNext).toHaveBeenCalledWith(false);
-        });
-
-        it('should emit false when channel is not found', async () => {
-            const mockUser = TestHelper.fakeUserModel({id: 'user1', roles: 'system_user'});
-
-            await operator.handleConfigs({
-                configs: [
-                    {id: 'EnableAutoTranslation', value: 'true'},
-                    {id: 'RestrictDMAndGMAutotranslation', value: 'false'},
-                ],
-                configsToDelete: [],
-                prepareRecordsOnly: false,
-            });
-
-            const subscriptionNext = jest.fn();
-            const result = observeCanManageChannelAutotranslations(database, 'nonexistent', mockUser);
-            result.subscribe({next: subscriptionNext});
-
-            expect(subscriptionNext).toHaveBeenCalledWith(false);
-        });
-
-        it('should emit false when channel is deleted', async () => {
-            const mockUser = TestHelper.fakeUserModel({id: 'user1', roles: 'system_user'});
-
-            await Promise.all([
-                operator.handleConfigs({
-                    configs: [
-                        {id: 'EnableAutoTranslation', value: 'true'},
-                        {id: 'RestrictDMAndGMAutotranslation', value: 'false'},
-                    ],
-                    configsToDelete: [],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.OPEN_CHANNEL,
-                        delete_at: 123,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-            ]);
-
-            const subscriptionNext = jest.fn();
-            const result = observeCanManageChannelAutotranslations(database, 'channel1', mockUser);
-            result.subscribe({next: subscriptionNext});
-
-            expect(subscriptionNext).toHaveBeenCalledWith(false);
-        });
-
-        it('should emit false when channel is DM and RestrictDMAndGMAutotranslation is true', async () => {
-            const mockUser = TestHelper.fakeUserModel({id: 'user1', roles: 'system_user'});
-
-            await Promise.all([
-                operator.handleConfigs({
-                    configs: [
-                        {id: 'EnableAutoTranslation', value: 'true'},
-                        {id: 'RestrictDMAndGMAutotranslation', value: 'true'},
-                    ],
-                    configsToDelete: [],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.DM_CHANNEL,
-                        delete_at: 0,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-            ]);
-
-            const subscriptionNext = jest.fn();
-            const result = observeCanManageChannelAutotranslations(database, 'channel1', mockUser);
-            result.subscribe({next: subscriptionNext});
-
-            expect(subscriptionNext).toHaveBeenCalledWith(false);
-        });
-
-        it('should emit true when channel is DM and RestrictDMAndGMAutotranslation is false', async () => {
-            const mockUser = TestHelper.fakeUserModel({id: 'user1', roles: 'system_user'});
-
-            await Promise.all([
-                operator.handleConfigs({
-                    configs: [
-                        {id: 'EnableAutoTranslation', value: 'true'},
-                        {id: 'RestrictDMAndGMAutotranslation', value: 'false'},
-                    ],
-                    configsToDelete: [],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.DM_CHANNEL,
-                        delete_at: 0,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-            ]);
-
-            const subscriptionNext = jest.fn();
-            const result = observeCanManageChannelAutotranslations(database, 'channel1', mockUser);
-            result.subscribe({next: subscriptionNext});
-
-            expect(subscriptionNext).toHaveBeenCalledWith(true);
-        });
-
-        it('should emit true for open channel when user has MANAGE_PUBLIC_CHANNEL_AUTO_TRANSLATION', async () => {
-            const mockUser = TestHelper.fakeUserModel({
-                id: 'user1',
-                roles: 'channel_admin',
-            });
-
-            await Promise.all([
-                operator.handleConfigs({
-                    configs: [
-                        {id: 'EnableAutoTranslation', value: 'true'},
-                        {id: 'RestrictDMAndGMAutotranslation', value: 'false'},
-                    ],
-                    configsToDelete: [],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.OPEN_CHANNEL,
-                        delete_at: 0,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleRole({
-                    roles: [{
-                        id: 'channel_admin',
-                        name: 'channel_admin',
-                        permissions: [Permissions.MANAGE_PUBLIC_CHANNEL_AUTO_TRANSLATION],
-                    }],
-                    prepareRecordsOnly: false,
-                }),
-            ]);
-
-            const subscriptionNext = jest.fn();
-            const result = observeCanManageChannelAutotranslations(database, 'channel1', mockUser);
-            result.subscribe({next: subscriptionNext});
-
-            expect(subscriptionNext).toHaveBeenCalledWith(true);
-        });
-
-        it('should emit true for private channel when user has MANAGE_PRIVATE_CHANNEL_AUTO_TRANSLATION', async () => {
-            const mockUser = TestHelper.fakeUserModel({
-                id: 'user1',
-                roles: 'channel_admin',
-            });
-
-            await Promise.all([
-                operator.handleConfigs({
-                    configs: [
-                        {id: 'EnableAutoTranslation', value: 'true'},
-                        {id: 'RestrictDMAndGMAutotranslation', value: 'false'},
-                    ],
-                    configsToDelete: [],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleChannel({
-                    channels: [TestHelper.fakeChannel({
-                        id: 'channel1',
-                        type: General.PRIVATE_CHANNEL,
-                        delete_at: 0,
-                    })],
-                    prepareRecordsOnly: false,
-                }),
-                operator.handleRole({
-                    roles: [{
-                        id: 'channel_admin',
-                        name: 'channel_admin',
-                        permissions: [Permissions.MANAGE_PRIVATE_CHANNEL_AUTO_TRANSLATION],
-                    }],
-                    prepareRecordsOnly: false,
-                }),
-            ]);
-
-            const subscriptionNext = jest.fn();
-            const result = observeCanManageChannelAutotranslations(database, 'channel1', mockUser);
-            result.subscribe({next: subscriptionNext});
-
-            expect(subscriptionNext).toHaveBeenCalledWith(true);
         });
     });
 });

@@ -4,7 +4,6 @@
 import React from 'react';
 import {Text} from 'react-native';
 
-import {logError} from '@utils/log';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -34,8 +33,7 @@ class ErrorBoundary extends React.PureComponent<Props, State> {
         this.state = {hasError: false};
     }
 
-    componentDidCatch(error: unknown) {
-        logError('Error in ErrorBoundary:', error);
+    componentDidCatch() {
         this.setState({hasError: true});
     }
 

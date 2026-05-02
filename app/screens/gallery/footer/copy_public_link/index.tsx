@@ -12,7 +12,6 @@ import {fetchPublicLink} from '@actions/remote/file';
 import Toast from '@components/toast';
 import {GALLERY_FOOTER_HEIGHT} from '@constants/gallery';
 import {useServerUrl} from '@context/server';
-import useDidMount from '@hooks/did_mount';
 
 import type {GalleryAction, GalleryItemType} from '@typings/screens/gallery';
 
@@ -68,14 +67,14 @@ const CopyPublicLink = ({item, galleryView = true, setAction}: Props) => {
         }
     };
 
-    useDidMount(() => {
+    useEffect(() => {
         mounted.current = true;
         copyLink();
 
         return () => {
             mounted.current = false;
         };
-    });
+    }, []);
 
     useEffect(() => {
         if (showToast === false) {
@@ -85,10 +84,6 @@ const CopyPublicLink = ({item, galleryView = true, setAction}: Props) => {
                 }
             }, 350);
         }
-
-    // This effect controls the timeout of the toast, so
-    // it should only run when `showToast` changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showToast]);
 
     return (

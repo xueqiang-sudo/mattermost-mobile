@@ -60,7 +60,7 @@ class ManagedAppSingleton {
     performingAuthentication = false;
     previousAppState?: AppStateStatus;
     processConfigTimeout?: NodeJS.Timeout;
-    vendor = 'Mattermost';
+    vendor = 'Optibot';
     cacheConfig?: ManagedConfig = undefined;
 
     constructor() {

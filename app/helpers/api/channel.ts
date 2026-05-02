@@ -10,11 +10,11 @@ export function privateChannelJoinPrompt(displayName: string, intl: IntlShape): 
         Alert.alert(
             intl.formatMessage({
                 id: 'permalink.show_dialog_warn.title',
-                defaultMessage: 'Join private channel',
+                defaultMessage: 'Join group chat',
             }),
             intl.formatMessage({
                 id: 'permalink.show_dialog_warn.description',
-                defaultMessage: 'You are about to join {channel} without explicitly being added by the channel admin. Are you sure you wish to join this private channel?',
+                defaultMessage: 'You are about to join {channel} without explicitly being added by the channel admin. Are you sure you wish to join this group chat?',
             }, {
                 channel: displayName,
             }),

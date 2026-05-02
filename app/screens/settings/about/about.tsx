@@ -2,20 +2,15 @@
 // See LICENSE.txt for license information.
 
 import Clipboard from '@react-native-clipboard/clipboard';
-import {applicationId, nativeApplicationVersion, nativeBuildVersion} from 'expo-application';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {nativeApplicationVersion, nativeBuildVersion} from 'expo-application';
+import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Text, View} from 'react-native';
+import {Image, Text, View} from 'react-native';
 
-import {getLicenseLoadMetric} from '@actions/remote/license';
-import Config from '@assets/config.json';
 import Button from '@components/button';
-import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import SettingContainer from '@components/settings/container';
-import AboutLinks from '@constants/about_links';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
-import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -23,90 +18,92 @@ import {popTopScreen} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {tryOpenURL} from '@utils/url';
-import {onOpenLinkError} from '@utils/url/links';
 
-import LearnMore from './learn_more';
 import Subtitle from './subtitle';
 import Title from './title';
-import TosPrivacyContainer from './tos_privacy';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const MATTERMOST_BUNDLE_IDS = ['com.mattermost.rnbeta', 'com.mattermost.rn'];
+const SECTION_GAP = 24;
+const CARD_RADIUS = 12;
+const CARD_PADDING = 16;
+const LOGO_SIZE = 80;
+
+const appIcon = require('@assets/images/icon.png');
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
+    const captionColor = changeOpacity(theme.centerChannelColor, 0.56);
+    const borderSubtle = changeOpacity(theme.centerChannelColor, 0.1);
+
     return {
-        logoContainer: {
+        hero: {
             alignItems: 'center',
-            paddingHorizontal: 20,
-            marginTop: 20,
+            marginTop: 16,
+            marginBottom: SECTION_GAP,
         },
-        lineStyles: {
+        logoWrap: {
+            width: LOGO_SIZE,
+            height: LOGO_SIZE,
+            borderRadius: CARD_RADIUS,
+            overflow: 'hidden',
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: borderSubtle,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        },
+        logoImage: {
             width: '100%',
-            marginTop: 40,
-            marginBottom: 24,
+            height: '100%',
         },
-        leftHeading: {
-            ...typography('Body', 200, 'SemiBold'),
-            marginRight: 8,
+        bodyWrap: {
+            paddingBottom: 32,
+        },
+        card: {
+            borderRadius: CARD_RADIUS,
+            borderWidth: 1,
+            borderColor: borderSubtle,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+            padding: CARD_PADDING,
+            marginBottom: SECTION_GAP,
+        },
+        cardTitle: {
+            ...typography('Heading', 400, 'SemiBold'),
             color: theme.centerChannelColor,
+            marginBottom: 16,
         },
-        rightHeading: {
-            ...typography('Body', 200, 'Regular'),
-            color: theme.centerChannelColor,
-        },
-        infoContainer: {
-            flexDirection: 'column',
-            paddingHorizontal: 20,
-        },
-        info: {
-            color: theme.centerChannelColor,
-            ...typography('Body', 200, 'Regular'),
-        },
-        licenseContainer: {
+        row: {
             flexDirection: 'row',
-            marginTop: 20,
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
         },
-        noticeContainer: {
-            flexDirection: 'column',
-        },
-        noticeLink: {
-            color: theme.linkColor,
-            ...typography('Body', 50, 'Regular'),
-        },
-        hashContainer: {
-            flexDirection: 'column',
-        },
-        footerTitleText: {
-            color: changeOpacity(theme.centerChannelColor, 0.64),
-            ...typography('Body', 50, 'SemiBold'),
-        },
-        footerText: {
-            color: changeOpacity(theme.centerChannelColor, 0.64),
-            ...typography('Body', 50),
-            marginVertical: 10,
-        },
-        copyrightText: {
+        rowLast: {
             marginBottom: 0,
         },
-        tosPrivacyContainer: {
-            flexDirection: 'row',
-            marginBottom: 10,
+        rowLabel: {
+            ...typography('Body', 75, 'Regular'),
+            color: captionColor,
+            marginRight: 12,
+            flexShrink: 0,
         },
-        group: {
-            flexDirection: 'row',
+        rowValue: {
+            ...typography('Body', 100, 'Regular'),
+            color: theme.centerChannelColor,
+            textAlign: 'right',
+            flex: 1,
         },
-        copyInfoButtonContainer: {
-            width: 120,
-            marginTop: 10,
-            position: 'relative',
-        },
-        thinLine: {
-            height: 0.2,
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
+        copyButtonWrap: {
+            marginTop: 16,
             alignSelf: 'stretch',
-            marginVertical: 20,
+        },
+        copyButtonStretch: {
+            alignSelf: 'stretch',
+        },
+        copyright: {
+            ...typography('Body', 75, 'Regular'),
+            color: captionColor,
+            textAlign: 'center',
+            marginTop: 8,
         },
     };
 });
@@ -114,67 +111,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
 type AboutProps = {
     componentId: AvailableScreens;
     config: ClientConfig;
-    license?: ClientLicense;
-}
-const About = ({componentId, config, license}: AboutProps) => {
+};
+
+const About = ({componentId, config}: AboutProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
-    const serverUrl = useServerUrl();
-    const [loadMetric, setLoadMetric] = useState<number | null>(null);
-
-    useEffect(() => {
-        const fetchLoadMetric = async () => {
-            const isLicensed = license?.IsLicensed === 'true';
-            const result = await getLicenseLoadMetric(serverUrl, config.Version, isLicensed);
-
-            // Only set the metric if we got a number back
-            if (result !== null && typeof result === 'number') {
-                setLoadMetric(result);
-            }
-        };
-
-        fetchLoadMetric();
-    }, [config.Version, license?.IsLicensed, serverUrl]);
-
-    const openURL = useCallback((url: string) => {
-        const onError = () => {
-            onOpenLinkError(intl);
-        };
-
-        tryOpenURL(url, onError);
-    }, [intl]);
-
-    const handleAboutTeam = usePreventDoubleTap(useCallback(() => {
-        return openURL(Config.WebsiteURL);
-    }, [openURL]));
-
-    const handlePlatformNotice = usePreventDoubleTap(useCallback(() => {
-        return openURL(Config.ServerNoticeURL);
-    }, [openURL]));
-
-    const handleMobileNotice = usePreventDoubleTap(useCallback(() => {
-        return openURL(Config.MobileNoticeURL);
-    }, [openURL]));
-
-    const handleTermsOfService = usePreventDoubleTap(useCallback(() => {
-        return openURL(AboutLinks.TERMS_OF_SERVICE);
-    }, [openURL]));
-
-    const handlePrivacyPolicy = usePreventDoubleTap(useCallback(() => {
-        return openURL(AboutLinks.PRIVACY_POLICY);
-    }, [openURL]));
-
-    const serverVersion = useMemo(() => {
-        const buildNumber = config.BuildNumber;
-        const version = config.Version;
-
-        if (buildNumber === version) {
-            return version;
-        }
-
-        return intl.formatMessage({id: 'settings.about.server.version.value', defaultMessage: '{version} (Build {buildNumber})'}, {version, buildNumber});
-    }, [config, intl]);
 
     const close = useCallback(() => {
         popTopScreen(componentId);
@@ -182,242 +124,121 @@ const About = ({componentId, config, license}: AboutProps) => {
 
     useAndroidHardwareBackHandler(componentId, close);
 
-    const copyToClipboard = useCallback(
-        () => {
-            const appVersion = intl.formatMessage({id: 'settings.about.app.version', defaultMessage: 'App Version: {version} (Build {number})'}, {version: nativeApplicationVersion, number: nativeBuildVersion});
-            const buildNumber = config.BuildNumber;
-            const version = config.Version;
-            const server = buildNumber === version ? intl.formatMessage({id: 'settings.about.server.version.noBuild', defaultMessage: 'Server Version: {version}'}, {version}) : intl.formatMessage({id: 'settings.about.server.version', defaultMessage: 'Server Version: {version} (Build {buildNumber})'}, {version, buildNumber});
-            const database = intl.formatMessage({id: 'settings.about.database', defaultMessage: 'Database: {driverName}'}, {driverName: config.SQLDriverName});
-            const databaseSchemaVersion = intl.formatMessage({id: 'settings.about.database.schema', defaultMessage: 'Database Schema Version: {version}'}, {version: config.SchemaVersion});
-            let copiedString = `${appVersion}\n${server}\n${database}\n${databaseSchemaVersion}`;
+    const appName =
+        intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName;
 
-            if (loadMetric !== null) {
-                const loadMetricStr = intl.formatMessage({id: 'settings.about.license.load_metric', defaultMessage: 'Load Metric: {load}'}, {load: loadMetric});
-                copiedString += `\n${loadMetricStr}`;
-            }
-
+    const copyToClipboard = usePreventDoubleTap(
+        useCallback(() => {
+            const edition = intl.formatMessage(
+                config.BuildEnterpriseReady === 'true'
+                    ? {id: 'about.edition.enterprise', defaultMessage: 'Enterprise'}
+                    : {id: 'about.edition.standard', defaultMessage: 'Standard'},
+            );
+            const copiedString = intl.formatMessage(
+                {
+                    id: 'settings.about.copy.clipboard',
+                    defaultMessage: '{appName}\n{edition}\nVersion: {version}\nBuild: {number}',
+                },
+                {
+                    appName,
+                    edition,
+                    number: nativeBuildVersion ?? '',
+                    version: nativeApplicationVersion ?? '',
+                },
+            );
             Clipboard.setString(copiedString);
             showSnackBar({barType: SNACK_BAR_TYPE.INFO_COPIED, sourceScreen: componentId});
-        },
-        [intl, config.BuildNumber, config.Version, config.SQLDriverName, config.SchemaVersion, loadMetric, componentId],
+        }, [appName, componentId, config.BuildEnterpriseReady, intl]),
     );
 
     return (
         <SettingContainer testID='about'>
-            <View style={styles.logoContainer}>
-                <CompassIcon
-                    color={theme.centerChannelColor}
-                    name='mattermost'
-                    size={88}
-                    testID='about.logo'
-                />
-                <Title
-                    config={config}
-                    license={license}
-                />
-                <Subtitle config={config}/>
+            <View style={styles.hero}>
                 <View
-                    style={styles.thinLine}
-                />
+                    style={styles.logoWrap}
+                    testID='about.logo'
+                >
+                    <Image
+                        accessibilityIgnoresInvertColors={true}
+                        source={appIcon}
+                        style={styles.logoImage}
+                    />
+                </View>
+                <Title config={config}/>
+                <Subtitle/>
             </View>
 
-            <View style={styles.infoContainer}>
-                <View style={styles.group}>
+            <View style={styles.bodyWrap}>
+                <View style={styles.card}>
                     <Text
-                        style={styles.leftHeading}
-                        testID='about.app_version.title'
+                        style={styles.cardTitle}
+                        testID='about.card.title'
                     >
-                        {intl.formatMessage({id: 'settings.about.app.version.title', defaultMessage: 'App Version:'})}
+                        {intl.formatMessage({
+                            id: 'settings.about.card.title',
+                            defaultMessage: 'App information',
+                        })}
                     </Text>
-                    <Text
-                        style={styles.rightHeading}
-                        testID='about.app_version.value'
-                    >
-                        {intl.formatMessage({id: 'settings.about.app.version.value', defaultMessage: '{version} (Build {number})'},
-                            {version: nativeApplicationVersion, number: nativeBuildVersion})}
-                    </Text>
-                </View>
-                <View style={styles.group}>
-                    <Text
-                        style={styles.leftHeading}
-                        testID='about.server_version.title'
-                    >
-                        {intl.formatMessage({id: 'settings.about.server.version.title', defaultMessage: 'Server Version:'})}
-                    </Text>
-                    <Text
-                        style={styles.rightHeading}
-                        testID='about.server_version.value'
-                    >
-                        {serverVersion}
-                    </Text>
-                </View>
-                {loadMetric !== null && (
-                    <View style={styles.group}>
+                    <View style={styles.row}>
                         <Text
-                            style={styles.leftHeading}
-                            testID='about.license_load_metric.title'
+                            style={styles.rowLabel}
+                            testID='about.app_version.title'
                         >
-                            {intl.formatMessage({id: 'settings.about.license.load_metric.title', defaultMessage: 'Load Metric:'})}
+                            {intl.formatMessage({
+                                id: 'settings.about.app.version.title',
+                                defaultMessage: 'Version',
+                            })}
                         </Text>
                         <Text
-                            style={styles.rightHeading}
-                            testID='about.license_load_metric.value'
+                            style={styles.rowValue}
+                            testID='about.app_version.value'
                         >
-                            {loadMetric}
+                            {nativeApplicationVersion ?? '—'}
                         </Text>
                     </View>
-                )}
-                <View style={styles.group}>
-                    <Text
-                        style={styles.leftHeading}
-                        testID='about.database.title'
-                    >
-                        {intl.formatMessage({id: 'settings.about.database.title', defaultMessage: 'Database:'})}
-                    </Text>
-                    <Text
-                        style={styles.rightHeading}
-                        testID='about.database.value'
-                    >
-                        {config.SQLDriverName}
-                    </Text>
-                </View>
-                <View style={styles.group}>
-                    <Text
-                        style={styles.leftHeading}
-                        testID='about.database_schema_version.title'
-                    >
-                        {intl.formatMessage({id: 'settings.about.database.schema.title', defaultMessage: 'Database Schema Version:'})}
-                    </Text>
-                    <Text
-                        style={styles.rightHeading}
-                        testID='about.database_schema_version.value'
-                    >
-                        {config.SchemaVersion}
-                    </Text>
-                </View>
-                <View style={styles.copyInfoButtonContainer}>
-                    <Button
-                        theme={theme}
-                        onPress={copyToClipboard}
-                        text={intl.formatMessage({id: 'settings.about.button.copyInfo', defaultMessage: 'Copy info'})}
-                        testID={'about.copy_info'}
-                        iconName='content-copy'
-                        emphasis='tertiary'
-                        size='m'
-                    />
-                </View>
-                {license?.IsLicensed === 'true' && (
-                    <View style={styles.licenseContainer}>
-                        <FormattedText
-                            defaultMessage='Licensed to: {company}'
-                            id={'settings.about.licensed'}
-                            style={styles.info}
-                            testID='about.licensee'
-                            values={{company: license.Company}}
+                    <View style={[styles.row, styles.rowLast]}>
+                        <Text
+                            style={styles.rowLabel}
+                            testID='about.build_number.title'
+                        >
+                            {intl.formatMessage({
+                                id: 'settings.about.build.title',
+                                defaultMessage: 'Build',
+                            })}
+                        </Text>
+                        <Text
+                            style={styles.rowValue}
+                            testID='about.build_number.value'
+                        >
+                            {nativeBuildVersion ?? '—'}
+                        </Text>
+                    </View>
+                    <View style={styles.copyButtonWrap}>
+                        <Button
+                            buttonContainerStyle={styles.copyButtonStretch}
+                            emphasis='secondary'
+                            iconName='content-copy'
+                            onPress={copyToClipboard}
+                            size='m'
+                            testID='about.copy_info'
+                            text={intl.formatMessage({
+                                id: 'settings.about.button.copyInfo',
+                                defaultMessage: 'Copy version info',
+                            })}
+                            theme={theme}
                         />
                     </View>
-                )}
-                <LearnMore
-                    config={config}
-                    onPress={handleAboutTeam}
-                />
-                {!MATTERMOST_BUNDLE_IDS.includes(applicationId || '') &&
-                    <FormattedText
-                        defaultMessage='{site} is powered by Mattermost'
-                        id={'settings.about.powered_by'}
-                        style={styles.footerText}
-                        testID='about.powered_by'
-                        values={{site: config.SiteName}}
-                    />
-                }
-                <View
-                    style={styles.thinLine}
-                />
+                </View>
+
+                {/* Terms of Service / Privacy Policy rows hidden until product is ready to surface legal URLs. */}
+
                 <FormattedText
-                    defaultMessage='Copyright 2015-{currentYear} Mattermost, Inc. All rights reserved'
-                    id={'settings.about.copyright'}
-                    style={[styles.footerText, styles.copyrightText]}
+                    defaultMessage='© {currentYear} {appName}. All rights reserved.'
+                    id='settings.about.copyright'
+                    style={styles.copyright}
                     testID='about.copyright'
-                    values={{currentYear: new Date().getFullYear()}}
+                    values={{appName, currentYear: new Date().getFullYear()}}
                 />
-                <View style={styles.tosPrivacyContainer}>
-                    <TosPrivacyContainer
-                        config={config}
-                        onPressPrivacyPolicy={handlePrivacyPolicy}
-                        onPressTOS={handleTermsOfService}
-                    />
-                </View>
-                <View style={styles.noticeContainer}>
-                    <FormattedText
-                        id={'settings.notice_text'}
-                        defaultMessage='Mattermost is made possible by the open source software used in our {platform} and {mobile}.'
-                        style={styles.footerText}
-                        values={{
-                            platform: (
-                                <FormattedText
-                                    defaultMessage='server'
-                                    id={'settings.notice_platform_link'}
-                                    onPress={handlePlatformNotice}
-                                    style={styles.noticeLink}
-                                />
-                            ),
-                            mobile: (
-                                <FormattedText
-                                    defaultMessage='mobile apps'
-                                    id={'settings.notice_mobile_link'}
-                                    onPress={handleMobileNotice}
-                                    style={[styles.noticeLink, {marginLeft: 5}]}
-                                />
-                            ),
-                        }}
-                        testID='about.notice_text'
-                    />
-                </View>
-                <View style={styles.hashContainer}>
-                    <View>
-                        <FormattedText
-                            defaultMessage='Build Hash:'
-                            id={'about.hash'}
-                            style={styles.footerTitleText}
-                            testID='about.build_hash.title'
-                        />
-                        <Text
-                            style={styles.footerText}
-                            testID='about.build_hash.value'
-                        >
-                            {config.BuildHash}
-                        </Text>
-                    </View>
-                    <View>
-                        <FormattedText
-                            defaultMessage='EE Build Hash:'
-                            id={'about.hashee'}
-                            style={styles.footerTitleText}
-                            testID='about.build_hash_enterprise.title'
-                        />
-                        <Text
-                            style={styles.footerText}
-                            testID='about.build_hash_enterprise.value'
-                        >
-                            {config.BuildHashEnterprise}
-                        </Text>
-                    </View>
-                </View>
-                <View style={{marginBottom: 20}}>
-                    <FormattedText
-                        defaultMessage='Build Date:'
-                        id={'about.date'}
-                        style={styles.footerTitleText}
-                        testID='about.build_date.title'
-                    />
-                    <Text
-                        style={styles.footerText}
-                        testID='about.build_date.value'
-                    >
-                        {config.BuildDate}
-                    </Text>
-                </View>
             </View>
         </SettingContainer>
     );

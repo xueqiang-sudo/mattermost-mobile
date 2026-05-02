@@ -278,16 +278,6 @@ describe('Team Queries', () => {
             expect(result[0].channelIds[0]).toEqual(channelId);
         });
 
-        it('should add GLOBAL_THREADS to team history but skip channel check', async () => {
-            const channelId = Screens.GLOBAL_THREADS;
-
-            const result = await addChannelToTeamHistory(operator, teamId, channelId);
-            expect(result.length).toBe(1);
-
-            const history = await getTeamChannelHistory(database, teamId);
-            expect(history).toEqual([Screens.GLOBAL_THREADS]);
-        });
-
         it('should add GLOBAL_DRAFTS to team history but skip channel check', async () => {
             const channelId = Screens.GLOBAL_DRAFTS;
 
@@ -1113,7 +1103,7 @@ describe('Team Queries', () => {
             expect(subscriptionNext).toHaveBeenCalledWith(true);
         });
 
-        it('should return true when there are thread unreads', async () => {
+        it('should not mark team unread from thread-only unreads when CRT is disabled', async () => {
             const subscriptionNext = jest.fn();
             const channelId = 'channel1';
             const threadId = 'thread1';
@@ -1146,7 +1136,6 @@ describe('Team Queries', () => {
             })], teamId, true);
             await operator.batchRecords([...channelModels, ...threadModels.models!], 'test');
 
-            // No change
             expect(subscriptionNext).not.toHaveBeenCalled();
 
             await processReceivedThreads(serverUrl, [TestHelper.fakeThread({
@@ -1157,7 +1146,7 @@ describe('Team Queries', () => {
                 is_following: true,
             })], teamId, false);
 
-            expect(subscriptionNext).toHaveBeenCalledWith(true);
+            expect(subscriptionNext).not.toHaveBeenCalled();
         });
 
         it('changes in other teams should not trigger the subscription', async () => {

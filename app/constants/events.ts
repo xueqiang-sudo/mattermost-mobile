@@ -28,18 +28,32 @@ export default keyMirror({
     USER_TYPING: null,
     USER_STOP_TYPING: null,
     POST_LIST_SCROLL_TO_BOTTOM: null,
+
+    /** Scroll channel/permalink list to a post and briefly highlight it (e.g. tap quoted message). */
+    POST_LIST_JUMP_TO_POST: null,
+
+    /** 在频道屏打开「回复某根帖」草稿（替代独立 Thread 屏） */
+    POST_DRAFT_SET_REPLY_ROOT: null,
+    POST_DRAFT_CLEAR_REPLY_ROOT: null,
+    POST_DRAFT_SET_QUOTED_POST: null,
+    POST_DRAFT_CLEAR_QUOTED_POST: null,
+
+    /**
+     * 聚焦当前输入框（用于从菜单/弹窗回到聊天输入）
+     * 仅由 PostInput 监听并调用 inputRef.current?.focus()
+     */
+    POST_DRAFT_FOCUS: null,
     SWIPEABLE: null,
     ITEM_IN_VIEWPORT: null,
     SEND_TO_POST_DRAFT: null,
     CRT_TOGGLED: null,
     JOIN_CALL_BAR_VISIBLE: null,
     DRAFT_SWIPEABLE: null,
+    MANAGE_ENTERPRISE_REFRESH: null,
+
+    /** 供应商/客户关系增删改后刷新「我的供应商/客户」列表 */
+    SUPPLIER_CUSTOMER_CONTACTS_CHANGED: null,
     ACTIVE_SCREEN: null,
     ACTIVE_SERVER_CHANGED: null,
     FILE_ADD_REMOVED: null,
-    POST_DELETED_FOR_CHANNEL: null,
-    KEYBOARD_STATE_CHANGED: null,
-    CLOSE_INPUT_ACCESSORY_VIEW: null,
-    EMOJI_PICKER_SEARCH_FOCUSED: null,
-    FILE_REJECTED: null,
 });

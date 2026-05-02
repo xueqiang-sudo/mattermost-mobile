@@ -15,6 +15,7 @@ import {
     convertToAttributesMap,
     displayGroupMessageName,
     displayUsername,
+    username2Nickname,
     filterProfilesMatchingTerm,
     getEmailInterval,
     getEmailIntervalTexts,
@@ -55,8 +56,19 @@ describe('displayUsername', () => {
         nickname: 'Johnny',
     });
 
-    it('should return the nickname if teammateDisplayNameSetting is DISPLAY_PREFER_NICKNAME', () => {
+    it('should return full name with nickname when both exist and teammateDisplayNameSetting is DISPLAY_PREFER_NICKNAME', () => {
         const result = displayUsername(user, 'en', Preferences.DISPLAY_PREFER_NICKNAME);
+        expect(result).toBe('John Doe (Johnny)');
+    });
+
+    it('should return nickname only when full name is empty and teammateDisplayNameSetting is DISPLAY_PREFER_NICKNAME', () => {
+        const userWithNicknameOnly = TestHelper.fakeUser({
+            username: 'johndoe',
+            first_name: '',
+            last_name: '',
+            nickname: 'Johnny',
+        });
+        const result = displayUsername(userWithNicknameOnly, 'en', Preferences.DISPLAY_PREFER_NICKNAME);
         expect(result).toBe('Johnny');
     });
 
@@ -65,14 +77,14 @@ describe('displayUsername', () => {
         expect(result).toBe('John Doe');
     });
 
-    it('should return the username if teammateDisplayNameSetting is DISPLAY_PREFER_USERNAME', () => {
+    it('should return nickname with full name when both exist if teammateDisplayNameSetting is DISPLAY_PREFER_USERNAME (project default)', () => {
         const result = displayUsername(user, 'en', Preferences.DISPLAY_PREFER_USERNAME);
-        expect(result).toBe('johndoe');
+        expect(result).toBe('Johnny (John Doe)');
     });
 
-    it('should return the username if no teammateDisplayNameSetting is provided', () => {
+    it('should return nickname with full name when both exist if no teammateDisplayNameSetting is provided', () => {
         const result = displayUsername(user, 'en');
-        expect(result).toBe('johndoe');
+        expect(result).toBe('Johnny (John Doe)');
     });
 
     it('should return "Someone" if user is not provided and useFallbackUsername is true', () => {
@@ -96,6 +108,17 @@ describe('displayUsername', () => {
         expect(result).toBe('johndoe');
     });
 
+    it('should return the username when nickname and full name are empty (DISPLAY_PREFER_USERNAME / default)', () => {
+        const userWithoutNicknameAndFullName = TestHelper.fakeUser({
+            username: 'johndoe',
+            first_name: '',
+            last_name: '',
+            nickname: '',
+        });
+        const result = displayUsername(userWithoutNicknameAndFullName, 'en', Preferences.DISPLAY_PREFER_USERNAME);
+        expect(result).toBe('johndoe');
+    });
+
     it('should return the username if name is empty or whitespace', () => {
         const userWithEmptyName = TestHelper.fakeUser({
             username: 'johndoe',
@@ -108,21 +131,51 @@ describe('displayUsername', () => {
     });
 });
 
+describe('username2Nickname', () => {
+    it('should prefer nickname with full name in parentheses when both exist', () => {
+        const u = TestHelper.fakeUser({
+            username: 'jd',
+            first_name: 'John',
+            last_name: 'Doe',
+            nickname: 'Johnny',
+        });
+        expect(username2Nickname(u, {locale: 'en'})).toBe('Johnny (John Doe)');
+    });
+
+    it('should return short form when includeFullName is false', () => {
+        const u = TestHelper.fakeUser({
+            username: 'jd',
+            first_name: 'John',
+            last_name: 'Doe',
+            nickname: 'Johnny',
+        });
+        expect(username2Nickname(u, {locale: 'en', includeFullName: false})).toBe('Johnny');
+    });
+
+    it('should return Someone when no user and useFallbackUsername is true', () => {
+        expect(username2Nickname(undefined, {locale: 'en'})).toBe('Someone');
+    });
+
+    it('should return empty string when no user and useFallbackUsername is false', () => {
+        expect(username2Nickname(undefined, {locale: 'en', useFallbackUsername: false})).toBe('');
+    });
+});
+
 describe('displayGroupMessageName', () => {
     const user1 = TestHelper.fakeUser({id: 'user1', username: 'john_doe', first_name: 'John', last_name: 'Doe'});
     const user2 = TestHelper.fakeUser({id: 'user2', username: 'jane_doe', first_name: 'Jane', last_name: 'Doe'});
     const user3 = TestHelper.fakeUser({id: 'user3', username: 'alice_smith', first_name: 'Alice', last_name: 'Smith'});
 
-    it('should return a comma-separated list of usernames', () => {
+    it('should return a comma-separated list of display names (nickname/fullName, project default)', () => {
         const users = [user1, user2, user3];
         const result = displayGroupMessageName(users);
-        expect(result).toBe('alice_smith, jane_doe, john_doe');
+        expect(result).toBe('Alice Smith, Jane Doe, John Doe');
     });
 
     it('should exclude the user with the specified ID', () => {
         const users = [user1, user2, user3];
         const result = displayGroupMessageName(users, undefined, undefined, 'user2');
-        expect(result).toBe('alice_smith, john_doe');
+        expect(result).toBe('Alice Smith, John Doe');
     });
 
     it('should use the full name if teammateDisplayNameSetting is DISPLAY_PREFER_FULL_NAME', () => {
@@ -131,11 +184,11 @@ describe('displayGroupMessageName', () => {
         expect(result).toBe('Alice Smith, Jane Doe, John Doe');
     });
 
-    it('should use the nickname if teammateDisplayNameSetting is DISPLAY_PREFER_NICKNAME', () => {
+    it('should use nickname with full name when both exist if teammateDisplayNameSetting is DISPLAY_PREFER_NICKNAME', () => {
         const userWithNickname = {...user1, nickname: 'Johnny'};
         const users = [userWithNickname, user2, user3];
         const result = displayGroupMessageName(users, undefined, Preferences.DISPLAY_PREFER_NICKNAME);
-        expect(result).toBe('Alice Smith, Jane Doe, Johnny');
+        expect(result).toBe('Alice Smith, Jane Doe, John Doe (Johnny)');
     });
 
     it('should fallback to username if full name or nickname is not available', () => {

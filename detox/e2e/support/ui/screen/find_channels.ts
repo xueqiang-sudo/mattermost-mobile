@@ -9,12 +9,11 @@ import {expect} from 'detox';
 class FindChannelsScreen {
     testID = {
         findChannelsScreenPrefix: 'find_channels.',
-        filteredArchivedChannelItemPrefix: 'find_channels.filtered_list.remote_channel_item.',
         filteredChannelItemPrefix: 'find_channels.filtered_list.channel_item.',
         unfilteredChannelItemPrefix: 'find_channels.unfiltered_list.channel_item.',
         findChannelsScreen: 'find_channels.screen',
         closeButton: 'close.find_channels.button',
-        directoryQuickOption: 'find_channels.quick_options.directory.option',
+        viewAllButton: 'find_channels.view_all.button',
         openDirectMessageQuickOption: 'find_channels.quick_options.open_dm.option',
         newChannelQuickOption: 'find_channels.quick_options.new_channel.option',
         sectionUnfilteredChannelList: 'find_channels.unfiltered_list.section_list',
@@ -23,7 +22,7 @@ class FindChannelsScreen {
 
     findChannelsScreen = element(by.id(this.testID.findChannelsScreen));
     closeButton = element(by.id(this.testID.closeButton));
-    directoryQuickOption = element(by.id(this.testID.directoryQuickOption));
+    viewAllButton = element(by.id(this.testID.viewAllButton));
     openDirectMessageQuickOption = element(by.id(this.testID.openDirectMessageQuickOption));
     newChannelQuickOption = element(by.id(this.testID.newChannelQuickOption));
     sectionUnfilteredChannelList = element(by.id(this.testID.sectionUnfilteredChannelList));
@@ -43,10 +42,6 @@ class FindChannelsScreen {
         return element(by.id(`${this.testID.unfilteredChannelItemPrefix}${channelName}.display_name`));
     };
 
-    getFilteredArchivedChannelItem = (channelName: string) => {
-        return element(by.id(`${this.testID.filteredArchivedChannelItemPrefix}${channelName}`));
-    };
-
     getFilteredChannelItem = (channelName: string) => {
         return element(by.id(`${this.testID.filteredChannelItemPrefix}${channelName}`));
     };
@@ -62,8 +57,8 @@ class FindChannelsScreen {
     };
 
     open = async () => {
-        // # Open find channels screen
-        await ChannelListScreen.subheaderSearchFieldButton.tap();
+        // # Open find channels screen (搜索按钮在 header 右上角 + 左侧)
+        await ChannelListScreen.headerSearchButton.tap();
 
         return this.toBeVisible();
     };

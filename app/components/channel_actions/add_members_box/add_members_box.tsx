@@ -40,7 +40,7 @@ const AddMembersBox = ({
 
         await dismissBottomSheet();
         showModal(Screens.CHANNEL_ADD_MEMBERS, title, {channelId, inModal}, options);
-    }, [intl, theme, displayName, inModal, channelId]);
+    }, [intl, channelId, inModal, testID, displayName]);
 
     return (
         <OptionBox

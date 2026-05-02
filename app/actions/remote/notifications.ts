@@ -251,7 +251,7 @@ export const openNotification = async (serverUrl: string, notification: Notifica
 
         if (myChannel && myTeam) {
             if (isThreadNotification) {
-                return fetchAndSwitchToThread(serverUrl, rootId, true);
+                return fetchAndSwitchToThread(serverUrl, rootId, true, undefined, true);
             }
             return switchToChannelById(serverUrl, channelId, teamId);
         }
@@ -262,7 +262,7 @@ export const openNotification = async (serverUrl: string, notification: Notifica
         }
 
         if (isThreadNotification) {
-            return fetchAndSwitchToThread(serverUrl, rootId, true);
+            return fetchAndSwitchToThread(serverUrl, rootId, true, undefined, true);
         }
         return switchToChannelById(serverUrl, channelId, teamId);
     } catch (error) {

@@ -22,7 +22,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     moreImagesText: {
         color: theme.sidebarHeaderTextColor,
-        fontFamily: 'OpenSans',
         textAlign: 'center',
     },
 }));
@@ -38,7 +37,7 @@ const ImageFileOverlay = ({value}: ImageFileOverlayProps) => {
             style.moreImagesText,
             {fontSize: Math.round(PixelRatio.roundToNearestPixel(24 * scale))},
         ];
-    }, [dimensions.scale, isTablet, style]);
+    }, [isTablet]);
 
     return (
         <View style={style.moreImagesWrapper}>

@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';
 import DatabaseManager from '@database/manager';
 import {getAllServerCredentials} from '@init/credentials';
@@ -13,9 +14,11 @@ import SecurityManager from '@managers/security_manager';
 import SessionManager from '@managers/session_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {registerScreens} from '@screens/index';
-import {registerNavigationListeners} from '@screens/navigation';
+import {registerNavigationListeners, resetToStartupLoading} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
+import VoiceRecorder from '@mattermost/voice-recorder';
+import {logDebug, logError} from '@utils/log';
 
 // Controls whether the main initialization (database, etc...) is done, either on app launch
 // or on the Share Extension, for example.
@@ -40,6 +43,7 @@ Promise.allSettled = Promise.allSettled || (<T>(promises: Array<Promise<T>>) => 
 export async function initialize() {
     if (!baseAppInitialized) {
         baseAppInitialized = true;
+
         serverCredentials = await getAllServerCredentials();
         const serverUrls = serverCredentials.map((credential) => credential.serverUrl);
 
@@ -60,12 +64,22 @@ export async function start() {
     EphemeralStore.setCurrentThreadId('');
     EphemeralStore.setProcessingNotification('');
 
-    await initialize();
-
-    PushNotifications.init(serverCredentials.length > 0);
-
     registerNavigationListeners();
     registerScreens();
+    await resetToStartupLoading();
+
+    await initialize();
+
+    // 清理临时录音文件
+    try {
+        logDebug('[app.start] 开始清理临时录音文件');
+        const deletedCount = await VoiceRecorder.cleanExpiredRecordingFiles('c_voice_asr_', 86400000); // 24小时
+        logDebug(`[app.start] 清理完成，删除了 ${deletedCount} 个临时录音文件`);
+    } catch (error) {
+        logError('[app.start] 清理临时录音文件失败', error);
+    }
+
+    PushNotifications.init(serverCredentials.length > 0);
 
     await WebsocketManager.init(serverCredentials);
 

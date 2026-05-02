@@ -14,14 +14,13 @@ import {isValidNamedEmoji} from '@utils/emoji/helpers';
 type Props = {
     name: string;
     onEmojiPress: (emoji: string) => void;
-    preventDoubleTap?: boolean;
     size?: number;
     style?: StyleProp<ViewStyle>;
 }
 
 const hitSlop = {top: 10, bottom: 10, left: 10, right: 10};
 
-const SkinnedEmoji = ({name, onEmojiPress, preventDoubleTap = true, size = 30, style}: Props) => {
+const SkinnedEmoji = ({name, onEmojiPress, size = 30, style}: Props) => {
     const skinTone = useEmojiSkinTone();
     const emojiName = useMemo(() => {
         const skinnedEmoji = `${name}_${skinCodes[skinTone]}`;
@@ -31,10 +30,9 @@ const SkinnedEmoji = ({name, onEmojiPress, preventDoubleTap = true, size = 30, s
         return skinnedEmoji;
     }, [name, skinTone]);
 
-    const handlePress = useCallback(() => {
+    const onPress = usePreventDoubleTap(useCallback(() => {
         onEmojiPress(emojiName);
-    }, [emojiName, onEmojiPress]);
-    const onPress = preventDoubleTap ? usePreventDoubleTap(handlePress) : handlePress;
+    }, [emojiName, onEmojiPress]));
 
     return (
         <View

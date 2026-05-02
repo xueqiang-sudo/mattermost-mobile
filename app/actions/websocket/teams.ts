@@ -5,6 +5,7 @@ import {removeUserFromTeam} from '@actions/local/team';
 import {fetchMyChannelsForTeam} from '@actions/remote/channel';
 import {fetchRoles} from '@actions/remote/role';
 import {fetchMyTeam, handleKickFromTeam, updateCanJoinTeams} from '@actions/remote/team';
+import {Events} from '@constants';
 import {updateUsersNoLongerVisible} from '@actions/remote/user';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
@@ -16,6 +17,7 @@ import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
+import {DeviceEventEmitter} from 'react-native';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
 import type {Model} from '@nozbe/watermelondb';
@@ -108,13 +110,19 @@ export async function handleLeaveTeamEvent(serverUrl: string, msg: WebSocketMess
 
 export async function handleUpdateTeamEvent(serverUrl: string, msg: WebSocketMessage) {
     try {
-        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
         const team: Team = JSON.parse(msg.data.team);
+        const membership = (await queryMyTeamsByIds(database, [team.id]).fetch())[0];
+        if (!membership) {
+            return;
+        }
+
         operator.handleTeam({
             teams: [team],
             prepareRecordsOnly: false,
         });
+        DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
     } catch (err) {
         // Do nothing
     }
@@ -145,7 +153,7 @@ export async function handleUserAddedToTeamEvent(serverUrl: string, msg: WebSock
 const fetchAndStoreJoinedTeamInfo = async (serverUrl: string, operator: ServerDataOperator, teamId: string, teams?: Team[], teamMemberships?: TeamMembership[]) => {
     const modelPromises: Array<Promise<Model[]>> = [];
     if (teams?.length && teamMemberships?.length) {
-        const {channels, memberships, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, false, 0, true);
+        const {channels, memberships, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, true);
         modelPromises.push(prepareCategoriesAndCategoriesChannels(operator, categories || [], true));
         modelPromises.push(...await prepareMyChannelsForTeam(operator, teamId, channels || [], memberships || []));
 

@@ -29,8 +29,8 @@ import {
     ServerScreen,
     ThreadScreen,
 } from '@support/ui/screen';
-import {getRandomId, timeouts, wait, waitForElementToBeVisible} from '@support/utils';
-import {expect, waitFor} from 'detox';
+import {getRandomId} from '@support/utils';
+import {expect} from 'detox';
 
 describe('Search - Saved Messages', () => {
     const serverOneDisplayName = 'Server 1';
@@ -78,7 +78,6 @@ describe('Search - Saved Messages', () => {
         const message = `Message ${getRandomId()}`;
         await ChannelScreen.open(channelsCategory, testChannel.name);
         await ChannelScreen.postMessage(message);
-
         const {post} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
         await ChannelScreen.openPostOptionsFor(post.id, message);
         await PostOptionsScreen.savePostOption.tap();
@@ -117,11 +116,9 @@ describe('Search - Saved Messages', () => {
         const message = `Message ${getRandomId()}`;
         await ChannelScreen.open(channelsCategory, testChannel.name);
         await ChannelScreen.postMessage(message);
-
         const {post: savedPost} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
         await ChannelScreen.openPostOptionsFor(savedPost.id, message);
         await PostOptionsScreen.savePostOption.tap();
-        await wait(timeouts.TWO_SEC);
         await ChannelScreen.back();
         await SavedMessagesScreen.open();
 
@@ -141,10 +138,12 @@ describe('Search - Saved Messages', () => {
         await EditPostScreen.saveButton.tap();
 
         // * Verify post message is updated and displays edited indicator '(edited)'
-        await ChannelScreen.assertPostMessageEdited(savedPost.id, updatedMessage, 'saved_messages_page');
+        const {postListPostItem: updatedPostListPostItem, postListPostItemEditedIndicator} = SavedMessagesScreen.getPostListPostItem(savedPost.id, updatedMessage);
+        await expect(updatedPostListPostItem).toBeVisible();
+        await expect(postListPostItemEditedIndicator).toHaveText('Edited');
 
         // # Open post options for updated saved message and tap on reply option
-        await element(by.id(`saved_messages.post_list.post.${savedPost.id}`)).longPress();
+        await SavedMessagesScreen.openPostOptionsFor(savedPost.id, updatedMessage);
         await PostOptionsScreen.replyPostOption.tap();
 
         // * Verify on thread screen
@@ -157,18 +156,18 @@ describe('Search - Saved Messages', () => {
         // * Verify reply is posted
         const {post: replyPost} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
         const {postListPostItem: replyPostListPostItem} = ThreadScreen.getPostListPostItem(replyPost.id, replyMessage);
-        await waitFor(replyPostListPostItem).toBeVisible().withTimeout(timeouts.FOUR_SEC);
+        await expect(replyPostListPostItem).toBeVisible();
 
         // # Go back to saved messages screen
         await ThreadScreen.back();
 
         // * Verify reply count and following button
-        const {postListPostItem} = SavedMessagesScreen.getPostListPostItem(savedPost.id, updatedMessage);
-        await waitFor(element(by.text('1 reply'))).toBeVisible().withTimeout(timeouts.TWO_SEC);
-        await waitFor(element(by.text('Following'))).toBeVisible().withTimeout(timeouts.TWO_SEC);
+        const {postListPostItem, postListPostItemFooterReplyCount, postListPostItemFooterFollowingButton} = SavedMessagesScreen.getPostListPostItem(savedPost.id, updatedMessage);
+        await expect(postListPostItemFooterReplyCount).toHaveText('1 reply');
+        await expect(postListPostItemFooterFollowingButton).toBeVisible();
 
         // # Open post options for updated saved message and delete post
-        await element(by.id(`saved_messages.post_list.post.${savedPost.id}`)).longPress();
+        await SavedMessagesScreen.openPostOptionsFor(savedPost.id, updatedMessage);
         await PostOptionsScreen.deletePost({confirm: true});
 
         // * Verify updated saved message is deleted
@@ -183,10 +182,7 @@ describe('Search - Saved Messages', () => {
         const message = `Message ${getRandomId()}`;
         await ChannelScreen.open(channelsCategory, testChannel.name);
         await ChannelScreen.postMessage(message);
-
         const {post: savedPost} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
-        const {postListPostItem: channelPostListPostItem} = ChannelScreen.getPostListPostItem(savedPost.id, message);
-        await waitForElementToBeVisible(channelPostListPostItem);
         await ChannelScreen.openPostOptionsFor(savedPost.id, message);
         await PostOptionsScreen.savePostOption.tap();
         await ChannelScreen.back();
@@ -213,10 +209,7 @@ describe('Search - Saved Messages', () => {
         const message = `Message ${getRandomId()}`;
         await ChannelScreen.open(channelsCategory, testChannel.name);
         await ChannelScreen.postMessage(message);
-
         const {post: savedPost} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
-        const {postListPostItem: channelPostListPostItem} = ChannelScreen.getPostListPostItem(savedPost.id, message);
-        await waitForElementToBeVisible(channelPostListPostItem);
         await ChannelScreen.openPostOptionsFor(savedPost.id, message);
         await PostOptionsScreen.savePostOption.tap();
         await ChannelScreen.back();

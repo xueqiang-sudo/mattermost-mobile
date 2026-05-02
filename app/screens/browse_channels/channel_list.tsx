@@ -93,7 +93,7 @@ export default function ChannelList({
         );
 
     //Style is covered by the theme
-    }, [loading, style, theme.buttonBg]);
+    }, [loading, theme]);
 
     const renderNoResults = useCallback(() => {
         if (term) {
@@ -119,7 +119,7 @@ export default function ChannelList({
         <View
             style={style.separator}
         />
-    ), [style]);
+    ), [theme]);
 
     return (
         <FlatList

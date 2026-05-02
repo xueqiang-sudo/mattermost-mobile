@@ -7,14 +7,17 @@ import {type Insets, Text, TouchableWithoutFeedback, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {logout} from '@actions/remote/session';
+import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
 import CompassIcon from '@components/compass_icon';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import {HOME_PADDING} from '@constants/view';
+import {useLeftDrawer} from '@context/left_drawer';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {findChannels} from '@screens/navigation';
 import {bottomSheet} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {alertPushProxyError, alertPushProxyUnknown} from '@utils/push_proxy';
@@ -26,26 +29,33 @@ import LoadingUnreads from './loading_unreads';
 import PlusMenu from './plus_menu';
 import {SEPARATOR_HEIGHT} from './plus_menu/separator';
 
+import type UserModel from '@typings/database/models/servers/user';
+
 const PLUS_BUTTON_SIZE = 28;
 
 type Props = {
     canCreateChannels: boolean;
-    canJoinChannels: boolean;
     canInvitePeople: boolean;
+    currentUser?: UserModel;
     displayName?: string;
     iconPad?: boolean;
     onHeaderPress?: () => void;
     pushProxyStatus: string;
+
+    /** 话题按钮，放在搜索左侧，顺序：话题 | 搜索 | + */
+    threadsButton?: React.ReactNode;
 }
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     headingStyles: {
         color: theme.sidebarText,
-        ...typography('Heading', 700),
+        ...typography('Heading', 300, 'SemiBold'),
     },
     subHeadingStyles: {
-        color: changeOpacity(theme.sidebarText, 0.64),
-        ...typography('Heading', 50),
+        color: changeOpacity(theme.sidebarText, 0.56),
+        ...typography('Body', 75),
+        lineHeight: 16,
+        marginTop: 1,
     },
     headerRow: {
         flexDirection: 'row',
@@ -59,14 +69,26 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.sidebarText, 0.8),
         fontSize: 24,
     },
+    rightButtonsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     plusButton: {
         backgroundColor: changeOpacity(theme.sidebarText, 0.08),
         height: PLUS_BUTTON_SIZE,
         width: PLUS_BUTTON_SIZE,
         borderRadius: PLUS_BUTTON_SIZE / 2,
-        marginTop: PLUS_BUTTON_SIZE / 4,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    searchButton: {
+        backgroundColor: changeOpacity(theme.sidebarText, 0.08),
+        height: PLUS_BUTTON_SIZE,
+        width: PLUS_BUTTON_SIZE,
+        borderRadius: PLUS_BUTTON_SIZE / 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
     },
     plusIcon: {
         color: changeOpacity(theme.sidebarText, 0.8),
@@ -78,7 +100,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     subHeadingView: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingRight: 60,
+        paddingRight: 48,
     },
     noTeamHeadingStyles: {
         color: changeOpacity(theme.sidebarText, 0.64),
@@ -92,10 +114,24 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     outsideBox: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
+        minHeight: 44,
+        paddingVertical: 8,
     },
     firstBox: {
-        width: '85%', // ratio derived from the design
+        flex: 1,
+        justifyContent: 'center',
+        minWidth: 0,
+        marginHorizontal: 2,
+        paddingVertical: 0,
+    },
+    menuButton: {
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: -6,
     },
 }));
 
@@ -103,15 +139,17 @@ const hitSlop: Insets = {top: 10, bottom: 30, left: 20, right: 20};
 
 const ChannelListHeader = ({
     canCreateChannels,
-    canJoinChannels,
     canInvitePeople,
+    currentUser,
     displayName,
     iconPad,
     onHeaderPress,
     pushProxyStatus,
+    threadsButton,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const {openDrawer} = useLeftDrawer();
     const serverDisplayName = useServerDisplayName();
     const marginLeft = useSharedValue(iconPad ? 50 : 0);
     const styles = getStyles(theme);
@@ -121,9 +159,6 @@ const ChannelListHeader = ({
     const serverUrl = useServerUrl();
     useEffect(() => {
         marginLeft.value = iconPad ? 50 : 0;
-
-    // We only want to update the shared value when `iconPad` changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [iconPad]);
 
     const onPress = usePreventDoubleTap(useCallback(() => {
@@ -131,21 +166,16 @@ const ChannelListHeader = ({
             return (
                 <PlusMenu
                     canCreateChannels={canCreateChannels}
-                    canJoinChannels={canJoinChannels}
                     canInvitePeople={canInvitePeople}
                 />
             );
         };
 
         const closeButtonId = 'close-plus-menu';
-        let items = 1;
+        let items = 1; // 私信
         let separators = 0;
 
         if (canCreateChannels) {
-            items += 1;
-        }
-
-        if (canJoinChannels) {
             items += 1;
         }
 
@@ -154,14 +184,25 @@ const ChannelListHeader = ({
             separators += 1;
         }
 
+        // 扫一扫
+        items += 1;
+        separators += 1;
+
         bottomSheet({
             closeButtonId,
             renderContent,
             snapPoints: [1, bottomSheetSnapPoint(items, ITEM_HEIGHT) + (separators * SEPARATOR_HEIGHT)],
             theme,
-            title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Options'}),
+            title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Start a conversation'}),
         });
-    }, [intl, theme, canCreateChannels, canInvitePeople, canJoinChannels]));
+    }, [intl, theme, canCreateChannels, canInvitePeople]));
+
+    const onSearchPress = usePreventDoubleTap(useCallback(() => {
+        findChannels(
+            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
+            theme,
+        );
+    }, [intl, theme]));
 
     const onPushAlertPress = useCallback(() => {
         if (pushProxyStatus === PUSH_PROXY_STATUS_NOT_AVAILABLE) {
@@ -179,6 +220,18 @@ const ChannelListHeader = ({
     if (displayName) {
         header = (
             <View style={styles.outsideBox}>
+                <TouchableWithFeedback
+                    onPress={openDrawer}
+                    style={styles.menuButton}
+                    testID='channel_list_header.menu.button'
+                    type='opacity'
+                >
+                    <OpenDrawerIcon
+                        width={26}
+                        height={26}
+                        color={theme.sidebarText}
+                    />
+                </TouchableWithFeedback>
                 <View style={styles.firstBox}>
                     <View style={styles.headerRow}>
                         <TouchableWithoutFeedback
@@ -186,7 +239,7 @@ const ChannelListHeader = ({
                         >
                             <View style={styles.headerRow}>
                                 <Text
-                                    numberOfLines={2}
+                                    numberOfLines={1}
                                     ellipsizeMode='tail'
                                     style={styles.headingStyles}
                                     testID='channel_list_header.team_display_name'
@@ -222,18 +275,33 @@ const ChannelListHeader = ({
                         <LoadingUnreads/>
                     </View>
                 </View>
-                <TouchableWithFeedback
-                    hitSlop={hitSlop}
-                    onPress={onPress}
-                    style={styles.plusButton}
-                    testID='channel_list_header.plus.button'
-                    type='opacity'
-                >
-                    <CompassIcon
-                        style={styles.plusIcon}
-                        name={'plus'}
-                    />
-                </TouchableWithFeedback>
+                <View style={styles.rightButtonsContainer}>
+                    {threadsButton}
+                    <TouchableWithFeedback
+                        hitSlop={hitSlop}
+                        onPress={onSearchPress}
+                        style={styles.searchButton}
+                        testID='channel_list_header.search.button'
+                        type='opacity'
+                    >
+                        <CompassIcon
+                            style={styles.plusIcon}
+                            name='magnify'
+                        />
+                    </TouchableWithFeedback>
+                    <TouchableWithFeedback
+                        hitSlop={hitSlop}
+                        onPress={onPress}
+                        style={styles.plusButton}
+                        testID='channel_list_header.plus.button'
+                        type='opacity'
+                    >
+                        <CompassIcon
+                            style={styles.plusIcon}
+                            name='plus'
+                        />
+                    </TouchableWithFeedback>
+                </View>
             </View>
         );
     } else {

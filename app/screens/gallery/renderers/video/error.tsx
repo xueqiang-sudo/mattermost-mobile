@@ -79,7 +79,10 @@ const VideoError = ({cacheKey, canDownloadFiles, enableSecureFilePreview, filena
 
     const onPress = useCallback(() => {
         hideHeaderAndFooter(!headerAndFooterHidden.value);
-    }, [headerAndFooterHidden, hideHeaderAndFooter]);
+
+    // No need to add shared values to the dependency array here,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hideHeaderAndFooter]);
 
     let poster;
     if (posterUri && !loadPosterError) {

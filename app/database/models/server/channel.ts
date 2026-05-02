@@ -112,7 +112,7 @@ export default class ChannelModel extends Model implements ChannelModelInterface
     /** team_id : The team to which this channel belongs.  It can be empty for direct/group message. */
     @field('team_id') teamId!: string;
 
-    /** type : The type of the channel ( e.g. G: group messages, D: direct messages, P: private channel and O: public channel) */
+    /** type : The type of the channel ( e.g. G: group messages, D: direct messages, P: group chat (invite-only), O: public channel) */
     @field('type') type!: ChannelType;
 
     /** bannerInfo : The banner information for the channel */
@@ -155,9 +155,6 @@ export default class ChannelModel extends Model implements ChannelModelInterface
     /** categoryChannel : Query returning the membership data for the current user if it belongs to this channel */
     @immutableRelation(CATEGORY_CHANNEL, 'channel_id') categoryChannel!: Relation<CategoryChannelModel>;
 
-    /** autotranslation : Whether the channel has automatic translation enabled */
-    @field('autotranslation') autotranslation!: boolean;
-
     toApi = (): Channel => {
         return {
             id: this.id,
@@ -179,7 +176,6 @@ export default class ChannelModel extends Model implements ChannelModelInterface
             shared: this.shared,
             banner_info: this.bannerInfo,
             policy_enforced: this.abacPolicyEnforced,
-            autotranslation: this.autotranslation,
         };
     };
 }

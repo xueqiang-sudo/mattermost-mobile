@@ -14,7 +14,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {isErrorWithMessage, isServerError} from '@utils/errors';
 import {logError} from '@utils/log';
 import {makeStyleSheetFromTheme} from '@utils/theme';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import {ChannelNameInput} from '../channel_name_input';
 import MessageBox from '../message_box/message_box';
@@ -54,37 +54,39 @@ export const ConvertGMToChannelForm = ({
     commonTeams,
     profiles,
     locale,
-    teammateNameDisplay,
+    teammateNameDisplay: _teammateNameDisplay,
 }: Props) => {
     const theme = useTheme();
     const styles = getStyleFromTheme(theme);
     const serverUrl = useServerUrl();
     const {formatList, formatMessage} = useIntl();
 
-    const [selectedTeam, setSelectedTeam] = useState<Team>(commonTeams[0]);
+    const [selectedTeam, setSelectedTeam] = useState<Team | undefined>(commonTeams[0]);
     const [newChannelName, setNewChannelName] = useState<string>('');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [channelNameErrorMessage, setChannelNameErrorMessage] = useState<string>('');
     const [conversionInProgress, setConversionInProgress] = useState(false);
 
-    const userDisplayNames = useMemo(() => profiles.map((profile) => displayUsername(profile, locale, teammateNameDisplay)), [profiles, teammateNameDisplay, locale]);
+    const userDisplayNames = useMemo(() => profiles.map((profile) => username2Nickname(profile, {locale})), [profiles, locale]);
     const submitButtonEnabled = !conversionInProgress && selectedTeam && newChannelName.trim();
 
     const handleOnPress = usePreventDoubleTap(useCallback(async () => {
-        if (!submitButtonEnabled) {
+        if (!submitButtonEnabled || !selectedTeam) {
             return;
         }
 
+        const selectedTeamId = selectedTeam.id;
+
         setConversionInProgress(true);
 
-        const {updatedChannel, error} = await convertGroupMessageToPrivateChannel(serverUrl, channelId, selectedTeam.id, newChannelName);
+        const {updatedChannel, error} = await convertGroupMessageToPrivateChannel(serverUrl, channelId, selectedTeamId, newChannelName);
         if (error) {
             if (isServerError(error) && error.server_error_id === ServerErrors.DUPLICATE_CHANNEL_NAME && isErrorWithMessage(error)) {
                 setChannelNameErrorMessage(error.message);
             } else if (isErrorWithMessage(error)) {
                 setErrorMessage(error.message);
             } else {
-                setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert Group Message to Private Channel.'}));
+                setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a group chat.'}));
             }
 
             setConversionInProgress(false);
@@ -92,16 +94,16 @@ export const ConvertGMToChannelForm = ({
         }
 
         if (!updatedChannel) {
-            logError('No updated channel received from server when converting GM to private channel');
-            setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert Group Message to Private Channel.'}));
+            logError('No updated channel received from server when converting GM to group chat');
+            setErrorMessage(formatMessage({id: 'channel_info.convert_gm_to_channel.conversion_error', defaultMessage: 'Something went wrong. Failed to convert the discussion group to a group chat.'}));
             setConversionInProgress(false);
             return;
         }
 
         setErrorMessage('');
-        switchToChannelById(serverUrl, updatedChannel.id, selectedTeam.id);
+        switchToChannelById(serverUrl, updatedChannel.id, selectedTeamId);
         setConversionInProgress(false);
-    }, [submitButtonEnabled, serverUrl, channelId, selectedTeam.id, newChannelName, formatMessage]));
+    }, [submitButtonEnabled, serverUrl, channelId, selectedTeam, newChannelName, formatMessage]));
 
     if (commonTeams.length === 0) {
         return (
@@ -116,7 +118,7 @@ export const ConvertGMToChannelForm = ({
 
     const textConvert = formatMessage({
         id: 'channel_info.convert_gm_to_channel.button_text',
-        defaultMessage: 'Convert to Private Channel',
+        defaultMessage: 'Convert to group chat',
     });
 
     const textConverting = formatMessage({
@@ -129,7 +131,7 @@ export const ConvertGMToChannelForm = ({
     const memberNames = profiles.length > 0 ? formatList(userDisplayNames) : defaultUserDisplayNames;
     const messageBoxBody = formatMessage({
         id: 'channel_info.convert_gm_to_channel.warning.bodyXXXX',
-        defaultMessage: 'You are about to convert the Group Message with {memberNames} to a Channel. This cannot be undone.',
+        defaultMessage: 'You are about to convert the discussion group with {memberNames} to a channel. This cannot be undone.',
     }, {
         memberNames,
     });

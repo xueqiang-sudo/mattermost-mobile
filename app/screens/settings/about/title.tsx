@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {defineMessages} from 'react-intl';
-import {Text} from 'react-native';
+import {defineMessages, useIntl} from 'react-intl';
+import {Text, View} from 'react-native';
 
 import FormattedText from '@components/formatted_text';
 import {useTheme} from '@context/theme';
@@ -12,69 +12,59 @@ import {typography} from '@utils/typography';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     return {
-        title: {
-            ...typography('Heading', 800, 'SemiBold'),
+        name: {
+            ...typography('Heading', 600, 'SemiBold'),
             color: theme.centerChannelColor,
-            paddingHorizontal: 36,
-        },
-        spacerTop: {
-            marginTop: 8,
-        },
-        spacerBottom: {
+            textAlign: 'center',
             marginBottom: 8,
+        },
+        edition: {
+            ...typography('Body', 100, 'SemiBold'),
+            color: theme.centerChannelColor,
+            textAlign: 'center',
         },
     };
 });
 
 const messages = defineMessages({
-
-    teamEditiont0: {
-        id: 'about.teamEditiont0',
-        defaultMessage: 'Team Edition',
+    editionStandard: {
+        id: 'about.edition.standard',
+        defaultMessage: 'Standard',
     },
-    teamEditiont1: {
-        id: 'about.teamEditiont1',
-        defaultMessage: 'Enterprise Edition',
-    },
-    enterpriseEditione1: {
-        id: 'about.enterpriseEditione1',
-        defaultMessage: 'Enterprise Edition',
+    editionEnterprise: {
+        id: 'about.edition.enterprise',
+        defaultMessage: 'Enterprise',
     },
 });
 
 type TitleProps = {
     config: ClientConfig;
-    license?: ClientLicense;
-}
-const Title = ({config, license}: TitleProps) => {
+};
+
+const Title = ({config}: TitleProps) => {
     const theme = useTheme();
+    const intl = useIntl();
     const style = getStyleSheet(theme);
 
-    let message = messages.teamEditiont0;
+    const editionMessage =
+        config.BuildEnterpriseReady === 'true' ? messages.editionEnterprise : messages.editionStandard;
 
-    if (config.BuildEnterpriseReady === 'true') {
-        message = messages.teamEditiont1;
-
-        if (license?.IsLicensed === 'true') {
-            message = messages.enterpriseEditione1;
-        }
-    }
+    const appName = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName;
 
     return (
-        <>
+        <View>
             <Text
-                style={[style.title, style.spacerTop]}
+                style={style.name}
                 testID='about.site_name'
             >
-                {`${config.SiteName} `}
+                {appName}
             </Text>
             <FormattedText
-                {...message}
-                style={[style.title, style.spacerBottom]}
+                {...editionMessage}
+                style={style.edition}
                 testID='about.title'
             />
-        </>
-
+        </View>
     );
 };
 

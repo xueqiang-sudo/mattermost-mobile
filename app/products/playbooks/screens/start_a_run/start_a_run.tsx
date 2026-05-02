@@ -261,7 +261,7 @@ function StartARun({
                         <OptionItem
                             label={intl.formatMessage({
                                 id: 'playbooks.start_run.create_new_channel.private_channel',
-                                defaultMessage: 'Private channel',
+                                defaultMessage: 'Group chat',
                             })}
                             type='radio'
                             selected={!createPublicChannel}

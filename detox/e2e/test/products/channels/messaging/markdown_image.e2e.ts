@@ -22,7 +22,7 @@ import {
     LoginScreen,
     ServerScreen,
 } from '@support/ui/screen';
-import {timeouts} from '@support/utils';
+import {expect} from 'detox';
 
 describe('Messaging - Markdown Image', () => {
     const serverOneDisplayName = 'Server 1';
@@ -56,13 +56,8 @@ describe('Messaging - Markdown Image', () => {
 
         // * Verify markdown image is displayed
         const {post} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
-        const {postListPostItem, postListPostItemImage} = ChannelScreen.getPostListPostItem(post.id);
-
-        // Scroll to the post first to ensure it's in view
-        await waitFor(postListPostItem).toBeVisible().withTimeout(timeouts.FOUR_SEC);
-
-        // Wait for image to load and have dimensions (not 0x0)
-        await waitFor(postListPostItemImage).toExist().withTimeout(timeouts.TEN_SEC);
+        const {postListPostItemImage} = ChannelScreen.getPostListPostItem(post.id);
+        await expect(postListPostItemImage).toBeVisible();
 
         // # Go back to channel list screen
         await ChannelScreen.back();
@@ -76,13 +71,8 @@ describe('Messaging - Markdown Image', () => {
 
         // * Verify markdown image with link is displayed
         const {post} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
-        const {postListPostItem, postListPostItemImage} = ChannelScreen.getPostListPostItem(post.id);
-
-        // Scroll to the post first to ensure it's in view
-        await waitFor(postListPostItem).toBeVisible().withTimeout(timeouts.FOUR_SEC);
-
-        // Wait for image to load and have dimensions (not 0x0)
-        await waitFor(postListPostItemImage).toExist().withTimeout(timeouts.TEN_SEC);
+        const {postListPostItemImage} = ChannelScreen.getPostListPostItem(post.id);
+        await expect(postListPostItemImage).toBeVisible();
 
         // # Go back to channel list screen
         await ChannelScreen.back();

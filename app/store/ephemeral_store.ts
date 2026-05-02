@@ -5,6 +5,7 @@ import {DeviceEventEmitter} from 'react-native';
 import {BehaviorSubject} from 'rxjs';
 
 import {Events} from '@constants';
+import {DEFAULT_LOCALE} from '@i18n';
 import {toMilliseconds} from '@utils/datetime';
 
 const TIME_TO_CLEAR_WEBSOCKET_ACTIONS = toMilliseconds({seconds: 30});
@@ -13,6 +14,7 @@ class EphemeralStoreSingleton {
     theme: Theme | undefined;
     creatingChannel = false;
     creatingDMorGMTeammates: string[] = [];
+    currentLocale: string = DEFAULT_LOCALE;
 
     noticeShown = new Set<string>();
 
@@ -49,26 +51,6 @@ class EphemeralStoreSingleton {
     // This is used to avoid fetching the playbooks for the same channel multiple times.
     // It is cleared any time the connection with the server is lost.
     private channelPlaybooksSynced: {[serverUrl: string]: Set<string>} = {};
-
-    // Track how many translations are being executed at the same time on the channel.
-    // We limit this to avoid overwhelming the device.
-    private runningTranslations = new Set<string>();
-
-    addRunningTranslation = (postId: string) => {
-        this.runningTranslations.add(postId);
-    };
-
-    removeRunningTranslation = (postId: string) => {
-        this.runningTranslations.delete(postId);
-    };
-
-    totalRunningTranslations = () => {
-        return this.runningTranslations.size;
-    };
-
-    // Track files that have been rejected by plugins (transient state)
-    // Maps file ID to rejection reason
-    private rejectedFiles = new Map<string, string>();
 
     setProcessingNotification = (v: string) => {
         this.processingNotification = v;
@@ -324,24 +306,12 @@ class EphemeralStoreSingleton {
         delete this.channelPlaybooksSynced[serverUrl];
     };
 
-    // Ephemeral control for rejected files
-    addRejectedFile = (fileId: string, rejectionReason?: string) => {
-        this.rejectedFiles.set(fileId, rejectionReason || '');
-
-        // Emit event so components can re-render with the updated rejection status
-        DeviceEventEmitter.emit(Events.FILE_REJECTED, {fileId});
+    setCurrentLocale = (locale: string) => {
+        this.currentLocale = locale || DEFAULT_LOCALE;
     };
 
-    isFileRejected = (fileId: string) => {
-        return this.rejectedFiles.has(fileId);
-    };
-
-    getRejectionReason = (fileId: string) => {
-        return this.rejectedFiles.get(fileId);
-    };
-
-    clearRejectedFiles = () => {
-        this.rejectedFiles.clear();
+    getCurrentLocale = () => {
+        return this.currentLocale || DEFAULT_LOCALE;
     };
 }
 

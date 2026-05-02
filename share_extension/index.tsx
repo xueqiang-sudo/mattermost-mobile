@@ -1,6 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import '@utils/bootstrap_text_scaling';
+
 import MattermostShare, {type ShareExtensionDataToSend, type SharedItem} from '@mattermost/rnshare';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';

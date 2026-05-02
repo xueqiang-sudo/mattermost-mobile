@@ -34,3 +34,33 @@ export async function clearCookiesForServer(serverUrl: string) {
 export const urlSafeBase64Encode = (str: string): string => {
     return base64.encode(str).replace(/\+/g, '-').replace(/\//g, '_');
 };
+
+const BASE64_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+const CUSTOM_BASE64_CHARSET = 'QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm7894560123-_~';
+
+const remapChars = (input: string, fromCharset: string, toCharset: string): string => {
+    const map = new Map<string, string>();
+    for (let i = 0; i < fromCharset.length; i++) {
+        map.set(fromCharset[i], toCharset[i]);
+    }
+
+    return Array.from(input, (char) => map.get(char) ?? char).join('');
+};
+
+/**
+ * 自定义 Base64 编码（带简单加密）
+ * @param str 原始字符串
+ * @returns 加密后的 Base64 字符串
+ */
+export const customBase64Encode = (str: string): string => {
+    return remapChars(base64.encode(str), BASE64_CHARSET, CUSTOM_BASE64_CHARSET);
+};
+
+/**
+ * 自定义 Base64 解码（对应加密）
+ * @param str 加密后的 Base64 字符串
+ * @returns 原始字符串
+ */
+export const customBase64Decode = (str: string): string => {
+    return base64.decode(remapChars(str, CUSTOM_BASE64_CHARSET, BASE64_CHARSET));
+};

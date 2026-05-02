@@ -9,7 +9,6 @@
 
 import {
     Post,
-    Preference,
     Setup,
 } from '@support/server_api';
 import {
@@ -24,8 +23,8 @@ import {
     PostOptionsScreen,
     ServerScreen,
 } from '@support/ui/screen';
-import {getRandomId, timeouts, wait, waitForElementToBeVisible} from '@support/utils';
-import {waitFor} from 'detox';
+import {getRandomId, timeouts, wait} from '@support/utils';
+import {expect} from 'detox';
 
 describe('Messaging - Follow and Unfollow Message', () => {
     const serverOneDisplayName = 'Server 1';
@@ -35,16 +34,6 @@ describe('Messaging - Follow and Unfollow Message', () => {
     beforeAll(async () => {
         const {channel, user} = await Setup.apiInit(siteOneUrl);
         testChannel = channel;
-
-        // # Enable CRT (Collapsed Reply Threads) for the user
-        await Preference.apiSaveUserPreferences(siteOneUrl, user.id, [
-            {
-                user_id: user.id,
-                category: 'display_settings',
-                name: 'collapsed_reply_threads',
-                value: 'on',
-            },
-        ]);
 
         // # Log in to server
         await ServerScreen.connectToServer(serverOneUrl, serverOneDisplayName);
@@ -67,25 +56,18 @@ describe('Messaging - Follow and Unfollow Message', () => {
         await ChannelScreen.open(channelsCategory, testChannel.name);
         await ChannelScreen.postMessage(message);
 
-        // # Wait for keyboard to dismiss and message to be visible
-        await wait(timeouts.ONE_SEC);
-
         // * Verify message is posted
         const {post} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
         const {postListPostItem} = ChannelScreen.getPostListPostItem(post.id, message);
-        await waitFor(postListPostItem).toBeVisible().withTimeout(timeouts.FOUR_SEC);
-
-        // # Wait for thread to be created in DB (CRT creates threads asynchronously)
-        await wait(timeouts.TWO_SEC);
+        await expect(postListPostItem).toBeVisible();
 
         // # Open post options for message and tap on follow message option
-        await postListPostItem.longPress(timeouts.FOUR_SEC);
-        await waitFor(PostOptionsScreen.followThreadOption).toBeVisible().withTimeout(timeouts.FOUR_SEC);
+        await postListPostItem.longPress(timeouts.ONE_SEC);
         await PostOptionsScreen.followThreadOption.tap();
 
         // * Verify message is followed by user via post footer
         const {postListPostItemFooterFollowingButton} = ChannelScreen.getPostListPostItem(post.id, message);
-        await waitForElementToBeVisible(postListPostItemFooterFollowingButton);
+        await waitFor(postListPostItemFooterFollowingButton).toBeVisible().withTimeout(timeouts.TEN_SEC);
 
         // # Open post options for message and tap on unfollow message option
         await ChannelScreen.openPostOptionsFor(post.id, message);
@@ -105,16 +87,8 @@ describe('Messaging - Follow and Unfollow Message', () => {
         const message = `Message ${getRandomId()}`;
         await ChannelScreen.open(channelsCategory, testChannel.name);
         await ChannelScreen.postMessage(message);
-
-        // # Wait for keyboard to dismiss and message to be visible
-        await wait(timeouts.ONE_SEC);
-
         const {post} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
-        const {postListPostItem} = ChannelScreen.getPostListPostItem(post.id, message);
-        await waitForElementToBeVisible(postListPostItem);
-
         await ChannelScreen.openPostOptionsFor(post.id, message);
-        await waitFor(PostOptionsScreen.followThreadOption).toBeVisible().withTimeout(timeouts.FOUR_SEC);
         await PostOptionsScreen.followThreadOption.tap();
 
         // * Verify message is followed by user via post footer

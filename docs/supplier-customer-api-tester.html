@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>供应商、客户管理 API 测试工具</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+      --supplier: #007AFF;
+      --customer: #34C759;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+    .config {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .config-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .config label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    .config input {
+      width: 320px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .config input.short { width: 180px; }
+    .config-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+    .section {
+      margin-bottom: 16px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-header:hover { background: #334155; }
+    .section-header::before {
+      content: '▼';
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+    .section.collapsed .section-header::before { transform: rotate(-90deg); }
+    .section-body { display: none; padding: 16px; }
+    .section:not(.collapsed) .section-body {
+      display: block;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+    }
+    .endpoint {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .endpoint:last-child { border-bottom: none; }
+    .endpoint-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .method {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .method.get { background: #22c55e33; color: #22c55e; }
+    .method.post { background: #3b82f633; color: #3b82f6; }
+    .method.put { background: #f59e0b33; color: #f59e0b; }
+    .method.delete { background: #ef444433; color: #ef4444; }
+    .path { font-family: monospace; font-size: 0.875rem; }
+    .params {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .params input {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.875rem;
+      width: 120px;
+    }
+    .params input::placeholder { color: var(--text-muted); }
+    .body-input {
+      width: 100%;
+      min-height: 60px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: monospace;
+      font-size: 0.8125rem;
+      resize: vertical;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .response-panel {
+      position: sticky;
+      bottom: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #334155;
+    }
+    .response-body {
+      padding: 16px;
+      max-height: 200px;
+      overflow: auto;
+      font-family: monospace;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .response-body.success { color: var(--success); }
+    .response-body.error { color: var(--error); }
+    .status { font-size: 0.75rem; color: var(--text-muted); }
+    .inline-body { margin-top: 8px; }
+    .type-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .type-badge.supplier { background: rgba(0, 122, 255, 0.15); color: #007AFF; }
+    .type-badge.customer { background: rgba(52, 199, 89, 0.15); color: #34C759; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>供应商、客户管理 API 测试工具</h1>
+    <p style="color: var(--text-muted); margin-bottom: 8px;">供应商 / 客户列表 API</p>
+    <p class="config-hint" style="margin-bottom: 8px;">供应商和客户本质上是「公司」实体的两种类型，通过 type 字段区分。</p>
+    <p class="config-hint" style="margin-bottom: 24px;">type：<strong style="color: var(--supplier);">supplier</strong>（供应商）| <strong style="color: var(--customer);">customer</strong>（客户）</p>
+
+    <div class="config">
+      <div class="config-row">
+        <label>
+          服务地址
+          <input type="text" id="baseUrl" value="http://118.195.136.154:8088">
+        </label>
+        <label>
+          API Key
+          <input type="text" id="apiKey" value="b3cz8fsbrfd4ukmfmssf864pqr">
+        </label>
+      </div>
+      <div class="config-row" style="margin-top: 12px;">
+        <label>
+          默认供应商/客户 ID
+          <input type="text" id="defaultCompanyId" class="short" placeholder="自动填入公司相关接口">
+        </label>
+        <label>
+          默认拥有者 ID
+          <input type="text" id="defaultOwnerId" class="short" placeholder="owner_id">
+        </label>
+      </div>
+      <p class="config-hint">以上默认 ID 会保存到本地，刷新页面后自动填充到各接口的对应输入框</p>
+      <p class="config-hint" id="proxyHint" style="margin-top: 4px;"></p>
+    </div>
+
+    <div class="section">
+      <div class="section-header">公共端点</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/health</span>
+            </div>
+            <p class="status">健康检查</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/health',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/</span>
+            </div>
+            <p class="status">API 基本信息（name、version）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/docs</span>
+            </div>
+            <p class="status">API 端点列表（无需认证）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/docs',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">供应商管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/companies</span>
+              <span class="type-badge supplier">supplier</span>
+            </div>
+            <p class="status">创建供应商（id 通常由客户端生成 UUID；需 owner_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_supplier_create" rows="6" placeholder='{"id":"","name":"","type":"supplier","description":"","owner_id":""}'>{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "示例供应商",
+  "type": "supplier",
+  "description": "测试用供应商",
+  "owner_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/companies',document.getElementById('body_supplier_create').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies</span>
+              <span class="type-badge supplier">supplier</span>
+            </div>
+            <p class="status">获取所有公司（客户端过滤 type=supplier）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">获取单个供应商</p>
+            <div class="params">
+              <input id="supplier_id" placeholder="供应商ID">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies/'+paramVal('supplier_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">更新供应商</p>
+            <div class="params"><input id="supplier_put_id" placeholder="供应商ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_supplier_put" rows="5" placeholder='{"name":"","type":"supplier","description":"","owner_id":""}'>{
+  "name": "新供应商名称",
+  "type": "supplier",
+  "description": "更新后的描述",
+  "owner_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/companies/'+paramVal('supplier_put_id'),document.getElementById('body_supplier_put').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">删除供应商</p>
+            <div class="params"><input id="supplier_del_id" placeholder="供应商ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/companies/'+paramVal('supplier_del_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/companies/:id/force</span>
+            </div>
+            <p class="status">强制删除供应商（含级联）</p>
+            <div class="params"><input id="supplier_force_del_id" placeholder="供应商ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/companies/'+paramVal('supplier_force_del_id')+'/force',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">客户管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method post">POST</span>
+              <span class="path">/api/v1/companies</span>
+              <span class="type-badge customer">customer</span>
+            </div>
+            <p class="status">创建客户（id 通常由客户端生成 UUID；需 owner_id）</p>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_customer_create" rows="6" placeholder='{"id":"","name":"","type":"customer","description":"","owner_id":""}'>{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "name": "示例客户",
+  "type": "customer",
+  "description": "测试用客户",
+  "owner_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('POST','/api/v1/companies',document.getElementById('body_customer_create').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies</span>
+              <span class="type-badge customer">customer</span>
+            </div>
+            <p class="status">获取所有公司（客户端过滤 type=customer）</p>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies',null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method get">GET</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">获取单个客户</p>
+            <div class="params">
+              <input id="customer_id" placeholder="客户ID">
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('GET','/api/v1/companies/'+paramVal('customer_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">更新客户</p>
+            <div class="params"><input id="customer_put_id" placeholder="客户ID"></div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_customer_put" rows="5" placeholder='{"name":"","type":"customer","description":"","owner_id":""}'>{
+  "name": "新客户名称",
+  "type": "customer",
+  "description": "更新后的描述",
+  "owner_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+}</textarea>
+            </div>
+          </div>
+          <button class="btn" onclick="callApi('PUT','/api/v1/companies/'+paramVal('customer_put_id'),document.getElementById('body_customer_put').value)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/companies/:id</span>
+            </div>
+            <p class="status">删除客户</p>
+            <div class="params"><input id="customer_del_id" placeholder="客户ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/companies/'+paramVal('customer_del_id'),null)">调用</button>
+        </div>
+        <div class="endpoint">
+          <div>
+            <div class="endpoint-info">
+              <span class="method delete">DELETE</span>
+              <span class="path">/api/v1/companies/:id/force</span>
+            </div>
+            <p class="status">强制删除客户（含级联）</p>
+            <div class="params"><input id="customer_force_del_id" placeholder="客户ID"></div>
+          </div>
+          <button class="btn" onclick="callApi('DELETE','/api/v1/companies/'+paramVal('customer_force_del_id')+'/force',null)">调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">联系人关系管理</div>
+      <div class="section-body">
+        <div class="endpoint">
+          <div style="flex:1">
+            <div class="endpoint-info">
+              <span class="method put">PUT</span>
+              <span class="path">/api/v1/employees/:employee_id/contacts?contact_id=:contact_id&contact_type=:contact_type</span>
+            </div>
+            <p class="status">更新联系人关系信息（description/remark，至少提供一个）</p>
+            <div class="params">
+              <input id="contact_employee_id" placeholder="employee_id">
+              <input id="contact_contact_id" placeholder="contact_id">
+              <input id="contact_contact_type" placeholder="customer/supplier">
+            </div>
+            <div class="inline-body">
+              <textarea class="body-input" id="body_contact_update" rows="5" placeholder='{"description":"更新后的关系描述","remark":"更新后的备注信息"}'>{
+  "description": "更新后的关系描述",
+  "remark": "更新后的备注信息"
+}</textarea>
+            </div>
+          </div>
+          <button
+            class="btn"
+            onclick="callApi(
+              'PUT',
+              '/api/v1/employees/' + paramVal('contact_employee_id') + '/contacts?contact_id=' + encodeURIComponent(paramVal('contact_contact_id')) + '&contact_type=' + encodeURIComponent(paramVal('contact_contact_type')),
+              document.getElementById('body_contact_update').value
+            )"
+          >调用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="response-panel">
+      <div class="response-header">
+        <span>响应</span>
+        <span class="status" id="respStatus"></span>
+      </div>
+      <pre class="response-body" id="responseBody">点击上方按钮调用接口，响应将显示在此处</pre>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'supplier-customer-api-tester-defaults';
+
+    function paramVal(domId) {
+      return document.getElementById(domId).value.trim() || '_';
+    }
+
+    function getDefaults() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function saveDefaults() {
+      const defaults = {
+        baseUrl: document.getElementById('baseUrl').value,
+        apiKey: document.getElementById('apiKey').value,
+        companyId: document.getElementById('defaultCompanyId').value.trim(),
+        ownerId: document.getElementById('defaultOwnerId').value.trim()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    }
+
+    function applyDefaults() {
+      const cid = (document.getElementById('defaultCompanyId')?.value || '').trim();
+      const oid = (document.getElementById('defaultOwnerId')?.value || '').trim();
+
+      ['supplier_id','supplier_put_id','supplier_del_id','supplier_force_del_id',
+       'customer_id','customer_put_id','customer_del_id','customer_force_del_id'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if (el) el.value = cid;
+      });
+
+      ['body_supplier_create','body_supplier_put','body_customer_create','body_customer_put'].forEach(key => {
+        const el = document.getElementById(key);
+        if (!el) return;
+        try {
+          const obj = el.value.trim() ? JSON.parse(el.value) : {};
+          if ('owner_id' in obj) obj.owner_id = oid;
+          el.value = JSON.stringify(obj, null, 2);
+        } catch (_) {}
+      });
+    }
+
+    function loadStoredDefaults() {
+      const d = getDefaults();
+      if (d.baseUrl) document.getElementById('baseUrl').value = d.baseUrl;
+      if (d.apiKey) document.getElementById('apiKey').value = d.apiKey;
+      if (d.companyId) document.getElementById('defaultCompanyId').value = d.companyId;
+      if (d.ownerId) document.getElementById('defaultOwnerId').value = d.ownerId;
+    }
+
+    document.querySelectorAll('.section-header').forEach(el => {
+      el.addEventListener('click', () => {
+        el.parentElement.classList.toggle('collapsed');
+      });
+    });
+
+    loadStoredDefaults();
+    applyDefaults();
+
+    const proxyHint = document.getElementById('proxyHint');
+    proxyHint.textContent = useProxy()
+      ? '✓ 已通过本地代理请求（CORS 已解决）'
+      : '⚠ 直接请求可能因 CORS 失败。运行 node docs/contact-api-proxy.js 后访问 http://localhost:3456/supplier-customer-api-tester.html';
+
+    ['baseUrl','apiKey','defaultCompanyId','defaultOwnerId'].forEach(key => {
+      document.getElementById(key).addEventListener('change', () => {
+        saveDefaults();
+        if (['defaultCompanyId','defaultOwnerId'].includes(key)) {
+          applyDefaults();
+        }
+      });
+      document.getElementById(key).addEventListener('blur', () => {
+        saveDefaults();
+        if (['defaultCompanyId','defaultOwnerId'].includes(key)) {
+          applyDefaults();
+        }
+      });
+    });
+
+    function useProxy() {
+      return window.location.port === '3456' && window.location.hostname === 'localhost';
+    }
+
+    async function callApi(method, path, body) {
+      const base = document.getElementById('baseUrl').value.replace(/\/$/, '');
+      const apiKey = document.getElementById('apiKey').value;
+      const url = base + path;
+      const respEl = document.getElementById('responseBody');
+      const statusEl = document.getElementById('respStatus');
+
+      let reqBody = '';
+      if (body && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
+        try {
+          reqBody = body.trim() ? JSON.stringify(JSON.parse(body)) : '{}';
+        } catch (e) {
+          respEl.textContent = '请求体 JSON 格式错误：' + e.message;
+          respEl.className = 'response-body error';
+          statusEl.textContent = '';
+          return;
+        }
+      }
+
+      respEl.textContent = '请求中...';
+      respEl.className = 'response-body';
+      statusEl.textContent = '';
+
+      try {
+        const headers = { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' };
+
+        let status, statusText, text;
+        if (useProxy()) {
+          const proxyRes = await fetch('/proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUrl: url,
+              method,
+              headers,
+              body: reqBody
+            })
+          });
+          const proxyData = await proxyRes.json();
+          status = proxyData.status;
+          statusText = proxyData.statusText;
+          text = proxyData.body || '';
+        } else {
+          const res = await fetch(url, {
+            method,
+            headers,
+            body: reqBody || undefined
+          });
+          status = res.status;
+          statusText = res.statusText;
+          text = await res.text();
+        }
+
+        let formatted = text;
+        try {
+          formatted = JSON.stringify(JSON.parse(text), null, 2);
+        } catch (_) {}
+
+        respEl.textContent = `[${status}] ${statusText}\n\n${formatted}`;
+        respEl.className = 'response-body ' + (status >= 200 && status < 300 ? 'success' : 'error');
+        statusEl.textContent = status + ' ' + statusText;
+      } catch (e) {
+        respEl.textContent = '请求失败：' + e.message + '\n\n若因 CORS 限制，请运行: node docs/contact-api-proxy.js\n然后访问: http://localhost:3456/supplier-customer-api-tester.html';
+        respEl.className = 'response-body error';
+        statusEl.textContent = 'Error';
+      }
+    }
+  </script>
+</body>
+</html>

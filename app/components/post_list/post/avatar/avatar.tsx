@@ -3,13 +3,13 @@
 
 import React, {useCallback, type ReactNode} from 'react';
 import {useIntl} from 'react-intl';
-import {Platform, StyleSheet, TouchableOpacity, View} from 'react-native';
+import {DeviceEventEmitter, Platform, StyleSheet, TouchableOpacity, View} from 'react-native';
 
 import {buildAbsoluteUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
 import ExpoImage from '@components/expo_image';
 import ProfilePicture from '@components/profile_picture';
-import {View as ViewConstant} from '@constants';
+import {Events, Screens, View as ViewConstant} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -26,6 +26,12 @@ type AvatarProps = {
     isAutoReponse: boolean;
     location: AvailableScreens;
     post: PostModel;
+
+    /** 由 avatar/index HOC 从父级传入并解析为 author，内层不直接使用 */
+    forcedAuthor?: UserModel;
+
+    /** When true, use rounded square (WeChat/WeCom style) instead of circle */
+    useRoundedSquare?: boolean;
 }
 
 const style = StyleSheet.create({
@@ -34,7 +40,12 @@ const style = StyleSheet.create({
     },
 });
 
-const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post}: AvatarProps) => {
+const CHAT_AVATAR_BORDER_RADIUS = 6;
+
+/** 微信风格：状态指示器也用方角 */
+const CHAT_STATUS_BORDER_RADIUS = 4;
+
+const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post, useRoundedSquare, forcedAuthor: _forcedAuthor}: AvatarProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -102,19 +113,50 @@ const Avatar = ({author, enablePostIconOverride, isAutoReponse, location, post}:
         });
     }, [author, intl, location, post.channelId, propsIconUrl, propsUsername, theme]));
 
+    const canMentionOnAvatarLongPress = Boolean(author?.username) && (
+
+        // 仅在聊天列表（CHANNEL）里长按头像@对方
+        location === Screens.CHANNEL
+
+        // 自己头像不需要@自己
+        && author.id !== post.userId
+
+        // Webhook icon 不支持用户引用
+        && !fromWebHook
+    );
+
+    const mentionUser = usePreventDoubleTap(useCallback(() => {
+        if (!canMentionOnAvatarLongPress) {
+            return;
+        }
+
+        const rawUsername = ensureString(author?.username);
+        if (!rawUsername) {
+            return;
+        }
+
+        const mention = rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`;
+        DeviceEventEmitter.emit(Events.SEND_TO_POST_DRAFT, {location: Screens.CHANNEL, text: mention});
+    }, [author?.username, canMentionOnAvatarLongPress]));
+
     let component = (
         <ProfilePicture
             author={author}
+            borderRadius={useRoundedSquare ? CHAT_AVATAR_BORDER_RADIUS : undefined}
             size={ViewConstant.PROFILE_PICTURE_SIZE}
             iconSize={24}
-            showStatus={!isAutoReponse || author?.isBot}
+            showStatus={false}
+            statusStyle={useRoundedSquare ? {borderRadius: CHAT_STATUS_BORDER_RADIUS} : undefined}
             testID={`post_avatar.${author?.id}.profile_picture`}
         />
     );
 
     if (!fromWebHook) {
         component = (
-            <TouchableOpacity onPress={openUserProfile}>
+            <TouchableOpacity
+                onPress={openUserProfile}
+                onLongPress={mentionUser}
+            >
                 {component}
             </TouchableOpacity>
         );

@@ -5,8 +5,8 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {combineLatest, of as of$} from 'rxjs';
 import {map} from 'rxjs/operators';
 
-import {observeCurrentUser, observeTeammateNameDisplay, observeUser} from '@queries/servers/user';
-import {displayUsername} from '@utils/user';
+import {observeCurrentUser, observeUser} from '@queries/servers/user';
+import {username2Nickname} from '@utils/user';
 
 import PublicOrPrivateChannel from './public_or_private_channel';
 
@@ -19,10 +19,8 @@ const enhanced = withObservables([], ({channel, database}: {channel: ChannelMode
         const me = observeCurrentUser(database);
         const profile = observeUser(database, channel.creatorId);
 
-        const teammateNameDisplay = observeTeammateNameDisplay(database);
-
-        creator = combineLatest([profile, teammateNameDisplay, me]).pipe(
-            map(([user, displaySetting, currentUser]) => (user ? displayUsername(user, currentUser?.locale, displaySetting, true) : '')),
+        creator = combineLatest([profile, me]).pipe(
+            map(([user, currentUser]) => (user ? username2Nickname(user, {locale: currentUser?.locale}) : '')),
         );
     } else {
         creator = of$(undefined);

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React from 'react';
+import React, {useEffect} from 'react';
 import {useIntl} from 'react-intl';
 
 import {fetchUsersByIds} from '@actions/remote/user';
@@ -9,7 +9,6 @@ import UserItem from '@components/user_item';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import useDidMount from '@hooks/did_mount';
 import {openUserProfileModal} from '@screens/navigation';
 
 import type ReactionModel from '@typings/database/models/servers/reaction';
@@ -37,11 +36,11 @@ const Reactor = ({channelId, location, reaction, user}: Props) => {
         }
     };
 
-    useDidMount(() => {
+    useEffect(() => {
         if (!user) {
             fetchUsersByIds(serverUrl, [reaction.userId]);
         }
-    });
+    }, []);
 
     return (
         <UserItem

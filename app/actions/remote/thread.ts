@@ -11,7 +11,7 @@ import AppsManager from '@managers/apps_manager';
 import NetworkManager from '@managers/network_manager';
 import {getPostById} from '@queries/servers/post';
 import {getConfigValue, getCurrentChannelId, getCurrentTeamId} from '@queries/servers/system';
-import {getIsCRTEnabled, getThreadById, getTeamThreadsSyncData} from '@queries/servers/thread';
+import {getThreadById, getTeamThreadsSyncData} from '@queries/servers/thread';
 import {getCurrentUser} from '@queries/servers/user';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug, logError} from '@utils/log';
@@ -39,24 +39,30 @@ enum Direction {
     Down,
 }
 
-export const fetchAndSwitchToThread = async (serverUrl: string, rootId: string, isFromNotification = false, groupLabel?: RequestGroupLabel) => {
+export const fetchAndSwitchToThread = async (
+    serverUrl: string,
+    rootId: string,
+    isFromNotification = false,
+    groupLabel?: RequestGroupLabel,
+
+    /** @deprecated 保留签名以兼容调用方；已不再使用 */
+    _bypassChannelThreadDisable = false,
+) => {
     const database = DatabaseManager.serverDatabases[serverUrl]?.database;
     if (!database) {
         return {error: `${serverUrl} database not found`};
     }
 
-    // Load thread before we open to the thread modal
+    void _bypassChannelThreadDisable;
+
+    // Load thread before we open the channel view
     fetchPostThread(serverUrl, rootId, undefined, false, groupLabel);
 
-    // Mark thread as read
-    const isCRTEnabled = await getIsCRTEnabled(database);
-    if (isCRTEnabled) {
-        const post = await getPostById(database, rootId);
-        if (post) {
-            const thread = await getThreadById(database, rootId);
-            if (thread?.isFollowing) {
-                markThreadAsViewed(serverUrl, thread.id);
-            }
+    const post = await getPostById(database, rootId);
+    if (post) {
+        const thread = await getThreadById(database, rootId);
+        if (thread?.isFollowing) {
+            markThreadAsViewed(serverUrl, thread.id);
         }
     }
 
@@ -131,14 +137,9 @@ export const markThreadAsRead = async (serverUrl: string, teamId: string | undef
             unread_mentions: 0,
         });
 
-        const isCRTEnabled = await getIsCRTEnabled(database);
         const post = await getPostById(database, threadId);
         if (post) {
-            if (isCRTEnabled) {
-                PushNotifications.removeThreadNotifications(serverUrl, threadId);
-            } else {
-                PushNotifications.removeChannelNotifications(serverUrl, post.channelId);
-            }
+            PushNotifications.removeChannelNotifications(serverUrl, post.channelId);
         }
 
         return {data};
@@ -528,55 +529,5 @@ export const loadEarlierThreads = async (serverUrl: string, teamId: string, last
         return {models, threads};
     } catch (error) {
         return {error};
-    }
-};
-
-const handlePostDeletedForChannelIfNeededBatch: Record<string, {
-    timeout: NodeJS.Timeout | undefined;
-    teamIds: Set<string>;
-}> = {};
-
-const handlePostDeletedForChannelIfNeededBatchTimeout = 500;
-
-export const batchTeamThreadSync = async (serverUrl: string, teamId: string) => {
-    try {
-        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const isCRTEnabled = await getIsCRTEnabled(database);
-        if (!isCRTEnabled) {
-            return;
-        }
-
-        let existingBatch = handlePostDeletedForChannelIfNeededBatch[serverUrl];
-        if (!existingBatch) {
-            existingBatch = {
-                timeout: undefined,
-                teamIds: new Set(),
-            };
-            handlePostDeletedForChannelIfNeededBatch[serverUrl] = existingBatch;
-        }
-
-        clearTimeout(existingBatch.timeout);
-
-        existingBatch.teamIds.add(teamId);
-
-        existingBatch.timeout = setTimeout(async () => {
-            const batch = handlePostDeletedForChannelIfNeededBatch[serverUrl];
-            if (!batch) {
-                return;
-            }
-            delete handlePostDeletedForChannelIfNeededBatch[serverUrl];
-
-            const includeDirect = batch.teamIds.has('');
-            const teamIds = Array.from(batch.teamIds).filter((t) => t !== '');
-            const promises = teamIds.map((t, idx) => syncTeamThreads(serverUrl, t, {excludeDirect: !includeDirect || idx !== 0, refresh: true, fetchOnly: false}));
-            const results = await Promise.all(promises);
-            for (const r of results) {
-                if (r.error) {
-                    logError('batchTeamThreadSync: Error', r.error);
-                }
-            }
-        }, handlePostDeletedForChannelIfNeededBatchTimeout);
-    } catch (error) {
-        logError('handlePostDeletedForChannelIfNeeded: Error', error);
     }
 };

@@ -16,6 +16,7 @@ import {prepareCategoriesAndCategoriesChannels} from '@queries/servers/categorie
 import {prepareMyChannelsForTeam, getDefaultChannelForTeam} from '@queries/servers/channel';
 import {prepareCommonSystemValues, getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
 import {addTeamToTeamHistory, prepareDeleteTeam, prepareMyTeams, getNthLastChannelFromTeam, queryTeamsById, getLastTeam, getTeamById, removeTeamFromTeamHistory, queryMyTeams} from '@queries/servers/team';
+import {getIsCRTEnabled} from '@queries/servers/thread';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
@@ -70,7 +71,7 @@ export async function addUserToTeam(serverUrl: string, teamId: string, userId: s
             loadEventSent = true;
 
             fetchRolesIfNeeded(serverUrl, member.roles.split(' '));
-            const {channels, memberships: channelMembers, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, false, 0, true);
+            const {channels, memberships: channelMembers, categories} = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, true);
             const myTeams: MyTeam[] = [{
                 id: member.team_id,
                 roles: member.roles,
@@ -421,6 +422,20 @@ export const removeUserFromTeam = async (serverUrl: string, teamId: string, user
     }
 };
 
+/** 切换团队后拉取该团队频道与分类，保证首页会话列表与当前企业一致（仅改 currentTeamId 时本地可能仍为旧数据） */
+async function syncMyChannelsAfterTeamSwitch(serverUrl: string, teamId: string) {
+    try {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const isCRTEnabled = await getIsCRTEnabled(database);
+        const {error} = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, false, false, isCRTEnabled);
+        if (error) {
+            logDebug('error on fetchMyChannelsForTeam after team switch', getFullErrorMessage(error));
+        }
+    } catch (e) {
+        logDebug('syncMyChannelsAfterTeamSwitch', getFullErrorMessage(e));
+    }
+}
+
 export async function handleTeamChange(serverUrl: string, teamId: string) {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
@@ -441,6 +456,7 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
         if (channelId) {
             await switchToChannelById(serverUrl, channelId, teamId);
             DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
+            await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
             return {};
         }
     }
@@ -463,6 +479,7 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
     // Fetch Groups + GroupTeams
     fetchGroupsForTeamIfConstrained(serverUrl, teamId);
     fetchScheduledPosts(serverUrl, teamId, false);
+    await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
     return {};
 }
 
@@ -522,11 +539,180 @@ export async function getTeamMembersByIds(serverUrl: string, teamId: string, use
     }
 }
 
+export type TeamManager = {
+    user: UserProfile;
+    membership: TeamMembership;
+};
+
+const TEAM_ADMIN_ROLE = 'team_admin';
+
+const normalizeRoles = (roles: string) => roles.
+    split(' ').
+    map((role) => role.trim()).
+    filter(Boolean);
+
+const buildRoles = (roles: string[]) => Array.from(new Set(roles)).join(' ');
+
+export async function fetchTeamManagers(serverUrl: string, teamId: string): Promise<{data?: TeamManager[]; error?: unknown}> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const members = await client.getTeamMembers(teamId, 0, 10000);
+        const managerMemberships = members.filter((member) => normalizeRoles(member.roles).includes(TEAM_ADMIN_ROLE));
+        if (managerMemberships.length === 0) {
+            return {data: []};
+        }
+
+        const profiles = await client.getProfilesByIds(managerMemberships.map((member) => member.user_id));
+        const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+        const managers = managerMemberships.
+            map((membership) => {
+                const user = profileById.get(membership.user_id);
+                if (!user) {
+                    return undefined;
+                }
+                return {user, membership};
+            }).
+            filter(Boolean) as TeamManager[];
+
+        return {data: managers};
+    } catch (error) {
+        logDebug('error on fetchTeamManagers', getFullErrorMessage(error));
+        return {error};
+    }
+}
+
+export async function setTeamManagerRole(serverUrl: string, teamId: string, userId: string, isManager: boolean): Promise<{error?: unknown}> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const membership = await client.getTeamMember(teamId, userId);
+        const roles = normalizeRoles(membership.roles);
+        const nextRoles = isManager ? buildRoles([...roles, TEAM_ADMIN_ROLE]) : buildRoles(roles.filter((role) => role !== TEAM_ADMIN_ROLE));
+
+        if (!nextRoles) {
+            return {error: new Error('team member roles cannot be empty')};
+        }
+
+        await client.updateTeamMemberRoles(teamId, userId, nextRoles);
+        return {};
+    } catch (error) {
+        logDebug('error on setTeamManagerRole', getFullErrorMessage(error));
+        return {error};
+    }
+}
+
 export const buildTeamIconUrl = (serverUrl: string, teamId: string, timestamp = 0) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
         return client.getTeamIconUrl(teamId, timestamp);
     } catch (error) {
         return '';
+    }
+};
+
+export const checkTeamExists = async (serverUrl: string, teamName: string) => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const exists = await client.existsTeam(teamName);
+        return {exists};
+    } catch (error) {
+        logDebug('error on checkTeamExists', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {exists: false, error};
+    }
+};
+
+export const createTeamByName = async (serverUrl: string, name: string, displayName?: string, type: TeamType = 'O') => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const team = await client.createTeam({
+            name,
+            display_name: displayName || name,
+            type,
+        } as Team);
+        return {team};
+    } catch (error) {
+        logDebug('error on createTeam', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
+export type FetchTeamMemberCountResult = {
+    data?: number;
+    error?: unknown;
+};
+
+/** 获取 Mattermost 团队成员数（用于管理企业详情页，当无通讯录企业时展示） */
+export const fetchTeamMemberCount = async (serverUrl: string, teamId: string): Promise<FetchTeamMemberCountResult> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const stats = await client.getTeamStats(teamId);
+        const count = stats?.total_member_count;
+        return typeof count === 'number' ? {data: count} : {data: 0};
+    } catch (error) {
+        logDebug('error on fetchTeamMemberCount', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/** 转移团队所有权 */
+export const transferTeamOwnership = async (serverUrl: string, teamId: string, newOwnerId: string, reason?: string) => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const transferResult = await client.transferTeamOwnership(teamId, newOwnerId, reason);
+        return {data: transferResult};
+    } catch (error) {
+        logDebug('error on transferTeamOwnership', getFullErrorMessage(error));
+        return {error};
+    }
+};
+
+/**
+ * 当前用户是否具备解散该团队权限。
+ * 根据团队所有权约束，仅 creator_id 可解散团队；最终以服务端 deleteTeam 校验为准。
+ */
+export const fetchUserCanDissolveTeam = async (
+    serverUrl: string,
+    teamId: string,
+    userId: string,
+): Promise<{data: boolean; error?: unknown}> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const team = await client.getTeam(teamId);
+        if (team?.creator_id && team.creator_id === userId) {
+            return {data: true};
+        }
+
+        // 仅创建者可解散；管理员角色不再具备该权限
+        return {data: false};
+    } catch (error) {
+        logDebug('error on fetchUserCanDissolveTeam', getFullErrorMessage(error));
+        return {data: false, error};
+    }
+};
+
+/** 解散 Mattermost 团队（仅团队创建者可调用） */
+export const deleteTeam = async (serverUrl: string, teamId: string): Promise<{error?: unknown}> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        await client.deleteTeam(teamId);
+
+        // 本地 DB 仍会保留 MY_TEAM/TEAM，直到 WebSocket 或同步；管理企业列表依赖 queryMyTeams，需立即清理
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentTeamId = await getCurrentTeamId(database);
+        if (currentTeamId === teamId) {
+            await removeTeamFromTeamHistory(operator, teamId);
+            const teamToJumpTo = await getLastTeam(database, teamId);
+            if (teamToJumpTo) {
+                await handleTeamChange(serverUrl, teamToJumpTo);
+            }
+        }
+        await localRemoveUserFromTeam(serverUrl, teamId);
+
+        return {};
+    } catch (error) {
+        logDebug('error on deleteTeam', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
     }
 };

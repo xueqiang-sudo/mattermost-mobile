@@ -10,10 +10,8 @@ import com.nozbe.watermelondb.WMDatabase
 internal fun findPostInChannel(chunks: ReadableArray, earliest: Double, latest: Double): ReadableMap? {
     for (i in 0 until chunks.size()) {
         val chunk = chunks.getMap(i)
-        chunk?.let {
-            if (earliest >= it.getDouble("earliest") || latest <= it.getDouble("latest")) {
-                return it
-            }
+        if (earliest >= chunk.getDouble("earliest") || latest <= chunk.getDouble("latest")) {
+            return chunk
         }
     }
 
@@ -47,12 +45,10 @@ internal fun mergePostsInChannel(db: WMDatabase, existingChunks: ReadableArray, 
     for (i in 0 until existingChunks.size()) {
         try {
             val chunk = existingChunks.getMap(i)
-            chunk?.let {
-                if (newChunk.getDouble("earliest") <= it.getDouble("earliest") &&
-                        newChunk.getDouble("latest") >= it.getDouble("latest")) {
-                    db.execute("DELETE FROM PostsInChannel WHERE id = ?", arrayOf(it.getString("id")))
-                    return
-                }
+            if (newChunk.getDouble("earliest") <= chunk.getDouble("earliest") &&
+                    newChunk.getDouble("latest") >= chunk.getDouble("latest")) {
+                db.execute("DELETE FROM PostsInChannel WHERE id = ?", arrayOf(chunk.getString("id")))
+                break
             }
         } catch (e: Exception) {
             e.printStackTrace()

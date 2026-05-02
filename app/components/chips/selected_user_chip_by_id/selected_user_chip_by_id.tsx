@@ -12,6 +12,8 @@ type SelectedChipProps = {
     onPress: (id: string) => void;
     testID?: string;
     teammateNameDisplay: string;
+    avatarBorderRadius?: number;
+    labelMaxWidth?: number;
 }
 
 export default function SelectedUserChipById({
@@ -19,6 +21,8 @@ export default function SelectedUserChipById({
     user,
     teammateNameDisplay,
     onPress,
+    avatarBorderRadius,
+    labelMaxWidth,
 }: SelectedChipProps) {
     if (!user) {
         return null;
@@ -30,6 +34,8 @@ export default function SelectedUserChipById({
             onPress={onPress}
             teammateNameDisplay={teammateNameDisplay}
             user={user}
+            avatarBorderRadius={avatarBorderRadius}
+            labelMaxWidth={labelMaxWidth}
         />
     );
 }

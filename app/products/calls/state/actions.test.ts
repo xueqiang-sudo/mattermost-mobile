@@ -1453,9 +1453,7 @@ describe('useCallsState', () => {
         assert.deepEqual(result.current[2], expectedIncomingCalls);
     });
 
-    // TODO: Flaky test - disabled until root cause is identified
-    // See https://mattermost.atlassian.net/browse/MM-67173
-    it.skip('playIncomingCallsRinging', async () => {
+    it('playIncomingCallsRinging', async () => {
         const initialIncomingCalls = {
             ...DefaultIncomingCalls,
             incomingCalls: [{

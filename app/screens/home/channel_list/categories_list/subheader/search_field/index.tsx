@@ -21,7 +21,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: changeOpacity(theme.sidebarText, 0.12),
         borderRadius: 8,
         padding: 8,
-        marginVertical: 20,
+        marginVertical: 10,
         height: 40,
     },
     icon: {
@@ -44,7 +44,7 @@ const SearchField = () => {
 
     const onPress = usePreventDoubleTap(useCallback(() => {
         findChannels(
-            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Find Channels'}),
+            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
             theme,
         );
     }, [intl, theme]));
@@ -62,8 +62,8 @@ const SearchField = () => {
                     style={styles.icon}
                 />
                 <FormattedText
-                    defaultMessage='Find channels...'
-                    id='channel_list.find_channels'
+                    defaultMessage='Search conversations, channels and contacts...'
+                    id='channel_list.search_placeholder'
                     style={styles.input}
                 />
             </>

@@ -13,7 +13,7 @@ import {makeCallsTheme} from '@calls/utils';
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {CallSession, CallsTheme} from '@calls/types/calls';
 
@@ -55,7 +55,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: CallsTheme) => ({
     },
 }));
 
-export const ParticipantCard = ({session, smallerAvatar, teammateNameDisplay, onPress, onLongPress}: Props) => {
+export const ParticipantCard = ({session, smallerAvatar, teammateNameDisplay: _teammateNameDisplay, onPress, onLongPress}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const currentCall = useCurrentCall();
@@ -96,7 +96,7 @@ export const ParticipantCard = ({session, smallerAvatar, teammateNameDisplay, on
                         style={[style.username, smallerAvatar && style.usernameShort]}
                         numberOfLines={1}
                     >
-                        {displayUsername(session.userModel, intl.locale, teammateNameDisplay)}
+                        {username2Nickname(session.userModel, {locale: intl.locale})}
                         {session.sessionId === mySession.sessionId &&
                             ` ${intl.formatMessage({id: 'mobile.calls_you', defaultMessage: '(you)'})}`
                         }

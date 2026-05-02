@@ -3,7 +3,7 @@
 
 import {type ImageSource} from 'expo-image';
 import React, {useMemo, useRef} from 'react';
-import {TouchableWithoutFeedback, useWindowDimensions} from 'react-native';
+import {type GestureResponderEvent, Pressable, useWindowDimensions} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ExpoImage from '@components/expo_image';
@@ -26,6 +26,7 @@ type OpengraphImageProps = {
     layoutWidth?: number;
     location: string;
     metadata: PostMetadata | undefined | null;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     openGraphImages: never[];
     postId: string;
     theme: Theme;
@@ -58,7 +59,7 @@ const getViewPostWidth = (isReplyPost: boolean, deviceHeight: number, deviceWidt
     return viewPortWidth - tabletOffset;
 };
 
-const OpengraphImage = ({isReplyPost, layoutWidth, location, metadata, openGraphImages, postId, theme}: OpengraphImageProps) => {
+const OpengraphImage = ({isReplyPost, layoutWidth, location, metadata, onLongPress, openGraphImages, postId, theme}: OpengraphImageProps) => {
     const fileId = useRef<string | null>(null);
     if (fileId.current === null) {
         fileId.current = `uid-opengraph-image-${postId}`;
@@ -123,7 +124,11 @@ const OpengraphImage = ({isReplyPost, layoutWidth, location, metadata, openGraph
     return (
         <GalleryInit galleryIdentifier={galleryIdentifier}>
             <Animated.View style={[styles, style.imageContainer, dimensionsStyle]}>
-                <TouchableWithoutFeedback onPress={onGestureEvent}>
+                <Pressable
+                    onPress={onGestureEvent}
+                    onLongPress={onLongPress}
+                    delayLongPress={200}
+                >
                     <Animated.View testID={`OpenGraphImage-${fileId.current}`}>
                         <ExpoImage
                             id={fileId.current}
@@ -134,7 +139,7 @@ const OpengraphImage = ({isReplyPost, layoutWidth, location, metadata, openGraph
                             nativeID={`OpenGraphImage-${fileId.current}`}
                         />
                     </Animated.View>
-                </TouchableWithoutFeedback>
+                </Pressable>
             </Animated.View>
         </GalleryInit>
     );

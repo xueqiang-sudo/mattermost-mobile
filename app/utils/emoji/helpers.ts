@@ -5,7 +5,7 @@ import emojiRegex from 'emoji-regex';
 
 import SystemModel from '@database/models/server/system';
 
-import {Emojis, EmojiIndicesByAlias, EmojiIndicesByUnicode} from '.';
+import {Emojis, EmojiIndicesByAlias, EmojiIndicesByUnicode, skinCodes} from '.';
 
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 import type Fuse from 'fuse.js';
@@ -56,6 +56,69 @@ export function isEmoticon(text: string) {
 
 export function isUnicodeEmoji(text: string) {
     return UNICODE_REGEX.test(text);
+}
+
+/**
+ * Mattermost markdown only renders emoji when written as :short_name:.
+ * The picker supplies bare aliases; use this when inserting into the post draft.
+ */
+/** Convert Mattermost emoji `image` field (e.g. "1f600" or "1f469-200d-1f4bb") to a Unicode string. */
+export function emojiImageHexToUnicode(imageHex: string): string {
+    const codeArray = imageHex.split('-');
+    return codeArray.reduce((acc: string, c: string) => {
+        return acc + String.fromCodePoint(parseInt(c, 16));
+    }, '');
+}
+
+/**
+ * Resolve alias for skin tone (same rules as SkinnedEmoji) when a skinned variant exists.
+ */
+export function resolveSkinVariantAlias(shortName: string, skinTone: string): string {
+    if (!skinTone || skinTone === 'default') {
+        return shortName;
+    }
+    const skinSuffix = (skinCodes as Record<string, string>)[skinTone];
+    if (!skinSuffix || skinSuffix === 'default') {
+        return shortName;
+    }
+    const skinned = `${shortName}_${skinSuffix}`;
+    if (EmojiIndicesByAlias.has(skinned)) {
+        return skinned;
+    }
+    return shortName;
+}
+
+/**
+ * Returns Unicode character(s) for a built-in system emoji short name, or null for server custom / unknown.
+ * Use for draft input so the TextInput shows real emoji glyphs instead of :shortcode:.
+ */
+export function emojiShortNameToUnicodeString(shortName: string, skinTone: string, customEmojiNames: string[]): string | null {
+    if (!shortName?.trim()) {
+        return null;
+    }
+    if (customEmojiNames.includes(shortName)) {
+        return null;
+    }
+    const alias = resolveSkinVariantAlias(shortName.trim(), skinTone);
+    const emoji = getEmojiByName(alias, []);
+    if (!emoji || !('image' in emoji) || !emoji.image) {
+        return null;
+    }
+    return emojiImageHexToUnicode(emoji.image);
+}
+
+export function emojiShortNameToMarkdownToken(name: string): string {
+    if (!name) {
+        return '';
+    }
+    const trimmed = name.trim();
+    if (trimmed.length >= 2 && trimmed.startsWith(':') && trimmed.endsWith(':')) {
+        return trimmed;
+    }
+    if (/^[a-zA-Z0-9_+-]+$/.test(trimmed)) {
+        return `:${trimmed}:`;
+    }
+    return trimmed;
 }
 
 export function getEmoticonName(value: string) {

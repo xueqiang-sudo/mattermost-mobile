@@ -25,7 +25,6 @@ import PostModel from '@typings/database/models/servers/post';
 import {isExpiredBoRPost} from '@utils/bor';
 import {logError} from '@utils/log';
 
-import {deletePostsForChannelsWithAutotranslation} from './channel';
 import {deletePosts} from './post';
 
 import type {DataRetentionPoliciesRequest} from '@actions/remote/systems';
@@ -72,9 +71,6 @@ export async function storeConfig(serverUrl: string, config: ClientConfig | unde
         const configsToUpdate: IdValue[] = [];
         const configsToDelete: IdValue[] = [];
 
-        // Check if EnableAutoTranslation changed from enabled to disabled
-        const enableAutoTranslationChanged = (currentConfig?.EnableAutoTranslation === 'true') !== (config.EnableAutoTranslation === 'true');
-
         let k: keyof ClientConfig;
         for (k in config) {
             if (currentConfig?.[k] !== config[k]) {
@@ -96,12 +92,6 @@ export async function storeConfig(serverUrl: string, config: ClientConfig | unde
         if (configsToDelete.length || configsToUpdate.length) {
             const results = await operator.handleConfigs({configs: configsToUpdate, configsToDelete, prepareRecordsOnly});
             DeviceEventEmitter.emit(Events.CONFIG_CHANGED, {serverUrl, config});
-
-            // If EnableAutoTranslation was disabled, delete posts and disable user autotranslation
-            if (enableAutoTranslationChanged) {
-                await deletePostsForChannelsWithAutotranslation(serverUrl, prepareRecordsOnly);
-            }
-
             return results;
         }
     } catch (error) {

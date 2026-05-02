@@ -7,12 +7,10 @@ import {View} from 'react-native';
 import AutocompleteSelector from '@components/autocomplete_selector';
 import Markdown from '@components/markdown';
 import BoolSetting from '@components/settings/bool_setting';
-import RadioSetting from '@components/settings/radio_setting';
 import TextSetting from '@components/settings/text_setting';
 import {Screens, View as ViewConstants} from '@constants';
 import {AppFieldTypes, SelectableAppFieldTypes} from '@constants/apps';
 import {useTheme} from '@context/theme';
-import {isAppSelectOption} from '@utils/dialog_utils';
 import {selectKeyboardType} from '@utils/integrations';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -37,8 +35,6 @@ const appSelectOptionToDialogOption = (option: AppSelectOption): DialogOption =>
     text: option.label || '',
     value: option.value || '',
 });
-
-const extractOptionValue = (v: AppSelectOption) => v.value || '';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
@@ -67,14 +63,14 @@ function selectDataSource(fieldType: string): string {
     }
 }
 
-const AppsFormField = React.memo<Props>(({
+function AppsFormField({
     field,
     name,
     errorText,
     value,
     onChange,
     performLookup,
-}) => {
+}: Props) {
     const theme = useTheme();
     const style = getStyleSheet(theme);
 
@@ -88,7 +84,7 @@ const AppsFormField = React.memo<Props>(({
 
     const handleSelect = useCallback((newValue: SelectedDialogOption) => {
         if (!newValue) {
-            const emptyValue = field.multiselect ? [] : '';
+            const emptyValue = field.multiselect ? [] : null;
             onChange(name, emptyValue);
             return;
         }
@@ -132,7 +128,7 @@ const AppsFormField = React.memo<Props>(({
     }, [field, value]);
 
     const selectedValue = useMemo(() => {
-        if (!SelectableAppFieldTypes.includes(field.type || '')) {
+        if (!value || !SelectableAppFieldTypes.includes(field.type || '')) {
             return undefined;
         }
 
@@ -141,12 +137,7 @@ const AppsFormField = React.memo<Props>(({
         }
 
         if (Array.isArray(value)) {
-            return value.map(extractOptionValue);
-        }
-
-        // Handle AppSelectOption object
-        if (isAppSelectOption(value)) {
-            return value.value || '';
+            return value.map((v) => v.value || '');
         }
 
         return value as string;
@@ -214,20 +205,6 @@ const AppsFormField = React.memo<Props>(({
                 />
             );
         }
-        case AppFieldTypes.RADIO: {
-            return (
-                <RadioSetting
-                    label={displayName}
-                    helpText={field.description}
-                    errorText={errorText}
-                    options={field.options?.map(appSelectOptionToDialogOption)}
-                    onChange={handleChange}
-                    testID={testID}
-                    value={value as string}
-                    location={Screens.APPS_FORM}
-                />
-            );
-        }
         case AppFieldTypes.MARKDOWN: {
             if (!field.description) {
                 return null;
@@ -250,8 +227,6 @@ const AppsFormField = React.memo<Props>(({
     }
 
     return null;
-});
-
-AppsFormField.displayName = 'AppsFormField';
+}
 
 export default AppsFormField;

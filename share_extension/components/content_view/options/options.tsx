@@ -32,29 +32,29 @@ const Options = ({channelDisplayName, hasChannels, serverDisplayName, theme}: Pr
             id: 'share_extension.server_label',
             defaultMessage: 'Server',
         });
-    }, [intl]);
+    }, [intl.locale]);
 
     const channelLabel = useMemo(() => {
         return intl.formatMessage({
             id: 'share_extension.channel_label',
             defaultMessage: 'Channel',
         });
-    }, [intl]);
+    }, [intl.locale]);
 
     const errorLabel = useMemo(() => {
         return intl.formatMessage({
             id: 'share_extension.channel_error',
             defaultMessage: 'You are not a member of a team on the selected server. Select another server or open Mattermost to join a team.',
         });
-    }, [intl]);
+    }, [intl.locale]);
 
     const onServerPress = useCallback(() => {
         navigator.navigate('Servers');
-    }, [navigator]);
+    }, []);
 
     const onChannelPress = useCallback(() => {
         navigator.navigate('Channels');
-    }, [navigator]);
+    }, []);
 
     let channel;
     if (hasChannels) {

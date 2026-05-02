@@ -26,7 +26,6 @@ import type PlaybookChecklistItemModel from '@playbooks/types/database/models/pl
 import type PlaybookRunModel from '@playbooks/types/database/models/playbook_run';
 import type PlaybookRunAttributeModel from '@playbooks/types/database/models/playbook_run_attribute';
 import type PlaybookRunAttributeValueModel from '@playbooks/types/database/models/playbook_run_attribute_value';
-import type CategoryModel from '@typings/database/models/servers/category';
 import type CategoryChannelModel from '@typings/database/models/servers/category_channel';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
@@ -60,7 +59,6 @@ class TestHelperSingleton {
     basicCategory: Category | null;
     basicCategoryChannel: CategoryChannel | null;
     basicChannel: Channel | null;
-    basicChannelInfo: ChannelInfo | null;
     basicChannelMember: ChannelMembership | null;
     basicMyChannel: ChannelMembership | null;
     basicMyChannelSettings: ChannelMembership | null;
@@ -76,7 +74,6 @@ class TestHelperSingleton {
         this.basicCategory = null;
         this.basicCategoryChannel = null;
         this.basicChannel = null;
-        this.basicChannelInfo = null;
         this.basicChannelMember = null;
         this.basicMyChannel = null;
         this.basicMyChannelSettings = null;
@@ -118,10 +115,6 @@ class TestHelperSingleton {
         });
         await operator.handleChannel({
             channels: [this.basicChannel!],
-            prepareRecordsOnly: false,
-        });
-        await operator.handleChannelInfo({
-            channelInfos: [this.basicChannelInfo!],
             prepareRecordsOnly: false,
         });
         await operator.handleMyChannel({
@@ -607,7 +600,6 @@ class TestHelperSingleton {
             shared: false,
             teamId: this.generateId(),
             type: 'O' as const,
-            autotranslation: false,
             members: this.fakeQuery([]),
             drafts: this.fakeQuery([]),
             bookmarks: this.fakeQuery([]),
@@ -651,27 +643,6 @@ class TestHelperSingleton {
         };
     };
 
-    fakeCategoryModel = (overwrite?: Partial<CategoryModel>): CategoryModel => {
-        return {
-            ...this.fakeModel(),
-            displayName: this.generateId(),
-            type: 'custom',
-            sortOrder: 0,
-            sorting: 'alpha',
-            muted: false,
-            collapsed: false,
-            teamId: this.generateId(),
-            team: this.fakeRelation(),
-            categoryChannels: this.fakeQuery([]),
-            categoryChannelsBySortOrder: this.fakeQuery([]),
-            channels: this.fakeQuery([]),
-            myChannels: this.fakeQuery([]),
-            observeHasChannels: jest.fn(),
-            toCategoryWithChannels: jest.fn(),
-            ...overwrite,
-        };
-    };
-
     fakeDraftModel = (overwrite?: Partial<DraftModel>): DraftModel => {
         return {
             ...this.fakeModel(),
@@ -681,7 +652,6 @@ class TestHelperSingleton {
             files: [],
             metadata: {},
             updateAt: 0,
-            type: '',
             ...overwrite,
         };
     };
@@ -853,7 +823,6 @@ class TestHelperSingleton {
             roles: '',
             viewedAt: 0,
             lastPlaybookRunsFetchAt: 0,
-            autotranslationDisabled: false,
             channel: this.fakeRelation(),
             settings: this.fakeRelation(),
             resetPreparedState: jest.fn(),
@@ -911,7 +880,6 @@ class TestHelperSingleton {
             scheduledAt: 0,
             processedAt: 0,
             errorCode: '',
-            type: '',
             toApi: jest.fn(),
             ...overwrite,
         };
@@ -1128,7 +1096,7 @@ class TestHelperSingleton {
         update_at: 0,
     });
 
-    createPlaybookRunAttribute = (prefix: string, index: number): PlaybookRunPropertyField => ({
+    createPlaybookRunAttribute = (prefix: string, index: number): PlaybookRunAttribute => ({
         id: `${prefix}-attribute_${index}`,
         group_id: 'group_1',
         name: `Attribute ${index + 1}`,
@@ -1141,11 +1109,10 @@ class TestHelperSingleton {
         attrs: '',
     });
 
-    createPlaybookRunAttributeValue = (attributeId: string, runId: string, index: number): PlaybookRunPropertyValue => ({
+    createPlaybookRunAttributeValue = (attributeId: string, runId: string, index: number): PlaybookRunAttributeValue => ({
         id: `${runId}-${attributeId}-value_${index}`,
-        field_id: attributeId,
-        target_id: runId,
-        update_at: Date.now(),
+        attribute_id: attributeId,
+        run_id: runId,
         value: `Value ${index + 1}`,
     });
 
@@ -1369,7 +1336,7 @@ class TestHelperSingleton {
         };
     };
 
-    fakePlaybookRunAttribute = (overwrite: Partial<PlaybookRunPropertyField> = {}): PlaybookRunPropertyField => {
+    fakePlaybookRunAttribute = (overwrite: Partial<PlaybookRunAttribute> = {}): PlaybookRunAttribute => {
         return {
             id: this.generateId(),
             group_id: this.generateId(),
@@ -1385,12 +1352,11 @@ class TestHelperSingleton {
         };
     };
 
-    fakePlaybookRunAttributeValue = (attributeId: string, runId: string, overwrite: Partial<PlaybookRunPropertyValue> = {}): PlaybookRunPropertyValue => {
+    fakePlaybookRunAttributeValue = (attributeId: string, runId: string, overwrite: Partial<PlaybookRunAttributeValue> = {}): PlaybookRunAttributeValue => {
         return {
             id: this.generateId(),
-            field_id: attributeId,
-            target_id: runId,
-            update_at: Date.now(),
+            attribute_id: attributeId,
+            run_id: runId,
             value: 'Test Value',
             ...overwrite,
         };
@@ -1418,7 +1384,6 @@ class TestHelperSingleton {
             attributeId: this.generateId(),
             runId: this.generateId(),
             value: 'Test Value',
-            updateAt: Date.now(),
             attribute: this.fakeRelation(),
             run: this.fakeRelation(),
             ...overwrite,
@@ -1469,7 +1434,6 @@ class TestHelperSingleton {
         this.basicTeamMember = this.fakeTeamMember(this.basicUser.id, this.basicTeam.id);
         this.basicCategory = this.fakeCategoryWithId(this.basicTeam.id);
         this.basicChannel = this.fakeChannelWithId(this.basicTeam.id);
-        this.basicChannelInfo = this.fakeChannelInfo({id: this.basicChannel.id, member_count: 100});
         this.basicCategoryChannel = this.fakeCategoryChannelWithId(this.basicTeam.id, this.basicCategory.id, this.basicChannel.id);
         this.basicChannelMember = this.fakeChannelMember({user_id: this.basicUser.id, channel_id: this.basicChannel.id});
         this.basicMyChannel = this.fakeMyChannel({user_id: this.basicUser.id, channel_id: this.basicChannel.id});

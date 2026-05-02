@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>jest-stare!</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <link href="css/diff2html.min.css" rel="stylesheet" type="text/css">
+    <link href="css/jest-stare.css" rel="stylesheet" type="text/css">
+    <script src="js/jquery.min.js"></script>
+    <script src="js/holder.js"></script>
+    <script src="js/diff2html.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/view.js"></script>
+</head>
+
+<body>
+    <header>
+        <!-- Fixed navbar -->
+        <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+            <a class="navbar-brand" id="navbar-title" href="#">jest-stare</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse"
+                aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#">Home
+                            <span class="sr-only">(current)</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a id="coverage-link" class="nav-link disabled" href="#">Coverage</a>
+                    </li>
+                    <li class="nav-item">
+                        <div class="onoff-switch mr-sm-2 ml-sm-2">
+                            <input type="checkbox" name="off-switch" class="off-switch-checkbox" id="lab-passoff-switch" checked>
+                            <label class="onoff-switch-label" for="lab-passoff-switch">
+                                <span class="pass off-switch-inner"></span>
+                                <span class="off-switch-switch"></span>
+                            </label>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="onoff-switch mr-sm-2 ml-sm-2">
+                            <input type="checkbox" name="off-switch" class="off-switch-checkbox" id="lab-failoff-switch" checked>
+                            <label class="onoff-switch-label" for="lab-failoff-switch">
+                                <span class="fail off-switch-inner"></span>
+                                <span class="off-switch-switch"></span>
+                            </label>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="onoff-switch mr-sm-2 ml-sm-2">
+                            <input type="checkbox" name="off-switch" class="off-switch-checkbox" id="lab-pendingoff-switch" checked>
+                            <label class="onoff-switch-label" for="lab-pendingoff-switch">
+                                <span class="pending off-switch-inner"></span>
+                                <span class="off-switch-switch"></span>
+                            </label>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="onoff-switch mr-sm-2 ml-sm-2">
+                            <input type="checkbox" name="off-switch" class="off-switch-checkbox" id="lab-todooff-switch" checked>
+                            <label class="onoff-switch-label" for="lab-todooff-switch">
+                                <span class="todo off-switch-inner"></span>
+                                <span class="off-switch-switch"></span>
+                            </label>
+                        </div>
+                    </li>
+                </ul>
+                <!-- <form class="form-inline mt-2 mt-md-0">
+                    <input class="form-control mr-sm-2" type="text" placeholder="Search" aria-label="Search" disabled>
+                    <button class="btn btn-outline-success my-2 my-sm-0" type="submit" disabled>Search</button>
+                </form> -->
+            </div>
+        </nav>
+    </header>
+
+    <!-- Begin page content -->
+    <main role="main" class="container">
+
+        <h1 class="mt-5"></h1>
+
+        <!-- Three columns of text below the carousel -->
+        <div class="row">
+            <div class="col-lg-4">
+                <canvas id="test-suites-canvas" width="100" height="100"></canvas>
+                <h2>Test Suites</h2>
+                <div class="list-group">
+                    <p id="test-suites-results" class="list-group-item list-group-item-action">0 passed, 1 total</p>
+                </div>
+            </div>
+            <!-- /.col-lg-4 -->
+            <div class="col-lg-4">
+                <canvas id="tests-canvas" width="100" height="100"></canvas>
+                <h2>Tests</h2>
+                <div class="list-group">
+                    <p id="tests-results" class="list-group-item list-group-item-action">0 passed, 0 total</p>
+                </div>
+            </div>
+            <!-- /.col-lg-4 -->
+            <div class="col-lg-4" id="snapshots-group">
+                <canvas id="snapshots-canvas" width="100" height="100"></canvas>
+                <h2>Snapshots</h2>
+                <div class="list-group">
+                    <p id="snapshots-results" class="list-group-item list-group-item-action">0 passed, 0 total</p>
+                </div>
+            </div>
+            <!-- /.col-lg-4 -->
+        </div>
+
+        <div id="loading-info" class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="100" aria-valuemin="0"
+                aria-valuemax="100" style="width: 100%"></div>
+        </div>
+
+        <div class="d-none" id="test-summary"></div>
+        <div class="d-none" id="test-config">{
+  &quot;reportHeadline&quot;: &quot;Mobile App E2E with Detox and Jest&quot;,
+  &quot;resultDir&quot;: &quot;.&#x2F;detox_artifacts_test&#x2F;jest-stare&#x2F;&quot;,
+  &quot;resultJson&quot;: &quot;android-data.json&quot;,
+  &quot;resultHtml&quot;: &quot;android-main.html&quot;,
+  &quot;additionalResultsProcessors&quot;: []
+}</div>
+        <div id="accordion">
+            <div class="d-none" id="test-results">{
+  &quot;numFailedTestSuites&quot;: 1,
+  &quot;numFailedTests&quot;: 0,
+  &quot;numPassedTestSuites&quot;: 0,
+  &quot;numPassedTests&quot;: 0,
+  &quot;numPendingTestSuites&quot;: 0,
+  &quot;numPendingTests&quot;: 0,
+  &quot;numRuntimeErrorTestSuites&quot;: 1,
+  &quot;numTodoTests&quot;: 0,
+  &quot;numTotalTestSuites&quot;: 1,
+  &quot;numTotalTests&quot;: 0,
+  &quot;openHandles&quot;: [],
+  &quot;snapshot&quot;: {
+    &quot;added&quot;: 0,
+    &quot;didUpdate&quot;: false,
+    &quot;failure&quot;: false,
+    &quot;filesAdded&quot;: 0,
+    &quot;filesRemoved&quot;: 0,
+    &quot;filesRemovedList&quot;: [],
+    &quot;filesUnmatched&quot;: 0,
+    &quot;filesUpdated&quot;: 0,
+    &quot;matched&quot;: 0,
+    &quot;total&quot;: 0,
+    &quot;unchecked&quot;: 0,
+    &quot;uncheckedKeysByFile&quot;: [],
+    &quot;unmatched&quot;: 0,
+    &quot;updated&quot;: 0
+  },
+  &quot;startTime&quot;: 1774451460220,
+  &quot;success&quot;: false,
+  &quot;testResults&quot;: [
+    {
+      &quot;failureMessage&quot;: &quot;  ● Test suite failed to run\n\n    Failed to find the app binary at:\n    &#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;android&#x2F;app&#x2F;build&#x2F;outputs&#x2F;apk&#x2F;debug&#x2F;app-debug.apk\n\n    HINT: Make sure that:\n    1. You built the app before running tests:\n      detox build -c &lt;your-configuration-name&gt;\n    2. The app binary can be found at the given path.\n        at init.next (&lt;anonymous&gt;)\n\n      at getNextResult (node_modules&#x2F;caf&#x2F;src&#x2F;caf.js:253:25)\n&quot;,
+      &quot;leaks&quot;: false,
+      &quot;numFailingTests&quot;: 0,
+      &quot;numPassingTests&quot;: 0,
+      &quot;numPendingTests&quot;: 0,
+      &quot;numTodoTests&quot;: 0,
+      &quot;openHandles&quot;: [],
+      &quot;perfStats&quot;: {
+        &quot;end&quot;: 0,
+        &quot;runtime&quot;: 0,
+        &quot;slow&quot;: false,
+        &quot;start&quot;: 0
+      },
+      &quot;skipped&quot;: false,
+      &quot;snapshot&quot;: {
+        &quot;added&quot;: 0,
+        &quot;fileDeleted&quot;: false,
+        &quot;matched&quot;: 0,
+        &quot;unchecked&quot;: 0,
+        &quot;uncheckedKeys&quot;: [],
+        &quot;unmatched&quot;: 0,
+        &quot;updated&quot;: 0
+      },
+      &quot;testExecError&quot;: {
+        &quot;name&quot;: &quot;DetoxRuntimeError&quot;
+      },
+      &quot;testFilePath&quot;: &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;e2e&#x2F;test&#x2F;products&#x2F;channels&#x2F;messaging&#x2F;message_recall_reedit_quote_chain.e2e.ts&quot;,
+      &quot;testResults&quot;: []
+    }
+  ],
+  &quot;wasInterrupted&quot;: false
+}</div>
+        </div>
+        <div class="d-none" id="test-global-config">{
+  &quot;bail&quot;: 0,
+  &quot;changedFilesWithAncestor&quot;: false,
+  &quot;ci&quot;: true,
+  &quot;collectCoverage&quot;: false,
+  &quot;collectCoverageFrom&quot;: [],
+  &quot;coverageDirectory&quot;: &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;coverage&quot;,
+  &quot;coverageProvider&quot;: &quot;babel&quot;,
+  &quot;coverageReporters&quot;: [
+    &quot;json&quot;,
+    &quot;text&quot;,
+    &quot;lcov&quot;,
+    &quot;clover&quot;
+  ],
+  &quot;detectLeaks&quot;: false,
+  &quot;detectOpenHandles&quot;: false,
+  &quot;errorOnDeprecated&quot;: false,
+  &quot;expand&quot;: false,
+  &quot;findRelatedTests&quot;: false,
+  &quot;forceExit&quot;: false,
+  &quot;globalSetup&quot;: &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;node_modules&#x2F;detox&#x2F;runners&#x2F;jest&#x2F;globalSetup.js&quot;,
+  &quot;globalTeardown&quot;: &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;node_modules&#x2F;detox&#x2F;runners&#x2F;jest&#x2F;globalTeardown.js&quot;,
+  &quot;json&quot;: false,
+  &quot;lastCommit&quot;: false,
+  &quot;listTests&quot;: false,
+  &quot;logHeapUsage&quot;: false,
+  &quot;maxConcurrency&quot;: 5,
+  &quot;maxWorkers&quot;: 1,
+  &quot;noStackTrace&quot;: false,
+  &quot;nonFlagArgs&quot;: [],
+  &quot;notify&quot;: false,
+  &quot;notifyMode&quot;: &quot;failure-change&quot;,
+  &quot;onlyChanged&quot;: false,
+  &quot;onlyFailures&quot;: false,
+  &quot;openHandlesTimeout&quot;: 1000,
+  &quot;passWithNoTests&quot;: false,
+  &quot;projects&quot;: [],
+  &quot;reporters&quot;: [
+    [
+      &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;node_modules&#x2F;detox&#x2F;runners&#x2F;jest&#x2F;reporter.js&quot;,
+      {}
+    ],
+    [
+      &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;node_modules&#x2F;jest-junit&#x2F;index.js&quot;,
+      {
+        &quot;suiteName&quot;: &quot;Mobile App E2E with Detox and Jest&quot;,
+        &quot;outputDirectory&quot;: &quot;.&#x2F;detox_artifacts_test&quot;,
+        &quot;outputName&quot;: &quot;android-junit.xml&quot;,
+        &quot;uniqueOutputName&quot;: false
+      }
+    ],
+    [
+      &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;node_modules&#x2F;jest-html-reporters&#x2F;index.js&quot;,
+      {
+        &quot;pageTitle&quot;: &quot;Mobile App E2E with Detox and Jest&quot;,
+        &quot;publicPath&quot;: &quot;.&#x2F;detox_artifacts_test&quot;,
+        &quot;filename&quot;: &quot;android-report.html&quot;,
+        &quot;expand&quot;: false
+      }
+    ],
+    [
+      &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;node_modules&#x2F;jest-stare&#x2F;lib&#x2F;index.js&quot;,
+      {
+        &quot;reportHeadline&quot;: &quot;Mobile App E2E with Detox and Jest&quot;,
+        &quot;resultDir&quot;: &quot;.&#x2F;detox_artifacts_test&#x2F;jest-stare&#x2F;&quot;,
+        &quot;resultJson&quot;: &quot;android-data.json&quot;,
+        &quot;resultHtml&quot;: &quot;android-main.html&quot;,
+        &quot;additionalResultsProcessors&quot;: []
+      }
+    ]
+  ],
+  &quot;rootDir&quot;: &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&quot;,
+  &quot;runTestsByPath&quot;: false,
+  &quot;seed&quot;: 629469007,
+  &quot;skipFilter&quot;: false,
+  &quot;snapshotFormat&quot;: {
+    &quot;escapeString&quot;: false,
+    &quot;printBasicPrototype&quot;: false
+  },
+  &quot;testFailureExitCode&quot;: 1,
+  &quot;testPathPattern&quot;: &quot;message_recall_reedit_quote_chain&quot;,
+  &quot;testSequencer&quot;: &quot;&#x2F;Users&#x2F;qiushaocloud&#x2F;Documents&#x2F;wxw-codes&#x2F;mattermost-codes&#x2F;mattermost-mobile&#x2F;detox&#x2F;e2e&#x2F;custom_sequencer.js&quot;,
+  &quot;testTimeout&quot;: 180000,
+  &quot;updateSnapshot&quot;: &quot;none&quot;,
+  &quot;useStderr&quot;: false,
+  &quot;verbose&quot;: true,
+  &quot;watch&quot;: false,
+  &quot;watchAll&quot;: false,
+  &quot;watchman&quot;: true,
+  &quot;workerThreads&quot;: false
+}</div>
+
+    </main>
+    <hr>
+    <footer class="footer">
+        <div class="container">
+            <span class="text-muted">jest-stare 2022</span>
+        </div>
+    </footer>
+</body>
+
+</html>
+

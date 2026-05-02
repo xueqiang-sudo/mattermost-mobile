@@ -554,20 +554,20 @@ describe('PlaybookHandler', () => {
         });
     });
 
-    describe('handlePlaybookRunPropertyField', () => {
-        it('should return an empty array if propertyFields is undefined or empty', async () => {
+    describe('handlePlaybookRunAttribute', () => {
+        it('should return an empty array if attributes is undefined or empty', async () => {
             const spyOnPrepareRecords = jest.spyOn(operator, 'prepareRecords');
 
-            let result = await operator.handlePlaybookRunPropertyField({
-                propertyFields: undefined,
+            let result = await operator.handlePlaybookRunAttribute({
+                attributes: undefined,
                 prepareRecordsOnly: true,
             });
 
             expect(result).toEqual([]);
             expect(spyOnPrepareRecords).not.toHaveBeenCalled();
 
-            result = await operator.handlePlaybookRunPropertyField({
-                propertyFields: [],
+            result = await operator.handlePlaybookRunAttribute({
+                attributes: [],
                 prepareRecordsOnly: true,
             });
 
@@ -575,54 +575,54 @@ describe('PlaybookHandler', () => {
             expect(spyOnPrepareRecords).not.toHaveBeenCalled();
         });
 
-        it('should process property fields correctly', async () => {
-            const mockPropertyFields = [
+        it('should process attributes correctly', async () => {
+            const mockAttributes = [
                 TestHelper.createPlaybookRunAttribute('attribute_1', 0),
                 TestHelper.createPlaybookRunAttribute('attribute_2', 1),
-            ].map<PartialPlaybookRunPropertyField>((propertyField, index) => ({
-                ...propertyField,
-                target_id: 'playbook_run_1',
+            ].map<PartialPlaybookRunAttribute>((attribute, index) => ({
+                ...attribute,
+                run_id: 'playbook_run_1',
                 order: index,
             }));
 
             const spyOnPrepareRecords = jest.spyOn(operator, 'prepareRecords');
             const spyOnBatchOperation = jest.spyOn(operator, 'batchRecords');
 
-            const result = await operator.handlePlaybookRunPropertyField({
-                propertyFields: mockPropertyFields,
+            const result = await operator.handlePlaybookRunAttribute({
+                attributes: mockAttributes,
                 prepareRecordsOnly: false,
             });
 
             expect(result).toBeDefined();
-            expect(result.length).toBe(mockPropertyFields.length);
+            expect(result.length).toBe(mockAttributes.length);
             expect(spyOnPrepareRecords).toHaveBeenCalledTimes(1);
             expect(spyOnBatchOperation).toHaveBeenCalledTimes(1);
 
             const {database} = operator;
 
             const attributeRecords = await database.get(PLAYBOOK_RUN_ATTRIBUTE).query().fetch();
-            expect(attributeRecords.length).toBe(mockPropertyFields.length);
+            expect(attributeRecords.length).toBe(mockAttributes.length);
         });
 
         it('should only prepare records when prepareRecordsOnly is true', async () => {
-            const mockPropertyFields = [
+            const mockAttributes = [
                 TestHelper.createPlaybookRunAttribute('attribute_3', 2),
-            ].map<PartialPlaybookRunPropertyField>((propertyField, index) => ({
-                ...propertyField,
-                target_id: 'playbook_run_1',
+            ].map<PartialPlaybookRunAttribute>((attribute, index) => ({
+                ...attribute,
+                run_id: 'playbook_run_1',
                 order: index,
             }));
 
             const spyOnPrepareRecords = jest.spyOn(operator, 'prepareRecords');
             const spyOnBatchOperation = jest.spyOn(operator, 'batchRecords');
 
-            const result = await operator.handlePlaybookRunPropertyField({
-                propertyFields: mockPropertyFields,
+            const result = await operator.handlePlaybookRunAttribute({
+                attributes: mockAttributes,
                 prepareRecordsOnly: true,
             });
 
             expect(result).toBeDefined();
-            expect(result.length).toBe(mockPropertyFields.length);
+            expect(result.length).toBe(mockAttributes.length);
             expect(spyOnPrepareRecords).toHaveBeenCalledTimes(1);
             expect(spyOnBatchOperation).not.toHaveBeenCalled();
 
@@ -633,20 +633,20 @@ describe('PlaybookHandler', () => {
         });
     });
 
-    describe('handlePlaybookRunPropertyValue', () => {
-        it('should return an empty array if propertyValues is undefined or empty', async () => {
+    describe('handlePlaybookRunAttributeValue', () => {
+        it('should return an empty array if attributeValues is undefined or empty', async () => {
             const spyOnPrepareRecords = jest.spyOn(operator, 'prepareRecords');
 
-            let result = await operator.handlePlaybookRunPropertyValue({
-                propertyValues: undefined,
+            let result = await operator.handlePlaybookRunAttributeValue({
+                attributeValues: undefined,
                 prepareRecordsOnly: true,
             });
 
             expect(result).toEqual([]);
             expect(spyOnPrepareRecords).not.toHaveBeenCalled();
 
-            result = await operator.handlePlaybookRunPropertyValue({
-                propertyValues: [],
+            result = await operator.handlePlaybookRunAttributeValue({
+                attributeValues: [],
                 prepareRecordsOnly: true,
             });
 
@@ -654,8 +654,8 @@ describe('PlaybookHandler', () => {
             expect(spyOnPrepareRecords).not.toHaveBeenCalled();
         });
 
-        it('should process property values correctly', async () => {
-            const mockPropertyValues = [
+        it('should process attribute values correctly', async () => {
+            const mockAttributeValues = [
                 TestHelper.createPlaybookRunAttributeValue('attribute_1', 'playbook_run_1', 0),
                 TestHelper.createPlaybookRunAttributeValue('attribute_2', 'playbook_run_2', 1),
             ];
@@ -663,37 +663,37 @@ describe('PlaybookHandler', () => {
             const spyOnPrepareRecords = jest.spyOn(operator, 'prepareRecords');
             const spyOnBatchOperation = jest.spyOn(operator, 'batchRecords');
 
-            const result = await operator.handlePlaybookRunPropertyValue({
-                propertyValues: mockPropertyValues,
+            const result = await operator.handlePlaybookRunAttributeValue({
+                attributeValues: mockAttributeValues,
                 prepareRecordsOnly: false,
             });
 
             expect(result).toBeDefined();
-            expect(result.length).toBe(mockPropertyValues.length);
+            expect(result.length).toBe(mockAttributeValues.length);
             expect(spyOnPrepareRecords).toHaveBeenCalledTimes(1);
             expect(spyOnBatchOperation).toHaveBeenCalledTimes(1);
 
             const {database} = operator;
 
             const attributeValueRecords = await database.get(PLAYBOOK_RUN_ATTRIBUTE_VALUE).query().fetch();
-            expect(attributeValueRecords.length).toBe(mockPropertyValues.length);
+            expect(attributeValueRecords.length).toBe(mockAttributeValues.length);
         });
 
         it('should only prepare records when prepareRecordsOnly is true', async () => {
-            const mockPropertyValues = [
+            const mockAttributeValues = [
                 TestHelper.createPlaybookRunAttributeValue('attribute_3', 'playbook_run_3', 2),
             ];
 
             const spyOnPrepareRecords = jest.spyOn(operator, 'prepareRecords');
             const spyOnBatchOperation = jest.spyOn(operator, 'batchRecords');
 
-            const result = await operator.handlePlaybookRunPropertyValue({
-                propertyValues: mockPropertyValues,
+            const result = await operator.handlePlaybookRunAttributeValue({
+                attributeValues: mockAttributeValues,
                 prepareRecordsOnly: true,
             });
 
             expect(result).toBeDefined();
-            expect(result.length).toBe(mockPropertyValues.length);
+            expect(result.length).toBe(mockAttributeValues.length);
             expect(spyOnPrepareRecords).toHaveBeenCalledTimes(1);
             expect(spyOnBatchOperation).not.toHaveBeenCalled();
 

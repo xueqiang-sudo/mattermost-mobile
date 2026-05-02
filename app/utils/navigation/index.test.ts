@@ -2,10 +2,10 @@
 // See LICENSE.txt for license information.
 
 import {createIntl} from 'react-intl';
-import {Alert} from 'react-native';
+import {Alert, DeviceEventEmitter} from 'react-native';
 import {Navigation} from 'react-native-navigation';
 
-import {ServerErrors} from '@constants';
+import {Events, ServerErrors} from '@constants';
 import {DEFAULT_LOCALE, getTranslations} from '@i18n';
 
 import {mergeNavigationOptions, alertTeamRemove, alertChannelRemove, alertChannelArchived, alertTeamAddError} from '.';
@@ -27,13 +27,9 @@ describe('Navigation utils', () => {
         expect(Navigation.mergeOptions).toHaveBeenCalledWith(componentId, options);
     });
 
-    it('should display alert when a user is removed from a team', () => {
+    it('should emit leave team event when alertTeamRemove is called', () => {
         alertTeamRemove(displayName, intl);
-        expect(Alert.alert).toHaveBeenCalledWith(
-            'Removed from team',
-            'You have been removed from team Test Display Name.',
-            [{style: 'cancel', text: 'OK'}],
-        );
+        expect(DeviceEventEmitter.emit).toHaveBeenCalledWith(Events.LEAVE_TEAM, displayName);
     });
 
     it('should display alert when a user is removed from a channel', () => {

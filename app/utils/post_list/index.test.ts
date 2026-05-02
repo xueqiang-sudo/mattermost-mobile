@@ -613,6 +613,18 @@ describe('preparePostList', () => {
         expect(result[3].type).toBe('date');
     });
 
+    it('should not add start-of-new-messages when indicateNewMessages is false even when others have newer posts', () => {
+        const newPostTime = Date.now() + 1000;
+        const posts = [
+            mockPostModel({id: 'post1', createAt: newPostTime, userId: 'another-user-id'}),
+            mockPostModel({id: 'post2', createAt: Date.now() - 5000}),
+        ];
+
+        const result = preparePostList(posts, lastViewedAt, false, currentUserId, currentUsername, showJoinLeave, currentTimezone, isThreadScreen, savedPostIds);
+
+        expect(result.some((i) => i.type === 'start-of-new-messages')).toBe(false);
+    });
+
     it('should handle posts without a new message indicator', () => {
         const oldPostTime = Date.now() - 2000; // Older than `lastViewedAt`
         const posts = [

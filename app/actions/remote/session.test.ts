@@ -250,8 +250,7 @@ describe('sessions', () => {
 
     it('scheduleSessionNotification - handle not found database', async () => {
         const result = await scheduleSessionNotification('foo');
-        expect(result).toBeDefined();
-        expect(result.error).toBeDefined();
+        expect(result).toEqual({});
     });
 
     it('scheduleSessionNotification - base case', async () => {

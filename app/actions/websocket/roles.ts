@@ -2,10 +2,12 @@
 // See LICENSE.txt for license information.
 
 import {fetchRolesIfNeeded} from '@actions/remote/role';
+import {Events} from '@constants';
 import DatabaseManager from '@database/manager';
 import {getRoleById} from '@queries/servers/role';
 import {getCurrentUserId} from '@queries/servers/system';
 import {getCurrentUser} from '@queries/servers/user';
+import {DeviceEventEmitter} from 'react-native';
 
 import type {Model} from '@nozbe/watermelondb';
 
@@ -65,6 +67,7 @@ export async function handleUserRoleUpdatedEvent(serverUrl: string, msg: WebSock
     }
 
     await operator.batchRecords(models, 'handleUserRoleUpdatedEvent');
+    DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
 }
 
 export async function handleTeamMemberRoleUpdatedEvent(serverUrl: string, msg: WebSocketMessage): Promise<void> {
@@ -114,6 +117,7 @@ export async function handleTeamMemberRoleUpdatedEvent(serverUrl: string, msg: W
         models.push(...teamMembership);
 
         await operator.batchRecords(models, 'handleTeamMemberRoleUpdatedEvent');
+        DeviceEventEmitter.emit(Events.MANAGE_ENTERPRISE_REFRESH);
     } catch {
         // do nothing
     }

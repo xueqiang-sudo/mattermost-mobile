@@ -30,9 +30,6 @@ declare class DraftModel extends Model {
 
     /** update_at : The timestamp to when this post was last updated on the server */
     updateAt: number;
-
-    /** type : The post type of draft */
-    type: string | null;
 }
 
 export default DraftModel;

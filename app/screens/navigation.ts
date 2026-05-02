@@ -5,7 +5,7 @@
 
 import RNUtils from '@mattermost/rnutils';
 import merge from 'deepmerge';
-import {Appearance, DeviceEventEmitter, Platform, Alert, type EmitterSubscription, StatusBar} from 'react-native';
+import {Appearance, DeviceEventEmitter, Platform, Alert, type EmitterSubscription, Keyboard, StatusBar} from 'react-native';
 import {type ComponentWillAppearEvent, type ImageResource, type LayoutOrientation, Navigation, type Options, OptionsModalPresentationStyle, type OptionsTopBarButton, type ScreenPoppedEvent, type EventSubscription} from 'react-native-navigation';
 import tinyColor from 'tinycolor2';
 
@@ -16,7 +16,6 @@ import {getDefaultThemeByAppearance} from '@context/theme';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {isTablet} from '@utils/helpers';
-import {dismissKeyboard} from '@utils/keyboard';
 import {logError} from '@utils/log';
 import {appearanceControlledScreens, mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, setNavigatorStyles} from '@utils/theme';
@@ -43,6 +42,7 @@ const loginFlowScreens = new Set<AvailableScreens>([
     Screens.SERVER,
     Screens.LOGIN,
     Screens.SSO,
+    Screens.STARTUP_LOADING,
     Screens.MFA,
     Screens.FORGOT_PASSWORD,
 ]);
@@ -173,7 +173,7 @@ export const loginAnimationOptions = () => {
 
 export const bottomSheetModalOptions = (theme: Theme, closeButtonId?: string): Options => {
     if (closeButtonId) {
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.centerChannelColor);
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
         const closeButtonTestId = `${closeButtonId.replace('close-', 'close.').replace(/-/g, '_')}.button`;
         return {
             modalPresentationStyle: OptionsModalPresentationStyle.formSheet,
@@ -236,7 +236,6 @@ Navigation.setDefaultOptions({
     },
     topBar: {
         title: {
-            fontFamily: 'Metropolis-SemiBold',
             fontSize: 18,
             fontWeight: '600',
         },
@@ -244,7 +243,6 @@ Navigation.setDefaultOptions({
             enableMenu: false,
         },
         subtitle: {
-            fontFamily: 'OpenSans',
             fontSize: 12,
             fontWeight: '400',
         },
@@ -380,14 +378,14 @@ export function resetToHome(passProps: LaunchProps = {launchType: Launch.Normal}
     });
 }
 
-export function resetToSelectServer(passProps: LaunchProps) {
+export function resetToLogin(passProps: LaunchProps) {
     const theme = getDefaultThemeByAppearance();
-    const edgeToEdge = edgeToEdgeHack(Screens.SERVER, theme);
+    const edgeToEdge = edgeToEdgeHack(Screens.LOGIN, theme);
 
     const children = [{
         component: {
-            id: Screens.SERVER,
-            name: Screens.SERVER,
+            id: Screens.LOGIN,
+            name: Screens.LOGIN,
             passProps: {
                 ...passProps,
                 theme,
@@ -421,6 +419,49 @@ export function resetToSelectServer(passProps: LaunchProps) {
         root: {
             stack: {
                 children,
+            },
+        },
+    });
+}
+
+export function resetToStartupLoading() {
+    const theme = getDefaultThemeByAppearance();
+    const edgeToEdge = edgeToEdgeHack(Screens.STARTUP_LOADING, theme);
+
+    return Navigation.setRoot({
+        root: {
+            stack: {
+                children: [{
+                    component: {
+                        id: Screens.STARTUP_LOADING,
+                        name: Screens.STARTUP_LOADING,
+                        passProps: {
+                            theme,
+                        },
+                        options: {
+                            layout: {
+                                backgroundColor: theme.centerChannelBg,
+                                componentBackgroundColor: theme.centerChannelBg,
+                            },
+                            statusBar: {
+                                visible: true,
+                                backgroundColor: theme.sidebarBg,
+                                ...edgeToEdge,
+                            },
+                            topBar: {
+                                visible: false,
+                                height: 0,
+                                background: {
+                                    color: theme.sidebarBg,
+                                },
+                                backButton: {
+                                    visible: false,
+                                    color: theme.sidebarHeaderTextColor,
+                                },
+                            },
+                        },
+                    },
+                }],
             },
         },
     });
@@ -608,6 +649,21 @@ export async function popToRoot() {
     }
 }
 
+/** 连续 pop 多屏（用于栈内层级返回，如通讯录子部门面包屑） */
+export async function popScreens(count: number) {
+    for (let i = 0; i < count; i++) {
+        const componentId = NavigationStore.getVisibleScreen();
+        if (!componentId) {
+            break;
+        }
+        try {
+            await Navigation.pop(componentId);
+        } catch {
+            break;
+        }
+    }
+}
+
 export async function dismissAllModalsAndPopToRoot() {
     await dismissAllModals();
     await dismissAllOverlays();
@@ -649,11 +705,15 @@ export async function dismissAllModalsAndPopToScreen(screenId: AvailableScreens,
     }
 }
 
-export function showModal(name: AvailableScreens, title: string, passProps = {}, options: Options = {}) {
-    if (!isScreenRegistered(name) || NavigationStore.getVisibleModal() === name) {
+export function showModal(name: AvailableScreens, title: string, passProps = {}, options: Options & {componentId?: string} = {}) {
+    const {componentId: customComponentId, ...restOptions} = options;
+    if (!isScreenRegistered(name)) {
         return;
     }
-
+    const componentId = customComponentId ?? name;
+    if (NavigationStore.getVisibleModal() === componentId) {
+        return;
+    }
     const theme = getThemeFromState();
     const edgeToEdge = edgeToEdgeHack(name, theme);
     const modalPresentationStyle: OptionsModalPresentationStyle = Platform.OS === 'ios' ? OptionsModalPresentationStyle.pageSheet : OptionsModalPresentationStyle.none;
@@ -691,17 +751,43 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
         stack: {
             children: [{
                 component: {
-                    id: name,
+                    id: componentId,
                     name,
                     passProps: {
                         ...passProps,
                         isModal: true,
                     },
-                    options: merge(defaultOptions, options),
+                    options: merge(defaultOptions, restOptions),
                 },
             }],
         },
     });
+}
+
+type ShowModalWithBackButtonOptions = Options & {useBackIcon?: boolean};
+
+export function showModalWithBackButton(name: AvailableScreens, title: string, closeButtonId: string, passProps = {}, options: ShowModalWithBackButtonOptions = {}) {
+    const {useBackIcon, ...navOptions} = options;
+    const iconName = useBackIcon ? Platform.select({android: 'arrow-left', ios: 'arrow-back-ios', default: 'arrow-left'}) : 'close';
+    const closeButtonIcon = CompassIcon.getImageSourceSync(iconName, 24, getThemeFromState().sidebarHeaderTextColor);
+    const mergeOptions = merge({
+        topBar: {
+            leftButtons: [{
+                id: closeButtonId,
+                icon: closeButtonIcon,
+                testID: `${closeButtonId.replace('close-', 'close.').replace(/-/g, '_')}.button`,
+            }],
+        },
+    }, navOptions);
+
+    const listener = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
+        if (buttonId === closeButtonId) {
+            listener.remove();
+            dismissModal({componentId: closeButtonId as AvailableScreens});
+        }
+    });
+
+    showModal(name, title, {...passProps, closeButtonId}, {...mergeOptions, componentId: closeButtonId});
 }
 
 export function showModalOverCurrentContext(name: AvailableScreens, passProps = {}, options: Options = {}) {
@@ -779,6 +865,23 @@ export async function dismissModal(options?: Options & { componentId: AvailableS
     }
 }
 
+/** 依次关闭最顶层 count 个 modal，用于 breadcrumb 点击回退 */
+export async function dismissModals(count: number) {
+    if (count <= 0 || !NavigationStore.hasModalsOpened()) {
+        return;
+    }
+
+    try {
+        const modals = [...NavigationStore.getModalsInStack()];
+        const toDismiss = modals.slice(0, count);
+        for await (const modal of toDismiss) {
+            await Navigation.dismissModal(modal, {animations: {dismissModal: {enabled: false}}});
+        }
+    } catch (error) {
+        // RNN returns a promise rejection if there is no modal to dismiss.
+    }
+}
+
 export async function dismissAllModals() {
     if (!NavigationStore.hasModalsOpened()) {
         return;
@@ -797,7 +900,6 @@ export async function dismissAllModals() {
 
 export const buildNavigationButton = (id: string, testID: string, icon?: ImageResource, text?: string): OptionsTopBarButton => ({
     fontSize: 16,
-    fontFamily: 'OpenSans-SemiBold',
     fontWeight: '600',
     id,
     icon,
@@ -860,7 +962,6 @@ export async function dismissAllOverlays() {
 
 type BottomSheetArgs = {
     closeButtonId: string;
-    enableDynamicSizing?: boolean;
     initialSnapIndex?: number;
     footerComponent?: React.FC<BottomSheetFooterProps>;
     renderContent: () => React.ReactNode;
@@ -870,11 +971,10 @@ type BottomSheetArgs = {
     scrollable?: boolean;
 }
 
-export function bottomSheet({title, renderContent, footerComponent, snapPoints, initialSnapIndex = 1, theme, closeButtonId, scrollable = false, enableDynamicSizing}: BottomSheetArgs) {
+export function bottomSheet({title, renderContent, footerComponent, snapPoints, initialSnapIndex = 1, theme, closeButtonId, scrollable = false}: BottomSheetArgs) {
     if (isTablet()) {
         showModal(Screens.BOTTOM_SHEET, title, {
             closeButtonId,
-            enableDynamicSizing,
             initialSnapIndex,
             renderContent,
             footerComponent,
@@ -883,7 +983,6 @@ export function bottomSheet({title, renderContent, footerComponent, snapPoints, 
         }, bottomSheetModalOptions(theme, closeButtonId));
     } else {
         showModalOverCurrentContext(Screens.BOTTOM_SHEET, {
-            enableDynamicSizing,
             initialSnapIndex,
             renderContent,
             footerComponent,
@@ -915,29 +1014,6 @@ export function openAsBottomSheet({closeButtonId, screen, theme, title, props}: 
     } else {
         showModalOverCurrentContext(screen, props, bottomSheetModalOptions(theme));
     }
-}
-
-export function openAttachmentOptions(
-    intl: IntlShape,
-    theme: Theme,
-    props: {
-        onUploadFiles: (files: ExtractedFileInfo[]) => void;
-        maxFilesReached: boolean;
-        canUploadFiles: boolean;
-        showAttachLogs?: boolean;
-        testID?: string;
-        fileCount?: number;
-        maxFileCount?: number;
-    },
-) {
-    const title = intl.formatMessage({id: 'mobile.file_attachment.title', defaultMessage: 'Files and media'});
-    openAsBottomSheet({
-        closeButtonId: 'attachment-close-id',
-        screen: Screens.ATTACHMENT_OPTIONS,
-        theme,
-        title,
-        props,
-    });
 }
 
 export const showAppForm = async (form: AppForm, context: AppContext) => {
@@ -994,6 +1070,6 @@ export async function openUserProfileModal(
     const title = intl.formatMessage({id: 'mobile.routes.user_profile', defaultMessage: 'Profile'});
     const closeButtonId = 'close-user-profile';
 
-    dismissKeyboard();
+    Keyboard.dismiss();
     openAsBottomSheet({screen, title, theme, closeButtonId, props: {...props}});
 }

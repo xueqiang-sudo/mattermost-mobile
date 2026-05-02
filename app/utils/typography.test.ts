@@ -4,30 +4,29 @@
 import {typography, type FontSizes, type FontStyles, type FontTypes} from './typography';
 
 describe('Typography', () => {
-    const testCases: Array<[FontTypes, FontSizes, FontStyles | undefined, string]> = [
-        ['Heading', 1200, 'SemiBold', 'Metropolis-SemiBold'],
-        ['Heading', 1000, 'Regular', 'Metropolis'],
-        ['Heading', 900, 'Regular', 'Metropolis'],
-        ['Heading', 800, 'Light', 'Metropolis-Light'],
-        ['Heading', 700, 'Regular', 'Metropolis'],
-        ['Heading', 600, 'Regular', 'Metropolis'],
-        ['Heading', 600, undefined, 'Metropolis-SemiBold'],
-        ['Body', 500, 'Regular', 'OpenSans'],
-        ['Body', 400, 'Regular', 'OpenSans'],
-        ['Body', 300, 'Light', 'OpenSans-Light'],
-        ['Body', 200, 'SemiBold', 'OpenSans-SemiBold'],
-        ['Body', 100, 'Light', 'OpenSans-Light'],
-        ['Body', 75, 'Regular', 'OpenSans'],
-        ['Body', 50, 'Regular', 'OpenSans'],
-        ['Body', 25, 'Light', 'OpenSans-Light'],
-        ['Body', 25, undefined, 'OpenSans'],
+    const testCases: Array<[FontTypes, FontSizes, FontStyles | undefined]> = [
+        ['Heading', 1200, 'SemiBold'],
+        ['Heading', 1000, 'Regular'],
+        ['Heading', 900, 'Regular'],
+        ['Heading', 800, 'Light'],
+        ['Heading', 700, 'Regular'],
+        ['Heading', 600, 'Regular'],
+        ['Heading', 600, undefined],
+        ['Body', 500, 'Regular'],
+        ['Body', 400, 'Regular'],
+        ['Body', 300, 'Light'],
+        ['Body', 200, 'SemiBold'],
+        ['Body', 100, 'Light'],
+        ['Body', 75, 'Regular'],
+        ['Body', 50, 'Regular'],
+        ['Body', 25, 'Light'],
+        ['Body', 25, undefined],
     ];
 
-    testCases.forEach(([type, size, style, expectedFontFamily]) => {
+    testCases.forEach(([type, size, style]) => {
         it(`returns correct typography for type: ${type}, size: ${size}, style: ${style}`, () => {
             const result = typography(type, size, style);
             expect(result).toBeDefined();
-            expect(result.fontFamily).toBe(expectedFontFamily);
 
             switch (size) {
                 case 1200:

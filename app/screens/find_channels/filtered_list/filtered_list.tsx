@@ -6,24 +6,25 @@ import {useIntl} from 'react-intl';
 import {Alert, FlatList, type ListRenderItemInfo, Platform, StyleSheet, View} from 'react-native';
 import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 
-import {switchToGlobalThreads} from '@actions/local/thread';
 import {joinChannelIfNeeded, makeDirectChannel, searchAllChannels, switchToChannelById} from '@actions/remote/channel';
 import {searchProfiles} from '@actions/remote/user';
-import ChannelItem from '@components/channel_item';
+import ChannelItem, {ROW_HEIGHT_CENTER_LIST} from '@components/channel_item';
 import Loading from '@components/loading';
 import NoResultsWithTerm from '@components/no_results_with_term';
-import ThreadsButton from '@components/threads_button';
 import UserItem from '@components/user_item';
+import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useDebounce} from '@hooks/utils';
+import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {sortChannelsByDisplayName} from '@utils/channel';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
+import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type UserModel from '@typings/database/models/servers/user';
 
-type ResultItem = ChannelModel|Channel|UserModel|'thread';
+type ResultItem = ChannelModel|Channel|UserModel;
 
 type RemoteChannels = {
     archived: Channel[];
@@ -31,13 +32,28 @@ type RemoteChannels = {
     matches: Channel[];
 }
 
+const isTeamOpenOrPrivate = (c: ChannelModel | Channel) => {
+    const type = 'type' in c ? c.type : (c as Channel).type;
+    return type === General.OPEN_CHANNEL || type === General.PRIVATE_CHANNEL;
+};
+
+const isDiscussionGroupChannel = (c: ChannelModel | Channel) => {
+    const type = 'type' in c ? c.type : (c as Channel).type;
+    return type === General.GM_CHANNEL;
+};
+
+const showChannelTypeTagForChannel = (c: ChannelModel | Channel) => {
+    const type = 'type' in c ? c.type : (c as Channel).type;
+    return type === General.OPEN_CHANNEL || type === General.PRIVATE_CHANNEL || type === General.GM_CHANNEL;
+};
+
 type Props = {
     archivedChannels: ChannelModel[];
+    category: FindChannelsCategory;
     close: () => Promise<void>;
     channelsMatch: ChannelModel[];
     channelsMatchStart: ChannelModel[];
     currentTeamId: string;
-    isCRTEnabled: boolean;
     keyboardOverlap: number;
     loading: boolean;
     onLoading: (loading: boolean) => void;
@@ -66,17 +82,17 @@ const sortByLastPostAt = (a: Channel, b: Channel) => {
     return a.last_post_at > b.last_post_at ? 1 : -1;
 };
 
-const sortByUserOrChannel = <T extends Channel |UserModel>(locale: string, teammateDisplayNameSetting: string, a: T, b: T): number => {
-    const aDisplayName = 'display_name' in a ? a.display_name : displayUsername(a, locale, teammateDisplayNameSetting);
-    const bDisplayName = 'display_name' in b ? b.display_name : displayUsername(b, locale, teammateDisplayNameSetting);
+const sortByUserOrChannel = <T extends Channel |UserModel>(locale: string, a: T, b: T): number => {
+    const aDisplayName = 'display_name' in a ? a.display_name : username2Nickname(a, {locale});
+    const bDisplayName = 'display_name' in b ? b.display_name : username2Nickname(b, {locale});
 
     return aDisplayName.toLowerCase().localeCompare(bDisplayName.toLowerCase(), locale, {numeric: true});
 };
 
 const FilteredList = ({
-    archivedChannels, close, channelsMatch, channelsMatchStart, currentTeamId,
-    isCRTEnabled, keyboardOverlap, loading, onLoading, restrictDirectMessage, showTeamName,
-    teamIds, teammateDisplayNameSetting, term, usersMatch, usersMatchStart, testID,
+    archivedChannels, category, close, channelsMatch, channelsMatchStart, currentTeamId,
+    keyboardOverlap, loading, onLoading, restrictDirectMessage, showTeamName,
+    teamIds, teammateDisplayNameSetting: _teammateDisplayNameSetting, term, usersMatch, usersMatchStart, testID,
 }: Props) => {
     const mounted = useRef(false);
     const serverUrl = useServerUrl();
@@ -108,6 +124,9 @@ const FilteredList = ({
                     const existingChannelIds = new Set(channelsMatchStart.concat(channelsMatch).concat(archivedChannels).map((c) => c.id));
                     const [startWith, matches, archived] = channels.reduce<[Channel[], Channel[], Channel[]]>(([s, m, a], c) => {
                         if (existingChannelIds.has(c.id) || !teamIds.has(c.team_id)) {
+                            return [s, m, a];
+                        }
+                        if (currentTeamId && c.team_id && c.team_id !== currentTeamId) {
                             return [s, m, a];
                         }
                         if (!c.delete_at) {
@@ -160,7 +179,7 @@ const FilteredList = ({
     }, [serverUrl, close, formatMessage]);
 
     const onOpenDirectMessage = useCallback(async (u: UserProfile | UserModel) => {
-        const displayName = displayUsername(u, locale, teammateDisplayNameSetting);
+        const displayName = username2Nickname(u, {locale});
         const {data, error} = await makeDirectChannel(serverUrl, u.id, displayName, false);
         if (error || !data) {
             Alert.alert(
@@ -175,16 +194,11 @@ const FilteredList = ({
 
         await close();
         switchToChannelById(serverUrl, data.id);
-    }, [locale, teammateDisplayNameSetting, serverUrl, close, formatMessage]);
+    }, [locale, serverUrl, close, formatMessage]);
 
     const onSwitchToChannel = useCallback(async (c: Channel | ChannelModel) => {
         await close();
         switchToChannelById(serverUrl, c.id);
-    }, [serverUrl, close]);
-
-    const onSwitchToThreads = useCallback(async () => {
-        await close();
-        switchToGlobalThreads(serverUrl);
     }, [serverUrl, close]);
 
     const renderEmpty = useCallback(() => {
@@ -209,25 +223,21 @@ const FilteredList = ({
         return null;
     }, [term, loading, theme]);
 
-    const renderItem = useCallback(({item}: ListRenderItemInfo<ResultItem>) => {
-        if (item === 'thread') {
-            return (
-                <ThreadsButton
-                    onCenterBg={true}
-                    onPress={onSwitchToThreads}
-                />
-            );
-        }
+    const listRowSurface = useMemo(() => getChannelListModalRowSurfaceStyle(theme), [theme]);
 
+    const renderItem = useCallback(({item, index}: ListRenderItemInfo<ResultItem>) => {
         if ('teamId' in item) {
             return (
                 <ChannelItem
                     channel={item}
                     isOnCenterBg={true}
+                    listRowIndex={index}
                     onPress={onSwitchToChannel}
+                    showChannelTypeTag={showChannelTypeTagForChannel(item)}
                     showTeamName={showTeamName}
                     shouldHighlightState={true}
                     testID='find_channels.filtered_list.channel_item'
+                    useListInitialsForNonDm={true}
                 />
             );
         }
@@ -235,6 +245,7 @@ const FilteredList = ({
         if ('username' in item) {
             return (
                 <UserItem
+                    containerStyle={[listRowSurface, {minHeight: ROW_HEIGHT_CENTER_LIST}]}
                     onUserPress={onOpenDirectMessage}
                     user={item}
                     testID='find_channels.filtered_list.user_item'
@@ -247,73 +258,103 @@ const FilteredList = ({
             <ChannelItem
                 channel={item}
                 isOnCenterBg={true}
+                listRowIndex={index}
                 onPress={onJoinChannel}
+                showChannelTypeTag={showChannelTypeTagForChannel(item)}
                 showTeamName={showTeamName}
                 shouldHighlightState={true}
                 testID='find_channels.filtered_list.remote_channel_item'
+                useListInitialsForNonDm={true}
             />
         );
-    }, [onJoinChannel, onOpenDirectMessage, onSwitchToChannel, onSwitchToThreads, showTeamName]);
-
-    const threadLabel = useMemo(
-        () => formatMessage({
-            id: 'threads',
-            defaultMessage: 'Threads',
-        }).toLowerCase(),
-        [formatMessage],
-    );
+    }, [listRowSurface, onJoinChannel, onOpenDirectMessage, onSwitchToChannel, showTeamName]);
 
     const data = useMemo(() => {
         const items: ResultItem[] = [];
+        const showChannels = category === 'all' || category === 'channels' || category === 'discussion_groups';
+        const showUsers = category === 'all' || category === 'contacts';
 
-        // Add threads item to show it on the top of the list
-        if (isCRTEnabled) {
-            const isThreadTerm = threadLabel.indexOf(term.toLowerCase()) === 0;
-            if (isThreadTerm) {
-                items.push('thread');
+        const filterChannelByCategory = (c: ChannelModel | Channel) => {
+            if (category === 'channels') {
+                return isTeamOpenOrPrivate(c);
+            }
+            if (category === 'discussion_groups') {
+                return isDiscussionGroupChannel(c);
+            }
+            return true;
+        };
+
+        if (showChannels) {
+            const groupChannelsStart = category === 'all' ?
+                channelsMatchStart :
+                channelsMatchStart.filter(filterChannelByCategory);
+            items.push(...groupChannelsStart);
+
+            // Channels that matches
+            if (items.length < MAX_RESULTS) {
+                const groupChannelsMatch = category === 'all' ?
+                    channelsMatch :
+                    channelsMatch.filter(filterChannelByCategory);
+                items.push(...groupChannelsMatch);
             }
         }
 
-        items.push(...channelsMatchStart);
-
-        // Channels that matches
-        if (items.length < MAX_RESULTS) {
-            items.push(...channelsMatch);
+        if (showUsers) {
+            // Users that start with
+            if (items.length < MAX_RESULTS) {
+                items.push(...usersMatchStart);
+            }
         }
 
-        // Users that start with
-        if (items.length < MAX_RESULTS) {
-            items.push(...usersMatchStart);
+        if (showChannels) {
+            // Archived channels local
+            if (items.length < MAX_RESULTS) {
+                const archivedSource = category === 'all' ?
+                    archivedChannels :
+                    archivedChannels.filter(filterChannelByCategory);
+                const archivedAlpha = archivedSource.
+                    sort(sortChannelsByDisplayName.bind(null, locale));
+                items.push(...archivedAlpha.slice(0, MAX_RESULTS + 1));
+            }
+
+            // Remote Channels that start with
+            if (items.length < MAX_RESULTS) {
+                const startWith = category === 'all' ?
+                    remoteChannels.startWith :
+                    remoteChannels.startWith.filter(filterChannelByCategory);
+                items.push(...startWith);
+            }
+
+            // Users & Channels that matches
+            if (items.length < MAX_RESULTS) {
+                const matches = category === 'all' ?
+                    remoteChannels.matches :
+                    remoteChannels.matches.filter(filterChannelByCategory);
+                const toSort = showUsers ? [...usersMatch, ...matches] : [...matches];
+                const sortedByAlpha = toSort.sort(sortByUserOrChannel.bind(null, locale));
+                items.push(...sortedByAlpha.slice(0, MAX_RESULTS + 1));
+            }
+
+            // Archived channels (remote)
+            if (items.length < MAX_RESULTS) {
+                const archivedRemoteSource = category === 'all' ?
+                    remoteChannels.archived :
+                    remoteChannels.archived.filter(filterChannelByCategory);
+                const archivedAlpha = archivedRemoteSource.
+                    sort(sortChannelsByDisplayName.bind(null, locale));
+                items.push(...archivedAlpha.slice(0, MAX_RESULTS + 1));
+            }
         }
 
-        // Archived channels local
-        if (items.length < MAX_RESULTS) {
-            const archivedAlpha = archivedChannels.
-                sort(sortChannelsByDisplayName.bind(null, locale));
-            items.push(...archivedAlpha.slice(0, MAX_RESULTS + 1));
-        }
-
-        // Remote Channels that start with
-        if (items.length < MAX_RESULTS) {
-            items.push(...remoteChannels.startWith);
-        }
-
-        // Users & Channels that matches
-        if (items.length < MAX_RESULTS) {
-            const sortedByAlpha = [...usersMatch, ...remoteChannels.matches].
-                sort(sortByUserOrChannel.bind(null, locale, teammateDisplayNameSetting));
-            items.push(...sortedByAlpha.slice(0, MAX_RESULTS + 1));
-        }
-
-        // Archived channels
-        if (items.length < MAX_RESULTS) {
-            const archivedAlpha = remoteChannels.archived.
-                sort(sortChannelsByDisplayName.bind(null, locale));
-            items.push(...archivedAlpha.slice(0, MAX_RESULTS + 1));
+        if (showUsers && !showChannels) {
+            // Contacts-only: add usersMatch
+            if (items.length < MAX_RESULTS) {
+                items.push(...usersMatch);
+            }
         }
 
         return [...new Set(items)].slice(0, MAX_RESULTS + 1);
-    }, [archivedChannels, channelsMatchStart, channelsMatch, isCRTEnabled, remoteChannels, usersMatch, usersMatchStart, locale, teammateDisplayNameSetting, term, threadLabel]);
+    }, [archivedChannels, category, channelsMatchStart, channelsMatch, remoteChannels, usersMatch, usersMatchStart, locale, term]);
 
     useEffect(() => {
         mounted.current = true;

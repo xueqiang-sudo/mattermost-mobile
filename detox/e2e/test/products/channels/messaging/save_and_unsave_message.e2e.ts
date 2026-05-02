@@ -25,7 +25,7 @@ import {
     ThreadScreen,
 } from '@support/ui/screen';
 import {getRandomId, timeouts, wait} from '@support/utils';
-import {expect, waitFor} from 'detox';
+import {expect} from 'detox';
 
 describe('Messaging - Save and Unsave Message', () => {
     const serverOneDisplayName = 'Server 1';
@@ -61,7 +61,7 @@ describe('Messaging - Save and Unsave Message', () => {
         // * Verify message is posted
         const {post} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
         const {postListPostItem} = ChannelScreen.getPostListPostItem(post.id, message);
-        await waitFor(postListPostItem).toBeVisible().withTimeout(timeouts.FOUR_SEC);
+        await expect(postListPostItem).toBeVisible();
 
         // # Open post options for message and tap on save option
         await ChannelScreen.openPostOptionsFor(post.id, message);
@@ -89,10 +89,8 @@ describe('Messaging - Save and Unsave Message', () => {
         const message = `Message ${getRandomId()}`;
         await ChannelScreen.open(channelsCategory, testChannel.name);
         await ChannelScreen.postMessage(message);
-
         const {post} = await Post.apiGetLastPostInChannel(siteOneUrl, testChannel.id);
         const {postListPostItem} = ChannelScreen.getPostListPostItem(post.id, message);
-        await waitFor(postListPostItem).toBeVisible().withTimeout(timeouts.FOUR_SEC);
         await postListPostItem.tap();
         await ThreadScreen.openPostOptionsFor(post.id, message);
         await PostOptionsScreen.savePostOption.tap();

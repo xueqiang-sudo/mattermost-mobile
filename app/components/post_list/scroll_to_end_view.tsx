@@ -3,13 +3,14 @@
 
 import React, {useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {Pressable, Text, View, type ViewStyle} from 'react-native';
+import {Platform, Text, useWindowDimensions, View, type ViewStyle} from 'react-native';
+import {Pressable} from 'react-native-gesture-handler';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
-import {Screens} from '@constants';
-import {useKeyboardAnimationContext} from '@context/keyboard_animation';
 import {useTheme} from '@context/theme';
+import {useIsTablet, useKeyboardHeight, useViewPosition} from '@hooks/device';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -21,10 +22,17 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
         alignItems: 'center',
     };
     return {
+        guidingWrap: {
+            ...Platform.select({
+                ios: {zIndex: 50},
+                default: {elevation: 50, zIndex: 50},
+            }),
+            pointerEvents: 'box-none',
+        },
         buttonStyle: {
             position: 'absolute',
             alignSelf: 'center',
-            bottom: 0,
+            bottom: -100,
             flexDirection: 'row',
         },
         shadow: {
@@ -61,47 +69,58 @@ type Props = {
     isNewMessage: boolean;
     showScrollToEndBtn: boolean;
     location: string;
+
+    /** Inline thread in channel: use thread wording and tablet inset behavior */
+    isThreadReply?: boolean;
     testID?: string;
 };
-
-const SCROLL_TO_END_BOTTOM_OFFSET = 15;
-const SCROLL_TO_END_BUTTON_WIDTH = 40;
-const SCROLL_TO_END_BADGE_MAX_WIDTH = 169;
 
 const ScrollToEndView = ({
     onPress,
     isNewMessage,
     showScrollToEndBtn,
     location,
+    isThreadReply = false,
     testID = 'scroll-to-end-view',
 }: Props) => {
     const intl = useIntl();
     const theme = useTheme();
+    const isTablet = useIsTablet();
     const styles = getStyleFromTheme(theme);
-
-    const {keyboardTranslateY, postInputContainerHeight, inputAccessoryViewAnimatedHeight} = useKeyboardAnimationContext();
 
     // On iOS we have to take account of the keyboard.
     // We cannot use `useKeyboardOverlap` here because of the positioning of the element.
     const guidingViewRef = useRef<View>(null);
+    const keyboardHeight = useKeyboardHeight();
+    const viewPosition = useViewPosition(guidingViewRef, []);
+    const dimensions = useWindowDimensions();
+    const bottomSpace = (dimensions.height - viewPosition);
+    const keyboardOverlap = Platform.select({ios: Math.max(0, keyboardHeight - bottomSpace), default: 0});
 
-    const message = location === Screens.THREAD ? intl.formatMessage({id: 'postList.scrollToBottom.newReplies', defaultMessage: 'New replies'}) : intl.formatMessage({id: 'postList.scrollToBottom.newMessages', defaultMessage: 'New messages'});
+    // Inline thread on iPad: account for safe area when keyboard is hidden
+    const insets = useSafeAreaInsets();
+    const shouldAdjustBottom = (Platform.OS === 'ios') && isTablet && isThreadReply && !keyboardHeight;
+    const bottomAdjustment = shouldAdjustBottom ? insets.bottom : 0;
 
+    const message = isThreadReply ? intl.formatMessage({id: 'postList.scrollToBottom.newReplies', defaultMessage: 'New replies'}) : intl.formatMessage({id: 'postList.scrollToBottom.newMessages', defaultMessage: 'New messages'});
+
+    // 显示时缓入；隐藏时 duration 0，避免点击回到底部后列表已就位但按钮仍缓慢消失
     const animatedStyle = useAnimatedStyle(
         () => {
-            const activeHeight = Math.max(keyboardTranslateY.value, inputAccessoryViewAnimatedHeight.value);
-
+            const ms = showScrollToEndBtn ? 300 : 0;
             return {
                 transform: [
                     {
-                        translateY: showScrollToEndBtn ? -postInputContainerHeight - activeHeight - SCROLL_TO_END_BOTTOM_OFFSET : -SCROLL_TO_END_BOTTOM_OFFSET,
+                        translateY: withTiming(showScrollToEndBtn ? -100 - keyboardOverlap - bottomAdjustment : -15, {
+                            duration: ms,
+                        }),
                     },
                 ],
-                maxWidth: withTiming(isNewMessage ? SCROLL_TO_END_BADGE_MAX_WIDTH : SCROLL_TO_END_BUTTON_WIDTH, {duration: 300}),
-                opacity: withTiming(showScrollToEndBtn ? 1 : 0),
+                maxWidth: withTiming(isNewMessage ? 169 : 40, {duration: ms}),
+                opacity: withTiming(showScrollToEndBtn ? 1 : 0, {duration: ms}),
             };
         },
-        [showScrollToEndBtn, isNewMessage, keyboardTranslateY, inputAccessoryViewAnimatedHeight, postInputContainerHeight],
+        [showScrollToEndBtn, isNewMessage, keyboardOverlap, bottomAdjustment],
     );
 
     const scrollButtonStyles = isNewMessage ? styles.scrollToEndBadge : styles.scrollToEndButton;
@@ -109,11 +128,14 @@ const ScrollToEndView = ({
     return (
         <View
             ref={guidingViewRef}
+            style={styles.guidingWrap}
             testID={testID}
+            collapsable={false}
         >
             <Animated.View style={[animatedStyle, styles.buttonStyle]}>
                 <Pressable
                     onPress={onPress}
+                    delayPressIn={0}
                     style={[scrollButtonStyles, styles.shadow]}
                 >
                     <CompassIcon

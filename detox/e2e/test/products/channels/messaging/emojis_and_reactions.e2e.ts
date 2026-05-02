@@ -26,8 +26,8 @@ import {
     ServerScreen,
     UserProfileScreen,
 } from '@support/ui/screen';
-import {getRandomId, timeouts} from '@support/utils';
-import {expect, waitFor} from 'detox';
+import {getRandomId} from '@support/utils';
+import {expect} from 'detox';
 
 describe('Messaging - Emojis and Reactions', () => {
     const serverOneDisplayName = 'Server 1';
@@ -74,13 +74,10 @@ describe('Messaging - Emojis and Reactions', () => {
         // # Open emoji picker screen and add a new reaction
         await EmojiPickerScreen.open(true);
         await EmojiPickerScreen.searchInput.replaceText('clown_face');
-        await EmojiPickerScreen.searchInput.tapReturnKey();
         await element(by.text('🤡')).tap();
 
         // * Verify new reaction is added to the message
-        const reactionElement = element(by.text('🤡').withAncestor(by.id(`channel.post_list.post.${post.id}`)));
-        await waitFor(reactionElement).toExist().withTimeout(timeouts.TWO_SEC);
-        await expect(reactionElement).toExist();
+        await expect(element(by.text('🤡').withAncestor(by.id(`channel.post_list.post.${post.id}`)))).toBeVisible();
 
         // # Open post options for message
         await ChannelScreen.openPostOptionsFor(post.id, message);
@@ -108,13 +105,11 @@ describe('Messaging - Emojis and Reactions', () => {
         await ChannelScreen.openPostOptionsFor(post.id, message);
         await EmojiPickerScreen.open();
         await EmojiPickerScreen.searchInput.replaceText('fire');
-        await EmojiPickerScreen.searchInput.tapReturnKey();
         await element(by.text('🔥')).tap();
 
         // * Verify reaction is added to the message
         const reaction = element(by.text('🔥').withAncestor(by.id(`channel.post_list.post.${post.id}`)));
-        await waitFor(reaction).toExist().withTimeout(timeouts.TWO_SEC);
-        await expect(reaction).toExist();
+        await expect(reaction).toBeVisible();
 
         // # Long press on the reaction
         await reaction.longPress();
@@ -176,7 +171,6 @@ describe('Messaging - Emojis and Reactions', () => {
         await ChannelScreen.openPostOptionsFor(post.id, message);
         await EmojiPickerScreen.open();
         await EmojiPickerScreen.searchInput.replaceText(searchTerm);
-        await EmojiPickerScreen.searchInput.tapReturnKey();
 
         // * Verify empty search state for emoji picker
         await expect(element(by.text(`No matches found for “${searchTerm}”`))).toBeVisible();

@@ -59,7 +59,7 @@ const ServerItem = ({server, theme}: Props) => {
     const onServerPressed = useCallback(() => {
         setShareExtensionServerUrl(server.url);
         navigation.goBack();
-    }, [navigation, server.url]);
+    }, [server]);
 
     return (
         <TouchableOpacity

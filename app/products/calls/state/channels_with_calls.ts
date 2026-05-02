@@ -1,10 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {BehaviorSubject} from 'rxjs';
-
-import useDidMount from '@hooks/did_mount';
 
 import type {ChannelsWithCalls} from '@calls/types/calls';
 
@@ -33,7 +31,7 @@ export const observeChannelsWithCalls = (serverUrl: string) => {
 export const useChannelsWithCalls = (serverUrl: string) => {
     const [state, setState] = useState<ChannelsWithCalls>({});
 
-    useDidMount(() => {
+    useEffect(() => {
         const subscription = getChannelsWithCallsSubject(serverUrl).subscribe((channelsWithCalls) => {
             setState(channelsWithCalls);
         });
@@ -41,7 +39,7 @@ export const useChannelsWithCalls = (serverUrl: string) => {
         return () => {
             subscription?.unsubscribe();
         };
-    });
+    }, []);
 
     return state;
 };

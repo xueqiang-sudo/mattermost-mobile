@@ -2,18 +2,19 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import {combineLatest, type Observable, of as of$, shareReplay} from 'rxjs';
-import {distinctUntilChanged, switchMap} from 'rxjs/operators';
+import {combineLatest, of as of$} from 'rxjs';
+import {switchMap} from 'rxjs/operators';
 
-import {General, Permissions} from '@constants';
+import {General, Permissions, Preferences} from '@constants';
 import {DRAFT_TYPE_SCHEDULED, type DraftType} from '@constants/draft';
 import {MAX_MESSAGE_LENGTH_FALLBACK} from '@constants/post_draft';
 import {observeChannel, observeChannelInfo} from '@queries/servers/channel';
 import {queryAllCustomEmojis} from '@queries/servers/custom_emoji';
 import {observeFirstDraft, queryDraft} from '@queries/servers/drafts';
+import {queryEmojiPreferences} from '@queries/servers/preference';
 import {observePermissionForChannel} from '@queries/servers/role';
 import {observeFirstScheduledPost, queryScheduledPost} from '@queries/servers/scheduled_post';
-import {observeConfigBooleanValue, observeConfigIntValue, observeCurrentUserId} from '@queries/servers/system';
+import {observeConfigBooleanValue, observeConfigIntValue, observeCurrentUserId, observeRecentReactions} from '@queries/servers/system';
 import {observeUser} from '@queries/servers/user';
 
 import SendHandler, {INITIAL_PRIORITY} from './send_handler';
@@ -40,33 +41,30 @@ const enhanced = withObservables(['channelId', 'rootId', 'draftType'], (ownProps
         switchMap((u) => of$(u?.status === General.OUT_OF_OFFICE)),
     );
 
-    let metadata: Observable<PostMetadata>;
+    let postPriority;
     if (draftType === DRAFT_TYPE_SCHEDULED) {
-        metadata = queryScheduledPost(database, channelId, rootId).observeWithColumns(['metadata']).
-            pipe(
-                switchMap(observeFirstScheduledPost),
-                switchMap((item) => of$(item?.metadata || {})),
-                shareReplay({bufferSize: 1, refCount: true}),
-            );
+        postPriority = queryScheduledPost(database, channelId, rootId).observeWithColumns(['metadata']).pipe(
+            switchMap(observeFirstScheduledPost),
+            switchMap((d) => {
+                if (!d?.metadata?.priority) {
+                    return of$(INITIAL_PRIORITY);
+                }
+
+                return of$(d.metadata.priority);
+            }),
+        );
     } else {
-        metadata = queryDraft(database, channelId, rootId).observeWithColumns(['metadata']).pipe(
+        postPriority = queryDraft(database, channelId, rootId).observeWithColumns(['metadata']).pipe(
             switchMap(observeFirstDraft),
-            switchMap((item) => of$(item?.metadata || {})),
-            shareReplay({bufferSize: 1, refCount: true}),
+            switchMap((d) => {
+                if (!d?.metadata?.priority) {
+                    return of$(INITIAL_PRIORITY);
+                }
+
+                return of$(d.metadata.priority);
+            }),
         );
     }
-
-    const postPriority = metadata.pipe(
-        switchMap((m) => of$(m?.priority || INITIAL_PRIORITY)),
-        distinctUntilChanged(),
-    );
-
-    const postBoRConfig = metadata.pipe(
-        switchMap((m) => {
-            return of$(m?.borConfig || null);
-        }),
-        distinctUntilChanged(),
-    );
 
     const enableConfirmNotificationsToChannel = observeConfigBooleanValue(database, 'EnableConfirmNotificationsToChannel');
     const maxMessageLength = observeConfigIntValue(database, 'MaxPostSize', MAX_MESSAGE_LENGTH_FALLBACK);
@@ -92,6 +90,12 @@ const enhanced = withObservables(['channelId', 'rootId', 'draftType'], (ownProps
     );
 
     const customEmojis = queryAllCustomEmojis(database).observe();
+    const customEmojisEnabled = observeConfigBooleanValue(database, 'EnableCustomEmoji');
+    const recentEmojis = observeRecentReactions(database);
+    const skinTone = queryEmojiPreferences(database, Preferences.EMOJI_SKINTONE).
+        observeWithColumns(['value']).pipe(
+            switchMap((prefs) => of$(prefs?.[0]?.value ?? 'default')),
+        );
 
     return {
         channelType,
@@ -104,10 +108,12 @@ const enhanced = withObservables(['channelId', 'rootId', 'draftType'], (ownProps
         userIsOutOfOffice,
         useChannelMentions,
         customEmojis,
+        customEmojisEnabled,
+        recentEmojis,
+        skinTone,
         persistentNotificationInterval,
         persistentNotificationMaxRecipients,
         postPriority,
-        postBoRConfig,
     };
 });
 

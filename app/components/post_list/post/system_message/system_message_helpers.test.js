@@ -3,7 +3,7 @@
 
 import React from 'react';
 
-import {Post} from '@constants';
+import {General, Post, Screens} from '@constants';
 import {renderWithEverything} from '@test/intl-test-helper';
 import TestHelper from '@test/test_helper';
 
@@ -18,6 +18,8 @@ const baseProps = {
         firstName: 'Test',
         lastName: 'Author',
     },
+    hideGuestTags: false,
+    location: Screens.CHANNEL,
 };
 
 describe('renderSystemMessage', () => {
@@ -163,6 +165,71 @@ describe('renderSystemMessage', () => {
             {database},
         );
         expect(renderedMessage.toJSON()).toBeNull();
+    });
+
+    test('renders structured announcement card for private channel (announcement UX)', () => {
+        const post = {
+            createAt: 1_704_067_200_000,
+            props: {
+                old_header: 'old header',
+                new_header: 'new header',
+            },
+            type: Post.POST_TYPES.HEADER_CHANGE,
+        };
+        const {getByText} = renderWithEverything(
+            <SystemMessage
+                post={post}
+                {...baseProps}
+                channelType={General.PRIVATE_CHANNEL}
+            />,
+            {database},
+        );
+        expect(getByText(/Time:/)).toBeTruthy();
+        expect(getByText(/Editor:/)).toBeTruthy();
+        expect(getByText(/old header/)).toBeTruthy();
+        expect(getByText(/new header/)).toBeTruthy();
+    });
+
+    test('renders structured announcement card (time, editor, content) for open channel', () => {
+        const post = {
+            createAt: 1_704_067_200_000,
+            props: {
+                old_header: 'Previous announcement',
+                new_header: 'Updated announcement',
+            },
+            type: Post.POST_TYPES.HEADER_CHANGE,
+        };
+        const {getByText} = renderWithEverything(
+            <SystemMessage
+                post={post}
+                {...baseProps}
+                channelType={General.OPEN_CHANNEL}
+            />,
+            {database},
+        );
+        expect(getByText(/Time:/)).toBeTruthy();
+        expect(getByText(/Editor:/)).toBeTruthy();
+        expect(getByText(/Announcement content:/)).toBeTruthy();
+        expect(getByText(/Previous announcement/)).toBeTruthy();
+        expect(getByText(/Updated announcement/)).toBeTruthy();
+    });
+
+    test('uses discussion wording for guest join when channelType is private', () => {
+        const post = {
+            props: {
+                username: 'username',
+            },
+            type: Post.POST_TYPES.GUEST_JOIN_CHANNEL,
+        };
+        const joined = renderWithEverything(
+            <SystemMessage
+                post={post}
+                {...baseProps}
+                channelType={General.PRIVATE_CHANNEL}
+            />,
+            {database},
+        );
+        expect(joined.getByText('joined the discussion group as a guest.')).toBeTruthy();
     });
 
     test('uses renderer for Guest added and join to channel', () => {

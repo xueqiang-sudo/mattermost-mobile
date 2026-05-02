@@ -1,9 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {getIntlShape} from '@utils/general';
-
-import {formatTime, getReadableTimestamp, isSameDate, isSameMonth, isSameYear, isToday, isYesterday} from './datetime';
+import {formatTime, getConversationTimestampFormat, getReadableTimestamp, isSameDate, isSameMonth, isSameYear, isToday, isYesterday} from './datetime';
 
 describe('Datetime', () => {
     test('isSameDate (isSameMonth / isSameYear)', () => {
@@ -35,6 +33,57 @@ describe('Datetime', () => {
         const today = new Date();
         today.setDate(today.getDate() - 1);
         expect(isYesterday(today)).toBe(true);
+    });
+});
+
+describe('getConversationTimestampFormat', () => {
+    beforeAll(() => {
+        jest.useFakeTimers({doNotFake: ['nextTick']});
+        jest.setSystemTime(new Date('2025-06-15T12:00:00Z'));
+    });
+
+    afterAll(() => {
+        jest.useRealTimers();
+    });
+
+    it('should use 12-hour clock for today when isMilitaryTime is false', () => {
+        const timestamp = new Date('2025-06-15T12:00:00Z').getTime();
+        const result = getConversationTimestampFormat(timestamp, {
+            locale: 'en-US',
+            timeZone: 'America/New_York',
+            isMilitaryTime: false,
+        });
+        expect(result.type).toBe('time');
+        if (result.type === 'time') {
+            expect(result.value).toMatch(/AM|PM/i);
+        }
+    });
+
+    it('should use 24-hour clock for today when isMilitaryTime is true', () => {
+        const timestamp = new Date('2025-06-15T12:00:00Z').getTime();
+        const result = getConversationTimestampFormat(timestamp, {
+            locale: 'en-US',
+            timeZone: 'America/New_York',
+            isMilitaryTime: true,
+        });
+        expect(result.type).toBe('time');
+        if (result.type === 'time') {
+            expect(result.value).toMatch(/\b08:00\b/);
+            expect(result.value).not.toMatch(/AM|PM/i);
+        }
+    });
+
+    it('should default to 24-hour for today when isMilitaryTime is omitted', () => {
+        const timestamp = new Date('2025-06-15T12:00:00Z').getTime();
+        const result = getConversationTimestampFormat(timestamp, {
+            locale: 'en-US',
+            timeZone: 'America/New_York',
+        });
+        expect(result.type).toBe('time');
+        if (result.type === 'time') {
+            expect(result.value).toMatch(/\b08:00\b/);
+            expect(result.value).not.toMatch(/AM|PM/i);
+        }
     });
 });
 
@@ -125,51 +174,5 @@ describe('formatTime', () => {
     it('should not pad minutes with zero when no hours', () => {
         expect(formatTime(65)).toBe('1:05');
         expect(formatTime(605)).toBe('10:05');
-    });
-
-    describe('text time format', () => {
-        const intl = getIntlShape();
-
-        it('should format seconds only in text time format', () => {
-            expect(formatTime(30, true, intl)).toBe('30s');
-            expect(formatTime(5, true, intl)).toBe('5s');
-            expect(formatTime(59, true, intl)).toBe('59s');
-        });
-
-        it('should format minutes and seconds in text time format', () => {
-            expect(formatTime(90, true, intl)).toBe('1m 30s');
-            expect(formatTime(125, true, intl)).toBe('2m 5s');
-            expect(formatTime(3599, true, intl)).toBe('59m 59s');
-        });
-
-        it('should format hours, minutes, and seconds in text time format', () => {
-            expect(formatTime(3600, true, intl)).toBe('1h');
-            expect(formatTime(3661, true, intl)).toBe('1h 1m 1s');
-            expect(formatTime(7325, true, intl)).toBe('2h 2m 5s');
-            expect(formatTime(36000, true, intl)).toBe('10h');
-        });
-
-        it('should format hours and minutes only in text time format', () => {
-            expect(formatTime(3660, true, intl)).toBe('1h 1m');
-            expect(formatTime(7200, true, intl)).toBe('2h');
-        });
-
-        it('should format hours and seconds only in text time format', () => {
-            expect(formatTime(3605, true, intl)).toBe('1h 5s');
-        });
-
-        it('should format minutes only in text time format', () => {
-            expect(formatTime(60, true, intl)).toBe('1m');
-            expect(formatTime(120, true, intl)).toBe('2m');
-        });
-
-        it('should handle zero seconds in text time format', () => {
-            expect(formatTime(0, true, intl)).toBe('0s');
-        });
-
-        it('should handle negative values in text time format', () => {
-            expect(formatTime(-30, true, intl)).toBe('0s');
-            expect(formatTime(-3600, true, intl)).toBe('0s');
-        });
     });
 });

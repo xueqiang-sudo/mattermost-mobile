@@ -3,7 +3,7 @@
 
 import {Platform} from 'react-native';
 
-export const BOTTOM_TAB_HEIGHT = 52;
+export const BOTTOM_TAB_HEIGHT = 60;
 export const BOTTOM_TAB_ICON_SIZE = 31.2;
 export const BOTTOM_TAB_PROFILE_PHOTO_SIZE = 22;
 export const BOTTOM_TAB_STATUS_SIZE = 12;
@@ -31,11 +31,11 @@ export const CALL_NOTIFICATION_BAR_HEIGHT = 40;
 
 export const ANNOUNCEMENT_BAR_HEIGHT = 40;
 export const BOOKMARKS_BAR_HEIGHT = 48;
-export const CHANNEL_BANNER_HEIGHT = 26;
+export const CHANNEL_BANNER_HEIGHT = 32;
 
 export const HOME_PADDING = {
-    paddingLeft: 18,
-    paddingRight: 20,
+    paddingLeft: 12,
+    paddingRight: 12,
 };
 
 export default {

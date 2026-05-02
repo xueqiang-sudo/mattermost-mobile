@@ -43,8 +43,8 @@ const ServerOption = ({color, icon, onPress, positionX, progress, style, testID,
     const styles = getStyleSheet(theme);
     const containerStyle = useMemo(() => {
         return [styles.container, {backgroundColor: color}, style];
-    }, [color, style, styles]);
-    const centeredStyle = useMemo(() => [styles.container, styles.centered], [styles]);
+    }, [color, style]);
+    const centeredStyle = useMemo(() => [styles.container, styles.centered], []);
 
     const trans = progress.interpolate({
         inputRange: [0, 1],

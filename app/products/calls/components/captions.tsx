@@ -8,7 +8,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import {changeOpacity} from '@utils/theme';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {CallSession, LiveCaptionMobile} from '@calls/types/calls';
 
@@ -46,7 +46,6 @@ const styles = StyleSheet.create({
     },
     text: {
         color: '#FFF',
-        fontFamily: 'Open Sans',
         fontSize: 16,
         fontStyle: 'normal',
         fontWeight: '400',
@@ -61,7 +60,7 @@ type Props = {
     teammateNameDisplay: string;
 }
 
-const Captions = ({captionsDict, sessionsDict, teammateNameDisplay}: Props) => {
+const Captions = ({captionsDict, sessionsDict, teammateNameDisplay: _teammateNameDisplay}: Props) => {
     const intl = useIntl();
     const [showCCNotice, setShowCCNotice] = useState(true);
 
@@ -111,7 +110,7 @@ const Captions = ({captionsDict, sessionsDict, teammateNameDisplay}: Props) => {
                             style={styles.text}
                             numberOfLines={0}
                         >
-                            {`(${displayUsername(sessionsDict[cap.sessionId]?.userModel, intl.locale, teammateNameDisplay)}) ${cap.text}`}
+                            {`(${username2Nickname(sessionsDict[cap.sessionId]?.userModel, {locale: intl.locale})}) ${cap.text}`}
                         </Text>
                     </View>
                 ))}

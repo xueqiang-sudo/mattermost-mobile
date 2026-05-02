@@ -2,19 +2,20 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
+import {View} from 'react-native';
 
 import CopyChannelLinkOption from '@components/channel_actions/copy_channel_link_option';
 import {General} from '@constants';
+import {RUNNING_E2E} from '@env';
 import PlaybookRunsOption from '@playbooks/components/channel_actions/playbook_runs_option';
 import {isTypeDMorGM} from '@utils/channel';
 
 import AddMembers from './add_members';
 import AutoFollowThreads from './auto_follow_threads';
 import ChannelFiles from './channel_files';
-import ChannelSettings from './channel_settings';
+import EditChannel from './edit_channel';
 import IgnoreMentions from './ignore_mentions';
 import Members from './members';
-import MyAutotranslation from './my_autotranslation';
 import NotificationPreference from './notification_preference';
 import PinnedMessages from './pinned_messages';
 
@@ -25,8 +26,8 @@ type Props = {
     canManageMembers: boolean;
     isCRTEnabled: boolean;
     isPlaybooksEnabled: boolean;
-    hasChannelSettingsActions: boolean;
-    isAutotranslationEnabledForThisChannel: boolean;
+    canManageSettings: boolean;
+    isTeamDefaultOpenChannel?: boolean;
 }
 
 const Options = ({
@@ -36,16 +37,13 @@ const Options = ({
     canManageMembers,
     isCRTEnabled,
     isPlaybooksEnabled,
-    hasChannelSettingsActions,
-    isAutotranslationEnabledForThisChannel,
+    canManageSettings,
+    isTeamDefaultOpenChannel = false,
 }: Props) => {
     const isDMorGM = isTypeDMorGM(type);
 
     return (
-        <>
-            {hasChannelSettingsActions && (
-                <ChannelSettings channelId={channelId}/>
-            )}
+        <View testID='channel_info.options.group'>
             {type !== General.DM_CHANNEL && (
                 <>
                     {isCRTEnabled && (
@@ -55,10 +53,10 @@ const Options = ({
                 </>
             )}
             <NotificationPreference channelId={channelId}/>
-            {isAutotranslationEnabledForThisChannel && (
-                <MyAutotranslation channelId={channelId}/>
+            {/* Pinned row hidden in user builds; Detox still taps it when RUNNING_E2E=true (e2e workflows). */}
+            {RUNNING_E2E === 'true' && (
+                <PinnedMessages channelId={channelId}/>
             )}
-            <PinnedMessages channelId={channelId}/>
             <ChannelFiles channelId={channelId}/>
             {isPlaybooksEnabled && !isDMorGM &&
             <PlaybookRunsOption
@@ -78,7 +76,14 @@ const Options = ({
                     testID='channel_info.options.copy_channel_link.option'
                 />
             }
-        </>
+            {canManageSettings &&
+                <EditChannel
+                    channelId={channelId}
+                    isTeamDefaultOpenChannel={isTeamDefaultOpenChannel}
+                    type={type}
+                />
+            }
+        </View>
     );
 };
 

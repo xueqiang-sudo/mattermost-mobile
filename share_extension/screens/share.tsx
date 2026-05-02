@@ -10,7 +10,6 @@ import {StyleSheet, View} from 'react-native';
 import {from as from$} from 'rxjs';
 
 import DatabaseManager from '@database/manager';
-import useDidMount from '@hooks/did_mount';
 import {getActiveServerUrl} from '@queries/app/servers';
 import ContentView from '@share/components/content_view';
 import NoMemberships from '@share/components/error/no_memberships';
@@ -79,13 +78,9 @@ const ShareScreen = ({hasChannelMemberships, initialServerUrl, files, linkPrevie
             {applicationName},
             ),
         });
-
-    // We only care about changes in the locale
-    // navigator should not change in the lifetime of this component.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [intl.locale]);
 
-    useDidMount(() => {
+    useEffect(() => {
         setShareExtensionState({
             files,
             linkPreviewUrl,
@@ -97,7 +92,7 @@ const ShareScreen = ({hasChannelMemberships, initialServerUrl, files, linkPrevie
             headerLeft: () => (<CloseHeaderButton theme={theme}/>),
             headerRight: () => (<PostButton theme={theme}/>),
         });
-    });
+    }, []);
 
     return (
         <View style={styles.container}>

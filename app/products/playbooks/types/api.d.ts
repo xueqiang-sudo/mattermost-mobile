@@ -38,11 +38,6 @@ type PlaybookChecklistItem = {
     update_at: number;
 }
 
-type ChecklistItemInput = {
-    title: string;
-    description?: string;
-}
-
 type PlaybookChecklist = {
     id: string;
     title: string;
@@ -77,7 +72,7 @@ type TimelineEvent = {
 
 type PlaybookRunStatusType = typeof PlaybookRunStatus[keyof typeof PlaybookRunStatus];
 
-type PlaybookRunPropertyField = {
+type PlaybookRunAttribute = {
     id: string;
     group_id: string;
     name: string;
@@ -87,19 +82,13 @@ type PlaybookRunPropertyField = {
     create_at: number;
     update_at: number;
     delete_at: number;
-    attrs?: string | {
-        options?: Array<{id: string; name: string}>;
-        parent_id?: string;
-        sort_order?: number;
-        value_type?: string;
-    };
+    attrs?: string;
 }
 
-type PlaybookRunPropertyValue = {
+type PlaybookRunAttributeValue = {
     id: string;
-    field_id: string;
-    target_id: string;
-    update_at: number;
+    attribute_id: string;
+    run_id: string;
     value: string;
 }
 
@@ -148,8 +137,6 @@ type PlaybookRun = {
     status_posts: StatusPost[];
     checklists: PlaybookChecklist[];
     metrics_data: RunMetricData[];
-    property_fields?: PlaybookRunPropertyField[];
-    property_values?: PlaybookRunPropertyValue[];
     update_at: number;
     items_order: string[];
     status_update_broadcast_channels_enabled: boolean;

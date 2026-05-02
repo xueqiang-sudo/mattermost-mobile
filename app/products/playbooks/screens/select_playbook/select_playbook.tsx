@@ -14,7 +14,6 @@ import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useDidMount from '@hooks/did_mount';
 import SecurityManager from '@managers/security_manager';
 import {fetchPlaybooks} from '@playbooks/actions/remote/playbooks';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
@@ -186,9 +185,12 @@ function SelectPlaybook({
         };
     }, []);
 
-    useDidMount(() => {
+    useEffect(() => {
         loadMore();
-    });
+
+        // We only want to load the playbooks once on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const renderNoResults = useCallback((): JSX.Element | null => {
         if (loading && page.current === -1) {

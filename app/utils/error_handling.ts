@@ -8,6 +8,7 @@ import {setJSExceptionHandler} from 'react-native-exception-handler';
 import {DEFAULT_LOCALE, getTranslations} from '@i18n';
 import {dismissAllModals, dismissAllOverlays} from '@screens/navigation';
 import {isBetaApp} from '@utils/general';
+import {setLatestRuntimeError} from '@utils/runtime_error_state';
 import {
     captureException,
     captureJSException,
@@ -53,6 +54,7 @@ class JavascriptAndNativeErrorHandlerSingleton {
         }
 
         logWarning('Handling Javascript error', e, isFatal);
+        setLatestRuntimeError(e, 'global_handler', isFatal);
 
         if (isBetaApp || isFatal) {
             captureJSException(e, isFatal);

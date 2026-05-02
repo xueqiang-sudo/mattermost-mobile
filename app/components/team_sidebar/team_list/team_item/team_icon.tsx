@@ -104,7 +104,6 @@ export default function TeamIcon({
     }, [styles, backgroundColor, selected, nameOnly]);
 
     const textTypography = typography('Heading', smallText ? 200 : 400, 'SemiBold');
-    textTypography.fontFamily = 'Metropolis-SemiBold';
 
     let teamIconContent;
     if (nameOnly) {

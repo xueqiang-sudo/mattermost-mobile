@@ -44,7 +44,4 @@ export default class DraftModel extends Model implements DraftModelInterface {
 
     /** update_at : The timestamp to when this post was last updated on the server */
     @field('update_at') updateAt!: number;
-
-    /** type : The type of post  */
-    @field('type') type!: PostTypesUserCreatable | null;
 }

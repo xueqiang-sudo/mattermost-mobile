@@ -4,7 +4,7 @@
 import {addChannelToDefaultCategory, handleConvertedGMCategories} from '@actions/local/category';
 import {
     markChannelAsViewed, removeCurrentUserFromChannel, setChannelDeleteAt,
-    storeMyChannelsForTeam, updateChannelInfoFromChannel, updateMyChannelFromWebsocket, deletePostsForChannel,
+    storeMyChannelsForTeam, updateChannelInfoFromChannel, updateMyChannelFromWebsocket,
 } from '@actions/local/channel';
 import {storePostsForChannel} from '@actions/local/post';
 import {fetchMissingDirectChannelsInfo, fetchMyChannel, fetchChannelStats, fetchChannelById, handleKickFromChannel} from '@actions/remote/channel';
@@ -105,11 +105,6 @@ export async function handleChannelUpdatedEvent(serverUrl: string, msg: any) {
         const existingChannel = await getChannelById(database, updatedChannel.id);
         const existingChannelType = existingChannel?.type;
 
-        const autotranslationDisabled = existingChannel?.autotranslation && !updatedChannel.autotranslation;
-        if (autotranslationDisabled) {
-            await deletePostsForChannel(serverUrl, updatedChannel.id);
-        }
-
         const models: Model[] = await operator.handleChannel({channels: [updatedChannel], prepareRecordsOnly: true});
         const infoModel = await updateChannelInfoFromChannel(serverUrl, updatedChannel, true);
         if (infoModel.model) {
@@ -117,7 +112,7 @@ export async function handleChannelUpdatedEvent(serverUrl: string, msg: any) {
         }
         operator.batchRecords(models, 'handleChannelUpdatedEvent');
 
-        // This indicates a GM was converted to a private channel
+        // This indicates a GM was converted to a group chat (type P)
         if (existingChannelType === General.GM_CHANNEL && updatedChannel.type === General.PRIVATE_CHANNEL) {
             await handleConvertedGMCategories(serverUrl, updatedChannel.id, updatedChannel.team_id);
 
@@ -211,7 +206,7 @@ export async function handleChannelMemberUpdatedEvent(serverUrl: string, msg: an
             channelMemberships: [updatedChannelMember],
             prepareRecordsOnly: true,
         }));
-        const rolesRequest = await fetchRolesIfNeeded(serverUrl, updatedChannelMember.roles.split(' '), true);
+        const rolesRequest = await fetchRolesIfNeeded(serverUrl, updatedChannelMember.roles.split(','), true);
         if (rolesRequest.roles?.length) {
             models.push(...await operator.handleRole({roles: rolesRequest.roles, prepareRecordsOnly: true}));
         }

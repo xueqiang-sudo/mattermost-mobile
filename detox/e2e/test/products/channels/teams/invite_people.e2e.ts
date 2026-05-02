@@ -19,7 +19,7 @@ import {
     LoginScreen,
     ServerScreen,
 } from '@support/ui/screen';
-import {timeouts, wait} from '@support/utils';
+import {timeouts} from '@support/utils';
 import {expect} from 'detox';
 
 describe('Teams - Invite', () => {
@@ -114,7 +114,6 @@ describe('Teams - Invite', () => {
 
         // # Send invitation
         await Invite.sendButton.tap();
-        await wait(timeouts.TWO_SEC);
 
         // * Validate summary report sent
         await waitFor(Invite.screenSummary).toBeVisible().withTimeout(timeouts.TEN_SEC);
@@ -142,7 +141,6 @@ describe('Teams - Invite', () => {
 
         // # Send invitation
         await Invite.sendButton.tap();
-        await wait(timeouts.TWO_SEC);
 
         // * Validate summary report sent
         await waitFor(Invite.screenSummary).toBeVisible().withTimeout(timeouts.TEN_SEC);
@@ -168,7 +166,6 @@ describe('Teams - Invite', () => {
 
         // # Send invitation
         await Invite.sendButton.tap();
-        await wait(timeouts.TWO_SEC);
 
         // * Validate summary report not sent
         await expect(Invite.screenSummary).toBeVisible();
@@ -206,7 +203,6 @@ describe('Teams - Invite', () => {
 
         // # Send invitation
         await Invite.sendButton.tap();
-        await wait(timeouts.TWO_SEC);
 
         // * Validate summary
         waitFor(Invite.screenSummary).toBeVisible();

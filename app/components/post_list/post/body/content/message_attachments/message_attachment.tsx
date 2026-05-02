@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {View} from 'react-native';
+import {type GestureResponderEvent, View} from 'react-native';
 
 import {getStatusColors} from '@utils/message_attachment';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -27,6 +27,7 @@ type Props = {
     layoutWidth?: number;
     location: AvailableScreens;
     metadata?: PostMetadata | null;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     postId: string;
     theme: Theme;
 }
@@ -55,7 +56,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-export default function MessageAttachment({attachment, channelId, layoutWidth, location, metadata, postId, theme}: Props) {
+export default function MessageAttachment({attachment, channelId, layoutWidth, location, metadata, onLongPress, postId, theme}: Props) {
     const style = getStyleSheet(theme);
     const STATUS_COLORS = getStatusColors(theme);
     let borderStyle;
@@ -140,6 +141,7 @@ export default function MessageAttachment({attachment, channelId, layoutWidth, l
                         imageMetadata={metadata!.images![attachment.image_url]!}
                         layoutWidth={layoutWidth}
                         location={location}
+                        onLongPress={onLongPress}
                         postId={postId}
                         theme={theme}
                     />

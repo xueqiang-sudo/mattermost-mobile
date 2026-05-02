@@ -1,8 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useManagedConfig} from '@mattermost/react-native-emm';
-import React, {useCallback, useMemo, useRef} from 'react';
+// import {useManagedConfig} from '@mattermost/react-native-emm';
+import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {Text, View} from 'react-native';
 
@@ -14,14 +14,15 @@ import {alertServerLogout} from '@utils/server';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import Servers, {type ServersRef} from '../home/channel_list/servers';
+// import Servers, {type ServersRef} from '../home/channel_list/servers';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: 20,
+        marginTop: 10,
+        marginBottom: 10,
         marginHorizontal: 24,
     },
     logoutText: {
@@ -41,7 +42,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const MARGIN_WITH_SERVER_ICON = 66;
+// const MARGIN_WITH_SERVER_ICON = 66;
 
 function Header() {
     const intl = useIntl();
@@ -49,20 +50,21 @@ function Header() {
     const styles = getStyleSheet(theme);
     const serverDisplayName = useServerDisplayName();
     const serverUrl = useServerUrl();
-    const managedConfig = useManagedConfig<ManagedConfig>();
-    const canAddOtherServers = managedConfig?.allowOtherServers !== 'false';
-    const serverButtonRef = useRef<ServersRef>(null);
 
-    const headerStyle = useMemo(() => ({...styles.header, marginLeft: canAddOtherServers ? MARGIN_WITH_SERVER_ICON : undefined}), [canAddOtherServers, styles]);
+    // const managedConfig = useManagedConfig<ManagedConfig>();
+    // const canAddOtherServers = managedConfig?.allowOtherServers !== 'false';
+    // const serverButtonRef = useRef<ServersRef>(null);
+
+    // const headerStyle = useMemo(() => ({...styles.header, marginLeft: canAddOtherServers ? MARGIN_WITH_SERVER_ICON : undefined}), [canAddOtherServers]);
     const onLogoutPress = useCallback(() => {
         alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
     }, [serverDisplayName, intl, serverUrl]);
 
-    const onLabelPress = useCallback(() => {
-        serverButtonRef.current?.openServers();
-    }, []);
+    // const onLabelPress = useCallback(() => {
+    //     serverButtonRef.current?.openServers();
+    // }, []);
 
-    let serverLabel = (
+    const serverLabel = (
         <Text
             style={styles.displayNameText}
             testID='select_team.server_display_name'
@@ -71,23 +73,24 @@ function Header() {
             {serverDisplayName}
         </Text>
     );
-    if (canAddOtherServers) {
-        serverLabel = (
-            <TouchableWithFeedback
-                onPress={onLabelPress}
-                type='opacity'
-                testID='select_team.server_display_name.touchable'
-                style={styles.displayNameContainer}
-            >
-                {serverLabel}
-            </TouchableWithFeedback>
-        );
-    }
+
+    // if (canAddOtherServers) {
+    //     serverLabel = (
+    //         <TouchableWithFeedback
+    //             onPress={onLabelPress}
+    //             type='opacity'
+    //             testID='select_team.server_display_name.touchable'
+    //             style={styles.displayNameContainer}
+    //         >
+    //             {serverLabel}
+    //         </TouchableWithFeedback>
+    //     );
+    // }
 
     return (
         <>
-            {canAddOtherServers && <Servers ref={serverButtonRef}/>}
-            <View style={headerStyle}>
+            {/* {canAddOtherServers && <Servers ref={serverButtonRef}/>} */}
+            <View style={styles.header}>
                 {serverLabel}
                 <TouchableWithFeedback
                     onPress={onLogoutPress}

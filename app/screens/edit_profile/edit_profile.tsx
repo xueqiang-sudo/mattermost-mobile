@@ -15,12 +15,13 @@ import TabletTitle from '@components/tablet_title';
 import {Events} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, popTopScreen, setButtons} from '@screens/navigation';
-import {logError} from '@utils/log';
+import {realPhone} from '@utils/form-rule';
+import {logDebug, logError} from '@utils/log';
 import {isCustomFieldSamlLinked} from '@utils/user';
 
 import ProfileForm, {CUSTOM_ATTRS_PREFIX} from './components/form';
@@ -67,6 +68,7 @@ const EditProfile = ({
         nickname: currentUser?.nickname || '',
         position: currentUser?.position || '',
         username: currentUser?.username || '',
+        phone: realPhone(currentUser?.phone, currentUser?.country_code),
         customAttributes: {},
     });
     const [canSave, setCanSave] = useState(false);
@@ -90,10 +92,10 @@ const EditProfile = ({
     const leftButton = useMemo(() => {
         return isTablet ? null : {
             id: CLOSE_BUTTON_ID,
-            icon: CompassIcon.getImageSourceSync('close', 24, theme.centerChannelColor),
+            icon: CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor),
             testID: 'close.edit_profile.button',
         };
-    }, [isTablet, theme.centerChannelColor]);
+    }, [isTablet, theme.sidebarHeaderTextColor]);
 
     useEffect(() => {
         if (!isTablet) {
@@ -115,6 +117,7 @@ const EditProfile = ({
     }, [componentId, isModal, isTablet]);
 
     const enableSaveButton = useCallback((value: boolean) => {
+        logDebug('[EditProfile] enableSaveButton called with value:', value);
         if (!isTablet) {
             const buttons = {
                 rightButtons: [{
@@ -122,8 +125,10 @@ const EditProfile = ({
                     enabled: value,
                 }],
             };
+            logDebug('[EditProfile] Setting navigation buttons with enabled:', value);
             setButtons(componentId, buttons);
         }
+        logDebug('[EditProfile] Setting canSave to:', value);
         setCanSave(value);
     }, [componentId, rightButton, isTablet]);
 
@@ -167,14 +172,22 @@ const EditProfile = ({
         scrollViewRef.current?.scrollToPosition(0, 0, true);
     }, [enableSaveButton]);
 
-    const submitUser = usePreventDoubleTap(useCallback(async () => {
-        if (!currentUser) {
-            return;
-        }
-        enableSaveButton(false);
-        setError(undefined);
-        setUpdating(true);
+    const submitUser = useCallback(async () => {
+        logDebug('[EditProfile] submitUser CALLED!');
+
         try {
+            if (!currentUser) {
+                logDebug('[EditProfile] No currentUser, returning');
+                return;
+            }
+
+            logDebug('[EditProfile] currentUser exists:', Boolean(currentUser), 'currentUser.id:', currentUser?.id);
+
+            logDebug('[EditProfile] Enabling save button to false and setting updating to true');
+            enableSaveButton(false);
+            setError(undefined);
+            setUpdating(true);
+
             // Build update object with only changed and unlocked fields
             const newUserInfo: Partial<UserProfile> = {};
 
@@ -219,6 +232,11 @@ const EditProfile = ({
                     resetScreenForProfileError(reqError);
                     return;
                 }
+
+                // Keep app server display name in sync when nickname changes (used in UI and server context)
+                if (newUserInfo.nickname !== undefined) {
+                    await DatabaseManager.updateServerDisplayName(serverUrl, newUserInfo.nickname);
+                }
             }
 
             // Update custom attributes if changed and not SAML-linked
@@ -245,17 +263,21 @@ const EditProfile = ({
                 });
 
                 if (Object.keys(changedCustomAttributes).length > 0) {
+                    logDebug('[EditProfile] Calling updateCustomProfileAttributes for user:', currentUser.id);
                     const {error: attrError} = await updateCustomProfileAttributes(serverUrl, currentUser.id, changedCustomAttributes);
                     if (attrError) {
                         logError('Error updating custom attributes', attrError);
                         resetScreenForProfileError(attrError);
                         return;
                     }
+                    logDebug('[EditProfile] updateCustomProfileAttributes successful');
                 }
             }
 
+            logDebug('[EditProfile] All done, calling close()');
             close();
         } catch (e) {
+            logError('[EditProfile] Error in submitUser main try block:', e);
             resetScreen(e);
         }
     }, [
@@ -273,11 +295,23 @@ const EditProfile = ({
         resetScreenForProfileError,
         customFields,
         customAttributesSet,
-    ]));
+    ]);
 
     useAndroidHardwareBackHandler(componentId, close);
-    useNavButtonPressed(UPDATE_BUTTON_ID, componentId, submitUser, [userInfo]);
+
+    logDebug('[EditProfile] Setting up useNavButtonPressed handlers');
+    useNavButtonPressed(UPDATE_BUTTON_ID, componentId, () => {
+        logDebug('[EditProfile] UPDATE_BUTTON_ID pressed!');
+        logDebug('[EditProfile] canSave:', canSave);
+        logDebug('[EditProfile] Calling submitUser');
+        submitUser();
+    }, [userInfo, canSave, submitUser]);
+
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, []);
+
+    useEffect(() => {
+        logDebug('[EditProfile] canSave state changed to:', canSave);
+    }, [canSave]);
 
     const onUpdateProfilePicture = useCallback((newProfileImage: NewProfileImage) => {
         changedProfilePicture.current = newProfileImage;
@@ -285,6 +319,7 @@ const EditProfile = ({
     }, [enableSaveButton]);
 
     const onUpdateField = useCallback((fieldKey: string, value: string) => {
+        logDebug('[EditProfile] onUpdateField called with:', {fieldKey, value});
         const update = {...userInfo};
         if (fieldKey.startsWith(CUSTOM_ATTRS_PREFIX_NAME)) {
             const attrKey = fieldKey.slice(CUSTOM_ATTRS_PREFIX_NAME.length);
@@ -310,6 +345,9 @@ const EditProfile = ({
                 case 'username':
                     update.username = value;
                     break;
+                case 'phone':
+                    update.phone = value;
+                    break;
             }
         }
         setUserInfo(update);
@@ -318,12 +356,17 @@ const EditProfile = ({
         if (fieldKey.startsWith(CUSTOM_ATTRS_PREFIX_NAME)) {
             const attrKey = fieldKey.slice(CUSTOM_ATTRS_PREFIX_NAME.length);
             didChange = userInfo.customAttributes?.[attrKey].value !== value;
+        } else if (fieldKey === 'phone') {
+            // 对于手机号，直接对比 userInfo 中的新旧值
+            didChange = userInfo.phone !== value;
+            logDebug('[EditProfile] Phone field changed:', {old: userInfo.phone, new: value, didChange});
         } else {
             // @ts-expect-error access object property by string key
             const currentValue = currentUser[fieldKey];
             didChange = currentValue !== value;
         }
 
+        logDebug('[EditProfile] Field change result:', {fieldKey, didChange});
         hasUpdateUserInfo.current = didChange;
         enableSaveButton(didChange);
     }, [userInfo, currentUser, enableSaveButton]);
@@ -380,7 +423,7 @@ const EditProfile = ({
                     enabled={canSave}
                     onPress={submitUser}
                     testID='edit_profile'
-                    title={intl.formatMessage({id: 'mobile.screen.your_profile', defaultMessage: 'Your Profile'})}
+                    title={intl.formatMessage({id: 'account.your_profile', defaultMessage: 'Your Profile'})}
                 />
             }
             <SafeAreaView

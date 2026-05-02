@@ -28,7 +28,7 @@ describe('components/channel_list/categories', () => {
 
     it('render without error', () => {
         const wrapper = renderWithEverything(
-            <Categories isTablet={false}/>,
+            <Categories/>,
             {database},
         );
 
@@ -49,12 +49,12 @@ describe('performance metrics', () => {
     });
 
     it('properly send metric on load', () => {
-        renderWithEverything(<Categories isTablet={false}/>, {database, serverUrl});
+        renderWithEverything(<Categories/>, {database, serverUrl});
         expect(PerformanceMetricsManager.endMetric).toHaveBeenCalledWith('mobile_team_switch', serverUrl);
     });
 
     it('properly call again after switching teams', async () => {
-        renderWithEverything(<Categories isTablet={false}/>, {database, serverUrl});
+        renderWithEverything(<Categories/>, {database, serverUrl});
         expect(PerformanceMetricsManager.endMetric).toHaveBeenCalledTimes(1);
         act(() => {
             DeviceEventEmitter.emit(Events.TEAM_SWITCH, true);

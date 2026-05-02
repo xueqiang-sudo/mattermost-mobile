@@ -62,7 +62,7 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
                     val userIdsAlreadyLoaded = mutableListOf<String>()
                     if (loadedProfiles != null) {
                         for (i in 0 until loadedProfiles.size()) {
-                            loadedProfiles.getMap(i)?.getString("id")?.let { userIdsAlreadyLoaded.add(it) }
+                            loadedProfiles.getMap(i).getString("id")?.let { userIdsAlreadyLoaded.add(it) }
                         }
                     }
 
@@ -95,12 +95,10 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
                         if (attachments != null) {
                             for (i in 0 until attachments.size()) {
                                 val attachment = attachments.getMap(i)
-                                attachment?.let {
-                                    val pretext = it.getString("pretext")
-                                    val text = it.getString("text")
-                                    findNeededUsernames(pretext)
-                                    findNeededUsernames(text)
-                                }
+                                val pretext = attachment.getString("pretext")
+                                val text = attachment.getString("text")
+                                findNeededUsernames(pretext)
+                                findNeededUsernames(text)
                             }
                         }
 
@@ -134,22 +132,21 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
                             participants?.let {
                                 for (i in 0 until it.size()) {
                                     val participant = it.getMap(i)
-                                    participant?.let { p ->
-                                        val participantId = p.getString("id")
-                                        if (participantId != currentUserId && participantId != null) {
-                                            if (!threadParticipantUserIds.contains(participantId) && !userIdsAlreadyLoaded.contains(participantId)) {
-                                                threadParticipantUserIds.add(participantId)
-                                            }
 
-                                            if (!threadParticipantUsers.containsKey(participantId)) {
-                                                threadParticipantUsers[participantId] = p
-                                            }
+                                    val participantId = participant.getString("id")
+                                    if (participantId != currentUserId && participantId != null) {
+                                        if (!threadParticipantUserIds.contains(participantId) && !userIdsAlreadyLoaded.contains(participantId)) {
+                                            threadParticipantUserIds.add(participantId)
                                         }
 
-                                        val username = p.getString("username")
-                                        if (username != null && username != currentUsername && !threadParticipantUsernames.contains(username)) {
-                                            threadParticipantUsernames.add(username)
+                                        if (!threadParticipantUsers.containsKey(participantId)) {
+                                            threadParticipantUsers[participantId] = participant
                                         }
+                                    }
+
+                                    val username = participant.getString("username")
+                                    if (username != null && username != currentUsername && !threadParticipantUsernames.contains(username)) {
+                                        threadParticipantUsernames.add(username)
                                     }
                                 }
                             }

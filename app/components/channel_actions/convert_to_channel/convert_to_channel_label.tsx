@@ -18,7 +18,7 @@ const ConvertToChannelLabel = ({channelId}: Props) => {
 
     const goToConvertToPrivateChannel = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
-        const title = formatMessage({id: 'channel_info.convert_gm_to_channel.screen_title', defaultMessage: 'Convert to Private Channel'});
+        const title = formatMessage({id: 'channel_info.convert_gm_to_channel.screen_title', defaultMessage: 'Convert to group chat'});
         goToScreen(Screens.CONVERT_GM_TO_CHANNEL, title, {channelId});
     }, [channelId, formatMessage]));
 
@@ -26,7 +26,7 @@ const ConvertToChannelLabel = ({channelId}: Props) => {
         <OptionItem
             action={goToConvertToPrivateChannel}
             icon='lock-outline'
-            label={formatMessage({id: 'channel_info.convert_gm_to_channel', defaultMessage: 'Convert to a Private Channel'})}
+            label={formatMessage({id: 'channel_info.convert_gm_to_channel', defaultMessage: 'Convert to group chat'})}
             type='default'
         />
     );

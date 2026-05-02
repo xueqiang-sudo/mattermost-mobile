@@ -45,7 +45,6 @@ type Channel = {
     group_constrained: boolean|null;
     shared: boolean;
     banner_info?: ChannelBannerInfo;
-    autotranslation?: boolean;
 
     /** Whether the channel has Attribute-Based Access Control (ABAC) policy enforcement enabled, controlling access based on user attributes */
     policy_enforced?: boolean;
@@ -56,7 +55,6 @@ type ChannelPatch = {
     header?: string;
     purpose?: string;
     group_constrained?: boolean|null;
-    autotranslation?: boolean;
 };
 type ChannelWithTeamData = Channel & {
     team_display_name: string;
@@ -88,7 +86,6 @@ type ChannelMembership = {
     post_root_id?: string;
     is_unread?: boolean;
     manually_unread?: boolean;
-    autotranslation_disabled?: boolean;
 };
 type ChannelUnread = {
     channel_id: string;

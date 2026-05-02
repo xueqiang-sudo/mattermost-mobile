@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Platform, StyleSheet, View} from 'react-native';
+import {Platform, View} from 'react-native';
 import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 
 import CompassIcon from '@components/compass_icon';
@@ -11,89 +11,86 @@ import OptionBox, {OPTIONS_HEIGHT} from '@components/option_box';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {showModal} from '@screens/navigation';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 type Props = {
     canCreateChannels: boolean;
-    canJoinChannels: boolean;
     close: () => Promise<void>;
 }
 
-const styles = StyleSheet.create({
+/**
+ * 获取快速选项的样式
+ */
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        marginTop: 20,
+        marginTop: 8,
+        marginBottom: 16,
         alignItems: 'center',
+        width: '100%',
     },
     wrapper: {
         flexDirection: 'row',
         height: OPTIONS_HEIGHT,
     },
     separator: {
-        width: 8,
+        width: 12,
     },
-});
+}));
 
-const QuickOptions = ({canCreateChannels, canJoinChannels, close}: Props) => {
+/**
+ * 快速选项组件
+ */
+const QuickOptions = ({canCreateChannels, close}: Props) => {
     const theme = useTheme();
+    const styles = getStyleSheet(theme);
     const intl = useIntl();
 
-    const browseChannels = useCallback(async () => {
-        const title = intl.formatMessage({id: 'browse_channels.title', defaultMessage: 'Browse channels'});
-        const closeButton = await CompassIcon.getImageSource('close', 24, theme.sidebarHeaderTextColor);
-
-        await close();
-        showModal(Screens.BROWSE_CHANNELS, title, {
-            closeButton,
-        });
-    }, [close, intl, theme.sidebarHeaderTextColor]);
-
+    /**
+     * 创建新频道
+     */
     const createNewChannel = useCallback(async () => {
         const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
 
         await close();
         showModal(Screens.CREATE_OR_EDIT_CHANNEL, title);
-    }, [close, intl]);
+    }, [intl]);
 
+    /**
+     * 打开私信
+     */
     const openDirectMessage = useCallback(async () => {
         const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Create Direct Message'});
-        const closeButton = await CompassIcon.getImageSource('close', 24, theme.sidebarHeaderTextColor);
+        const closeIconColor = theme.sidebarHeaderTextColor;
+        const closeButton = await CompassIcon.getImageSource('close', 24, closeIconColor);
 
         await close();
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
         });
-    }, [close, intl, theme.sidebarHeaderTextColor]);
+    }, [intl, theme]);
 
     return (
         <Animated.View
-            entering={FadeInDown.duration(200)}
-            exiting={Platform.select({ios: FadeOutUp.duration(100)}) /* https://mattermost.atlassian.net/browse/MM-63814?focusedCommentId=178584 */}
+            entering={FadeInDown.duration(250)}
+            exiting={Platform.select({ios: FadeOutUp.duration(150)}) /* https://mattermost.atlassian.net/browse/MM-63814?focusedCommentId=178584 */}
             style={styles.container}
         >
             <Animated.View style={styles.wrapper}>
-                {canJoinChannels &&
-                <>
-                    <OptionBox
-                        iconName='globe'
-                        onPress={browseChannels}
-                        text={intl.formatMessage({id: 'find_channels.directory', defaultMessage: 'Directory'})}
-                        testID='find_channels.quick_options.directory.option'
-                    />
-                    <View style={styles.separator}/>
-                </>
-                }
                 <OptionBox
+                    containerStyle={styles.openDmBox}
                     iconName='account-outline'
                     onPress={openDirectMessage}
-                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'Open a DM'})}
+                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'DM or group chat'})}
                     testID='find_channels.quick_options.open_dm.option'
                 />
                 {canCreateChannels &&
                 <>
                     <View style={styles.separator}/>
                     <OptionBox
+                        containerStyle={styles.newChannelBox}
                         iconName='plus'
                         onPress={createNewChannel}
-                        text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New Channel'})}
+                        text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New group chat'})}
                         testID='find_channels.quick_options.new_channel.option'
                     />
                 </>

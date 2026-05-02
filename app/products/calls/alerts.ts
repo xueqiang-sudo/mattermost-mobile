@@ -130,7 +130,7 @@ export const leaveAndJoinWithAlert = async (
                 [
                     {
                         text: formatMessage({
-                            id: 'mobile.post.cancel',
+                            id: 'common.cancel',
                             defaultMessage: 'Cancel',
                         }),
                         onPress: () => resolve(false),
@@ -507,7 +507,7 @@ export const removeFromCall = (serverUrl: string, displayName: string, callId: s
 
     Alert.alert(title, body, [{
         text: formatMessage({
-            id: 'mobile.post.cancel',
+            id: 'common.cancel',
             defaultMessage: 'Cancel',
         }),
     }, {

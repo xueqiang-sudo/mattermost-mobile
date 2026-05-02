@@ -15,18 +15,22 @@ import FormattedText from '@components/formatted_text';
 import Markdown from '@components/markdown';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
-import {Screens} from '@constants';
+import {General, Screens} from '@constants';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {ANDROID_33, OS_VERSION} from '@constants/versions';
 import {useTheme} from '@context/theme';
-import {bottomSheet, dismissBottomSheet} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, showModal} from '@screens/navigation';
+import {CHANNEL_INFO_CARD_RADIUS} from '../channel_info_constants';
 import {bottomSheetSnapPoint, isEmail} from '@utils/helpers';
+import {channelSupportsAnnouncementUx} from '@utils/channel';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 type Props = {
+    canEditAnnouncement?: boolean;
     channelId: string;
+    channelType?: ChannelType;
     createdAt: number;
     createdBy: string;
     customStatus?: UserCustomStatus;
@@ -38,7 +42,7 @@ const headerMetadata = {header: {width: 1, height: 1}};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        marginBottom: 20,
+        marginBottom: 0,
     },
     item: {
         marginTop: 16,
@@ -47,6 +51,48 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.56),
         marginBottom: 8,
         ...typography('Body', 75),
+    },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 0,
+    },
+    /** 公告体系：整块公告与编辑入口放在轻量卡片内，层次更清晰。 */
+    announcementPanel: {
+        marginTop: 2,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: CHANNEL_INFO_CARD_RADIUS,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+    },
+    announcementPanelHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 10,
+    },
+    announcementPanelHeaderRowTight: {
+        marginBottom: 6,
+    },
+    /** 公告为区块标题，字阶与字重高于正文，避免与内容「长得一样」。 */
+    announcementPanelHeading: {
+        color: theme.centerChannelColor,
+        ...typography('Heading', 200, 'SemiBold'),
+    },
+    announcementBody: {
+        color: changeOpacity(theme.centerChannelColor, 0.92),
+        ...typography('Body', 200, 'Regular'),
+    },
+    announcementEmpty: {
+        color: changeOpacity(theme.centerChannelColor, 0.48),
+        ...typography('Body', 200, 'Regular'),
+    },
+    editAnnouncement: {
+        color: theme.linkColor,
+        ...typography('Body', 100, 'SemiBold'),
     },
     header: {
         color: theme.centerChannelColor,
@@ -92,6 +138,10 @@ const messages = defineMessages({
         id: 'mobile.markdown.link.copy_url',
         defaultMessage: 'Copy URL',
     },
+    announcementEmpty: {
+        id: 'channel_info.announcement_empty',
+        defaultMessage: 'No announcement yet. Use Edit announcement above to add one.',
+    },
 });
 
 const onCopy = async (text: string, isLink?: boolean) => {
@@ -104,12 +154,35 @@ const onCopy = async (text: string, isLink?: boolean) => {
     }
 };
 
-const Extra = ({channelId, createdAt, createdBy, customStatus, header, isCustomStatusEnabled}: Props) => {
+const Extra = ({
+    canEditAnnouncement = false,
+    channelId,
+    channelType,
+    createdAt,
+    createdBy,
+    customStatus,
+    header,
+    isCustomStatusEnabled,
+}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const managedConfig = useManagedConfig<ManagedConfig>();
 
     const styles = getStyleSheet(theme);
+    const usesAnnouncementUx = channelSupportsAnnouncementUx(channelType);
+    const isDM = channelType === General.DM_CHANNEL;
+    const hasAnnouncementText = Boolean(header && String(header).trim());
+    const showAnnouncementSection =
+        usesAnnouncementUx && (hasAnnouncementText || canEditAnnouncement);
+    const showLegacyHeaderSection = !usesAnnouncementUx && Boolean(header);
+
+    const onEditAnnouncement = useCallback(() => {
+        const title = isDM 
+            ? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'})
+            : intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
+        showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
+    }, [channelId, intl, isDM]);
+
     const created = useMemo(() => ({
         user: createdBy,
         date: (
@@ -137,10 +210,15 @@ const Extra = ({channelId, createdAt, createdBy, customStatus, header, isCustomS
                             onCopy(header!);
                         }}
                         testID={`${headerTestId}.bottom_sheet.copy_header_text`}
-                        text={intl.formatMessage({
-                            id: 'mobile.markdown.copy_header',
-                            defaultMessage: 'Copy header text',
-                        })}
+                        text={intl.formatMessage(
+                            usesAnnouncementUx ? {
+                                id: 'mobile.markdown.copy_announcement',
+                                defaultMessage: 'Copy announcement text',
+                            } : {
+                                id: 'mobile.markdown.copy_header',
+                                defaultMessage: 'Copy header text',
+                            },
+                        )}
                     />
                     {Boolean(url) && (
                         <SlideUpPanelItem
@@ -160,7 +238,7 @@ const Extra = ({channelId, createdAt, createdBy, customStatus, header, isCustomS
                         }}
                         testID={`${headerTestId}.bottom_sheet.cancel`}
                         text={intl.formatMessage({
-                            id: 'mobile.post.cancel',
+                            id: 'common.cancel',
                             defaultMessage: 'Cancel',
                         })}
                     />
@@ -175,9 +253,13 @@ const Extra = ({channelId, createdAt, createdBy, customStatus, header, isCustomS
                 theme,
             });
         }
-    }, [managedConfig?.copyAndPasteProtection, intl, theme, header]);
+    }, [managedConfig?.copyAndPasteProtection, intl, theme, header, usesAnnouncementUx]);
 
-    const touchableHandleLongPress = useCallback(() => handleLongPress(), [handleLongPress]);
+    const touchableHandleLongPress = useCallback(() => {
+        if (header && String(header).trim()) {
+            handleLongPress();
+        }
+    }, [handleLongPress, header]);
 
     return (
         <View style={styles.container}>
@@ -223,36 +305,94 @@ const Extra = ({channelId, createdAt, createdBy, customStatus, header, isCustomS
                 </View>
             </View>
             }
-            {Boolean(header) &&
+            {(showAnnouncementSection || showLegacyHeaderSection) &&
             <View style={styles.item}>
-                <FormattedText
-                    id='channel_info.header'
-                    defaultMessage='Header:'
-                    style={styles.extraHeading}
-                    testID={headerTestId}
-                />
-                <TouchableWithFeedback
-                    type='opacity'
-                    activeOpacity={0.8}
-                    onLongPress={touchableHandleLongPress}
-                >
-                    <Markdown
-                        channelId={channelId}
-                        baseTextStyle={styles.header}
-                        disableBlockQuote={true}
-                        disableCodeBlock={true}
-                        disableGallery={true}
-                        disableHeading={true}
-                        disableTables={true}
-                        location={Screens.CHANNEL_INFO}
-                        layoutHeight={48}
-                        layoutWidth={100}
-                        theme={theme}
-                        imagesMetadata={headerMetadata}
-                        value={header}
-                        onLinkLongPress={handleLongPress}
-                    />
-                </TouchableWithFeedback>
+                {usesAnnouncementUx ? (
+                    <View style={styles.announcementPanel}>
+                        <View style={[styles.announcementPanelHeaderRow, !hasAnnouncementText && styles.announcementPanelHeaderRowTight]}>
+                            <FormattedText
+                                id={isDM ? 'channel_info.note' : 'channel_info.announcement'}
+                                defaultMessage={isDM ? 'Note' : 'Announcement'}
+                                style={styles.announcementPanelHeading}
+                                testID={headerTestId}
+                            />
+                            {canEditAnnouncement && (
+                                <TouchableWithFeedback
+                                    type='opacity'
+                                    onPress={onEditAnnouncement}
+                                    testID={`${headerTestId}.edit_announcement`}
+                                >
+                                    <Text style={styles.editAnnouncement}>
+                                        {intl.formatMessage(isDM 
+                                            ? {id: 'channel_info.edit_note', defaultMessage: 'Edit note'}
+                                            : {id: 'channel_info.edit_announcement', defaultMessage: 'Edit announcement'}
+                                        )}
+                                    </Text>
+                                </TouchableWithFeedback>
+                            )}
+                        </View>
+                        {hasAnnouncementText ? (
+                            <TouchableWithFeedback
+                                type='opacity'
+                                activeOpacity={0.8}
+                                onLongPress={touchableHandleLongPress}
+                            >
+                                <Markdown
+                                    channelId={channelId}
+                                    baseTextStyle={styles.announcementBody}
+                                    disableBlockQuote={true}
+                                    disableCodeBlock={true}
+                                    disableGallery={true}
+                                    disableHeading={true}
+                                    disableTables={true}
+                                    location={Screens.CHANNEL_INFO}
+                                    theme={theme}
+                                    imagesMetadata={headerMetadata}
+                                    value={header}
+                                    onLinkLongPress={handleLongPress}
+                                />
+                            </TouchableWithFeedback>
+                        ) : (
+                            <Text
+                                style={styles.announcementEmpty}
+                                testID={`${headerTestId}.empty`}
+                            >
+                                {intl.formatMessage(messages.announcementEmpty)}
+                            </Text>
+                        )}
+                    </View>
+                ) : (
+                    <>
+                        <View style={styles.headerRow}>
+                            <FormattedText
+                                id='channel_info.header'
+                                defaultMessage='Header:'
+                                style={styles.extraHeading}
+                                testID={headerTestId}
+                            />
+                        </View>
+                        <TouchableWithFeedback
+                            type='opacity'
+                            activeOpacity={0.8}
+                            onLongPress={touchableHandleLongPress}
+                        >
+                            <Markdown
+                                channelId={channelId}
+                                baseTextStyle={styles.header}
+                                disableBlockQuote={true}
+                                disableCodeBlock={true}
+                                disableGallery={true}
+                                disableHeading={true}
+                                disableTables={true}
+                                location={Screens.CHANNEL_INFO}
+                                theme={theme}
+                                imagesMetadata={headerMetadata}
+                                value={header}
+                                onLinkLongPress={handleLongPress}
+                            />
+                        </TouchableWithFeedback>
+                    </>
+                )}
             </View>
             }
             {Boolean(createdAt && createdBy) &&

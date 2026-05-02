@@ -62,7 +62,7 @@ const Toast = ({animatedStyle, children, style, iconName, message, textStyle, te
         const toast_width = isTablet ? WIDTH_TABLET : WIDTH_MOBILE;
         const width = Math.min(dim.height, dim.width, toast_width) - TOAST_MARGIN;
         return [styles.container, {width}, style];
-    }, [isTablet, dim, styles, style]);
+    }, [dim, styles.container, style]);
 
     return (
         <Animated.View

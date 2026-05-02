@@ -108,14 +108,11 @@ const ProgressBar = ({color, containerStyle, progress, withCursor, style, onSeek
 
     useEffect(() => {
         progressValue.value = progress;
-
-    // Update the shared value only when the progress changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [progress]);
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
         widthValue.value = e.nativeEvent.layout.width;
-    }, [widthValue]);
+    }, []);
 
     return (
         <GestureDetector gesture={composedGestures}>

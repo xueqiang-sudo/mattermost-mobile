@@ -9,7 +9,6 @@ import {Preferences} from '@constants';
 import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {observeAllowedThemesKeys, observeConfigBooleanValue} from '@queries/servers/system';
-import {observeCRTUserPreferenceDisplay, observeIsCRTEnabled} from '@queries/servers/thread';
 import {observeCurrentUser} from '@queries/servers/user';
 
 import DisplaySettings from './display';
@@ -28,8 +27,6 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 
     return {
         isThemeSwitchingEnabled,
-        isCRTEnabled: observeIsCRTEnabled(database),
-        isCRTSwitchEnabled: observeCRTUserPreferenceDisplay(database),
         hasMilitaryTimeFormat: queryDisplayNamePreferences(database).
             observeWithColumns(['value']).pipe(
                 switchMap(

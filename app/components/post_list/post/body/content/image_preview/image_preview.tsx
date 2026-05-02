@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {StyleSheet, TouchableWithoutFeedback, View} from 'react-native';
+import {StyleSheet, type GestureResponderEvent, Pressable, View} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {getRedirectLocation} from '@actions/remote/general';
@@ -13,6 +13,7 @@ import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import useDidUpdate from '@hooks/did_update';
 import {useGalleryItem} from '@hooks/gallery';
+import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {lookupMimeType} from '@utils/file';
 import {openGalleryAtIndex} from '@utils/gallery';
 import {calculateDimensions, getViewPortWidth, isGifTooLarge} from '@utils/images';
@@ -30,6 +31,7 @@ type ImagePreviewProps = {
     layoutWidth?: number;
     location: string;
     metadata: PostMetadata | undefined | null;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     postId: string;
     theme: Theme;
 }
@@ -38,8 +40,8 @@ const style = StyleSheet.create({
     imageContainer: {
         alignItems: 'flex-start',
         justifyContent: 'flex-start',
-        marginBottom: 6,
-        marginTop: 10,
+        marginBottom: 4,
+        marginTop: 6,
     },
     image: {
         alignItems: 'center',
@@ -49,7 +51,8 @@ const style = StyleSheet.create({
     },
 });
 
-const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, metadata, postId, theme}: ImagePreviewProps) => {
+const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, metadata, onLongPress, postId, theme}: ImagePreviewProps) => {
+    const mediaInViewport = usePostMediaInViewport(postId, location);
     const galleryIdentifier = `${postId}-ImagePreview-${location}`;
     const [error, setError] = useState(false);
     const serverUrl = useServerUrl();
@@ -129,19 +132,24 @@ const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, m
     return (
         <GalleryInit galleryIdentifier={galleryIdentifier}>
             <Animated.View style={[styles, style.imageContainer, {height: dimensions.height}]}>
-                <TouchableWithoutFeedback onPress={onGestureEvent}>
+                <Pressable
+                    onPress={onGestureEvent}
+                    onLongPress={onLongPress}
+                    delayLongPress={200}
+                >
                     <Animated.View testID={`ImagePreview-${fileId}`}>
                         <ProgressiveImage
                             forwardRef={ref}
                             id={fileId.current}
                             imageUri={imageUrl}
+                            inViewPort={mediaInViewport}
                             onError={onError}
                             contentFit='contain'
                             style={[style.image, {width: dimensions.width, height: dimensions.height}]}
                             theme={theme}
                         />
                     </Animated.View>
-                </TouchableWithoutFeedback>
+                </Pressable>
             </Animated.View>
         </GalleryInit>
     );

@@ -14,7 +14,6 @@ import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Events} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
-import useDidMount from '@hooks/did_mount';
 import useDidUpdate from '@hooks/did_update';
 import EphemeralStore from '@store/ephemeral_store';
 import {makeStyleSheetFromTheme, hexToHue, changeOpacity} from '@utils/theme';
@@ -48,6 +47,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             position: 'absolute',
             padding: 8,
             width: '100%',
+            alignItems: 'flex-end',
         },
         cancelContainer: {
             alignItems: 'center',
@@ -58,30 +58,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         container: {
             backgroundColor: theme.buttonBg,
             flexDirection: 'row',
-            justifyContent: 'space-evenly',
+            justifyContent: 'center',
             alignItems: 'center',
-            width: '100%',
-            height: 40,
-            borderRadius: 8,
-            paddingTop: 4,
-            paddingRight: 4,
-            paddingBottom: 4,
-            paddingLeft: 8,
+            alignSelf: 'flex-end',
+            height: 36,
+            borderRadius: 18,
+            paddingHorizontal: 12,
             shadowColor: theme.centerChannelColor,
             shadowOffset: {
                 width: 0,
-                height: 6,
+                height: 4,
             },
-            shadowOpacity: 0.12,
-            shadowRadius: 4,
-            elevation: 4,
+            shadowOpacity: 0.15,
+            shadowRadius: 6,
+            elevation: 6,
         },
         iconContainer: {
             top: 1,
-            width: 32,
+            width: 20,
         },
         icon: {
-            fontSize: 18,
+            fontSize: 16,
             color: theme.buttonColor,
             alignSelf: 'center',
         },
@@ -89,11 +86,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             color: changeOpacity(theme.buttonColor, 0.56),
         },
         pressContainer: {
-            flex: 1,
             flexDirection: 'row',
+            alignItems: 'center',
         },
         textContainer: {
-            marginLeft: 8,
+            marginLeft: 6,
+            marginRight: 8,
         },
         text: {
             color: theme.buttonColor,
@@ -158,10 +156,27 @@ const MoreMessages = ({
     // Due to the implementation differences "unreadCount" gets updated for a channel on reset but not for a thread.
     // So we maintain a localUnreadCount to hide the indicator when the count is reset.
     // If we don't maintain the local counter, in the case of a thread, the indicator will be shown again once we scroll down after we reach the top.
-    const localUnreadCount = useRef(unreadCount);
+    const localUnreadCount = useRef(unreadCount > 0 ? unreadCount : 0);
+    const postsRef = useRef(posts);
+    postsRef.current = posts;
+
     useEffect(() => {
-        localUnreadCount.current = unreadCount;
+        if (unreadCount > 0) {
+            localUnreadCount.current = unreadCount;
+        }
     }, [unreadCount]);
+
+    const resetCount = useCallback(async () => {
+        localUnreadCount.current = 0;
+
+        if (resetting.current || (isCRTEnabled && rootId)) {
+            return;
+        }
+
+        resetting.current = true;
+        await resetMessageCount(serverUrl, channelId);
+        resetting.current = false;
+    }, [serverUrl, channelId, isCRTEnabled, rootId]);
 
     const onScrollEndIndex = () => {
         pressed.current = false;
@@ -170,6 +185,7 @@ const MoreMessages = ({
     const onCancel = useCallback(() => {
         pressed.current = true;
         top.value = 0;
+        setRemaining(0);
         resetMessageCount(serverUrl, channelId);
         pressed.current = false;
     }, [top, serverUrl, channelId]);
@@ -197,29 +213,27 @@ const MoreMessages = ({
         return () => listener.remove();
     }, [serverUrl, channelId]);
 
-    useDidMount(() => {
+    useEffect(() => {
         const unregister = registerScrollEndIndexListener(onScrollEndIndex);
 
         return () => unregister();
-    });
+    }, [registerScrollEndIndexListener]);
 
     useEffect(() => {
-        async function resetCount() {
-            localUnreadCount.current = 0;
+        const hideBar = () => {
+            top.value = 0;
+            setRemaining(0);
+        };
 
-            if (resetting.current || (isCRTEnabled && rootId)) {
+        const onViewableItemsChanged = (viewableItems: ViewToken[]) => {
+            pressed.current = false;
+
+            if (viewableItems.length === 0 || isManualUnread || resetting.current) {
                 return;
             }
 
-            resetting.current = true;
-            await resetMessageCount(serverUrl, channelId);
-            resetting.current = false;
-        }
-
-        function onViewableItemsChanged(viewableItems: ViewToken[]) {
-            pressed.current = false;
-
-            if (newMessageLineIndex <= 0 || viewableItems.length === 0 || isManualUnread || resetting.current) {
+            if (newMessageLineIndex <= 0) {
+                hideBar();
                 return;
             }
 
@@ -231,31 +245,55 @@ const MoreMessages = ({
                 // * the new message line will be the first next viewable item
                 scrollToIndex(newMessageLineIndex, true, false);
                 resetCount();
-                top.value = 0;
+                hideBar();
                 initialScroll.current = true;
                 return;
             }
 
-            const readCount = posts.slice(0, lastViewableIndex).filter((v) => v.type === 'post').length;
+            const readCount = postsRef.current.slice(0, lastViewableIndex).filter((v) => v.type === 'post').length;
             const totalUnread = localUnreadCount.current - readCount;
             if (lastViewableIndex >= newMessageLineIndex) {
                 resetCount();
-                top.value = 0;
+                hideBar();
             } else if (totalUnread > 0) {
                 setRemaining(totalUnread);
                 top.value = 1;
+            } else {
+                hideBar();
             }
-        }
+        };
 
         const unregister = registerViewableItemsListener(onViewableItemsChanged);
 
         return () => unregister();
-    }, [channelId, unreadCount, newMessageLineIndex, posts, registerViewableItemsListener, isCRTEnabled, rootId, serverUrl, isManualUnread, scrollToIndex, top]);
+
+        // top is a Reanimated shared value; it must not be a hook dependency
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [channelId, unreadCount, newMessageLineIndex, isManualUnread, registerViewableItemsListener, scrollToIndex, resetCount]);
 
     useEffect(() => {
         resetting.current = false;
         initialScroll.current = false;
-    }, [channelId]);
+        top.value = 0;
+        setRemaining(0);
+
+        // top is a Reanimated shared value; it must not be a hook dependency
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [channelId, rootId]);
+
+    useEffect(() => {
+        if (newMessageLineIndex <= 0) {
+            top.value = 0;
+            setRemaining(0);
+        }
+
+        // top is a Reanimated shared value; it must not be a hook dependency
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [newMessageLineIndex]);
+
+    if (remaining <= 0) {
+        return null;
+    }
 
     return (
         <Animated.View style={[styles.animatedContainer, animatedStyle]}>

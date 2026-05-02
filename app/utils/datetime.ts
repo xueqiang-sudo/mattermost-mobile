@@ -1,8 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {IntlShape} from 'react-intl';
-
 export function isSameDate(a: Date, b: Date = new Date()): boolean {
     return a.getDate() === b.getDate() && isSameMonth(a, b) && isSameYear(a, b);
 }
@@ -58,28 +56,64 @@ export function getReadableTimestamp(timestamp: number, timeZone: string, isMili
     return date.toLocaleString(currentUserLocale, options);
 }
 
-export function formatTime(seconds: number, textTime: boolean = false, intl?: IntlShape) {
+export function formatTime(seconds: number) {
     const h = Math.max(Math.floor(seconds / 3600), 0);
     const m = Math.max(Math.floor((seconds % 3600) / 60), 0);
     const s = Math.max(Math.floor(seconds % 60), 0);
-
-    if (textTime && intl) {
-        const parts: string[] = [];
-        if (h > 0) {
-            parts.push(intl.formatMessage({id: 'mobile.format_time.text_time.hours_component', defaultMessage: '{hours}h'}, {hours: h}));
-        }
-        if (m > 0) {
-            parts.push(intl.formatMessage({id: 'mobile.format_time.text_time.minutes_component', defaultMessage: '{minutes}m'}, {minutes: m}));
-        }
-        if (s > 0) {
-            parts.push(intl.formatMessage({id: 'mobile.format_time.text_time.seconds_component', defaultMessage: '{seconds}s'}, {seconds: s}));
-        }
-        return parts.length > 0 ? parts.join(' ') : intl.formatMessage({id: 'mobile.format_time.text_time.seconds_component', defaultMessage: '{seconds}s'}, {seconds: 0});
-    }
 
     const hh = h > 0 ? `${h}:` : '';
     const mm = h > 0 ? `${m.toString().padStart(2, '0')}` : `${m}`;
     const ss = s.toString().padStart(2, '0');
 
     return `${hh}${mm}:${ss}`;
+}
+
+export type ConversationTimestampFormat =
+    | {type: 'time'; value: string}
+    | {type: 'yesterday'}
+    | {type: 'weekday'; date: Date}
+    | {type: 'date'; value: string};
+
+type LocaleAndTimezone = {locale?: string; timeZone?: string; isMilitaryTime?: boolean};
+
+/**
+ * 企业微信风格会话列表时间戳：当天按 use_military_time（12/24 小时），昨天用 date_separator.yesterday，
+ * 本周用 locale 的 weekday short，更早 "M/d"
+ * @param timeZone 用户时区（如 Asia/Shanghai），与聊天消息保持一致；空则使用设备默认
+ * @param isMilitaryTime 未传时默认 true（24 小时），与历史写死 hour12:false 行为一致
+ */
+export function getConversationTimestampFormat(timestamp: number, opts?: LocaleAndTimezone): ConversationTimestampFormat {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const fmtOpts: Intl.DateTimeFormatOptions = opts?.timeZone ? {timeZone: opts.timeZone} : {};
+    const isMilitaryTime = opts?.isMilitaryTime ?? true;
+    if (isToday(date)) {
+        const value = date.toLocaleTimeString(opts?.locale, {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: !isMilitaryTime,
+            ...fmtOpts,
+        });
+        return {type: 'time', value};
+    }
+    if (isYesterday(date)) {
+        return {type: 'yesterday'};
+    }
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+    if (diffDays < 7) {
+        return {type: 'weekday', date};
+    }
+    const value = date.toLocaleDateString(opts?.locale, {month: 'numeric', day: 'numeric', ...fmtOpts});
+    return {type: 'date', value};
+}
+
+export function formatDate(date?: Date, isNumeric?: boolean) {
+    // eslint-disable-next-line no-unused-expressions, no-param-reassign
+    !date && (date = new Date());
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')} ${formatTime(date.getTime() / 1000)}`;
+    return isNumeric ? dateStr.replace(/(-|:| )/g, '') : dateStr;
 }

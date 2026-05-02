@@ -111,8 +111,6 @@ jest.mock('@managers/intune_manager', () => ({
         subscribeToAuthRequired: jest.fn(() => ({remove: jest.fn()})),
         subscribeToConditionalLaunchBlocked: jest.fn(() => ({remove: jest.fn()})),
         subscribeToIdentitySwitchRequired: jest.fn(() => ({remove: jest.fn()})),
-        subscribeToComplianceFailed: jest.fn(() => ({remove: jest.fn()})),
-        subscribeToComplianceCompleted: jest.fn(() => ({remove: jest.fn()})),
     },
 }));
 
@@ -295,7 +293,6 @@ jest.doMock('react-native', () => {
 
     const Keyboard = {
         ...RNKeyboard,
-        isVisible: jest.fn(() => false),
         dismiss: jest.fn(),
         addListener: jest.fn(() => ({
             remove: jest.fn(),
@@ -421,21 +418,6 @@ jest.mock('../node_modules/react-native/Libraries/EventEmitter/NativeEventEmitte
     };
 });
 
-jest.mock('react-native-keyboard-controller', () => {
-    return {
-        KeyboardProvider: ({children}: {children: React.ReactNode}) => children,
-        KeyboardController: {
-            dismiss: jest.fn(),
-            isVisible: jest.fn(() => false),
-        },
-        useKeyboardHandler: jest.fn(),
-        useKeyboardState: jest.fn(() => ({
-            isVisible: false,
-        })),
-        KeyboardGestureArea: ({children}: {children: React.ReactNode}) => children,
-    };
-});
-
 jest.mock('react-native-localize', () => ({
     getTimeZone: () => 'World/Somewhere',
     getLocales: () => ([
@@ -536,7 +518,7 @@ jest.mock('react-native-share', () => ({
 jest.mock('@screens/navigation', () => ({
     ...jest.requireActual('@screens/navigation'),
     resetToChannel: jest.fn(),
-    resetToSelectServer: jest.fn(),
+    resetToLogin: jest.fn(),
     resetToTeams: jest.fn(),
     goToScreen: jest.fn(),
     popTopScreen: jest.fn(),

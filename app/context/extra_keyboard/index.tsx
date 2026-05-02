@@ -162,9 +162,6 @@ export const useHideExtraKeyboardIfNeeded = (callback: (...args: any) => void, d
         }
 
         callback(...args);
-
-    // The dependencies should be passed by the caller.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [keyboardContext, ...dependencies]));
 };
 

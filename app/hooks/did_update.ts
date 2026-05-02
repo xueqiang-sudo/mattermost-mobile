@@ -12,9 +12,6 @@ function useDidUpdate(callback: EffectCallback, deps?: DependencyList) {
         } else {
             hasMount.current = true;
         }
-
-    // The dependencies should be provided by the caller.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, deps);
 }
 

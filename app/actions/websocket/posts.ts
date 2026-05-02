@@ -6,9 +6,8 @@ import {isAgentPost} from '@agents/utils';
 import {DeviceEventEmitter} from 'react-native';
 
 import {storeMyChannelsForTeam, markChannelAsUnread, markChannelAsViewed, updateLastPostAt} from '@actions/local/channel';
-import {addPostAcknowledgement, markPostAsDeleted, removePostAcknowledgement, updatePostTranslation} from '@actions/local/post';
+import {addPostAcknowledgement, markPostAsDeleted, removePostAcknowledgement} from '@actions/local/post';
 import {createThreadFromNewPost, updateThread} from '@actions/local/thread';
-import {getCurrentUserLocale} from '@actions/local/user';
 import {fetchChannelStats, fetchMyChannel} from '@actions/remote/channel';
 import {fetchPostAuthors, fetchPostById} from '@actions/remote/post';
 import {openChannelIfNeeded} from '@actions/remote/preference';
@@ -195,7 +194,7 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
 
     models.push(...postModels);
 
-    operator.batchRecords(models, 'handleNewPostEvent');
+    await operator.batchRecords(models, 'handleNewPostEvent');
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {
@@ -401,27 +400,6 @@ export async function handlePostAcknowledgementRemoved(serverUrl: string, msg: W
             return;
         }
         await removePostAcknowledgement(serverUrl, post_id, user_id);
-    } catch (error) {
-        // Do nothing
-    }
-}
-
-export async function handlePostTranslationUpdatedEvent(serverUrl: string, msg: WebSocketMessage) {
-    try {
-        const translationData: PostTranslationUpdateData = msg.data;
-        const locale = await getCurrentUserLocale(serverUrl);
-        const myLanguageTranslation = translationData.translations[locale];
-
-        if (!myLanguageTranslation) {
-            return;
-        }
-
-        const translationObject: PostTranslation['object'] = myLanguageTranslation?.translation ? JSON.parse(myLanguageTranslation.translation) : undefined;
-        await updatePostTranslation(serverUrl, translationData.object_id, locale, {
-            object: translationObject,
-            state: myLanguageTranslation.state,
-            source_lang: myLanguageTranslation.src_lang,
-        });
     } catch (error) {
         // Do nothing
     }

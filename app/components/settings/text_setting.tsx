@@ -85,7 +85,7 @@ function TextSetting({
     const style = getStyleSheet(theme);
 
     const inputContainerStyle = useMemo(() => (disabled ? [style.inputContainer, style.disabled] : style.inputContainer), [style, disabled]);
-    const inputStyle = useMemo(() => (multiline ? style.multiline : style.input), [multiline, style]);
+    const inputStyle = useMemo(() => (multiline ? style.multiline : style.input), [multiline]);
 
     const actualKeyboardType: KeyboardTypeOptions = keyboardType === 'url' ? Platform.select({android: 'default', default: 'url'}) : keyboardType;
 
@@ -101,7 +101,8 @@ function TextSetting({
             <View style={inputContainerStyle}>
                 <View>
                     <TextInput
-                        allowFontScaling={true}
+                        allowFontScaling={false}
+                        maxFontSizeMultiplier={1}
                         value={value}
                         placeholder={placeholder}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}

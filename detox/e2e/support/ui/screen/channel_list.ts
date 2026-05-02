@@ -22,6 +22,7 @@ class ChannelListScreen {
         headerTeamDisplayName: 'channel_list_header.team_display_name',
         headerServerDisplayName: 'channel_list_header.server_display_name',
         headerPlusButton: 'channel_list_header.plus.button',
+        headerSearchButton: 'channel_list_header.search.button',
         subheaderSearchFieldButton: 'channel_list_subheader.search_field.button',
         findChannelsInput: 'channel_list.search_field.find_channels.input',
         threadsButton: 'channel_list.threads.button',
@@ -32,6 +33,7 @@ class ChannelListScreen {
     headerTeamDisplayName = element(by.id(this.testID.headerTeamDisplayName));
     headerServerDisplayName = element(by.id(this.testID.headerServerDisplayName));
     headerPlusButton = element(by.id(this.testID.headerPlusButton));
+    headerSearchButton = element(by.id(this.testID.headerSearchButton));
     subheaderSearchFieldButton = element(by.id(this.testID.subheaderSearchFieldButton));
     findChannelsInput = element(by.id(this.testID.findChannelsInput));
     threadsButton = element(by.id(this.testID.threadsButton));

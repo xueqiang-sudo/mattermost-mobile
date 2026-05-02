@@ -8,7 +8,6 @@ import {distinctUntilChanged, map, switchMap} from 'rxjs/operators';
 import {queryPlaybookChecklistByRun} from '@playbooks/database/queries/checklist';
 import {queryPlaybookChecklistItemsByChecklists} from '@playbooks/database/queries/item';
 import {observeParticipantsIdsFromPlaybookModel, observePlaybookRunById, queryParticipantsFromAPIRun} from '@playbooks/database/queries/run';
-import {observeIsSummaryEditEnabled} from '@playbooks/database/queries/version';
 import {areItemsOrdersEqual} from '@playbooks/utils/items_order';
 import {isOverdue, isPending} from '@playbooks/utils/run';
 import {observeCurrentUserId} from '@queries/servers/system';
@@ -59,7 +58,6 @@ const enhanced = withObservables(['playbookRunId', 'playbookRun'], ({playbookRun
             pendingCount: of$(pendingCount),
             currentUserId: observeCurrentUserId(database),
             teammateNameDisplay: observeTeammateNameDisplay(database),
-            canEditSummary: observeIsSummaryEditEnabled(database),
         };
     }
 
@@ -106,7 +104,6 @@ const enhanced = withObservables(['playbookRunId', 'playbookRun'], ({playbookRun
         pendingCount: countObserver.pipe(map((c) => c.pendingCount)),
         currentUserId: observeCurrentUserId(database),
         teammateNameDisplay: observeTeammateNameDisplay(database),
-        canEditSummary: observeIsSummaryEditEnabled(database),
     };
 });
 

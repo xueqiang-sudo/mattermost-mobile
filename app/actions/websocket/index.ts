@@ -1,8 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {checkIsAgentsPluginEnabled} from '@agents/actions/remote/agents_status';
-
 import {markChannelAsViewed} from '@actions/local/channel';
 import {dataRetentionCleanup, expiredBoRPostCleanup} from '@actions/local/systems';
 import {markChannelAsRead} from '@actions/remote/channel';
@@ -12,7 +10,7 @@ import {
     setExtraSessionProps,
 } from '@actions/remote/entry/common';
 import {deferredAppEntryActions} from '@actions/remote/entry/deferred';
-import {fetchPostsForChannel, fetchPostThread} from '@actions/remote/post';
+import {fetchPostsForChannel} from '@actions/remote/post';
 import {openAllUnreadChannels} from '@actions/remote/preference';
 import {autoUpdateTimezone} from '@actions/remote/user';
 import {loadConfigAndCalls} from '@calls/actions/calls';
@@ -22,7 +20,6 @@ import DatabaseManager from '@database/manager';
 import AppsManager from '@managers/apps_manager';
 import {handlePlaybookReconnect} from '@playbooks/actions/websocket/reconnect';
 import {getActiveServerUrl} from '@queries/app/servers';
-import {getLastPostInThread} from '@queries/servers/post';
 import {
     getConfig,
     getCurrentChannelId,
@@ -31,7 +28,6 @@ import {
     getLastFullSync,
     setLastFullSync,
 } from '@queries/servers/system';
-import {getIsCRTEnabled} from '@queries/servers/thread';
 import {getCurrentUser} from '@queries/servers/user';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
@@ -97,8 +93,6 @@ async function doReconnect(serverUrl: string, groupLabel?: BaseRequestGroupLabel
         loadConfigAndCalls(serverUrl, currentUserId, groupLabel);
     }
 
-    checkIsAgentsPluginEnabled(serverUrl);
-
     await deferredAppEntryActions(serverUrl, lastFullSync, currentUserId, currentUserLocale, prefData.preferences, config, license, teamData, chData, meData, initialTeamId, undefined, groupLabel);
 
     await setLastFullSync(operator, now);
@@ -123,29 +117,9 @@ async function fetchPostDataIfNeeded(serverUrl: string, groupLabel?: RequestGrou
 
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentChannelId = await getCurrentChannelId(database);
-        const isCRTEnabled = await getIsCRTEnabled(database);
         const mountedScreens = NavigationStore.getScreensInStack();
         const isChannelScreenMounted = mountedScreens.includes(Screens.CHANNEL);
-        const isThreadScreenMounted = mountedScreens.includes(Screens.THREAD);
         const tabletDevice = isTablet();
-
-        if (isCRTEnabled && isThreadScreenMounted) {
-            // Fetch new posts in the thread only when CRT is enabled,
-            // for non-CRT fetchPostsForChannel includes posts in the thread
-            const rootId = EphemeralStore.getCurrentThreadId();
-            if (rootId) {
-                const lastPost = await getLastPostInThread(database, rootId);
-                if (lastPost) {
-                    if (lastPost) {
-                        const options: FetchPaginatedThreadOptions = {};
-                        options.fromCreateAt = lastPost.createAt;
-                        options.fromPost = lastPost.id;
-                        options.direction = 'down';
-                        await fetchPostThread(serverUrl, rootId, options, false, groupLabel);
-                    }
-                }
-            }
-        }
 
         if (currentChannelId && (isChannelScreenMounted || tabletDevice)) {
             await fetchPostsForChannel(serverUrl, currentChannelId, false, false, groupLabel);

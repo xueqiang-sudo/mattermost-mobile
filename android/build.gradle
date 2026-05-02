@@ -5,11 +5,12 @@ buildscript {
         compileSdkVersion = 35
         targetSdkVersion = 35
         supportLibVersion = "35.0.0"
-        kotlinVersion = "2.0.21"
+        androidXVersion = "1.7.0"
+        kotlinVersion = "1.9.25"
         kotlin_version = kotlinVersion
         RNNKotlinVersion = kotlinVersion
         firebaseVersion = "24.1.0"
-        ndkVersion = "27.1.12297006"
+        ndkVersion = "26.1.10909125"
     }
     repositories {
         mavenCentral()
@@ -34,6 +35,9 @@ buildscript {
 allprojects {
     repositories {
         mavenLocal()
+        // Maven Central: required for transitive deps (e.g. react-native-compressor → isoparser, jlayer)
+        // that are not on Google Maven; also avoids failing the whole resolve when google() times out.
+        mavenCentral()
         google()
         maven {
             url "$rootDir/../detox/node_modules/detox/Detox-android"

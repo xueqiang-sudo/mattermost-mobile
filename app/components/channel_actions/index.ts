@@ -3,11 +3,12 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
-import {switchMap} from 'rxjs/operators';
+import {combineLatestWith, switchMap} from 'rxjs/operators';
 
 import {observeChannel} from '@queries/servers/channel';
-import {observeCanManageChannelMembers} from '@queries/servers/role';
+import {observeCanManageChannelMembers, observePermissionForChannel} from '@queries/servers/role';
 import {observeCurrentUser} from '@queries/servers/user';
+import {permissionForEditingChannelAnnouncement} from '@utils/channel';
 
 import ChannelActions from './channel_actions';
 
@@ -18,14 +19,28 @@ type OwnProps = WithDatabaseArgs & {
 }
 
 const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps) => {
-    const channelType = observeChannel(database, channelId).pipe(
+    const channel = observeChannel(database, channelId);
+    const channelType = channel.pipe(
         switchMap((c) => of$(c?.type)),
     );
 
     const canManageMembers = observeCurrentUser(database).pipe(
         switchMap((u) => (u ? observeCanManageChannelMembers(database, channelId, u) : of$(false))),
     );
+
+    const canEditAnnouncement = channel.pipe(
+        combineLatestWith(observeCurrentUser(database)),
+        switchMap(([ch, u]) => {
+            const perm = permissionForEditingChannelAnnouncement(ch?.type);
+            if (!ch || !u || !perm) {
+                return of$(false);
+            }
+            return observePermissionForChannel(database, ch, u, perm, false);
+        }),
+    );
+
     return {
+        canEditAnnouncement,
         channelType,
         canManageMembers,
     };

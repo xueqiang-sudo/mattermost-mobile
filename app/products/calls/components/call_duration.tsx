@@ -51,10 +51,6 @@ const CallDuration = ({value, style, truncateWhenLong, updateIntervalInSeconds}:
         return function cleanup() {
             return null;
         };
-
-    // We don't care about `getCallDuration` changes as long as
-    // it is up to date when the effect runs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [updateIntervalInSeconds]);
 
     return (

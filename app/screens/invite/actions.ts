@@ -47,7 +47,7 @@ export async function sendMembersInvites(serverUrl: string, teamId: string, sele
         if (isGuest((selectedIds[userId] as UserProfile).roles)) {
             notSent.push({userId, reason: formatMessage({id: 'invite.members.user_is_guest', defaultMessage: 'Contact your admin to make this guest a full member'})});
         } else if (currentMemberIds.has(userId)) {
-            notSent.push({userId, reason: formatMessage({id: 'invite.members.already_member', defaultMessage: 'This person is already a team member'})});
+            notSent.push({userId, reason: formatMessage({id: 'invite.members.already_member', defaultMessage: 'This person is already an enterprise member'})});
         } else {
             usersToAdd.push(userId);
         }
@@ -72,7 +72,7 @@ export async function sendMembersInvites(serverUrl: string, teamId: string, sele
                 if (membersWithError[userId]) {
                     notSent.push({userId, reason: membersWithError[userId]});
                 } else {
-                    sent.push({userId, reason: formatMessage({id: 'invite.summary.member_invite', defaultMessage: 'Invited as a member of {teamDisplayName}'}, {teamDisplayName})});
+                    sent.push({userId, reason: formatMessage({id: 'invite.summary.member_added', defaultMessage: 'Added to {teamDisplayName} immediately'}, {teamDisplayName})});
                 }
             }
         }
@@ -182,7 +182,7 @@ async function sendGuestInviteForUsers(serverUrl: string, teamId: string, select
             continue;
         }
 
-        sent.push({userId, reason: formatMessage({id: 'invite.summary.guest_invite', defaultMessage: 'This guest has been added to the team and {count, plural, one {# channel} other {# channels}}.'}, {count: channelsAdded})});
+        sent.push({userId, reason: formatMessage({id: 'invite.summary.guest_invite', defaultMessage: 'This guest has been added to the enterprise and {count, plural, one {# channel} other {# channels}}.'}, {count: channelsAdded})});
     }
     return {sent, notSent};
 }

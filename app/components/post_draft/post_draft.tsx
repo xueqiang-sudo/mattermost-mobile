@@ -2,15 +2,20 @@
 // See LICENSE.txt for license information.
 
 import React, {useEffect, useState} from 'react';
+import {DeviceEventEmitter, Platform} from 'react-native';
 
 import Autocomplete from '@components/autocomplete';
+import {Events, Screens} from '@constants';
+import {ExtraKeyboard} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
 import {useAutocompleteDefaultAnimatedValues} from '@hooks/autocomplete';
+import {useKeyboardHeight} from '@hooks/device';
 import {useDefaultHeaderHeight} from '@hooks/header';
 
 import Archived from './archived';
 import DraftHandler from './draft_handler';
 import ReadOnly from './read_only';
+import ReplyQuotePreview from './reply_quote_preview';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -52,6 +57,10 @@ function PostDraft({
     const [cursorPosition, setCursorPosition] = useState(message.length);
     const [postInputTop, setPostInputTop] = useState(0);
     const [isFocused, setIsFocused] = useState(false);
+    const [channelReplyRootId, setChannelReplyRootId] = useState('');
+    const [channelQuotedPostId, setChannelQuotedPostId] = useState('');
+    const keyboardHeight = useKeyboardHeight();
+    const kbHeight = Platform.OS === 'ios' ? keyboardHeight : 0; // useKeyboardHeight is already deducting the keyboard height on Android
     const headerHeight = useDefaultHeaderHeight();
     const serverUrl = useServerUrl();
 
@@ -59,9 +68,48 @@ function PostDraft({
     useEffect(() => {
         setValue(message);
         setCursorPosition(message.length);
-    }, [channelId, message, rootId]);
+    }, [channelId, rootId]);
 
-    const autocompletePosition = postInputTop + AUTOCOMPLETE_ADJUST;
+    useEffect(() => {
+        setChannelReplyRootId('');
+        setChannelQuotedPostId('');
+    }, [channelId]);
+
+    useEffect(() => {
+        const setSub = DeviceEventEmitter.addListener(
+            Events.POST_DRAFT_SET_REPLY_ROOT,
+            (payload: {channelId: string; rootId: string}) => {
+                if (isChannelScreen && location === Screens.CHANNEL && payload.channelId === channelId) {
+                    setChannelReplyRootId(payload.rootId);
+                }
+            },
+        );
+        const clearSub = DeviceEventEmitter.addListener(Events.POST_DRAFT_CLEAR_REPLY_ROOT, () => {
+            setChannelReplyRootId('');
+        });
+        const setQuotedSub = DeviceEventEmitter.addListener(
+            Events.POST_DRAFT_SET_QUOTED_POST,
+            (payload: {channelId: string; postId: string}) => {
+                if (isChannelScreen && location === Screens.CHANNEL && payload.channelId === channelId) {
+                    setChannelQuotedPostId(payload.postId);
+                }
+            },
+        );
+        const clearQuotedSub = DeviceEventEmitter.addListener(Events.POST_DRAFT_CLEAR_QUOTED_POST, () => {
+            setChannelQuotedPostId('');
+        });
+        return () => {
+            setSub.remove();
+            clearSub.remove();
+            setQuotedSub.remove();
+            clearQuotedSub.remove();
+        };
+    }, [channelId, isChannelScreen, location]);
+
+    const effectiveRootId = isChannelScreen && location === Screens.CHANNEL ? (channelReplyRootId || rootId) : rootId;
+    const effectiveQuotedPostId = isChannelScreen && location === Screens.CHANNEL ? channelQuotedPostId : '';
+
+    const autocompletePosition = AUTOCOMPLETE_ADJUST + kbHeight + postInputTop;
     const autocompleteAvailableSpace = containerHeight - autocompletePosition - (isChannelScreen ? headerHeight : 0);
     const [animatedAutocompletePosition, animatedAutocompleteAvailableSpace] = useAutocompleteDefaultAnimatedValues(autocompletePosition, autocompleteAvailableSpace);
 
@@ -93,22 +141,30 @@ function PostDraft({
             channelId={channelId}
             cursorPosition={cursorPosition}
             files={files}
-            rootId={rootId}
+            rootId={effectiveRootId}
+            quotedPostId={effectiveQuotedPostId}
             canShowPostPriority={canShowPostPriority}
             updateCursorPosition={setCursorPosition}
             updatePostInputTop={setPostInputTop}
             updateValue={setValue}
             value={value}
             setIsFocused={setIsFocused}
-            location={location}
+            useChatInputStyle={location === Screens.CHANNEL}
         />
     );
+
+    const quotePreview = Boolean(effectiveQuotedPostId) ? (
+        <ReplyQuotePreview
+            quotedPostId={effectiveQuotedPostId}
+            channelId={channelId}
+        />
+    ) : null;
 
     const autoComplete = isFocused ? (
         <Autocomplete
             position={animatedAutocompletePosition}
             updateValue={setValue}
-            rootId={rootId}
+            rootId={effectiveRootId}
             channelId={channelId}
             cursorPosition={cursorPosition}
             value={value}
@@ -116,14 +172,21 @@ function PostDraft({
             shouldDirectlyReact={!Boolean(files?.length)}
             availableSpace={animatedAutocompleteAvailableSpace}
             serverUrl={serverUrl}
-            usePortal={true}
+            autocompleteProviders={{
+                user: true,
+                channel: true,
+                emoji: true,
+                slash: false,
+            }}
         />
     ) : null;
 
     return (
         <>
+            {quotePreview}
             {draftHandler}
             {autoComplete}
+            {Platform.OS !== 'android' && <ExtraKeyboard/>}
         </>
     );
 }

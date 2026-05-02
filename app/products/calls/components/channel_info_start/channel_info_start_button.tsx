@@ -3,6 +3,7 @@
 
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
+import {type StyleProp, type ViewStyle} from 'react-native';
 
 import {leaveCallConfirmation} from '@calls/actions/calls';
 import {leaveAndJoinWithAlert, showLimitRestrictedAlert} from '@calls/alerts';
@@ -17,6 +18,7 @@ import {typography} from '@utils/typography';
 import type {LimitRestrictedInfo} from '@calls/observers';
 
 export interface Props {
+    boxContainerStyle?: StyleProp<ViewStyle>;
     serverUrl: string;
     channelId: string;
     isACallInCurrentChannel: boolean;
@@ -50,6 +52,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 const ChannelInfoStartButton = ({
+    boxContainerStyle,
     serverUrl,
     channelId,
     isACallInCurrentChannel,
@@ -123,6 +126,7 @@ const ChannelInfoStartButton = ({
 
     return (
         <OptionBox
+            containerStyle={boxContainerStyle}
             onPress={onPress}
             text={text}
             iconName={icon}

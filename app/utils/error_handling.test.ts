@@ -20,10 +20,7 @@ jest.mock('react-native-exception-handler', () => ({
 }));
 
 jest.mock('@utils/log', () => ({
-    logError: jest.fn(),
     logWarning: jest.fn(() => ''),
-    logDebug: jest.fn(),
-    logInfo: jest.fn(),
 }));
 
 describe('JavascriptAndNativeErrorHandler', () => {

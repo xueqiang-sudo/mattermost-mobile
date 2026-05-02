@@ -17,6 +17,7 @@ import {
     isFromWebhook,
     isEdited,
     isPostEphemeral,
+    isInvalidEphemeralTipPost,
     isPostFailed,
     isPostPendingOrFailed,
     isSystemMessage,
@@ -59,7 +60,7 @@ describe('post utils', () => {
                 props: {},
             });
 
-            const result = areConsecutivePosts(post, previousPost, 'en');
+            const result = areConsecutivePosts(post, previousPost);
             expect(result).toBe(true);
         });
 
@@ -75,7 +76,7 @@ describe('post utils', () => {
                 props: {},
             });
 
-            const result = areConsecutivePosts(post, previousPost, 'en');
+            const result = areConsecutivePosts(post, previousPost);
             expect(result).toBe(false);
         });
     });
@@ -141,6 +142,32 @@ describe('post utils', () => {
 
             const result = isPostEphemeral(post);
             expect(result).toBe(false);
+        });
+    });
+
+    describe('isInvalidEphemeralTipPost', () => {
+        it('should return true for system_ephemeral with props.invalid true', () => {
+            const post = TestHelper.fakePostModel({
+                type: Post.POST_TYPES.EPHEMERAL,
+                props: {invalid: true},
+            });
+            expect(isInvalidEphemeralTipPost(post)).toBe(true);
+        });
+
+        it('should return false when type is not system_ephemeral', () => {
+            const post = TestHelper.fakePostModel({
+                type: '',
+                props: {invalid: true},
+            });
+            expect(isInvalidEphemeralTipPost(post)).toBe(false);
+        });
+
+        it('should return false when invalid is not true', () => {
+            const post = TestHelper.fakePostModel({
+                type: Post.POST_TYPES.EPHEMERAL,
+                props: {},
+            });
+            expect(isInvalidEphemeralTipPost(post)).toBe(false);
         });
     });
 

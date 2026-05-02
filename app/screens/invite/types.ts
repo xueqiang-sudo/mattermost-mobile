@@ -15,6 +15,14 @@ export type EmailInvite = string;
 
 export type SearchResult = UserProfile|UserModel|EmailInvite;
 
+export type InviteCandidateTag = 'alreadyJoined' | 'self' | 'exactMatch' | 'customer' | 'supplier' | 'enterprise';
+
+export type InviteCandidate = {
+    user: UserProfile;
+    tags: InviteCandidateTag[];
+    isAlreadyJoined: boolean;
+}
+
 export type InviteResult = {
     userId?: string;
     email?: string;

@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {General} from '@constants';
+import {emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {buildQueryString} from '@utils/helpers';
 
 import {PER_PAGE_DEFAULT} from './constants';
@@ -9,6 +10,7 @@ import {PER_PAGE_DEFAULT} from './constants';
 import type ClientBase from './base';
 
 export interface ClientUsersMix {
+    autoRegisterUser: (phoneOrEmail: string, password: string) => Promise<UserProfile>;
     createUser: (user: UserProfile, token: string, inviteId: string) => Promise<UserProfile>;
     patchMe: (userPatch: Partial<UserProfile>, groupLabel?: RequestGroupLabel) => Promise<UserProfile>;
     patchUser: (userPatch: Partial<UserProfile> & {id: string}) => Promise<UserProfile>;
@@ -35,6 +37,8 @@ export interface ClientUsersMix {
     getUser: (userId: string) => Promise<UserProfile>;
     getUserByUsername: (username: string) => Promise<UserProfile>;
     getUserByEmail: (email: string) => Promise<UserProfile>;
+    getUsernameByEmail: (email: string) => Promise<string>;
+    getUsernameByPhone: (phone: string) => Promise<string>;
     getProfilePictureUrl: (userId: string, lastPictureUpdate: number) => string;
     getDefaultProfilePictureUrl: (userId: string) => string;
     autocompleteUsers: (name: string, teamId: string, channelId?: string, options?: Record<string, any>) => Promise<{users: UserProfile[]; out_of_channel?: UserProfile[]}>;
@@ -53,6 +57,24 @@ export interface ClientUsersMix {
 }
 
 const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
+    autoRegisterUser = (phoneOrEmail: string, password: string) => {
+        const isPhone = isPhoneNumber(phoneOrEmail);
+        const email = isPhone ? `${formatPhone(phoneOrEmail, true)}@auto.register` : phoneOrEmail;
+        const username = isPhone ? formatPhone(phoneOrEmail, true) : emailFormatUsername(phoneOrEmail);
+        const bodyData = {email, username, password};
+        if (isPhone) {
+            const [countryCode, phone] = splitPhone(phoneOrEmail, {isDelSymbol: true});
+            Object.assign(bodyData, {phone, country_code: countryCode});
+        }
+        return this.doFetch(
+            this.getUsersRoute(),
+            {
+                method: 'post',
+                body: bodyData,
+            },
+        );
+    };
+
     createUser = async (user: UserProfile, token: string, inviteId: string) => {
         const queryParams: any = {};
 
@@ -326,6 +348,21 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
             `${this.getUsersRoute()}/email/${email}`,
             {method: 'get'},
         );
+    };
+
+    getUsernameByEmail = async (email: string) => {
+        return this.doFetch(
+            `${this.getSmsEmailGatewayRoute()}/get-username-by-email?account=${email}`,
+            {method: 'get'},
+        ).then((res: {username: string}) => res.username || '').catch(() => '');
+    };
+
+    getUsernameByPhone = async (phoneNumber: string) => {
+        const [countryCode, phone] = splitPhone(phoneNumber, {isDelSymbol: true});
+        return this.doFetch(
+            `${this.getSmsEmailGatewayRoute()}/get-username-by-phone?account=${phone}&country_code=${countryCode}`,
+            {method: 'get'},
+        ).then((res: {username: string}) => res.username || '').catch(() => '');
     };
 
     getProfilePictureUrl = (userId: string, lastPictureUpdate: number) => {

@@ -12,6 +12,7 @@ import {
     observeIsReadOnlyChannel,
     observeMyChannelUnreads,
     prepareAllMyChannels,
+    queryMyArchivedTeamChannelsForTeam,
 } from './channel';
 
 describe('observeMyChannelUnreads', () => {
@@ -370,5 +371,74 @@ describe('observeIsReadOnlyChannel', () => {
         result.subscribe({next: subscriptionNext});
 
         expect(subscriptionNext).toHaveBeenCalledWith(false);
+    });
+});
+
+describe('queryMyArchivedTeamChannelsForTeam', () => {
+    const teamId = 'team_arch';
+    const userId = 'user_arch';
+    const serverUrl = 'query.archived.team.channels.test';
+    let database: Database;
+    let operator: ServerDataOperator;
+
+    beforeEach(async () => {
+        await DatabaseManager.init([serverUrl]);
+        const serverDatabaseAndOperator = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        database = serverDatabaseAndOperator.database;
+        operator = serverDatabaseAndOperator.operator;
+    });
+
+    afterEach(async () => {
+        await DatabaseManager.deleteServerDatabase(serverUrl);
+    });
+
+    it('should include archived open channel for the team', async () => {
+        const chId = 'arch_open_1';
+        const channel = TestHelper.fakeChannel({
+            id: chId,
+            team_id: teamId,
+            type: General.OPEN_CHANNEL,
+            delete_at: 999,
+        });
+        const myCh = TestHelper.fakeMyChannel({
+            id: chId,
+            channel_id: chId,
+            user_id: userId,
+        });
+        const models = (await Promise.all((await prepareAllMyChannels(
+            operator,
+            [channel],
+            [myCh],
+            false,
+        )))).flat();
+        await operator.batchRecords(models, 'test');
+
+        const rows = await queryMyArchivedTeamChannelsForTeam(database, teamId).fetch();
+        expect(rows.some((m) => m.id === chId)).toBe(true);
+    });
+
+    it('should exclude active channels from archived query', async () => {
+        const chId = 'live_open_1';
+        const channel = TestHelper.fakeChannel({
+            id: chId,
+            team_id: teamId,
+            type: General.OPEN_CHANNEL,
+            delete_at: 0,
+        });
+        const myCh = TestHelper.fakeMyChannel({
+            id: chId,
+            channel_id: chId,
+            user_id: userId,
+        });
+        const models = (await Promise.all((await prepareAllMyChannels(
+            operator,
+            [channel],
+            [myCh],
+            false,
+        )))).flat();
+        await operator.batchRecords(models, 'test');
+
+        const rows = await queryMyArchivedTeamChannelsForTeam(database, teamId).fetch();
+        expect(rows.some((m) => m.id === chId)).toBe(false);
     });
 });

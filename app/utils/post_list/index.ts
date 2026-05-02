@@ -40,6 +40,7 @@ const postTypePriority = {
     [Post.POST_TYPES.JOIN_LEAVE]: 10,
     [Post.POST_TYPES.DISPLAYNAME_CHANGE]: 11,
     [Post.POST_TYPES.CONVERT_CHANNEL]: 12,
+    [Post.POST_TYPES.CHANGE_CHANNEL_PRIVACY]: 12,
     [Post.POST_TYPES.CHANNEL_DELETED]: 13,
     [Post.POST_TYPES.CHANNEL_UNARCHIVED]: 14,
     [Post.POST_TYPES.ADD_REMOVE]: 15,
@@ -220,6 +221,11 @@ export function selectOrderedPosts(
             !post ||
             (post.currentPost.type === Post.POST_TYPES.EPHEMERAL_ADD_TO_CHANNEL && !isThreadScreen)
         ) {
+            continue;
+        }
+
+        // 语音转文字：隐藏 custom_voice_asr 帖（含附件）；服务端另发一条普通文字帖展示转写结果
+        if (post.currentPost.type === Post.POST_TYPES.CUSTOM_VOICE_ASR) {
             continue;
         }
 

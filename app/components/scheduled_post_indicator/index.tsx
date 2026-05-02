@@ -79,28 +79,32 @@ function ScheduledPostIndicator({
     );
 
     return (
-        <View style={styles.container}>
-            <CompassIcon
-                color={changeOpacity(theme.centerChannelColor, 0.6)}
-                name='clock-send-outline'
-                size={18}
-            />
-            <Text
-                style={styles.text}
-                testID='scheduled_post_header.scheduled_post_indicator'
-            >
-                {scheduledPostText}
-                {' '}
+        <View
+            className='ScheduledPostIndicator'
+        >
+            <View style={styles.container}>
+                <CompassIcon
+                    color={changeOpacity(theme.centerChannelColor, 0.6)}
+                    name='clock-send-outline'
+                    size={18}
+                />
                 <Text
-                    style={styles.link}
-                    onPress={handleSeeAllScheduledPosts}
+                    style={styles.text}
+                    testID='scheduled_post_header.scheduled_post_indicator'
                 >
-                    <FormattedMessage
-                        id='scheduled_post.channel_indicator.link_to_scheduled_posts.text'
-                        defaultMessage='See all.'
-                    />
+                    {scheduledPostText}
+                    {' '}
+                    <Text
+                        style={styles.link}
+                        onPress={handleSeeAllScheduledPosts}
+                    >
+                        <FormattedMessage
+                            id='scheduled_post.channel_indicator.link_to_scheduled_posts.text'
+                            defaultMessage='See all.'
+                        />
+                    </Text>
                 </Text>
-            </Text>
+            </View>
         </View>
     );
 }

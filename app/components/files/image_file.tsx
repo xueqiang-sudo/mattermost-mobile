@@ -2,15 +2,14 @@
 // See LICENSE.txt for license information.
 
 import {LinearGradient, type LinearGradientProps} from 'expo-linear-gradient';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {StyleSheet, useWindowDimensions, View} from 'react-native';
 
-import {buildFilePreviewUrl, buildFileUrl} from '@actions/remote/file';
+import {buildFilePreviewUrl, buildFileThumbnailUrl, buildFileUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
 import ProgressiveImage from '@components/progressive_image';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import EphemeralStore from '@store/ephemeral_store';
 import {isGif as isGifImage} from '@utils/file';
 import {calculateDimensions} from '@utils/images';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -31,6 +30,8 @@ type ImageFileProps = {
 
 const SMALL_IMAGE_MAX_HEIGHT = 48;
 const SMALL_IMAGE_MAX_WIDTH = 48;
+const CHAT_SINGLE_MEDIA_MAX_WIDTH = 180;
+const CHAT_SINGLE_MEDIA_MAX_HEIGHT = 200;
 const GRADIENT_COLORS: LinearGradientProps['colors'] = ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, .32)'];
 const GRADIENT_END = {x: 1, y: 1};
 const GRADIENT_LOCATIONS: LinearGradientProps['locations'] = [0.5, 1];
@@ -80,8 +81,9 @@ const ImageFile = ({
 
     const getImageDimensions = () => {
         if (isSingleImage) {
-            const viewPortHeight = Math.max(dimensions.height, dimensions.width) * 0.45;
-            return calculateDimensions(file?.height, file?.width, wrapperWidth, viewPortHeight);
+            // 按微信风格使用固定上限，避免单图在聊天中占据过大空间。
+            const maxWidth = Math.min(wrapperWidth ?? CHAT_SINGLE_MEDIA_MAX_WIDTH, CHAT_SINGLE_MEDIA_MAX_WIDTH);
+            return calculateDimensions(file?.height, file?.width, maxWidth, CHAT_SINGLE_MEDIA_MAX_HEIGHT);
         }
 
         return undefined;
@@ -91,27 +93,18 @@ const ImageFile = ({
         setFailed(true);
     }, []);
 
-    // Check if file is rejected and show file icon instead
-    useEffect(() => {
-        const isRejected = file.id && EphemeralStore.isFileRejected(file.id);
-        if (isRejected) {
-            setFailed(true);
-        }
-    }, [file.id]);
-
     const imageProps = useMemo(() => {
         const props: ProgressiveImageProps = {};
-
-        // Check if file is rejected by plugin before attempting to load
-        const isRejected = file.id && EphemeralStore.isFileRejected(file.id);
 
         if (file.localPath) {
             const prefix = file.localPath.startsWith('file://') ? '' : 'file://';
             props.defaultSource = {uri: prefix + file.localPath};
-        } else if (file.id && !isRejected) {
-            // Don't set thumbnailUri - show neutral placeholder instead of blurred preview
-            // This prevents the visual blink when a file is rejected by a plugin
-            // (the blurred preview would show briefly before being replaced by file card)
+        } else if (file.id) {
+            if (file.mini_preview && file.mime_type) {
+                props.thumbnailUri = `data:${file.mime_type};base64,${file.mini_preview}`;
+            } else if (file.has_preview_image) {
+                props.thumbnailUri = buildFileThumbnailUrl(serverUrl, file.id);
+            }
             if (file.has_preview_image) {
                 props.imageUri = buildFilePreviewUrl(serverUrl, file.id);
             } else {

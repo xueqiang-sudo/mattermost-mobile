@@ -56,7 +56,7 @@ const PostButton = ({theme}: Props) => {
                 preauthSecret: credentials.preauthSecret,
             });
         }
-    }, [serverUrl, channelId, userId, message, linkPreviewUrl, closeExtension, files]);
+    }, [serverUrl, channelId, message, files, linkPreviewUrl, userId]);
 
     return (
         <TouchableOpacity

@@ -48,7 +48,7 @@ const Reaction = ({onPressReaction, emoji, iconSize, containerSize, testID}: Rea
             width: containerSize,
             height: containerSize,
         },
-    ], [containerSize, styles]);
+    ], [containerSize]);
 
     return (
         <Pressable

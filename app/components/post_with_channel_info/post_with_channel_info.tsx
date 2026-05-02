@@ -22,7 +22,6 @@ type Props = {
     searchPatterns?: SearchPattern[];
     skipSavedPostsHighlight?: boolean;
     isSaved?: boolean;
-    isChannelAutotranslated: boolean;
 }
 
 const styles = StyleSheet.create({
@@ -36,18 +35,7 @@ const styles = StyleSheet.create({
     },
 });
 
-function PostWithChannelInfo({
-    appsEnabled,
-    customEmojiNames,
-    isCRTEnabled,
-    post,
-    location,
-    testID,
-    searchPatterns,
-    skipSavedPostsHighlight = false,
-    isSaved,
-    isChannelAutotranslated,
-}: Props) {
+function PostWithChannelInfo({appsEnabled, customEmojiNames, isCRTEnabled, post, location, testID, searchPatterns, skipSavedPostsHighlight = false, isSaved}: Props) {
     return (
         <View style={styles.container}>
             <ChannelInfo
@@ -71,7 +59,6 @@ function PostWithChannelInfo({
                     nextPost={undefined}
                     testID={`${testID}.post`}
                     isSaved={isSaved}
-                    isChannelAutotranslated={isChannelAutotranslated}
                 />
             </View>
         </View>

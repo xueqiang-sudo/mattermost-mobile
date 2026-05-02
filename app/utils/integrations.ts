@@ -1,8 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {isAppSelectOption, DialogElementTypes, DialogTextSubtypes, DialogErrorMessages} from './dialog_utils';
-
 import type {KeyboardTypeOptions} from 'react-native';
 
 type DialogError = {
@@ -13,7 +11,7 @@ type DialogError = {
 
 export function checkDialogElementForError(elem: DialogElement, value: any): DialogError | undefined | null {
     const fieldRequiredError = {
-        id: DialogErrorMessages.REQUIRED,
+        id: 'interactive_dialog.error.required',
         defaultMessage: 'This field is required.',
     };
 
@@ -23,82 +21,52 @@ export function checkDialogElementForError(elem: DialogElement, value: any): Dia
 
     const type = elem.type;
 
-    if (type === DialogElementTypes.TEXT || type === DialogElementTypes.TEXTAREA) {
+    if (type === 'text' || type === 'textarea') {
         if (value === '' && !elem.optional) {
             return fieldRequiredError;
         }
         if (value && value.length < elem.min_length) {
             return {
-                id: DialogErrorMessages.TOO_SHORT,
+                id: 'interactive_dialog.error.too_short',
                 defaultMessage: 'Minimum input length is {minLength}.',
                 values: {minLength: elem.min_length},
             };
         }
 
-        if (elem.subtype === DialogTextSubtypes.EMAIL) {
+        if (elem.subtype === 'email') {
             if (value && !value.includes('@')) {
                 return {
-                    id: DialogErrorMessages.BAD_EMAIL,
+                    id: 'interactive_dialog.error.bad_email',
                     defaultMessage: 'Must be a valid email address.',
                 };
             }
         }
 
-        if (elem.subtype === DialogTextSubtypes.NUMBER) {
+        if (elem.subtype === 'number') {
             if (value && isNaN(value)) {
                 return {
-                    id: DialogErrorMessages.BAD_NUMBER,
+                    id: 'interactive_dialog.error.bad_number',
                     defaultMessage: 'Must be a number.',
                 };
             }
         }
 
-        if (elem.subtype === DialogTextSubtypes.URL) {
+        if (elem.subtype === 'url') {
             if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
                 return {
-                    id: DialogErrorMessages.BAD_URL,
+                    id: 'interactive_dialog.error.bad_url',
                     defaultMessage: 'URL must include http:// or https://.',
                 };
             }
         }
-    } else if (type === DialogElementTypes.RADIO) {
-        if ((typeof value === 'undefined' || value === '') && !elem.optional) {
-            return fieldRequiredError;
-        }
-
+    } else if (type === 'radio') {
         const options = elem.options;
-        if (typeof value !== 'undefined' && value !== '' && Array.isArray(options)) {
-            // Extract value from AppSelectOption object if needed
-            const valueToCheck = isAppSelectOption(value) ? value.value : value;
 
-            if (!options.some((e) => e.value === valueToCheck)) {
-                return {
-                    id: DialogErrorMessages.INVALID_OPTION,
-                    defaultMessage: 'Must be a valid option',
-                };
-            }
-        }
-    } else if (type === DialogElementTypes.SELECT) {
-        if ((typeof value === 'undefined' || value === '') && !elem.optional) {
-            return fieldRequiredError;
-        }
-
-        const options = elem.options;
-        if (typeof value !== 'undefined' && value !== '' && Array.isArray(options)) {
-            // Extract value from AppSelectOption object if needed
-            const valueToCheck = isAppSelectOption(value) ? value.value : value;
-
-            if (!options.some((e) => e.value === valueToCheck)) {
-                return {
-                    id: DialogErrorMessages.INVALID_OPTION,
-                    defaultMessage: 'Must be a valid option',
-                };
-            }
-        }
-    } else if (type === DialogElementTypes.BOOL) {
-        // Required boolean fields must be true
-        if (!elem.optional && (typeof value === 'undefined' || value !== true)) {
-            return fieldRequiredError;
+        if (typeof value !== 'undefined' && Array.isArray(options) && !options.some((e) => e.value === value)) {
+            return {
+                id: 'interactive_dialog.error.invalid_option',
+                defaultMessage: 'Must be a valid option',
+            };
         }
     }
 

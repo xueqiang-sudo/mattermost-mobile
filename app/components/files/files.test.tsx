@@ -115,6 +115,8 @@ describe('Files', () => {
         expect(getByTestId('image-row')).toContainElement(getByTestId('2'));
         expect(getByTestId('image-row')).not.toContainElement(getByTestId('3'));
         expect(getByTestId('image-row')).not.toContainElement(getByTestId('4'));
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('3'));
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('4'));
     });
 
     it('should not show the image row if no images', () => {
@@ -138,6 +140,8 @@ describe('Files', () => {
         expect(getByTestId('3')).toBeVisible();
         expect(getByTestId('4')).toBeVisible();
         expect(queryByTestId('image-row')).not.toBeVisible();
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('3'));
+        expect(getByTestId('non-image-attachments')).toContainElement(getByTestId('4'));
     });
 
     it('should have different opacity if failed', () => {

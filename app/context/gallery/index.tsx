@@ -1,10 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useLayoutEffect} from 'react';
+import {useEffect, useLayoutEffect} from 'react';
 import {makeMutable, runOnUI, type AnimatedRef, type SharedValue} from 'react-native-reanimated';
-
-import useDidMount from '@hooks/did_mount';
 
 import type {GalleryManagerSharedValues} from '@typings/screens/gallery';
 
@@ -157,16 +155,13 @@ export function GalleryInit({children, galleryIdentifier}: GalleryInitProps) {
         return () => {
             gallery.reset();
         };
-
-    // Execute only on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    useDidMount(() => {
+    useEffect(() => {
         return () => {
             galleryManager.remove(galleryIdentifier);
         };
-    });
+    }, []);
 
     return children;
 }

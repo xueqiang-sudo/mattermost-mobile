@@ -83,7 +83,6 @@ describe('setFontFamily', () => {
         // Check if the StyleSheet.create was called with the correct styles
         expect(createSpy).toHaveBeenCalledWith({
             defaultText: {
-                fontFamily: 'OpenSans',
                 fontSize: 16,
             },
         });
@@ -108,9 +107,10 @@ describe('setFontFamily', () => {
 
         // Check if cloneElement was called with the correct arguments
         expect(cloneElement).toHaveBeenCalledWith(mockOriginRenderOutput, {
+            allowFontScaling: true,
+            maxFontSizeMultiplier: undefined,
             style: [
                 {
-                    fontFamily: 'OpenSans',
                     fontSize: 16,
                 },
                 [{color: 'red'}],
@@ -118,6 +118,6 @@ describe('setFontFamily', () => {
         });
 
         // Verify the new render output has the expected styles
-        expect(newRenderOutput.props.style).toEqual({fontFamily: 'OpenSans', fontSize: 16, color: 'red'});
+        expect(newRenderOutput.props.style).toEqual({fontSize: 16, color: 'red'});
     });
 });

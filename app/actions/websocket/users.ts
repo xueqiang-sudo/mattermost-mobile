@@ -3,20 +3,18 @@
 
 import {DeviceEventEmitter} from 'react-native';
 
-import {deletePostsForChannelsWithAutotranslation, updateChannelsDisplayName} from '@actions/local/channel';
+import {updateChannelsDisplayName} from '@actions/local/channel';
 import {setCurrentUserStatus} from '@actions/local/user';
 import {fetchMe, fetchUsersByIds} from '@actions/remote/user';
-import {General, Events, Preferences} from '@constants';
+import {General, Events} from '@constants';
 import DatabaseManager from '@database/manager';
-import {getTeammateNameDisplaySetting} from '@helpers/api/preference';
 import WebsocketManager from '@managers/websocket_manager';
 import {queryChannelsByTypes, queryUserChannelsByTypes} from '@queries/servers/channel';
-import {queryDisplayNamePreferences} from '@queries/servers/preference';
-import {getConfig, getLicense} from '@queries/servers/system';
+import {getConfig} from '@queries/servers/system';
 import {getCurrentUser} from '@queries/servers/user';
 import {customProfileAttributeId} from '@utils/custom_profile_attribute';
 import {logError} from '@utils/log';
-import {displayUsername} from '@utils/user';
+import {username2Nickname} from '@utils/user';
 
 import type {Model} from '@nozbe/watermelondb';
 import type {CustomProfileField} from '@typings/api/custom_profile_attributes';
@@ -59,9 +57,6 @@ export async function handleUserUpdatedEvent(serverUrl: string, msg: WebSocketMe
                         modelsToBatch.push(...models);
                     }
                 }
-
-                // Delete posts for all channels with user autotranslation enabled when locale changes
-                await deletePostsForChannelsWithAutotranslation(serverUrl);
             }
         }
     } else {
@@ -92,16 +87,13 @@ export async function handleUserTypingEvent(serverUrl: string, msg: WebSocketMes
             return;
         }
 
-        const license = await getLicense(database);
         const config = await getConfig(database);
 
         const {users, existingUsers} = await fetchUsersByIds(serverUrl, [msg.data.user_id]);
         const user = users?.[0] || existingUsers?.[0];
 
-        const namePreference = await queryDisplayNamePreferences(database, Preferences.NAME_NAME_FORMAT)?.fetch();
-        const teammateDisplayNameSetting = getTeammateNameDisplaySetting(namePreference, config.LockTeammateNameDisplay, config.TeammateNameDisplay, license);
         const currentUser = await getCurrentUser(database);
-        const username = displayUsername(user, currentUser?.locale, teammateDisplayNameSetting);
+        const username = username2Nickname(user, {locale: currentUser?.locale});
         const data = {
             channelId: msg.broadcast.channel_id,
             rootId: msg.data.parent_id,

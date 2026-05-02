@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {View} from 'react-native';
 
@@ -13,7 +13,6 @@ import TeamList from '@components/team_list';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useDidMount from '@hooks/did_mount';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal} from '@screens/navigation';
@@ -106,12 +105,12 @@ export default function JoinTeam({
         }
     }, [serverUrl, componentId, intl]);
 
-    useDidMount(() => {
+    useEffect(() => {
         loadTeams();
         return () => {
             mounted.current = false;
         };
-    });
+    }, []);
 
     const onClosePressed = useCallback(() => {
         return dismissModal({componentId});
@@ -141,13 +140,13 @@ export default function JoinTeam({
                 <Empty theme={theme}/>
                 <FormattedText
                     id='team_list.no_other_teams.title'
-                    defaultMessage='No additional teams to join'
+                    defaultMessage='No additional enterprises to join'
                     style={styles.title}
                     testID='team_sidebar.add_team_slide_up.no_other_teams.title'
                 />
                 <FormattedText
                     id='team_list.no_other_teams.description'
-                    defaultMessage='To join another team, ask a Team Admin for an invitation, or create your own team.'
+                    defaultMessage='To join another enterprise, ask an Enterprise Admin for an invitation, or create your own enterprise.'
                     style={styles.description}
                     testID='team_sidebar.add_team_slide_up.no_other_teams.description'
                 />

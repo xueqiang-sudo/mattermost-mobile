@@ -4,6 +4,7 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
+import {type StyleProp, type ViewStyle} from 'react-native';
 
 import {General} from '@constants';
 import {observeChannelSettings} from '@queries/servers/channel';
@@ -14,6 +15,7 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 
 type OwnProps = WithDatabaseArgs & {
     channelId: string;
+    containerStyle?: StyleProp<ViewStyle>;
 }
 
 const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps) => ({

@@ -23,7 +23,7 @@ const YourProfile = ({isTablet}: Props) => {
         } else {
             showModal(
                 Screens.EDIT_PROFILE,
-                intl.formatMessage({id: 'mobile.screen.your_profile', defaultMessage: 'Your Profile'}),
+                intl.formatMessage({id: 'account.your_profile', defaultMessage: 'Your Profile'}),
             );
         }
     }, [intl, isTablet]));

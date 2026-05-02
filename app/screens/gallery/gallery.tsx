@@ -107,7 +107,10 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
 
         runOnJS(onLocalIndex)(nextIndex);
         sharedValues.activeIndex.value = nextIndex;
-    }, [onLocalIndex, sharedValues]);
+
+        // sharedValues do not trigger re-renders
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onLocalIndex]);
 
     const renderBackdropComponent = useCallback(
         ({animatedStyles, translateY}: BackdropProps) => {
@@ -147,7 +150,10 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
         sharedValues.y.value = 0;
 
         runOnJS(onHide)();
-    }, [onHide, sharedValues]);
+
+        // sharedValues do not trigger re-renders
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const onRenderItem = useCallback((info: RenderItemInfo) => {
         const currentItem = items[localIndex];

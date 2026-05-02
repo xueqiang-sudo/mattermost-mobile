@@ -57,7 +57,6 @@ const EditServer = ({closeButtonId, componentId, server, theme}: ServerProps) =>
     const [buttonDisabled, setButtonDisabled] = useState(Boolean(!server.displayName));
     const [displayNameError, setDisplayNameError] = useState<string | undefined>();
     const [preauthSecret, setPreauthSecret] = useState<string>('');
-    const [initialPreauthSecret, setInitialPreauthSecret] = useState<string>('');
     const [preauthSecretError, setPreauthSecretError] = useState<string | undefined>();
     const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
     const [validating, setValidating] = useState(false);
@@ -74,7 +73,6 @@ const EditServer = ({closeButtonId, componentId, server, theme}: ServerProps) =>
                 const credentials = await getServerCredentials(server.url);
                 const currentPreauthSecret = credentials?.preauthSecret || '';
                 setPreauthSecret(currentPreauthSecret);
-                setInitialPreauthSecret(currentPreauthSecret);
 
                 // Auto-open advanced options if preauth secret exists
                 if (currentPreauthSecret) {
@@ -173,14 +171,11 @@ const EditServer = ({closeButtonId, componentId, server, theme}: ServerProps) =>
             return;
         }
 
-        // Only validate server connection if preauth secret has changed
-        const preauthSecretChanged = preauthSecret.trim() !== initialPreauthSecret.trim();
-        if (preauthSecretChanged) {
-            const isValidServer = await validateServer();
-            if (!isValidServer) {
-                setSaving(false);
-                return;
-            }
+        // Validate preauth secret if changed
+        const isValidServer = await validateServer();
+        if (!isValidServer) {
+            setSaving(false);
+            return;
         }
 
         // Save display name
@@ -198,7 +193,7 @@ const EditServer = ({closeButtonId, componentId, server, theme}: ServerProps) =>
         }
 
         dismissModal({componentId});
-    }, [buttonDisabled, displayName, displayNameError, preauthSecretError, server.url, preauthSecret, initialPreauthSecret, formatMessage, validateServer, componentId]);
+    }, [buttonDisabled, displayName, displayNameError, preauthSecretError, server.url, preauthSecret, formatMessage, validateServer, componentId]);
 
     const handleDisplayNameTextChanged = useCallback((text: string) => {
         setDisplayName(text);

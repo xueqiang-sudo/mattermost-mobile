@@ -7,7 +7,7 @@ import {
     ThreadOptionsScreen,
 } from '@support/ui/screen';
 import {timeouts, wait} from '@support/utils';
-import {expect, waitFor} from 'detox';
+import {expect} from 'detox';
 
 class GlobalThreadsScreen {
     testID = {
@@ -75,7 +75,7 @@ class GlobalThreadsScreen {
 
     back = async () => {
         await this.backButton.tap();
-        await waitFor(this.globalThreadsScreen).not.toBeVisible().withTimeout(timeouts.TEN_SEC);
+        await expect(this.globalThreadsScreen).not.toBeVisible();
     };
 
     openThreadOptionsFor = async (postId: string) => {
@@ -83,7 +83,7 @@ class GlobalThreadsScreen {
         await expect(threadItem).toBeVisible();
 
         // # Open thread options
-        await threadItem.longPress(timeouts.FOUR_SEC);
+        await threadItem.longPress();
         await ThreadOptionsScreen.toBeVisible();
         await wait(timeouts.TWO_SEC);
     };

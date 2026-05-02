@@ -1,15 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {View} from 'react-native';
 
 import {updateDraftFile} from '@actions/local/draft';
 import UploadItemShared from '@components/upload_item_shared';
 import {fileInfoToUploadItemFile} from '@components/upload_item_shared/adapters';
+import {getDraftVideoLocalMeta} from '@utils/file/draft_video_local_processing';
 import {useEditPost} from '@context/edit_post';
 import {useServerUrl} from '@context/server';
-import useDidMount from '@hooks/did_mount';
 import useDidUpdate from '@hooks/did_update';
 import {useGalleryItem} from '@hooks/gallery';
 import DraftEditPostUploadManager from '@managers/draft_upload_manager';
@@ -24,24 +24,31 @@ type Props = {
     openGallery: (file: FileInfo) => void;
     rootId: string;
     inViewPort?: boolean;
+    /** `mediaGrid`: image/video tile; `docTile`: file tile in the same horizontal strip as media. */
+    variant?: 'strip' | 'mediaGrid' | 'docTile';
+    /** Square thumbnail edge length when `variant` is `mediaGrid` or `docTile` (from screen width). */
+    mediaTileSize?: number;
 }
 
 export default function UploadItemWrapper({
     channelId, galleryIdentifier, index, file,
     rootId, openGallery, inViewPort = true,
+    variant = 'strip',
+    mediaTileSize,
 }: Props) {
     const serverUrl = useServerUrl();
     const removeCallback = useRef<(() => void) | undefined>(undefined);
     const [progress, setProgress] = useState(0);
     const {updateFileCallback, isEditMode} = useEditPost();
 
-    const loading = DraftEditPostUploadManager.isUploading(file.clientId!);
+    const localVideoMeta = getDraftVideoLocalMeta(file);
+    const loading = Boolean(localVideoMeta) || DraftEditPostUploadManager.isUploading(file.clientId!);
 
     const handlePress = useCallback(() => {
         openGallery(file);
     }, [openGallery, file]);
 
-    useDidMount(() => {
+    useEffect(() => {
         if (file.clientId) {
             removeCallback.current = DraftEditPostUploadManager.registerProgressHandler(file.clientId, setProgress);
         }
@@ -49,7 +56,7 @@ export default function UploadItemWrapper({
             removeCallback.current?.();
             removeCallback.current = undefined;
         };
-    });
+    }, []);
 
     useDidUpdate(() => {
         if (loading && file.clientId) {
@@ -92,14 +99,26 @@ export default function UploadItemWrapper({
 
     const uploadItemFile = fileInfoToUploadItemFile(file);
 
+    const outerStyle =
+        variant === 'mediaGrid' || variant === 'docTile' ?
+            {
+                paddingTop: 0,
+                marginLeft: 0,
+                marginBottom: 0,
+                marginRight: 0,
+                position: 'relative' as const,
+                zIndex: 2,
+            } :
+            {paddingTop: 5, marginLeft: 12};
+
     return (
         <View
             key={file.clientId}
-            style={{paddingTop: 5, marginLeft: 12}}
+            style={outerStyle}
         >
             <UploadItemShared
                 file={uploadItemFile}
-                onPress={onGestureEvent}
+                onPress={loading ? undefined : onGestureEvent}
                 onRetry={retryFileUpload}
                 loading={loading}
                 progress={progress}
@@ -108,10 +127,13 @@ export default function UploadItemWrapper({
                 testID={file.id}
                 forwardRef={ref}
                 inViewPort={inViewPort}
+                mediaTileSize={variant === 'mediaGrid' ? mediaTileSize : undefined}
+                draftDocTileSize={variant === 'docTile' ? mediaTileSize : undefined}
             />
             <UploadRemove
                 clientId={file.clientId!}
                 channelId={channelId}
+                insetInTile={variant === 'mediaGrid' || variant === 'docTile'}
                 rootId={rootId}
                 fileId={file.id!}
             />

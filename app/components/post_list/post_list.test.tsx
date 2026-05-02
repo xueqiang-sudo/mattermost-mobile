@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import {act} from '@testing-library/react-native';
-import React, {createRef, type ComponentProps} from 'react';
-import {DeviceEventEmitter, type FlatList, Platform} from 'react-native';
+import React, {type ComponentProps} from 'react';
+import {DeviceEventEmitter, Platform} from 'react-native';
 
 import * as localPostFunctions from '@actions/local/post';
 import * as postFunctions from '@actions/remote/post';
@@ -21,7 +21,6 @@ jest.mock('@components/post_list/scroll_to_end_view', () => 'ScrollToEndView');
 jest.mock('@actions/remote/post', () => {
     return {
         fetchPosts: jest.fn(),
-        fetchPostThread: jest.fn(),
     };
 });
 jest.mock('@actions/local/post', () => ({
@@ -35,7 +34,6 @@ describe('components/post_list/PostList', () => {
     let database: Database;
     const serverUrl = 'https://server.com';
     const fetchPostsSpy = jest.spyOn(postFunctions, 'fetchPosts');
-    const fetchPostThreadSpy = jest.spyOn(postFunctions, 'fetchPostThread');
     const removePostSpy = jest.spyOn(localPostFunctions, 'removePost');
     const unrelatedNativeEventsAttributes = {
         contentSize: {height: 1000, width: 100},
@@ -75,12 +73,11 @@ describe('components/post_list/PostList', () => {
         customEmojiNames: [],
         lastViewedAt: 0,
         location: Screens.CHANNEL,
+        nativeID: 'post-list',
         posts: mockPosts,
         savedPostIds: new Set(),
         testID: 'post_list',
         shouldShowJoinLeaveMessages: false,
-        isChannelAutotranslated: false,
-        listRef: createRef<FlatList<string | PostModel>>(),
     };
 
     it('renders correctly with basic props', () => {
@@ -119,6 +116,19 @@ describe('components/post_list/PostList', () => {
         expect(getByTestId('post_list.new_messages_line')).toBeTruthy();
     });
 
+    it('should not show new message line by default', () => {
+        const props = {
+            ...baseProps,
+            lastViewedAt: 1234567000,
+            posts: [mockPostModel({createAt: 1234567890})],
+        };
+        const {queryByTestId} = renderWithEverything(
+            <PostList {...props}/>,
+            {database, serverUrl},
+        );
+        expect(queryByTestId('post_list.new_messages_line')).toBeNull();
+    });
+
     it('handles refresh in channel', async () => {
         const {getByTestId} = renderWithEverything(<PostList {...baseProps}/>, {database, serverUrl});
         const flatList = getByTestId('post_list.flat_list');
@@ -130,10 +140,10 @@ describe('components/post_list/PostList', () => {
         expect(fetchPostsSpy).toHaveBeenCalledWith('https://server.com', 'channel-id');
     });
 
-    it('handles refresh in thread', async () => {
+    it('handles refresh in channel when viewing inline thread', async () => {
         const props = {
             ...baseProps,
-            location: Screens.THREAD,
+            location: Screens.CHANNEL,
             rootId: 'root-post-id',
         };
 
@@ -148,7 +158,7 @@ describe('components/post_list/PostList', () => {
             flatList.props.onRefresh();
         });
 
-        expect(fetchPostThreadSpy).toHaveBeenCalledWith(serverUrl, 'root-post-id', expect.any(Object));
+        expect(fetchPostsSpy).toHaveBeenCalledWith(serverUrl, 'channel-id');
     });
 
     it('removes ephemeral posts on refresh', async () => {
@@ -199,10 +209,10 @@ describe('components/post_list/PostList', () => {
         expect(post.props.highlight).toBe(true);
     });
 
-    it('renders thread overview in thread screen', () => {
+    it('renders thread overview when channel shows inline thread', () => {
         const props = {
             ...baseProps,
-            location: Screens.THREAD,
+            location: Screens.CHANNEL,
             rootId: 'root-post-id',
         };
         const {getByTestId} = renderWithEverything(
@@ -371,7 +381,7 @@ describe('components/post_list/PostList', () => {
 
         // which causes the content offset to shift
         act(() => {
-            flatList.props.onMomentumScrollEnd({
+            flatList.props.onScroll({
                 nativeEvent: {
                     contentOffset: {y: 200},
                     ...unrelatedNativeEventsAttributes,
@@ -384,7 +394,7 @@ describe('components/post_list/PostList', () => {
 
         // if user post an image, scroll to bottom being called to push offset to 0, which causes the "New Messages" message to disappear
         act(() => {
-            flatList.props.onMomentumScrollEnd({
+            flatList.props.onScroll({
                 nativeEvent: {
                     contentOffset: {y: 0},
                     ...unrelatedNativeEventsAttributes,

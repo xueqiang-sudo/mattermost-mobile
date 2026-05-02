@@ -8,30 +8,20 @@ import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
+import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
+import {changeOpacity} from '@utils/theme';
 
 import PlusMenuItem from './item';
 import PlusMenuSeparator from './separator';
 
 type Props = {
     canCreateChannels: boolean;
-    canJoinChannels: boolean;
     canInvitePeople: boolean;
 }
 
-const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Props) => {
+const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
-
-    const browseChannels = useCallback(async () => {
-        await dismissBottomSheet();
-
-        const title = intl.formatMessage({id: 'browse_channels.title', defaultMessage: 'Browse channels'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
-
-        showModal(Screens.BROWSE_CHANNELS, title, {
-            closeButton,
-        });
-    }, [intl, theme]);
 
     const createNewChannel = useCallback(async () => {
         await dismissBottomSheet();
@@ -43,8 +33,9 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
     const openDirectMessage = useCallback(async () => {
         await dismissBottomSheet();
 
-        const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Create Direct Message'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+        const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Start a private chat'});
+        const closeIconColor = theme.sidebarHeaderTextColor;
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
         });
@@ -59,24 +50,23 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
         );
     }, [intl]);
 
+    const scanQRCode = useCallback(async () => {
+        await dismissBottomSheet();
+        showQrScannerModal(intl);
+    }, [intl]);
+
     return (
         <>
-            {canJoinChannels &&
             <PlusMenuItem
-                pickerAction='browseChannels'
-                onPress={browseChannels}
+                pickerAction='openDirectMessage'
+                onPress={openDirectMessage}
             />
-            }
             {canCreateChannels &&
             <PlusMenuItem
                 pickerAction='createNewChannel'
                 onPress={createNewChannel}
             />
             }
-            <PlusMenuItem
-                pickerAction='openDirectMessage'
-                onPress={openDirectMessage}
-            />
             {canInvitePeople &&
             <>
                 <PlusMenuSeparator/>
@@ -86,6 +76,11 @@ const PlusMenuList = ({canCreateChannels, canJoinChannels, canInvitePeople}: Pro
                 />
             </>
             }
+            <PlusMenuSeparator/>
+            <PlusMenuItem
+                pickerAction='scanQRCode'
+                onPress={scanQRCode}
+            />
         </>
     );
 };

@@ -6,12 +6,13 @@ import {of as of$, combineLatest} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
 import {Database as DatabaseConstants, General, Permissions} from '@constants';
-import {isDefaultChannel, isDMorGM} from '@utils/channel';
+import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
+import {isSystemAdmin} from '@utils/user';
 
 import {observeChannel, observeMyChannelRoles} from './channel';
-import {observeConfigBooleanValue} from './system';
 import {observeMyTeam, observeMyTeamRoles} from './team';
+import {observeUserIsChannelAdmin, observeUserIsTeamAdmin} from './user';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type PostModel from '@typings/database/models/servers/post';
@@ -92,8 +93,14 @@ export function observePermissionForPost(database: Database, post: PostModel, us
 export function observeCanManageChannelMembers(database: Database, channelId: string, user: UserModel) {
     return observeChannel(database, channelId).pipe(
         switchMap((c) => {
-            if (!c || c.deleteAt !== 0 || isDMorGM(c) || isDefaultChannel(c)) {
+            if (!c || c.deleteAt !== 0 || isDefaultChannel(c)) {
                 return of$(false);
+            }
+            if (c.type === General.DM_CHANNEL) {
+                return of$(false);
+            }
+            if (c.type === General.GM_CHANNEL) {
+                return of$(true);
             }
 
             const permission = c.type === General.OPEN_CHANNEL ? Permissions.MANAGE_PUBLIC_CHANNEL_MEMBERS : Permissions.MANAGE_PRIVATE_CHANNEL_MEMBERS;
@@ -106,37 +113,26 @@ export function observeCanManageChannelMembers(database: Database, channelId: st
 export function observeCanManageChannelSettings(database: Database, channelId: string, user: UserModel) {
     return observeChannel(database, channelId).pipe(
         switchMap((c) => {
-            if (!c || c.deleteAt !== 0 || isDMorGM(c)) {
-                return of$(false);
-            }
-
-            const permission = c.type === General.OPEN_CHANNEL ? Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES : Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES;
-            return observePermissionForChannel(database, c, user, permission, true);
-        }),
-        distinctUntilChanged(),
-    );
-}
-
-export function observeCanManageChannelAutotranslations(database: Database, channelId: string, user: UserModel) {
-    const featureEnabled = observeConfigBooleanValue(database, 'EnableAutoTranslation');
-    const channel = observeChannel(database, channelId);
-    const restrictDMAndGMAutotranslation = observeConfigBooleanValue(database, 'RestrictDMAndGMAutotranslation');
-    return combineLatest([featureEnabled, channel, restrictDMAndGMAutotranslation]).pipe(
-        switchMap(([enabled, c, isDmGmRestricted]) => {
-            if (!enabled) {
-                return of$(false);
-            }
-
             if (!c || c.deleteAt !== 0) {
                 return of$(false);
             }
-
-            if (isDMorGM(c)) {
-                return of$(!isDmGmRestricted);
+            if (c.type === General.DM_CHANNEL) {
+                return of$(false);
+            }
+            if (c.type === General.GM_CHANNEL) {
+                return of$(true);
             }
 
-            const permission = c.type === General.OPEN_CHANNEL ? Permissions.MANAGE_PUBLIC_CHANNEL_AUTO_TRANSLATION : Permissions.MANAGE_PRIVATE_CHANNEL_AUTO_TRANSLATION;
-            return observePermissionForChannel(database, c, user, permission, false);
+            const isCreator = c.creatorId === user.id;
+            const channelAdmin$ = observeUserIsChannelAdmin(database, user.id, channelId);
+            const teamAdmin$ = c.teamId ? observeUserIsTeamAdmin(database, user.id, c.teamId) : of$(false);
+
+            return combineLatest([channelAdmin$, teamAdmin$, of$(isCreator), of$(isSystemAdmin(user.roles || ''))]).pipe(
+                switchMap(([chAdm, teamAdm, creator, sysAdm]) =>
+                    of$(Boolean(creator || chAdm || teamAdm || sysAdm)),
+                ),
+                distinctUntilChanged(),
+            );
         }),
         distinctUntilChanged(),
     );

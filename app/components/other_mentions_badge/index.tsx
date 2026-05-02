@@ -1,15 +1,13 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {StyleSheet, View} from 'react-native';
 
 import Badge from '@components/badge';
-import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {subscribeAllServers} from '@database/subscription/servers';
 import {subscribeMentionsByServer} from '@database/subscription/unreads';
-import useDidMount from '@hooks/did_mount';
 
 import type ServersModel from '@typings/database/models/app/servers';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
@@ -53,10 +51,7 @@ const OtherMentionsBadge = ({channelId}: Props) => {
                 }
             }
 
-            unreads.mentions = mentions;
-            if (serverUrl !== currentServerUrl || channelId !== Screens.GLOBAL_THREADS) {
-                unreads.mentions += threadMentionCount;
-            }
+            unreads.mentions = mentions + threadMentionCount;
             subscriptions.set(serverUrl, unreads);
             updateCount();
         }
@@ -87,7 +82,7 @@ const OtherMentionsBadge = ({channelId}: Props) => {
         }
     };
 
-    useDidMount(() => {
+    useEffect(() => {
         const subscription = subscribeAllServers(serversObserver);
 
         return () => {
@@ -97,7 +92,7 @@ const OtherMentionsBadge = ({channelId}: Props) => {
             });
             subscriptions.clear();
         };
-    });
+    }, []);
 
     return (
         <View style={styles.container}>
