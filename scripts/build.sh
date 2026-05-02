@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 
+# 是否应用 16KB 页面大小补丁的标志，默认为 false
+APPLY_16KB_PATCH=false
+
 function execute() {
     cd fastlane && NODE_ENV=production bundle exec fastlane $1 $2
 }
 
 function cleanupAndroid16kbPagesizePatch() {
-  # Only cleanup if we ran setup (SKIP_SETUP not set)
-  if [[ -z "$SKIP_SETUP" ]]; then
+  # Only cleanup if we ran setup (SKIP_SETUP not set) and actually applied the patch
+  if [[ -z "$SKIP_SETUP" && "$APPLY_16KB_PATCH" == "true" ]]; then
     echo "Reverting 16KB page size patch changes..."
     # Get the git root directory to ensure we're in the right place
     local git_root=$(git rev-parse --show-toplevel)
     cd "$git_root" || return
-    git checkout -- package.json package-lock.json app.json app/components/expo_image/index.tsx android/buildscript-gradle.lockfile patches/
-    git clean -fd patches/
+    git checkout -- package.json package-lock.json app.json ios/Podfile.lock android/app/src/main/AndroidManifest.xml app/components/expo_image/index.tsx android/buildscript-gradle.lockfile patches/
+    git clean -fd patches/ package.json.orig android/app/src/main/assets/index.android.bundle
     echo "✓ Patch changes reverted"
   fi
 }
@@ -72,11 +75,11 @@ function setup() {
         npm install --ignore-scripts || exit 1
         
         # Apply 16KB page size patch for Android builds (includes npx patch-package)
-        if [[ "$1" == "android"* ]]; then
+        if [[ "$1" == "android"* && "$APPLY_16KB_PATCH" == "true" ]]; then
           echo "Applying 16KB page size compatibility patch for Android"
           npm run apply-16kb-pagesize-patch || exit 1
         else
-          # For non-Android builds, just apply regular patches
+          # For non-Android builds or when patch disabled, just apply regular patches
           npx patch-package || exit 1
         fi
         
@@ -120,13 +123,43 @@ function setup() {
     fi
 }
 
-case $1 in
+# 解析命令行参数
+BUILD_TYPE=""
+BUILD_SUBTYPE=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --16kb-patch)
+            APPLY_16KB_PATCH=true
+            shift
+            ;;
+        apk|ipa)
+            BUILD_TYPE="$1"
+            shift
+            if [[ "$#" -gt 0 && ! "$1" == "--"* ]]; then
+                BUILD_SUBTYPE="$1"
+                shift
+            fi
+            ;;
+        *)
+            # 处理其他参数
+            if [[ -z "$BUILD_TYPE" ]]; then
+                BUILD_TYPE="$1"
+            elif [[ -z "$BUILD_SUBTYPE" && ! "$1" == "--"* ]]; then
+                BUILD_SUBTYPE="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+case $BUILD_TYPE in
   apk)
-    apk $2
+    apk $BUILD_SUBTYPE
   ;;
   ipa)
     if [[ "$OSTYPE" == "darwin"* ]]; then
-      ipa $2
+      ipa $BUILD_SUBTYPE
     else
       echo "You need a MacOS to build the iOS mobile app"
       exit 1
@@ -134,7 +167,7 @@ case $1 in
   ;;
   *)
     echo "Build the mobile app for Android or iOS
-    Usage: build.sh <type> [options]
+    Usage: build.sh <type> [options] [--16kb-patch]
     
     Type:
       apk   Builds Android APK(s)
@@ -142,6 +175,9 @@ case $1 in
       
     Options:
       apk: unsigned
-      ipa: unsigned or simulator"
+      ipa: unsigned or simulator
+      
+    Additional Options:
+      --16kb-patch   Apply the 16KB page size compatibility patch for Android"
   ;;
 esac
