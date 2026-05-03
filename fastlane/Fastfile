@@ -687,6 +687,9 @@ platform :ios do
       
       # Use locale-specific app display name for CFBundleDisplayName (home screen name)
       display_name = json['mobile.app.display_name'] || app_name
+      if ENV['BETA_BUILD'] == 'true'
+        display_name = "#{display_name} Beta"
+      end
       display_name_escaped = display_name.gsub('"', '\"')
       plist_strings = "CFBundleDisplayName = \"#{display_name_escaped}\";\n" + plist_strings
 
@@ -749,8 +752,12 @@ platform :ios do
   end
 
   def build_ios
-    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
-    app_name_sub = app_name.gsub(" ", "_")
+    version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+    if ENV['BETA_BUILD'] == 'true'
+      output_base_name = "Optibot_Beta_#{version_number}"
+    else
+      output_base_name = "Optibot_#{version_number}"
+    end
     config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
     method = ENV['IOS_BUILD_EXPORT_METHOD'].nil? || ENV['IOS_BUILD_EXPORT_METHOD'].empty? ? 'ad-hoc' : ENV['IOS_BUILD_EXPORT_METHOD']
 
@@ -766,7 +773,7 @@ platform :ios do
         workspace: './ios/Mattermost.xcworkspace',
         export_method: method,
         skip_profile_detection: true,
-        output_name: "#{app_name_sub}.ipa",
+        output_name: "#{output_base_name}.ipa",
         export_xcargs: "-allowProvisioningUpdates",
         export_options: {
             signingStyle: 'manual',
@@ -850,6 +857,26 @@ platform :android do
         newName: app_name,
         stringsFile: './android/app/src/main/res/values/strings.xml'
     )
+
+    if ENV['BETA_BUILD'] == 'true'
+      android_change_string_app_name(
+        newName: "优小智 Beta",
+        stringsFile: './android/app/src/main/res/values-zh-rCN/strings.xml'
+      )
+      android_change_string_app_name(
+        newName: "優小智 Beta",
+        stringsFile: './android/app/src/main/res/values-zh-rTW/strings.xml'
+      )
+    else
+      android_change_string_app_name(
+        newName: "优小智",
+        stringsFile: './android/app/src/main/res/values-zh-rCN/strings.xml'
+      )
+      android_change_string_app_name(
+        newName: "優小智",
+        stringsFile: './android/app/src/main/res/values-zh-rTW/strings.xml'
+      )
+    end
 
     package_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.mattermost.rnbeta'
     android_change_package_identifier(newIdentifier: package_id, manifest: './android/app/src/main/AndroidManifest.xml')
@@ -992,8 +1019,12 @@ platform :android do
   end
 
   def move_android_to_root
-    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
-    app_name_sub = app_name.gsub(" ", "_")
+    version_name = android_get_version_name(gradle_file: './android/app/build.gradle')
+    if ENV['BETA_BUILD'] == 'true'
+      base_name = "Optibot_Beta_#{version_name}"
+    else
+      base_name = "Optibot_#{version_name}"
+    end
     build_task = ENV['ANDROID_BUILD_TASK'].nil? || ENV['ANDROID_BUILD_TASK'].empty? ? 'assemble' : ENV['ANDROID_BUILD_TASK']
     build_task = build_task.split(",")
 
@@ -1014,7 +1045,7 @@ platform :android do
         output = outputJson["elements"].find { |o| o["outputFile"] == filename }
         unless output.nil?
           filterName = output["filters"].empty? ? '' : output["filters"].first["value"]
-          name = "#{app_name_sub}"
+          name = "#{base_name}"
           unless filterName.nil? || filterName.empty?
             name += "-#{filterName}"
           end
@@ -1030,7 +1061,7 @@ platform :android do
 
     if build_task.include?("bundle")
       aab = lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
-      new_aab_path = "#{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/#{app_name_sub}.aab"
+      new_aab_path = "#{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/#{base_name}.aab"
       sh "mv #{aab} #{new_aab_path}"
       UI.message("AAB PATH \"#{new_aab_path}\"")
     end
