@@ -1,5 +1,7 @@
 PODS:
   - Alamofire (5.10.2)
+  - BayutVideoCompressor (1.0.1):
+    - ExpoModulesCore
   - BlueCryptor (1.0.32)
   - BlueECC (1.2.5)
   - BlueRSA (1.0.203)
@@ -10,6 +12,9 @@ PODS:
   - DoubleConversion (1.1.6)
   - EXApplication (6.0.2):
     - ExpoModulesCore
+  - EXAV (15.0.2):
+    - ExpoModulesCore
+    - ReactCommon/turbomodule/core
   - EXConstants (17.0.8):
     - ExpoModulesCore
   - Expo (52.0.47):
@@ -137,6 +142,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - mattermost-voice-recorder (0.0.0):
+    - React-Core
   - OpenGraph (1.4.1)
   - RCT-Folly (2024.11.18.00):
     - boost
@@ -1368,6 +1375,27 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-compressor (1.12.0):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-cookies (6.2.1):
     - React-Core
   - react-native-document-picker (9.3.1):
@@ -1550,9 +1578,51 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-view-shot (4.0.3):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-webrtc (124.0.5):
     - JitsiWebRTC (~> 124.0.0)
     - React-Core
+  - react-native-webview (13.16.1):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - React-nativeconfig (0.77.3)
   - React-NativeModulesApple (0.77.3):
     - glog
@@ -2203,16 +2273,24 @@ PODS:
   - SwiftyJSON (5.0.2)
   - TurboLogIOSNative (0.1.0):
     - CocoaLumberjack (~> 3.8.5)
+  - VisionCamera (4.7.3):
+    - VisionCamera/Core (= 4.7.3)
+    - VisionCamera/React (= 4.7.3)
+  - VisionCamera/Core (4.7.3)
+  - VisionCamera/React (4.7.3):
+    - React-Core
   - WatermelonDB (0.28.1-0):
     - React
     - simdjson
   - Yoga (0.0.0)
 
 DEPENDENCIES:
+  - BayutVideoCompressor (from `../node_modules/expo-image-and-video-compressor/ios`)
   - boost (from `../node_modules/react-native/third-party-podspecs/boost.podspec`)
   - CocoaLumberjack
   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
   - EXApplication (from `../node_modules/expo-application/ios`)
+  - EXAV (from `../node_modules/expo-av/ios`)
   - EXConstants (from `../node_modules/expo-constants/ios`)
   - Expo (from `../node_modules/expo`)
   - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
@@ -2230,9 +2308,11 @@ DEPENDENCIES:
   - Gekidou (from `./Gekidou`)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - JitsiWebRTC (from `./JitsiWebRTC-Local.podspec`)
   - "mattermost-hardware-keyboard (from `../node_modules/@mattermost/hardware-keyboard`)"
   - "mattermost-react-native-turbo-log (from `../node_modules/@mattermost/react-native-turbo-log`)"
   - "mattermost-rnutils (from `../node_modules/@mattermost/rnutils`)"
+  - "mattermost-voice-recorder (from `../node_modules/@mattermost/voice-recorder`)"
   - OpenGraph (= 1.4.1)
   - RCT-Folly (from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCT-Folly/Fabric (from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
@@ -2268,6 +2348,7 @@ DEPENDENCIES:
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-background-timer (from `../node_modules/react-native-background-timer`)
   - "react-native-cameraroll (from `../node_modules/@react-native-camera-roll/camera-roll`)"
+  - react-native-compressor (from `../node_modules/react-native-compressor`)
   - "react-native-cookies (from `../node_modules/@react-native-cookies/cookies`)"
   - react-native-document-picker (from `../node_modules/react-native-document-picker`)
   - "react-native-emm (from `../node_modules/@mattermost/react-native-emm`)"
@@ -2280,7 +2361,9 @@ DEPENDENCIES:
   - react-native-performance (from `../node_modules/react-native-performance`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-video (from `../node_modules/react-native-video`)
+  - react-native-view-shot (from `../node_modules/react-native-view-shot`)
   - react-native-webrtc (from `../node_modules/react-native-webrtc`)
+  - react-native-webview (from `../node_modules/react-native-webview`)
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-perflogger (from `../node_modules/react-native/ReactCommon/reactperflogger`)
@@ -2328,10 +2411,12 @@ DEPENDENCIES:
   - RNShare (from `../node_modules/react-native-share`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
+  - SDWebImage (from `../net-cache-resources/SDWebImage`)
   - "secure-pdf-viewer (from `../node_modules/@mattermost/secure-pdf-viewer`)"
   - Sentry/HybridSDK (= 8.48.0)
   - "simdjson (from `../node_modules/@nozbe/simdjson`)"
   - TurboLogIOSNative (from `https://github.com/larkox/react-native-turbo-log-ios-native.git`)
+  - VisionCamera (from `../node_modules/react-native-vision-camera`)
   - "WatermelonDB (from `../node_modules/@nozbe/watermelondb`)"
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2343,12 +2428,10 @@ SPEC REPOS:
     - BlueRSA
     - CocoaLumberjack
     - HMSegmentedControl
-    - JitsiWebRTC
     - KituraContracts
     - LoggerAPI
     - Logging
     - OpenGraph
-    - SDWebImage
     - SDWebImageSVGCoder
     - Sentry
     - SocketRocket
@@ -2358,12 +2441,16 @@ SPEC REPOS:
     - SwiftyJSON
 
 EXTERNAL SOURCES:
+  BayutVideoCompressor:
+    :path: "../node_modules/expo-image-and-video-compressor/ios"
   boost:
     :podspec: "../node_modules/react-native/third-party-podspecs/boost.podspec"
   DoubleConversion:
     :podspec: "../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec"
   EXApplication:
     :path: "../node_modules/expo-application/ios"
+  EXAV:
+    :path: "../node_modules/expo-av/ios"
   EXConstants:
     :path: "../node_modules/expo-constants/ios"
   Expo:
@@ -2399,12 +2486,16 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-2024-11-25-RNv0.77.0-d4f25d534ab744866448b36ca3bf3d97c08e638c
+  JitsiWebRTC:
+    :podspec: "./JitsiWebRTC-Local.podspec"
   mattermost-hardware-keyboard:
     :path: "../node_modules/@mattermost/hardware-keyboard"
   mattermost-react-native-turbo-log:
     :path: "../node_modules/@mattermost/react-native-turbo-log"
   mattermost-rnutils:
     :path: "../node_modules/@mattermost/rnutils"
+  mattermost-voice-recorder:
+    :path: "../node_modules/@mattermost/voice-recorder"
   RCT-Folly:
     :podspec: "../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec"
   RCTDeprecation:
@@ -2469,6 +2560,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-background-timer"
   react-native-cameraroll:
     :path: "../node_modules/@react-native-camera-roll/camera-roll"
+  react-native-compressor:
+    :path: "../node_modules/react-native-compressor"
   react-native-cookies:
     :path: "../node_modules/@react-native-cookies/cookies"
   react-native-document-picker:
@@ -2493,8 +2586,12 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-video:
     :path: "../node_modules/react-native-video"
+  react-native-view-shot:
+    :path: "../node_modules/react-native-view-shot"
   react-native-webrtc:
     :path: "../node_modules/react-native-webrtc"
+  react-native-webview:
+    :path: "../node_modules/react-native-webview"
   React-nativeconfig:
     :path: "../node_modules/react-native/ReactCommon"
   React-NativeModulesApple:
@@ -2589,12 +2686,16 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-svg"
   RNVectorIcons:
     :path: "../node_modules/react-native-vector-icons"
+  SDWebImage:
+    :path: "../net-cache-resources/SDWebImage"
   secure-pdf-viewer:
     :path: "../node_modules/@mattermost/secure-pdf-viewer"
   simdjson:
     :path: "../node_modules/@nozbe/simdjson"
   TurboLogIOSNative:
     :git: https://github.com/larkox/react-native-turbo-log-ios-native.git
+  VisionCamera:
+    :path: "../node_modules/react-native-vision-camera"
   WatermelonDB:
     :path: "../node_modules/@nozbe/watermelondb"
   Yoga:
@@ -2607,6 +2708,7 @@ CHECKOUT OPTIONS:
 
 SPEC CHECKSUMS:
   Alamofire: 7193b3b92c74a07f85569e1a6c4f4237291e7496
+  BayutVideoCompressor: 1aa26185036a6197d9501331585a9378ea1ba3a5
   BlueCryptor: b0aee3d9b8f367b49b30de11cda90e1735571c24
   BlueECC: 0d18e93347d3ec6d41416de21c1ffa4d4cd3c2cc
   BlueRSA: 893ae5412de48a508a487067564dbcf9cd49df71
@@ -2614,6 +2716,7 @@ SPEC CHECKSUMS:
   CocoaLumberjack: 6a459bc897d6d80bd1b8c78482ec7ad05dffc3f0
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
   EXApplication: 4c72f6017a14a65e338c5e74fca418f35141e819
+  EXAV: 4c41f0a6ae54a0b96597abc90e37962ab2ee0d85
   EXConstants: fcfc75800824ac2d5c592b5bc74130bad17b146b
   Expo: 1687edb10c76b0c0f135306d6ae245379f50ed54
   ExpoCrypto: e97e864c8d7b9ce4a000bca45dddb93544a1b2b4
@@ -2632,13 +2735,14 @@ SPEC CHECKSUMS:
   glog: eb93e2f488219332457c3c4eafd2738ddc7e80b8
   hermes-engine: b2187dbe13edb0db8fcb2a93a69c1987a30d98a4
   HMSegmentedControl: 34c1f54d822d8308e7b24f5d901ec674dfa31352
-  JitsiWebRTC: b47805ab5668be38e7ee60e2258f49badfe8e1d0
+  JitsiWebRTC: e8f33f1220061e4c8d19135aeec8d8b404d05fe5
   KituraContracts: e845e60dc8627ad0a76fa55ef20a45451d8f830b
   LoggerAPI: ad9c4a6f1e32f518fdb43a1347ac14d765ab5e3d
   Logging: beeb016c9c80cf77042d62e83495816847ef108b
   mattermost-hardware-keyboard: 0c8667d54bbed7750ff8d871df24fce251b9c65b
   mattermost-react-native-turbo-log: d10819ce30f49743c6f6a0682791f6a59032fdda
   mattermost-rnutils: 74d780b576a5fc82b51582a23eb7fe72d4174168
+  mattermost-voice-recorder: 91bc6ab4b8ae962f640da4e493628843d25e7692
   OpenGraph: 596722bb7f112d2dabcdb284cb817f01341a7540
   RCT-Folly: e78785aa9ba2ed998ea4151e314036f6c49e6d82
   RCTDeprecation: 6ee92578d332db1d4e03267d3ae98bcf8b780863
@@ -2672,6 +2776,7 @@ SPEC CHECKSUMS:
   React-microtasksnativemodule: 5a6ce850fb68e542a7b312f396d88aff0d978f67
   react-native-background-timer: 4638ae3bee00320753647900b21260b10587b6f7
   react-native-cameraroll: 9f7159bae7c7b02db8815dc1591d01dc0f527d9a
+  react-native-compressor: ce10369d6d2a110c54e66be9dc8ccec1769c4e31
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
   react-native-document-picker: 3ffdb92f95177227477077cfebabf429ad4e73a4
   react-native-emm: 0873c06dc36ac2b68b398726e5a8e2a8d47da929
@@ -2684,7 +2789,9 @@ SPEC CHECKSUMS:
   react-native-performance: 125a96c145e29918b55b45ce25cbba54f1e24dcd
   react-native-safe-area-context: fdb0a66feac038cb6eb1edafcf2ccee2b5cf0284
   react-native-video: a14da2187cff9998fbb8fa94e0e04f41e5d9f794
+  react-native-view-shot: 4ec5c3a378bbbafd6fc1827285bcced97ed0b648
   react-native-webrtc: 62659d18a13f6b50ad95c99a9a48cf9872a15815
+  react-native-webview: ff636433437b4c4cacea56fd43e3fb3f6ce94030
   React-nativeconfig: 29f53f7caa03e1d3f49396320f4f055ae42ab8db
   React-NativeModulesApple: 1fe64d61396453d56ee3965c0adf2f3284c92a8b
   React-perflogger: 1f83401f01544142b32151ef6c66870455c64994
@@ -2732,7 +2839,7 @@ SPEC CHECKSUMS:
   RNShare: 00db4cab5617bdb61be403458dccfa29f19c7b1d
   RNSVG: 67de7abef81f367387b708ba6d2acefe7d4f5895
   RNVectorIcons: 68661e35101c98d574fa61a326d2043aec3e049a
-  SDWebImage: 8a6b7b160b4d710e2a22b6900e25301075c34cb3
+  SDWebImage: a4f25d7c8a6be3d3fc0b662267898c316896c0ee
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   secure-pdf-viewer: c6cc439b002967a7541be2c563c3719be4ef126d
   Sentry: 1ca8405451040482877dcd344dfa3ef80b646631
@@ -2743,9 +2850,10 @@ SPEC CHECKSUMS:
   SwiftJWT: 88c412708f58c169d431d344c87bc79a87c830ae
   SwiftyJSON: f5b1bf1cd8dd53cd25887ac0eabcfd92301c6a5a
   TurboLogIOSNative: 45f6d20ba17ee39f8106e718e93baf43b2d76b7b
+  VisionCamera: 7187b3dac1ff3071234ead959ce311875748e14f
   WatermelonDB: 4c846c8cb94eef3cba90fa034d15310163226703
   Yoga: 2b02f3f767761bb4ffd25b1bb56fd264be57bd6b
 
-PODFILE CHECKSUM: 65f5721fd74a068496007fbab16c3a07600ac04f
+PODFILE CHECKSUM: f126221608283313038663dc7c9b8043a10f1ff7
 
 COCOAPODS: 1.16.1

@@ -4,6 +4,7 @@ package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
 
 Pod::Spec.new do |s|
   s.name         = "mattermost-voice-recorder"
+  s.module_name  = "VoiceRecorder"
   s.version      = package['version']
   s.summary      = "Native voice recorder for Mattermost app"
   s.license      = package['license']
@@ -17,11 +18,19 @@ Pod::Spec.new do |s|
 
   s.dependency "React-Core"
 
+  s.pod_target_xcconfig = {
+    "USE_HEADERMAP" => "YES",
+    "DEFINES_MODULE" => "YES",
+    "SWIFT_INSTALL_OBJC_HEADER" => "YES",
+    "SWIFT_OBJC_INTERFACE_HEADER_NAME" => "VoiceRecorder-Swift.h",
+    "HEADER_SEARCH_PATHS" => "\"${PODS_CONFIGURATION_BUILD_DIR}/mattermost-voice-recorder/Swift Compatibility Header\"",
+  }
+
   # Don't install the dependencies when we run `pod install` in the old architecture.
   if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
     s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
     s.pod_target_xcconfig    = {
-        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
+        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\" \"${PODS_CONFIGURATION_BUILD_DIR}/mattermost-voice-recorder/Swift Compatibility Header\"",
         "OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1",
         "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
     }
