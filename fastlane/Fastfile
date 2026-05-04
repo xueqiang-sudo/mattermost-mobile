@@ -336,7 +336,7 @@ lane :upload_file_to_s3 do |options|
                         })
     end
 
-    if options[:file]&.start_with?('Mattermost-simulator-') && options[:file]&.end_with?('.app.zip')
+    if options[:file]&.start_with?('Optibot_') && options[:file]&.end_with?('.app.zip')
       pretext = '#### New iOS build for VM/Simulator'
       msg = "Download link: #{links.first}"
       send_message_to_mattermost({
@@ -364,13 +364,13 @@ lane :github do
     build = android_get_version_code(gradle_file: './android/app/build.gradle')
     changelog = File.read("metadata/changelog")
     android = [
-      "    * [Mattermost arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-arm64-v8a.apk)",
-      "    * [Mattermost armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-armeabi-v7a.apk)",
-      "    * [Mattermost x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-x86.apk)",
-      "    * [Mattermost x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-x86_64.apk)",
+      "    * [Optibot arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-arm64-v8a.apk)",
+      "    * [Optibot armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-armeabi-v7a.apk)",
+      "    * [Optibot x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86.apk)",
+      "    * [Optibot x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86_64.apk)",
     ]
     changelog.concat("* Android\n#{android.join("\n")}\n")
-    changelog.concat("* iOS\n    * [Mattermost](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost.ipa)")
+    changelog.concat("* iOS\n    * [Optibot](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}.ipa)")
 
     github_release = set_github_release(
       repository_name: "mattermost/mattermost-mobile",
@@ -378,7 +378,7 @@ lane :github do
       name: "Mobile Version #{version}",
       tag_name: tag,
       description: changelog,
-      upload_assets: ["./Mattermost-unsigned.ipa", "./Mattermost-unsigned.apk"],
+      upload_assets: ["./Optibot_#{version}-unsigned.ipa", "./Optibot_#{version}-unsigned.apk"],
       is_draft: true
     )
   end
@@ -425,10 +425,17 @@ platform :ios do
     update_settings
     replace_assets
 
+    version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+    if ENV['BETA_BUILD'] == 'true'
+      output_name = "Optibot_Beta_#{version_number}-unsigned.ipa"
+    else
+      output_name = "Optibot_#{version_number}-unsigned.ipa"
+    end
+
     build_ios_unsigned_or_simulator(
       more_xc_args: "-sdk iphoneos CODE_SIGNING_ALLOWED=NO",
       rel_build_dir: "Release-iphoneos",
-      output_file: "Mattermost-unsigned.ipa",
+      output_file: output_name,
     )
   end
 
@@ -439,12 +446,13 @@ platform :ios do
     host_arch = `uname -m`.strip
 
     # Use arm64 for Apple Silicon (arm64), x86_64 for Intel
+    version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
     if host_arch == "arm64"
       build_arch = "arm64"
-      output_file = "Mattermost-simulator-arm64.app.zip"
+      output_file = "Optibot_#{version_number}-simulator-arm64.app.zip"
     else
       build_arch = "x86_64"
-      output_file = "Mattermost-simulator-x86_64.app.zip"
+      output_file = "Optibot_#{version_number}-simulator-x86_64.app.zip"
     end
 
     UI.message("Building for #{build_arch} architecture on #{host_arch} host")
@@ -481,7 +489,7 @@ platform :ios do
 
   lane :update_settings do
     # Configure Main app settings
-    app_name = ENV['APP_NAME'] || 'Optibot Beta'
+    app_name = ENV['APP_NAME'] || 'Optibot'
     app_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.mattermost.rnbeta'
     app_group_id = ENV['IOS_APP_GROUP'] || 'group.com.mattermost.rnbeta'
     icloud_container = ENV['IOS_ICLOUD_CONTAINER'] || 'iCloud.com.mattermost.rnbeta'
@@ -662,7 +670,7 @@ platform :ios do
       sh 'cp -R ../dist/assets/release/splash_screen/ios/SplashIcon.imageset ../ios/Mattermost/Images.xcassets/'
     end
 
-    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
+    app_name =  ENV['APP_NAME'] || 'Optibot'
     localization_base_path = '../dist/assets/i18n/'
     Dir.glob('*.json', base: localization_base_path) do |item|
       localization_file = File.read(localization_base_path + item)
@@ -835,7 +843,14 @@ platform :android do
         project_dir: 'android/'
     )
 
-    sh "mv #{lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]} #{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/Mattermost-unsigned.apk"
+    version_name = android_get_version_name(gradle_file: './android/app/build.gradle')
+    if ENV['BETA_BUILD'] == 'true'
+      output_name = "Optibot_Beta_#{version_name}-unsigned.apk"
+    else
+      output_name = "Optibot_#{version_name}-unsigned.apk"
+    end
+
+    sh "mv #{lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]} #{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/#{output_name}"
   end
 
   desc 'Upload artifacts to S3'
@@ -851,7 +866,7 @@ platform :android do
 
   lane :update_identifiers do
     # Set the name for the app
-    app_name =  ENV['APP_NAME'] || 'Optibot Beta'
+    app_name =  ENV['APP_NAME'] || 'Optibot'
     sh "echo '#{app_name}' > ../fastlane/metadata/android/en-US/title.txt"
     android_change_string_app_name(
         newName: app_name,
