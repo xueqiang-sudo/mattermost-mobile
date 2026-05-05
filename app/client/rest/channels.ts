@@ -10,9 +10,8 @@ import type ClientBase from './base';
 export interface ClientChannelsMix {
     getAllChannels: (page?: number, perPage?: number, notAssociatedToGroup?: string, excludeDefaultChannels?: boolean, includeTotalCount?: boolean) => Promise<any>;
     createChannel: (channel: Channel) => Promise<Channel>;
-    createDirectChannel: (userIds: string[], teamId?: string) => Promise<Channel>;
-    createGroupChannel: (userIds: string[], teamId?: string) => Promise<Channel>;
-    getTeamDirectGroupChannels: (teamId: string) => Promise<Channel[]>;
+    createDirectChannel: (userIds: string[]) => Promise<Channel>;
+    createGroupChannel: (userIds: string[]) => Promise<Channel>;
     deleteChannel: (channelId: string, permanent?: boolean) => Promise<any>;
     unarchiveChannel: (channelId: string) => Promise<Channel>;
     updateChannel: (channel: Channel) => Promise<Channel>;
@@ -98,31 +97,17 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         );
     };
 
-    /**
-     * 创建私聊频道（支持可选的 team_id 归属企业）
-     */
-    createDirectChannel = async (userIds: string[], teamId?: string) => {
-        const body: {user_ids: string[]; team_id?: string} = {user_ids: userIds};
-        if (teamId) {
-            body.team_id = teamId;
-        }
+    createDirectChannel = async (userIds: string[]) => {
         return this.doFetch(
             `${this.getChannelsRoute()}/direct`,
-            {method: 'post', body},
+            {method: 'post', body: userIds},
         );
     };
 
-    /**
-     * 创建讨论组频道（支持可选的 team_id 归属企业）
-     */
-    createGroupChannel = async (userIds: string[], teamId?: string) => {
-        const body: {user_ids: string[]; team_id?: string} = {user_ids: userIds};
-        if (teamId) {
-            body.team_id = teamId;
-        }
+    createGroupChannel = async (userIds: string[]) => {
         return this.doFetch(
             `${this.getChannelsRoute()}/group`,
-            {method: 'post', body},
+            {method: 'post', body: userIds},
         );
     };
 
@@ -403,16 +388,6 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         return this.doFetch(
             `${this.getChannelRoute(channelId)}/convert_to_channel?team-id=${teamId}`,
             {method: 'post', body},
-        );
-    };
-
-    /**
-     * 获取指定企业下的所有私聊和讨论组频道
-     */
-    getTeamDirectGroupChannels = async (teamId: string) => {
-        return this.doFetch(
-            `${this.getTeamRoute(teamId)}/channels/direct-group`,
-            {method: 'get'},
         );
     };
 };

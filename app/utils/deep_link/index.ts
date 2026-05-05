@@ -103,7 +103,7 @@ export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: Int
                 }
 
                 if (userId) {
-                    makeDirectChannel(existingServerUrl, userId, '', true, undefined);
+                    makeDirectChannel(existingServerUrl, userId, '', true);
                 } else {
                     errorUnkownUser(intl);
                 }

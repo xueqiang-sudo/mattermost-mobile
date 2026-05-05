@@ -20,9 +20,9 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import SecurityManager from '@managers/security_manager';
 import {
-    observeMyArchivedGroupMessageChannelsForCurrentTeam,
+    observeMyArchivedGroupMessageChannels,
     observeMyArchivedTeamChannelsForCurrentTeam,
-    observeMyGroupMessageChannelsForCurrentTeam,
+    observeMyGroupMessageChannels,
     observeMyJoinedTeamChannelsForCurrentTeam,
     sortChannelsForJoinedArchivedList,
 } from '@queries/servers/channel';
@@ -482,14 +482,14 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
         switchMap(([channels, tmIds]) => of$(removeChannelsFromArchivedTeams(channels, tmIds))),
     );
 
-    const groupMessages = observeMyGroupMessageChannelsForCurrentTeam(database);
+    const groupMessages = observeMyGroupMessageChannels(database);
 
     const archivedTeamChannels = observeMyArchivedTeamChannelsForCurrentTeam(database).pipe(
         combineLatestWith(teamIds),
         switchMap(([channels, tmIds]) => of$(removeChannelsFromArchivedTeams(channels, tmIds))),
     );
 
-    const archivedGmCandidates = observeMyArchivedGroupMessageChannelsForCurrentTeam(database);
+    const archivedGmCandidates = observeMyArchivedGroupMessageChannels(database);
 
     const currentTeamId = observeCurrentTeamId(database).pipe(
         map((id) => id || ''),

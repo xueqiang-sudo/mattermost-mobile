@@ -10,7 +10,7 @@ import {observeArchiveChannelsByTerm, observeDirectChannelsByTerm, observeJoined
 import {observeConfigValue, observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams} from '@queries/servers/team';
 import {observeTeammateNameDisplay} from '@queries/servers/user';
-import {filterChannelsToCurrentTeam, removeChannelsFromArchivedTeams, retrieveChannels} from '@screens/find_channels/utils';
+import {removeChannelsFromArchivedTeams, retrieveChannels} from '@screens/find_channels/utils';
 
 import FilteredList, {MAX_RESULTS} from './filtered_list';
 
@@ -42,8 +42,6 @@ const enhanced = withObservables(['term'], ({database, term}: EnhanceProps) => {
         }),
         combineLatestWith(teamIds),
         switchMap(([myChannels, tmIds]) => of$(removeChannelsFromArchivedTeams(myChannels, tmIds))),
-        combineLatestWith(currentTeamId$),
-        switchMap(([channels, teamId]) => of$(filterChannelsToCurrentTeam(channels, teamId))),
     );
 
     const channelsMatch = joinedChannelsMatch.pipe(
@@ -51,8 +49,6 @@ const enhanced = withObservables(['term'], ({database, term}: EnhanceProps) => {
         switchMap((matched) => retrieveChannels(database, matched.flat(), true)),
         combineLatestWith(teamIds),
         switchMap(([myChannels, tmIds]) => of$(removeChannelsFromArchivedTeams(myChannels, tmIds))),
-        combineLatestWith(currentTeamId$),
-        switchMap(([channels, teamId]) => of$(filterChannelsToCurrentTeam(channels, teamId))),
     );
 
     const archivedChannels = currentTeamId$.pipe(

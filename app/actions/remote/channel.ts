@@ -868,10 +868,7 @@ export async function goToNPSChannel(serverUrl: string) {
     return {};
 }
 
-/**
- * 创建私聊频道（支持可选的 team_id 归属企业）
- */
-export async function createDirectChannel(serverUrl: string, userId: string, displayName = '', teamId?: string) {
+export async function createDirectChannel(serverUrl: string, userId: string, displayName = '') {
     try {
         EphemeralStore.creatingDMorGMTeammates = [userId];
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -882,19 +879,14 @@ export async function createDirectChannel(serverUrl: string, userId: string, dis
         }
 
         const channelName = getDirectChannelName(currentUser.id, userId);
-        const channel = await getChannelByName(database, teamId || '', channelName);
+        const channel = await getChannelByName(database, '', channelName);
         if (channel) {
             openChannelIfNeeded(serverUrl, channel.id);
             return {data: channel.toApi()};
         }
 
-        const created = await client.createDirectChannel([userId, currentUser.id], teamId);
+        const created = await client.createDirectChannel([userId, currentUser.id]);
         const profiles: UserProfile[] = [];
-
-        // 确保 team_id 被正确设置
-        if (teamId) {
-            created.team_id = teamId;
-        }
 
         if (displayName) {
             created.display_name = displayName;
@@ -934,7 +926,7 @@ export async function createDirectChannel(serverUrl: string, userId: string, dis
             models.push(...preferenceModels.preferences);
         }
 
-        const channelPromises = await prepareMyChannelsForTeam(operator, teamId || '', [created], [member, {...member, user_id: userId}]);
+        const channelPromises = await prepareMyChannelsForTeam(operator, '', [created], [member, {...member, user_id: userId}]);
         if (channelPromises.length) {
             const channelModels = await Promise.all(channelPromises);
             const flattenedChannelModels = channelModels.flat();
@@ -977,20 +969,17 @@ export async function fetchChannels(serverUrl: string, teamId: string, page = 0,
     }
 }
 
-/**
- * 快速创建或切换到私聊频道
- */
-export async function makeDirectChannel(serverUrl: string, userId: string, displayName = '', shouldSwitchToChannel = true, teamId?: string) {
+export async function makeDirectChannel(serverUrl: string, userId: string, displayName = '', shouldSwitchToChannel = true) {
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentUserId = await getCurrentUserId(database);
         const channelName = getDirectChannelName(userId, currentUserId);
-        let channel: Channel|ChannelModel|undefined = await getChannelByName(database, teamId || '', channelName);
+        let channel: Channel|ChannelModel|undefined = await getChannelByName(database, '', channelName);
         let result: {data?: Channel|ChannelModel; error?: any};
         if (channel) {
             result = {data: channel};
         } else {
-            result = await createDirectChannel(serverUrl, userId, displayName, teamId);
+            result = await createDirectChannel(serverUrl, userId, displayName);
             channel = result.data;
         }
 
@@ -1032,10 +1021,7 @@ export async function fetchArchivedChannels(serverUrl: string, teamId: string, p
     }
 }
 
-/**
- * 创建讨论组频道（支持可选的 team_id 归属企业）
- */
-export async function createGroupChannel(serverUrl: string, userIds: string[], teamId?: string) {
+export async function createGroupChannel(serverUrl: string, userIds: string[]) {
     try {
         EphemeralStore.creatingDMorGMTeammates = userIds;
         const client = NetworkManager.getClient(serverUrl);
@@ -1045,12 +1031,7 @@ export async function createGroupChannel(serverUrl: string, userIds: string[], t
             return {error: 'Cannot get the current user'};
         }
 
-        const created = await client.createGroupChannel(userIds, teamId);
-
-        // 确保 team_id 被正确设置
-        if (teamId) {
-            created.team_id = teamId;
-        }
+        const created = await client.createGroupChannel(userIds);
 
         // Check the channel previous existency: if the channel already have
         // posts is because it existed before.
@@ -1084,7 +1065,7 @@ export async function createGroupChannel(serverUrl: string, userIds: string[], t
         });
 
         if (directChannels?.length) {
-            const channelPromises = await prepareMyChannelsForTeam(operator, teamId || '', directChannels, members);
+            const channelPromises = await prepareMyChannelsForTeam(operator, '', directChannels, members);
             if (channelPromises.length) {
                 const channelModels = await Promise.all(channelPromises);
                 const models: Model[] = channelModels.flat();
@@ -1131,14 +1112,11 @@ export async function fetchSharedChannels(serverUrl: string, teamId: string, pag
     }
 }
 
-/**
- * 快速创建或切换到讨论组频道
- */
-export async function makeGroupChannel(serverUrl: string, userIds: string[], shouldSwitchToChannel = true, teamId?: string) {
+export async function makeGroupChannel(serverUrl: string, userIds: string[], shouldSwitchToChannel = true) {
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentUserId = await getCurrentUserId(database);
-        const result = await createGroupChannel(serverUrl, [currentUserId, ...userIds], teamId);
+        const result = await createGroupChannel(serverUrl, [currentUserId, ...userIds]);
         const channel = result.data;
 
         if (channel && shouldSwitchToChannel) {
@@ -1352,18 +1330,18 @@ export const permanentlyDeleteChannel = async (serverUrl: string, channelId: str
         EphemeralStore.addArchivingChannel(channelId);
         const client = NetworkManager.getClient(serverUrl);
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-
+        
         // Get channel before deleting
         const channel = await getChannelById(database, channelId);
         if (!channel) {
             return {error: `channel with id ${channelId} not found`};
         }
-
+        
         await client.deleteChannel(channelId, true);
-
+        
         // Prepare models for permanent deletion
         const modelsToDelete = await prepareDeleteChannel(serverUrl, channel);
-
+        
         // Delete records from database
         await operator.batchRecords(modelsToDelete, 'permanentlyDeleteChannel');
         

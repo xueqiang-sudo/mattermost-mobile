@@ -11,8 +11,6 @@ import OptionBox, {OPTIONS_HEIGHT} from '@components/option_box';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import DatabaseManager from '@database/manager';
-import {getCurrentTeamId} from '@queries/servers/system';
 import {dismissBottomSheet} from '@screens/navigation';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -61,9 +59,7 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
 
     const openChannel = useCallback(async () => {
         await dismissBottomSheet(Screens.USER_PROFILE);
-        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const teamId = await getCurrentTeamId(database);
-        const {data} = await createDirectChannel(serverUrl, userId, '', teamId);
+        const {data} = await createDirectChannel(serverUrl, userId);
         if (data) {
             switchToChannelById(serverUrl, data.id);
         }
