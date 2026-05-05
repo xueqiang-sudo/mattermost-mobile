@@ -31,5 +31,10 @@
 
     "ExperimentalNormalizeMarkdownLinks": false,
     "CustomRequestHeaders": {},
-    "CollectNetworkMetrics": false
+    "CollectNetworkMetrics": false,
+
+    "EnableAppUpdateCheck": true,
+    "AppUpdateCheckUrl": "",
+    "AppStoreIdIOS": "",
+    "PackageNameAndroid": "com.mattermost.rn"
 }

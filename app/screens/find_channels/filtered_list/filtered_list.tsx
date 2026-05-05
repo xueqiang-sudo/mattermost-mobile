@@ -16,8 +16,8 @@ import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useDebounce} from '@hooks/utils';
-import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {sortChannelsByDisplayName} from '@utils/channel';
+import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {username2Nickname} from '@utils/user';
 
 import type {FindChannelsCategory} from '@screens/find_channels/category_tabs';
@@ -123,10 +123,16 @@ const FilteredList = ({
                 if (channels) {
                     const existingChannelIds = new Set(channelsMatchStart.concat(channelsMatch).concat(archivedChannels).map((c) => c.id));
                     const [startWith, matches, archived] = channels.reduce<[Channel[], Channel[], Channel[]]>(([s, m, a], c) => {
-                        if (existingChannelIds.has(c.id) || !teamIds.has(c.team_id)) {
+                        if (existingChannelIds.has(c.id)) {
+                            return [s, m, a];
+                        }
+                        if (c.team_id && !teamIds.has(c.team_id)) {
                             return [s, m, a];
                         }
                         if (currentTeamId && c.team_id && c.team_id !== currentTeamId) {
+                            return [s, m, a];
+                        }
+                        if (!c.team_id && (c.type === General.DM_CHANNEL || c.type === General.GM_CHANNEL)) {
                             return [s, m, a];
                         }
                         if (!c.delete_at) {
@@ -180,7 +186,7 @@ const FilteredList = ({
 
     const onOpenDirectMessage = useCallback(async (u: UserProfile | UserModel) => {
         const displayName = username2Nickname(u, {locale});
-        const {data, error} = await makeDirectChannel(serverUrl, u.id, displayName, false);
+        const {data, error} = await makeDirectChannel(serverUrl, u.id, displayName, false, currentTeamId);
         if (error || !data) {
             Alert.alert(
                 '',
@@ -194,7 +200,7 @@ const FilteredList = ({
 
         await close();
         switchToChannelById(serverUrl, data.id);
-    }, [locale, serverUrl, close, formatMessage]);
+    }, [locale, serverUrl, close, formatMessage, currentTeamId]);
 
     const onSwitchToChannel = useCallback(async (c: Channel | ChannelModel) => {
         await close();

@@ -244,27 +244,27 @@ export default function CreateDirectMessage({
      * 创建私信频道
      */
     const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
-        const result = await makeDirectChannel(serverUrl, id);
+        const result = await makeDirectChannel(serverUrl, id, '', true, currentTeamId);
 
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.dm);
         }
 
         return !result.error;
-    }, [intl, serverUrl]);
+    }, [intl, serverUrl, currentTeamId]);
 
     /**
      * 创建群聊频道
      */
     const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
-        const result = await makeGroupChannel(serverUrl, ids);
+        const result = await makeGroupChannel(serverUrl, ids, true, currentTeamId);
 
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.gm);
         }
 
         return !result.error;
-    }, [intl, serverUrl]);
+    }, [intl, serverUrl, currentTeamId]);
 
     /**
      * 开始对话

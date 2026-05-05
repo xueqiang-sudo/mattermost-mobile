@@ -15,8 +15,8 @@ import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import CustomInputModal from '@components/custom_input_modal/custom_input_modal';
 import {useCustomInputModal} from '@components/custom_input_modal/use_custom_input_modal';
-import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {Events, Screens} from '@constants';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -24,10 +24,10 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
-import {getContactListDisplayName} from '@utils/contact_section';
 import {buildClipboardTextFromLines} from '@utils/contact_profile_clipboard';
-import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
+import {getContactListDisplayName} from '@utils/contact_section';
 import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/department_path';
+import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -428,7 +428,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         const displayName = getContactListDisplayName(employee);
-        const result = await makeDirectChannel(serverUrl, userId, displayName, true);
+        const result = await makeDirectChannel(serverUrl, userId, displayName, true, companyIdProp);
         setSending(false);
         if (result.error) {
             Alert.alert(
@@ -441,7 +441,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [serverUrl, sending, isSelf, resolveMattermostUserId, employee, intl, handleClose]));
+    }, [serverUrl, sending, isSelf, resolveMattermostUserId, employee, intl, handleClose, companyIdProp]));
 
     const canSendMessage = !isSelf && Boolean(employee.email || employee.id);
 
@@ -467,7 +467,7 @@ const ContactsEmployeeProfile = ({
             },
             {useBackIcon: true, topBar: {visible: false}},
         );
-    }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee.id, intl, handleClose]));
+    }, [canChangeDepartment, companyIdProp, departmentName, intl, departmentId, employee, handleClose]));
 
     const isSupplierCustomer = Boolean(relationType);
 
@@ -531,7 +531,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [isSupplierCustomer, relationType, deleting, employee.id, relationRemark, handleClose, intl, serverUrl, currentUserId]));
+    }, [isSupplierCustomer, deleting, relationType, intl, relationRemark, employee, serverUrl, currentUserId, handleClose]));
 
     const handleDeleteMember = usePreventDoubleTap(useCallback(async () => {
         if (isSupplierCustomer) {
@@ -571,7 +571,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [canDeleteEnterpriseMember, deleting, employee.id, companyIdProp, handleClose, intl, serverUrl]));
+    }, [isSupplierCustomer, canDeleteEnterpriseMember, deleting, serverUrl, companyIdProp, employee, handleClose, handleDeleteRelation, intl]));
 
     const handleCopyBasicInfo = usePreventDoubleTap(
         useCallback(() => {
@@ -613,9 +613,7 @@ const ContactsEmployeeProfile = ({
             }
             if (isSupplierCustomer && relationType) {
                 const typeLabel =
-                    relationType === 'supplier'
-                        ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'})
-                        : intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
+                    relationType === 'supplier'? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}): intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
                 lines.push({
                     label: intl.formatMessage({id: 'supplier_customer.type', defaultMessage: 'Type'}),
                     value: typeLabel,

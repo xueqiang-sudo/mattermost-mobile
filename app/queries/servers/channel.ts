@@ -13,7 +13,7 @@ import {sanitizeLikeString} from '@helpers/database';
 import EphemeralStore from '@store/ephemeral_store';
 import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
-import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
+import {isSystemAdmin} from '@utils/user';
 
 import {prepareDeletePost} from './post';
 import {queryRoles} from './role';
@@ -249,7 +249,7 @@ export const queryAllMyChannel = (database: Database) => {
 
 export const queryAllMyChannelsForTeam = (database: Database, teamId: string) => {
     return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(CHANNEL, Q.where('team_id', Q.oneOf([teamId, '']))),
+        Q.on(CHANNEL, Q.where('team_id', teamId)),
     );
 };
 
@@ -626,11 +626,15 @@ export function queryMyJoinedTeamChannelsForTeam(database: Database, teamId: str
     );
 }
 
-export function queryMyGroupMessageChannels(database: Database) {
+export function queryMyGroupMessageChannelsForTeam(database: Database, teamId: string) {
+    if (!teamId) {
+        return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
+    }
     return queryAllMyChannel(database).extend(
         Q.on(CHANNEL, Q.and(
             Q.where('delete_at', Q.eq(0)),
             Q.where('type', Q.eq(General.GM_CHANNEL)),
+            Q.where('team_id', Q.eq(teamId)),
         )),
         Q.sortBy('last_viewed_at', Q.desc),
     );
@@ -653,12 +657,16 @@ export function queryMyArchivedTeamChannelsForTeam(database: Database, teamId: s
     );
 }
 
-/** Archived group messages still in my_channels (delete_at > 0 on channel row). */
-export function queryMyArchivedGroupMessageChannels(database: Database) {
+/** Archived group messages still in my_channels (delete_at > 0 on channel row), scoped to one team. */
+export function queryMyArchivedGroupMessageChannelsForTeam(database: Database, teamId: string) {
+    if (!teamId) {
+        return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
+    }
     return queryAllMyChannel(database).extend(
         Q.on(CHANNEL, Q.and(
             Q.where('delete_at', Q.gt(0)),
             Q.where('type', Q.eq(General.GM_CHANNEL)),
+            Q.where('team_id', Q.eq(teamId)),
         )),
         Q.sortBy('last_viewed_at', Q.desc),
     );
@@ -684,11 +692,15 @@ export const observeMyJoinedTeamChannelsForCurrentTeam = (database: Database): O
     );
 };
 
-export const observeMyGroupMessageChannels = (database: Database): Observable<ChannelModel[]> => {
-    return observeChannelsForMyChannelsList(
-        database,
-        queryMyGroupMessageChannels(database).observeWithColumns(['last_viewed_at']),
-        true,
+/** Group message channels for current team (follows system current_team_id). */
+export const observeMyGroupMessageChannelsForCurrentTeam = (database: Database): Observable<ChannelModel[]> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((teamId) => observeChannelsForMyChannelsList(
+            database,
+            queryMyGroupMessageChannelsForTeam(database, teamId).observeWithColumns(['last_viewed_at']),
+            true,
+        )),
     );
 };
 
@@ -704,11 +716,15 @@ export const observeMyArchivedTeamChannelsForCurrentTeam = (database: Database):
     );
 };
 
-export const observeMyArchivedGroupMessageChannels = (database: Database): Observable<ChannelModel[]> => {
-    return observeChannelsForMyChannelsList(
-        database,
-        queryMyArchivedGroupMessageChannels(database).observeWithColumns(['last_viewed_at']),
-        true,
+/** Archived group message channels for current team (follows system current_team_id). */
+export const observeMyArchivedGroupMessageChannelsForCurrentTeam = (database: Database): Observable<ChannelModel[]> => {
+    return observeCurrentTeamId(database).pipe(
+        distinctUntilChanged(),
+        switchMap((teamId) => observeChannelsForMyChannelsList(
+            database,
+            queryMyArchivedGroupMessageChannelsForTeam(database, teamId).observeWithColumns(['last_viewed_at']),
+            true,
+        )),
     );
 };
 
@@ -738,29 +754,19 @@ export function parseUserIdsFromGroupedChannelName(channelName: string): string[
 }
 
 /**
- * Home "current team" conversation list: includes all channels bound to `teamId`, plus DMs/GMs with no team
- * (`team_id` empty). Does not require the other party or every GM member to appear in team membership,
- * so DMs/GMs are not dropped when the roster is incomplete.
+ * Home "current team" conversation list: includes all channels bound to `teamId`,
+ * plus DMs/GMs that have been explicitly associated with this team (team_id matches).
+ * Empty-team DM/GM (pre-migration) will NOT be included — they rely on migration to get team_id set.
  */
 export function channelBelongsToTeamScopedConversations(
     channel: ChannelModel,
     teamId: string,
-    currentUserId: string,
+    _currentUserId: string,
     _teamUserIds: ReadonlySet<string>,
     _gmMemberIdsByChannelId: ReadonlyMap<string, string[]>,
 ): boolean {
     const boundTeam = channel.teamId ?? '';
     if (boundTeam === teamId) {
-        return true;
-    }
-    if (channel.type === General.DM_CHANNEL && boundTeam === '') {
-        const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
-        if (!teammateId || teammateId === currentUserId) {
-            return false;
-        }
-        return true;
-    }
-    if (channel.type === General.GM_CHANNEL && boundTeam === '') {
         return true;
     }
     return false;
@@ -827,14 +833,12 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                     });
 
                     const values = [...channelMap.values()];
-                    const emptyTeamUserIds = new Set<string>();
-                    const emptyGmMembers = new Map<string, string[]>();
                     const filtered = values.filter(({channel}) => channelBelongsToTeamScopedConversations(
                         channel,
                         teamId,
                         currentUserId,
-                        emptyTeamUserIds,
-                        emptyGmMembers,
+                        new Set<string>(),
+                        new Map<string, string[]>(),
                     ));
                     return sortRecentConversationEntries(filtered);
                 }),

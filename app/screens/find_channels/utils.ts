@@ -4,7 +4,6 @@
 import {Database, Q} from '@nozbe/watermelondb';
 import {of as of$} from 'rxjs';
 
-import {General} from '@constants';
 import {MM_TABLES} from '@constants/database';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
@@ -37,16 +36,14 @@ export const removeChannelsFromArchivedTeams = (recentChannels: ChannelModel[], 
 };
 
 /**
- * 查找/最近列表：公开与私有频道仅保留当前团队（企业）；DM/GM 在模型上无 team_id，不做团队过滤。
+ * 查找/最近列表：仅保留当前团队（企业）的频道。
+ * DM/GM 如果已关联 team_id，也按企业过滤；未关联的空 team_id DM/GM 不显示。
  */
 export const filterChannelsToCurrentTeam = (channels: ChannelModel[], currentTeamId: string): ChannelModel[] => {
     if (!currentTeamId) {
         return channels;
     }
     return channels.filter((channel) => {
-        if (channel.type === General.DM_CHANNEL || channel.type === General.GM_CHANNEL) {
-            return true;
-        }
         return channel.teamId === currentTeamId;
     });
 };

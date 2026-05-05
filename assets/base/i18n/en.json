@@ -2096,5 +2096,13 @@
   "screens.channel_info.public_group_chat": "Public group chat info",
   "screens.channel_edit.public_group_chat": "Edit public group chat",
   "channel_info.purpose_empty_public": "No purpose description yet. You can add it under Edit public group chat.",
-  "channel_info.view_info_public": "Public group chat info"
+  "channel_info.view_info_public": "Public group chat info",
+  "mobile.update.force.title": "App Update Required",
+  "mobile.update.force.description": "A new version of the app is available. You must update to continue using this application.",
+  "mobile.update.force.button": "Update Now",
+  "mobile.update.suggest.title": "New Version Available",
+  "mobile.update.suggest.description": "A new version of the app is available. Update now to get the latest features and improvements.",
+  "mobile.update.suggest.button_update": "Update Now",
+  "mobile.update.suggest.button_later": "Later",
+  "mobile.update.error": "Failed to check for updates"
 }

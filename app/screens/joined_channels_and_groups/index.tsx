@@ -20,9 +20,9 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import SecurityManager from '@managers/security_manager';
 import {
-    observeMyArchivedGroupMessageChannels,
+    observeMyArchivedGroupMessageChannelsForCurrentTeam,
     observeMyArchivedTeamChannelsForCurrentTeam,
-    observeMyGroupMessageChannels,
+    observeMyGroupMessageChannelsForCurrentTeam,
     observeMyJoinedTeamChannelsForCurrentTeam,
     sortChannelsForJoinedArchivedList,
 } from '@queries/servers/channel';
@@ -57,9 +57,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     list: {
         flex: 1,
         marginTop: 8,
-    },
-    flashList: {
-        flex: 1,
     },
     empty: {
         ...typography('Body', 200, 'Regular'),
@@ -467,7 +464,6 @@ const JoinedChannelsAndGroups = ({
                             extraData={listExtraData}
                             keyExtractor={keyExtractor}
                             renderItem={renderItem}
-                            contentContainerStyle={styles.flashList}
                         />
                     </View>
                 )}
@@ -486,14 +482,14 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
         switchMap(([channels, tmIds]) => of$(removeChannelsFromArchivedTeams(channels, tmIds))),
     );
 
-    const groupMessages = observeMyGroupMessageChannels(database);
+    const groupMessages = observeMyGroupMessageChannelsForCurrentTeam(database);
 
     const archivedTeamChannels = observeMyArchivedTeamChannelsForCurrentTeam(database).pipe(
         combineLatestWith(teamIds),
         switchMap(([channels, tmIds]) => of$(removeChannelsFromArchivedTeams(channels, tmIds))),
     );
 
-    const archivedGmCandidates = observeMyArchivedGroupMessageChannels(database);
+    const archivedGmCandidates = observeMyArchivedGroupMessageChannelsForCurrentTeam(database);
 
     const currentTeamId = observeCurrentTeamId(database).pipe(
         map((id) => id || ''),

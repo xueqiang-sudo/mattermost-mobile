@@ -10,6 +10,7 @@ import {removePost} from '@actions/local/post';
 import {terminateSession} from '@actions/local/session';
 import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
+import {checkAndHandleUpdate} from '@actions/remote/update';
 import {logout} from '@actions/remote/session';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import LocalConfig from '@assets/config.json';
@@ -187,6 +188,14 @@ export const launchApp = async (props: LaunchProps) => {
                     );
                     return '';
                 }
+            }
+
+            // qgs: App版本更新检测，在进入首页前进行
+            logInfo('[Launch.startup] Checking app version update');
+            const canProceed = await checkAndHandleUpdate(serverUrl);
+            if (!canProceed) {
+                logInfo('[Launch.startup] Force update required, blocking home entry');
+                return '';
             }
 
             return launchToHome({...props, launchType, serverUrl});
