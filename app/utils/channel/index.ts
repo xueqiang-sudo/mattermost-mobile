@@ -33,12 +33,12 @@ export function isTypeDMorGM(channelType: ChannelType | undefined): boolean {
     return Boolean(channelType && DIRECT_TYPES.includes(channelType));
 }
 
-/** 一对一私聊（不含讨论组 GM）。 */
+/** 一对一私聊（不含群聊 GM）。 */
 export function isDirectMessageChannel(channelType: ChannelType | undefined): boolean {
     return channelType === General.DM_CHANNEL;
 }
 
-/** 使用「公告」编辑与展示体系的频道类型（P 群、讨论组、公开/企业频道、私聊）。 */
+/** 使用「公告」编辑与展示体系的频道类型（P 群、群聊、公开/企业频道、私聊）。 */
 export function channelSupportsAnnouncementUx(channelType: ChannelType | undefined): boolean {
     if (!channelType) {
         return false;
@@ -67,7 +67,7 @@ export function permissionForEditingChannelAnnouncement(channelType: ChannelType
 }
 
 /**
- * 讨论组（Mattermost GM）专用文案；P/O 类型群聊走「群聊」体系，勿与讨论组合用。
+ * 群聊（Mattermost GM）专用文案；P/O 类型内部群走「内部群」体系，勿与群聊合用。
  * @see `app/screens/channel/header/header.tsx` 标题角标
  */
 export function usesDiscussionGroupChannelCopy(channelType: ChannelType | undefined): boolean {

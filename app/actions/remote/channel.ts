@@ -273,7 +273,7 @@ export async function patchChannel(serverUrl: string, channelId: string, channel
         const channel = await getChannelById(database, channelData.id);
         if (channel && (channel.displayName !== channelData.display_name || channel.type !== channelData.type)) {
             channel.prepareUpdate((v) => {
-                // DM display name 由客户端格式化，不覆盖。GM 支持服务端自定义名称（群聊重命名）
+                // DM display name 由客户端格式化，不覆盖。GM 支持服务端自定义名称（内部群重命名）
                 if (channelData.type !== General.DM_CHANNEL) {
                     if (channelData.display_name?.trim()) {
                         v.displayName = channelData.display_name;

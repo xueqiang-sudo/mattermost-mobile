@@ -205,8 +205,8 @@ export default function ChannelInfoForm({
     const effectiveChannelType = channelType ?? type ?? '';
     const displayHeaderOnly = headerOnly || channelType === General.DM_CHANNEL || (channelType === General.GM_CHANNEL && !editing);
     const showCreateIntro = !editing && !displayHeaderOnly;
-    /** 群聊/讨论组编辑：「标题」即会话顶栏公告，与信息页公告重复，仅保留名称与用途。
-     *  公开群聊（OPEN_CHANNEL）同样不需要标题字段，公告通过信息页编辑。 */
+    /** 内部群/群聊编辑：「标题」即会话顶栏公告，与信息页公告重复，仅保留名称与用途。
+     *  公开内部群（OPEN_CHANNEL）同样不需要标题字段，公告通过信息页编辑。 */
     const hideHeaderField =
         (effectiveChannelType === General.PRIVATE_CHANNEL && !headerOnly) ||
         (effectiveChannelType === General.OPEN_CHANNEL && !headerOnly) ||

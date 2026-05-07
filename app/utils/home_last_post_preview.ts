@@ -177,7 +177,7 @@ export function getHomeLastPostPreviewText(
             return intl.formatMessage(mediaPreviewMessages.conversationNote, {text: trimmedHeader});
         }
 
-        // 群聊公告
+        // 内部群公告
         return intl.formatMessage(mediaPreviewMessages.announcement, {text: trimmedHeader});
 
     }

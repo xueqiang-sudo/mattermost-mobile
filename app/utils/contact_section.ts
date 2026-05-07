@@ -80,7 +80,7 @@ function compareSectionKeys(a: string, b: string): number {
 }
 
 /**
- * 私聊/讨论组选人：按展示名首字母（数字/字母/拼音首字母）分组，供 SectionList 使用。
+ * 私聊/群聊选人：按展示名首字母（数字/字母/拼音首字母）分组，供 SectionList 使用。
  */
 export function createContactSectionsByNickname(profiles: UserProfile[]): Array<SectionListData<UserProfile>> {
     if (!profiles.length) {

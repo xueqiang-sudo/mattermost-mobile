@@ -192,7 +192,7 @@ function removeProfileFromList(list: Set<string>, id: string) {
 }
 
 /**
- * 创建私信/群聊界面组件
+ * 创建私信/内部群界面组件
  */
 export default function CreateDirectMessage({
     componentId,
@@ -254,7 +254,7 @@ export default function CreateDirectMessage({
     }, [intl, serverUrl]);
 
     /**
-     * 创建群聊频道
+     * 创建内部群频道
      */
     const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
         const result = await makeGroupChannel(serverUrl, ids);
