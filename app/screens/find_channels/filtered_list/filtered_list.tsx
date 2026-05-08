@@ -54,6 +54,7 @@ type Props = {
     channelsMatch: ChannelModel[];
     channelsMatchStart: ChannelModel[];
     currentTeamId: string;
+    enableInternalGroups: boolean;
     keyboardOverlap: number;
     loading: boolean;
     onLoading: (loading: boolean) => void;
@@ -91,7 +92,7 @@ const sortByUserOrChannel = <T extends Channel |UserModel>(locale: string, a: T,
 
 const FilteredList = ({
     archivedChannels, category, close, channelsMatch, channelsMatchStart, currentTeamId,
-    keyboardOverlap, loading, onLoading, restrictDirectMessage, showTeamName,
+    enableInternalGroups, keyboardOverlap, loading, onLoading, restrictDirectMessage, showTeamName,
     teamIds, teammateDisplayNameSetting: _teammateDisplayNameSetting, term, usersMatch, usersMatchStart, testID,
 }: Props) => {
     const mounted = useRef(false);
@@ -271,15 +272,22 @@ const FilteredList = ({
 
     const data = useMemo(() => {
         const items: ResultItem[] = [];
-        const showChannels = category === 'all' || category === 'channels' || category === 'discussion_groups';
+        const isMergedCategory = !enableInternalGroups && category === 'channels_and_discussion';
+        const showChannels = enableInternalGroups ?
+            (category === 'all' || category === 'channels' || category === 'discussion_groups') :
+            (category === 'all' || category === 'channels_and_discussion');
         const showUsers = category === 'all' || category === 'contacts';
 
         const filterChannelByCategory = (c: ChannelModel | Channel) => {
-            if (category === 'channels') {
-                return isTeamOpenOrPrivate(c);
-            }
-            if (category === 'discussion_groups') {
-                return isDiscussionGroupChannel(c);
+            if (enableInternalGroups) {
+                if (category === 'channels') {
+                    return isTeamOpenOrPrivate(c);
+                }
+                if (category === 'discussion_groups') {
+                    return isDiscussionGroupChannel(c);
+                }
+            } else if (isMergedCategory) {
+                return isTeamOpenOrPrivate(c) || isDiscussionGroupChannel(c);
             }
             return true;
         };

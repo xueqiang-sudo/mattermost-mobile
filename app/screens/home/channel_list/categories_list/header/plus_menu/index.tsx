@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
+import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {useTheme} from '@context/theme';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
@@ -30,14 +31,27 @@ const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
         showModal(Screens.CREATE_OR_EDIT_CHANNEL, title);
     }, [intl]);
 
-    const openDirectMessage = useCallback(async () => {
+    const openGroupChat = useCallback(async () => {
         await dismissBottomSheet();
 
-        const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Start a private chat'});
+        const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
+            variant: 'group_only',
+        });
+    }, [intl, theme]);
+
+    const openPrivateChat = useCallback(async () => {
+        await dismissBottomSheet();
+
+        const title = intl.formatMessage({id: 'plus_menu.open_private_chat.title', defaultMessage: 'Start private chat'});
+        const closeIconColor = theme.sidebarHeaderTextColor;
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
+        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+            closeButton,
+            variant: 'dm_only',
         });
     }, [intl, theme]);
 
@@ -58,10 +72,14 @@ const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
     return (
         <>
             <PlusMenuItem
-                pickerAction='openDirectMessage'
-                onPress={openDirectMessage}
+                pickerAction='openGroupChat'
+                onPress={openGroupChat}
             />
-            {canCreateChannels &&
+            <PlusMenuItem
+                pickerAction='openPrivateChat'
+                onPress={openPrivateChat}
+            />
+            {canCreateChannels && ENABLE_INTERNAL_GROUPS &&
             <PlusMenuItem
                 pickerAction='createNewChannel'
                 onPress={createNewChannel}

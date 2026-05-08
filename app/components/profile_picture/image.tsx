@@ -3,6 +3,7 @@
 
 import {type ImageSource} from 'expo-image';
 import React, {useMemo} from 'react';
+import {Platform, Text, View} from 'react-native';
 
 import {buildAbsoluteUrl} from '@actions/remote/file';
 import {buildProfileImageUrlFromUser} from '@actions/remote/user';
@@ -12,7 +13,8 @@ import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
-import {getLastPictureUpdate} from '@utils/user';
+import {typography} from '@utils/typography';
+import {getInitialsForAvatar, getLastPictureUpdate} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -26,6 +28,8 @@ type Props = {
 
     /** When set, uses this instead of size/2 for a rounded-square shape. Omit for circular. */
     borderRadius?: number;
+    /** Sidebar scenes (e.g. home conversation list) use sidebar palette for fallback avatar colors. */
+    useSidebarPalette?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -36,22 +40,42 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const Image = ({author, forwardRef, iconSize, size, source, url, borderRadius}: Props) => {
+const Image = ({author, forwardRef, iconSize, size, source, url, borderRadius, useSidebarPalette = false}: Props) => {
     const theme = useTheme();
     let serverUrl = useServerUrl();
     serverUrl = url || serverUrl;
 
     const style = getStyleSheet(theme);
     const lastPictureUpdateAt = author ? getLastPictureUpdate(author) : 0;
+    const fallbackBackground = useSidebarPalette ?
+        changeOpacity(theme.sidebarText, 0.16) :
+        changeOpacity(theme.centerChannelColor, 0.12);
+    const fallbackTextColor = useSidebarPalette ? theme.sidebarText : theme.centerChannelColor;
+
     const fIStyle = useMemo(() => ({
         borderRadius: borderRadius ?? size / 2,
-        backgroundColor: theme.centerChannelBg,
+        backgroundColor: fallbackBackground,
         height: size,
         width: size,
-    }), [size, theme.centerChannelBg, borderRadius]);
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+    }), [size, borderRadius, fallbackBackground]);
+
+    const initialsTextStyle = useMemo(() => ({
+        ...typography('Body', 100, 'SemiBold'),
+        fontSize: size * 0.4,
+        lineHeight: size * 0.48,
+        color: fallbackTextColor,
+        ...(Platform.OS === 'android' && {includeFontPadding: false}),
+    }), [size, fallbackTextColor]);
 
     const imgSource = useMemo(() => {
         if (!author || typeof source === 'string') {
+            return undefined;
+        }
+
+        // 用户从未上传过头像（lastPictureUpdateAt 为 0），跳过图片加载，降级到首字显示
+        if (lastPictureUpdateAt === 0 && !source) {
             return undefined;
         }
 
@@ -103,6 +127,22 @@ const Image = ({author, forwardRef, iconSize, size, source, url, borderRadius}: 
                 source={imgSource}
             />
         );
+    }
+
+    if (author) {
+        const initials = getInitialsForAvatar(author);
+        if (initials) {
+            return (
+                <View style={fIStyle}>
+                    <Text
+                        style={initialsTextStyle}
+                        numberOfLines={1}
+                    >
+                        {initials}
+                    </Text>
+                </View>
+            );
+        }
     }
 
     return (

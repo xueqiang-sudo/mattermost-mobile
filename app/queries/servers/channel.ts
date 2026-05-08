@@ -770,6 +770,15 @@ function sortRecentConversationEntries(
     entries: Array<{channel: ChannelModel; myChannel: MyChannelModel}>,
 ): ChannelModel[] {
     return [...entries].sort((a, b) => {
+        const aIsDefault = a.channel.name === General.DEFAULT_CHANNEL;
+        const bIsDefault = b.channel.name === General.DEFAULT_CHANNEL;
+        if (aIsDefault && !bIsDefault) {
+            return -1;
+        }
+        if (!aIsDefault && bIsDefault) {
+            return 1;
+        }
+
         const isUnreadA = a.myChannel.isUnread || a.myChannel.mentionsCount > 0;
         const isUnreadB = b.myChannel.isUnread || b.myChannel.mentionsCount > 0;
 

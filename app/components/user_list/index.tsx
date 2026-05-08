@@ -178,12 +178,10 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             justifyContent: 'center',
         },
         sectionContainerContactSelect: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.25),
             paddingVertical: 12,
-            paddingHorizontal: 16,
+            paddingHorizontal: 12,
             justifyContent: 'center',
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
         },
         sectionWrapper: {
             backgroundColor: theme.centerChannelBg,
@@ -196,7 +194,7 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             ...typography('Body', 300, 'SemiBold'),
         },
         sectionTextContactSelect: {
-            color: theme.centerChannelColor,
+            color: changeOpacity(theme.centerChannelColor, 0.88),
             ...typography('Body', 300, 'SemiBold'),
         },
     };
@@ -219,6 +217,8 @@ type Props = {
     location: AvailableScreens;
     customSection?: (profiles: UserProfile[]) => Array<SectionListData<UserProfile>>;
     contactSelectLayout?: boolean;
+    variant?: import('@screens/create_direct_message/create_direct_message').CreateDMWindowVariant;
+    currentUserId?: string;
 }
 
 export default function UserList({
@@ -238,6 +238,8 @@ export default function UserList({
     location,
     customSection,
     contactSelectLayout = false,
+    variant,
+    currentUserId,
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
@@ -285,7 +287,8 @@ export default function UserList({
     const renderItem = useCallback(({item, index, section}: RenderItemType) => {
         // The list will re-render when the selection changes because it's passed into the list as extraData
         const selected = selectedIds.has(item.id);
-        const canAdd = selectedIds.size < General.MAX_USERS_IN_GM;
+        const isSelf = item.id === currentUserId;
+        const canAdd = variant === 'dm_only' ? true : selectedIds.size < General.MAX_USERS_IN_GM;
 
         const isChAdmin = item.scheme_admin || false;
 
@@ -300,17 +303,18 @@ export default function UserList({
                 manageMode={manageMode}
                 onPress={handleSelectProfile}
                 onLongPress={openUserProfile}
-                selectable={manageMode || canAdd}
-                disabled={!canAdd}
+                selectable={variant === 'dm_only' ? false : (manageMode || canAdd)}
+                disabled={isSelf || !canAdd}
                 selected={selected}
                 showManageMode={showManageMode}
                 testID='create_direct_message.user_list.user_item'
                 tutorialWatched={tutorialWatched}
                 user={item}
                 includeMargin={includeUserMargin}
+                variant={variant}
             />
         );
-    }, [selectedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, tutorialWatched, includeUserMargin, contactSelectLayout]);
+    }, [selectedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, tutorialWatched, includeUserMargin, contactSelectLayout, variant, currentUserId]);
 
     const renderLoading = useCallback(() => {
         if (!loading) {

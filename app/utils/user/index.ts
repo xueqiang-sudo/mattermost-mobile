@@ -85,14 +85,12 @@ export function displayUsername(user?: UserProfile | UserModel | null, locale?: 
             }
         } else if (teammateDisplayNameSetting === Preferences.DISPLAY_PREFER_FULL_NAME) {
             name = fullName;
-        } else {
+        } else if (nickname && fullName) {
             // 项目要求：不直接显示 username，优先显示昵称，有姓名则一并显示
             // 格式：昵称 (姓名) 或 仅昵称/仅姓名，均无时 fallback 到 username
-            if (nickname && fullName) {
-                name = `${nickname} (${fullName})`;
-            } else {
-                name = nickname || fullName;
-            }
+            name = `${nickname} (${fullName})`;
+        } else {
+            name = nickname || fullName;
         }
 
         if (!name || name.trim().length === 0) {
@@ -486,6 +484,30 @@ export const getLastPictureUpdate = (user: UserModel | UserProfile) => {
 
     return user.is_bot ? user.bot_last_icon_update : user.last_picture_update || 0;
 };
+
+/**
+ * 从用户对象中提取头像首字（昵称/姓名/username 第一个有意义字符，大写）。
+ * 无有效内容时返回 null。
+ */
+export function getInitialsForAvatar(user?: UserProfile | SimpleUserProfile | UserModel | null): string | null {
+    if (!user) {
+        return null;
+    }
+
+    const displayName = username2Nickname(user, {includeFullName: false, useFallbackUsername: true});
+    const trimmed = displayName?.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const leadingNonWordRe = /^[^0-9A-Za-z\u3400-\u9FFF\uF900-\uFAFF]+/u;
+    const normalized = trimmed.replace(leadingNonWordRe, '');
+    const firstChar = normalized.charAt(0);
+    if (!firstChar) {
+        return null;
+    }
+    return firstChar.toUpperCase();
+}
 
 /**
  * Sorts custom profile attributes by their sort_order property, falling back to name comparison.

@@ -65,6 +65,7 @@ type SimpleUserProfile = {
     locale: string;
     country_code?: string;
     phone?: string;
+    last_picture_update?: number;
 }
 
 type UserProfile = SimpleUserProfile & {
@@ -80,7 +81,6 @@ type UserProfile = SimpleUserProfile & {
     terms_of_service_create_at?: number;
     timezone?: UserTimezone;
     is_bot?: boolean;
-    last_picture_update?: number;
     remote_id?: string;
     status?: string;
     bot_description?: string;

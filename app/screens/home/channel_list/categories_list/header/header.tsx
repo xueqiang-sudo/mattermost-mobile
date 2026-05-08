@@ -11,6 +11,7 @@ import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
 import CompassIcon from '@components/compass_icon';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
+import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import {HOME_PADDING} from '@constants/view';
 import {useLeftDrawer} from '@context/left_drawer';
@@ -198,8 +199,9 @@ const ChannelListHeader = ({
     }, [intl, theme, canCreateChannels, canInvitePeople]));
 
     const onSearchPress = usePreventDoubleTap(useCallback(() => {
+        const titleId = ENABLE_INTERNAL_GROUPS ? 'find_channels.title' : 'find_channels.title_no_internal';
         findChannels(
-            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
+            intl.formatMessage({id: titleId, defaultMessage: 'Search groups, chats & contacts'}),
             theme,
         );
     }, [intl, theme]));

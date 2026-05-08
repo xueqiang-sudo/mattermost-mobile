@@ -106,19 +106,20 @@ const nonThemedStyles = StyleSheet.create({
         marginRight: 12,
     },
     leftDecoratorContactSelect: {
-        marginRight: 14,
-        minWidth: 36,
+        marginRight: 8,
+        minWidth: 32,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    rightDecorator: {
+        marginLeft: 8,
+        alignSelf: 'center',
     },
     rowContactSelect: {
         minHeight: 60,
         paddingVertical: 12,
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    flex: {
-        flex: 1,
     },
 });
 
@@ -287,11 +288,14 @@ const UserItem = ({
                                 color={theme.centerChannelColor}
                             />
                         )}
-                        <View style={nonThemedStyles.flex}/>
-                        {Boolean(rightDecorator) && rightDecorator}
                     </View>
                     {FooterComponent}
                 </View>
+                {Boolean(rightDecorator) && (
+                    <View style={nonThemedStyles.rightDecorator}>
+                        {rightDecorator}
+                    </View>
+                )}
             </View>
         </Pressable>
     );

@@ -43,8 +43,10 @@ export function getChannelListModalRowSurfaceStyle(theme: Theme): ViewStyle {
  */
 export function getContactPickerGroupedRowStyle(theme: Theme, listRowIndex: number, selected: boolean): ViewStyle {
     const selectedBg = changeOpacity(theme.buttonBg, 0.1);
+    const zebraBg = listRowIndex % 2 === 0 ? 'transparent' : changeOpacity(theme.centerChannelColor, 0.025);
+
     return {
-        backgroundColor: selected ? selectedBg : 'transparent',
+        backgroundColor: selected ? selectedBg : zebraBg,
         borderLeftWidth: selected ? 3 : 0,
         borderLeftColor: selected ? theme.buttonBg : 'transparent',
     };

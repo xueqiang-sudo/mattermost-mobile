@@ -4,17 +4,16 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {FlashList, type ListRenderItemInfo} from '@shopify/flash-list';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Alert, Text, View} from 'react-native';
 import {useIntl} from 'react-intl';
+import {Alert, Text, View} from 'react-native';
 import {of as of$} from 'rxjs';
 import {combineLatestWith, distinctUntilChanged, map, switchMap} from 'rxjs/operators';
 
 import {fetchArchivedChannels, fetchGroupMessageMembersCommonTeams, switchToChannelById, unarchiveChannel, permanentlyDeleteChannel} from '@actions/remote/channel';
 import ChannelItem, {ROW_HEIGHT_CENTER_LIST} from '@components/channel_item';
 import Loading from '@components/loading';
-import {General} from '@constants';
-import {alertErrorWithFallback} from '@utils/draft';
-import {Screens} from '@constants';
+import {General, Screens} from '@constants';
+import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -28,11 +27,12 @@ import {
 } from '@queries/servers/channel';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams} from '@queries/servers/team';
-import {dismissModal, popTopScreen} from '@screens/navigation';
 import {removeChannelsFromArchivedTeams} from '@screens/find_channels/utils';
+import {dismissModal, popTopScreen} from '@screens/navigation';
+import {alertErrorWithFallback} from '@utils/draft';
+import {logError} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {logError} from '@utils/log';
 
 import MembershipTabs, {type JoinedMembershipTab} from './membership_tabs';
 
@@ -230,26 +230,45 @@ const JoinedChannelsAndGroups = ({
         [archivedTeamChannels, archivedEnterpriseGms],
     );
 
-    const channelsForTab = activeTab === 'channels' ?
-        teamChannels :
-        activeTab === 'group_messages' ?
-            groupMessages :
-            archivedListData;
+    const channelsForTab = ENABLE_INTERNAL_GROUPS ? (
+        activeTab === 'channels' ?
+            teamChannels :
+            activeTab === 'group_messages' ?
+                groupMessages :
+                archivedListData
+    ) : (
+        [...teamChannels, ...groupMessages].sort((a, b) => {
+            const aIsDefault = a.name === General.DEFAULT_CHANNEL;
+            const bIsDefault = b.name === General.DEFAULT_CHANNEL;
+            if (aIsDefault && !bIsDefault) {
+                return -1;
+            }
+            if (!aIsDefault && bIsDefault) {
+                return 1;
+            }
+            return (b.updateAt || 0) - (a.updateAt || 0);
+        })
+    );
 
-    const emptyMessage = activeTab === 'channels' ?
-        intl.formatMessage({
-            id: 'joined_channels.empty.channels',
-            defaultMessage: 'No groups',
-        }) :
-        activeTab === 'group_messages' ?
+    const emptyMessage = ENABLE_INTERNAL_GROUPS ? (
+        activeTab === 'channels' ?
             intl.formatMessage({
-                id: 'joined_channels.empty.group_messages',
-                defaultMessage: 'No discussion groups',
+                id: 'joined_channels.empty.channels',
+                defaultMessage: 'No groups',
             }) :
-            intl.formatMessage({
-                id: 'joined_channels.empty.archived',
-                defaultMessage: 'No archived groups or discussion groups',
-            });
+            activeTab === 'group_messages' ?
+                intl.formatMessage({
+                    id: 'joined_channels.empty.group_messages',
+                    defaultMessage: 'No discussion groups',
+                }) :
+                intl.formatMessage({
+                    id: 'joined_channels.empty.archived',
+                    defaultMessage: 'No archived groups or discussion groups',
+                })
+    ) : intl.formatMessage({
+        id: 'joined_channels.empty.channels',
+        defaultMessage: 'No groups',
+    });
 
     const onChannelPress = useCallback(async (channel: ChannelModel | Channel) => {
         await dismissModal({componentId: Screens.FIND_CHANNELS});
@@ -425,31 +444,54 @@ const JoinedChannelsAndGroups = ({
             testID='joined_channels.screen'
         >
             <View style={styles.inner}>
-                <MembershipTabs
-                    activeTab={activeTab}
-                    onTabChange={setActiveTab}
-                />
-                {showArchivedGmLoading && (
-                    <Text style={styles.banner}>
-                        {intl.formatMessage({
-                            id: 'joined_channels.archived_gms_loading',
-                            defaultMessage: 'Loading archived discussion groups…',
-                        })}
-                    </Text>
+                {ENABLE_INTERNAL_GROUPS && (
+                    <MembershipTabs
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                    />
                 )}
-                {showArchivedGmError && (
-                    <Text style={[styles.banner, styles.bannerError]}>
-                        {intl.formatMessage({
-                            id: 'joined_channels.archived_gms_filter_error',
-                            defaultMessage: 'Could not load all archived discussion groups. Pull to refresh or try again later.',
-                        })}
-                    </Text>
-                )}
-                {showArchivedFullScreenLoading ? (
-                    <View style={styles.loadingFill}>
-                        <Loading/>
-                    </View>
-                ) : showEmptyState ? (
+                {ENABLE_INTERNAL_GROUPS ? (
+                    <>
+                        {showArchivedGmLoading && (
+                            <Text style={styles.banner}>
+                                {intl.formatMessage({
+                                    id: 'joined_channels.archived_gms_loading',
+                                    defaultMessage: 'Loading archived discussion groups…',
+                                })}
+                            </Text>
+                        )}
+                        {showArchivedGmError && (
+                            <Text style={[styles.banner, styles.bannerError]}>
+                                {intl.formatMessage({
+                                    id: 'joined_channels.archived_gms_filter_error',
+                                    defaultMessage: 'Could not load all archived discussion groups. Pull to refresh or try again later.',
+                                })}
+                            </Text>
+                        )}
+                        {showArchivedFullScreenLoading ? (
+                            <View style={styles.loadingFill}>
+                                <Loading/>
+                            </View>
+                        ) : showEmptyState ? (
+                            <Text
+                                style={styles.empty}
+                                testID='joined_channels.empty'
+                            >
+                                {emptyMessage}
+                            </Text>
+                        ) : (
+                            <View style={styles.list} testID='joined_channels.list'>
+                                <FlashList
+                                    data={channelsForTab}
+                                    estimatedItemSize={LIST_ESTIMATED_ITEM_SIZE}
+                                    extraData={listExtraData}
+                                    keyExtractor={keyExtractor}
+                                    renderItem={renderItem}
+                                />
+                            </View>
+                        )}
+                    </>
+                ) : (showEmptyState ? (
                     <Text
                         style={styles.empty}
                         testID='joined_channels.empty'
@@ -466,7 +508,7 @@ const JoinedChannelsAndGroups = ({
                             renderItem={renderItem}
                         />
                     </View>
-                )}
+                ))}
             </View>
         </View>
     );

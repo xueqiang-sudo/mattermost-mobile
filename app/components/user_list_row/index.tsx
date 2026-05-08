@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import {storeProfileLongPressTutorial} from '@actions/app/global';
+import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import TutorialHighlight from '@components/tutorial_highlight';
@@ -48,6 +49,8 @@ type Props = {
     testID: string;
     tutorialWatched?: boolean;
     user: UserProfile;
+    variant?: import('@screens/create_direct_message/create_direct_message').CreateDMWindowVariant;
+    currentUserId?: string;
 }
 
 type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
@@ -62,15 +65,14 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
         },
         selectorLeft: {
             marginLeft: 0,
-            marginRight: 12,
+            marginRight: 5,
         },
         rowDivider: {
             borderBottomWidth: 1,
             borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
         },
         userItemWithTags: {
-            alignItems: 'flex-start',
-            paddingTop: 6,
+            alignItems: 'center',
         },
         tagRow: {
             flexDirection: 'row',
@@ -141,6 +143,8 @@ function UserListRow({
     testID,
     tutorialWatched = false,
     user,
+    variant,
+    currentUserId,
 }: Props) {
     const theme = useTheme();
     const isTablet = useIsTablet();
@@ -218,6 +222,9 @@ function UserListRow({
     });
 
     const icon = useMemo(() => {
+        if (variant === 'dm_only') {
+            return null;
+        }
         if (!selectable && !selected) {
             return null;
         }
@@ -232,7 +239,25 @@ function UserListRow({
                 />
             </View>
         );
-    }, [selectable, selected, theme.buttonBg, theme.centerChannelColor, style.selector, style.selectorLeft, contactSelectLayout]);
+    }, [selectable, selected, theme.buttonBg, theme.centerChannelColor, style.selector, style.selectorLeft, contactSelectLayout, variant]);
+
+    const chatButton = useMemo(() => {
+        if (variant !== 'dm_only' || user.id === currentUserId) {
+            return null;
+        }
+        const isTalking = false;
+        return (
+            <Button
+                onPress={() => onPress?.(user)}
+                text={formatMessage({id: 'create_direct_message.chat_button', defaultMessage: 'Chat'})}
+                theme={theme}
+                emphasis={'primary'}
+                size={'s'}
+                testID={`${testID}.chat.button`}
+                disabled={isTalking}
+            />
+        );
+    }, [variant, user.id, currentUserId, onPress, user, formatMessage, theme, testID]);
 
     const getCandidateTagText = useCallback((tag: CandidateTag) => {
         switch (tag) {
@@ -287,13 +312,13 @@ function UserListRow({
                         ))}
                     </View>
                 ) : undefined}
-                leftDecorator={contactSelectLayout ? decorator : undefined}
-                rightDecorator={contactSelectLayout ? undefined : decorator}
+                leftDecorator={variant === 'dm_only' ? undefined : (contactSelectLayout ? decorator : undefined)}
+                rightDecorator={variant === 'dm_only' ? chatButton : (contactSelectLayout ? undefined : decorator)}
                 avatarBorderRadius={avatarBorderRadius}
                 size={contactSelectLayout ? CONTACT_SELECT_AVATAR_SIZE : 24}
                 contactSelectLayout={contactSelectLayout}
                 showCurrentUserSuffix={!candidateTags.includes('self')}
-                disabled={!(selectable || selected || !disabled)}
+                disabled={disabled && !selected}
                 viewRef={viewRef}
                 padding={contactSelectLayout ? 16 : 20}
                 includeMargin={includeMargin}
