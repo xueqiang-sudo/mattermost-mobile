@@ -424,7 +424,7 @@ const SupplierCustomerFormScreen = ({
             return;
         }
         setAvatarMattermostUserId(null);
-        const email = initialContactEmail?.trim();
+        const email = typeof initialContactEmail === 'string' ? initialContactEmail.trim() : '';
         if (!email || !serverUrl) {
             return;
         }
@@ -877,6 +877,8 @@ const SupplierCustomerFormScreen = ({
         defaultMessage: 'How do you work together? Add context—for example projects, roles, or reminders—for yourself and your enterprise. (optional)',
     });
 
+    const initialRemarkTrimmed = typeof initialRemark === 'string' ? initialRemark.trim() : '';
+
     const editBody = (
         <>
             <View style={styles.section}>
@@ -910,9 +912,9 @@ const SupplierCustomerFormScreen = ({
                                 style={styles.contactNameMain}
                                 numberOfLines={2}
                             >
-                                {(initialRemark?.trim() || initialContactName) ?? existingContactId}
+                                {(initialRemarkTrimmed || initialContactName) ?? existingContactId}
                             </Text>
-                            {initialRemark?.trim() ? (
+                            {initialRemarkTrimmed ? (
                                 <Text
                                     style={styles.contactHint}
                                     numberOfLines={2}

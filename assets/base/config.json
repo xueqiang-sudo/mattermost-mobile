@@ -1,7 +1,7 @@
 {
     "AuthUrlScheme": "mmauth://",
     "AuthUrlSchemeDev": "mmauthbeta://",
-    "DefaultServerUrl": "http://118.195.136.154:8065",
+    "DefaultServerUrl": "https://ai.optibot.cn:8065",
     "DefaultServerName": "",
     "TestServerUrl": "http://localhost:8065",
     "AutoSelectServerUrl": false,
