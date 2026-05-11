@@ -264,6 +264,7 @@ export const MODAL_SCREENS_WITHOUT_BACK = new Set<string>([
 ]);
 
 export const SCREENS_WITH_TRANSPARENT_BACKGROUND = new Set<string>([
+    APP_UPDATE,
     PERMALINK,
     REVIEW_APP,
     SNACK_BAR,

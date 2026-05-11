@@ -10,7 +10,7 @@ import {removePost} from '@actions/local/post';
 import {terminateSession} from '@actions/local/session';
 import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
-import {checkAndHandleUpdate} from '@actions/remote/update';
+import {runLaunchUpdateGate, showUpdateOverlay} from '@actions/remote/update';
 import {logout} from '@actions/remote/session';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import LocalConfig from '@assets/config.json';
@@ -144,7 +144,23 @@ export const launchApp = async (props: LaunchProps) => {
     logInfo('[Launch.startup] Scheduling ephemeral post cleanup');
     cleanupEphemeralPosts();
 
+    let suggestUpdateData: {updateType: 'suggest'; responseData: import('@client/rest/update').AppVersionCheckResponse} | null = null;
+
     if (serverUrl) {
+        logInfo('[Launch.startup] App version gate before session APIs', {serverUrl});
+        const updateGate = await runLaunchUpdateGate(serverUrl, props, resetToLogin);
+        logInfo('[Launch.startup] updateGate result', {updateGate, isAbort: updateGate === 'abort', isObject: typeof updateGate === 'object'});
+        if (updateGate === 'abort') {
+            logInfo('[Launch.startup] Force update: showing overlay on login root');
+            return '';
+        }
+        if (typeof updateGate === 'object' && updateGate.action === 'suggest') {
+            logInfo('[Launch.startup] Setting suggestUpdateData', {version: updateGate.data.latest_version});
+            suggestUpdateData = {updateType: 'suggest', responseData: updateGate.data};
+        } else {
+            logInfo('[Launch.startup] No suggest update data', {isString: typeof updateGate === 'string'});
+        }
+
         logInfo('[Launch.startup] Validating startup credentials', {serverUrl});
         let hasCredentials = Boolean(await getServerCredentials(serverUrl));
         const myUser = await (await getAutoClient(serverUrl)).getMe().catch(() => null);
@@ -190,15 +206,14 @@ export const launchApp = async (props: LaunchProps) => {
                 }
             }
 
-            // qgs: App版本更新检测，在进入首页前进行
-            logInfo('[Launch.startup] Checking app version update');
-            const canProceed = await checkAndHandleUpdate(serverUrl);
-            if (!canProceed) {
-                logInfo('[Launch.startup] Force update required, blocking home entry');
-                return '';
+            const homeResult = launchToHome({...props, launchType, serverUrl});
+            if (suggestUpdateData) {
+                homeResult.then(() => {
+                    logInfo('[Launch.startup] Showing suggest update overlay after launchToHome');
+                    showUpdateOverlay(suggestUpdateData!.updateType, suggestUpdateData!.responseData);
+                });
             }
-
-            return launchToHome({...props, launchType, serverUrl});
+            return homeResult;
         }
     }
 
@@ -212,7 +227,14 @@ export const launchApp = async (props: LaunchProps) => {
     }
 
     logInfo('[Launch.startup] Routing to login', {serverUrl});
-    return resetToLogin({...props, serverUrl});
+    const loginResult = resetToLogin({...props, serverUrl});
+    if (suggestUpdateData) {
+        Promise.resolve(loginResult).then(() => {
+            logInfo('[Launch.startup] Showing suggest update overlay after resetToLogin');
+            showUpdateOverlay(suggestUpdateData!.updateType, suggestUpdateData!.responseData);
+        });
+    }
+    return loginResult;
 };
 
 export const launchToHome = async (props: LaunchProps) => {

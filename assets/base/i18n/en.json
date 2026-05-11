@@ -1777,6 +1777,7 @@
   "settings.about.app.version.title": "Version",
   "settings.about.app.version.value": "{version}",
   "settings.about.build.title": "Build",
+  "settings.about.button.checkUpdate": "Check for Updates",
   "settings.about.button.copyInfo": "Copy version info",
   "settings.about.card.title": "App information",
   "settings.about.copy.clipboard": "{appName}\n{edition}\nVersion: {version}\nBuild: {number}",
@@ -2112,5 +2113,13 @@
   "mobile.update.suggest.description": "A new version of the app is available. Update now to get the latest features and improvements.",
   "mobile.update.suggest.button_update": "Update Now",
   "mobile.update.suggest.button_later": "Later",
-  "mobile.update.error": "Failed to check for updates"
+  "mobile.update.error": "Failed to check for updates",
+  "mobile.update.checking": "Checking for updates...",
+  "mobile.update.already_latest": "You are using the latest version.",
+  "mobile.update.check_failed": "Failed to check for updates. Please try again later.",
+  "mobile.update.android.apk_update": "APK Update",
+  "mobile.update.android.store_update": "App Store Update",
+  "mobile.update.android.store_hint": "Recommended",
+  "mobile.update.android.apk_hint": "Direct download",
+  "mobile.update.android.choice_title": "Choose Update Method"
 }
