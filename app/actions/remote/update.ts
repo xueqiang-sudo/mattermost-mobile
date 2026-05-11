@@ -131,7 +131,7 @@ const openAppStore = async (responseData: AppVersionCheckResponse) => {
             }
         }
     } else {
-        const packageName = responseData.package_name_android;
+        const packageName = (responseData.package_name_android ?? '').trim();
         if (packageName) {
             try {
                 await Linking.openURL(`market://details?id=${packageName}`);
@@ -242,12 +242,12 @@ const buildOverlayProps = (updateType: 'suggest' | 'force', responseData: AppVer
         return {
             ...baseProps,
             hasAppStore,
+            downloadUrl: downloadUrl || undefined,
             onUpdate: () => {
                 dismissUpdateOverlay();
                 openApkDownload(downloadUrl || '');
             },
-            onStoreUpdate: hasAppStore ? () => {
-                dismissUpdateOverlay();
+            onStoreUpdate: hasAppStore && (responseData.package_name_android ?? '').trim() ? () => {
                 openAppStore(responseData);
             } : undefined,
         };
@@ -286,8 +286,11 @@ export const showUpdateOverlay = async (updateType: 'suggest' | 'force', respons
 
     let hasAppStore = false;
     if (Platform.OS === 'android') {
-        hasAppStore = await checkAndroidAppStoreAvailable(responseData.package_name_android || '');
-        logInfo('[Update] Android app store check', {hasAppStore, packageName: responseData.package_name_android});
+        const packageNameAndroid = (responseData.package_name_android ?? '').trim();
+        if (packageNameAndroid) {
+            hasAppStore = await checkAndroidAppStoreAvailable(packageNameAndroid);
+        }
+        logInfo('[Update] Android app store check', {hasAppStore, packageName: packageNameAndroid || '(none)'});
     }
 
     if (activeUpdateListener) {

@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
 
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
     <queries>
         <intent>
@@ -72,6 +73,11 @@
 
       <!-- Android 14 requires the correct Foreground Service (FGS) type for RNShare -->
       <service android:name="androidx.work.impl.foreground.SystemForegroundService" android:foregroundServiceType="dataSync" android:exported="false" android:stopWithTask="false" tools:node="merge"/>
+
+        <!-- FileProvider: 用于 Android 7.0+ 应用内下载 APK 后调起安装 -->
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.apk_file_provider" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/apk_install_provider_paths"/>
+        </provider>
 
     </application>
 </manifest>

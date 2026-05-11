@@ -23,14 +23,14 @@
 | 参数名            | 类型     | 必填 | 示例        | 说明                        |
 | -------------- | ------ | -- | --------- | ------------------------- |
 | `platform`     | string | ✅  | `android` | 平台标识：`android` 或 `ios`    |
-| `app_version`  | string | ✅  | `2.38.5`  | 客户端当前 App 版本号（语义化版本）      |
+| `app_version`  | string | ✅  | `2.39.0`  | 客户端当前 App 版本号（语义化版本）      |
 | `build_number` | string | 否  | `478`     | 客户端当前 Build 号（可选，用于更精细控制） |
 
 ### 请求示例
 
 ```
 GET /api/v4/mobile/app_version_check?platform=android&app_version=2.38.0&build_number=450
-GET /api/v4/mobile/app_version_check?platform=ios&app_version=2.38.5
+GET /api/v4/mobile/app_version_check?platform=ios&app_version=2.39.0
 ```
 
 ***
@@ -60,7 +60,7 @@ GET /api/v4/mobile/app_version_check?platform=ios&app_version=2.38.5
 ```json
 {
     "update_type": "none",
-    "latest_version": "2.38.5",
+    "latest_version": "2.39.0",
     "latest_build_number": "478",
     "min_supported_version": "2.30.0",
     "update_title": null,

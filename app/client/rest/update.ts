@@ -36,14 +36,7 @@ const ClientUpdate = <TBase extends Constructor<ClientBase>>(superclass: TBase) 
         return this.doFetch(
             `${this.urlVersion}/mobile/app_version_check${queryString}`,
             {method: 'get'},
-        ).then((res: AppVersionCheckResponse) => {
-            // res.update_type = 'force';
-            res.latest_version = '2.39.0';
-            res.update_title = '版本更新...';
-            res.update_description = '撒娇电话卡就是撒';
-            res.download_url_android = 'http://192.168.66.121:8000/Optibot_2.39.0.apk';
-            return res;
-        });
+        );
     };
 };
 
