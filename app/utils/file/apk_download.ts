@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {cacheDirectory, createDownloadResumable} from 'expo-file-system';
+import {cacheDirectory, createDownloadResumable, deleteAsync} from 'expo-file-system';
 
 export type ApkDownloadProgress = {
     totalBytesExpectedToWrite: number;
@@ -37,7 +37,8 @@ export const downloadApk = (
         },
     );
 
-    downloadResumable.downloadAsync()
+    downloadResumable
+        .downloadAsync()
         .then((result) => {
             if (result) {
                 onComplete(result.uri);
@@ -61,4 +62,12 @@ export const computeDownloadPercent = (progress: ApkDownloadProgress): number =>
         return 0;
     }
     return Math.round((progress.totalBytesWritten / progress.totalBytesExpectedToWrite) * 100);
+};
+
+/**
+ * 清理缓存中的更新 APK 文件
+ */
+export const clearCachedUpdateApk = async (): Promise<void> => {
+    const fileUri = cacheDirectory + 'update.apk';
+    await deleteAsync(fileUri, {idempotent: true});
 };
