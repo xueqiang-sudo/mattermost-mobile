@@ -36,5 +36,5 @@
     "EnableAppUpdateCheck": true,
     "AppUpdateCheckUrl": "",
     "AppStoreIdIOS": "",
-    "PackageNameAndroid": "com.mattermost.rn"
+    "PackageNameAndroid": "com.optibot.rn"
 }

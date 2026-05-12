@@ -1,4 +1,4 @@
-package com.mattermost.rnutils
+package com.optibot.rnutils
 
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext

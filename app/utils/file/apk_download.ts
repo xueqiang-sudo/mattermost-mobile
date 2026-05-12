@@ -1,22 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {cacheDirectory, createDownloadResumable, deleteAsync} from 'expo-file-system';
-
-const CACHED_UPDATE_APK_FILENAME = 'update.apk';
-
-export const getCachedUpdateApkUri = (): string => {
-    return cacheDirectory + CACHED_UPDATE_APK_FILENAME;
-};
-
-/**
- * 删除应用内更新下载缓存的 APK（与 {@link downloadApk} 写入路径一致）。
- * 每次冷启动调用，避免残留包占用空间或被误装旧版本。
- */
-export const clearCachedUpdateApk = async (): Promise<void> => {
-    const uri = getCachedUpdateApkUri();
-    await deleteAsync(uri, {idempotent: true});
-};
+import {cacheDirectory, createDownloadResumable} from 'expo-file-system';
 
 export type ApkDownloadProgress = {
     totalBytesExpectedToWrite: number;
@@ -41,7 +26,7 @@ export const downloadApk = (
     onComplete: (fileUri: string) => void,
     onError: (error: Error) => void,
 ): ApkDownloadResult => {
-    const fileUri = getCachedUpdateApkUri();
+    const fileUri = cacheDirectory + 'update.apk';
 
     const downloadResumable = createDownloadResumable(
         url,

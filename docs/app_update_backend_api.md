@@ -49,7 +49,7 @@ GET /api/v4/mobile/app_version_check?platform=ios&app_version=2.39.0
     "update_description": "本次更新：\n- 修复了若干已知问题\n- 优化了消息加载速度\n- 新增了暗黑模式支持",
     "download_url_android": "https://download.your-company.com/app/v2.40.0/app-release.apk",
     "app_store_id_ios": "1234567890",
-    "package_name_android": "com.mattermost.rn",
+    "package_name_android": "com.optibot.rn",
     "release_date": "2026-05-01T10:00:00Z",
     "force_update_until": null
 }
@@ -151,7 +151,7 @@ function determineUpdateType(platform, appVersion):
 | 更新描述             | 多行文本(选填) | 弹窗描述文案        | `- 修复了若干问题...`         |
 | Android 下载地址     | URL(选填)  | APK 直链        | `https://...`          |
 | iOS App Store ID | 文本(选填)   | 苹果商店应用ID      | `1234567890`           |
-| Android 包名       | 文本(选填)   | 应用包名          | `com.mattermost.rn`    |
+| Android 包名       | 文本(选填)   | 应用包名          | `com.optibot.rn`    |
 | 强制更新时间           | 日期时间(选填) | 强制更新截止时间      | `2026-05-10T00:00:00Z` |
 | 启用状态             | 开关       | 是否启用该平台的更新检测  | `是`                    |
 

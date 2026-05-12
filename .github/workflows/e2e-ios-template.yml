@@ -349,7 +349,7 @@ jobs:
           # Terminate app gracefully
           if [ ! -z "$SIMULATOR_ID" ]; then
             echo "Terminating app on simulator..."
-            xcrun simctl terminate "$SIMULATOR_ID" com.mattermost.rnbeta 2>/dev/null || true
+            xcrun simctl terminate "$SIMULATOR_ID" com.optibot.rn 2>/dev/null || true
             sleep 2
           fi
 
