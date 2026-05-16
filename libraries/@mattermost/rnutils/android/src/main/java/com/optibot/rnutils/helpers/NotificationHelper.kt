@@ -1,4 +1,4 @@
-package com.optibot.rnutils.helpers
+package com.optibot.cnutils.helpers
 
 import android.app.NotificationManager
 import android.content.Context

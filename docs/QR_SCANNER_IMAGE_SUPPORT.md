@@ -35,7 +35,7 @@ dependencies {
 
 2. 创建原生模块 `QRCodeScannerModule.kt`:
 ```kotlin
-package com.optibot.rn
+package com.optibot.cn
 
 import android.graphics.BitmapFactory
 import android.net.Uri

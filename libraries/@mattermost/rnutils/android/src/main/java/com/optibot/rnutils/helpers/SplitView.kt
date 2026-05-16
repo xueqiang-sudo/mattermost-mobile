@@ -1,4 +1,4 @@
-package com.optibot.rnutils.helpers
+package com.optibot.cnutils.helpers
 
 import android.content.Context
 import android.content.res.Configuration
@@ -6,8 +6,8 @@ import android.telephony.TelephonyManager
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.WritableMap
-import com.optibot.rnutils.RNUtilsModuleImpl
-import com.optibot.rnutils.enums.Events
+import com.optibot.cnutils.RNUtilsModuleImpl
+import com.optibot.cnutils.enums.Events
 
 class SplitView {
     companion object {

@@ -1,4 +1,4 @@
-package com.optibot.rn
+package com.optibot.cn
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

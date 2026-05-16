@@ -1,11 +1,11 @@
-package com.optibot.rn;
+package com.optibot.cn;
 
 import android.content.Context;
 import android.content.Intent;
 import android.app.IntentService;
 import android.os.Bundle;
 
-import com.optibot.rnutils.helpers.NotificationHelper;
+import com.optibot.cnutils.helpers.NotificationHelper;
 import com.mattermost.turbolog.TurboLog;
 import com.wix.reactnativenotifications.core.NotificationIntentAdapter;
 

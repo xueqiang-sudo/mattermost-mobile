@@ -1,4 +1,4 @@
-package com.optibot.rnshare
+package com.optibot.cnshare
 
 import android.app.Activity
 import android.app.NotificationChannel
@@ -14,8 +14,8 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
-import com.optibot.rnshare.helpers.RealPathUtil
-import com.optibot.rnshare.helpers.toJson
+import com.optibot.cnshare.helpers.RealPathUtil
+import com.optibot.cnshare.helpers.toJson
 import java.io.File
 
 class MattermostShareImpl(private val reactContext: ReactApplicationContext) {

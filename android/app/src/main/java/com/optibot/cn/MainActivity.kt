@@ -1,4 +1,4 @@
-package com.optibot.rn
+package com.optibot.cn
 
 import android.content.res.Configuration
 import android.os.Bundle
@@ -8,7 +8,7 @@ import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 import com.mattermost.hardware.keyboard.MattermostHardwareKeyboardImpl
-import com.optibot.rnutils.helpers.FoldableObserver
+import com.optibot.cnutils.helpers.FoldableObserver
 import com.reactnativenavigation.NavigationActivity
 import expo.modules.ReactActivityDelegateWrapper
 

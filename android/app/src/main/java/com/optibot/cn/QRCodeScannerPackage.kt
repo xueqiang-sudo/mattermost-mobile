@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-package com.optibot.rn
+package com.optibot.cn
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

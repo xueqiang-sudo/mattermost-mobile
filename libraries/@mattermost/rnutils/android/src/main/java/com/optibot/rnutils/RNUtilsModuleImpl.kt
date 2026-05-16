@@ -1,4 +1,4 @@
-package com.optibot.rnutils
+package com.optibot.cnutils
 
 import android.app.Activity
 import android.graphics.Color
@@ -12,10 +12,10 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
-import com.optibot.rnutils.helpers.Notifications
-import com.optibot.rnutils.helpers.RealPathUtil
-import com.optibot.rnutils.helpers.SaveDataTask
-import com.optibot.rnutils.helpers.SplitView
+import com.optibot.cnutils.helpers.Notifications
+import com.optibot.cnutils.helpers.RealPathUtil
+import com.optibot.cnutils.helpers.SaveDataTask
+import com.optibot.cnutils.helpers.SplitView
 import androidx.core.graphics.toColorInt
 import com.facebook.react.bridge.LifecycleEventListener
 

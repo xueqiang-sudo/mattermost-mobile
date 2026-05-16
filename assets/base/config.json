@@ -36,5 +36,5 @@
     "EnableAppUpdateCheck": true,
     "AppUpdateCheckUrl": "",
     "AppStoreIdIOS": "",
-    "PackageNameAndroid": "com.optibot.rn"
+    "PackageNameAndroid": "com.optibot.cn"
 }

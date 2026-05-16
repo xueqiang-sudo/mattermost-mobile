@@ -1,4 +1,4 @@
-package com.optibot.rnutils
+package com.optibot.cnutils
 
 import com.facebook.react.TurboReactPackage
 import com.facebook.react.bridge.NativeModule

@@ -1,4 +1,4 @@
-package com.optibot.rnshare
+package com.optibot.cnshare
 
 import com.facebook.react.TurboReactPackage
 import com.facebook.react.bridge.NativeModule

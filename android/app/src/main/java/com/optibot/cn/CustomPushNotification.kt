@@ -1,4 +1,4 @@
-package com.optibot.rn
+package com.optibot.cn
 
 import android.app.PendingIntent
 import android.content.Context
@@ -9,7 +9,7 @@ import com.mattermost.helpers.DatabaseHelper
 import com.mattermost.helpers.Network
 import com.mattermost.helpers.PushNotificationDataHelper
 import com.mattermost.helpers.database_extension.getServerUrlForIdentifier
-import com.optibot.rnutils.helpers.NotificationHelper
+import com.optibot.cnutils.helpers.NotificationHelper
 import com.mattermost.turbolog.TurboLog
 import com.wix.reactnativenotifications.Defs.NOTIFICATION_RECEIVED_EVENT_NAME
 import com.wix.reactnativenotifications.core.AppLaunchHelper

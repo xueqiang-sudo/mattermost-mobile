@@ -28,8 +28,8 @@ import androidx.core.app.Person;
 import androidx.core.app.RemoteInput;
 import androidx.core.graphics.drawable.IconCompat;
 
-import com.optibot.rn.*;
-import com.optibot.rnutils.helpers.NotificationHelper;
+import com.optibot.cn.*;
+import com.optibot.cnutils.helpers.NotificationHelper;
 import com.nozbe.watermelondb.WMDatabase;
 import com.mattermost.turbolog.TurboLog;
 

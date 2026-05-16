@@ -4,7 +4,7 @@
   "description": "Mattermost Share extension for android",
   "main": "src/index",
   "android": {
-    "packageName": "com.optibot.rnshare"
+    "packageName": "com.optibot.cnshare"
   },
   "codegenConfig": {
     "name": "MattermostShareSpec",
@@ -12,7 +12,7 @@
     "jsSrcsDir": "src",
     "platforms": ["android"],
     "android": {
-      "javaPackageName": "com.optibot.rnshare"
+      "javaPackageName": "com.optibot.cnshare"
     }
   },
   "author": "Mattermost, Inc.",

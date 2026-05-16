@@ -1,4 +1,4 @@
-package com.optibot.rn;
+package com.optibot.cn;
 
 import com.wix.detox.Detox;
 import com.wix.detox.config.DetoxConfig;

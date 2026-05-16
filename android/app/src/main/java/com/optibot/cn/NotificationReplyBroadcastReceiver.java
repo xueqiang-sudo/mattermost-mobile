@@ -1,4 +1,4 @@
-package com.optibot.rn;
+package com.optibot.cn;
 
 import android.app.Notification;
 import android.app.NotificationManager;

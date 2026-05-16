@@ -4,14 +4,14 @@
   "description": "Native utility functions for the Mattermost app",
   "main": "src/index",
   "android": {
-    "packageName": "com.optibot.rnutils"
+    "packageName": "com.optibot.cnutils"
   },
   "codegenConfig": {
     "name": "RNUtilsSpec",
     "type": "modules",
     "jsSrcsDir": "src",
     "android": {
-      "javaPackageName": "com.optibot.rnutils"
+      "javaPackageName": "com.optibot.cnutils"
     }
   },
   "author": "Mattermost, Inc.",

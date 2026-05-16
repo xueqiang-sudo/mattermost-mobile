@@ -1,4 +1,4 @@
-package com.optibot.rnutils.helpers
+package com.optibot.cnutils.helpers
 
 import android.app.Activity
 import android.graphics.Rect

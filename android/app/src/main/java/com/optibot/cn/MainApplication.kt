@@ -1,4 +1,4 @@
-package com.optibot.rn
+package com.optibot.cn
 
 
 import android.annotation.SuppressLint
@@ -17,7 +17,7 @@ import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.react.modules.network.OkHttpClientProvider
 import com.facebook.soloader.SoLoader
 import com.mattermost.networkclient.RCTOkHttpClientFactory
-import com.optibot.rnshare.helpers.RealPathUtil
+import com.optibot.cnshare.helpers.RealPathUtil
 import com.mattermost.turbolog.TurboLog
 import com.mattermost.turbolog.ConfigureOptions
 import com.nozbe.watermelondb.jsi.JSIInstaller

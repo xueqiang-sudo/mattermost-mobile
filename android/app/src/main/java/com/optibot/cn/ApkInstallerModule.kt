@@ -1,4 +1,4 @@
-package com.optibot.rn
+package com.optibot.cn
 
 import android.content.Intent
 import android.net.Uri

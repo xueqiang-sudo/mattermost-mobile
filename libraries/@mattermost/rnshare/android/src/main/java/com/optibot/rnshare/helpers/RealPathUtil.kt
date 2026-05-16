@@ -1,4 +1,4 @@
-package com.optibot.rnshare.helpers
+package com.optibot.cnshare.helpers
 
 import android.content.Context
 import android.net.Uri

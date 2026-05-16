@@ -1,4 +1,4 @@
-package com.optibot.rnutils.helpers
+package com.optibot.cnutils.helpers
 
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
