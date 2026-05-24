@@ -6,15 +6,15 @@ import {defineMessage, defineMessages, useIntl} from 'react-intl';
 import {Keyboard, type LayoutChangeEvent, Platform, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {addMembersToChannel} from '@actions/remote/channel';
-import {fetchProfilesNotInChannel, searchProfiles} from '@actions/remote/user';
+import {addMembersToChannel, fetchChannelMemberships} from '@actions/remote/channel';
+import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import Search from '@components/search';
 import SectionNotice from '@components/section_notice';
 import SelectedUsers from '@components/selected_users';
 import ServerUserList from '@components/server_user_list';
-import {General, Screens} from '@constants';
+import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useAccessControlAttributes} from '@hooks/access_control_attributes';
@@ -28,6 +28,7 @@ import {mergeNavigationOptions} from '@utils/navigation';
 import {showAddChannelMembersSnackbar} from '@utils/snack_bar';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {createContactSectionsByNickname} from '@utils/contact_section';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -43,6 +44,49 @@ const messages = defineMessages({
         defaultMessage: 'Select users to add to this channel',
     },
 });
+
+type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
+type CandidateProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
+
+/**
+ * 从 CandidateDraft 提取标签集合
+ */
+function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
+    const tags: CandidateTag[] = [];
+    if (draft.sourceFlags.globalSearch) {
+        tags.push('exactMatch');
+    }
+    if (draft.sourceFlags.customer) {
+        tags.push('customer');
+    }
+    if (draft.sourceFlags.supplier) {
+        tags.push('supplier');
+    }
+    if (draft.sourceFlags.enterpriseSearch) {
+        tags.push('enterprise');
+    }
+    if (draft.sourceFlags.self) {
+        tags.push('self');
+    }
+    return tags;
+}
+
+/**
+ * 将 CandidateDraft 列表转换为带标签的 UserProfile 列表
+ */
+function mapCandidateDraftsToProfiles(drafts: CandidateDraft[]): CandidateProfile[] {
+    const profiles: CandidateProfile[] = [];
+    for (const draft of drafts) {
+        if (!draft.user) {
+            continue;
+        }
+        profiles.push({
+            ...draft.user,
+            mmCandidateTags: getCandidateTags(draft),
+        });
+    }
+    return profiles;
+}
 
 export const getHeaderOptions = async (theme: Theme, displayName: string, inModal = false) => {
     let leftButtons;
@@ -72,6 +116,7 @@ type Props = {
     componentId: AvailableScreens;
     channel?: ChannelModel;
     currentTeamId: string;
+    currentUserId: string;
     teammateNameDisplay: string;
     tutorialWatched: boolean;
     inModal?: boolean;
@@ -158,6 +203,7 @@ export default function ChannelAddMembers({
     componentId,
     channel,
     currentTeamId,
+    currentUserId,
     teammateNameDisplay,
     tutorialWatched,
     inModal,
@@ -248,42 +294,38 @@ export default function ChannelAddMembers({
     const teamIdForMembersList = channel?.teamId || currentTeamId || '';
 
     const userFetchFunction = useCallback(async (page: number) => {
-        if (!channel) {
+        if (page > 0 || !channel) {
             return [];
         }
 
-        const result = await fetchProfilesNotInChannel(serverUrl, teamIdForMembersList, channel.id, channel.isGroupConstrained, page, General.PROFILE_CHUNK_SIZE);
-        if (result.users?.length) {
-            return result.users.filter((u) => !u.delete_at);
-        }
+        const candidates = await getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId);
+        const {members = []} = await fetchChannelMemberships(serverUrl, channel.id, {}, true);
+        const existingMemberIds = new Set(members.map((m: ChannelMembership) => m.user_id));
 
-        return [];
-    }, [serverUrl, channel, teamIdForMembersList]);
+        const profiles = mapCandidateDraftsToProfiles(candidates);
+        return profiles.filter((p) => !existingMemberIds.has(p.id) && !p.delete_at);
+    }, [serverUrl, channel, teamIdForMembersList, currentUserId]);
 
     const userSearchFunction = useCallback(async (searchTerm: string) => {
         if (!channel) {
             return [];
         }
 
-        const lowerCasedTerm = searchTerm.toLowerCase();
-        const results = await searchProfiles(serverUrl, lowerCasedTerm, {team_id: teamIdForMembersList, not_in_channel_id: channel.id, allow_inactive: false});
-
-        if (results.data) {
-            return results.data;
+        const trimmedTerm = searchTerm.trim();
+        if (!trimmedTerm) {
+            return [];
         }
 
-        return [];
-    }, [serverUrl, channel, teamIdForMembersList]);
+        const candidates = await searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, trimmedTerm);
+        const {members = []} = await fetchChannelMemberships(serverUrl, channel.id, {}, true);
+        const existingMemberIds = new Set(members.map((m: ChannelMembership) => m.user_id));
 
-    const createUserFilter = useCallback((exactMatches: UserProfile[], searchTerm: string) => {
-        return (p: UserProfile) => {
-            if (p.username === searchTerm || p.username.startsWith(searchTerm)) {
-                exactMatches.push(p);
-                return false;
-            }
+        const profiles = mapCandidateDraftsToProfiles(candidates);
+        return profiles.filter((p) => !existingMemberIds.has(p.id));
+    }, [serverUrl, channel, teamIdForMembersList, currentUserId]);
 
-            return true;
-        };
+    const createUserFilter = useCallback(() => {
+        return () => true;
     }, []);
 
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, [close]);
@@ -367,6 +409,8 @@ export default function ChannelAddMembers({
                         createFilter={createUserFilter}
                         location={Screens.CHANNEL_ADD_MEMBERS}
                         contactSelectLayout={true}
+                        customSection={createContactSectionsByNickname}
+                        disableClientFilter={true}
                     />
                 </View>
                 <SelectedUsers

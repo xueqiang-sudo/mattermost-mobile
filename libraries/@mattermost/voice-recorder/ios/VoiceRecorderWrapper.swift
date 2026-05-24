@@ -9,7 +9,7 @@ import os.log
 
     private let logger = OSLog(subsystem: "com.mattermost.voicerecorder", category: "VoiceRecorder")
 
-    typealias StopRecordingCompletion = ([String: Any]) -> Void
+    public typealias StopRecordingCompletion = ([String: Any]) -> Void
     private var stopCompletion: StopRecordingCompletion?
 
     private func log(_ message: String, type: OSLogType = .default) {

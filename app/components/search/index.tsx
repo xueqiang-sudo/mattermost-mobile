@@ -159,12 +159,14 @@ const Search = forwardRef<SearchRef, SearchProps>((props: SearchProps, ref) => {
         },
     }), [searchRef]);
 
+    const effectiveCancelIcon = props.showCancel === false ? undefined : (props.cancelIcon ?? cancelIcon);
+
     return (
         <SearchBar
             {...props}
             cancelButtonProps={props.cancelButtonProps || cancelButtonProps}
             cancelButtonTitle={props.cancelButtonTitle || intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-            cancelIcon={cancelIcon}
+            cancelIcon={effectiveCancelIcon}
             clearIcon={clearIcon}
             containerStyle={[styles.containerStyle, props.containerStyle]}
             inputContainerStyle={[styles.inputContainerStyle, props.inputContainerStyle]}

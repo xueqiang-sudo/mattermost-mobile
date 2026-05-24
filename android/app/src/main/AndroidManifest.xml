@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<manifest xmlns:tools="http://schemas.android.com/tools" xmlns:android="http://schemas.android.com/apk/res/android" package="com.mattermost.rnbeta">
+<manifest xmlns:tools="http://schemas.android.com/tools" xmlns:android="http://schemas.android.com/apk/res/android" package="com.optibot.cn">
 
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
 
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
     <queries>
         <intent>
@@ -57,7 +58,7 @@
       <service android:name=".NotificationDismissService" android:enabled="true" android:exported="false"/>
       <receiver android:name=".NotificationReplyBroadcastReceiver" android:enabled="true" android:exported="false"/>
       <activity android:name="com.reactnativenavigation.controllers.NavigationActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:resizeableActivity="true" android:exported="false"/>
-      <activity android:name="com.mattermost.rnshare.ShareActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:taskAffinity="com.mattermost.share" android:exported="true">
+      <activity android:name="com.optibot.cnshare.ShareActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:taskAffinity="com.mattermost.share" android:exported="true">
           <intent-filter>
               <action android:name="android.intent.action.SEND"/>
               <action android:name="android.intent.action.SEND_MULTIPLE"/>
@@ -72,6 +73,34 @@
 
       <!-- Android 14 requires the correct Foreground Service (FGS) type for RNShare -->
       <service android:name="androidx.work.impl.foreground.SystemForegroundService" android:foregroundServiceType="dataSync" android:exported="false" android:stopWithTask="false" tools:node="merge"/>
+
+        <!-- FileProvider: 用于 Android 7.0+ 应用内下载 APK 后调起安装 -->
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.apk_file_provider" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/apk_install_provider_paths"/>
+        </provider>
+
+      <!-- 新的 tag/alias 接口结果返回需要开发者配置一个自定的广播 -->
+      <!-- 该广播需要继承 JPush 提供的 JPushMessageReceiver 类, 并如下新增一个 Intent-Filter -->
+      <!-- <receiver
+        android:name=".receiver.JPushModuleReceiver"
+        android:enabled="true"
+        android:exported="false" >
+        <intent-filter>
+          <action android:name="cn.jpush.android.intent.RECEIVE_MESSAGE" />
+          <category android:name="${applicationId}" />
+        </intent-filter>
+      </receiver> -->
+
+      <!-- 可配置android:process参数将Service放在其他进程中；android:enabled属性不能是false -->
+      <!-- 这个是自定义Service，要继承极光JCommonService，可以在更多手机平台上使得推送通道保持的更稳定 -->
+      <!-- <service android:name="xx.xx.XService"
+        android:enabled="true"
+        android:exported="false"
+        android:process=":pushcore">
+        <intent-filter>
+          <action android:name="cn.jiguang.user.service.action" />
+        </intent-filter>
+      </service> -->
 
     </application>
 </manifest>

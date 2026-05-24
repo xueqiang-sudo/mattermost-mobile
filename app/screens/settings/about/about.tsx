@@ -3,14 +3,16 @@
 
 import Clipboard from '@react-native-clipboard/clipboard';
 import {nativeApplicationVersion, nativeBuildVersion} from 'expo-application';
-import React, {useCallback} from 'react';
+import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Image, Text, View} from 'react-native';
 
+import {manualCheckForUpdate, showUpdateOverlay} from '@actions/remote/update';
 import Button from '@components/button';
 import FormattedText from '@components/formatted_text';
 import SettingContainer from '@components/settings/container';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
+import {UPDATE_TYPE} from '@constants/update';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -117,6 +119,7 @@ const About = ({componentId, config}: AboutProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
+    const [checking, setChecking] = useState(false);
 
     const close = useCallback(() => {
         popTopScreen(componentId);
@@ -149,6 +152,44 @@ const About = ({componentId, config}: AboutProps) => {
             Clipboard.setString(copiedString);
             showSnackBar({barType: SNACK_BAR_TYPE.INFO_COPIED, sourceScreen: componentId});
         }, [appName, componentId, config.BuildEnterpriseReady, intl]),
+    );
+
+    const handleCheckUpdate = usePreventDoubleTap(
+        useCallback(async () => {
+            if (checking) {
+                return;
+            }
+            setChecking(true);
+
+            const data = await manualCheckForUpdate();
+            setChecking(false);
+
+            if (!data) {
+                showSnackBar({
+                    barType: SNACK_BAR_TYPE.LINK_COPY_FAILED,
+                    sourceScreen: componentId,
+                    customMessage: intl.formatMessage({
+                        id: 'mobile.update.check_failed',
+                        defaultMessage: 'Failed to check for updates. Please try again later.',
+                    }),
+                });
+                return;
+            }
+
+            if (data.update_type === UPDATE_TYPE.NONE) {
+                showSnackBar({
+                    barType: SNACK_BAR_TYPE.INFO_COPIED,
+                    sourceScreen: componentId,
+                    customMessage: intl.formatMessage({
+                        id: 'mobile.update.already_latest',
+                        defaultMessage: 'You are using the latest version.',
+                    }),
+                });
+                return;
+            }
+
+            showUpdateOverlay(data.update_type as 'suggest' | 'force', data);
+        }, [checking, componentId, intl]),
     );
 
     return (
@@ -224,6 +265,22 @@ const About = ({componentId, config}: AboutProps) => {
                             text={intl.formatMessage({
                                 id: 'settings.about.button.copyInfo',
                                 defaultMessage: 'Copy version info',
+                            })}
+                            theme={theme}
+                        />
+                    </View>
+                    <View style={styles.copyButtonWrap}>
+                        <Button
+                            buttonContainerStyle={styles.copyButtonStretch}
+                            emphasis='secondary'
+                            iconName='update'
+                            loading={checking}
+                            onPress={handleCheckUpdate}
+                            size='m'
+                            testID='about.check_update'
+                            text={intl.formatMessage({
+                                id: 'settings.about.button.checkUpdate',
+                                defaultMessage: 'Check for Updates',
                             })}
                             theme={theme}
                         />

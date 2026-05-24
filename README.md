@@ -1,7 +1,7 @@
 # Mattermost Mobile v2
 
 - **Minimum Server versions:** Current ESR version (10.11.0+)
-- **Supported iOS versions:** 15.1+
+- **Supported iOS versions:** 16.0+
 - **Supported Android versions:** 7.0+
 
 Mattermost is an open source Slack-alternative used by thousands of companies around the world in 21 languages. Learn more at [https://mattermost.com](https://mattermost.com).
@@ -12,6 +12,34 @@ We plan on releasing monthly updates with new features - check the [changelog](h
 
 **Important:** If you self-compile the Mattermost Mobile apps you also need to deploy your own [Mattermost Push Notification Service](https://github.com/mattermost/mattermost-push-proxy/releases). 
 
+# Android 16KB Page Size Support
+
+**Temporary Requirement:** To comply with Google Play's 16KB page size requirement for Android devices, this project includes a compatibility patch that must be applied before building for Android.
+
+### When to Apply the Patch
+
+- **CI/CD Builds:** The patch is automatically applied in GitHub Actions for Android builds
+- **Local Development:** If you're building Android locally and encounter 16KB page size related issues, run:
+
+```bash
+npm run apply-16kb-pagesize-patch
+```
+
+This script will:
+1. Update package dependencies to compatible versions
+2. Apply necessary code changes for 16KB page size support
+3. Update patch files for modified dependencies
+4. Regenerate `package-lock.json`
+
+### ⚠️ Important Warnings
+
+- **DO NOT commit the changes** applied by this patch to the repository
+- **These changes will break iOS builds** if committed
+- The patch is designed to be applied only during Android CI builds
+- For local development, revert all changes after building Android
+
+**Note:** This is a temporary solution until all dependencies natively support 16KB page sizes.
+
 # How to Contribute
 
 ### Testing
@@ -19,9 +47,9 @@ We plan on releasing monthly updates with new features - check the [changelog](h
 To help with testing app updates before they're released, you can:
 
 1. Sign up to be a beta tester
-   - [Android](https://play.google.com/apps/testing/com.mattermost.rnbeta)
+   - [Android](https://play.google.com/apps/testing/com.optibot.cn)
    - [iOS](https://testflight.apple.com/join/Q7Rx7K9P) - Open this link from your iOS device
-2. Install the `Mattermost Beta` app. New updates in the Beta app are released periodically. You will receive a notification when the new updates are available.
+2. Install the `Optibot Beta` app. New updates in the Beta app are released periodically. You will receive a notification when the new updates are available.
 3. File any bugs you find by filing a [GitHub issue](https://github.com/mattermost/mattermost-mobile/issues) with:
    - Device information
    - Repro steps
@@ -31,8 +59,8 @@ To help with testing app updates before they're released, you can:
    - Join the [Native Mobile Apps channel](https://community.mattermost.com/core/channels/native-mobile-apps) to see what's new and discuss feedback with other contributors and the core team
    
 You can leave the Beta testing program at any time:
-- On Android, [click this link](https://play.google.com/apps/testing/com.mattermost.rnbeta) while logged in with your Google Play email address used to opt-in for the Beta program, then click **Leave the program**. 
-- On iOS, access the `Mattermost Beta` app page in TestFlight and click **Stop Testing**.
+- On Android, [click this link](https://play.google.com/apps/testing/com.optibot.cn) while logged in with your Google Play email address used to opt-in for the Beta program, then click **Leave the program**. 
+- On iOS, access the `Optibot Beta` app page in TestFlight and click **Stop Testing**.
 
 ### Contribute Code 
 

@@ -18,7 +18,9 @@ import {registerNavigationListeners, resetToStartupLoading} from '@screens/navig
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import VoiceRecorder from '@mattermost/voice-recorder';
+import {clearCachedUpdateApk} from '@utils/file/apk_download';
 import {logDebug, logError} from '@utils/log';
+import JPushManager from '@init/jpush';
 
 // Controls whether the main initialization (database, etc...) is done, either on app launch
 // or on the Share Extension, for example.
@@ -79,7 +81,15 @@ export async function start() {
         logError('[app.start] 清理临时录音文件失败', error);
     }
 
+    try {
+        await clearCachedUpdateApk();
+        logDebug('[app.start] 已清理缓存的更新 APK');
+    } catch (error) {
+        logError('[app.start] 清理缓存更新 APK 失败', error);
+    }
+
     PushNotifications.init(serverCredentials.length > 0);
+    JPushManager.init();
 
     await WebsocketManager.init(serverCredentials);
 

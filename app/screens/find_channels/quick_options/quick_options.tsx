@@ -9,6 +9,7 @@ import Animated, {FadeInDown, FadeOutUp} from 'react-native-reanimated';
 import CompassIcon from '@components/compass_icon';
 import OptionBox, {OPTIONS_HEIGHT} from '@components/option_box';
 import {Screens} from '@constants';
+import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {useTheme} from '@context/theme';
 import {showModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -56,16 +57,32 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
     }, [intl]);
 
     /**
-     * 打开私信
+     * 发起群聊
      */
-    const openDirectMessage = useCallback(async () => {
-        const title = intl.formatMessage({id: 'create_direct_message.title', defaultMessage: 'Create Direct Message'});
+    const openGroupChat = useCallback(async () => {
+        const title = intl.formatMessage({id: 'find_channels.open_group_chat', defaultMessage: 'Start group chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = await CompassIcon.getImageSource('close', 24, closeIconColor);
 
         await close();
         showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
+            variant: 'group_only',
+        });
+    }, [intl, theme]);
+
+    /**
+     * 发起私聊
+     */
+    const openPrivateChat = useCallback(async () => {
+        const title = intl.formatMessage({id: 'find_channels.open_private_chat', defaultMessage: 'Start private chat'});
+        const closeIconColor = theme.sidebarHeaderTextColor;
+        const closeButton = await CompassIcon.getImageSource('close', 24, closeIconColor);
+
+        await close();
+        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+            closeButton,
+            variant: 'dm_only',
         });
     }, [intl, theme]);
 
@@ -77,17 +94,22 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
         >
             <Animated.View style={styles.wrapper}>
                 <OptionBox
-                    containerStyle={styles.openDmBox}
-                    iconName='account-outline'
-                    onPress={openDirectMessage}
-                    text={intl.formatMessage({id: 'find_channels.open_dm', defaultMessage: 'DM or group chat'})}
-                    testID='find_channels.quick_options.open_dm.option'
+                    iconName='account-multiple-outline'
+                    onPress={openGroupChat}
+                    text={intl.formatMessage({id: 'find_channels.open_group_chat', defaultMessage: 'Start group chat'})}
+                    testID='find_channels.quick_options.open_group_chat.option'
                 />
-                {canCreateChannels &&
+                <View style={styles.separator}/>
+                <OptionBox
+                    iconName='account-outline'
+                    onPress={openPrivateChat}
+                    text={intl.formatMessage({id: 'find_channels.open_private_chat', defaultMessage: 'Start private chat'})}
+                    testID='find_channels.quick_options.open_private_chat.option'
+                />
+                {canCreateChannels && ENABLE_INTERNAL_GROUPS &&
                 <>
                     <View style={styles.separator}/>
                     <OptionBox
-                        containerStyle={styles.newChannelBox}
                         iconName='plus'
                         onPress={createNewChannel}
                         text={intl.formatMessage({id: 'find_channels.new_channel', defaultMessage: 'New group chat'})}

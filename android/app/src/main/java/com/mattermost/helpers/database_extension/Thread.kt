@@ -14,7 +14,7 @@ private fun getLastReplyAt(thread: ReadableMap): Double {
     try {
         var v = thread.getDouble("last_reply_at")
         if (v == 0.0) {
-            val post = thread.getMap("post")
+            val post = thread.getMap("post")!!
             if (post != null) {
                 v = post.getDouble("create_at")
             }
@@ -82,7 +82,7 @@ internal fun updateThread(db: WMDatabase, thread: ReadableMap, existingRecord: R
 internal fun insertThreadParticipants(db: WMDatabase, threadId: String, participants: ReadableArray) {
     for (i in 0 until participants.size()) {
         try {
-            val participant = participants.getMap(i)
+            val participant = participants.getMap(i)!!
             val id = RandomId.generate()
             db.execute(
                     """

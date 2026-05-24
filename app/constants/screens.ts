@@ -7,6 +7,7 @@ export const ABOUT = 'About';
 export const ACCOUNT = 'Account';
 export const ACCOUNT_MODAL = 'AccountModal';
 export const AI_AGENT = 'AIAgent';
+export const APP_UPDATE = 'AppUpdate';
 export const APPS_FORM = 'AppForm';
 export const BOTTOM_SHEET = 'BottomSheet';
 export const BROWSE_CHANNELS = 'BrowseChannels';
@@ -129,6 +130,7 @@ export default {
     ACCOUNT,
     ACCOUNT_MODAL,
     AI_AGENT,
+    APP_UPDATE,
     APPS_FORM,
     BOTTOM_SHEET,
     BROWSE_CHANNELS,
@@ -262,6 +264,7 @@ export const MODAL_SCREENS_WITHOUT_BACK = new Set<string>([
 ]);
 
 export const SCREENS_WITH_TRANSPARENT_BACKGROUND = new Set<string>([
+    APP_UPDATE,
     PERMALINK,
     REVIEW_APP,
     SNACK_BAR,

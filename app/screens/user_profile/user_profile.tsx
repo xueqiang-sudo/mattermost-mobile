@@ -120,7 +120,8 @@ const UserProfile = ({
     }
 
     const showCustomStatus = isCustomStatusEnabled && Boolean(customStatus) && !user.isBot && !isCustomStatusExpired(user);
-    const showUserProfileOptions = (!isDirectMessage || !channelContext) && !override && !manageMode;
+    const isSelf = user.id === currentUserId;
+    const showUserProfileOptions = !isSelf && (!isDirectMessage || !channelContext) && !override && !manageMode;
     const showNickname = Boolean(user.nickname) && !override && !user.isBot && !manageMode;
     const showPosition = Boolean(user.position) && !override && !user.isBot && !manageMode;
     const showLocalTime = Boolean(localTime) && !override && !user.isBot && !manageMode;
@@ -292,9 +293,11 @@ const UserProfile = ({
             closeButtonId={closeButtonId}
             componentId={Screens.USER_PROFILE}
             initialSnapIndex={1}
-            snapPoints={snapPoints}
+            snapPoints={isPickerPreview ? [1, '88%'] : [1, '90%']}
+            enableDynamicSizing={true}
             testID='user_profile'
-            contentStyle={isPickerPreview ? {flex: 0} : undefined}
+            contentStyle={{flex: 0}}
+            scrollable={true}
         />
     );
 };

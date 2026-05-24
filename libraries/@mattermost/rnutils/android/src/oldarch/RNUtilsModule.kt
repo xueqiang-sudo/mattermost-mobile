@@ -1,4 +1,4 @@
-package com.mattermost.rnutils
+package com.optibot.cnutils
 
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.Promise

@@ -29,6 +29,7 @@ import ClientTeamDepartment, {type ClientTeamDepartmentMix} from './team_departm
 import ClientTeams, {type ClientTeamsMix} from './teams';
 import ClientThreads, {type ClientThreadsMix} from './threads';
 import ClientTos, {type ClientTosMix} from './tos';
+import ClientUpdate, {type ClientUpdateMix} from './update';
 import ClientUsers, {type ClientUsersMix} from './users';
 
 import type {APIClientInterface} from '@mattermost/react-native-network-client';
@@ -52,6 +53,7 @@ interface Client extends ClientBase,
     ClientTeamDepartmentMix,
     ClientThreadsMix,
     ClientTosMix,
+    ClientUpdateMix,
     ClientUsersMix,
     ClientCallsMix,
     ClientPluginsMix,
@@ -82,6 +84,7 @@ class Client extends mix(ClientBase).with(
     ClientTeamDepartment,
     ClientThreads,
     ClientTos,
+    ClientUpdate,
     ClientUsers,
     ClientCalls,
     ClientPlugins,

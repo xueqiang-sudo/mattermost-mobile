@@ -40,7 +40,7 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
         }
 
         val postsResponse = fetch(serverUrl, endpoint)
-        val postData = postsResponse?.getMap("data")
+        val postData = postsResponse?.getMap("data")!!
         val results = Arguments.createMap()
 
         if (postData != null) {
@@ -62,7 +62,7 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
                     val userIdsAlreadyLoaded = mutableListOf<String>()
                     if (loadedProfiles != null) {
                         for (i in 0 until loadedProfiles.size()) {
-                            loadedProfiles.getMap(i).getString("id")?.let { userIdsAlreadyLoaded.add(it) }
+                            loadedProfiles.getMap(i)!!.getString("id")?.let { userIdsAlreadyLoaded.add(it) }
                         }
                     }
 
@@ -82,7 +82,7 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
 
                     while (iterator.hasNextKey()) {
                         val key = iterator.nextKey()
-                        val post = posts.getMap(key)
+                        val post = posts.getMap(key)!!
                         val userId = post?.getString("user_id")
                         if (userId != null && userId != currentUserId && !userIdsAlreadyLoaded.contains(userId) && !userIds.contains(userId)) {
                             userIds.add(userId)
@@ -90,11 +90,11 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
 
                         val message = post?.getString("message")
                         findNeededUsernames(message)
-                        val props = post?.getMap("props")
+                        val props = post?.getMap("props")!!
                         val attachments = props?.getArray("attachments")
                         if (attachments != null) {
                             for (i in 0 until attachments.size()) {
-                                val attachment = attachments.getMap(i)
+                                val attachment = attachments.getMap(i)!!
                                 val pretext = attachment.getString("pretext")
                                 val text = attachment.getString("text")
                                 findNeededUsernames(pretext)
@@ -131,7 +131,7 @@ internal suspend fun PushNotificationDataRunnable.Companion.fetchPosts(
                             val participants = post?.getArray("participants")
                             participants?.let {
                                 for (i in 0 until it.size()) {
-                                    val participant = it.getMap(i)
+                                    val participant = it.getMap(i)!!
 
                                     val participantId = participant.getString("id")
                                     if (participantId != currentUserId && participantId != null) {

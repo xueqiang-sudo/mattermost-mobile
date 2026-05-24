@@ -37,6 +37,14 @@ export type UsernameToNicknameOptions = {
     useFallbackUsername?: boolean;
 };
 
+const toSafeString = (value: unknown): string => {
+    return typeof value === 'string' ? value : '';
+};
+
+const safeTrim = (value: unknown): string => {
+    return toSafeString(value).trim();
+};
+
 /**
  * 将用户展示名统一为昵称优先（可选附带姓名），不跟随 TeammateNameDisplay。
  * 无可用信息时回退到 username；无 user 时依 locale 返回「Someone」或空串。
@@ -53,20 +61,22 @@ export function username2Nickname(user?: UserProfile | SimpleUserProfile | UserM
     }
 
     const fullName = getFullName(user);
-    const nickname = (user.nickname || '').trim();
+    const nickname = safeTrim(user.nickname);
 
-    let name: string;
+    const fallbackUsername = toSafeString(user.username);
+    let name = '';
     if (includeFullName !== false && nickname && fullName) {
         name = `${nickname} (${fullName})`;
     } else {
-        name = nickname || fullName || user.username;
+        name = nickname || fullName || fallbackUsername;
     }
 
-    if (!name.trim()) {
-        name = user.username;
+    const normalizedName = toSafeString(name);
+    if (!normalizedName.trim()) {
+        return fallbackUsername;
     }
 
-    return name;
+    return normalizedName;
 }
 
 export function displayUsername(user?: UserProfile | UserModel | null, locale?: string, teammateDisplayNameSetting?: string, useFallbackUsername = true) {
@@ -74,7 +84,7 @@ export function displayUsername(user?: UserProfile | UserModel | null, locale?: 
 
     if (user) {
         const fullName = getFullName(user);
-        const nickname = (user.nickname || '').trim();
+        const nickname = safeTrim(user.nickname);
 
         if (teammateDisplayNameSetting === Preferences.DISPLAY_PREFER_NICKNAME) {
             // 昵称优先：有姓名时显示「姓名 (昵称)」
@@ -85,18 +95,16 @@ export function displayUsername(user?: UserProfile | UserModel | null, locale?: 
             }
         } else if (teammateDisplayNameSetting === Preferences.DISPLAY_PREFER_FULL_NAME) {
             name = fullName;
-        } else {
+        } else if (nickname && fullName) {
             // 项目要求：不直接显示 username，优先显示昵称，有姓名则一并显示
             // 格式：昵称 (姓名) 或 仅昵称/仅姓名，均无时 fallback 到 username
-            if (nickname && fullName) {
-                name = `${nickname} (${fullName})`;
-            } else {
-                name = nickname || fullName;
-            }
+            name = `${nickname} (${fullName})`;
+        } else {
+            name = nickname || fullName;
         }
 
-        if (!name || name.trim().length === 0) {
-            name = user.username;
+        if (!safeTrim(name)) {
+            name = toSafeString(user.username);
         }
     }
 
@@ -128,15 +136,15 @@ export function displayGroupMessageName(users: Array<UserProfile | SimpleUserPro
 }
 
 export function getFullName(user: UserProfile | SimpleUserProfile | UserModel): string {
-    let firstName: string;
-    let lastName: string;
+    let firstName = '';
+    let lastName = '';
 
     if ('lastName' in user) {
-        firstName = user.firstName;
-        lastName = user.lastName;
+        firstName = toSafeString(user.firstName);
+        lastName = toSafeString(user.lastName);
     } else {
-        firstName = user.first_name;
-        lastName = user.last_name;
+        firstName = toSafeString(user.first_name);
+        lastName = toSafeString(user.last_name);
     }
 
     if (firstName && lastName) {
@@ -486,6 +494,30 @@ export const getLastPictureUpdate = (user: UserModel | UserProfile) => {
 
     return user.is_bot ? user.bot_last_icon_update : user.last_picture_update || 0;
 };
+
+/**
+ * 从用户对象中提取头像首字（昵称/姓名/username 第一个有意义字符，大写）。
+ * 无有效内容时返回 null。
+ */
+export function getInitialsForAvatar(user?: UserProfile | SimpleUserProfile | UserModel | null): string | null {
+    if (!user) {
+        return null;
+    }
+
+    const displayName = username2Nickname(user, {includeFullName: false, useFallbackUsername: true});
+    const trimmed = displayName?.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const leadingNonWordRe = /^[^0-9A-Za-z\u3400-\u9FFF\uF900-\uFAFF]+/u;
+    const normalized = trimmed.replace(leadingNonWordRe, '');
+    const firstChar = normalized.charAt(0);
+    if (!firstChar) {
+        return null;
+    }
+    return firstChar.toUpperCase();
+}
 
 /**
  * Sorts custom profile attributes by their sort_order property, falling back to name comparison.

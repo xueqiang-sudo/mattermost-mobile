@@ -74,7 +74,7 @@ wait_for_emulator() {
 install_app() {
     echo "Installing the app..."
     adb install -r ../android/app/build/outputs/apk/debug/app-debug.apk
-    adb shell pm list packages | grep "com.mattermost.rnbeta" && echo "App is installed." || echo "App is not installed."
+    adb shell pm list packages | grep "com.optibot.cn" && echo "App is installed." || echo "App is not installed."
 }
 
 start_server() {

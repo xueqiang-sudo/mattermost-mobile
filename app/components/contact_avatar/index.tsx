@@ -4,35 +4,20 @@
 import React, {useMemo} from 'react';
 import {Platform, Text, View} from 'react-native';
 
+import {buildAbsoluteUrl} from '@actions/remote/file';
+import {buildProfileImageUrlFromUser} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
+import {ExpoImageAnimated} from '@components/expo_image';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {getInitialsForAvatar} from '@utils/user';
 
 type Props = {
     employee: UserProfile | SimpleUserProfile;
     size?: number;
-};
-
-const LEADING_NON_WORD_RE = /^[^0-9A-Za-z\u3400-\u9FFF\uF900-\uFAFF]+/u;
-
-const getMeaningfulLeadingChar = (value: string): string => {
-    const normalized = value.trim().replace(LEADING_NON_WORD_RE, '');
-    return normalized.charAt(0);
-};
-
-const getInitials = (name: string): string | null => {
-    const trimmed = name?.trim();
-    if (!trimmed) {
-        return null;
-    }
-    const firstChar = getMeaningfulLeadingChar(trimmed);
-    if (!firstChar) {
-        return null;
-    }
-    return firstChar.toUpperCase();
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -53,10 +38,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 
 const ContactAvatar = ({employee, size = 40}: Props) => {
     const theme = useTheme();
+    const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
-    const displayName = useMemo(() => getContactListDisplayName(employee), [employee]);
-    const initials = useMemo(() => getInitials(displayName), [displayName]);
+    const lastPictureUpdate = useMemo(() => {
+        return employee.last_picture_update || 0;
+    }, [employee]);
+
+    const imgSource = useMemo(() => {
+        if (!employee || lastPictureUpdate === 0) {
+            return undefined;
+        }
+        const pictureUrl = buildProfileImageUrlFromUser(serverUrl, employee);
+        return {uri: buildAbsoluteUrl(serverUrl, pictureUrl)};
+    }, [employee, serverUrl, lastPictureUpdate]);
+
+    const initials = useMemo(() => getInitialsForAvatar(employee), [employee]);
 
     const containerStyle = useMemo(() => [
         styles.container,
@@ -71,6 +68,16 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
             ...(Platform.OS === 'android' && {includeFontPadding: false}),
         },
     ], [styles.initials, size]);
+
+    if (imgSource) {
+        return (
+            <ExpoImageAnimated
+                id={`user-${employee.id}-${lastPictureUpdate}`}
+                source={imgSource}
+                style={containerStyle}
+            />
+        );
+    }
 
     if (initials) {
         return (

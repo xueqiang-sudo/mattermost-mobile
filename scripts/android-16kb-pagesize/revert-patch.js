@@ -19,10 +19,10 @@ function revertPatch() {
         chdir(gitRoot);
 
         // 执行 git checkout 命令恢复指定文件
-        execSync('git checkout -- package.json package-lock.json app.json app/components/expo_image/index.tsx android/buildscript-gradle.lockfile patches/', {stdio: 'inherit'});
+        execSync('git checkout -- package.json package-lock.json app.json ios/Podfile.lock android/app/src/main/AndroidManifest.xml app/components/expo_image/index.tsx android/buildscript-gradle.lockfile patches/', {stdio: 'inherit'});
 
         // 执行 git clean 命令清理 patches/ 目录
-        execSync('git clean -fd patches/', {stdio: 'inherit'});
+        execSync('git clean -fd patches/ package.json.orig android/app/src/main/assets/index.android.bundle', {stdio: 'inherit'});
 
         // eslint-disable-next-line no-console
         console.log('✓ Patch changes reverted');

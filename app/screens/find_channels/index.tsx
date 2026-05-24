@@ -8,6 +8,7 @@ import {Keyboard, type LayoutChangeEvent, View, SafeAreaView} from 'react-native
 import CompassIcon from '@components/compass_icon';
 import SearchBar from '@components/search';
 import {Screens} from '@constants';
+import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useKeyboardOverlap} from '@hooks/device';
@@ -78,13 +79,6 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
     const [containerHeight, setContainerHeight] = useState(0);
     const overlap = useKeyboardOverlap(listView, containerHeight);
 
-    const cancelButtonProps = useMemo(() => ({
-        color: theme.buttonBg,
-        buttonTextStyle: {
-            ...typography('Body', 200, 'SemiBold'),
-        },
-    }), [theme.buttonBg]);
-
     /**
      * 处理布局变化
      */
@@ -98,13 +92,6 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
     const close = useCallback(() => {
         Keyboard.dismiss();
         return dismissModal({componentId});
-    }, [componentId]);
-
-    /**
-     * 取消搜索
-     */
-    const onCancel = useCallback(() => {
-        dismissModal({componentId});
     }, [componentId]);
 
     /**
@@ -148,10 +135,11 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
     }, [componentId, rightButton]);
 
     const openJoinedChannelsAndGroups = useCallback(() => {
+        const titleId = ENABLE_INTERNAL_GROUPS ? 'joined_channels.title' : 'joined_channels.title_no_internal';
         goToScreen(
             Screens.JOINED_CHANNELS_AND_GROUPS,
             intl.formatMessage({
-                id: 'joined_channels.title',
+                id: titleId,
                 defaultMessage: 'Joined groups & discussion groups',
             }),
             {},
@@ -172,17 +160,16 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                 <View style={styles.searchBarContainer}>
                     <SearchBar
                         autoCapitalize='none'
-                        autoFocus={true}
-                        cancelButtonProps={cancelButtonProps}
+                        autoFocus={false}
                         clearIconColor={color}
                         inputContainerStyle={styles.inputContainerStyle}
                         inputStyle={styles.inputStyle}
                         keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
-                        onCancel={onCancel}
                         onChangeText={onChangeText}
                         placeholderTextColor={color}
                         searchIconColor={color}
                         selectionColor={theme.buttonBg}
+                        showCancel={false}
                         showLoading={loading}
                         value={term}
                         testID='find_channels.search_bar'
@@ -192,6 +179,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                 <CategoryTabs
                     activeCategory={category}
                     onCategoryChange={setCategory}
+                    enableInternalGroups={ENABLE_INTERNAL_GROUPS}
                 />
                 <View
                     style={styles.listContainer}
@@ -202,6 +190,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                     <UnfilteredList
                         category={category}
                         close={close}
+                        enableInternalGroups={ENABLE_INTERNAL_GROUPS}
                         keyboardOverlap={overlap}
                         testID='find_channels.unfiltered_list'
                     />
@@ -210,6 +199,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                     <FilteredList
                         category={category}
                         close={close}
+                        enableInternalGroups={ENABLE_INTERNAL_GROUPS}
                         keyboardOverlap={overlap}
                         loading={loading}
                         onLoading={setLoading}

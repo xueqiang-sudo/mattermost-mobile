@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useMemo} from 'react';
-import {StyleSheet, View} from 'react-native';
+import {Platform, StyleSheet, Text, View} from 'react-native';
 
 import {buildAbsoluteUrl} from '@actions/remote/file';
 import {buildProfileImageUrlFromUser} from '@actions/remote/user';
@@ -10,7 +10,8 @@ import CompassIcon from '@components/compass_icon';
 import ExpoImage from '@components/expo_image';
 import {useServerUrl} from '@context/server';
 import {changeOpacity} from '@utils/theme';
-import {getLastPictureUpdate} from '@utils/user';
+import {typography} from '@utils/typography';
+import {getInitialsForAvatar, getLastPictureUpdate} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -50,13 +51,31 @@ const ProfileAvatar = ({
             />
         );
     } else {
-        picture = (
-            <CompassIcon
-                name='account-outline'
-                size={22}
-                color={changeOpacity('#fff', 0.48)}
-            />
-        );
+        const initials = getInitialsForAvatar(author);
+        if (initials) {
+            picture = (
+                <View style={[styles.avatar, styles.avatarRadius, {alignItems: 'center', justifyContent: 'center', backgroundColor: changeOpacity('#fff', 0.2)}]}>
+                    <Text
+                        style={[
+                            typography('Body', 100, 'SemiBold'),
+                            {color: '#fff', fontSize: 10, lineHeight: 12},
+                            ...(Platform.OS === 'android' ? [{includeFontPadding: false}] : []),
+                        ]}
+                        numberOfLines={1}
+                    >
+                        {initials}
+                    </Text>
+                </View>
+            );
+        } else {
+            picture = (
+                <CompassIcon
+                    name='account-outline'
+                    size={22}
+                    color={changeOpacity('#fff', 0.48)}
+                />
+            );
+        }
     }
 
     return (

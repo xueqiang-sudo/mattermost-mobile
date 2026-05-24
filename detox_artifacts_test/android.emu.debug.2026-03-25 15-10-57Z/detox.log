@@ -1,0 +1,490 @@
+23:10:57.816 detox[79191] B lifecycle detox/node_modules/detox/local-cli/cli.js test -C /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/.detoxrc.json -c android.emu.debug -n Pixel_9a --reuse --record-logs failing --take-screenshots failing --testPathPattern message_recall_reedit_quote_chain --artifacts-location /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test --loglevel debug
+  data: {
+    "id": "e1d2e2c1-ec03-b921-c412-1b01e066f04d",
+    "detoxConfig": {
+      "configurationName": "android.emu.debug",
+      "apps": {
+        "default": {
+          "type": "android.apk",
+          "binaryPath": "../android/app/build/outputs/apk/debug/app-debug.apk",
+          "build": "cd ../android && ./gradlew clean && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug && cd ../detox"
+        }
+      },
+      "artifacts": {
+        "rootDir": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test/android.emu.debug.2026-03-25 15-10-57Z",
+        "plugins": {
+          "log": {
+            "enabled": true,
+            "keepOnlyFailedTestsArtifacts": true
+          },
+          "screenshot": {
+            "enabled": true,
+            "shouldTakeAutomaticSnapshots": true,
+            "keepOnlyFailedTestsArtifacts": true
+          },
+          "video": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "instruments": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "uiHierarchy": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          }
+        },
+        "pathBuilder": "./e2e/path_builder.js"
+      },
+      "behavior": {
+        "init": {
+          "keepLockFile": false,
+          "reinstallApp": false,
+          "launchApp": false,
+          "exposeGlobals": true
+        },
+        "cleanup": {
+          "shutdownDevice": false
+        },
+        "launchApp": "auto"
+      },
+      "cli": {
+        "artifactsLocation": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test",
+        "recordLogs": "failing",
+        "takeScreenshots": "failing",
+        "configPath": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/.detoxrc.json",
+        "configuration": "android.emu.debug",
+        "deviceName": "Pixel_9a",
+        "loglevel": "debug",
+        "reuse": true,
+        "start": true
+      },
+      "commands": [
+        {
+          "appName": "default",
+          "build": "cd ../android && ./gradlew clean && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug && cd ../detox"
+        }
+      ],
+      "device": {
+        "type": "android.emulator",
+        "device": {
+          "avdName": "Pixel_9a"
+        }
+      },
+      "logger": {
+        "level": "debug",
+        "overrideConsole": true,
+        "options": {
+          "showLoggerName": true,
+          "showPid": true,
+          "showLevel": false,
+          "showMetadata": false,
+          "basepath": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/detox/src",
+          "prefixers": {},
+          "stringifiers": {}
+        }
+      },
+      "testRunner": {
+        "retries": 0,
+        "forwardEnv": false,
+        "detached": false,
+        "bail": false,
+        "jest": {
+          "setupTimeout": 300000,
+          "teardownTimeout": 30000,
+          "retryAfterCircusRetries": false,
+          "reportWorkerAssign": true
+        },
+        "args": {
+          "$0": "jest",
+          "_": [],
+          "config": "e2e/config.js",
+          "testPathPattern": "message_recall_reedit_quote_chain",
+          "--": []
+        },
+        "$0": "jest"
+      },
+      "session": {
+        "autoStart": true,
+        "debugSynchronization": 5000,
+        "sessionId": "mobile-test-session"
+      }
+    },
+    "detoxIPCServer": "primary-79191",
+    "testResults": [],
+    "testSessionIndex": 0,
+    "workersCount": 0
+  }
+23:10:57.838 detox[79191] i ipc Server path not specified, so defaulting to ipc.config.socketRoot + ipc.config.appspace + ipc.config.id /tmp/detox.primary-79191
+23:10:57.842 detox[79191] i ipc starting server on  /tmp/detox.primary-79191 
+23:10:57.843 detox[79191] i ipc starting TLS server false
+23:10:57.843 detox[79191] i ipc starting server as Unix || Windows Socket
+23:10:57.847 detox[79191] i ws-server Detox server listening on localhost:61958...
+23:10:57.857 detox[79191] i lifecycle Serialized the session state at: /private/var/folders/sj/3n38y4r17qg9v06fpf2lxpkw0000gn/T/e1d2e2c1-ec03-b921-c412-1b01e066f04d.detox.json
+23:10:57.866 detox[79191] B lifecycle jest --config e2e/config.js --testPathPattern message_recall_reedit_quote_chain
+23:11:00.063 detox[79227] i ipc Service path not specified, so defaulting to ipc.config.socketRoot + ipc.config.appspace + id 
+23:11:00.064 detox[79227] i ipc requested connection to  primary-79191 /tmp/detox.primary-79191
+23:11:00.064 detox[79227] i ipc Connecting client on Unix Socket : /tmp/detox.primary-79191
+23:11:00.066 detox[79227] i ipc retrying reset
+23:11:00.068 detox[79227] i ipc dispatching event to  primary-79191 /tmp/detox.primary-79191  :  registerContext , { id: 'secondary-79227' }
+23:11:00.069 detox[79191] i ipc ## socket connection to server detected ##
+23:11:00.075 detox[79191] i ipc received event of :  registerContext { id: 'secondary-79227' }
+23:11:00.078 detox[79191] i ipc dispatching event to socket  :  registerContextDone {
+  testResults: [],
+  testSessionIndex: 0,
+  unsafe_earlyTeardown: undefined
+}
+23:11:00.080 detox[79227] i ipc ## received events ##
+23:11:00.081 detox[79227] i ipc detected event registerContextDone { testResults: [], testSessionIndex: 0 }
+23:11:00.358 detox[79227] B lifecycle detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts
+23:11:00.375 detox[79227] B lifecycle set up environment
+23:11:00.376 detox[79227] i ipc dispatching event to  primary-79191 /tmp/detox.primary-79191  :  registerWorker , { workerId: 'w1' }
+23:11:00.377 detox[79191] i ipc received event of :  registerWorker { workerId: 'w1' }
+23:11:00.377 detox[79191] i ipc dispatching event to socket  :  registerWorkerDone { workersCount: 1 }
+23:11:00.377 detox[79191] i ipc broadcasting event to all known sockets listening to  /tmp/detox.primary-79191  :   sessionStateUpdate { workersCount: 1 }
+23:11:00.377 detox[79227] i ipc ## received events ##
+23:11:00.378 detox[79227] i ipc detected event registerWorkerDone { workersCount: 1 }
+23:11:01.003 detox[79227] i ipc ## received events ##
+23:11:01.003 detox[79227] i ipc detected event sessionStateUpdate { workersCount: 1 }
+23:11:01.011 detox[79191] B ws-server connection :61958<->:61967
+23:11:01.012 detox[79227] i ws-client opened web socket to: ws://localhost:61958
+23:11:01.016 detox[79227] i ws-client send message
+  data: {"type":"login","params":{"sessionId":"mobile-test-session","role":"tester"},"messageId":0}
+23:11:01.020 detox[79191] i ws-server get
+  data: {"type":"login","params":{"sessionId":"mobile-test-session","role":"tester"},"messageId":0}
+23:11:01.021 detox[79191] i ws-server created session mobile-test-session
+23:11:01.021 detox[79191] i ws-server send
+  data: {
+    "type": "loginSuccess",
+    "params": {
+      "testerConnected": true,
+      "appConnected": false
+    },
+    "messageId": 0
+  }
+23:11:01.022 detox[79191] i ws-server tester joined session mobile-test-session
+23:11:01.022 detox[79227] i ws-client get message
+  data: {"type":"loginSuccess","params":{"testerConnected":true,"appConnected":false},"messageId":0}
+   
+23:11:01.122 detox[79227] i ipc dispatching event to  primary-79191 /tmp/detox.primary-79191  :  allocateDevice , {
+  deviceConfig: { type: 'android.emulator', device: { avdName: 'Pixel_9a' } }
+}
+23:11:01.123 detox[79191] i ipc received event of :  allocateDevice {
+  deviceConfig: { type: 'android.emulator', device: { avdName: 'Pixel_9a' } }
+}
+23:11:01.161 detox[79191] B device init
+  args: ()
+23:11:01.166 detox[79191] E device init
+23:11:01.166 detox[79191] B device allocate
+  data: {
+    "type": "android.emulator",
+    "device": {
+      "avdName": "Pixel_9a"
+    }
+  }
+23:11:03.033 detox[79191] i device Detected emulator binary version { major: 36, minor: 3, patch: 10, toString: [Function: toString] }
+23:11:03.035 detox[79191] i child-process:EXEC_CMD "/Users/qiushaocloud/Library/Android/sdk/platform-tools/adb"  devices
+23:11:03.468 detox[79191] i child-process:EXEC_SUCCESS List of devices attached
+ELJ6R21512001821	device
+emulator-13886	device
+
+
+23:11:03.470 detox[79191] i device:DEVICE_LOOKUP Device ELJ6R21512001821 does not match "Pixel_9a"
+23:11:03.471 detox[79191] i device:TELNET_CONNECTING port: 13886, host: localhost
+23:11:03.518 detox[79191] i device:DEVICE_LOOKUP Found a matching & free device emulator-13886
+23:11:03.519 detox[79191] i device settled on emulator-13886 (Pixel_9a)
+  data: {
+    "id": "emulator-13886",
+    "adbName": "emulator-13886",
+    "name": "emulator-13886 (Pixel_9a)"
+  }
+23:11:03.520 detox[79191] E device allocate
+23:11:03.520 detox[79191] B device post-allocate: emulator-13886
+  data: {
+    "id": "emulator-13886",
+    "adbName": "emulator-13886",
+    "name": "emulator-13886 (Pixel_9a)"
+  }
+23:11:03.520 detox[79191] i child-process:EXEC_CMD "/Users/qiushaocloud/Library/Android/sdk/platform-tools/adb" -s emulator-13886 shell "getprop dev.bootcomplete"
+23:11:05.056 detox[79191] i child-process:EXEC_SUCCESS 1
+
+23:11:05.057 detox[79191] i child-process:EXEC_CMD "/Users/qiushaocloud/Library/Android/sdk/platform-tools/adb" -s emulator-13886 shell "getprop ro.build.version.sdk"
+23:11:05.228 detox[79191] i child-process:EXEC_SUCCESS 36
+
+23:11:05.228 detox[79191] i child-process:EXEC_CMD "/Users/qiushaocloud/Library/Android/sdk/platform-tools/adb" -s emulator-13886 shell "settings put global animator_duration_scale 0"
+23:11:08.170 detox[79191] i child-process:EXEC_SUCCESS 
+23:11:08.171 detox[79191] i child-process:EXEC_CMD "/Users/qiushaocloud/Library/Android/sdk/platform-tools/adb" -s emulator-13886 shell "settings put global window_animation_scale 0"
+23:11:09.216 detox[79191] i child-process:EXEC_SUCCESS 
+23:11:09.216 detox[79191] i child-process:EXEC_CMD "/Users/qiushaocloud/Library/Android/sdk/platform-tools/adb" -s emulator-13886 shell "settings put global transition_animation_scale 0"
+23:11:09.492 detox[79191] i child-process:EXEC_SUCCESS 
+23:11:09.492 detox[79191] i child-process:EXEC_CMD "/Users/qiushaocloud/Library/Android/sdk/platform-tools/adb" -s emulator-13886 shell "dumpsys power | grep \"^[ ]*m[UW].*=\""
+23:11:10.573 detox[79191] i child-process:EXEC_SUCCESS   mWakefulness=Awake
+  mWakefulnessChanging=false
+  mUseAutoSuspend=true
+  mWakeLockSummary=0x1
+  mWakeUpWhenPluggedOrUnpluggedConfig=false
+  mWakeUpWhenPluggedOrUnpluggedInTheaterModeConfig=false
+  mUserActivityTimeoutOverrideFromWindowManager=-1
+  mUserInactiveOverrideFromWindowManager=false
+  mUseNormalBrightnessForDoze=false
+  mUserId=0
+  mWakeLockSummary=0x1
+  mUserInteractionBackoffMillis=60000
+
+23:11:10.574 detox[79191] E device post-allocate: emulator-13886
+23:11:10.574 detox[79191] i ipc dispatching event to socket  :  allocateDeviceDone {
+  deviceCookie: {
+    id: 'emulator-13886',
+    adbName: 'emulator-13886',
+    name: 'emulator-13886 (Pixel_9a)'
+  }
+}
+23:11:10.576 detox[79227] i ipc ## received events ##
+23:11:10.578 detox[79227] i ipc detected event allocateDeviceDone {
+  deviceCookie: {
+    id: 'emulator-13886',
+    adbName: 'emulator-13886',
+    name: 'emulator-13886 (Pixel_9a)'
+  }
+}
+23:11:10.632 detox[79227] B artifacts-manager onBootDevice
+  args: ({"deviceId":"emulator-13886"})
+23:11:10.633 detox[79227] E artifacts-manager onBootDevice
+23:11:10.633 detox[79227] B device installUtilBinaries
+  args: ()
+23:11:10.633 detox[79227] E device installUtilBinaries
+23:11:10.634 detox[79227] B device selectApp
+  args: ("default")
+23:11:10.635 detox[79227] E device selectApp
+  error: Failed to find the app binary at:
+  /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk
+  
+  HINT: Make sure that:
+  1. You built the app before running tests:
+    detox build -c <your-configuration-name>
+  2. The app binary can be found at the given path.
+23:11:10.635 detox[79227] E lifecycle set up environment
+  error: Failed to find the app binary at:
+  /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk
+  
+  HINT: Make sure that:
+  1. You built the app before running tests:
+    detox build -c <your-configuration-name>
+  2. The app binary can be found at the given path.
+23:11:10.635 detox[79227] B lifecycle tear down environment
+23:11:10.636 detox[79227] B artifacts-manager onBeforeCleanup
+  args: ()
+23:11:10.637 detox[79227] E artifacts-manager onBeforeCleanup
+23:11:10.640 detox[79227] i ipc dispatching event to  primary-79191 /tmp/detox.primary-79191  :  deallocateDevice , {
+  deviceCookie: {
+    id: 'emulator-13886',
+    adbName: 'emulator-13886',
+    name: 'emulator-13886 (Pixel_9a)'
+  }
+}
+23:11:10.641 detox[79191] i ws-server tester exited session mobile-test-session
+23:11:10.641 detox[79191] E ws-server connection :61958<->:61967
+23:11:10.642 detox[79191] i ipc received event of :  deallocateDevice {
+  deviceCookie: {
+    id: 'emulator-13886',
+    adbName: 'emulator-13886',
+    name: 'emulator-13886 (Pixel_9a)'
+  }
+}
+23:11:10.642 detox[79191] B device free: emulator-13886
+  data: {}
+23:11:10.643 detox[79191] E device free: emulator-13886
+23:11:10.644 detox[79191] i ipc dispatching event to socket  :  deallocateDeviceDone {}
+23:11:10.644 detox[79227] i ipc ## received events ##
+23:11:10.644 detox[79227] i ipc detected event deallocateDeviceDone {}
+23:11:10.644 detox[79227] E lifecycle tear down environment
+23:11:10.644 detox[79227] E lifecycle detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts
+23:11:10.704 detox[79227] i ipc dispatching event to  primary-79191 /tmp/detox.primary-79191  :  reportTestResults , {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.',
+        stack: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/caf/src/caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:95:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:11:10.705 detox[79191] i ipc received event of :  reportTestResults {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.',
+        stack: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/caf/src/caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:95:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:11:10.706 detox[79191] i ipc dispatching event to socket  :  reportTestResultsDone {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.',
+        stack: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/caf/src/caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:95:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:11:10.706 detox[79191] i ipc broadcasting event to all known sockets listening to  /tmp/detox.primary-79191  :   sessionStateUpdate {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.',
+        stack: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/caf/src/caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:95:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:11:10.706 detox[79227] i ipc ## received events ##
+23:11:10.706 detox[79227] i ipc detected event reportTestResultsDone {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.',
+        stack: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/caf/src/caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:95:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:11:10.712 detox[79227] i ipc ## received events ##
+23:11:10.712 detox[79227] i ipc detected event sessionStateUpdate {
+  testResults: [
+    {
+      success: false,
+      testFilePath: '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.',
+        stack: 'Failed to find the app binary at:\n' +
+          '/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n' +
+          '\n' +
+          'HINT: Make sure that:\n' +
+          '1. You built the app before running tests:\n' +
+          '  detox build -c <your-configuration-name>\n' +
+          '2. The app binary can be found at the given path.\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/node_modules/caf/src/caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:95:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+23:11:10.726 detox[79227] i user 📦 report is created on: /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test/android-report.html
+  origin: at detox/node_modules/jest-html-reporters/index.js:196:33
+23:11:10.760 detox[79227] i ipc connection closed primary-79191 /tmp/detox.primary-79191 0 tries remaining of 0
+23:11:10.761 detox[79191] i ipc socket disconnected secondary-79227
+23:11:10.761 detox[79227] i ipc secondary-79227 exceeded connection rety amount of  or stopRetrying flag set.
+23:11:10.797 detox[79191] E lifecycle Command failed with exit code = 1:
+jest --config e2e/config.js --testPathPattern message_recall_reedit_quote_chain
+23:11:10.798 detox[79191] B device cleanup
+  args: ()
+23:11:10.799 detox[79191] E device cleanup
+23:11:10.800 detox[79191] i ws-server Detox server has been closed gracefully
+23:11:10.801 detox[79191] E lifecycle detox/node_modules/detox/local-cli/cli.js test -C /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/.detoxrc.json -c android.emu.debug -n Pixel_9a --reuse --record-logs failing --take-screenshots failing --testPathPattern message_recall_reedit_quote_chain --artifacts-location /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox_artifacts_test --loglevel debug

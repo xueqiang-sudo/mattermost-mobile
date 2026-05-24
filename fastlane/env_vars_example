@@ -4,7 +4,6 @@
 export BRANCH_TO_BUILD=master
 export GIT_LOCAL_BRANCH=build
 
-# App display name: non-Chinese locales (home screen, permissions, etc.)
 export APP_NAME="Optibot"
 export APP_SCHEME=mattermost
 
@@ -28,7 +27,7 @@ export FASTLANE_PASSWORD=<itunes connect password>
 export MATCH_PASSWORD=<itunes connect password>
 export MATCH_KEYCHAIN_PASSWORD=<the password of the user running the build in the build machine>
 export MATCH_GIT_URL=<private git repository to allow match sync the provisioning profiles>
-export MATCH_APP_IDENTIFIER=com.mattermost.rnbeta.NotificationService,com.mattermost.rnbeta.MattermostShare,com.mattermost.rnbeta
+export MATCH_APP_IDENTIFIER=com.optibot.cn.NotificationService,com.optibot.cn.MattermostShare,com.optibot.cn
 export MATCH_TYPE=appstore
 export MATCH_SHALLOW_CLONE=true
 export MATCH_SKIP_DOCS=true
@@ -41,7 +40,7 @@ export PILOT_SKIP_WAITING_FOR_BUILD_PROCESSING=true
 
 ############ NEEDED TO UPLOAD THE BUILD TO GOOGLE PLAY ############
 export SUPPLY_TRACK=alpha
-export SUPPLY_PACKAGE_NAME=com.mattermost.rnbeta
+export SUPPLY_PACKAGE_NAME=com.optibot.cn
 export SUPPLY_JSON_KEY=<The path to the service account json file used to authenticate with Google>
 export SUPPLY_VALIDATE_ONLY=false
 
@@ -51,11 +50,11 @@ export BUILD_FOR_RELEASE=true
 export REPLACE_ASSETS=false
 
 ############ APP IDENTIFIERS ############
-export MAIN_APP_IDENTIFIER=com.mattermost.rnbeta
-export EXTENSION_APP_IDENTIFIER=com.mattermost.rnbeta.MattermostShare
-export NOTIFICATION_SERVICE_IDENTIFIER=com.mattermost.rnbeta.NotificationService
-export IOS_APP_GROUP=group.com.mattermost.rnbeta
-export IOS_ICLOUD_CONTAINER=iCloud.com.mattermost.rnbeta
+export MAIN_APP_IDENTIFIER=com.optibot.cn
+export EXTENSION_APP_IDENTIFIER=com.optibot.cn.MattermostShare
+export NOTIFICATION_SERVICE_IDENTIFIER=com.optibot.cn.NotificationService
+export IOS_APP_GROUP=group.com.optibot.cn
+export IOS_ICLOUD_CONTAINER=iCloud.com.optibot.cn
 export IOS_BUILD_EXPORT_METHOD=app-store
 
 ############ SET TO TRUE TO UPLOAD THE BUILDS TO TESTFLIGH AND GOOGLE PLAY ############

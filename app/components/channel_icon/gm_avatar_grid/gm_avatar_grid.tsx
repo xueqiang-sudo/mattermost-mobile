@@ -83,6 +83,7 @@ type Props = {
     expectedCount?: number;
     size: number;
     isOnCenterBg?: boolean;
+    isOnHome?: boolean;
     isUnread?: boolean;
     isMuted?: boolean;
     style?: StyleProp<ViewStyle>;
@@ -121,7 +122,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const GmAvatarGrid = ({users, expectedCount = users.length, size, isOnCenterBg, isUnread, isMuted, style}: Props) => {
+const GmAvatarGrid = ({users, expectedCount = users.length, size, isOnCenterBg, isOnHome = false, isUnread, isMuted, style}: Props) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
 
@@ -177,6 +178,7 @@ const GmAvatarGrid = ({users, expectedCount = users.length, size, isOnCenterBg, 
                                 size={pictureSize}
                                 showStatus={false}
                                 borderRadius={borderRadius}
+                                useSidebarPalette={isOnHome}
                             />
                         ) : (
                             <View style={[styles.placeholder, {width: pictureSize, height: pictureSize, borderRadius}]}>

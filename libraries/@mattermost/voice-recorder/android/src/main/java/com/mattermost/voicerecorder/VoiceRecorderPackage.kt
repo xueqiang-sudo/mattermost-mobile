@@ -20,10 +20,10 @@ class VoiceRecorderPackage : TurboReactPackage() {
                 VoiceRecorderModuleImpl.NAME to ReactModuleInfo(
                         VoiceRecorderModuleImpl.NAME,
                         VoiceRecorderModuleImpl.NAME,
-                        _canOverrideExistingModule = false,
-                        _needsEagerInit = false,
-                        isCxxModule = false,
-                        isTurboModule = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
+                        false,
+                        false,
+                        false,
+                        BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
                 )
         )
     }

@@ -25,6 +25,8 @@ type Props = {
     customSection?: (profiles: UserProfile[]) => Array<SectionListData<UserProfile>>;
     contactSelectLayout?: boolean;
     disableClientFilter?: boolean;
+    variant?: import('@screens/create_direct_message/create_direct_message').CreateDMWindowVariant;
+    currentUserId?: string;
 }
 
 /**
@@ -45,6 +47,8 @@ export default function ServerUserList({
     customSection,
     contactSelectLayout = true,
     disableClientFilter = false,
+    variant,
+    currentUserId,
 }: Props) {
     const searchTimeoutId = useRef<NodeJS.Timeout | null>(null);
     const next = useRef(true);
@@ -152,6 +156,8 @@ export default function ServerUserList({
             location={location}
             customSection={effectiveCustomSection}
             contactSelectLayout={contactSelectLayout}
+            variant={variant}
+            currentUserId={currentUserId}
         />
     );
 }

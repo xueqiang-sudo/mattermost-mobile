@@ -37,6 +37,7 @@ import Sso from './sso';
 import SupportedServer from './supported_server';
 import Team from './team';
 import Tutorial from './tutorial';
+import Update from './update';
 import View from './view';
 import WebsocketEvents from './websocket';
 
@@ -78,6 +79,7 @@ export {
     SupportedServer,
     Team,
     Tutorial,
+    Update,
     View,
     WebsocketEvents,
 };

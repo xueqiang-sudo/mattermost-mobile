@@ -49,8 +49,8 @@ after_all do |lane|
   if ENV['CI'] != 'true'
     if ENV['RESET_GIT_BRANCH'] == 'true'
       branch = ENV['BRANCH_TO_BUILD'] || 'main'
-      package_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.mattermost.rnbeta'
-      beta_dir = '../android/app/src/main/java/com/mattermost/rnbeta'
+      package_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.optibot.cn'
+      beta_dir = '../android/app/src/main/java/com/optibot/cn'
       release_dir = "../android/app/src/main/java/#{package_id.gsub '.', '/'}"
 
       if beta_dir != release_dir
@@ -224,12 +224,17 @@ lane :link_sentry do |options|
   end
 end
 
+# Uploads built files to S3. Two modes via options[:s3_client_oidc]:
+# - s3_client_oidc: true  → IAM/OIDC (default creds), bucket from AWS_BUCKET_NAME (set by workflow to new bucket).
+# - s3_client_oidc: false or omitted → static credentials (AWS_ACCESS_KEY_ID/SECRET), bucket from AWS_BUCKET_NAME (e.g. build-pr).
+# Example: upload_file_to_s3({:os_type => "ios", :s3_client_oidc => true})
 desc 'Upload file to s3'
 lane :upload_file_to_s3 do |options|
   os_type = options[:os_type].downcase
   extensions = os_type == "android" ? ["*.apk", "*.aab"] : ["*.ipa"]
   build_folder_path = Dir[File.expand_path('..')].first
   files = []
+  s3_client_oidc = options[:s3_client_oidc] == true
 
   unless options[:file].nil? || options[:file].empty?
     files.push("#{build_folder_path}/#{options[:file]}")
@@ -251,7 +256,7 @@ lane :upload_file_to_s3 do |options|
     else
       version_number = os_type == "android" ?
         android_get_version_name(gradle_file: './android/app/build.gradle') :
-        get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
+        get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
       build_number = os_type == "android" ?
         android_get_version_code(gradle_file: './android/app/build.gradle') :
         get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
@@ -259,6 +264,7 @@ lane :upload_file_to_s3 do |options|
 
     s3_region = ENV['AWS_REGION']
     s3_bucket_name = ENV['AWS_BUCKET_NAME']
+    s3_bucket_dns_name = ENV['AWS_BUCKET_DNS_NAME']
 
     if is_build_pr
       # Get the current git commit SHA (short version)
@@ -267,8 +273,18 @@ lane :upload_file_to_s3 do |options|
     else
       s3_folder = "#{ENV['AWS_FOLDER_NAME']}/#{version_number}/#{build_number}"
     end
-
-    s3_client = Aws::S3::Client.new(region: s3_region)
+    if s3_client_oidc
+      # Client for S3 bucket assumes role via GitHub Actions OIDC
+      s3_client = Aws::S3::Client.new(region: s3_region)
+      UI.message("Set S3 Client to upload to S3 bucket using OIDC")
+    else
+      s3_client = Aws::S3::Client.new(
+        region: s3_region,
+        access_key_id: ENV['AWS_ACCESS_KEY_ID'],
+        secret_access_key: ENV['AWS_SECRET_ACCESS_KEY']
+      )
+      UI.message("Set S3 Client to upload to S3 bucket: #{s3_bucket_name} using static credentials")
+    end
     transfer_manager = Aws::S3::TransferManager.new(client: s3_client)
     mutex = Mutex.new
     threads = []
@@ -289,7 +305,8 @@ lane :upload_file_to_s3 do |options|
           puts "[#{Thread.current["file_number"]}/#{total_files}] #{filename} uploading..."
           s3_key = "#{s3_folder}/#{filename}"
           transfer_manager.upload_file(file, bucket: s3_bucket_name, key: s3_key)
-          links.push("https://#{s3_bucket_name}/#{s3_key}")
+          s3_bucket_dns_name = is_build_pr ? s3_bucket_name : s3_bucket_dns_name
+          links.push("https://#{s3_bucket_dns_name}/#{s3_key}")
         end
       }
     end
@@ -319,7 +336,7 @@ lane :upload_file_to_s3 do |options|
                         })
     end
 
-    if options[:file] == 'Mattermost-simulator-x86_64.app.zip'
+    if options[:file]&.start_with?('Optibot_') && options[:file]&.end_with?('.app.zip')
       pretext = '#### New iOS build for VM/Simulator'
       msg = "Download link: #{links.first}"
       send_message_to_mattermost({
@@ -347,13 +364,13 @@ lane :github do
     build = android_get_version_code(gradle_file: './android/app/build.gradle')
     changelog = File.read("metadata/changelog")
     android = [
-      "    * [Mattermost arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-arm64-v8a.apk)",
-      "    * [Mattermost armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-armeabi-v7a.apk)",
-      "    * [Mattermost x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-x86.apk)",
-      "    * [Mattermost x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost-x86_64.apk)",
+      "    * [Optibot arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-arm64-v8a.apk)",
+      "    * [Optibot armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-armeabi-v7a.apk)",
+      "    * [Optibot x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86.apk)",
+      "    * [Optibot x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86_64.apk)",
     ]
     changelog.concat("* Android\n#{android.join("\n")}\n")
-    changelog.concat("* iOS\n    * [Mattermost](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Mattermost.ipa)")
+    changelog.concat("* iOS\n    * [Optibot](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}.ipa)")
 
     github_release = set_github_release(
       repository_name: "mattermost/mattermost-mobile",
@@ -361,7 +378,7 @@ lane :github do
       name: "Mobile Version #{version}",
       tag_name: tag,
       description: changelog,
-      upload_assets: ["./Mattermost-unsigned.ipa", "./Mattermost-unsigned.apk"],
+      upload_assets: ["./Optibot_#{version}-unsigned.ipa", "./Optibot_#{version}-unsigned.apk"],
       is_draft: true
     )
   end
@@ -394,7 +411,6 @@ platform :ios do
     replace_assets
     link_sentry({:os_type => "ios"})
     build_ios
-    upload_file_to_s3({:os_type => "ios"})
   end
 
   desc 'Build an unsigned ipa'
@@ -409,36 +425,74 @@ platform :ios do
     update_settings
     replace_assets
 
+    version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+    if ENV['BETA_BUILD'] == 'true'
+      output_name = "Optibot_Beta_#{version_number}-unsigned.ipa"
+    else
+      output_name = "Optibot_#{version_number}-unsigned.ipa"
+    end
+
     build_ios_unsigned_or_simulator(
       more_xc_args: "-sdk iphoneos CODE_SIGNING_ALLOWED=NO",
       rel_build_dir: "Release-iphoneos",
-      output_file: "Mattermost-unsigned.ipa",
+      output_file: output_name,
     )
   end
 
-  lane :simulator do
+  lane :simulator do |options|
     UI.success('Building iOS app for simulator')
 
-    output_file = "Mattermost-simulator-x86_64.app.zip"
+    # Detect the host architecture
+    host_arch = `uname -m`.strip
+
+    # Use arm64 for Apple Silicon (arm64), x86_64 for Intel
+    version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+    if host_arch == "arm64"
+      build_arch = "arm64"
+      output_file = "Optibot_#{version_number}-simulator-arm64.app.zip"
+    else
+      build_arch = "x86_64"
+      output_file = "Optibot_#{version_number}-simulator-x86_64.app.zip"
+    end
+
+    UI.message("Building for #{build_arch} architecture on #{host_arch} host")
 
     build_ios_unsigned_or_simulator(
-      more_xc_args: "-sdk iphonesimulator -arch x86_64",
+      more_xc_args: "-sdk iphonesimulator -arch #{build_arch}",
       rel_build_dir: "Release-iphonesimulator",
       output_file: output_file,
     )
+  end
 
-    upload_file_to_s3({
-      :os_type => "ios",
-      :file => output_file
-    })
+  desc 'Upload artifacts to S3'
+  lane :upload_artifacts_to_s3 do |options|
+    output_file = options[:output_file]
+    s3_client_oidc = options[:s3_client_oidc] == true
+    UI.message("Uploading to S3 bucket using #{s3_client_oidc ? 'IAM/OIDC' : 'static credentials'}..." + (output_file ? " file: #{output_file}" : ""))
+    begin
+      if output_file && !output_file.empty?
+        upload_file_to_s3({
+          :os_type => "ios",
+          :file => output_file,
+          :s3_client_oidc => s3_client_oidc
+        })
+      else
+        upload_file_to_s3({
+          :os_type => "ios",
+          :s3_client_oidc => s3_client_oidc
+        })
+      end
+    rescue SyntaxError, StandardError
+      UI.user_error!("Failed to upload to S3 bucket")
+    end
   end
 
   lane :update_settings do
     # Configure Main app settings
     app_name = ENV['APP_NAME'] || 'Optibot'
-    app_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.mattermost.rnbeta'
-    app_group_id = ENV['IOS_APP_GROUP'] || 'group.com.mattermost.rnbeta'
-    icloud_container = ENV['IOS_ICLOUD_CONTAINER'] || 'iCloud.com.mattermost.rnbeta'
+    app_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.optibot.cn'
+    app_group_id = ENV['IOS_APP_GROUP'] || 'group.com.optibot.cn'
+    icloud_container = ENV['IOS_ICLOUD_CONTAINER'] || 'iCloud.com.optibot.cn'
     app_scheme = ENV['APP_SCHEME'] || 'mattermost'
     app_auth_scheme = get_auth_scheme
     keychain_group = "$(AppIdentifierPrefix)#{ENV["IOS_KEYCHAIN_GROUP"] || app_bundle_id}"
@@ -455,7 +509,7 @@ platform :ios do
 
     find_replace_string(
         path_to_file: './ios/Mattermost.xcodeproj/project.pbxproj',
-        old_string: 'com.mattermost.rnbeta',
+        old_string: 'com.optibot.cn',
         new_string: app_bundle_id
     )
 
@@ -480,7 +534,7 @@ platform :ios do
     )
 
     # Configure Share extension settings
-    extension_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.mattermost.rnbeta.MattermostShare'
+    extension_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.optibot.cn.MattermostShare'
     
     update_info_plist(
       xcodeproj: './ios/Mattermost.xcodeproj',
@@ -494,7 +548,7 @@ platform :ios do
 
     find_replace_string(
         path_to_file: './ios/Mattermost.xcodeproj/project.pbxproj',
-        old_string: 'com.mattermost.rnbeta.MattermostShare',
+        old_string: 'com.optibot.cn.MattermostShare',
         new_string: extension_bundle_id
     )
 
@@ -504,7 +558,7 @@ platform :ios do
     )
 
     # Configure Notification Service settings
-    notification_bundle_id = ENV['NOTIFICATION_SERVICE_IDENTIFIER'] || 'com.mattermost.rnbeta.NotificationService'
+    notification_bundle_id = ENV['NOTIFICATION_SERVICE_IDENTIFIER'] || 'com.optibot.cn.NotificationService'
     update_info_plist(
       xcodeproj: './ios/Mattermost.xcodeproj',
       plist_path: 'NotificationService/Info.plist',
@@ -522,7 +576,7 @@ platform :ios do
 
     find_replace_string(
         path_to_file: './ios/Mattermost.xcodeproj/project.pbxproj',
-        old_string: 'com.mattermost.rnbeta.NotificationService',
+        old_string: 'com.optibot.cn.NotificationService',
         new_string: notification_bundle_id
     )
 
@@ -563,7 +617,7 @@ platform :ios do
             ]
 
             plist["IntuneMAMSettings"] = {
-              "AppGroupIdentifiers" => [ENV['IOS_APP_GROUP'] || 'group.com.mattermost.rnbeta'],
+              "AppGroupIdentifiers" => [ENV['IOS_APP_GROUP'] || 'group.com.optibot.cn'],
               "MAMTelemetryDisabled" => true,
               "MultiIdentity" => true,
               "ADALLogOverrideDisabled" => true,
@@ -638,9 +692,12 @@ platform :ios do
 
       plist_strings.gsub!('{applicationName}', "#{app_name}")
       localized_strings.gsub!('{applicationName}', "#{app_name}")
-
+      
       # Use locale-specific app display name for CFBundleDisplayName (home screen name)
       display_name = json['mobile.app.display_name'] || app_name
+      if ENV['BETA_BUILD'] == 'true'
+        display_name = "#{display_name} Beta"
+      end
       display_name_escaped = display_name.gsub('"', '\"')
       plist_strings = "CFBundleDisplayName = \"#{display_name_escaped}\";\n" + plist_strings
 
@@ -661,7 +718,7 @@ platform :ios do
   end
 
   error do |lane, exception|
-    version = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
+    version = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
     build_number = get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
     send_message_to_mattermost({
                                    :version_number => version,
@@ -682,7 +739,7 @@ platform :ios do
     )
 
     ENV['MATCH_APP_IDENTIFIER'].split(',').each do |id|
-      target = 'Optibot'
+      target = 'Mattermost'
       if id.include? 'NotificationService'
         target = 'NotificationService'
       elsif id.include? 'MattermostShare'
@@ -703,8 +760,12 @@ platform :ios do
   end
 
   def build_ios
-    app_name =  ENV['APP_NAME'] || 'Optibot'
-    app_name_sub = app_name.gsub(" ", "_")
+    version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
+    if ENV['BETA_BUILD'] == 'true'
+      output_base_name = "Optibot_Beta_#{version_number}"
+    else
+      output_base_name = "Optibot_#{version_number}"
+    end
     config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
     method = ENV['IOS_BUILD_EXPORT_METHOD'].nil? || ENV['IOS_BUILD_EXPORT_METHOD'].empty? ? 'ad-hoc' : ENV['IOS_BUILD_EXPORT_METHOD']
 
@@ -715,12 +776,12 @@ platform :ios do
 
     gym(
         clean: true,
-        scheme: 'Optibot',
+        scheme: 'Mattermost',
         configuration: config_mode,
         workspace: './ios/Mattermost.xcworkspace',
         export_method: method,
         skip_profile_detection: true,
-        output_name: "#{app_name_sub}.ipa",
+        output_name: "#{output_base_name}.ipa",
         export_xcargs: "-allowProvisioningUpdates",
         export_options: {
             signingStyle: 'manual',
@@ -744,7 +805,11 @@ platform :ios do
 
     sh "rm -rf #{ios_build_dir}/"
     sh "cd #{root_dir}/ios && xcodebuild -workspace Mattermost.xcworkspace -scheme Mattermost -configuration Release -parallelizeTargets CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO SYMROOT='#{ios_build_dir}' #{more_xc_args} "
-    sh "cd #{ios_build_dir}/#{rel_build_dir} && zip -r #{output_file} Mattermost.app"
+    if rel_build_dir == "Release-iphoneos"
+      sh "cd #{ios_build_dir}/#{rel_build_dir} && mkdir -p Payload && cp -r Mattermost.app Payload/ && zip -r #{output_file} Payload && rm -rf Payload"
+    else
+      sh "cd #{ios_build_dir}/#{rel_build_dir} && zip -r #{output_file} Mattermost.app"
+    end
     sh "mv #{ios_build_dir}/#{rel_build_dir}/#{output_file} #{root_dir}"
   end
 
@@ -762,7 +827,6 @@ platform :android do
     link_sentry({:os_type => "android"})
     build_android
     move_android_to_root
-    upload_file_to_s3({:os_type => "android"})
   end
 
   desc 'Build an unsigned apk'
@@ -783,7 +847,25 @@ platform :android do
         project_dir: 'android/'
     )
 
-    sh "mv #{lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]} #{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/Mattermost-unsigned.apk"
+    version_name = android_get_version_name(gradle_file: './android/app/build.gradle')
+    if ENV['BETA_BUILD'] == 'true'
+      output_name = "Optibot_Beta_#{version_name}-unsigned.apk"
+    else
+      output_name = "Optibot_#{version_name}-unsigned.apk"
+    end
+
+    sh "mv #{lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]} #{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/#{output_name}"
+  end
+
+  desc 'Upload artifacts to S3'
+  lane :upload_artifacts_to_s3 do |options|
+    s3_client_oidc = options[:s3_client_oidc] == true
+    UI.message("Uploading to S3 bucket using #{s3_client_oidc ? 'IAM/OIDC' : 'static credentials'}")
+    begin
+      upload_file_to_s3({:os_type => "android", :s3_client_oidc => s3_client_oidc})
+    rescue SyntaxError, StandardError
+      UI.user_error!("Failed to upload to S3 bucket")
+    end
   end
 
   lane :update_identifiers do
@@ -794,7 +876,28 @@ platform :android do
         newName: app_name,
         stringsFile: './android/app/src/main/res/values/strings.xml'
     )
-    package_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.mattermost.rnbeta'
+
+    if ENV['BETA_BUILD'] == 'true'
+      android_change_string_app_name(
+        newName: "优小智 Beta",
+        stringsFile: './android/app/src/main/res/values-zh-rCN/strings.xml'
+      )
+      android_change_string_app_name(
+        newName: "優小智 Beta",
+        stringsFile: './android/app/src/main/res/values-zh-rTW/strings.xml'
+      )
+    else
+      android_change_string_app_name(
+        newName: "优小智",
+        stringsFile: './android/app/src/main/res/values-zh-rCN/strings.xml'
+      )
+      android_change_string_app_name(
+        newName: "優小智",
+        stringsFile: './android/app/src/main/res/values-zh-rTW/strings.xml'
+      )
+    end
+
+    package_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.optibot.cn'
     android_change_package_identifier(newIdentifier: package_id, manifest: './android/app/src/main/AndroidManifest.xml')
     android_update_application_id(app_folder_name: 'android/app', application_id: package_id)
     android_update_namespace(app_folder_name: 'android/app', namespace: package_id)
@@ -816,7 +919,7 @@ platform :android do
     )
 
     helpers_dir = './android/app/src/main/java/com/mattermost/helpers/'
-    beta_dir = './android/app/src/main/java/com/mattermost/rnbeta/'
+    beta_dir = './android/app/src/main/java/com/optibot/cn/'
     release_dir = "./android/app/src/main/java/#{package_id.gsub '.', '/'}/"
     if release_dir != beta_dir
       unless Dir.exist?(".#{release_dir}")
@@ -828,7 +931,7 @@ platform :android do
       Dir.glob(".#{release_dir}*.java") do |item|
         find_replace_string(
             path_to_file: item[1..-1],
-            old_string: 'package com.mattermost.rnbeta;',
+            old_string: 'package com.optibot.cn;',
             new_string: "package #{package_id};"
         )
       end
@@ -836,7 +939,7 @@ platform :android do
       Dir.glob(".#{release_dir}*.kt") do |item|
         find_replace_string(
             path_to_file: item[1..-1],
-            old_string: 'package com.mattermost.rnbeta',
+            old_string: 'package com.optibot.cn',
             new_string: "package #{package_id}"
         )
       end
@@ -844,7 +947,7 @@ platform :android do
       Dir.glob('../android/app/src/main/java/com/mattermost/share/*.java') do |item|
         find_replace_string(
             path_to_file: item[1..-1],
-            old_string: 'import com.mattermost.rnbeta.MainApplication;',
+            old_string: 'import com.optibot.cn.MainApplication;',
             new_string: "import #{package_id}.MainApplication;"
         )
       end
@@ -852,7 +955,7 @@ platform :android do
       Dir.glob('../android/app/src/main/java/com/mattermost/helpers/*.java') do |item|
         find_replace_string(
             path_to_file: item[1..-1],
-            old_string: 'import com.mattermost.rnbeta.*;',
+            old_string: 'import com.optibot.cn.*;',
             new_string: "import #{package_id}.*;"
         )
       end
@@ -860,7 +963,7 @@ platform :android do
       Dir.glob('../android/app/src/main/java/com/mattermost/helpers/*.kt') do |item|
         find_replace_string(
             path_to_file: item[1..-1],
-            old_string: 'import com.mattermost.rnbeta.*',
+            old_string: 'import com.optibot.cn.*',
             new_string: "import #{package_id}.*"
         )
       end
@@ -935,8 +1038,12 @@ platform :android do
   end
 
   def move_android_to_root
-    app_name =  ENV['APP_NAME'] || 'Optibot'
-    app_name_sub = app_name.gsub(" ", "_")
+    version_name = android_get_version_name(gradle_file: './android/app/build.gradle')
+    if ENV['BETA_BUILD'] == 'true'
+      base_name = "Optibot_Beta_#{version_name}"
+    else
+      base_name = "Optibot_#{version_name}"
+    end
     build_task = ENV['ANDROID_BUILD_TASK'].nil? || ENV['ANDROID_BUILD_TASK'].empty? ? 'assemble' : ENV['ANDROID_BUILD_TASK']
     build_task = build_task.split(",")
 
@@ -957,7 +1064,7 @@ platform :android do
         output = outputJson["elements"].find { |o| o["outputFile"] == filename }
         unless output.nil?
           filterName = output["filters"].empty? ? '' : output["filters"].first["value"]
-          name = "#{app_name_sub}"
+          name = "#{base_name}"
           unless filterName.nil? || filterName.empty?
             name += "-#{filterName}"
           end
@@ -973,7 +1080,7 @@ platform :android do
 
     if build_task.include?("bundle")
       aab = lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
-      new_aab_path = "#{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/#{app_name_sub}.aab"
+      new_aab_path = "#{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/#{base_name}.aab"
       sh "mv #{aab} #{new_aab_path}"
       UI.message("AAB PATH \"#{new_aab_path}\"")
     end
@@ -1078,10 +1185,10 @@ def submit_to_testflight(ipa_path)
   end
 
   filename = File.basename(ipa)
-  version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Optibot')
+  version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
   build_number = get_build_number(xcodeproj: './ios/Mattermost.xcodeproj')
   s3_folder = "#{ENV['AWS_FOLDER_NAME']}/#{version_number}/#{build_number}"
-  public_link = "https://#{ENV['AWS_BUCKET_NAME']}/#{s3_folder}/#{filename}"
+  public_link = "https://#{ENV['AWS_BUCKET_DNS_NAME']}/#{s3_folder}/#{filename}"
 
 
   # Send a build message to Mattermost
@@ -1140,7 +1247,7 @@ def submit_to_google_play(file_path)
   version_number = android_get_version_name(gradle_file: './android/app/build.gradle')
   build_number = android_get_version_code(gradle_file: './android/app/build.gradle')
   s3_folder = "#{ENV['AWS_FOLDER_NAME']}/#{version_number}/#{build_number}"
-  public_path = "https://#{ENV['AWS_BUCKET_NAME']}/#{s3_folder}"
+  public_path = "https://#{ENV['AWS_BUCKET_DNS_NAME']}/#{s3_folder}"
   links = (filenames.map { |f| "* #{public_path}/#{f}"}).join("\n")
 
   # Send a build message to Mattermost
@@ -1149,7 +1256,7 @@ def submit_to_google_play(file_path)
 
   if ENV['BETA_BUILD'] == 'true'
     pretext = '#### New Android beta published to Google Play'
-    msg = "Sign up as a beta tester [here](https://play.google.com/apps/testing/com.mattermost.rnbeta).\nDownload links:\n#{links}"
+    msg = "Sign up as a beta tester [here](https://play.google.com/apps/testing/com.optibot.cn).\nDownload links:\n#{links}"
   end
 
   send_message_to_mattermost({

@@ -29,7 +29,7 @@ jest.mock('expo-application', () => {
         nativeApplicationVersion: '0.0.0',
         nativeBuildVersion: '0',
         applicationName: 'Optibot',
-        applicationId: 'com.mattermost.rnbeta',
+        applicationId: 'com.optibot.cn',
     };
 });
 
@@ -47,7 +47,7 @@ jest.mock('expo-device', () => {
         deviceName: 'Device',
         osName: 'Test',
         osVersion: '0.0.0',
-        applicationId: 'com.mattermost.rnbeta',
+        applicationId: 'com.optibot.cn',
         isRootedExperimentalAsync: jest.fn().mockResolvedValue(false),
     };
 });

@@ -1,5 +1,5 @@
 #import "VoiceRecorder.h"
-#import "VoiceRecorder-Swift.h"
+#import "VoiceRecorderWrapper.h"
 
 @implementation VoiceRecorder
 {
@@ -48,7 +48,7 @@ RCT_EXPORT_METHOD(stopRecording:(RCTPromiseResolveBlock)resolve
 {
     NSLog(@"========== iOS 停止录音流程 ==========");
 
-    [[self recorderWrapper] stopRecording:^(NSDictionary *result) {
+    [[self recorderWrapper] stopRecordingWithCompletion:^(NSDictionary *result) {
         NSLog(@"iOS 停止录音结果: %@", result);
         NSLog(@"========== iOS 停止录音完成 ==========");
         resolve(result);
@@ -81,7 +81,7 @@ RCT_EXPORT_METHOD(deleteRecordingFile:(NSString *)filePath
     NSLog(@"========== iOS 删除指定录音文件 ==========");
     NSLog(@"文件路径: %@", filePath);
 
-    BOOL success = [[self recorderWrapper] deleteRecordingFile:filePath];
+    BOOL success = [[self recorderWrapper] deleteRecordingFileWithFilePath:filePath];
 
     NSLog(@"文件删除%@", success ? @"成功" : @"失败");
     NSLog(@"========== iOS 删除文件完成 ==========");
@@ -97,7 +97,7 @@ RCT_EXPORT_METHOD(cleanExpiredRecordingFiles:(NSString *)prefix
     NSLog(@"文件前缀: %@", prefix);
     NSLog(@"最大保留时间: %.0fms", maxAgeMs);
 
-    NSInteger deletedCount = [[self recorderWrapper] cleanExpiredRecordingFiles:prefix maxAgeMs:maxAgeMs];
+    NSInteger deletedCount = [[self recorderWrapper] cleanExpiredRecordingFilesWithPrefix:prefix maxAgeMs:maxAgeMs];
 
     NSLog(@"总共删除了 %ld 个过期文件", (long)deletedCount);
     NSLog(@"========== iOS 清理完成 ==========");

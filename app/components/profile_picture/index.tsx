@@ -30,6 +30,8 @@ type ProfilePictureProps = {
 
     /** When set, avatar is a rounded square. Omit for circular. */
     borderRadius?: number;
+    /** Sidebar scenes (e.g. home conversation list) use sidebar palette for fallback avatar colors. */
+    useSidebarPalette?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -71,6 +73,7 @@ const ProfilePicture = ({
     source,
     url,
     borderRadius,
+    useSidebarPalette = false,
 }: ProfilePictureProps) => {
     const theme = useTheme();
     let serverUrl = useServerUrl();
@@ -108,6 +111,7 @@ const ProfilePicture = ({
                 source={source}
                 url={serverUrl}
                 borderRadius={borderRadius}
+                useSidebarPalette={useSidebarPalette}
             />
             {showStatus && !isBot &&
             <Status

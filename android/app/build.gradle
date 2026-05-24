@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: 'com.huawei.agconnect'
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -104,7 +105,7 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdkVersion rootProject.ext.compileSdkVersion
-    namespace "com.mattermost.rnbeta"
+    namespace "com.optibot.cn"
 
     lintOptions {
         checkReleaseBuilds false
@@ -112,13 +113,18 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.mattermost.rnbeta"
+        applicationId "com.optibot.cn"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 712
-        versionName "2.36.4"
+        versionCode 743
+        versionName "2.39.0"
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+
+        manifestPlaceholders = [
+            JPUSH_APPKEY: "e5e6799b552158d3a1d22d0a",         //在此替换你的APPKey
+            JPUSH_CHANNEL: "developer-default"        //在此替换你的channel
+        ]
     }
 
     signingConfigs {
@@ -225,6 +231,15 @@ dependencies {
 
     // MLKit for QR Code scanning from images
     implementation 'com.google.mlkit:barcode-scanning:17.3.0'
+
+     // 此处以JPush 6.1.1 版本为例，注意：从 5.0.0 版本开始可以自动拉取 JCore 包，无需另外配置
+    implementation 'cn.jiguang.sdk:jpush:6.1.1'
+
+    //若不集成厂商通道，可直接跳过以下依赖
+    // 极光厂商插件版本与接入 JPush 版本保持一致，下同
+    // 接入华为厂商
+    implementation 'com.huawei.hms:push:6.13.0.301'
+    implementation 'cn.jiguang.sdk.plugin:huawei:6.1.1'
 
     api('io.jsonwebtoken:jjwt-api:0.12.5')
     runtimeOnly('io.jsonwebtoken:jjwt-impl:0.12.5')

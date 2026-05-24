@@ -14,6 +14,7 @@ import LeftDrawer from '@components/left_drawer';
 import ServerVersion from '@components/server_version';
 import TeamMembershipNotice from '@components/team_membership_notice';
 import {Events, Launch, Screens} from '@constants';
+import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {LeftDrawerProvider} from '@context/left_drawer';
 import {useTheme} from '@context/theme';
 import {useAppState} from '@hooks/device';
@@ -75,8 +76,9 @@ export function HomeScreen(props: HomeProps) {
 
     const handleFindChannels = useCallback(() => {
         if (!NavigationStore.getScreensInStack().includes(Screens.FIND_CHANNELS)) {
+            const titleId = ENABLE_INTERNAL_GROUPS ? 'find_channels.title' : 'find_channels.title_no_internal';
             findChannels(
-                intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
+                intl.formatMessage({id: titleId, defaultMessage: 'Search groups, chats & contacts'}),
                 theme,
             );
         }

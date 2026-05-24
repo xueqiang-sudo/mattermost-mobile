@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>极光推送测试工具</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    line-height: 1.6;
+    padding: 20px;
+}
+.container { max-width: 900px; margin: 0 auto; }
+h1 {
+    text-align: center;
+    color: #1677ff;
+    margin-bottom: 8px;
+    font-size: 24px;
+}
+.subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 24px;
+    font-size: 13px;
+}
+.card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+}
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 180px; }
+.form-group.small { flex: 0 0 auto; min-width: 100px; }
+label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 4px;
+}
+input, select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22,119,255,0.1);
+}
+textarea { resize: vertical; min-height: 60px; }
+.radio-group { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.radio-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px; color: #333; }
+.radio-group input[type="radio"], .radio-group input[type="checkbox"] { width: auto; cursor: pointer; }
+details {
+    margin-top: 12px;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 10px 14px;
+}
+details[open] { border-color: #1677ff; }
+summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+    color: #1677ff;
+    user-select: none;
+}
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.btn-primary { background: #1677ff; color: #fff; }
+.btn-primary:hover { background: #4096ff; }
+.btn-outline { background: #fff; color: #1677ff; border: 1px solid #1677ff; }
+.btn-outline:hover { background: #e6f4ff; }
+.btn-preset { background: #f5f5f5; color: #333; border: 1px solid #d9d9d9; font-size: 12px; padding: 6px 12px; }
+.btn-preset:hover { background: #e8e8e8; }
+.result-box {
+    background: #1a1a2e;
+    color: #00e676;
+    padding: 16px;
+    border-radius: 8px;
+    font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 12px;
+}
+.result-box.hidden { display: none; }
+.result-box.error { color: #ff6b6b; }
+.result-box.curl-cmd { color: #ffd54f; }
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+.toast.show { opacity: 1; }
+.tag-label {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 4px;
+}
+.tag-required { background: #fff2f0; color: #ff4d4f; }
+.tag-optional { background: #f6ffed; color: #52c41a; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>📱 极光推送测试工具</h1>
+<div class="subtitle">JPush REST API v3 · Mattermost 同会话覆盖验证</div>
+<div class="subtitle" id="serverHint" style="color:#666;margin-top:-16px;margin-bottom:20px"></div>
+
+<!-- 推送目标 -->
+<div class="card">
+    <div class="card-title">📋 推送目标 (audience)</div>
+    <div class="form-row">
+        <div class="form-group small" style="min-width:140px">
+            <label>目标类型</label>
+            <select id="audienceType">
+                <option value="all">广播 (all)</option>
+                <option value="alias">别名 (alias)</option>
+                <option value="registration_id">注册ID (registration_id)</option>
+            </select>
+        </div>
+        <div class="form-group" id="audienceValueGroup" style="display:none">
+            <label>值（逗号分隔多个）</label>
+            <input type="text" id="audienceValue" placeholder="例如: user_001, user_002">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>推送平台</label>
+            <div class="radio-group">
+                <label><input type="checkbox" name="platform" value="android" checked> Android</label>
+                <label><input type="checkbox" name="platform" value="ios"> iOS</label>
+            </div>
+        </div>
+        <div class="form-group small">
+            <label>APNs 环境</label>
+            <select id="apnsProduction">
+                <option value="false">开发环境</option>
+                <option value="true">生产环境</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- 通知内容 -->
+<div class="card">
+    <div class="card-title">📝 通知内容 (notification)</div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>通知标题 (title)</label>
+            <input type="text" id="notifTitle" placeholder="通知栏显示的标题" value="测试消息">
+        </div>
+        <div class="form-group">
+            <label>通知内容 (alert) <span class="tag-label tag-required">必填</span></label>
+            <input type="text" id="notifAlert" placeholder="通知栏显示的内容" value="你好，这是一条测试推送消息">
+        </div>
+    </div>
+
+    <!-- Mattermost extras -->
+    <details open>
+        <summary>🔧 extras 扩展字段（Mattermost 预设模板）</summary>
+        <div style="margin-top:12px">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>channel_id <span class="tag-label tag-required">必填</span></label>
+                    <input type="text" id="extChannelId" placeholder="频道 ID">
+                </div>
+                <div class="form-group">
+                    <label>post_id <span class="tag-label tag-required">必填</span></label>
+                    <input type="text" id="extPostId" placeholder="消息 post ID (自动生成)">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>server_url <span class="tag-label tag-required">必填</span></label>
+                    <input type="text" id="extServerUrl" placeholder="https://mm.example.com">
+                </div>
+                <div class="form-group">
+                    <label>sender_name <span class="tag-label tag-required">必填</span></label>
+                    <input type="text" id="extSenderName" placeholder="发送者名称">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>sender_id <span class="tag-label tag-required">必填</span></label>
+                    <input type="text" id="extSenderId" placeholder="发送者 ID">
+                </div>
+                <div class="form-group">
+                    <label>message <span class="tag-label tag-required">必填</span></label>
+                    <input type="text" id="extMessage" placeholder="消息正文">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group small">
+                    <label>is_crt_enabled</label>
+                    <select id="extIsCrt">
+                        <option value="false">false</option>
+                        <option value="true">true</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>root_id <span class="tag-label tag-optional">可选</span></label>
+                    <input type="text" id="extRootId" placeholder="CRT 线程根帖 ID">
+                </div>
+                <div class="form-group small">
+                    <label>category</label>
+                    <select id="extCategory">
+                        <option value="CAN_REPLY">CAN_REPLY</option>
+                        <option value="">无</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>channel_name <span class="tag-label tag-optional">可选</span></label>
+                    <input type="text" id="extChannelName" placeholder="频道名称">
+                </div>
+                <div class="form-group">
+                    <label>team_id <span class="tag-label tag-optional">可选</span></label>
+                    <input type="text" id="extTeamId" placeholder="团队 ID">
+                </div>
+                <div class="form-group small">
+                    <label>type</label>
+                    <select id="extType">
+                        <option value="message">message</option>
+                        <option value="session">session</option>
+                        <option value="clear">clear</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>override_icon_url <span class="tag-label tag-optional">可选</span></label>
+                    <input type="text" id="extIconUrl" placeholder="自定义头像 URL">
+                </div>
+                <div class="form-group">
+                    <label>override_username <span class="tag-label tag-optional">可选</span></label>
+                    <input type="text" id="extUsername" placeholder="自定义用户名（Bot）">
+                </div>
+            </div>
+        </div>
+    </details>
+</div>
+
+<!-- 高级选项 -->
+<div class="card">
+    <div class="card-title">⚙️ 高级选项 (options)</div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>override_msg_id（Android，填上一条响应中的 msg_id，纯数字）</label>
+            <input type="text" id="optOverrideMsgId" placeholder="首条留空；连发时自动填入">
+        </div>
+        <div class="form-group small">
+            <label>time_to_live (秒)</label>
+            <input type="number" id="optTTL" value="86400" min="0" max="864000">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>apns_collapse_id（iOS 覆盖）</label>
+            <input type="text" id="optCollapseId" placeholder="iOS 同会话覆盖标识">
+        </div>
+    </div>
+    <details>
+        <summary>📡 华为 third_party_channel（云端通知）</summary>
+        <div style="margin-top:12px">
+            <div class="form-row">
+                <div class="form-group small" style="min-width:180px">
+                    <label><input type="checkbox" id="optHuaweiEnabled"> 启用华为参数</label>
+                </div>
+                <div class="form-group small">
+                    <label>classification</label>
+                    <select id="optHuaweiClassification">
+                        <option value="">不设置</option>
+                        <option value="1">1 (系统消息)</option>
+                        <option value="0">0 (运营消息)</option>
+                    </select>
+                </div>
+                <div class="form-group small">
+                    <label>huawei.importance</label>
+                    <select id="optHuaweiImportance">
+                        <option value="">不设置</option>
+                        <option value="NORMAL">NORMAL (服务与通讯)</option>
+                        <option value="LOW">LOW (资讯营销)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>huawei.category</label>
+                    <input type="text" id="optHuaweiCategory" placeholder="例如: IM / MARKETING">
+                </div>
+            </div>
+        </div>
+    </details>
+</div>
+
+<!-- 操作按钮 -->
+<div class="btn-row">
+    <button class="btn btn-primary" onclick="sendPush()">🚀 发送推送</button>
+    <button class="btn btn-outline" onclick="sendPush(true)">📋 仅生成 curl</button>
+    <button class="btn btn-outline" onclick="copyJson()">📋 复制 JSON</button>
+    <span style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-preset" onclick="presetConsecutive3()">📨 同会话3连发</button>
+        <button class="btn btn-preset" onclick="presetSingleNotification()">📩 单条通知</button>
+        <button class="btn btn-preset" onclick="resetForm()">🔄 重置</button>
+    </span>
+</div>
+
+<!-- 生成的 curl 命令 -->
+<div class="card" id="resultCard" style="display:none">
+    <div class="card-title" id="resultCardTitle">📤 发送结果</div>
+    <div class="result-box hidden" id="resultBox"></div>
+    <div class="result-box curl-cmd hidden" id="curlBox" style="margin-top:12px"></div>
+</div>
+
+<!-- 发送结果（仅同会话3连发模式显示） -->
+<div class="card" id="batchResultCard" style="display:none">
+    <div class="card-title">📤 批量发送状态</div>
+    <div class="result-box" id="batchResultBox"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+</div>
+
+<script>
+const APP_KEY = 'e5e6799b552158d3a1d22d0a';
+const MASTER_SECRET = 'deb6c68e02be43b2e4484fda';
+const AUTH = btoa(APP_KEY + ':' + MASTER_SECRET);
+const JPUSH_API_URL = 'https://api.jpush.cn/v3/push';
+const STORAGE_KEY = 'mattermost_jpush_test_v1';
+const API_URL = window.location.protocol === 'file:' ? null : (window.location.origin + '/api/push');
+
+var saveFormTimer = null;
+var consecutiveIndex = 0;
+var consecutiveTimer = null;
+
+document.getElementById('audienceType').addEventListener('change', function() {
+    syncAudienceValueVisibility();
+    scheduleSaveForm();
+});
+
+function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2000);
+}
+
+function buildPayload() {
+    var platform = [];
+    var checks = document.querySelectorAll('input[name="platform"]:checked');
+    checks.forEach(function(c) { platform.push(c.value); });
+    if (platform.length === 0) platform = ['android'];
+
+    var audienceType = document.getElementById('audienceType').value;
+    var audience;
+    if (audienceType === 'all') {
+        audience = 'all';
+    } else {
+        var val = document.getElementById('audienceValue').value.trim();
+        var arr = val ? val.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+        var obj = {};
+        obj[audienceType] = arr;
+        audience = obj;
+    }
+
+    var extras = {};
+    addExtra(extras, 'channel_id', 'extChannelId');
+    addExtra(extras, 'post_id', 'extPostId');
+    addExtra(extras, 'root_id', 'extRootId');
+    addExtra(extras, 'server_url', 'extServerUrl');
+    addExtra(extras, 'sender_name', 'extSenderName');
+    addExtra(extras, 'sender_id', 'extSenderId');
+    addExtra(extras, 'message', 'extMessage');
+    addExtra(extras, 'is_crt_enabled', 'extIsCrt');
+    addExtra(extras, 'category', 'extCategory');
+    addExtra(extras, 'channel_name', 'extChannelName');
+    addExtra(extras, 'team_id', 'extTeamId');
+    addExtra(extras, 'type', 'extType');
+    addExtra(extras, 'override_icon_url', 'extIconUrl');
+    addExtra(extras, 'override_username', 'extUsername');
+
+    var options = {};
+    addOverrideMsgId(options);
+    var ttl = parseInt(document.getElementById('optTTL').value);
+    if (ttl > 0) options.time_to_live = ttl;
+    options.apns_production = document.getElementById('apnsProduction').value === 'true';
+    addExtra(options, 'apns_collapse_id', 'optCollapseId');
+    addHuaweiOptions(options);
+
+    var payload = {
+        platform: platform.length === 1 ? platform[0] : platform,
+        audience: audience,
+        notification: {
+            alert: document.getElementById('notifAlert').value || '新消息',
+            android: {
+                alert: document.getElementById('notifAlert').value || '新消息',
+                title: document.getElementById('notifTitle').value || undefined,
+                extras: Object.keys(extras).length > 0 ? extras : undefined,
+                priority: 2
+            }
+        },
+        options: Object.keys(options).length > 0 ? options : undefined
+    };
+
+    if (payload.notification.android.title === undefined) delete payload.notification.android.title;
+
+    return payload;
+}
+
+function addExtra(obj, key, domId) {
+    var el = document.getElementById(domId);
+    if (!el) return;
+    var val = el.value.trim();
+    if (val) obj[key] = val;
+}
+
+function addOverrideMsgId(options) {
+    var raw = document.getElementById('optOverrideMsgId').value.trim();
+    if (!raw || !/^\d+$/.test(raw)) {
+        return;
+    }
+    var num = Number(raw);
+    if (Number.isSafeInteger(num)) {
+        options.override_msg_id = num;
+    }
+}
+
+function addHuaweiOptions(options) {
+    var enabledEl = document.getElementById('optHuaweiEnabled');
+    if (!enabledEl || !enabledEl.checked) {
+        return;
+    }
+
+    var classificationVal = document.getElementById('optHuaweiClassification').value;
+    if (classificationVal === '0' || classificationVal === '1') {
+        options.classification = Number(classificationVal);
+    }
+
+    var huawei = {};
+    var importanceVal = document.getElementById('optHuaweiImportance').value;
+    if (importanceVal) {
+        huawei.importance = importanceVal;
+    }
+    var categoryVal = document.getElementById('optHuaweiCategory').value.trim();
+    if (categoryVal) {
+        huawei.category = categoryVal;
+    }
+
+    if (Object.keys(huawei).length > 0) {
+        if (!options.third_party_channel) {
+            options.third_party_channel = {};
+        }
+        options.third_party_channel.huawei = huawei;
+    }
+}
+
+function parseJPushMsgId(responseBody) {
+    try {
+        var data = JSON.parse(responseBody);
+        if (data && data.msg_id != null) {
+            return String(data.msg_id);
+        }
+    } catch (e) {
+        // ignore
+    }
+    return null;
+}
+
+function getPayloadJson() {
+    return JSON.stringify(buildPayload(), null, 2);
+}
+
+function buildCurlCommand() {
+    var json = getPayloadJson();
+    return 'curl -X POST ' + JPUSH_API_URL + ' \\\n' +
+        '  -H "Authorization: Basic ' + AUTH + '" \\\n' +
+        '  -H "Content-Type: application/json" \\\n' +
+        "  -d '" + json.replace(/'/g, "'\\''") + "'";
+}
+
+function syncAudienceValueVisibility() {
+    var type = document.getElementById('audienceType').value;
+    document.getElementById('audienceValueGroup').style.display = type === 'all' ? 'none' : '';
+}
+
+function syncHuaweiFieldsState() {
+    var enabled = document.getElementById('optHuaweiEnabled').checked;
+    ['optHuaweiClassification', 'optHuaweiImportance', 'optHuaweiCategory'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.disabled = !enabled;
+        }
+    });
+}
+
+function collectFormState() {
+    var platforms = [];
+    document.querySelectorAll('input[name="platform"]:checked').forEach(function(c) {
+        platforms.push(c.value);
+    });
+    return {
+        audienceType: document.getElementById('audienceType').value,
+        audienceValue: document.getElementById('audienceValue').value,
+        platforms: platforms,
+        apnsProduction: document.getElementById('apnsProduction').value,
+        notifTitle: document.getElementById('notifTitle').value,
+        notifAlert: document.getElementById('notifAlert').value,
+        extChannelId: document.getElementById('extChannelId').value,
+        extPostId: document.getElementById('extPostId').value,
+        extRootId: document.getElementById('extRootId').value,
+        extServerUrl: document.getElementById('extServerUrl').value,
+        extSenderName: document.getElementById('extSenderName').value,
+        extSenderId: document.getElementById('extSenderId').value,
+        extMessage: document.getElementById('extMessage').value,
+        extIsCrt: document.getElementById('extIsCrt').value,
+        extCategory: document.getElementById('extCategory').value,
+        extChannelName: document.getElementById('extChannelName').value,
+        extTeamId: document.getElementById('extTeamId').value,
+        extType: document.getElementById('extType').value,
+        extIconUrl: document.getElementById('extIconUrl').value,
+        extUsername: document.getElementById('extUsername').value,
+        optOverrideMsgId: document.getElementById('optOverrideMsgId').value,
+        optTTL: document.getElementById('optTTL').value,
+        optCollapseId: document.getElementById('optCollapseId').value,
+        optHuaweiEnabled: document.getElementById('optHuaweiEnabled').checked,
+        optHuaweiClassification: document.getElementById('optHuaweiClassification').value,
+        optHuaweiImportance: document.getElementById('optHuaweiImportance').value,
+        optHuaweiCategory: document.getElementById('optHuaweiCategory').value,
+    };
+}
+
+function applyFormState(state) {
+    if (!state) return;
+    if (state.audienceType) document.getElementById('audienceType').value = state.audienceType;
+    if (state.audienceValue != null) document.getElementById('audienceValue').value = state.audienceValue;
+    if (state.apnsProduction != null) document.getElementById('apnsProduction').value = state.apnsProduction;
+    if (state.notifTitle != null) document.getElementById('notifTitle').value = state.notifTitle;
+    if (state.notifAlert != null) document.getElementById('notifAlert').value = state.notifAlert;
+    if (state.extChannelId != null) document.getElementById('extChannelId').value = state.extChannelId;
+    if (state.extPostId != null) document.getElementById('extPostId').value = state.extPostId;
+    if (state.extRootId != null) document.getElementById('extRootId').value = state.extRootId;
+    if (state.extServerUrl != null) document.getElementById('extServerUrl').value = state.extServerUrl;
+    if (state.extSenderName != null) document.getElementById('extSenderName').value = state.extSenderName;
+    if (state.extSenderId != null) document.getElementById('extSenderId').value = state.extSenderId;
+    if (state.extMessage != null) document.getElementById('extMessage').value = state.extMessage;
+    if (state.extIsCrt != null) document.getElementById('extIsCrt').value = state.extIsCrt;
+    if (state.extCategory != null) document.getElementById('extCategory').value = state.extCategory;
+    if (state.extChannelName != null) document.getElementById('extChannelName').value = state.extChannelName;
+    if (state.extTeamId != null) document.getElementById('extTeamId').value = state.extTeamId;
+    if (state.extType != null) document.getElementById('extType').value = state.extType;
+    if (state.extIconUrl != null) document.getElementById('extIconUrl').value = state.extIconUrl;
+    if (state.extUsername != null) document.getElementById('extUsername').value = state.extUsername;
+    if (state.optOverrideMsgId != null) document.getElementById('optOverrideMsgId').value = state.optOverrideMsgId;
+    if (state.optTTL != null) document.getElementById('optTTL').value = state.optTTL;
+    if (state.optCollapseId != null) document.getElementById('optCollapseId').value = state.optCollapseId;
+    if (state.optHuaweiEnabled != null) document.getElementById('optHuaweiEnabled').checked = !!state.optHuaweiEnabled;
+    if (state.optHuaweiClassification != null) document.getElementById('optHuaweiClassification').value = state.optHuaweiClassification;
+    if (state.optHuaweiImportance != null) document.getElementById('optHuaweiImportance').value = state.optHuaweiImportance;
+    if (state.optHuaweiCategory != null) document.getElementById('optHuaweiCategory').value = state.optHuaweiCategory;
+
+    var platforms = state.platforms || ['android'];
+    document.querySelectorAll('input[name="platform"]').forEach(function(c) {
+        c.checked = platforms.indexOf(c.value) >= 0;
+    });
+    syncAudienceValueVisibility();
+    syncHuaweiFieldsState();
+}
+
+function saveFormState() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState()));
+    } catch (e) {
+        // ignore quota / private mode
+    }
+}
+
+function loadFormState() {
+    try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        applyFormState(JSON.parse(raw));
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function scheduleSaveForm() {
+    clearTimeout(saveFormTimer);
+    saveFormTimer = setTimeout(saveFormState, 300);
+}
+
+function initFormAutoSave() {
+    var selector = 'input, select, textarea';
+    document.querySelectorAll(selector).forEach(function(el) {
+        el.addEventListener('input', scheduleSaveForm);
+        el.addEventListener('change', scheduleSaveForm);
+    });
+}
+
+function updateServerHint() {
+    var hint = document.getElementById('serverHint');
+    if (!hint) return;
+    hint.style.display = 'block';
+    if (API_URL) {
+        hint.style.color = '#389e0d';
+        hint.textContent = '已通过本地代理，可直接在页面发送推送；表单会自动保存到浏览器本地。';
+    } else {
+        hint.style.color = '#cf1322';
+        hint.textContent = '当前无法页面内发送：请运行 node test_demos/jpush_test_server.js，再打开 http://127.0.0.1:8765/jpush_test.html';
+    }
+}
+
+function showApiResult(text, isError) {
+    var card = document.getElementById('resultCard');
+    var box = document.getElementById('resultBox');
+    var curlBox = document.getElementById('curlBox');
+    card.style.display = 'block';
+    document.getElementById('resultCardTitle').textContent = '📤 发送结果';
+    box.className = 'result-box' + (isError ? ' error' : '');
+    box.textContent = text;
+    box.classList.remove('hidden');
+    curlBox.classList.add('hidden');
+}
+
+function showCurlResult(text, isError) {
+    var card = document.getElementById('resultCard');
+    var box = document.getElementById('resultBox');
+    var curlBox = document.getElementById('curlBox');
+    card.style.display = 'block';
+    document.getElementById('resultCardTitle').textContent = '📋 curl 命令';
+    box.classList.add('hidden');
+    curlBox.className = 'result-box curl-cmd' + (isError ? ' error' : '');
+    curlBox.textContent = text;
+    curlBox.classList.remove('hidden');
+}
+
+function postPushRequest() {
+    return fetch(API_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Basic ' + AUTH,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildPayload()),
+    }).then(function(res) {
+        return res.text().then(function(body) {
+            return {status: res.status, body: body};
+        });
+    });
+}
+
+function formatApiResponse(result) {
+    var formatted;
+    try {
+        formatted = JSON.stringify(JSON.parse(result.body), null, 2);
+    } catch (e) {
+        formatted = result.body;
+    }
+    return 'HTTP ' + result.status + '\n' + formatted;
+}
+
+function sendPush(curlOnly) {
+    saveFormState();
+    var cmd = buildCurlCommand();
+    var overrideRaw = document.getElementById('optOverrideMsgId').value.trim();
+
+    if (curlOnly || !API_URL) {
+        showCurlResult(cmd, false);
+        copyToClipboard(cmd, '✅ curl 已复制');
+        if (!API_URL && !curlOnly) {
+            showToast('请启动本地代理后再页面发送');
+        }
+        return;
+    }
+
+    if (overrideRaw && !/^\d+$/.test(overrideRaw)) {
+        showApiResult('override_msg_id 须为纯数字（上一条响应的 msg_id）', true);
+        showCurlResult(cmd, false);
+        return;
+    }
+
+    showApiResult('正在发送...', false);
+    postPushRequest()
+        .then(function(result) {
+            showApiResult(formatApiResponse(result), result.status >= 400);
+            showCurlResult(cmd, false);
+            scheduleSaveForm();
+            if (result.status < 400) {
+                showToast('✅ 推送已发送');
+            }
+        })
+        .catch(function(err) {
+            showApiResult('请求失败: ' + err.message + '\n\n请确认已运行: node test_demos/jpush_test_server.js', true);
+            showCurlResult(cmd, false);
+        });
+}
+
+function copyJson() {
+    var json = getPayloadJson();
+    copyToClipboard(json, '✅ JSON 已复制到剪贴板');
+}
+
+function copyToClipboard(text, successMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast(successMsg);
+        }).catch(function() {
+            showToast('⚠️ 复制失败，请手动复制下方命令');
+        });
+    } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            showToast(successMsg);
+        } catch(e) {
+            showToast('⚠️ 复制失败，请手动复制下方命令');
+        }
+        document.body.removeChild(ta);
+    }
+}
+
+function presetSingleNotification() {
+    var ts = Date.now();
+    document.getElementById('extChannelId').value = 'test_channel_001';
+    document.getElementById('extPostId').value = 'test_post_' + ts;
+    document.getElementById('extServerUrl').value = 'https://mm.example.com';
+    document.getElementById('extSenderName').value = '测试用户';
+    document.getElementById('extSenderId').value = 'user_test_001';
+    document.getElementById('extMessage').value = '这是一条测试推送消息';
+    document.getElementById('extIsCrt').value = 'false';
+    document.getElementById('extRootId').value = '';
+    document.getElementById('extCategory').value = 'CAN_REPLY';
+    document.getElementById('extChannelName').value = '测试频道';
+    document.getElementById('extTeamId').value = 'team_001';
+    document.getElementById('notifTitle').value = '测试用户';
+    document.getElementById('notifAlert').value = '这是一条测试推送消息';
+    document.getElementById('optOverrideMsgId').value = '';
+    document.getElementById('optCollapseId').value = 'conv_test_channel_001';
+    document.getElementById('optHuaweiEnabled').checked = true;
+    document.getElementById('optHuaweiClassification').value = '1';
+    document.getElementById('optHuaweiImportance').value = 'NORMAL';
+    document.getElementById('optHuaweiCategory').value = 'IM';
+    syncHuaweiFieldsState();
+    scheduleSaveForm();
+    showToast('✅ 已填充单条通知预设');
+}
+
+function presetConsecutive3() {
+    if (consecutiveTimer) {
+        clearInterval(consecutiveTimer);
+        consecutiveTimer = null;
+        consecutiveIndex = 0;
+    }
+    presetSingleNotification();
+    consecutiveIndex = 0;
+
+    var messages = [
+        '这是第一条测试消息',
+        '这是第二条测试消息',
+        '这是第三条测试消息（最新）'
+    ];
+
+    var batchBox = document.getElementById('batchResultBox');
+    var batchCard = document.getElementById('batchResultCard');
+    batchCard.style.display = 'block';
+    batchBox.className = 'result-box';
+    batchBox.classList.remove('hidden');
+
+    if (!API_URL) {
+        runConsecutive3CurlOnly(messages, batchBox);
+        return;
+    }
+    runConsecutive3ViaApi(messages, batchBox);
+}
+
+function runConsecutive3CurlOnly(messages, batchBox) {
+    var lines = [];
+    document.getElementById('optOverrideMsgId').value = '';
+    for (var i = 0; i < messages.length; i++) {
+        document.getElementById('extMessage').value = messages[i];
+        document.getElementById('extPostId').value = 'test_post_' + Date.now() + '_' + (i + 1);
+        document.getElementById('notifAlert').value = messages[i];
+        var note = i === 0 ? '' : '\n# 将第1条响应 msg_id 填入 override_msg_id\n';
+        lines.push('=== 第 ' + (i + 1) + ' 条 ===' + note + buildCurlCommand());
+    }
+    batchBox.textContent = lines.join('\n\n');
+    scheduleSaveForm();
+    showCurlResult(lines[0], false);
+    showToast('✅ 已生成 3 条 curl');
+}
+
+function runConsecutive3ViaApi(messages, batchBox) {
+    var lines = [];
+    var firstMsgId = null;
+
+    function sendStep(index) {
+        if (index >= messages.length) {
+            batchBox.textContent = lines.join('\n\n');
+            scheduleSaveForm();
+            showToast('✅ 3 条已发送');
+            return Promise.resolve();
+        }
+
+        document.getElementById('extMessage').value = messages[index];
+        document.getElementById('extPostId').value = 'test_post_' + Date.now() + '_' + (index + 1);
+        document.getElementById('notifAlert').value = messages[index];
+        document.getElementById('optOverrideMsgId').value = index === 0 ? '' : (firstMsgId || '');
+
+        return postPushRequest().then(function(result) {
+            var line = '第 ' + (index + 1) + ' 条:\n' + formatApiResponse(result);
+            lines.push(line);
+            batchBox.textContent = lines.join('\n\n');
+            showApiResult(line, result.status >= 400);
+
+            if (result.status >= 400) {
+                throw new Error('第 ' + (index + 1) + ' 条失败');
+            }
+            if (index === 0) {
+                firstMsgId = parseJPushMsgId(result.body);
+                if (!firstMsgId) {
+                    throw new Error('第1条未返回 msg_id');
+                }
+            }
+            return new Promise(function(resolve) {
+                setTimeout(resolve, 1500);
+            }).then(function() {
+                return sendStep(index + 1);
+            });
+        });
+    }
+
+    batchBox.textContent = '正在发送 3 条（间隔 1.5s）...';
+    showToast('📨 同会话 3 连发...');
+    sendStep(0).catch(function(err) {
+        showApiResult('批量发送中断: ' + err.message, true);
+    });
+}
+
+function resetForm() {
+    if (consecutiveTimer) {
+        clearInterval(consecutiveTimer);
+        consecutiveTimer = null;
+        consecutiveIndex = 0;
+    }
+    var inputs = document.querySelectorAll('input[type="text"], input[type="number"]');
+    inputs.forEach(function(el) { el.value = ''; });
+    document.getElementById('notifTitle').value = '测试消息';
+    document.getElementById('notifAlert').value = '你好，这是一条测试推送消息';
+    document.getElementById('audienceType').value = 'all';
+    document.getElementById('audienceValueGroup').style.display = 'none';
+    document.getElementById('audienceValue').value = '';
+    document.getElementById('extIsCrt').value = 'false';
+    document.getElementById('extCategory').value = 'CAN_REPLY';
+    document.getElementById('extType').value = 'message';
+    document.getElementById('optTTL').value = '86400';
+    document.getElementById('apnsProduction').value = 'false';
+    document.getElementById('optOverrideMsgId').value = '';
+    document.getElementById('optCollapseId').value = '';
+    document.getElementById('optHuaweiEnabled').checked = true;
+    document.getElementById('optHuaweiClassification').value = '1';
+    document.getElementById('optHuaweiImportance').value = 'NORMAL';
+    document.getElementById('optHuaweiCategory').value = 'IM';
+    syncHuaweiFieldsState();
+    document.querySelector('input[name="platform"][value="android"]').checked = true;
+    document.querySelector('input[name="platform"][value="ios"]').checked = false;
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('batchResultCard').style.display = 'none';
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+        // ignore
+    }
+    scheduleSaveForm();
+    showToast('🔄 表单已重置');
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('optHuaweiEnabled').addEventListener('change', function() {
+        syncHuaweiFieldsState();
+        scheduleSaveForm();
+    });
+    initFormAutoSave();
+    updateServerHint();
+    if (!loadFormState()) {
+        presetSingleNotification();
+    } else {
+        showToast('✅ 已恢复上次填写的内容');
+    }
+    syncHuaweiFieldsState();
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('batchResultCard').style.display = 'none';
+});
+</script>
+</body>
+</html>

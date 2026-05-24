@@ -77,6 +77,7 @@ const DmAvatar = ({
             statusStyle={[styles.status, isOnCenterBg && styles.statusOnCenterBg]}
             containerStyle={style}
             borderRadius={borderRadius}
+            useSidebarPalette={isOnHome}
         />
     );
 };

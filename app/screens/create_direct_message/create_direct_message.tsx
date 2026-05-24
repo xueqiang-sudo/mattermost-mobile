@@ -28,6 +28,8 @@ import {typography} from '@utils/typography';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
+export type CreateDMWindowVariant = 'default' | 'group_only' | 'dm_only';
+
 const messages = defineMessages({
     dm: {
         id: 'mobile.open_dm.error',
@@ -65,6 +67,7 @@ type Props = {
     currentUserId: string;
     teammateNameDisplay: string;
     tutorialWatched: boolean;
+    variant?: CreateDMWindowVariant;
 }
 
 type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
@@ -192,7 +195,7 @@ function removeProfileFromList(list: Set<string>, id: string) {
 }
 
 /**
- * 创建私信/群聊界面组件
+ * 创建私信/内部群界面组件
  */
 export default function CreateDirectMessage({
     componentId,
@@ -200,6 +203,7 @@ export default function CreateDirectMessage({
     currentUserId,
     teammateNameDisplay,
     tutorialWatched,
+    variant = 'default',
 }: Props) {
     const serverUrl = useServerUrl();
     const theme = useTheme();
@@ -254,7 +258,7 @@ export default function CreateDirectMessage({
     }, [intl, serverUrl]);
 
     /**
-     * 创建群聊频道
+     * 创建内部群频道
      */
     const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
         const result = await makeGroupChannel(serverUrl, ids);
@@ -280,7 +284,7 @@ export default function CreateDirectMessage({
         let success;
         if (idsToUse.length === 0) {
             success = false;
-        } else if (idsToUse.length > 1) {
+        } else if (variant === 'group_only' || (variant === 'default' && idsToUse.length > 1)) {
             success = await createGroupChannel(idsToUse);
         } else {
             success = await createDirectChannel(idsToUse[0]);
@@ -291,7 +295,7 @@ export default function CreateDirectMessage({
         } else {
             setStartingConversation(false);
         }
-    }, [startingConversation, selectedIds, createGroupChannel, createDirectChannel]);
+    }, [startingConversation, selectedIds, createGroupChannel, createDirectChannel, variant]);
 
     /**
      * 选择用户
@@ -300,6 +304,12 @@ export default function CreateDirectMessage({
         if (user.id === currentUserId) {
             return;
         }
+
+        if (variant === 'dm_only') {
+            startConversation(user.id);
+            return;
+        }
+
         setSelectedIds((current) => {
             if (current.has(user.id)) {
                 return removeProfileFromList(current, user.id);
@@ -315,7 +325,7 @@ export default function CreateDirectMessage({
 
             return newSelectedIds;
         });
-    }, [currentUserId, selectedCount]);
+    }, [currentUserId, selectedCount, startConversation, variant]);
 
     /**
      * 处理布局变化
@@ -428,14 +438,16 @@ export default function CreateDirectMessage({
                             inputStyle={style.searchBarInput}
                         />
                     </View>
-                    <Text
-                        style={style.selectionHintPrefix}
-                        testID='create_direct_message.selection_hint'
-                        allowFontScaling={false}
-                        maxFontSizeMultiplier={1}
-                    >
-                        {formatMessage(messages.selectionHintPrefix)}
-                    </Text>
+                    {variant === 'default' && (
+                        <Text
+                            style={style.selectionHintPrefix}
+                            testID='create_direct_message.selection_hint'
+                            allowFontScaling={false}
+                            maxFontSizeMultiplier={1}
+                        >
+                            {formatMessage(messages.selectionHintPrefix)}
+                        </Text>
+                    )}
                 </View>
                 <View style={style.listFlex}>
                     <ServerUserList
@@ -450,30 +462,34 @@ export default function CreateDirectMessage({
                         location={Screens.CREATE_DIRECT_MESSAGE}
                         customSection={createContactSectionsByNickname}
                         disableClientFilter={true}
+                        variant={variant}
+                        currentUserId={currentUserId}
                     />
                 </View>
-                <SelectedUsers
-                    keyboardOverlap={keyboardOverlap}
-                    showToast={showToast}
-                    setShowToast={setShowToast}
-                    toastIcon={'check'}
-                    toastMessage={formatMessage(
-                        {
-                            id: 'mobile.create_direct_message.max_limit_reached',
-                            defaultMessage: 'A discussion group can include up to {max, number} people besides you',
-                        },
-                        {max: General.MAX_USERS_IN_GM},
-                    )}
-                    selectedIds={selectedIds}
-                    onRemove={handleRemoveProfile}
-                    teammateNameDisplay={teammateNameDisplay}
-                    onPress={startConversation}
-                    buttonIcon={'forum-outline'}
-                    buttonText={primaryActionLabel}
-                    testID='create_direct_message'
-                    maxUsers={General.MAX_USERS_IN_GM}
-                    avatarBorderRadius={8}
-                />
+                {variant !== 'dm_only' && (
+                    <SelectedUsers
+                        keyboardOverlap={keyboardOverlap}
+                        showToast={showToast}
+                        setShowToast={setShowToast}
+                        toastIcon={'check'}
+                        toastMessage={formatMessage(
+                            {
+                                id: 'mobile.create_direct_message.max_limit_reached',
+                                defaultMessage: 'A discussion group can include up to {max, number} people besides you',
+                            },
+                            {max: General.MAX_USERS_IN_GM},
+                        )}
+                        selectedIds={selectedIds}
+                        onRemove={handleRemoveProfile}
+                        teammateNameDisplay={teammateNameDisplay}
+                        onPress={startConversation}
+                        buttonIcon={'forum-outline'}
+                        buttonText={primaryActionLabel}
+                        testID='create_direct_message'
+                        maxUsers={General.MAX_USERS_IN_GM}
+                        avatarBorderRadius={8}
+                    />
+                )}
             </View>
         </SafeAreaView>
     );

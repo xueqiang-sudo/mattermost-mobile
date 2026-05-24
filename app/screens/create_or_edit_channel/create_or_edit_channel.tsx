@@ -190,7 +190,7 @@ const CreateOrEditChannel = ({
     }, [channel, displayName, purpose, header, type, channelInfo?.purpose, channelInfo?.header, displayNameReadOnly, headerOnly, isEnterpriseDefaultOpen]);
 
     const isValidDisplayName = useCallback((): boolean => {
-        // DM 不需要验证 displayName；GM 群聊需要验证
+        // DM 不需要验证 displayName；GM 内部群需要验证
         if (channel?.type === General.DM_CHANNEL) {
             return true;
         }

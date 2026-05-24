@@ -7,6 +7,7 @@ import {TouchableHighlight} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
+import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {findChannels} from '@screens/navigation';
@@ -43,8 +44,9 @@ const SearchField = () => {
     const styles = getStyleSheet(theme);
 
     const onPress = usePreventDoubleTap(useCallback(() => {
+        const titleId = ENABLE_INTERNAL_GROUPS ? 'find_channels.title' : 'find_channels.title_no_internal';
         findChannels(
-            intl.formatMessage({id: 'find_channels.title', defaultMessage: 'Search groups, chats & contacts'}),
+            intl.formatMessage({id: titleId, defaultMessage: 'Search groups, chats & contacts'}),
             theme,
         );
     }, [intl, theme]));

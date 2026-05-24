@@ -1,0 +1,64 @@
+{
+  "numFailedTestSuites": 1,
+  "numFailedTests": 0,
+  "numPassedTestSuites": 0,
+  "numPassedTests": 0,
+  "numPendingTestSuites": 0,
+  "numPendingTests": 0,
+  "numRuntimeErrorTestSuites": 1,
+  "numTodoTests": 0,
+  "numTotalTestSuites": 1,
+  "numTotalTests": 0,
+  "openHandles": [],
+  "snapshot": {
+    "added": 0,
+    "didUpdate": false,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0
+  },
+  "startTime": 1774451460220,
+  "success": false,
+  "testResults": [
+    {
+      "failureMessage": "  ● Test suite failed to run\n\n    Failed to find the app binary at:\n    /Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/android/app/build/outputs/apk/debug/app-debug.apk\n\n    HINT: Make sure that:\n    1. You built the app before running tests:\n      detox build -c <your-configuration-name>\n    2. The app binary can be found at the given path.\n        at init.next (<anonymous>)\n\n      at getNextResult (node_modules/caf/src/caf.js:253:25)\n",
+      "leaks": false,
+      "numFailingTests": 0,
+      "numPassingTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "openHandles": [],
+      "perfStats": {
+        "end": 0,
+        "runtime": 0,
+        "slow": false,
+        "start": 0
+      },
+      "skipped": false,
+      "snapshot": {
+        "added": 0,
+        "fileDeleted": false,
+        "matched": 0,
+        "unchecked": 0,
+        "uncheckedKeys": [],
+        "unmatched": 0,
+        "updated": 0
+      },
+      "testExecError": {
+        "name": "DetoxRuntimeError"
+      },
+      "testFilePath": "/Users/qiushaocloud/Documents/wxw-codes/mattermost-codes/mattermost-mobile/detox/e2e/test/products/channels/messaging/message_recall_reedit_quote_chain.e2e.ts",
+      "testResults": []
+    }
+  ],
+  "wasInterrupted": false
+}

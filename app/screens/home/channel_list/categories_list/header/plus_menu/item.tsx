@@ -7,7 +7,7 @@ import {useIntl} from 'react-intl';
 import SlideUpPanelItem from '@components/slide_up_panel_item';
 
 type PlusMenuItemProps = {
-    pickerAction: 'createNewChannel' | 'openDirectMessage' | 'invitePeopleToTeam' | 'scanQRCode';
+    pickerAction: 'createNewChannel' | 'openDirectMessage' | 'openGroupChat' | 'openPrivateChat' | 'invitePeopleToTeam' | 'scanQRCode';
     onPress: () => void;
 };
 
@@ -25,6 +25,16 @@ const PlusMenuItem = ({pickerAction, onPress}: PlusMenuItemProps) => {
             leftIcon: 'account-outline',
             text: intl.formatMessage({id: 'plus_menu.open_direct_message.title', defaultMessage: 'Start a private chat'}),
             testID: 'plus_menu_item.open_direct_message',
+        },
+        openGroupChat: {
+            leftIcon: 'account-multiple-outline',
+            text: intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'}),
+            testID: 'plus_menu_item.open_group_chat',
+        },
+        openPrivateChat: {
+            leftIcon: 'account-outline',
+            text: intl.formatMessage({id: 'plus_menu.open_private_chat.title', defaultMessage: 'Start private chat'}),
+            testID: 'plus_menu_item.open_private_chat',
         },
         invitePeopleToTeam: {
             leftIcon: 'account-plus-outline',

@@ -1,4 +1,4 @@
-package com.mattermost.rnshare
+package com.optibot.cnshare
 
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext

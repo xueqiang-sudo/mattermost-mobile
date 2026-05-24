@@ -6,7 +6,7 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {Tutorial} from '@constants';
 import {observeTutorialWatched} from '@queries/app/global';
 import {observeChannel} from '@queries/servers/channel';
-import {observeCurrentTeamId} from '@queries/servers/system';
+import {observeCurrentTeamId, observeCurrentUserId} from '@queries/servers/system';
 import {observeTeammateNameDisplay} from '@queries/servers/user';
 
 import ChannelAddMembers from './channel_add_members';
@@ -22,6 +22,7 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: OwnProps
     return {
         channel,
         currentTeamId: observeCurrentTeamId(database),
+        currentUserId: observeCurrentUserId(database),
         teammateNameDisplay: observeTeammateNameDisplay(database),
         tutorialWatched: observeTutorialWatched(Tutorial.PROFILE_LONG_PRESS),
     };
