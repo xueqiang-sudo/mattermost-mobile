@@ -12,12 +12,16 @@ buildscript {
         ndkVersion = "27.1.12297006"
     }
     repositories {
+        google()
+        jcenter()
         mavenCentral()
         mavenLocal()
-        google()
+        // hms
+        maven { url 'https://developer.huawei.com/repo/'}
     }
     dependencies {
-        classpath("com.android.tools.build:gradle")
+        // AGP version must be explicit for com.huawei.agconnect (dependency lock + plugin check)
+        classpath("com.android.tools.build:gradle:8.7.2")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath('com.google.gms:google-services:4.4.2')
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21")
@@ -25,6 +29,9 @@ buildscript {
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
+
+        // hms
+        classpath 'com.huawei.agconnect:agcp:1.9.1.301'
     }
 
     configurations.classpath {
@@ -34,12 +41,15 @@ buildscript {
 
 allprojects {
     repositories {
-        mavenLocal()
         google()
+        jcenter()
+        mavenCentral()
+        mavenLocal()
         maven {
             url "$rootDir/../detox/node_modules/detox/Detox-android"
         }
         maven { url 'https://jitpack.io' }
+        maven { url 'https://developer.huawei.com/repo/' }
     }
 }
 

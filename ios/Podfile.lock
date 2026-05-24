@@ -72,7 +72,16 @@ PODS:
     - hermes-engine/Pre-built (= 0.77.3)
   - hermes-engine/Pre-built (0.77.3)
   - HMSegmentedControl (1.5.6)
+  - JCore (5.4.0)
+  - JCoreRN (2.3.6):
+    - JCore (= 5.4.0)
+    - React
   - JitsiWebRTC (124.0.2)
+  - JPush (6.1.0):
+    - JCore (> 5.1.1)
+  - JPushRN (3.2.7):
+    - JPush (= 6.1.0)
+    - React
   - KituraContracts (1.2.1):
     - LoggerAPI (~> 1.7)
   - LoggerAPI (1.9.200):
@@ -2308,7 +2317,9 @@ DEPENDENCIES:
   - Gekidou (from `./Gekidou`)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - JCoreRN (from `../node_modules/jcore-react-native`)
   - JitsiWebRTC (from `./JitsiWebRTC-Local.podspec`)
+  - JPushRN (from `../node_modules/jpush-react-native`)
   - "mattermost-hardware-keyboard (from `../node_modules/@mattermost/hardware-keyboard`)"
   - "mattermost-react-native-turbo-log (from `../node_modules/@mattermost/react-native-turbo-log`)"
   - "mattermost-rnutils (from `../node_modules/@mattermost/rnutils`)"
@@ -2428,6 +2439,8 @@ SPEC REPOS:
     - BlueRSA
     - CocoaLumberjack
     - HMSegmentedControl
+    - JCore
+    - JPush
     - KituraContracts
     - LoggerAPI
     - Logging
@@ -2486,8 +2499,12 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-2024-11-25-RNv0.77.0-d4f25d534ab744866448b36ca3bf3d97c08e638c
+  JCoreRN:
+    :path: "../node_modules/jcore-react-native"
   JitsiWebRTC:
     :podspec: "./JitsiWebRTC-Local.podspec"
+  JPushRN:
+    :path: "../node_modules/jpush-react-native"
   mattermost-hardware-keyboard:
     :path: "../node_modules/@mattermost/hardware-keyboard"
   mattermost-react-native-turbo-log:
@@ -2735,7 +2752,11 @@ SPEC CHECKSUMS:
   glog: eb93e2f488219332457c3c4eafd2738ddc7e80b8
   hermes-engine: b2187dbe13edb0db8fcb2a93a69c1987a30d98a4
   HMSegmentedControl: 34c1f54d822d8308e7b24f5d901ec674dfa31352
+  JCore: 97f24c92979f9923ef5cfdbd626a29e9504215dd
+  JCoreRN: a16e6acada9932f48ab928e269490ac0ed9aafe8
   JitsiWebRTC: e8f33f1220061e4c8d19135aeec8d8b404d05fe5
+  JPush: 891c497687be788b094bde368d51289355ee1112
+  JPushRN: 8d1ebd6800aee1b9faee8cc5d1e7f44d69516066
   KituraContracts: e845e60dc8627ad0a76fa55ef20a45451d8f830b
   LoggerAPI: ad9c4a6f1e32f518fdb43a1347ac14d765ab5e3d
   Logging: beeb016c9c80cf77042d62e83495816847ef108b

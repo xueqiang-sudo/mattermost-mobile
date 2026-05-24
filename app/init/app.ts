@@ -20,6 +20,7 @@ import NavigationStore from '@store/navigation_store';
 import VoiceRecorder from '@mattermost/voice-recorder';
 import {clearCachedUpdateApk} from '@utils/file/apk_download';
 import {logDebug, logError} from '@utils/log';
+import JPushManager from '@init/jpush';
 
 // Controls whether the main initialization (database, etc...) is done, either on app launch
 // or on the Share Extension, for example.
@@ -88,6 +89,7 @@ export async function start() {
     }
 
     PushNotifications.init(serverCredentials.length > 0);
+    JPushManager.init();
 
     await WebsocketManager.init(serverCredentials);
 

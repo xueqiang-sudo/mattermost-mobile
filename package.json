@@ -79,6 +79,8 @@
     "path-to-regexp": "8.2.0",
     "pinyin-pro": "3.26.0",
     "prismjs": "1.30.0",
+    "jcore-react-native": "^2.3.6",
+    "jpush-react-native": "^3.2.7",
     "react": "18.3.1",
     "react-freeze": "1.0.4",
     "react-intl": "7.1.10",
