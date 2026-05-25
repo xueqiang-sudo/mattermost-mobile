@@ -282,3 +282,4 @@ tasks.register('copyDownloadableDepsToLibs', Copy) {
 }
 
 apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.huawei.agconnect'
