@@ -13,7 +13,6 @@ buildscript {
     }
     repositories {
         google()
-        jcenter()
         mavenCentral()
         mavenLocal()
         // hms
@@ -42,7 +41,6 @@ buildscript {
 allprojects {
     repositories {
         google()
-        jcenter()
         mavenCentral()
         mavenLocal()
         maven {
