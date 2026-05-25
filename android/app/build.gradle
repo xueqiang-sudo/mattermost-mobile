@@ -2,6 +2,13 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// 从 keystore.properties 加载签名配置（该文件不提交到 Git）
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -121,8 +128,10 @@ android {
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 
         manifestPlaceholders = [
+            JPUSH_PKGNAME: applicationId,
             JPUSH_APPKEY: "e5e6799b552158d3a1d22d0a",         //在此替换你的APPKey
-            JPUSH_CHANNEL: "developer-default"        //在此替换你的channel
+            JPUSH_CHANNEL: "developer-default",        //在此替换你的channel
+            HONOR_APPID: "104563467"
         ]
     }
 
@@ -133,6 +142,11 @@ android {
                 storePassword MATTERMOST_RELEASE_PASSWORD
                 keyAlias MATTERMOST_RELEASE_KEY_ALIAS
                 keyPassword MATTERMOST_RELEASE_PASSWORD
+            } else if (keystoreProperties.containsKey('MATTERMOST_RELEASE_STORE_FILE')) {
+                storeFile file(keystoreProperties['MATTERMOST_RELEASE_STORE_FILE'])
+                storePassword keystoreProperties['MATTERMOST_RELEASE_PASSWORD']
+                keyAlias keystoreProperties['MATTERMOST_RELEASE_KEY_ALIAS']
+                keyPassword keystoreProperties['MATTERMOST_RELEASE_PASSWORD']
             }
         }
         debug {
@@ -151,7 +165,7 @@ android {
         }
     }
     buildTypes {
-        def useReleaseKey = project.hasProperty('MATTERMOST_RELEASE_STORE_FILE')
+        def useReleaseKey = project.hasProperty('MATTERMOST_RELEASE_STORE_FILE') || keystoreProperties.containsKey('MATTERMOST_RELEASE_STORE_FILE')
         release {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
@@ -236,9 +250,16 @@ dependencies {
 
     //若不集成厂商通道，可直接跳过以下依赖
     // 极光厂商插件版本与接入 JPush 版本保持一致，下同
+    // 接入 FCM 厂商
+    implementation 'com.google.firebase:firebase-messaging:25.0.2'
+    implementation 'cn.jiguang.sdk.plugin:fcm:6.1.1'
     // 接入华为厂商
     implementation 'com.huawei.hms:push:6.13.0.301'
     implementation 'cn.jiguang.sdk.plugin:huawei:6.1.1'
+    // 接入荣耀厂商
+    implementation 'cn.jiguang.sdk.plugin:honor:6.1.1'
+    //需要单独引入荣耀厂商 aar ，请下载官网 SDK 包并把 jpush-android-xxx-release/third-push/honor/libs 下的 aar 文件单独拷贝一份到应用 module/libs 下
+    // implementation(name: 'HiPushSDK-8.0.12.307', ext: 'aar')
 
     api('io.jsonwebtoken:jjwt-api:0.12.5')
     runtimeOnly('io.jsonwebtoken:jjwt-impl:0.12.5')
