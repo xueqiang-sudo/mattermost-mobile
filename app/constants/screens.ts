@@ -39,6 +39,7 @@ export const CONTACTS_MANAGE = 'ContactsManage';
 export const CONTACTS_SEARCH = 'ContactsSearch';
 export const CONTACTS_BATCH_MOVE_MEMBERS = 'ContactsBatchMoveMembers';
 export const TMP_DEV_TEST = 'TmpDevTest';
+export const DEBUG_PANEL = 'DebugPanel';
 export const CUSTOM_STATUS = 'CustomStatus';
 export const CUSTOM_STATUS_CLEAR_AFTER = 'CustomStatusClearAfter';
 export const DRAFT = 'Draft';
@@ -156,6 +157,7 @@ export default {
     CONTACTS_SEARCH,
     CONTACTS_BATCH_MOVE_MEMBERS,
     TMP_DEV_TEST,
+    DEBUG_PANEL,
     CREATE_DIRECT_MESSAGE,
     CREATE_OR_EDIT_CHANNEL,
     CREATE_TEAM,

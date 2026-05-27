@@ -1,5 +1,22 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
+
+// Inline Babel plugin: replaces __DEBUG_PANEL__ with a boolean literal at compile time.
+// This enables Metro's Terser to eliminate dead branches via Dead Code Elimination (DCE).
+// Set SHOW_DEBUG_PANEL=true in shell/package.json scripts to enable the debug panel.
+const debugPanelEnabled = process.env.SHOW_DEBUG_PANEL === '1' || process.env.SHOW_DEBUG_PANEL === 'true';
+function debugPanelTransformPlugin() {
+    return {
+        visitor: {
+            Identifier(path) {
+                if (path.node.name === '__DEBUG_PANEL__') {
+                    path.replaceWith({type: 'BooleanLiteral', value: debugPanelEnabled});
+                }
+            },
+        },
+    };
+}
+
 module.exports = {
     presets: [
         ['@babel/preset-env', {targets: {node: 'current'}}],
@@ -7,6 +24,7 @@ module.exports = {
         '@babel/preset-typescript',
     ],
     plugins: [
+        debugPanelTransformPlugin,
         '@babel/plugin-transform-runtime',
         ['@babel/plugin-proposal-decorators', {legacy: true}],
         ['@babel/plugin-transform-flow-strip-types'],

@@ -78,6 +78,10 @@ if (System.getenv("SENTRY_ENABLED") == "true") {
  */
 def enableSeparateBuildPerCPUArchitecture = project.hasProperty('separateApk') ? project.property('separateApk').toBoolean() : false
 def enableUniversalBuild = project.hasProperty('universalApk') ? project.property('universalApk').toBoolean() : false
+def logcatFilterKeywords = System.getenv("LOGCAT_FILTER_KEYWORDS") ?: "JIGUANG"
+def escapedLogcatFilterKeywords = logcatFilterKeywords
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
 
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
@@ -126,6 +130,7 @@ android {
         versionName "2.39.0"
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        buildConfigField "String", "LOGCAT_FILTER_KEYWORDS", "\"${escapedLogcatFilterKeywords}\""
 
         manifestPlaceholders = [
             JPUSH_PKGNAME: applicationId,

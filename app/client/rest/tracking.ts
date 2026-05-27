@@ -389,6 +389,7 @@ export default class ClientTracking {
         }
 
         const performanceRequestId = NetworkPerformanceManager.startRequestTracking(this.apiClient.baseUrl, url);
+        const debugRequestStart = __DEBUG_PANEL__ ? Date.now() : 0;
 
         let response: ClientResponse;
         const requestOptions = this.buildRequestOptions(options);
@@ -396,6 +397,18 @@ export default class ClientTracking {
             response = await request!(url, requestOptions);
         } catch (error) {
             NetworkPerformanceManager.cancelRequestTracking(this.apiClient.baseUrl, performanceRequestId);
+            if (__DEBUG_PANEL__) {
+                const {logNetworkRequest} = require('@utils/network_logger');
+                logNetworkRequest(
+                    url,
+                    method ?? 'unknown',
+                    requestOptions.headers ?? {},
+                    0,
+                    requestOptions.body,
+                    {error: String(error)},
+                    Date.now() - debugRequestStart,
+                );
+            }
             const response_error = error as ClientError;
             const status_code = isErrorWithStatusCode(error) ? error.status_code : undefined;
             throw new ClientError(this.apiClient.baseUrl, {
@@ -437,6 +450,18 @@ export default class ClientTracking {
         }
 
         if (response.ok) {
+            if (__DEBUG_PANEL__) {
+                const {logNetworkRequest} = require('@utils/network_logger');
+                logNetworkRequest(
+                    url,
+                    method ?? 'unknown',
+                    requestOptions.headers ?? {},
+                    response.code ?? 200,
+                    requestOptions.body,
+                    response.data,
+                    Date.now() - debugRequestStart,
+                );
+            }
             if (shouldLogFetchData()) {
                 logInfo(
                     new Date().toISOString() + ' -- request data, url:',
@@ -455,6 +480,18 @@ export default class ClientTracking {
             return returnDataOnly ? (response.data || {}) : response;
         }
 
+        if (__DEBUG_PANEL__) {
+            const {logNetworkRequest} = require('@utils/network_logger');
+            logNetworkRequest(
+                url,
+                method ?? 'unknown',
+                requestOptions.headers ?? {},
+                response.code ?? 0,
+                requestOptions.body,
+                response.data,
+                Date.now() - debugRequestStart,
+            );
+        }
         logInfo(new Date().toISOString() + ' -- request is failed, url:', this.apiClient.baseUrl+url, ' ,options:', options, ' ,status_code:', response.code, ' ,data:', response.data);
 
         throw new ClientError(this.apiClient.baseUrl, {

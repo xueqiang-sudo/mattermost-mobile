@@ -25,6 +25,7 @@ import JPushManager from '@init/jpush';
 // Controls whether the main initialization (database, etc...) is done, either on app launch
 // or on the Share Extension, for example.
 let baseAppInitialized = false;
+const DEBUG_PANEL_OVERLAY_ID = 'debug_panel_overlay';
 
 let serverCredentials: ServerCredential[];
 
@@ -68,6 +69,14 @@ export async function start() {
 
     registerNavigationListeners();
     registerScreens();
+
+    // Initialize debug panel console interceptor as early as possible so logs during
+    // app startup are captured. The overlay is shown after RNN is ready (see below).
+    if (__DEBUG_PANEL__) {
+        const {initConsoleInterceptor} = require('@utils/debug_logger');
+        initConsoleInterceptor();
+    }
+
     await resetToStartupLoading();
 
     await initialize();
@@ -94,4 +103,29 @@ export async function start() {
     await WebsocketManager.init(serverCredentials);
 
     initialLaunch();
+
+    // Show debug panel overlay after RNN has rendered the initial screen.
+    // The 1500ms delay gives RNN time to complete its first layout before we push an overlay.
+    if (__DEBUG_PANEL__) {
+        setTimeout(() => {
+            const {Navigation} = require('react-native-navigation');
+            const {Screens} = require('@constants');
+            Navigation.dismissOverlay(DEBUG_PANEL_OVERLAY_ID).catch(() => {
+                // ignore if overlay does not exist yet
+            });
+            Navigation.showOverlay({
+                component: {
+                    id: DEBUG_PANEL_OVERLAY_ID,
+                    name: Screens.DEBUG_PANEL,
+                    options: {
+                        overlay: {interceptTouchOutside: false},
+                        layout: {
+                            backgroundColor: 'transparent',
+                            componentBackgroundColor: 'transparent',
+                        },
+                    },
+                },
+            });
+        }, 1500);
+    }
 }

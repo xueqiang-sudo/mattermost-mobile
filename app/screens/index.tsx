@@ -372,6 +372,11 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.TMP_DEV_TEST:
             screen = withIntl(require('@screens/tmp_dev_test').default);
             break;
+        case Screens.DEBUG_PANEL:
+            if (__DEBUG_PANEL__) {
+                screen = require('@screens/with_debug_panel').default;
+            }
+            break;
     }
 
     if (!screen) {
@@ -383,7 +388,11 @@ Navigation.setLazyComponentRegistrator((screenName) => {
     }
 
     if (screen) {
-        Navigation.registerComponent(screenName, () => withGestures(withSafeAreaInsets(withManagedConfig(screen))));
+        const wrappedScreen = screenName === Screens.DEBUG_PANEL ?
+            withGestures(withManagedConfig(screen)) :
+            withGestures(withSafeAreaInsets(withManagedConfig(screen)));
+
+        Navigation.registerComponent(screenName, () => wrappedScreen);
     }
 });
 

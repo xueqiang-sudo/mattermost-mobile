@@ -48,6 +48,7 @@ class MainApplication : NavigationApplication(), INotificationsApplication {
                         add(WatermelonDBJSIPackage())
                         add(QRCodeScannerPackage())
                         add(ApkInstallerPackage())
+                        add(LogcatBridgePackage())
                     }
 
                 override fun getJSMainModuleName(): String = "index"
