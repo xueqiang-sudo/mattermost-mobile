@@ -53,6 +53,13 @@ const Settings = ({componentId, siteName}: SettingsProps) => {
     useAndroidHardwareBackHandler(componentId, close);
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, []);
 
+    const goToNotificationSettings = usePreventDoubleTap(useCallback(() => {
+        const screen = Screens.SETTINGS_NOTIFICATION;
+        const title = intl.formatMessage({id: 'general_settings.notifications', defaultMessage: 'Notifications'});
+
+        goToScreen(screen, title);
+    }, [intl]));
+
     const goToDisplaySettings = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.SETTINGS_DISPLAY;
         const title = intl.formatMessage({id: 'settings.display', defaultMessage: 'Display'});
@@ -86,6 +93,11 @@ const Settings = ({componentId, siteName}: SettingsProps) => {
 
     return (
         <SettingContainer testID='settings'>
+            <SettingItem
+                onPress={goToNotificationSettings}
+                optionName='notification'
+                testID='settings.notification.option'
+            />
             <SettingItem
                 onPress={goToDisplaySettings}
                 optionName='display'

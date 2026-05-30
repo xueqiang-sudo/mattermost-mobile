@@ -1,0 +1,35 @@
+// Load KEY=VALUE pairs from repo-root .env for Gradle build-time config (file is optional).
+// Shell environment variables take precedence over .env file values.
+
+def loadDotEnvFile = { File envFile ->
+    def env = [:]
+    if (envFile.exists()) {
+        envFile.eachLine { line ->
+            def trimmed = line.trim()
+            if (trimmed && !trimmed.startsWith("#") && trimmed.contains("=")) {
+                def idx = trimmed.indexOf("=")
+                def key = trimmed.substring(0, idx).trim()
+                def value = trimmed.substring(idx + 1).trim()
+                if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+                    value = value.substring(1, value.length() - 1)
+                }
+                env[key] = value
+            }
+        }
+    }
+    return env
+}
+
+rootProject.ext.dotEnv = loadDotEnvFile(rootProject.file("../.env"))
+
+rootProject.ext.envFromDotEnvOrShell = { String key, String defaultValue = "" ->
+    def shell = System.getenv(key)
+    if (shell != null && !shell.isEmpty()) {
+        return shell
+    }
+    def fromFile = rootProject.ext.dotEnv[key]
+    if (fromFile != null && !fromFile.isEmpty()) {
+        return fromFile
+    }
+    return defaultValue
+}

@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
+import cn.jpush.android.api.JPushInterface
+import com.mattermost.helpers.CustomPushNotificationHelper
 import com.facebook.react.PackageList
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeHost
@@ -49,6 +51,7 @@ class MainApplication : NavigationApplication(), INotificationsApplication {
                         add(QRCodeScannerPackage())
                         add(ApkInstallerPackage())
                         add(LogcatBridgePackage())
+                        add(NotificationSettingsPackage())
                     }
 
                 override fun getJSMainModuleName(): String = "index"
@@ -83,6 +86,7 @@ class MainApplication : NavigationApplication(), INotificationsApplication {
         ExpoImageOkHttpClientGlideModule.okHttpClient = RCTOkHttpClientFactory().createNewNetworkModuleClient()
 
         SoLoader.init(this, OpenSourceMergedSoMapping)
+        setupNotificationChannels()
         if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
             // If you opted-in for the New Architecture, we load the native entry point for this app.
             load(bridgelessEnabled = false)
@@ -93,6 +97,13 @@ class MainApplication : NavigationApplication(), INotificationsApplication {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         ApplicationLifecycleDispatcher.onConfigurationChanged(this, newConfig)
+    }
+
+    private fun setupNotificationChannels() {
+        MessageNotificationChannel.ensureCreated(this)
+        MessageNotificationChannel.primeIfNeeded(this)
+        CustomPushNotificationHelper.createNotificationChannels(this)
+        JPushInterface.setDefaultPushNotificationBuilder(OptibotJPushNotificationBuilder(this))
     }
 
     override fun getPushNotification(

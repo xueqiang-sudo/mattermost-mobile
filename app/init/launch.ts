@@ -10,14 +10,19 @@ import {removePost} from '@actions/local/post';
 import {terminateSession} from '@actions/local/session';
 import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
-import {runLaunchUpdateGate, showUpdateOverlay} from '@actions/remote/update';
 import {logout} from '@actions/remote/session';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
+import {runLaunchUpdateGate, showUpdateOverlay} from '@actions/remote/update';
 import LocalConfig from '@assets/config.json';
 import {DeepLink, Events, Launch, PushNotification} from '@constants';
 import {PostTypes} from '@constants/post';
 import DatabaseManager from '@database/manager';
 import {getActiveServerUrl, getServerCredentials, removeServerCredentials} from '@init/credentials';
+import JPushManager from '@init/jpush';
+import {
+    buildNotificationFromJPushExtras,
+    resolveJPushServerUrl,
+} from '@init/jpush_notification';
 import {getAutoClient} from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {getLastViewedChannelIdAndServer, getOnboardingViewed, getLastViewedThreadIdAndServer} from '@queries/app/global';
@@ -59,6 +64,19 @@ export const initialLaunch = async () => {
     if (initialNotificationTypes.includes(notification?.payload?.type) && tapped) {
         logInfo('[Launch.startup] Launch from notification', {type: notification?.payload?.type});
         const notificationData = convertToNotificationData(notification!);
+        EphemeralStore.setProcessingNotification(notificationData.identifier);
+        return launchAppFromNotification(notificationData, true);
+    }
+
+    const jpushNotification = JPushManager.getPendingColdStartNotification();
+    if (jpushNotification) {
+        logInfo('[Launch.startup] Launch from JPush notification');
+        const serverUrl = await resolveJPushServerUrl();
+        if (!serverUrl) {
+            logInfo('[Launch.startup] JPush 冷启动：无法从配置解析 serverUrl，走普通启动');
+            return launchApp({launchType: Launch.Normal, coldStart: true});
+        }
+        const notificationData = buildNotificationFromJPushExtras(jpushNotification, serverUrl);
         EphemeralStore.setProcessingNotification(notificationData.identifier);
         return launchAppFromNotification(notificationData, true);
     }
@@ -238,6 +256,9 @@ export const launchApp = async (props: LaunchProps) => {
 };
 
 export const launchToHome = async (props: LaunchProps) => {
+    JPushManager.markAppReady();
+    JPushManager.setLoggedIn(true);
+
     let openPushNotification = false;
 
     switch (props.launchType) {
@@ -313,9 +334,15 @@ export const getLaunchPropsFromNotification = async (notification: NotificationW
             serverUrl = payload.server_url;
         } else if (payload?.server_id) {
             serverUrl = await DatabaseManager.getServerUrlFromIdentifier(payload.server_id);
+        } else {
+            serverUrl = CONNECT_URL || LocalConfig.DefaultServerUrl;
         }
     } catch {
         launchProps.launchError = true;
+    }
+
+    if (!serverUrl) {
+        serverUrl = await getActiveServerUrl();
     }
 
     if (serverUrl) {

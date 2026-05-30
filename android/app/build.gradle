@@ -61,7 +61,7 @@ if (keystorePropertiesFile.exists()) {
 
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 
-if (System.getenv("SENTRY_ENABLED") == "true") {
+if (rootProject.ext.envFromDotEnvOrShell("SENTRY_ENABLED") == "true") {
     project.ext.sentryCli = [
         logLevel: "error",
         flavorAware: false
@@ -78,7 +78,7 @@ if (System.getenv("SENTRY_ENABLED") == "true") {
  */
 def enableSeparateBuildPerCPUArchitecture = project.hasProperty('separateApk') ? project.property('separateApk').toBoolean() : false
 def enableUniversalBuild = project.hasProperty('universalApk') ? project.property('universalApk').toBoolean() : false
-def logcatFilterKeywords = System.getenv("LOGCAT_FILTER_KEYWORDS") ?: "JIGUANG"
+def logcatFilterKeywords = rootProject.ext.envFromDotEnvOrShell("LOGCAT_FILTER_KEYWORDS", "")
 def escapedLogcatFilterKeywords = logcatFilterKeywords
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")

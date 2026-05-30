@@ -66,7 +66,8 @@ export const fetchNotificationData = async (serverUrl: string, notification: Not
                 !channelReq.channels?.find((c) => c.id === channelId && c.delete_at === 0) ||
                 !channelReq.memberships?.find((m) => m.channel_id === channelId)) {
                 if (!skipEvents) {
-                    emitNotificationError('Channel');
+                    const isOptibotDeepLink = notification.payload?.from_optibot_deeplink === 'true';
+                    emitNotificationError(isOptibotDeepLink ? 'OptibotChannel' : 'Channel');
                 }
                 return {error: channelReq.error || 'Channel'};
             }

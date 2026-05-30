@@ -50,9 +50,26 @@ export const convertToNotificationData = (notification: Notification, tapped = t
     return notificationData;
 };
 
-export const notificationError = (intl: IntlShape, type: 'Team' | 'Channel' | 'Connection' | 'Post') => {
-    const title = intl.formatMessage({id: 'notification.message_not_found', defaultMessage: 'Message not found'});
+export type NotificationErrorType = 'Team' | 'Channel' | 'OptibotChannel' | 'Connection' | 'Post';
+
+export const notificationError = (intl: IntlShape, type: NotificationErrorType) => {
+    let title;
     let message;
+    switch (type) {
+        case 'OptibotChannel':
+            title = intl.formatMessage({
+                id: 'mobile.optibot.channel_not_accessible.title',
+                defaultMessage: 'Channel Not Accessible',
+            });
+            message = intl.formatMessage({
+                id: 'mobile.optibot.channel_not_accessible.description',
+                defaultMessage: 'You are not a member of this channel, or the channel no longer exists.',
+            });
+            break;
+        default:
+            title = intl.formatMessage({id: 'notification.message_not_found', defaultMessage: 'Message not found'});
+            break;
+    }
     switch (type) {
         case 'Channel':
             message = intl.formatMessage({
@@ -84,7 +101,7 @@ export const notificationError = (intl: IntlShape, type: 'Team' | 'Channel' | 'C
     popToRoot();
 };
 
-export const emitNotificationError = (type: 'Team' | 'Channel' | 'Post' | 'Connection') => {
+export const emitNotificationError = (type: NotificationErrorType) => {
     const req = setTimeout(() => {
         DeviceEventEmitter.emit(Events.NOTIFICATION_ERROR, type);
         clearTimeout(req);

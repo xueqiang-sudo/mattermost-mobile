@@ -58,6 +58,8 @@ allprojects {
     }
 }
 
+apply from: "dotenv.gradle"
+
 apply plugin: "com.facebook.react.rootproject"
 
 dependencyLocking {

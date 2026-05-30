@@ -1,10 +1,13 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import VoiceRecorder from '@mattermost/voice-recorder';
+
 import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';
 import DatabaseManager from '@database/manager';
 import {getAllServerCredentials} from '@init/credentials';
+import JPushManager from '@init/jpush';
 import {initialLaunch} from '@init/launch';
 import ManagedApp from '@init/managed_app';
 import PushNotifications from '@init/push_notifications';
@@ -17,10 +20,9 @@ import {registerScreens} from '@screens/index';
 import {registerNavigationListeners, resetToStartupLoading} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
-import VoiceRecorder from '@mattermost/voice-recorder';
 import {clearCachedUpdateApk} from '@utils/file/apk_download';
 import {logDebug, logError} from '@utils/log';
-import JPushManager from '@init/jpush';
+import {getMessageNotificationEnabled} from '@utils/notification/message_notification_pref';
 
 // Controls whether the main initialization (database, etc...) is done, either on app launch
 // or on the Share Extension, for example.
@@ -66,6 +68,7 @@ export async function start() {
     NavigationStore.reset();
     EphemeralStore.setCurrentThreadId('');
     EphemeralStore.setProcessingNotification('');
+    JPushManager.setLoggedIn(false);
 
     registerNavigationListeners();
     registerScreens();
@@ -97,8 +100,12 @@ export async function start() {
         logError('[app.start] 清理缓存更新 APK 失败', error);
     }
 
+    await PushNotifications.requestPermissionIfNeeded();
     PushNotifications.init(serverCredentials.length > 0);
-    JPushManager.init();
+    const messageNotificationsEnabled = await getMessageNotificationEnabled();
+    if (messageNotificationsEnabled) {
+        JPushManager.init();
+    }
 
     await WebsocketManager.init(serverCredentials);
 

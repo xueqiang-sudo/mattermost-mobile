@@ -90,6 +90,7 @@ export const GLOBAL_IDENTIFIERS = {
     LAST_VIEWED_THREAD: 'lastViewedThread',
     PUSH_DISABLED_ACK: 'pushDisabledAck',
     CACHE_MIGRATION: 'cacheMigration',
+    MESSAGE_NOTIFICATION_ENABLED: 'messageNotificationEnabled',
 };
 
 export enum OperationType {

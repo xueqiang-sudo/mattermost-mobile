@@ -41,6 +41,8 @@ class CustomPushNotification(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onReceived() {
+        MessageNotificationChannel.purgeOnNotificationReceived(mContext)
+
         val initialData = mNotificationProps.asBundle()
         val type = initialData.getString("type")
         val ackId = initialData.getString("ack_id")

@@ -3,12 +3,18 @@
 
 import JCore from 'jcore-react-native';
 import JPush from 'jpush-react-native';
-import {AppState, DeviceEventEmitter, Platform} from 'react-native';
+import {AppState, DeviceEventEmitter, NativeModules, Platform} from 'react-native';
 
 import {openNotification} from '@actions/remote/notifications';
-import {Events, PushNotification} from '@constants';
+import {Events} from '@constants';
+import {
+    buildNotificationFromJPushExtras,
+    hasRequiredJPushExtras,
+    resolveJPushServerUrl,
+} from '@init/jpush_notification';
 import PushNotifications from '@init/push_notifications';
 import {logDebug, logError, logInfo, logWarning} from '@utils/log';
+import {JPUSH_NEW_MESSAGE_CHANNEL_ID} from '@utils/notification/message_notification_pref';
 
 const JPUSH_APP_KEY = 'e5e6799b552158d3a1d22d0a';
 const JPUSH_CHANNEL = 'developer-default';
@@ -37,6 +43,9 @@ class JPushManager {
     private initialized = false;
     private listenersAttached = false;
     private registrationRetryTimeouts: Array<ReturnType<typeof setTimeout>> = [];
+    private appReady = false;
+    private pendingColdStartNotification: JPushNotificationEvent | null = null;
+    private loggedIn = false;
 
     /**
      * 初始化极光推送 SDK
@@ -71,6 +80,18 @@ class JPushManager {
 
             // 必须在 init 之前注册：否则 Android onConnected 可能在 JS 返回前就触发，导致永远收不到「已连接」
             this.setupListeners();
+
+            if (Platform.OS === 'android') {
+                const jpushModule = NativeModules.JPushModule as {
+                    setChannelAndSound?: (params: {channel: string; channelId: string; sound?: string}) => void;
+                } | undefined;
+                if (jpushModule?.setChannelAndSound) {
+                    jpushModule.setChannelAndSound({
+                        channel: '新消息通知',
+                        channelId: JPUSH_NEW_MESSAGE_CHANNEL_ID,
+                    });
+                }
+            }
 
             // Android 忽略参数（从 AndroidManifest.xml meta-data 读取），iOS 使用参数配置
             JPush.init({
@@ -113,6 +134,39 @@ class JPushManager {
         }
         this.emitStateForListeners();
         this.scheduleRegistrationIdRetries();
+    }
+
+    /**
+     * 标记 App 导航已就绪，如有暂存冷启动通知则立即处理
+     * 由 launch.ts 在 launchApp 流程末尾调用
+     */
+    markAppReady() {
+        this.appReady = true;
+        const pending = this.pendingColdStartNotification;
+        if (pending) {
+            logInfo(`${TAG} [markAppReady] App 就绪，处理暂存冷启动通知`);
+            this.pendingColdStartNotification = null;
+            this.handleNotificationOpened(pending);
+        }
+    }
+
+    /**
+     * 获取并清空冷启动暂存通知
+     * 由 launch.ts 的 initialLaunch 主动拉取
+     */
+    getPendingColdStartNotification(): JPushNotificationEvent | null {
+        const pending = this.pendingColdStartNotification;
+        this.pendingColdStartNotification = null;
+        this.appReady = true;
+        return pending;
+    }
+
+    /**
+     * 设置登录状态
+     * 由 launch.ts 在用户进入 Home 后调用
+     */
+    setLoggedIn(status: boolean) {
+        this.loggedIn = status;
     }
 
     private clearRegistrationIdRetries() {
@@ -173,67 +227,52 @@ class JPushManager {
 
     /**
      * 处理用户点击通知栏通知事件（notificationOpened）
-     * 导航到对应频道/线程
+     * 热启动直接处理；冷启动暂存由 initialLaunch 消费
      */
-    private async handleNotificationOpened(notification: JPushNotificationEvent) {
+    private handleNotificationOpened(notification: JPushNotificationEvent) {
         const {extras} = notification;
         if (!extras) {
             logWarning(`${TAG} [handleNotificationOpened] 通知 extras 为空，无法处理`);
             return;
         }
 
-        const channelId = extras.channel_id;
-        const serverUrl = extras.server_url;
-        const rootId = extras.root_id;
-        const isCRTEnabled = extras.is_crt_enabled === 'true';
-
-        if (!serverUrl) {
-            logWarning(`${TAG} [handleNotificationOpened] 通知 extras 缺少 server_url`);
+        if (!this.appReady) {
+            this.pendingColdStartNotification = notification;
+            logInfo(`${TAG} [handleNotificationOpened] 冷启动，暂存通知等待 App 就绪`);
             return;
         }
 
-        logInfo(`${TAG} [handleNotificationOpened] 用户点击通知`, {
+        void this.openChannelByExtras(notification);
+    }
+
+    /**
+     * 通过 extras 打开频道；serverUrl 来自应用配置，不读推送 extras
+     */
+    private async openChannelByExtras(notification: JPushNotificationEvent) {
+        const {extras} = notification;
+
+        if (!hasRequiredJPushExtras(extras, notification.content)) {
+            logWarning(`${TAG} [openChannelByExtras] extras 缺少必填字段`, {extras});
+            return;
+        }
+
+        const serverUrl = await resolveJPushServerUrl();
+        if (!serverUrl) {
+            logWarning(`${TAG} [openChannelByExtras] 无法解析 serverUrl（CONNECT_URL / DefaultServerUrl / 当前服务器）`);
+            return;
+        }
+
+        logInfo(`${TAG} [openChannelByExtras]`, {
             serverUrl,
-            channelId,
-            rootId,
-            isCRTEnabled,
+            channelId: extras.channel_id,
+            postId: extras.post_id,
         });
 
-        // 构造与 Mattermost FCM 通知兼容的数据结构，复用 openNotification
-        const notificationData = {
-            identifier: notification.messageID,
-            body: notification.content,
-            title: notification.title,
-            payload: {
-                ack_id: extras.post_id || '',
-                channel_id: channelId,
-                channel_name: extras.channel_name,
-                message: notification.content,
-                override_icon_url: extras.override_icon_url,
-                override_username: extras.override_username,
-                post_id: extras.post_id,
-                root_id: rootId,
-                sender_id: extras.sender_id,
-                sender_name: extras.sender_name,
-                server_id: extras.server_id,
-                server_url: serverUrl,
-                team_id: extras.team_id,
-                type: extras.type || PushNotification.NOTIFICATION_TYPE.MESSAGE,
-                sub_type: extras.sub_type,
-                use_user_icon: extras.use_user_icon,
-                version: extras.version,
-                is_crt_enabled: extras.is_crt_enabled,
-                isCRTEnabled,
-            },
-            userInteraction: true,
-            foreground: false,
-        };
+        const notificationData = buildNotificationFromJPushExtras(notification, serverUrl);
 
-        try {
-            await openNotification(serverUrl, notificationData as unknown as NotificationWithData);
-        } catch (error) {
-            logError(`${TAG} [handleNotificationOpened] 处理通知打开失败`, error);
-        }
+        openNotification(serverUrl, notificationData).catch(
+            (error) => logError(`${TAG} [openChannelByExtras] 处理失败`, error),
+        );
     }
 
     /**
@@ -246,40 +285,31 @@ class JPushManager {
             return;
         }
 
-        const serverUrl = extras.server_url;
-        const channelId = extras.channel_id;
-
-        // 仅前台活跃时显示 in-app overlay
         if (AppState.currentState !== 'active') {
             return;
         }
 
-        if (!serverUrl || !channelId) {
-            logDebug(`${TAG} [handleNotificationArrived] 前台抵达但缺少 server_url/channel_id`);
+        if (!hasRequiredJPushExtras(extras, notification.content)) {
+            logDebug(`${TAG} [handleNotificationArrived] 前台抵达但 extras 不完整`);
             return;
         }
 
-        logInfo(`${TAG} [handleNotificationArrived] 前台通知到达`, {serverUrl, channelId});
+        const serverUrl = await resolveJPushServerUrl();
+        if (!serverUrl) {
+            logDebug(`${TAG} [handleNotificationArrived] 无法解析 serverUrl`);
+            return;
+        }
+
+        logInfo(`${TAG} [handleNotificationArrived] 前台通知到达`, {
+            serverUrl,
+            channelId: extras.channel_id,
+        });
 
         try {
-            const notificationData = {
-                identifier: notification.messageID,
-                body: notification.content,
-                title: notification.title,
-                payload: {
-                    channel_id: channelId,
-                    root_id: extras.root_id,
-                    sender_name: extras.sender_name,
-                    server_url: serverUrl,
-                    team_id: extras.team_id,
-                    type: extras.type || PushNotification.NOTIFICATION_TYPE.MESSAGE,
-                    message: notification.content,
-                    is_crt_enabled: extras.is_crt_enabled,
-                    isCRTEnabled: extras.is_crt_enabled === 'true',
-                },
+            const notificationData = buildNotificationFromJPushExtras(notification, serverUrl, {
                 userInteraction: false,
                 foreground: true,
-            };
+            });
 
             await PushNotifications.handleInAppNotification(
                 serverUrl,
@@ -346,6 +376,13 @@ class JPushManager {
             logInfo(`${TAG} 恢复推送服务`);
             JPush.resumePush();
         }
+    }
+
+    /**
+     * 是否已完成极光 SDK 初始化
+     */
+    isInitialized(): boolean {
+        return this.initialized;
     }
 
     /**

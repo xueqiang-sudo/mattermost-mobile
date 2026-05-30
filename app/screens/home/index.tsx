@@ -25,7 +25,7 @@ import NavigationStore from '@store/navigation_store';
 import {alertInvalidDeepLink, parseAndHandleDeepLink} from '@utils/deep_link';
 import {logError} from '@utils/log';
 import {alertChannelArchived, alertChannelRemove} from '@utils/navigation';
-import {notificationError} from '@utils/notification';
+import {notificationError, type NotificationErrorType} from '@utils/notification';
 
 import ChannelList from './channel_list';
 import Contacts from './contacts';
@@ -88,7 +88,7 @@ export function HomeScreen(props: HomeProps) {
     useHardwareKeyboardEvents(events);
 
     useEffect(() => {
-        const listener = DeviceEventEmitter.addListener(Events.NOTIFICATION_ERROR, (value: 'Team' | 'Channel' | 'Post' | 'Connection') => {
+        const listener = DeviceEventEmitter.addListener(Events.NOTIFICATION_ERROR, (value: NotificationErrorType) => {
             notificationError(intl, value);
         });
 

@@ -56,4 +56,7 @@ export default keyMirror({
     ACTIVE_SCREEN: null,
     ACTIVE_SERVER_CHANGED: null,
     FILE_ADD_REMOVED: null,
+    JPUSH_CONNECT_STATUS: null,
+    JPUSH_REGISTER_ID: null,
+    JPUSH_NOTIFICATION_EVENT: null,
 });

@@ -142,13 +142,24 @@ summary {
 }
 .tag-required { background: #fff2f0; color: #ff4d4f; }
 .tag-optional { background: #f6ffed; color: #52c41a; }
+.channel-hint {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    border-radius: 6px;
+}
+.channel-hint strong { color: #389e0d; }
 </style>
 </head>
 <body>
 <div class="container">
 
 <h1>📱 极光推送测试工具</h1>
-<div class="subtitle">JPush REST API v3 · Mattermost 同会话覆盖验证</div>
+<div class="subtitle">JPush REST API v3 · Mattermost 通知点击跳转 · Android 渠道 <code>jpush_new_message_v5</code>（鸿蒙/华为横幅）</div>
 <div class="subtitle" id="serverHint" style="color:#666;margin-top:-16px;margin-bottom:20px"></div>
 
 <!-- 推送目标 -->
@@ -164,8 +175,14 @@ summary {
             </select>
         </div>
         <div class="form-group" id="audienceValueGroup" style="display:none">
-            <label>值（逗号分隔多个）</label>
+            <label>别名（逗号分隔多个）</label>
             <input type="text" id="audienceValue" placeholder="例如: user_001, user_002">
+        </div>
+    </div>
+    <div class="form-row" id="registrationIdGroup" style="display:none">
+        <div class="form-group">
+            <label>Registration ID <span class="tag-label tag-optional">JPush 注册 ID，自动保存</span></label>
+            <input type="text" id="registrationId" placeholder="从 App 日志获取">
         </div>
     </div>
     <div class="form-row">
@@ -200,86 +217,151 @@ summary {
         </div>
     </div>
 
-    <!-- Mattermost extras -->
+    <!-- Android 通知渠道（鸿蒙/华为横幅） -->
     <details open>
-        <summary>🔧 extras 扩展字段（Mattermost 预设模板）</summary>
+        <summary>📢 Android 通知渠道（鸿蒙 4.x / 华为 HMS 离线必配）</summary>
+        <div style="margin-top:12px">
+            <div class="channel-hint">
+                客户端已创建 HIGH 渠道 <strong>新消息通知</strong>（ID: <code>jpush_new_message_v5</code>）。
+                离线走华为通道时，推送必须带 <code>notification.android.channel_id</code>，否则系统归入「社交通讯」且无横幅。
+                前台 IM 建议 <code>display_foreground: "0"</code>（App 内已有 overlay，避免重复系统通知）。
+                请勿在 <code>notification.android.category</code> 设置 <code>CATEGORY_MESSAGE</code>（extras 里的 <code>CAN_REPLY</code> 不受影响）。
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>android.channel_id <span class="tag-label tag-required">Android 必填</span></label>
+                    <input type="text" id="androidChannelId" placeholder="jpush_new_message_v5" value="jpush_new_message_v5">
+                </div>
+                <div class="form-group small">
+                    <label>android.priority</label>
+                    <select id="androidPriority">
+                        <option value="2">2 (HIGH，推荐)</option>
+                        <option value="1">1</option>
+                        <option value="0">0 (DEFAULT)</option>
+                        <option value="-1">-1 (LOW)</option>
+                        <option value="-2">-2 (MIN)</option>
+                    </select>
+                </div>
+                <div class="form-group small">
+                    <label>display_foreground</label>
+                    <select id="androidDisplayForeground" title="APP 在前台是否展示系统通知栏">
+                        <option value="">不设置（默认展示）</option>
+                        <option value="0" selected>0（前台不展示，推荐 IM）</option>
+                        <option value="1">1（前台也展示）</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group small">
+                    <label>alert_type</label>
+                    <select id="androidAlertType">
+                        <option value="">不设置</option>
+                        <option value="-1">-1 (ALL)</option>
+                        <option value="1">1 (SOUND)</option>
+                        <option value="2">2 (VIBRATE)</option>
+                        <option value="4">4 (LIGHTS)</option>
+                        <option value="3">3 (SOUND+VIBRATE)</option>
+                        <option value="7">7 (SOUND+VIBRATE+LIGHTS)</option>
+                    </select>
+                </div>
+                <div class="form-group small">
+                    <label>badge_add_num</label>
+                    <input type="number" id="androidBadgeAddNum" placeholder="1" min="1" max="99">
+                </div>
+                <div class="form-group">
+                    <label>android.category <span class="tag-label tag-optional">勿填 IM 类</span></label>
+                    <input type="text" id="androidNotifCategory" placeholder="留空；勿填 CATEGORY_MESSAGE">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>intent.url <span class="tag-label tag-optional">点击跳转</span></label>
+                    <input type="text" id="androidIntentUrl" placeholder="optibot://chat_channel?channel_id=... 或 intent:#Intent;...">
+                </div>
+                <div class="form-group">
+                    <label>large_icon</label>
+                    <input type="text" id="androidLargeIcon" placeholder="头像 URL 或 media_id">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>sound</label>
+                    <input type="text" id="androidSound" placeholder="res/raw 下文件名（无后缀）；8.0+ 有 channel_id 时可能不生效">
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <!-- iOS 通知 -->
+    <details>
+        <summary>🍎 iOS 通知字段 (notification.ios)</summary>
         <div style="margin-top:12px">
             <div class="form-row">
                 <div class="form-group">
+                    <label>sound</label>
+                    <input type="text" id="iosSound" placeholder="default" value="default">
+                </div>
+                <div class="form-group small">
+                    <label>badge</label>
+                    <input type="text" id="iosBadge" placeholder="+1 / 5 / 0 清除">
+                </div>
+                <div class="form-group">
+                    <label>thread-id</label>
+                    <input type="text" id="iosThreadId" placeholder="同 thread-id 分组">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group small">
+                    <label><input type="checkbox" id="iosMutableContent"> mutable-content</label>
+                </div>
+                <div class="form-group small">
+                    <label><input type="checkbox" id="iosContentAvailable"> content-available</label>
+                </div>
+                <div class="form-group">
+                    <label>interruption-level</label>
+                    <select id="iosInterruptionLevel">
+                        <option value="">不设置</option>
+                        <option value="active">active</option>
+                        <option value="passive">passive</option>
+                        <option value="time-sensitive">time-sensitive</option>
+                        <option value="critical">critical</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <!-- Mattermost extras（客户端仅需以下 5 项；server_url 由 App 配置注入） -->
+    <details open>
+        <summary>🔧 extras 扩展字段（必填 5 项）</summary>
+        <div style="margin-top:12px">
+            <div class="channel-hint" style="margin-bottom:12px">
+                勿传 <code>server_url</code>、<code>deeplink</code>；App 使用 <code>CONNECT_URL</code> / 默认服务器地址。
+            </div>
+            <div class="form-row">
+                <div class="form-group">
                     <label>channel_id <span class="tag-label tag-required">必填</span></label>
-                    <input type="text" id="extChannelId" placeholder="频道 ID">
+                    <input type="text" id="extChannelId" placeholder="频道 ID" value="74maxbf45tb93erioyhnahkw6c">
                 </div>
                 <div class="form-group">
                     <label>post_id <span class="tag-label tag-required">必填</span></label>
-                    <input type="text" id="extPostId" placeholder="消息 post ID (自动生成)">
+                    <input type="text" id="extPostId" placeholder="消息 post ID" value="tp8z8qeoq3nkuntaz597ci1fbr:1780122281828">
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group">
-                    <label>server_url <span class="tag-label tag-required">必填</span></label>
-                    <input type="text" id="extServerUrl" placeholder="https://mm.example.com">
-                </div>
                 <div class="form-group">
                     <label>sender_name <span class="tag-label tag-required">必填</span></label>
-                    <input type="text" id="extSenderName" placeholder="发送者名称">
+                    <input type="text" id="extSenderName" placeholder="发送者名称" value="测试用户">
                 </div>
-            </div>
-            <div class="form-row">
                 <div class="form-group">
                     <label>sender_id <span class="tag-label tag-required">必填</span></label>
-                    <input type="text" id="extSenderId" placeholder="发送者 ID">
+                    <input type="text" id="extSenderId" placeholder="发送者 ID" value="user_test_001">
                 </div>
+            </div>
+            <div class="form-row">
                 <div class="form-group">
                     <label>message <span class="tag-label tag-required">必填</span></label>
-                    <input type="text" id="extMessage" placeholder="消息正文">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group small">
-                    <label>is_crt_enabled</label>
-                    <select id="extIsCrt">
-                        <option value="false">false</option>
-                        <option value="true">true</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>root_id <span class="tag-label tag-optional">可选</span></label>
-                    <input type="text" id="extRootId" placeholder="CRT 线程根帖 ID">
-                </div>
-                <div class="form-group small">
-                    <label>category</label>
-                    <select id="extCategory">
-                        <option value="CAN_REPLY">CAN_REPLY</option>
-                        <option value="">无</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>channel_name <span class="tag-label tag-optional">可选</span></label>
-                    <input type="text" id="extChannelName" placeholder="频道名称">
-                </div>
-                <div class="form-group">
-                    <label>team_id <span class="tag-label tag-optional">可选</span></label>
-                    <input type="text" id="extTeamId" placeholder="团队 ID">
-                </div>
-                <div class="form-group small">
-                    <label>type</label>
-                    <select id="extType">
-                        <option value="message">message</option>
-                        <option value="session">session</option>
-                        <option value="clear">clear</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>override_icon_url <span class="tag-label tag-optional">可选</span></label>
-                    <input type="text" id="extIconUrl" placeholder="自定义头像 URL">
-                </div>
-                <div class="form-group">
-                    <label>override_username <span class="tag-label tag-optional">可选</span></label>
-                    <input type="text" id="extUsername" placeholder="自定义用户名（Bot）">
+                    <input type="text" id="extMessage" placeholder="消息正文" value="这是一条测试推送消息">
                 </div>
             </div>
         </div>
@@ -304,10 +386,22 @@ summary {
             <label>apns_collapse_id（iOS 覆盖）</label>
             <input type="text" id="optCollapseId" placeholder="iOS 同会话覆盖标识">
         </div>
+        <div class="form-group small">
+            <label>options.classification</label>
+            <select id="optClassification" title="0 运营消息，1 系统消息（厂商配额/分类）">
+                <option value="">不设置</option>
+                <option value="1" selected>1 (系统消息，IM 推荐)</option>
+                <option value="0">0 (运营消息)</option>
+            </select>
+        </div>
     </div>
-    <details>
-        <summary>📡 华为 third_party_channel（云端通知）</summary>
+    <details open>
+        <summary>📡 华为 / 鸿蒙 third_party_channel（离线 HMS）</summary>
         <div style="margin-top:12px">
+            <div class="channel-hint" style="background:#e6f4ff;border-color:#91caff">
+                IM 类推送建议：<code>classification: 1</code> + <code>huawei.importance: NORMAL</code> + <code>huawei.category: IM</code>，
+                并与上方 <code>channel_id</code> 配合。详见项目 <code>docs/极光推送.md</code>。
+            </div>
             <div class="form-row">
                 <div class="form-group small" style="min-width:180px">
                     <label><input type="checkbox" id="optHuaweiEnabled"> 启用华为参数</label>
@@ -330,7 +424,23 @@ summary {
                 </div>
                 <div class="form-group">
                     <label>huawei.category</label>
-                    <input type="text" id="optHuaweiCategory" placeholder="例如: IM / MARKETING">
+                    <input type="text" id="optHuaweiCategory" placeholder="例如: IM / MARKETING" value="IM">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>huawei.channel_id <span class="tag-label tag-optional">厂商侧</span></label>
+                    <input type="text" id="optHuaweiChannelId" placeholder="与 android.channel_id 一致时可留空" value="jpush_new_message_v5">
+                </div>
+                <div class="form-group small">
+                    <label>huawei.distribution</label>
+                    <select id="optHuaweiDistribution">
+                        <option value="">不设置（默认策略）</option>
+                        <option value="ospush">ospush（强制厂商）</option>
+                        <option value="first_ospush">first_ospush</option>
+                        <option value="secondary_push">secondary_push</option>
+                        <option value="jpush">jpush（强制极光）</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -371,7 +481,11 @@ const APP_KEY = 'e5e6799b552158d3a1d22d0a';
 const MASTER_SECRET = 'deb6c68e02be43b2e4484fda';
 const AUTH = btoa(APP_KEY + ':' + MASTER_SECRET);
 const JPUSH_API_URL = 'https://api.jpush.cn/v3/push';
-const STORAGE_KEY = 'mattermost_jpush_test_v1';
+const STORAGE_KEY = 'mattermost_jpush_test_v6';
+const JPUSH_ANDROID_CHANNEL_ID = 'jpush_new_message_v5';
+const DEMO_MM_CHANNEL_ID = '74maxbf45tb93erioyhnahkw6c';
+const DEMO_MM_POST_ID = 'tp8z8qeoq3nkuntaz597ci1fbr:1780122281828';
+const DEMO_MM_POST_ID_PREFIX = 'tp8z8qeoq3nkuntaz597ci1fbr';
 const API_URL = window.location.protocol === 'file:' ? null : (window.location.origin + '/api/push');
 
 var saveFormTimer = null;
@@ -400,6 +514,10 @@ function buildPayload() {
     var audience;
     if (audienceType === 'all') {
         audience = 'all';
+    } else if (audienceType === 'registration_id') {
+        var regVal = document.getElementById('registrationId').value.trim();
+        var regArr = regVal ? regVal.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+        audience = {registration_id: regArr};
     } else {
         var val = document.getElementById('audienceValue').value.trim();
         var arr = val ? val.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
@@ -411,18 +529,11 @@ function buildPayload() {
     var extras = {};
     addExtra(extras, 'channel_id', 'extChannelId');
     addExtra(extras, 'post_id', 'extPostId');
-    addExtra(extras, 'root_id', 'extRootId');
-    addExtra(extras, 'server_url', 'extServerUrl');
     addExtra(extras, 'sender_name', 'extSenderName');
     addExtra(extras, 'sender_id', 'extSenderId');
     addExtra(extras, 'message', 'extMessage');
-    addExtra(extras, 'is_crt_enabled', 'extIsCrt');
-    addExtra(extras, 'category', 'extCategory');
-    addExtra(extras, 'channel_name', 'extChannelName');
-    addExtra(extras, 'team_id', 'extTeamId');
-    addExtra(extras, 'type', 'extType');
-    addExtra(extras, 'override_icon_url', 'extIconUrl');
-    addExtra(extras, 'override_username', 'extUsername');
+
+    var payloadExtras = Object.keys(extras).length > 0 ? extras : undefined;
 
     var options = {};
     addOverrideMsgId(options);
@@ -432,24 +543,113 @@ function buildPayload() {
     addExtra(options, 'apns_collapse_id', 'optCollapseId');
     addHuaweiOptions(options);
 
+    var android = buildAndroidNotification(payloadExtras);
+    var ios = buildIosNotification(payloadExtras);
+
     var payload = {
         platform: platform.length === 1 ? platform[0] : platform,
         audience: audience,
         notification: {
             alert: document.getElementById('notifAlert').value || '新消息',
-            android: {
-                alert: document.getElementById('notifAlert').value || '新消息',
-                title: document.getElementById('notifTitle').value || undefined,
-                extras: Object.keys(extras).length > 0 ? extras : undefined,
-                priority: 2
-            }
+            android: android,
+            ios: ios
         },
         options: Object.keys(options).length > 0 ? options : undefined
     };
 
-    if (payload.notification.android.title === undefined) delete payload.notification.android.title;
-
     return payload;
+}
+
+function buildAndroidNotification(payloadExtras) {
+    var androidChannelId = document.getElementById('androidChannelId').value.trim() || JPUSH_ANDROID_CHANNEL_ID;
+    var androidPriority = parseInt(document.getElementById('androidPriority').value, 10);
+    if (isNaN(androidPriority)) {
+        androidPriority = 2;
+    }
+
+    var android = {
+        alert: document.getElementById('notifAlert').value || '新消息',
+        title: document.getElementById('notifTitle').value || undefined,
+        channel_id: androidChannelId,
+        priority: androidPriority
+    };
+
+    var displayFg = document.getElementById('androidDisplayForeground').value;
+    if (displayFg === '0' || displayFg === '1') {
+        android.display_foreground = displayFg;
+    }
+
+    var alertTypeRaw = document.getElementById('androidAlertType').value;
+    if (alertTypeRaw !== '') {
+        android.alert_type = parseInt(alertTypeRaw, 10);
+    }
+
+    var intentUrl = document.getElementById('androidIntentUrl').value.trim();
+    if (intentUrl) {
+        android.intent = {url: intentUrl};
+    }
+
+    addFieldIfPresent(android, 'large_icon', 'androidLargeIcon');
+    addFieldIfPresent(android, 'sound', 'androidSound');
+    addFieldIfPresent(android, 'category', 'androidNotifCategory');
+
+    var badgeAddRaw = document.getElementById('androidBadgeAddNum').value.trim();
+    if (badgeAddRaw && /^\d+$/.test(badgeAddRaw)) {
+        android.badge_add_num = parseInt(badgeAddRaw, 10);
+    }
+
+    if (payloadExtras) {
+        android.extras = payloadExtras;
+    }
+
+    if (android.title === undefined) {
+        delete android.title;
+    }
+
+    return android;
+}
+
+function buildIosNotification(payloadExtras) {
+    var ios = {
+        alert: document.getElementById('notifAlert').value || '新消息',
+        sound: document.getElementById('iosSound').value.trim() || 'default'
+    };
+
+    addFieldIfPresent(ios, 'badge', 'iosBadge');
+    addFieldIfPresent(ios, 'thread-id', 'iosThreadId');
+
+    if (document.getElementById('iosMutableContent').checked) {
+        ios['mutable-content'] = true;
+    }
+    if (document.getElementById('iosContentAvailable').checked) {
+        ios['content-available'] = true;
+    }
+
+    var interruptionLevel = document.getElementById('iosInterruptionLevel').value;
+    if (interruptionLevel) {
+        ios['interruption-level'] = interruptionLevel;
+    }
+
+    if (payloadExtras) {
+        ios.extras = payloadExtras;
+    }
+
+    if (!ios.sound) {
+        delete ios.sound;
+    }
+
+    return ios;
+}
+
+function addFieldIfPresent(obj, key, domId) {
+    var el = document.getElementById(domId);
+    if (!el) {
+        return;
+    }
+    var val = el.value.trim();
+    if (val) {
+        obj[key] = val;
+    }
 }
 
 function addExtra(obj, key, domId) {
@@ -471,14 +671,19 @@ function addOverrideMsgId(options) {
 }
 
 function addHuaweiOptions(options) {
+    var classificationVal = document.getElementById('optClassification').value;
+    if (classificationVal === '0' || classificationVal === '1') {
+        options.classification = Number(classificationVal);
+    }
+
     var enabledEl = document.getElementById('optHuaweiEnabled');
     if (!enabledEl || !enabledEl.checked) {
         return;
     }
 
-    var classificationVal = document.getElementById('optHuaweiClassification').value;
-    if (classificationVal === '0' || classificationVal === '1') {
-        options.classification = Number(classificationVal);
+    var huaweiClassificationVal = document.getElementById('optHuaweiClassification').value;
+    if (!classificationVal && (huaweiClassificationVal === '0' || huaweiClassificationVal === '1')) {
+        options.classification = Number(huaweiClassificationVal);
     }
 
     var huawei = {};
@@ -489,6 +694,11 @@ function addHuaweiOptions(options) {
     var categoryVal = document.getElementById('optHuaweiCategory').value.trim();
     if (categoryVal) {
         huawei.category = categoryVal;
+    }
+    addFieldIfPresent(huawei, 'channel_id', 'optHuaweiChannelId');
+    var distributionVal = document.getElementById('optHuaweiDistribution').value;
+    if (distributionVal) {
+        huawei.distribution = distributionVal;
     }
 
     if (Object.keys(huawei).length > 0) {
@@ -525,12 +735,13 @@ function buildCurlCommand() {
 
 function syncAudienceValueVisibility() {
     var type = document.getElementById('audienceType').value;
-    document.getElementById('audienceValueGroup').style.display = type === 'all' ? 'none' : '';
+    document.getElementById('audienceValueGroup').style.display = type === 'alias' ? '' : 'none';
+    document.getElementById('registrationIdGroup').style.display = type === 'registration_id' ? '' : 'none';
 }
 
 function syncHuaweiFieldsState() {
     var enabled = document.getElementById('optHuaweiEnabled').checked;
-    ['optHuaweiClassification', 'optHuaweiImportance', 'optHuaweiCategory'].forEach(function(id) {
+    ['optHuaweiClassification', 'optHuaweiImportance', 'optHuaweiCategory', 'optHuaweiChannelId', 'optHuaweiDistribution'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) {
             el.disabled = !enabled;
@@ -546,31 +757,41 @@ function collectFormState() {
     return {
         audienceType: document.getElementById('audienceType').value,
         audienceValue: document.getElementById('audienceValue').value,
+        registrationId: document.getElementById('registrationId').value,
         platforms: platforms,
         apnsProduction: document.getElementById('apnsProduction').value,
         notifTitle: document.getElementById('notifTitle').value,
         notifAlert: document.getElementById('notifAlert').value,
+        androidChannelId: document.getElementById('androidChannelId').value,
+        androidPriority: document.getElementById('androidPriority').value,
+        androidDisplayForeground: document.getElementById('androidDisplayForeground').value,
+        androidAlertType: document.getElementById('androidAlertType').value,
+        androidBadgeAddNum: document.getElementById('androidBadgeAddNum').value,
+        androidNotifCategory: document.getElementById('androidNotifCategory').value,
+        androidIntentUrl: document.getElementById('androidIntentUrl').value,
+        androidLargeIcon: document.getElementById('androidLargeIcon').value,
+        androidSound: document.getElementById('androidSound').value,
+        iosSound: document.getElementById('iosSound').value,
+        iosBadge: document.getElementById('iosBadge').value,
+        iosThreadId: document.getElementById('iosThreadId').value,
+        iosMutableContent: document.getElementById('iosMutableContent').checked,
+        iosContentAvailable: document.getElementById('iosContentAvailable').checked,
+        iosInterruptionLevel: document.getElementById('iosInterruptionLevel').value,
         extChannelId: document.getElementById('extChannelId').value,
         extPostId: document.getElementById('extPostId').value,
-        extRootId: document.getElementById('extRootId').value,
-        extServerUrl: document.getElementById('extServerUrl').value,
         extSenderName: document.getElementById('extSenderName').value,
         extSenderId: document.getElementById('extSenderId').value,
         extMessage: document.getElementById('extMessage').value,
-        extIsCrt: document.getElementById('extIsCrt').value,
-        extCategory: document.getElementById('extCategory').value,
-        extChannelName: document.getElementById('extChannelName').value,
-        extTeamId: document.getElementById('extTeamId').value,
-        extType: document.getElementById('extType').value,
-        extIconUrl: document.getElementById('extIconUrl').value,
-        extUsername: document.getElementById('extUsername').value,
         optOverrideMsgId: document.getElementById('optOverrideMsgId').value,
         optTTL: document.getElementById('optTTL').value,
         optCollapseId: document.getElementById('optCollapseId').value,
+        optClassification: document.getElementById('optClassification').value,
         optHuaweiEnabled: document.getElementById('optHuaweiEnabled').checked,
         optHuaweiClassification: document.getElementById('optHuaweiClassification').value,
         optHuaweiImportance: document.getElementById('optHuaweiImportance').value,
         optHuaweiCategory: document.getElementById('optHuaweiCategory').value,
+        optHuaweiChannelId: document.getElementById('optHuaweiChannelId').value,
+        optHuaweiDistribution: document.getElementById('optHuaweiDistribution').value,
     };
 }
 
@@ -578,30 +799,45 @@ function applyFormState(state) {
     if (!state) return;
     if (state.audienceType) document.getElementById('audienceType').value = state.audienceType;
     if (state.audienceValue != null) document.getElementById('audienceValue').value = state.audienceValue;
+    if (state.registrationId != null) {
+        document.getElementById('registrationId').value = state.registrationId;
+    } else if (state.audienceType === 'registration_id' && state.audienceValue != null) {
+        // 兼容旧版：注册 ID 曾保存在 audienceValue 中
+        document.getElementById('registrationId').value = state.audienceValue;
+    }
     if (state.apnsProduction != null) document.getElementById('apnsProduction').value = state.apnsProduction;
     if (state.notifTitle != null) document.getElementById('notifTitle').value = state.notifTitle;
     if (state.notifAlert != null) document.getElementById('notifAlert').value = state.notifAlert;
+    if (state.androidChannelId != null) document.getElementById('androidChannelId').value = state.androidChannelId;
+    if (state.androidPriority != null) document.getElementById('androidPriority').value = state.androidPriority;
+    if (state.androidDisplayForeground != null) document.getElementById('androidDisplayForeground').value = state.androidDisplayForeground;
+    if (state.androidAlertType != null) document.getElementById('androidAlertType').value = state.androidAlertType;
+    if (state.androidBadgeAddNum != null) document.getElementById('androidBadgeAddNum').value = state.androidBadgeAddNum;
+    if (state.androidNotifCategory != null) document.getElementById('androidNotifCategory').value = state.androidNotifCategory;
+    if (state.androidIntentUrl != null) document.getElementById('androidIntentUrl').value = state.androidIntentUrl;
+    if (state.androidLargeIcon != null) document.getElementById('androidLargeIcon').value = state.androidLargeIcon;
+    if (state.androidSound != null) document.getElementById('androidSound').value = state.androidSound;
+    if (state.iosSound != null) document.getElementById('iosSound').value = state.iosSound;
+    if (state.iosBadge != null) document.getElementById('iosBadge').value = state.iosBadge;
+    if (state.iosThreadId != null) document.getElementById('iosThreadId').value = state.iosThreadId;
+    if (state.iosMutableContent != null) document.getElementById('iosMutableContent').checked = !!state.iosMutableContent;
+    if (state.iosContentAvailable != null) document.getElementById('iosContentAvailable').checked = !!state.iosContentAvailable;
+    if (state.iosInterruptionLevel != null) document.getElementById('iosInterruptionLevel').value = state.iosInterruptionLevel;
     if (state.extChannelId != null) document.getElementById('extChannelId').value = state.extChannelId;
     if (state.extPostId != null) document.getElementById('extPostId').value = state.extPostId;
-    if (state.extRootId != null) document.getElementById('extRootId').value = state.extRootId;
-    if (state.extServerUrl != null) document.getElementById('extServerUrl').value = state.extServerUrl;
     if (state.extSenderName != null) document.getElementById('extSenderName').value = state.extSenderName;
     if (state.extSenderId != null) document.getElementById('extSenderId').value = state.extSenderId;
     if (state.extMessage != null) document.getElementById('extMessage').value = state.extMessage;
-    if (state.extIsCrt != null) document.getElementById('extIsCrt').value = state.extIsCrt;
-    if (state.extCategory != null) document.getElementById('extCategory').value = state.extCategory;
-    if (state.extChannelName != null) document.getElementById('extChannelName').value = state.extChannelName;
-    if (state.extTeamId != null) document.getElementById('extTeamId').value = state.extTeamId;
-    if (state.extType != null) document.getElementById('extType').value = state.extType;
-    if (state.extIconUrl != null) document.getElementById('extIconUrl').value = state.extIconUrl;
-    if (state.extUsername != null) document.getElementById('extUsername').value = state.extUsername;
     if (state.optOverrideMsgId != null) document.getElementById('optOverrideMsgId').value = state.optOverrideMsgId;
     if (state.optTTL != null) document.getElementById('optTTL').value = state.optTTL;
     if (state.optCollapseId != null) document.getElementById('optCollapseId').value = state.optCollapseId;
+    if (state.optClassification != null) document.getElementById('optClassification').value = state.optClassification;
     if (state.optHuaweiEnabled != null) document.getElementById('optHuaweiEnabled').checked = !!state.optHuaweiEnabled;
     if (state.optHuaweiClassification != null) document.getElementById('optHuaweiClassification').value = state.optHuaweiClassification;
     if (state.optHuaweiImportance != null) document.getElementById('optHuaweiImportance').value = state.optHuaweiImportance;
     if (state.optHuaweiCategory != null) document.getElementById('optHuaweiCategory').value = state.optHuaweiCategory;
+    if (state.optHuaweiChannelId != null) document.getElementById('optHuaweiChannelId').value = state.optHuaweiChannelId;
+    if (state.optHuaweiDistribution != null) document.getElementById('optHuaweiDistribution').value = state.optHuaweiDistribution;
 
     var platforms = state.platforms || ['android'];
     document.querySelectorAll('input[name="platform"]').forEach(function(c) {
@@ -770,27 +1006,42 @@ function copyToClipboard(text, successMsg) {
     }
 }
 
+function makeDemoPostId() {
+    return DEMO_MM_POST_ID_PREFIX + ':' + Date.now();
+}
+
 function presetSingleNotification() {
-    var ts = Date.now();
-    document.getElementById('extChannelId').value = 'test_channel_001';
-    document.getElementById('extPostId').value = 'test_post_' + ts;
-    document.getElementById('extServerUrl').value = 'https://mm.example.com';
+    document.getElementById('extChannelId').value = DEMO_MM_CHANNEL_ID;
+    document.getElementById('extPostId').value = makeDemoPostId();
     document.getElementById('extSenderName').value = '测试用户';
     document.getElementById('extSenderId').value = 'user_test_001';
     document.getElementById('extMessage').value = '这是一条测试推送消息';
-    document.getElementById('extIsCrt').value = 'false';
-    document.getElementById('extRootId').value = '';
-    document.getElementById('extCategory').value = 'CAN_REPLY';
-    document.getElementById('extChannelName').value = '测试频道';
-    document.getElementById('extTeamId').value = 'team_001';
     document.getElementById('notifTitle').value = '测试用户';
     document.getElementById('notifAlert').value = '这是一条测试推送消息';
+    document.getElementById('androidChannelId').value = JPUSH_ANDROID_CHANNEL_ID;
+    document.getElementById('androidPriority').value = '2';
+    document.getElementById('androidDisplayForeground').value = '0';
+    document.getElementById('androidAlertType').value = '';
+    document.getElementById('androidBadgeAddNum').value = '';
+    document.getElementById('androidNotifCategory').value = '';
+    document.getElementById('androidIntentUrl').value = '';
+    document.getElementById('androidLargeIcon').value = '';
+    document.getElementById('androidSound').value = '';
+    document.getElementById('iosSound').value = 'default';
+    document.getElementById('iosBadge').value = '';
+    document.getElementById('iosThreadId').value = 'conv_' + DEMO_MM_CHANNEL_ID;
+    document.getElementById('iosMutableContent').checked = false;
+    document.getElementById('iosContentAvailable').checked = false;
+    document.getElementById('iosInterruptionLevel').value = '';
     document.getElementById('optOverrideMsgId').value = '';
-    document.getElementById('optCollapseId').value = 'conv_test_channel_001';
+    document.getElementById('optCollapseId').value = 'conv_' + DEMO_MM_CHANNEL_ID;
+    document.getElementById('optClassification').value = '1';
     document.getElementById('optHuaweiEnabled').checked = true;
     document.getElementById('optHuaweiClassification').value = '1';
     document.getElementById('optHuaweiImportance').value = 'NORMAL';
     document.getElementById('optHuaweiCategory').value = 'IM';
+    document.getElementById('optHuaweiChannelId').value = JPUSH_ANDROID_CHANNEL_ID;
+    document.getElementById('optHuaweiDistribution').value = '';
     syncHuaweiFieldsState();
     scheduleSaveForm();
     showToast('✅ 已填充单条通知预设');
@@ -829,7 +1080,7 @@ function runConsecutive3CurlOnly(messages, batchBox) {
     document.getElementById('optOverrideMsgId').value = '';
     for (var i = 0; i < messages.length; i++) {
         document.getElementById('extMessage').value = messages[i];
-        document.getElementById('extPostId').value = 'test_post_' + Date.now() + '_' + (i + 1);
+        document.getElementById('extPostId').value = makeDemoPostId();
         document.getElementById('notifAlert').value = messages[i];
         var note = i === 0 ? '' : '\n# 将第1条响应 msg_id 填入 override_msg_id\n';
         lines.push('=== 第 ' + (i + 1) + ' 条 ===' + note + buildCurlCommand());
@@ -853,7 +1104,7 @@ function runConsecutive3ViaApi(messages, batchBox) {
         }
 
         document.getElementById('extMessage').value = messages[index];
-        document.getElementById('extPostId').value = 'test_post_' + Date.now() + '_' + (index + 1);
+        document.getElementById('extPostId').value = makeDemoPostId();
         document.getElementById('notifAlert').value = messages[index];
         document.getElementById('optOverrideMsgId').value = index === 0 ? '' : (firstMsgId || '');
 
@@ -897,20 +1148,40 @@ function resetForm() {
     inputs.forEach(function(el) { el.value = ''; });
     document.getElementById('notifTitle').value = '测试消息';
     document.getElementById('notifAlert').value = '你好，这是一条测试推送消息';
+    document.getElementById('androidChannelId').value = JPUSH_ANDROID_CHANNEL_ID;
+    document.getElementById('androidPriority').value = '2';
+    document.getElementById('androidDisplayForeground').value = '0';
+    document.getElementById('androidAlertType').value = '';
+    document.getElementById('androidBadgeAddNum').value = '';
+    document.getElementById('androidNotifCategory').value = '';
+    document.getElementById('androidIntentUrl').value = '';
+    document.getElementById('androidLargeIcon').value = '';
+    document.getElementById('androidSound').value = '';
+    document.getElementById('iosSound').value = 'default';
+    document.getElementById('iosBadge').value = '';
+    document.getElementById('iosThreadId').value = '';
+    document.getElementById('iosMutableContent').checked = false;
+    document.getElementById('iosContentAvailable').checked = false;
+    document.getElementById('iosInterruptionLevel').value = '';
     document.getElementById('audienceType').value = 'all';
-    document.getElementById('audienceValueGroup').style.display = 'none';
+    syncAudienceValueVisibility();
     document.getElementById('audienceValue').value = '';
-    document.getElementById('extIsCrt').value = 'false';
-    document.getElementById('extCategory').value = 'CAN_REPLY';
-    document.getElementById('extType').value = 'message';
+    document.getElementById('extChannelId').value = DEMO_MM_CHANNEL_ID;
+    document.getElementById('extPostId').value = DEMO_MM_POST_ID;
+    document.getElementById('extSenderName').value = '测试用户';
+    document.getElementById('extSenderId').value = 'user_test_001';
+    document.getElementById('extMessage').value = '你好，这是一条测试推送消息';
     document.getElementById('optTTL').value = '86400';
     document.getElementById('apnsProduction').value = 'false';
     document.getElementById('optOverrideMsgId').value = '';
     document.getElementById('optCollapseId').value = '';
+    document.getElementById('optClassification').value = '1';
     document.getElementById('optHuaweiEnabled').checked = true;
     document.getElementById('optHuaweiClassification').value = '1';
     document.getElementById('optHuaweiImportance').value = 'NORMAL';
     document.getElementById('optHuaweiCategory').value = 'IM';
+    document.getElementById('optHuaweiChannelId').value = JPUSH_ANDROID_CHANNEL_ID;
+    document.getElementById('optHuaweiDistribution').value = '';
     syncHuaweiFieldsState();
     document.querySelector('input[name="platform"][value="android"]').checked = true;
     document.querySelector('input[name="platform"][value="ios"]').checked = false;
@@ -938,6 +1209,7 @@ window.addEventListener('DOMContentLoaded', function() {
         showToast('✅ 已恢复上次填写的内容');
     }
     syncHuaweiFieldsState();
+    syncAudienceValueVisibility();
     document.getElementById('resultCard').style.display = 'none';
     document.getElementById('batchResultCard').style.display = 'none';
 });

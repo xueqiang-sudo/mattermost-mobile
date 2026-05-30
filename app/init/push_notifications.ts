@@ -15,7 +15,7 @@ import {
     type Registered,
     type RegistrationError,
 } from 'react-native-notifications';
-import {requestNotifications} from 'react-native-permissions';
+import {PERMISSIONS, request, requestNotifications} from 'react-native-permissions';
 
 import {storeDeviceToken} from '@actions/app/global';
 import {markChannelAsViewed} from '@actions/local/channel';
@@ -68,11 +68,22 @@ class PushNotificationsSingleton {
         }
     }
 
-    async registerIfNeeded() {
+    async requestPermissionIfNeeded() {
+        if (Platform.OS === 'android') {
+            if (Platform.Version >= 33) {
+                await request(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
+            }
+            return;
+        }
+
         const isRegistered = await Notifications.isRegisteredForRemoteNotifications();
         if (!isRegistered) {
             await requestNotifications(['alert', 'sound', 'badge']);
         }
+    }
+
+    async registerIfNeeded() {
+        await this.requestPermissionIfNeeded();
         Notifications.registerRemoteNotifications();
     }
 

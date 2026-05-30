@@ -24,6 +24,8 @@ import android.util.Base64;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+
+import com.optibot.cn.MessageNotificationChannel;
 import androidx.core.app.Person;
 import androidx.core.app.RemoteInput;
 import androidx.core.graphics.drawable.IconCompat;
@@ -57,6 +59,8 @@ import static com.mattermost.helpers.database_extension.UserKt.getLastPictureUpd
 public class CustomPushNotificationHelper {
     public static final String CHANNEL_HIGH_IMPORTANCE_ID = "channel_01";
     public static final String CHANNEL_MIN_IMPORTANCE_ID = "channel_02";
+    /** JPush 新消息通知渠道（与 MainApplication 中配置一致） */
+    public static final String CHANNEL_JPUSH_NEW_MESSAGE_ID = "jpush_new_message_v5";
     public static final String KEY_TEXT_REPLY = "CAN_REPLY";
     public static final String NOTIFICATION_ID = "notificationId";
     public static final String NOTIFICATION = "notification";
@@ -187,7 +191,7 @@ public class CustomPushNotificationHelper {
     }
 
     public static NotificationCompat.Builder createNotificationBuilder(Context context, PendingIntent intent, Bundle bundle, boolean createSummary) {
-        final NotificationCompat.Builder notification = new NotificationCompat.Builder(context, CHANNEL_HIGH_IMPORTANCE_ID);
+        final NotificationCompat.Builder notification = new NotificationCompat.Builder(context, CHANNEL_JPUSH_NEW_MESSAGE_ID);
 
         String channelId = bundle.getString("channel_id");
         String postId = bundle.getString("post_id");
@@ -211,7 +215,7 @@ public class CustomPushNotificationHelper {
                 .setContentIntent(intent)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPriority(Notification.PRIORITY_HIGH)
-                .setCategory(Notification.CATEGORY_MESSAGE)
+                .setCategory(Notification.CATEGORY_STATUS)
                 .setAutoCancel(true);
 
         return notification;
@@ -225,14 +229,16 @@ public class CustomPushNotificationHelper {
 
         final NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
 
+        MessageNotificationChannel.ensureCreated(context);
         if (mHighImportanceChannel == null) {
-            mHighImportanceChannel = new NotificationChannel(CHANNEL_HIGH_IMPORTANCE_ID, "High Importance", NotificationManager.IMPORTANCE_HIGH);
-            mHighImportanceChannel.setShowBadge(true);
-            notificationManager.createNotificationChannel(mHighImportanceChannel);
+            NotificationChannel channel = notificationManager.getNotificationChannel(CHANNEL_JPUSH_NEW_MESSAGE_ID);
+            if (channel != null) {
+                mHighImportanceChannel = channel;
+            }
         }
 
         if (mMinImportanceChannel == null) {
-            mMinImportanceChannel = new NotificationChannel(CHANNEL_MIN_IMPORTANCE_ID, "Min Importance", NotificationManager.IMPORTANCE_MIN);
+            mMinImportanceChannel = new NotificationChannel(CHANNEL_MIN_IMPORTANCE_ID, "其他通知", NotificationManager.IMPORTANCE_MIN);
             mMinImportanceChannel.setShowBadge(true);
             notificationManager.createNotificationChannel(mMinImportanceChannel);
         }
@@ -517,7 +523,15 @@ public class CustomPushNotificationHelper {
             createNotificationChannels(context);
         }
         NotificationChannel notificationChannel = mHighImportanceChannel;
-        notification.setChannelId(notificationChannel.getId());
+        if (notificationChannel == null) {
+            notificationChannel = NotificationManagerCompat.from(context)
+                    .getNotificationChannel(CHANNEL_JPUSH_NEW_MESSAGE_ID);
+        }
+        if (notificationChannel != null) {
+            notification.setChannelId(notificationChannel.getId());
+        } else {
+            notification.setChannelId(CHANNEL_JPUSH_NEW_MESSAGE_ID);
+        }
     }
 
     private static void setNotificationDeleteIntent(Context context, NotificationCompat.Builder notification, Bundle bundle, int notificationId) {

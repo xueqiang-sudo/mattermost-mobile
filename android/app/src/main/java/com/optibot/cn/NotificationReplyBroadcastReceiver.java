@@ -30,6 +30,7 @@ public class NotificationReplyBroadcastReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        MessageNotificationChannel.purgeOnNotificationReceived(context);
         try {
             final CharSequence message = getReplyMessage(intent);
             if (message == null) {

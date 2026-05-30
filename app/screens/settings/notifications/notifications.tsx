@@ -3,18 +3,33 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
+import {Platform, View} from 'react-native';
 import {Notifications as RNNotifications} from 'react-native-notifications';
+import Permissions, {checkNotifications} from 'react-native-permissions';
 
 import {getCallsConfig} from '@calls/state';
+import FormattedText from '@components/formatted_text';
+import OptionItem from '@components/option_item';
 import SettingContainer from '@components/settings/container';
 import SettingItem from '@components/settings/item';
+import SettingSeparator from '@components/settings/separator';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
+import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useAppState} from '@hooks/device';
+import {usePreventDoubleTap} from '@hooks/utils';
+import JPushManager from '@init/jpush';
 import {popTopScreen} from '@screens/navigation';
 import {gotoSettingsScreen} from '@screens/settings/config';
 import {logError} from '@utils/log';
+import {
+    getMessageNotificationEnabled,
+    openAppNotificationSettings,
+    openMessageNotificationChannelSettings,
+    setMessageNotificationEnabled,
+} from '@utils/notification/message_notification_pref';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {getEmailInterval, getEmailIntervalTexts, getNotificationProps} from '@utils/user';
 
 import NotificationsDisabledNotice from './notifications_disabled_notice';
@@ -22,6 +37,20 @@ import SendTestNotificationNotice from './send_test_notification_notice';
 
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
+
+const SECTION_GAP = 16;
+
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
+    sectionHeader: {
+        marginTop: SECTION_GAP,
+        marginBottom: 8,
+    },
+    sectionHeaderText: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        fontSize: 14,
+        lineHeight: 20,
+    },
+}));
 
 const mentionTexts = defineMessages({
     crtOn: {
@@ -63,12 +92,20 @@ const Notifications = ({
     serverVersion,
 }: NotificationsProps) => {
     const intl = useIntl();
+    const theme = useTheme();
+    const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
     const notifyProps = useMemo(() => getNotificationProps(currentUser), [currentUser]);
     const callsRingingEnabled = useMemo(() => getCallsConfig(serverUrl).EnableRinging, [serverUrl]);
     const [isRegistered, setIsRegistered] = useState(true);
+    const [messageNotifEnabled, setMessageNotifEnabled] = useState(true);
 
     const appState = useAppState();
+
+    useEffect(() => {
+        getMessageNotificationEnabled().then(setMessageNotifEnabled);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- load persisted preference once on mount
+    }, []);
 
     useEffect(() => {
         let isCurrent = true;
@@ -78,10 +115,11 @@ const Notifications = ({
                     const registered = await RNNotifications.isRegisteredForRemoteNotifications();
                     if (isCurrent) {
                         setIsRegistered(registered);
+                        await checkNotifications();
                     }
                 } catch (error) {
                     if (isCurrent) {
-                        logError('Error checking notification registration status:', error);
+                        logError('[Notifications.checkNotificationStatus]', error);
                     }
                 }
             };
@@ -145,11 +183,58 @@ const Notifications = ({
         gotoSettingsScreen(screen, title);
     }, [intl]);
 
+    const openChannelNotificationSettings = usePreventDoubleTap(useCallback(async () => {
+        if (Platform.OS === 'android') {
+            try {
+                const opened = await openMessageNotificationChannelSettings();
+                if (opened) {
+                    return;
+                }
+                const openedAppSettings = await openAppNotificationSettings();
+                if (openedAppSettings) {
+                    return;
+                }
+            } catch (error) {
+                logError('[Notifications.openChannelNotificationSettings]', error);
+            }
+        }
+        Permissions.openSettings('notifications');
+    }, []));
+
+    const handleMessageNotificationToggle = useCallback(async (enabled: boolean) => {
+        const nextEnabled = Boolean(enabled);
+        try {
+            await setMessageNotificationEnabled(nextEnabled);
+            setMessageNotifEnabled(nextEnabled);
+            if (nextEnabled) {
+                if (!JPushManager.isInitialized()) {
+                    JPushManager.init();
+                } else {
+                    JPushManager.resumePush();
+                }
+            } else {
+                JPushManager.stopPush();
+            }
+        } catch (error) {
+            logError('[Notifications.handleMessageNotificationToggle]', error);
+        }
+    }, []);
+
     const close = useCallback(() => {
         popTopScreen(componentId);
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, close);
+
+    const messageNotificationLabel = intl.formatMessage({
+        id: 'notification_settings.message_notification',
+        defaultMessage: 'Message Notifications',
+    });
+
+    const goToSystemLabel = intl.formatMessage({
+        id: 'notification_settings.message_notification.go_to_system',
+        defaultMessage: 'Go to System Settings',
+    });
 
     return (
         <SettingContainer testID='notification_settings'>
@@ -157,6 +242,32 @@ const Notifications = ({
                 <NotificationsDisabledNotice
                     testID='notifications-disabled-notice'
                 />}
+            <OptionItem
+                action={handleMessageNotificationToggle}
+                icon='bell-outline'
+                label={messageNotificationLabel}
+                selected={messageNotifEnabled}
+                testID='notification_settings.message_notification.toggle'
+                type='toggle'
+            />
+            <SettingSeparator/>
+            {messageNotifEnabled && (
+                <>
+                    <View style={styles.sectionHeader}>
+                        <FormattedText
+                            id='notification_settings.sound_and_vibration'
+                            defaultMessage='Sound and Vibration'
+                            style={styles.sectionHeaderText}
+                        />
+                    </View>
+                    <SettingItem
+                        info={goToSystemLabel}
+                        onPress={openChannelNotificationSettings}
+                        optionName='message_notification'
+                        testID='notification_settings.message_notification.option'
+                    />
+                </>
+            )}
             <SettingItem
                 onPress={goToNotificationSettingsMentions}
                 optionName='mentions'

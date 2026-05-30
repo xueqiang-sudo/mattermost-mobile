@@ -70,6 +70,10 @@ const messages = defineMessages({
         defaultMessage: 'Push Notifications',
         id: 'notification_settings.mobile',
     },
+    message_notification: {
+        defaultMessage: 'Message Notifications',
+        id: 'notification_settings.message_notification',
+    },
     call_notifications: {
         defaultMessage: 'Call Notifications',
         id: 'notification_settings.calls',
@@ -153,6 +157,12 @@ export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
 };
 
 export const NotificationsOptionConfig: Record<string, SettingConfigDetails> = {
+    message_notification: {
+        defaultMessage: messages.message_notification.defaultMessage,
+        i18nId: messages.message_notification.id,
+        icon: 'bell-outline',
+        testID: messages.message_notification.id,
+    },
     mentions: {
         icon: 'at',
         testID: 'notification_settings.mentions_replies',
