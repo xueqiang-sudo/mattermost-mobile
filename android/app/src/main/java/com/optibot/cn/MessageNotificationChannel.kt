@@ -45,6 +45,7 @@ object MessageNotificationChannel {
     @JvmStatic
     fun ensureCreated(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            JiguangOptibotLog.d("MessageNotificationChannel.ensureCreated skipped SDK=${Build.VERSION.SDK_INT}")
             return
         }
 
@@ -53,6 +54,7 @@ object MessageNotificationChannel {
 
         for (legacyId in LEGACY_CHANNEL_IDS) {
             notificationManager.deleteNotificationChannel(legacyId)
+            JiguangOptibotLog.d("MessageNotificationChannel.ensureCreated deleted legacy channel=$legacyId")
         }
 
         purgeHuaweiSocialChannels(notificationManager)
@@ -60,16 +62,24 @@ object MessageNotificationChannel {
         val channelId = CustomPushNotificationHelper.CHANNEL_JPUSH_NEW_MESSAGE_ID
         val existing = notificationManager.getNotificationChannel(channelId)
         if (existing != null && existing.importance >= messageChannelImportance()) {
+            JiguangOptibotLog.i(
+                "MessageNotificationChannel.ensureCreated reuse channel=$channelId importance=${existing.importance}",
+            )
             return
         }
 
         if (existing != null) {
+            JiguangOptibotLog.w(
+                "MessageNotificationChannel.ensureCreated recreate channel=$channelId " +
+                    "importance=${existing.importance} below HIGH",
+            )
             notificationManager.deleteNotificationChannel(channelId)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val group = NotificationChannelGroup(CHANNEL_GROUP_ID, CHANNEL_GROUP_NAME)
             notificationManager.createNotificationChannelGroup(group)
+            JiguangOptibotLog.d("MessageNotificationChannel.ensureCreated channelGroup=$CHANNEL_GROUP_ID")
         }
 
         val channel = NotificationChannel(channelId, CHANNEL_NAME, messageChannelImportance())
@@ -90,6 +100,9 @@ object MessageNotificationChannel {
         channel.setSound(soundUri, audioAttributes)
 
         notificationManager.createNotificationChannel(channel)
+        JiguangOptibotLog.i(
+            "MessageNotificationChannel.ensureCreated channel=$channelId name=$CHANNEL_NAME importance=HIGH",
+        )
     }
 
     /**
@@ -118,6 +131,9 @@ object MessageNotificationChannel {
                 name.contains("notification", ignoreCase = true) && name.length <= 15
             ) {
                 notificationManager.deleteNotificationChannel(channel.id)
+                JiguangOptibotLog.d(
+                    "MessageNotificationChannel.purgeHuaweiSocialChannels deleted social channel=${channel.id} name=$name",
+                )
                 continue
             }
             if (channel.id.contains("social", ignoreCase = true) ||
@@ -125,10 +141,17 @@ object MessageNotificationChannel {
                 channel.id.contains("huawei", ignoreCase = true)
             ) {
                 notificationManager.deleteNotificationChannel(channel.id)
+                JiguangOptibotLog.d(
+                    "MessageNotificationChannel.purgeHuaweiSocialChannels deleted by id pattern channel=${channel.id}",
+                )
                 continue
             }
             if (channel.importance < NotificationManager.IMPORTANCE_HIGH) {
                 notificationManager.deleteNotificationChannel(channel.id)
+                JiguangOptibotLog.d(
+                    "MessageNotificationChannel.purgeHuaweiSocialChannels deleted low importance " +
+                        "channel=${channel.id} name=$name importance=${channel.importance}",
+                )
             }
         }
     }
@@ -143,10 +166,12 @@ object MessageNotificationChannel {
             return
         }
         try {
+            JiguangOptibotLog.d("MessageNotificationChannel.purgeOnNotificationReceived")
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             purgeHuaweiSocialChannels(notificationManager)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            JiguangOptibotLog.e("MessageNotificationChannel.purgeOnNotificationReceived failed", e)
         }
     }
 
@@ -164,13 +189,20 @@ object MessageNotificationChannel {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val prefKey = channelId + PREF_PRIMED_SUFFIX
         if (prefs.getBoolean(prefKey, false)) {
+            JiguangOptibotLog.d("MessageNotificationChannel.primeIfNeeded already primed channel=$channelId")
             return
         }
 
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = notificationManager.getNotificationChannel(channelId) ?: return
+        val channel = notificationManager.getNotificationChannel(channelId) ?: run {
+            JiguangOptibotLog.w("MessageNotificationChannel.primeIfNeeded channel missing id=$channelId")
+            return
+        }
         if (channel.importance < messageChannelImportance()) {
+            JiguangOptibotLog.w(
+                "MessageNotificationChannel.primeIfNeeded skip importance=${channel.importance} channel=$channelId",
+            )
             return
         }
 
@@ -187,8 +219,9 @@ object MessageNotificationChannel {
             notificationManager.notify(PRIME_NOTIFICATION_ID, notification)
             notificationManager.cancel(PRIME_NOTIFICATION_ID)
             prefs.edit().putBoolean(prefKey, true).apply()
-        } catch (_: Exception) {
-            // 忽略：渠道已创建即可，prime 为增强项
+            JiguangOptibotLog.i("MessageNotificationChannel.primeIfNeeded success channel=$channelId")
+        } catch (e: Exception) {
+            JiguangOptibotLog.e("MessageNotificationChannel.primeIfNeeded failed channel=$channelId", e)
         }
     }
 

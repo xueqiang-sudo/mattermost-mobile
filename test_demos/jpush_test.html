@@ -661,13 +661,11 @@ function addExtra(obj, key, domId) {
 
 function addOverrideMsgId(options) {
     var raw = document.getElementById('optOverrideMsgId').value.trim();
+    console.error('qgstest raw1', raw)
     if (!raw || !/^\d+$/.test(raw)) {
         return;
     }
-    var num = Number(raw);
-    if (Number.isSafeInteger(num)) {
-        options.override_msg_id = num;
-    }
+    options.override_msg_id = raw;
 }
 
 function addHuaweiOptions(options) {
@@ -782,7 +780,6 @@ function collectFormState() {
         extSenderName: document.getElementById('extSenderName').value,
         extSenderId: document.getElementById('extSenderId').value,
         extMessage: document.getElementById('extMessage').value,
-        optOverrideMsgId: document.getElementById('optOverrideMsgId').value,
         optTTL: document.getElementById('optTTL').value,
         optCollapseId: document.getElementById('optCollapseId').value,
         optClassification: document.getElementById('optClassification').value,
@@ -828,7 +825,6 @@ function applyFormState(state) {
     if (state.extSenderName != null) document.getElementById('extSenderName').value = state.extSenderName;
     if (state.extSenderId != null) document.getElementById('extSenderId').value = state.extSenderId;
     if (state.extMessage != null) document.getElementById('extMessage').value = state.extMessage;
-    if (state.optOverrideMsgId != null) document.getElementById('optOverrideMsgId').value = state.optOverrideMsgId;
     if (state.optTTL != null) document.getElementById('optTTL').value = state.optTTL;
     if (state.optCollapseId != null) document.getElementById('optCollapseId').value = state.optCollapseId;
     if (state.optClassification != null) document.getElementById('optClassification').value = state.optClassification;
@@ -1059,7 +1055,11 @@ function presetConsecutive3() {
     var messages = [
         '这是第一条测试消息',
         '这是第二条测试消息',
-        '这是第三条测试消息（最新）'
+        '这是第三条测试消息',
+        // '这是第四条测试消息',
+        // '这是第五条测试消息',
+        // '这是第六条测试消息',
+        // '这是第七条测试消息',
     ];
 
     var batchBox = document.getElementById('batchResultBox');

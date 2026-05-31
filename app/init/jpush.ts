@@ -106,7 +106,15 @@ class JPushManager {
 
             // Android：stopPush() 会持久化到下次启动；仅 init 不会自动恢复接收
             if (Platform.OS === 'android') {
+                logInfo(`${TAG} 恢复推送服务`);
                 JPush.resumePush();
+                logInfo(`${TAG} 设置保留最近通知条数`);
+                JPush.setLatestNotificationNumber({notificationMaxNumber: 1});
+                const jpushModule = NativeModules.JPushModule as {
+                    setLinkMergeEnable?: (enable: boolean) => void;
+                } | undefined;
+                jpushModule?.setLinkMergeEnable?.(false);
+                logInfo(`${TAG} 检查推送接收状态`);
                 JPush.isPushStopped((stopped) => {
                     logDebug(`${TAG} 推送接收状态`, {stopped});
                 });

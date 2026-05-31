@@ -13,15 +13,19 @@ class NotificationSettingsModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun openMessageChannelSettings(promise: Promise) {
         try {
+            JiguangOptibotLog.i("NotificationSettings.openMessageChannelSettings")
             val context = reactApplicationContext.applicationContext
             val activity = reactApplicationContext.currentActivity
             val opened = MessageNotificationChannel.openChannelSettings(context, activity)
             if (opened) {
+                JiguangOptibotLog.i("NotificationSettings.openMessageChannelSettings success")
                 promise.resolve(true)
             } else {
+                JiguangOptibotLog.w("NotificationSettings.openMessageChannelSettings failed")
                 promise.reject("OPEN_FAILED", "Unable to open notification channel settings")
             }
         } catch (e: Exception) {
+            JiguangOptibotLog.e("NotificationSettings.openMessageChannelSettings exception", e)
             promise.reject("OPEN_FAILED", e.message, e)
         }
     }

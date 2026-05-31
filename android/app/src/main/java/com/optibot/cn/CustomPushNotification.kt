@@ -4,13 +4,13 @@ import android.app.PendingIntent
 import android.content.Context
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.mattermost.helpers.CustomPushNotificationHelper
 import com.mattermost.helpers.DatabaseHelper
 import com.mattermost.helpers.Network
 import com.mattermost.helpers.PushNotificationDataHelper
 import com.mattermost.helpers.database_extension.getServerUrlForIdentifier
 import com.optibot.cnutils.helpers.NotificationHelper
-import com.mattermost.turbolog.TurboLog
 import com.wix.reactnativenotifications.Defs.NOTIFICATION_RECEIVED_EVENT_NAME
 import com.wix.reactnativenotifications.core.AppLaunchHelper
 import com.wix.reactnativenotifications.core.AppLifecycleFacade
@@ -30,6 +30,10 @@ class CustomPushNotification(
 ) : PushNotification(context, bundle, appLifecycleFacade, appLaunchHelper, jsIoHelper) {
     private val dataHelper = PushNotificationDataHelper(context)
 
+    companion object {
+        private val FIXED_LATEST_MESSAGE_NOTIFICATION_ID = CustomPushNotificationHelper.FIXED_LATEST_MESSAGE_NOTIFICATION_ID
+    }
+
     init {
         try {
             DatabaseHelper.instance?.init(context)
@@ -41,6 +45,7 @@ class CustomPushNotification(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onReceived() {
+        JiguangOptibotLog.i("CustomPushNotification.onReceived enter")
         MessageNotificationChannel.purgeOnNotificationReceived(mContext)
 
         val initialData = mNotificationProps.asBundle()
@@ -52,13 +57,18 @@ class CustomPushNotification(
         val isIdLoaded = initialData.getString("id_loaded") == "true"
         val notificationId = NotificationHelper.getNotificationId(initialData)
         val serverUrl = addServerUrlToBundle(initialData)
+        JiguangOptibotLog.i(
+            "CustomPushNotification.onReceived type=$type channelId=$channelId postId=$postId " +
+                "ackId=$ackId isIdLoaded=$isIdLoaded notificationId=$notificationId " +
+                "serverUrlPresent=${!serverUrl.isNullOrEmpty()} signaturePresent=${!signature.isNullOrEmpty()}",
+        )
         Network.init(mContext)
 
         GlobalScope.launch {
             try {
                 handlePushNotificationInCoroutine(serverUrl, type, channelId, ackId, isIdLoaded, notificationId, postId, signature)
             } catch (e: Exception) {
-                e.printStackTrace()
+                JiguangOptibotLog.e("CustomPushNotification.onReceived coroutine failed", e)
             }
         }
     }
@@ -86,14 +96,16 @@ class CustomPushNotification(
         }
 
         if (!CustomPushNotificationHelper.verifySignature(mContext, signature, serverUrl, ackId)) {
-            TurboLog.i("Mattermost Notifications Signature verification", "Notification skipped because we could not verify it.")
+            JiguangOptibotLog.w("CustomPushNotification signature verification failed, skip notification")
             return
         }
 
+        JiguangOptibotLog.i("CustomPushNotification signature verified, finishProcessing")
         finishProcessingNotification(serverUrl, type, channelId, notificationId)
     }
 
     override fun onOpened() {
+        JiguangOptibotLog.i("CustomPushNotification.onOpened")
         mNotificationProps?.let {
             digestNotification()
             NotificationHelper.clearChannelOrThreadNotifications(mContext, it.asBundle())
@@ -102,13 +114,21 @@ class CustomPushNotification(
 
     private suspend fun finishProcessingNotification(serverUrl: String?, type: String?, channelId: String?, notificationId: Int) {
         val isReactInit = mAppLifecycleFacade.isReactInitialized()
+        val isAppVisible = mAppLifecycleFacade.isAppVisible()
+        JiguangOptibotLog.i(
+            "finishProcessingNotification type=$type channelId=$channelId notificationId=$notificationId " +
+                "isReactInit=$isReactInit isAppVisible=$isAppVisible",
+        )
 
         when (type) {
             CustomPushNotificationHelper.PUSH_TYPE_MESSAGE, CustomPushNotificationHelper.PUSH_TYPE_SESSION -> {
                 val currentActivityName = mAppLifecycleFacade.runningReactContext?.currentActivity?.componentName?.className ?: ""
-                TurboLog.i("ReactNative", currentActivityName)
-                if (!mAppLifecycleFacade.isAppVisible() || !currentActivityName.contains("MainActivity")) {
-                    var createSummary = type == CustomPushNotificationHelper.PUSH_TYPE_MESSAGE
+                val shouldShowNotification = !isAppVisible || !currentActivityName.contains("MainActivity")
+                JiguangOptibotLog.i(
+                    "finishProcessingNotification message/session currentActivity=$currentActivityName " +
+                        "shouldShowNotification=$shouldShowNotification",
+                )
+                if (shouldShowNotification) {
                     if (type == CustomPushNotificationHelper.PUSH_TYPE_MESSAGE) {
                         channelId?.let {
                             val notificationBundle = mNotificationProps.asBundle()
@@ -117,40 +137,48 @@ class CustomPushNotification(
                                 notificationResult?.let { result ->
                                     notificationBundle.putBundle("data", result)
                                     mNotificationProps = createProps(notificationBundle)
+                                    JiguangOptibotLog.d("finishProcessingNotification enriched notification data from local DB")
                                 }
                             }
-                            createSummary = NotificationHelper.addNotificationToPreferences(mContext, notificationId, notificationBundle)
                         }
                     }
-                    buildNotification(notificationId, createSummary)
+                    buildLatestOnlyNotification()
+                } else {
+                    JiguangOptibotLog.i("finishProcessingNotification skip local notification, app in foreground MainActivity")
                 }
             }
-            CustomPushNotificationHelper.PUSH_TYPE_CLEAR -> NotificationHelper.clearChannelOrThreadNotifications(mContext, mNotificationProps.asBundle())
+            CustomPushNotificationHelper.PUSH_TYPE_CLEAR -> {
+                JiguangOptibotLog.i("finishProcessingNotification clear notifications for channel/thread")
+                NotificationHelper.clearChannelOrThreadNotifications(mContext, mNotificationProps.asBundle())
+            }
         }
 
         if (isReactInit) {
+            JiguangOptibotLog.d("finishProcessingNotification notifyReceivedToJS")
             notifyReceivedToJS()
         }
     }
 
-    private fun buildNotification(notificationId: Int, createSummary: Boolean) {
+    private fun buildLatestOnlyNotification() {
+        val bundle = mNotificationProps.asBundle()
+        JiguangOptibotLog.i(
+            "buildLatestOnlyNotification title=${bundle.getString("title")} " +
+                "message=${bundle.getString("message")} fixedId=$FIXED_LATEST_MESSAGE_NOTIFICATION_ID",
+        )
         val pendingIntent = NotificationIntentAdapter.createPendingNotificationIntent(mContext, mNotificationProps)
-        val notification = buildNotification(pendingIntent)
-        if (createSummary) {
-            val summary = getNotificationSummaryBuilder(pendingIntent).build()
-            super.postNotification(summary, notificationId + 1)
-        }
-        super.postNotification(notification, notificationId)
+        val notification = CustomPushNotificationHelper.createLatestOnlyNotificationBuilder(
+            mContext,
+            pendingIntent,
+            bundle,
+        ).build()
+        NotificationManagerCompat.from(mContext).cancel(FIXED_LATEST_MESSAGE_NOTIFICATION_ID)
+        JiguangOptibotLog.i("buildLatestOnlyNotification cancel then post fixedId=$FIXED_LATEST_MESSAGE_NOTIFICATION_ID")
+        super.postNotification(notification, FIXED_LATEST_MESSAGE_NOTIFICATION_ID)
     }
 
     override fun getNotificationBuilder(intent: PendingIntent): NotificationCompat.Builder {
         val bundle = mNotificationProps.asBundle()
-        return CustomPushNotificationHelper.createNotificationBuilder(mContext, intent, bundle, false)
-    }
-
-    private fun getNotificationSummaryBuilder(intent: PendingIntent): NotificationCompat.Builder {
-        val bundle = mNotificationProps.asBundle()
-        return CustomPushNotificationHelper.createNotificationBuilder(mContext, intent, bundle, true)
+        return CustomPushNotificationHelper.createLatestOnlyNotificationBuilder(mContext, intent, bundle)
     }
 
     private fun notifyReceivedToJS() {

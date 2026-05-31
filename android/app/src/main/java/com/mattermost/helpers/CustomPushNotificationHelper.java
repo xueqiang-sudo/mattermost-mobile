@@ -68,6 +68,8 @@ public class CustomPushNotificationHelper {
     public static final String PUSH_TYPE_CLEAR = "clear";
     public static final String PUSH_TYPE_SESSION = "session";
     public static final String CATEGORY_CAN_REPLY = "CAN_REPLY";
+    /** 与 OptibotJPushNotificationBuilder 一致：通知栏只保留最新一条 */
+    public static final int FIXED_LATEST_MESSAGE_NOTIFICATION_ID = 0x4F50544D; // "OPTM"
 
     private static NotificationChannel mHighImportanceChannel;
     private static NotificationChannel mMinImportanceChannel;
@@ -219,6 +221,57 @@ public class CustomPushNotificationHelper {
                 .setAutoCancel(true);
 
         return notification;
+    }
+
+    /**
+     * 仅展示当前 push 的最新一条内容，不使用 MessagingStyle / 分组摘要。
+     */
+    public static NotificationCompat.Builder createLatestOnlyNotificationBuilder(Context context, PendingIntent intent, Bundle bundle) {
+        final NotificationCompat.Builder notification = new NotificationCompat.Builder(context, CHANNEL_JPUSH_NEW_MESSAGE_ID);
+        final int notificationId = FIXED_LATEST_MESSAGE_NOTIFICATION_ID;
+
+        String title = getConversationTitle(bundle);
+        if (TextUtils.isEmpty(title)) {
+            title = bundle.getString("title", "");
+        }
+        String senderName = getSenderName(bundle);
+        String message = bundle.getString("message", bundle.getString("body"));
+        if (message != null && !TextUtils.isEmpty(senderName.trim())) {
+            message = removeSenderNameFromMessage(message, senderName);
+        }
+        if (TextUtils.isEmpty(message)) {
+            message = bundle.getString("alert", "");
+        }
+        final String contentText = buildLatestOnlyContentText(senderName, message);
+
+        addNotificationExtras(notification, bundle);
+        setNotificationIcons(context, notification, bundle);
+        setNotificationBadgeType(notification);
+        setNotificationChannel(context, notification);
+        setNotificationDeleteIntent(context, notification, bundle, notificationId);
+        addNotificationReplyAction(context, notification, bundle, notificationId);
+
+        notification
+                .setContentTitle(title)
+                .setContentText(contentText)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(contentText))
+                .setContentIntent(intent)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setPriority(Notification.PRIORITY_HIGH)
+                .setCategory(Notification.CATEGORY_STATUS)
+                .setAutoCancel(true);
+
+        return notification;
+    }
+
+    private static String buildLatestOnlyContentText(String senderName, String message) {
+        if (!TextUtils.isEmpty(senderName) && !TextUtils.isEmpty(message)) {
+            return senderName + ": " + message;
+        }
+        if (!TextUtils.isEmpty(message)) {
+            return message;
+        }
+        return senderName != null ? senderName : "";
     }
 
     public static void createNotificationChannels(Context context) {

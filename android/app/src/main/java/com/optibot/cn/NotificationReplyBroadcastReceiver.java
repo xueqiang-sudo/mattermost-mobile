@@ -12,14 +12,12 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.Person;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 
 import com.mattermost.helpers.*;
-import com.mattermost.turbolog.TurboLog;
 import com.wix.reactnativenotifications.core.NotificationIntentAdapter;
 import com.wix.reactnativenotifications.core.notification.PushNotificationProps;
 
@@ -34,6 +32,7 @@ public class NotificationReplyBroadcastReceiver extends BroadcastReceiver {
         try {
             final CharSequence message = getReplyMessage(intent);
             if (message == null) {
+                JiguangOptibotLog.i("NotificationReply.onReceive empty reply message, skip");
                 return;
             }
 
@@ -42,15 +41,24 @@ public class NotificationReplyBroadcastReceiver extends BroadcastReceiver {
             notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
             final int notificationId = intent.getIntExtra(CustomPushNotificationHelper.NOTIFICATION_ID, -1);
-            final String serverUrl = bundle.getString("server_url");
+            final String serverUrl = bundle != null ? bundle.getString("server_url") : null;
+            final String channelId = bundle != null ? bundle.getString("channel_id") : null;
+            JiguangOptibotLog.i(String.format(
+                    "NotificationReply.onReceive notificationId=%d channelId=%s serverUrlPresent=%s replyLen=%d",
+                    notificationId,
+                    channelId,
+                    serverUrl != null,
+                    message.length()
+            ));
             Network.init(context);
             if (serverUrl != null) {
                     replyToMessage(serverUrl, notificationId, message);
             } else {
+                JiguangOptibotLog.w("NotificationReply.onReceive missing server_url");
                 onReplyFailed(notificationId);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            JiguangOptibotLog.e("NotificationReply.onReceive failed", e);
         }
     }
 
@@ -66,6 +74,13 @@ public class NotificationReplyBroadcastReceiver extends BroadcastReceiver {
             onReplyFailed(notificationId);
             return;
         }
+
+        JiguangOptibotLog.i(String.format(
+                "NotificationReply.replyToMessage channelId=%s postId=%s rootId=%s",
+                channelId,
+                postId,
+                rootId
+        ));
 
         WritableMap headers = Arguments.createMap();
         headers.putString("Content-Type", "application/json");
@@ -90,52 +105,66 @@ public class NotificationReplyBroadcastReceiver extends BroadcastReceiver {
                     ReadableMap response = (ReadableMap)value;
                     ReadableMap data = response.getMap("data");
                     if (data != null && data.hasKey("status_code") && !isSuccessful(data.getInt("status_code"))) {
-                        TurboLog.Companion.i("ReactNative", String.format("Reply FAILED exception %s", data.getString("message")));
+                        JiguangOptibotLog.w(String.format(
+                                "NotificationReply.reply FAILED status=%s message=%s",
+                                data.getInt("status_code"),
+                                data.getString("message")
+                        ));
                         onReplyFailed(notificationId);
                         return;
                     }
                     onReplySuccess(notificationId, message);
-                    TurboLog.Companion.i("ReactNative", "Reply SUCCESS");
+                    JiguangOptibotLog.i("NotificationReply.reply SUCCESS");
                 } else {
-                    TurboLog.Companion.i("ReactNative", "Reply FAILED resolved without value");
+                    JiguangOptibotLog.w("NotificationReply.reply FAILED resolved without value");
                     onReplyFailed(notificationId);
                 }
             }
 
             @Override
             public void reject(@NonNull Throwable reason) {
-                TurboLog.Companion.i("ReactNative", String.format("Reply FAILED exception %s", reason.getMessage()));
+                JiguangOptibotLog.e(String.format(
+                        "NotificationReply.reply FAILED exception %s",
+                        reason.getMessage()
+                ), reason);
                 onReplyFailed(notificationId);
             }
 
             @Override
             public void reject(@NonNull String code, String message) {
-                TurboLog.Companion.i("ReactNative",
-                        String.format("Reply FAILED status %s BODY %s", code, message)
-                );
+                JiguangOptibotLog.w(String.format(
+                        "NotificationReply.reply FAILED status %s BODY %s",
+                        code,
+                        message
+                ));
                 onReplyFailed(notificationId);
             }
         });
     }
 
     protected void onReplyFailed(int notificationId) {
+        JiguangOptibotLog.i("NotificationReply.onReplyFailed notificationId=" + notificationId);
         recreateNotification(notificationId, "Message failed to send.");
     }
 
     protected void onReplySuccess(int notificationId, final CharSequence message) {
+        JiguangOptibotLog.i("NotificationReply.onReplySuccess notificationId=" + notificationId);
         recreateNotification(notificationId, message);
     }
 
     private void recreateNotification(int notificationId, final CharSequence message) {
         final PushNotificationProps notificationProps = new PushNotificationProps(bundle);
         final PendingIntent pendingIntent = NotificationIntentAdapter.createPendingNotificationIntent(mContext, notificationProps);
-        NotificationCompat.Builder builder = CustomPushNotificationHelper.createNotificationBuilder(mContext, pendingIntent, bundle, false);
-        Notification notification =  builder.build();
-        NotificationCompat.MessagingStyle messagingStyle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification);
-        assert messagingStyle != null;
-        messagingStyle.addMessage(message, System.currentTimeMillis(), (Person)null);
-        notification = builder.setStyle(messagingStyle).build();
-        notificationManager.notify(notificationId, notification);
+        bundle.putString("message", message.toString());
+        NotificationCompat.Builder builder = CustomPushNotificationHelper.createLatestOnlyNotificationBuilder(mContext, pendingIntent, bundle);
+        Notification notification = builder.build();
+        JiguangOptibotLog.i(String.format(
+                "NotificationReply.recreateNotification incomingId=%d fixedId=%d message=%s",
+                notificationId,
+                CustomPushNotificationHelper.FIXED_LATEST_MESSAGE_NOTIFICATION_ID,
+                message
+        ));
+        notificationManager.notify(CustomPushNotificationHelper.FIXED_LATEST_MESSAGE_NOTIFICATION_ID, notification);
     }
 
     private CharSequence getReplyMessage(Intent intent) {
