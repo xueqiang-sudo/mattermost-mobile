@@ -1834,6 +1834,7 @@
   "snack.bar.info.copied": "信息已複製到剪貼板",
   "snack.bar.link.copied": "鏈接已複製到剪貼板",
   "snack.bar.message.copied": "文本已複製到剪貼板",
+  "snack.bar.notification.channel.not.found": "無法開啟對應對話，您可能已不在該對話中，或對話已不存在",
   "snack.bar.mute.channel": "此羣聊已靜音",
   "snack.bar.playbook.error": "無法執行操作。請稍後再試。",
   "snack.bar.remove.user": "1個成員已從此羣聊刪除",

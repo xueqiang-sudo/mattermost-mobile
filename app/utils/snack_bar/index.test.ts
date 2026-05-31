@@ -3,7 +3,7 @@
 
 import {showOverlay} from '@screens/navigation';
 
-import {showBoRPostErrorSnackbar, showPlaybookErrorSnackbar} from '.';
+import {showBoRPostErrorSnackbar, showNotificationChannelNotFoundSnackbar, showPlaybookErrorSnackbar} from '.';
 
 describe('snack bar', () => {
     describe('showPlaybookErrorSnackbar', () => {
@@ -31,6 +31,19 @@ describe('snack bar', () => {
             expect(showOverlay).toHaveBeenCalledWith('SnackBar', {
                 barType: 'BOR_POST_EXPIRED',
                 customMessage: 'custom message',
+            });
+        });
+    });
+
+    describe('showNotificationChannelNotFoundSnackbar', () => {
+        it('should show error snackbar for 3 seconds', () => {
+            showNotificationChannelNotFoundSnackbar();
+
+            expect(showOverlay).toHaveBeenCalledWith('SnackBar', {
+                barType: 'NOTIFICATION_CHANNEL_NOT_FOUND',
+                ignoreNavigationEvents: true,
+                duration: 3000,
+                position: 'top',
             });
         });
     });

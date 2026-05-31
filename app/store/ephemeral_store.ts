@@ -47,6 +47,9 @@ class EphemeralStoreSingleton {
     // so the notification is processed only once (preferably on launch).
     private processingNotification = '';
 
+    /** JPush 点击通知后暂存，待 Home 就绪后由 launchToHome 或 openChannelByExtras 消费 */
+    private pendingJPushNotification: {serverUrl: string; notification: NotificationWithData} | null = null;
+
     // This is used to track the channels that have their playbooks synced with the server.
     // This is used to avoid fetching the playbooks for the same channel multiple times.
     // It is cleared any time the connection with the server is lost.
@@ -56,6 +59,16 @@ class EphemeralStoreSingleton {
         this.processingNotification = v;
     };
     getProcessingNotification = () => this.processingNotification;
+
+    setPendingJPushNotification = (serverUrl: string, notification: NotificationWithData) => {
+        this.pendingJPushNotification = {serverUrl, notification};
+    };
+
+    getPendingJPushNotification = () => this.pendingJPushNotification;
+
+    clearPendingJPushNotification = () => {
+        this.pendingJPushNotification = null;
+    };
 
     addLoadingMessagesForChannel = (serverUrl: string, channelId: string) => {
         if (!this.loadingMessagesForChannel[serverUrl]) {

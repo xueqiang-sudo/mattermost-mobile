@@ -23,11 +23,11 @@ import NavigationStore from '@store/navigation_store';
 import {clearCachedUpdateApk} from '@utils/file/apk_download';
 import {logDebug, logError} from '@utils/log';
 import {getMessageNotificationEnabled} from '@utils/notification/message_notification_pref';
+import {showDebugPanelOverlay} from '@utils/debug_panel_overlay';
 
 // Controls whether the main initialization (database, etc...) is done, either on app launch
 // or on the Share Extension, for example.
 let baseAppInitialized = false;
-const DEBUG_PANEL_OVERLAY_ID = 'debug_panel_overlay';
 
 let serverCredentials: ServerCredential[];
 
@@ -114,25 +114,6 @@ export async function start() {
     // Show debug panel overlay after RNN has rendered the initial screen.
     // The 1500ms delay gives RNN time to complete its first layout before we push an overlay.
     if (__DEBUG_PANEL__) {
-        setTimeout(() => {
-            const {Navigation} = require('react-native-navigation');
-            const {Screens} = require('@constants');
-            Navigation.dismissOverlay(DEBUG_PANEL_OVERLAY_ID).catch(() => {
-                // ignore if overlay does not exist yet
-            });
-            Navigation.showOverlay({
-                component: {
-                    id: DEBUG_PANEL_OVERLAY_ID,
-                    name: Screens.DEBUG_PANEL,
-                    options: {
-                        overlay: {interceptTouchOutside: false},
-                        layout: {
-                            backgroundColor: 'transparent',
-                            componentBackgroundColor: 'transparent',
-                        },
-                    },
-                },
-            });
-        }, 1500);
+        setTimeout(showDebugPanelOverlay, 1500);
     }
 }

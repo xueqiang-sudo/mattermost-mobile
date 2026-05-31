@@ -3,12 +3,12 @@
 
 import moment from 'moment-timezone';
 import {createIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter} from 'react-native';
+import {DeviceEventEmitter} from 'react-native';
 import {Notifications} from 'react-native-notifications';
 
 import {Events} from '@constants';
 import {DEFAULT_LOCALE, getTranslations} from '@i18n';
-import {popToRoot} from '@screens/navigation';
+import {showNotificationChannelNotFoundSnackbar} from '@utils/snack_bar';
 
 import {
     convertToNotificationData,
@@ -16,6 +16,10 @@ import {
     emitNotificationError,
     scheduleExpiredNotification,
 } from '.';
+
+jest.mock('@utils/snack_bar', () => ({
+    showNotificationChannelNotFoundSnackbar: jest.fn(),
+}));
 
 describe('Notification Utils', () => {
     const intl = createIntl({locale: DEFAULT_LOCALE, messages: getTranslations(DEFAULT_LOCALE)});
@@ -79,40 +83,24 @@ describe('Notification Utils', () => {
     });
 
     describe('notificationError', () => {
-        it('should display alert and popToRoot for Channel type', () => {
+        it('should show snackbar for Channel type', () => {
             notificationError(intl, 'Channel');
-            expect(Alert.alert).toHaveBeenCalledWith(
-                'Message not found',
-                'This message belongs to a channel where you are not a member.',
-            );
-            expect(popToRoot).toHaveBeenCalled();
+            expect(showNotificationChannelNotFoundSnackbar).toHaveBeenCalled();
         });
 
-        it('should display alert and popToRoot for Team type', () => {
+        it('should show snackbar for Team type', () => {
             notificationError(intl, 'Team');
-            expect(Alert.alert).toHaveBeenCalledWith(
-                'Message not found',
-                'This message belongs to a team where you are not a member.',
-            );
-            expect(popToRoot).toHaveBeenCalled();
+            expect(showNotificationChannelNotFoundSnackbar).toHaveBeenCalled();
         });
 
-        it('should display alert and popToRoot for Post type', () => {
+        it('should show snackbar for Post type', () => {
             notificationError(intl, 'Post');
-            expect(Alert.alert).toHaveBeenCalledWith(
-                'Message not found',
-                'The message has not been found.',
-            );
-            expect(popToRoot).toHaveBeenCalled();
+            expect(showNotificationChannelNotFoundSnackbar).toHaveBeenCalled();
         });
 
-        it('should display alert and popToRoot for Connection type', () => {
+        it('should show snackbar for Connection type', () => {
             notificationError(intl, 'Connection');
-            expect(Alert.alert).toHaveBeenCalledWith(
-                'Message not found',
-                'The server is unreachable and it was not possible to retrieve the specific message information for the notification.',
-            );
-            expect(popToRoot).toHaveBeenCalled();
+            expect(showNotificationChannelNotFoundSnackbar).toHaveBeenCalled();
         });
     });
 

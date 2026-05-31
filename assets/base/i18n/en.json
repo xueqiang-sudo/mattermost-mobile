@@ -1819,6 +1819,7 @@
   "snack.bar.info.copied": "Info copied to clipboard",
   "snack.bar.link.copied": "Link copied to clipboard",
   "snack.bar.message.copied": "Text copied to clipboard",
+  "snack.bar.notification.channel.not.found": "Unable to open this conversation. You may no longer be in it, or it no longer exists.",
   "snack.bar.mute.channel": "This channel was muted",
   "snack.bar.playbook.error": "Unable to perform action. Please try again later.",
   "snack.bar.remove.user": "1 member was removed from the channel",

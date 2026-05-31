@@ -224,6 +224,7 @@ object MessageNotificationChannel {
     fun openChannelSettings(context: Context, activity: Activity? = null): Boolean {
         ensureCreated(context)
         primeIfNeeded(context)
+        purgeOnNotificationReceived(context)
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             return openAppNotificationSettings(context, activity)
@@ -238,6 +239,8 @@ object MessageNotificationChannel {
             }
         }
 
+        // 渠道设置 Intent 全部失败，回退前再次清理 HMS 渠道
+        purgeOnNotificationReceived(context)
         return openAppNotificationSettings(context, activity)
     }
 
@@ -272,6 +275,26 @@ object MessageNotificationChannel {
             },
         )
 
+        // APP_NOTIFICATION_SETTINGS 带渠道参数：部分华为/鸿蒙版本会路由到渠道页
+        intents.add(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+                putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+                putExtra("android.provider.extra.CHANNEL_ID", channelId)
+                putExtra(":settings:fragment_args_key", channelId)
+                addFlags(baseFlags)
+            },
+        )
+        intents.add(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+                putExtra("app_package", pkg)
+                putExtra("channel_id", channelId)
+                putExtra("notification_channel_id", channelId)
+                addFlags(baseFlags)
+            },
+        )
+
         // 鸿蒙 4.x / EMUI 常用设置 Activity
         intents.add(
             Intent().apply {
@@ -289,12 +312,36 @@ object MessageNotificationChannel {
         intents.add(
             Intent().apply {
                 component = ComponentName(
+                    "com.android.settings",
+                    "com.android.settings.Settings\$NotificationAppSettingsActivity",
+                )
+                putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+                putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+                putExtra(":settings:fragment_args_key", channelId)
+                addFlags(baseFlags)
+            },
+        )
+        intents.add(
+            Intent().apply {
+                component = ComponentName(
                     "com.huawei.systemmanager",
                     "com.huawei.notificationmanager.ui.notificationbar.AppNotificationSettingsActivity",
                 )
                 putExtra("packageName", pkg)
                 putExtra("channelId", channelId)
                 putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+                addFlags(baseFlags)
+            },
+        )
+        intents.add(
+            Intent().apply {
+                component = ComponentName(
+                    "com.huawei.systemmanager",
+                    "com.huawei.notificationmanager.ui.NotificationManagerActivity",
+                )
+                putExtra("packageName", pkg)
+                putExtra("channelId", channelId)
+                putExtra("currentChannelId", channelId)
                 addFlags(baseFlags)
             },
         )
@@ -321,14 +368,51 @@ object MessageNotificationChannel {
     }
 
     private fun openAppNotificationSettings(context: Context, activity: Activity?): Boolean {
-        val intents = listOf(
+        purgeOnNotificationReceived(context)
+
+        val pkg = context.packageName
+        val baseFlags = Intent.FLAG_ACTIVITY_NEW_TASK
+        val intents = mutableListOf(
             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
             },
             Intent("android.settings.APP_NOTIFICATION_SETTINGS").apply {
-                putExtra("android.provider.extra.APP_PACKAGE", context.packageName)
-                putExtra("app_package", context.packageName)
+                putExtra("android.provider.extra.APP_PACKAGE", pkg)
+                putExtra("app_package", pkg)
                 putExtra("app_uid", context.applicationInfo.uid)
+            },
+            // 华为/鸿蒙 应用通知管理 Activity
+            Intent().apply {
+                component = ComponentName(
+                    "com.huawei.systemmanager",
+                    "com.huawei.notificationmanager.ui.NotificationManagerActivity",
+                )
+                putExtra("packageName", pkg)
+                addFlags(baseFlags)
+            },
+            Intent().apply {
+                component = ComponentName(
+                    "com.huawei.systemmanager",
+                    "com.huawei.notificationmanager.ui.notificationbar.AppNotificationSettingsActivity",
+                )
+                putExtra("packageName", pkg)
+                addFlags(baseFlags)
+            },
+            Intent().apply {
+                component = ComponentName(
+                    "com.android.settings",
+                    "com.android.settings.Settings\$NotificationAppSettingsActivity",
+                )
+                putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+                addFlags(baseFlags)
+            },
+            Intent().apply {
+                component = ComponentName(
+                    "com.android.settings",
+                    "com.android.settings.notification.AppNotificationSettingsActivity",
+                )
+                putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+                addFlags(baseFlags)
             },
         )
 

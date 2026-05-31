@@ -6,13 +6,15 @@ import JPush from 'jpush-react-native';
 import {AppState, DeviceEventEmitter, NativeModules, Platform} from 'react-native';
 
 import {openNotification} from '@actions/remote/notifications';
-import {Events} from '@constants';
+import {Events, Screens} from '@constants';
 import {
     buildNotificationFromJPushExtras,
     hasRequiredJPushExtras,
     resolveJPushServerUrl,
 } from '@init/jpush_notification';
 import PushNotifications from '@init/push_notifications';
+import EphemeralStore from '@store/ephemeral_store';
+import NavigationStore from '@store/navigation_store';
 import {logDebug, logError, logInfo, logWarning} from '@utils/log';
 import {JPUSH_NEW_MESSAGE_CHANNEL_ID} from '@utils/notification/message_notification_pref';
 
@@ -102,6 +104,14 @@ class JPushManager {
             this.initialized = true;
             logInfo(`${TAG} 极光 SDK 初始化成功`);
 
+            // Android：stopPush() 会持久化到下次启动；仅 init 不会自动恢复接收
+            if (Platform.OS === 'android') {
+                JPush.resumePush();
+                JPush.isPushStopped((stopped) => {
+                    logDebug(`${TAG} 推送接收状态`, {stopped});
+                });
+            }
+
             this.scheduleRegistrationIdRetries();
 
             // DeviceEventEmitter 不排队：晚订阅的设置页会错过连接事件，启动后立刻重放当前状态
@@ -167,6 +177,10 @@ class JPushManager {
      */
     setLoggedIn(status: boolean) {
         this.loggedIn = status;
+    }
+
+    isLoggedIn(): boolean {
+        return this.loggedIn;
     }
 
     private clearRegistrationIdRetries() {
@@ -270,9 +284,34 @@ class JPushManager {
 
         const notificationData = buildNotificationFromJPushExtras(notification, serverUrl);
 
-        openNotification(serverUrl, notificationData).catch(
-            (error) => logError(`${TAG} [openChannelByExtras] 处理失败`, error),
-        );
+        const screensInStack = NavigationStore.getScreensInStack();
+        const visibleScreen = NavigationStore.getVisibleScreen();
+        const isAtLoginOrOnboarding = visibleScreen === Screens.LOGIN ||
+            visibleScreen === Screens.ONBOARDING ||
+            screensInStack.includes(Screens.LOGIN) ||
+            screensInStack.includes(Screens.ONBOARDING);
+
+        if (isAtLoginOrOnboarding) {
+            logInfo(`${TAG} [openChannelByExtras] 当前在登录/引导页，忽略通知跳转`);
+            return;
+        }
+
+        EphemeralStore.setPendingJPushNotification(serverUrl, notificationData);
+
+        const isAtHome = screensInStack.includes(Screens.HOME);
+
+        if (!isAtHome) {
+            logInfo(`${TAG} [openChannelByExtras] 尚未进入 Home，保留暂存通知`);
+            return;
+        }
+
+        try {
+            await openNotification(serverUrl, notificationData);
+        } catch (error) {
+            logError(`${TAG} [openChannelByExtras] 处理失败`, error);
+        } finally {
+            EphemeralStore.clearPendingJPushNotification();
+        }
     }
 
     /**

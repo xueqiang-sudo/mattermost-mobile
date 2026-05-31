@@ -3,14 +3,14 @@
 
 import moment from 'moment-timezone';
 import {type IntlShape} from 'react-intl';
-import {Alert, DeviceEventEmitter} from 'react-native';
+import {DeviceEventEmitter} from 'react-native';
 
 import {Events} from '@constants';
 import {NOTIFICATION_TYPE} from '@constants/push_notification';
 import {DEFAULT_LOCALE} from '@i18n';
 import PushNotifications from '@init/push_notifications';
-import {popToRoot} from '@screens/navigation';
 import {getIntlShape} from '@utils/general';
+import {showNotificationChannelNotFoundSnackbar} from '@utils/snack_bar';
 
 export const convertToNotificationData = (notification: Notification, tapped = true): NotificationWithData => {
     if (!notification.payload) {
@@ -52,53 +52,8 @@ export const convertToNotificationData = (notification: Notification, tapped = t
 
 export type NotificationErrorType = 'Team' | 'Channel' | 'OptibotChannel' | 'Connection' | 'Post';
 
-export const notificationError = (intl: IntlShape, type: NotificationErrorType) => {
-    let title;
-    let message;
-    switch (type) {
-        case 'OptibotChannel':
-            title = intl.formatMessage({
-                id: 'mobile.optibot.channel_not_accessible.title',
-                defaultMessage: 'Channel Not Accessible',
-            });
-            message = intl.formatMessage({
-                id: 'mobile.optibot.channel_not_accessible.description',
-                defaultMessage: 'You are not a member of this channel, or the channel no longer exists.',
-            });
-            break;
-        default:
-            title = intl.formatMessage({id: 'notification.message_not_found', defaultMessage: 'Message not found'});
-            break;
-    }
-    switch (type) {
-        case 'Channel':
-            message = intl.formatMessage({
-                id: 'notification.not_channel_member',
-                defaultMessage: 'This message belongs to a channel where you are not a member.',
-            });
-            break;
-        case 'Team':
-            message = intl.formatMessage({
-                id: 'notification.not_team_member',
-                defaultMessage: 'This message belongs to an enterprise where you are not a member.',
-            });
-            break;
-        case 'Post':
-            message = intl.formatMessage({
-                id: 'notification.no_post',
-                defaultMessage: 'The message has not been found.',
-            });
-            break;
-        case 'Connection':
-            message = intl.formatMessage({
-                id: 'notification.no_connection',
-                defaultMessage: 'The server is unreachable and it was not possible to retrieve the specific message information for the notification.',
-            });
-            break;
-    }
-
-    Alert.alert(title, message);
-    popToRoot();
+export const notificationError = (_intl: IntlShape, _type: NotificationErrorType) => {
+    showNotificationChannelNotFoundSnackbar();
 };
 
 export const emitNotificationError = (type: NotificationErrorType) => {

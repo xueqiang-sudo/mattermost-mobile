@@ -1843,6 +1843,7 @@
   "snack.bar.info.copied": "信息已复制到剪贴板",
   "snack.bar.link.copied": "链接已复制到剪贴板",
   "snack.bar.message.copied": "文本已复制到剪贴板",
+  "snack.bar.notification.channel.not.found": "无法打开对应对话，您可能已不在该对话中，或对话已不存在",
   "snack.bar.mute.channel": "此内部群已静音",
   "snack.bar.playbook.error": "无法执行操作。请稍后再试。",
   "snack.bar.remove.user": "1个成员已从此内部群删除",

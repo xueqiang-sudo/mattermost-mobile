@@ -20,6 +20,9 @@ export type ShowSnackBarArgs = {
 
     /** Display duration in ms (default 3000). Used with ignoreNavigationEvents for toast-style messages */
     duration?: number;
+
+    /** Vertical placement (default bottom) */
+    position?: 'top' | 'bottom';
 };
 
 export const showSnackBar = (passProps: ShowSnackBarArgs) => {
@@ -81,5 +84,14 @@ export const showBoRPostErrorSnackbar = (message?: string) => {
     return showSnackBar({
         barType: SNACK_BAR_TYPE.BOR_POST_EXPIRED,
         customMessage: message,
+    });
+};
+
+export const showNotificationChannelNotFoundSnackbar = () => {
+    return showSnackBar({
+        barType: SNACK_BAR_TYPE.NOTIFICATION_CHANNEL_NOT_FOUND,
+        ignoreNavigationEvents: true,
+        duration: 3000,
+        position: 'top',
     });
 };

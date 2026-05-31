@@ -21,6 +21,7 @@ import {getIsCRTEnabled} from '@queries/servers/thread';
 import EphemeralStore from '@store/ephemeral_store';
 import {logWarning} from '@utils/log';
 import {emitNotificationError} from '@utils/notification';
+import {showNotificationChannelNotFoundSnackbar} from '@utils/snack_bar';
 import {processPostsFetched} from '@utils/post';
 
 import type {Model} from '@nozbe/watermelondb';
@@ -257,8 +258,9 @@ export const openNotification = async (serverUrl: string, notification: Notifica
             return switchToChannelById(serverUrl, channelId, teamId);
         }
 
-        const result = await fetchNotificationData(serverUrl, notification);
+        const result = await fetchNotificationData(serverUrl, notification, true);
         if (result.error) {
+            showNotificationChannelNotFoundSnackbar();
             return {error: result.error};
         }
 

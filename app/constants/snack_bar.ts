@@ -32,11 +32,13 @@ export const SNACK_BAR_TYPE = keyMirror({
     BOR_POST_EXPIRED: null,
     ENTERPRISE_DISSOLVED_SUCCESS: null,
     ENTERPRISE_QUIT_SUCCESS: null,
+    NOTIFICATION_CHANNEL_NOT_FOUND: null,
 });
 
 export const MESSAGE_TYPE = {
     SUCCESS: 'success',
     ERROR: 'error',
+    WARNING: 'warning',
     DEFAULT: 'default',
 };
 
@@ -131,6 +133,10 @@ const messages = defineMessages({
     ENTERPRISE_QUIT_SUCCESS: {
         id: 'snack.bar.enterprise.quit.success',
         defaultMessage: 'You left {name} successfully',
+    },
+    NOTIFICATION_CHANNEL_NOT_FOUND: {
+        id: 'snack.bar.notification.channel.not.found',
+        defaultMessage: 'Unable to open this conversation. You may no longer be in it, or it no longer exists.',
     },
 });
 
@@ -249,6 +255,12 @@ export const SNACK_BAR_CONFIG: Record<string, SnackBarConfig> = {
         iconName: 'check',
         canUndo: false,
         type: MESSAGE_TYPE.SUCCESS,
+    },
+    NOTIFICATION_CHANNEL_NOT_FOUND: {
+        message: messages.NOTIFICATION_CHANNEL_NOT_FOUND,
+        iconName: 'alert-circle-outline',
+        canUndo: false,
+        type: MESSAGE_TYPE.WARNING,
     },
 };
 

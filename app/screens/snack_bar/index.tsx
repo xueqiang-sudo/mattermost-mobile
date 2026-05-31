@@ -5,6 +5,8 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {defineMessage, useIntl} from 'react-intl';
 import {
     DeviceEventEmitter,
+    Platform,
+    StatusBar,
     Text,
     TouchableOpacity,
     type StyleProp,
@@ -14,18 +16,20 @@ import {Gesture, GestureDetector, GestureHandlerRootView} from 'react-native-ges
 import {type ComponentEvent, Navigation} from 'react-native-navigation';
 import Animated, {
     Extrapolation,
-    FadeIn,
+    FadeInDown,
+    FadeInUp,
     interpolate,
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
     withTiming,
 } from 'react-native-reanimated';
+import {initialWindowMetrics} from 'react-native-safe-area-context';
 
 import Toast, {TOAST_HEIGHT} from '@components/toast';
 import {Navigation as NavigationConstants, Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_CONFIG} from '@constants/snack_bar';
-import {TABLET_SIDEBAR_WIDTH} from '@constants/view';
+import {STATUS_BAR_HEIGHT, TABLET_SIDEBAR_WIDTH} from '@constants/view';
 import {useTheme} from '@context/theme';
 import {useIsTablet, useWindowDimensions} from '@hooks/device';
 import SecurityManager from '@managers/security_manager';
@@ -44,10 +48,23 @@ type SnackBarProps = {
 const SNACK_BAR_WIDTH = 96;
 const SNACK_BAR_HEIGHT = 56;
 const SNACK_BAR_BOTTOM_RATIO = 0.04;
+const SNACK_BAR_TOP_OFFSET = 8;
 
 const caseScreens: AvailableScreens[] = [Screens.PERMALINK, Screens.MANAGE_CHANNEL_MEMBERS];
 
 const DEFAULT_ICON = 'alert-outline';
+
+/** Overlay 不在 SafeAreaProvider 内，用 initialWindowMetrics 避免 useSafeAreaInsets 崩溃 */
+const getTopSafeInset = () => {
+    const fromMetrics = initialWindowMetrics?.insets.top;
+    if (fromMetrics != null && fromMetrics > 0) {
+        return fromMetrics;
+    }
+    if (Platform.OS === 'android') {
+        return StatusBar.currentHeight ?? STATUS_BAR_HEIGHT;
+    }
+    return STATUS_BAR_HEIGHT;
+};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
@@ -103,6 +120,7 @@ const SnackBar = ({
     type,
     ignoreNavigationEvents = false,
     duration = 3000,
+    position = 'bottom',
 }: SnackBarProps) => {
     const [showSnackBar, setShowSnackBar] = useState<boolean | undefined>();
     const intl = useIntl();
@@ -128,11 +146,17 @@ const SnackBar = ({
     }
 
     const styles = getStyleSheet(theme);
+    const isTopPosition = position === 'top';
     const gestureRootStyle = useMemo(() => {
+        if (isTopPosition) {
+            return {
+                top: getTopSafeInset() + SNACK_BAR_TOP_OFFSET,
+            };
+        }
         return {
             bottom: SNACK_BAR_BOTTOM_RATIO * windowHeight,
         };
-    }, [windowHeight]);
+    }, [windowHeight, isTopPosition]);
 
     const snackBarStyle = useMemo(() => {
         const diffWidth = windowWidth - TABLET_SIDEBAR_WIDTH;
@@ -176,12 +200,15 @@ const SnackBar = ({
             case MESSAGE_TYPE.ERROR:
                 backgroundColor = theme.errorTextColor;
                 break;
+            case MESSAGE_TYPE.WARNING:
+                backgroundColor = theme.awayIndicator;
+                break;
             default:
                 backgroundColor = theme.centerChannelColor;
                 break;
         }
         return [styles.toast, {backgroundColor}];
-    }, [config?.type, styles.toast, theme.onlineIndicator, theme.errorTextColor, theme.centerChannelColor]);
+    }, [config?.type, styles.toast, theme.onlineIndicator, theme.errorTextColor, theme.awayIndicator, theme.centerChannelColor]);
 
     const animatedMotion = useAnimatedStyle(() => {
         return {
@@ -208,20 +235,21 @@ const SnackBar = ({
     };
 
     const gesture = Gesture.Pan().
-        activeOffsetY(20).
+        activeOffsetY(isTopPosition ? -20 : 20).
         onStart(() => {
             isPanned.value = true;
             runOnJS(stopTimers)();
-            offset.value = withTiming(100, {duration: 200});
+            offset.value = withTiming(isTopPosition ? -100 : 100, {duration: 200});
         }).
         onEnd(() => {
             runOnJS(hideSnackBar)();
         });
 
     const animateHiding = useCallback((forceHiding: boolean) => {
-        const duration = forceHiding ? 0 : 200;
-        offset.value = withTiming(200, {duration}, () => runOnJS(hideSnackBar)());
-    }, [offset]);
+        const animationDuration = forceHiding ? 0 : 200;
+        const hideOffset = isTopPosition ? -200 : 200;
+        offset.value = withTiming(hideOffset, {duration: animationDuration}, () => runOnJS(hideSnackBar)());
+    }, [offset, isTopPosition]);
 
     const onUndoPressHandler = () => {
         userHasUndo.current = true;
@@ -279,6 +307,7 @@ const SnackBar = ({
     }, [animateHiding, componentId, ignoreNavigationEvents, sourceScreen]);
 
     const message = customMessage || intl.formatMessage(config.message, messageValues);
+    const enteringAnimation = isTopPosition ? FadeInDown.duration(300) : FadeInUp.duration(300);
 
     return (
         <GestureHandlerRootView
@@ -290,7 +319,7 @@ const SnackBar = ({
                     nativeID={SecurityManager.getShieldScreenId(componentId)}
                 >
                     <Animated.View
-                        entering={FadeIn.duration(300)}
+                        entering={enteringAnimation}
                     >
                         <Toast
                             animatedStyle={snackBarStyle}

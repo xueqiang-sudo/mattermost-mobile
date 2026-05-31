@@ -958,6 +958,11 @@ export async function dismissAllOverlays() {
     } catch {
         // do nothing
     }
+
+    if (__DEBUG_PANEL__) {
+        const {restoreDebugPanelOverlay} = require('@utils/debug_panel_overlay');
+        restoreDebugPanelOverlay();
+    }
 }
 
 type BottomSheetArgs = {

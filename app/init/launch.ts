@@ -10,6 +10,7 @@ import {removePost} from '@actions/local/post';
 import {terminateSession} from '@actions/local/session';
 import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
+import {openNotification} from '@actions/remote/notifications';
 import {logout} from '@actions/remote/session';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import {runLaunchUpdateGate, showUpdateOverlay} from '@actions/remote/update';
@@ -34,7 +35,7 @@ import {queryMyTeams} from '@queries/servers/team';
 import {resetToHome, resetToLogin, resetToTeams, resetToOnboarding} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
-import {logInfo} from '@utils/log';
+import {logError, logInfo} from '@utils/log';
 import {convertToNotificationData} from '@utils/notification';
 import {removeProtocol} from '@utils/url';
 
@@ -307,7 +308,15 @@ export const launchToHome = async (props: LaunchProps) => {
 
     if (nTeams) {
         logInfo('Launch app in Home screen');
-        return resetToHome(props);
+        const homeResult = await resetToHome(props);
+        const pending = EphemeralStore.getPendingJPushNotification();
+        if (pending) {
+            EphemeralStore.clearPendingJPushNotification();
+            openNotification(pending.serverUrl, pending.notification).catch(
+                (error) => logError('[Launch.launchToHome] pending JPush notification failed', error),
+            );
+        }
+        return homeResult;
     }
 
     logInfo('Launch app in Select Teams screen');

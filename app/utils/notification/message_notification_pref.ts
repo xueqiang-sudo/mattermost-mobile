@@ -21,31 +21,69 @@ async function openChannelSettingsViaLinking(): Promise<boolean> {
     if (Platform.OS !== 'android') {
         return false;
     }
-    try {
-        await Linking.sendIntent('android.settings.CHANNEL_NOTIFICATION_SETTINGS', [
-            {key: 'android.provider.extra.APP_PACKAGE', value: ANDROID_APP_PACKAGE},
-            {key: 'android.provider.extra.CHANNEL_ID', value: JPUSH_NEW_MESSAGE_CHANNEL_ID},
-        ]);
-        return true;
-    } catch (error) {
-        logDebug('[message_notification_pref.openChannelSettingsViaLinking]', error);
-        return false;
+    const intentConfigs = [
+        {
+            action: 'android.settings.CHANNEL_NOTIFICATION_SETTINGS',
+            extras: [
+                {key: 'android.provider.extra.APP_PACKAGE', value: ANDROID_APP_PACKAGE},
+                {key: 'android.provider.extra.CHANNEL_ID', value: JPUSH_NEW_MESSAGE_CHANNEL_ID},
+            ],
+        },
+        {
+            action: 'android.settings.CHANNEL_NOTIFICATION_SETTINGS',
+            extras: [
+                {key: 'app_package', value: ANDROID_APP_PACKAGE},
+                {key: 'channel_id', value: JPUSH_NEW_MESSAGE_CHANNEL_ID},
+            ],
+        },
+        {
+            action: 'android.settings.APP_NOTIFICATION_SETTINGS',
+            extras: [
+                {key: 'android.provider.extra.APP_PACKAGE', value: ANDROID_APP_PACKAGE},
+                {key: 'android.provider.extra.CHANNEL_ID', value: JPUSH_NEW_MESSAGE_CHANNEL_ID},
+            ],
+        },
+    ];
+    for (const config of intentConfigs) {
+        try {
+            await Linking.sendIntent(config.action, config.extras);
+            return true;
+        } catch (_error) {
+            // 尝试下一个 Intent
+        }
     }
+    logDebug('[message_notification_pref.openChannelSettingsViaLinking] 所有 Intent 均失败');
+    return false;
 }
 
 async function openAppNotificationSettingsViaLinking(): Promise<boolean> {
     if (Platform.OS !== 'android') {
         return false;
     }
-    try {
-        await Linking.sendIntent('android.settings.APP_NOTIFICATION_SETTINGS', [
-            {key: 'android.provider.extra.APP_PACKAGE', value: ANDROID_APP_PACKAGE},
-        ]);
-        return true;
-    } catch (error) {
-        logDebug('[message_notification_pref.openAppNotificationSettingsViaLinking]', error);
-        return false;
+    const intentConfigs = [
+        {
+            action: 'android.settings.APP_NOTIFICATION_SETTINGS',
+            extras: [
+                {key: 'android.provider.extra.APP_PACKAGE', value: ANDROID_APP_PACKAGE},
+            ],
+        },
+        {
+            action: 'android.settings.APP_NOTIFICATION_SETTINGS',
+            extras: [
+                {key: 'app_package', value: ANDROID_APP_PACKAGE},
+            ],
+        },
+    ];
+    for (const config of intentConfigs) {
+        try {
+            await Linking.sendIntent(config.action, config.extras);
+            return true;
+        } catch (_error) {
+            // 尝试下一个 Intent
+        }
     }
+    logDebug('[message_notification_pref.openAppNotificationSettingsViaLinking] 所有 Intent 均失败');
+    return false;
 }
 
 export async function openMessageNotificationChannelSettings(): Promise<boolean> {
