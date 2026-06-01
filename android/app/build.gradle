@@ -138,12 +138,12 @@ android {
             JPUSH_CHANNEL: "developer-default",        //暂时填写默认值即可
             HONOR_APPID: "104563467",                         //在此替换荣耀AppID
             OPPO_APPKEY: "OP-060ef036bab14f2ebf180a36a5e7fb10",  //在此替换OPPO AppKey（加OP-前缀）
-            OPPO_APPID: "37266320",                           //在此替换OPPO AppID
-            OPPO_APPSECRET: "fbece8740faa436ea29294f079d14de7",   //在此替换OPPO AppSecret
+            OPPO_APPID: "OP-37266320",                           //在此替换OPPO AppID
+            OPPO_APPSECRET: "OP-fbece8740faa436ea29294f079d14de7",   //在此替换OPPO AppSecret
             XIAOMI_APPKEY : "5352053026617",// 小米平台注册的appkey，xiaomi-v5.5.3版本开始，不需要添加前缀 “MI-”
             XIAOMI_APPID : "2882303761520530617", // 小米平台注册的appid，xiaomi-v5.5.3版本开始，不需要添加前缀 “MI-”
-            MEIZU_APPKEY : "MZ-testAPPKEY", //魅族平台注册的appkey
-            MEIZU_APPID : "MZ-testAPPID", //魅族平台注册的appid
+            MEIZU_APPKEY : "MZ-c931cc17e294495085e099fefeb80760", //魅族平台注册的appkey
+            MEIZU_APPID : "MZ-157255", //魅族平台注册的appid
             VIVO_APPKEY: "test_vivo_appkey",                 //在此替换VIVO AppKey
             VIVO_APPID: "test_vivo_appid",                   //在此替换VIVO AppID
         ]
