@@ -14,6 +14,7 @@ import {CustomInputModal, useCustomInputModal} from '@components/custom_input_mo
 import FloatingTextInput from '@components/floating_input/floating_text_input_label';
 import {useAvoidKeyboard} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {prepareJPushAfterLogin} from '@init/launch';
 import {getAutoClient} from '@managers/network_manager';
 import {resetToHome} from '@screens/navigation';
 import {getFullErrorMessage} from '@utils/errors';
@@ -207,10 +208,11 @@ const PhoneLoginForm = ({
         });
     }, [showModal, intl]);
 
-    const goToHome = useCallback((loginError?: unknown) => {
+    const goToHome = useCallback(async (loginError?: unknown) => {
         const hasError = launchError || Boolean(loginError);
-        resetToHome({extra, launchError: hasError, launchType});
-    }, [extra, launchError, launchType]);
+        await prepareJPushAfterLogin(serverUrl);
+        resetToHome({extra, launchError: hasError, launchType, serverUrl});
+    }, [extra, launchError, launchType, serverUrl]);
 
     // const check = useCallback(async () => {
     //     const result = await doPing(serverUrl, true);
@@ -353,7 +355,7 @@ const PhoneLoginForm = ({
             // 登录成功
             setError(undefined);
             setIsLoading(false);
-            goToHome();
+            await goToHome();
         } catch (loginError) {
             logInfo('error on signInWithCode', getFullErrorMessage(loginError));
             setError(getFullErrorMessage(loginError, intl));

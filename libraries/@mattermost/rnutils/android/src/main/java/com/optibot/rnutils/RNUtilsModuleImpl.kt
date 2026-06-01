@@ -209,6 +209,10 @@ class RNUtilsModuleImpl(private val reactContext: ReactApplicationContext): Life
         serverUrl?.let { Notifications.removeServerNotifications(it) }
     }
 
+    fun clearAllDeliveredNotifications(): Int {
+        return Notifications.clearAllDeliveredNotifications()
+    }
+
     fun setSoftKeyboardToAdjustNothing() {
         val currentActivity: Activity = reactContext.currentActivity ?: return
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {

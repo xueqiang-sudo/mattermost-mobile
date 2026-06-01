@@ -1,9 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import RNUtils from '@mattermost/rnutils';
 import JCore from 'jcore-react-native';
 import JPush from 'jpush-react-native';
-import {AppState, DeviceEventEmitter, NativeModules, Platform} from 'react-native';
+import {AppState, DeviceEventEmitter, NativeModules, Platform, type AppStateStatus} from 'react-native';
 
 import {openNotification} from '@actions/remote/notifications';
 import {Events, Screens} from '@constants';
@@ -48,6 +49,12 @@ class JPushManager {
     private appReady = false;
     private pendingColdStartNotification: JPushNotificationEvent | null = null;
     private loggedIn = false;
+
+    /** 待 Registration 连接成功后设置的别名（userId） */
+    private pendingUserId = '';
+    private appLifecycleAttached = false;
+    private appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+    private lastAppState: AppStateStatus = AppState.currentState;
 
     /**
      * 初始化极光推送 SDK
@@ -118,6 +125,7 @@ class JPushManager {
                 JPush.isPushStopped((stopped) => {
                     logDebug(`${TAG} 推送接收状态`, {stopped});
                 });
+                this.logKeepLongConnInBackground();
             }
 
             this.scheduleRegistrationIdRetries();
@@ -128,6 +136,76 @@ class JPushManager {
             logError(`${TAG} 极光 SDK 初始化失败`, error);
             this.initialized = false;
         }
+    }
+
+    /**
+     * App 启动时调用：注册前后台监听，并清除通知栏极光通知（Android）
+     */
+    onAppStart() {
+        if (Platform.OS !== 'android') {
+            return;
+        }
+        this.attachAppLifecycle();
+        this.clearDisplayedNotifications('appStart');
+    }
+
+    /**
+     * 监听 App 进入前台（含从后台回来），统一清理极光通知栏
+     */
+    private attachAppLifecycle() {
+        if (this.appLifecycleAttached) {
+            return;
+        }
+        this.appLifecycleAttached = true;
+        this.lastAppState = AppState.currentState;
+        this.appStateSubscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+            if (this.lastAppState !== 'active' && nextState === 'active') {
+                this.clearDisplayedNotifications('foreground');
+            }
+            this.lastAppState = nextState;
+        });
+        logDebug(`${TAG} 已注册 App 前后台监听（进入前台时清理极光通知）`);
+    }
+
+    /**
+     * 统一清理系统通知栏中的极光/应用推送通知（Android Only）
+     * JPush.clearAllNotifications 仅清 SDK 内部记录；须配合 RNUtils 取消系统 NotificationManager 上的通知。
+     */
+    clearDisplayedNotifications(source: 'appStart' | 'foreground' | 'notificationOpened') {
+        if (Platform.OS !== 'android') {
+            return;
+        }
+        try {
+            if (typeof RNUtils.clearAllDeliveredNotifications === 'function') {
+                RNUtils.clearAllDeliveredNotifications();
+            } else {
+                logWarning(`${TAG} RNUtils.clearAllDeliveredNotifications 不可用，请重新编译 Android`);
+            }
+            JPush.clearLocalNotifications();
+            JPush.clearAllNotifications();
+            if (typeof JPush.setBadge === 'function') {
+                JPush.setBadge({badge: 0, appBadge: 0});
+            }
+            logInfo(`${TAG} 已清除通知栏推送通知`, {source});
+        } catch (error) {
+            logError(`${TAG} 清除通知栏推送失败`, {source, error});
+        }
+    }
+
+    private logKeepLongConnInBackground() {
+        if (Platform.OS !== 'android') {
+            return;
+        }
+        if (typeof JPush.getKeepLongConnInBackground !== 'function') {
+            logWarning(`${TAG} getKeepLongConnInBackground 不可用`);
+            return;
+        }
+        JPush.getKeepLongConnInBackground((result: {keepLongConn?: boolean}) => {
+            logInfo(`${TAG} 后台长连接保持状态`, {
+                keepLongConn: result?.keepLongConn,
+                result,
+            });
+        });
     }
 
     /**
@@ -238,6 +316,7 @@ class JPushManager {
             DeviceEventEmitter.emit(Events.JPUSH_NOTIFICATION_EVENT, notification);
 
             if (notification.notificationEventType === 'notificationOpened') {
+                this.clearDisplayedNotifications('notificationOpened');
                 this.handleNotificationOpened(notification);
             } else {
                 this.handleNotificationArrived(notification);
@@ -383,6 +462,8 @@ class JPushManager {
                     this.connected = true;
                     DeviceEventEmitter.emit(Events.JPUSH_CONNECT_STATUS, {connectEnable: true});
                 }
+
+                this.applyPendingUserAlias();
             } else {
                 logDebug(`${TAG} Registration ID 仍为空，将依赖后续重试或连接回调`, result);
             }
@@ -390,19 +471,64 @@ class JPushManager {
     }
 
     /**
+     * 按用户 notify_props.push 同步极光：none 则停止接收；all/mention 则 init/resume 并设置别名
+     */
+    syncForNotifyPush(push: UserNotifyPropsPush | string | undefined, userId: string) {
+        const shouldReceivePush = push !== 'none';
+        if (!shouldReceivePush) {
+            logInfo(`${TAG} notify_props.push=none，停止接收推送`);
+            this.pendingUserId = '';
+            if (this.initialized) {
+                this.stopPush();
+            }
+            return;
+        }
+
+        if (!userId) {
+            logWarning(`${TAG} syncForNotifyPush 跳过，缺少 userId`);
+            return;
+        }
+
+        if (this.initialized) {
+            this.resumePush();
+        } else {
+            this.init();
+        }
+        this.pendingUserId = userId;
+        this.applyPendingUserAlias();
+        logInfo(`${TAG} 已按 notify_props.push 同步极光`, {push, userId, hasRegistration: Boolean(this.registerId)});
+    }
+
+    /**
+     * Registration 连接成功（已取得 RegistrationID）后再设置别名
+     */
+    private applyPendingUserAlias() {
+        if (!this.pendingUserId || !this.initialized) {
+            return;
+        }
+        if (!this.registerId) {
+            logDebug(`${TAG} 等待 Registration 连接成功后再设置别名`, {userId: this.pendingUserId});
+            return;
+        }
+        this.setUserAlias(this.pendingUserId);
+    }
+
+    /**
      * 设置用户别名，用于定向推送
-     * @param serverUrl 服务器地址
      * @param userId 用户 ID
      */
-    setUserAlias(serverUrl: string, userId: string) {
+    setUserAlias(userId: string) {
         if (!this.initialized) {
             logWarning(`${TAG} setUserAlias 跳过，JPush 尚未初始化`);
             return;
         }
-        const alias = `${serverUrl}_${userId}`;
+        if (!this.registerId) {
+            logWarning(`${TAG} setUserAlias 跳过，Registration 尚未连接成功`);
+            return;
+        }
         const sequence = Date.now();
-        logInfo(`${TAG} 设置用户别名`, {alias, sequence});
-        JPush.setAlias({sequence, alias});
+        logInfo(`${TAG} 设置用户别名`, {alias: userId, sequence, registerId: this.registerId});
+        JPush.setAlias({sequence, alias: userId});
     }
 
     /**

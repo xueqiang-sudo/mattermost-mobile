@@ -22,7 +22,6 @@ import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {clearCachedUpdateApk} from '@utils/file/apk_download';
 import {logDebug, logError} from '@utils/log';
-import {getMessageNotificationEnabled} from '@utils/notification/message_notification_pref';
 import {showDebugPanelOverlay} from '@utils/debug_panel_overlay';
 
 // Controls whether the main initialization (database, etc...) is done, either on app launch
@@ -69,6 +68,7 @@ export async function start() {
     EphemeralStore.setCurrentThreadId('');
     EphemeralStore.setProcessingNotification('');
     JPushManager.setLoggedIn(false);
+    JPushManager.onAppStart();
 
     registerNavigationListeners();
     registerScreens();
@@ -102,10 +102,6 @@ export async function start() {
 
     await PushNotifications.requestPermissionIfNeeded();
     PushNotifications.init(serverCredentials.length > 0);
-    const messageNotificationsEnabled = await getMessageNotificationEnabled();
-    if (messageNotificationsEnabled) {
-        JPushManager.init();
-    }
 
     await WebsocketManager.init(serverCredentials);
 

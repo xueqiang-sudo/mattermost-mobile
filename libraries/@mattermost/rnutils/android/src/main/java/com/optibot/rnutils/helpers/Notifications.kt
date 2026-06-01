@@ -43,5 +43,10 @@ class Notifications {
             val applicationContext = context.applicationContext
             NotificationHelper.removeServerNotifications(applicationContext, serverUrl)
         }
+
+        fun clearAllDeliveredNotifications(): Int {
+            val applicationContext = context.applicationContext
+            return NotificationHelper.clearAllDisplayedNotifications(applicationContext)
+        }
     }
 }

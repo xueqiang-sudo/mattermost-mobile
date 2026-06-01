@@ -2,6 +2,7 @@ package com.optibot.cnutils.helpers
 
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import android.text.TextUtils
@@ -63,6 +64,30 @@ object NotificationHelper {
     fun getDeliveredNotifications(context: Context): Array<StatusBarNotification> {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         return notificationManager.activeNotifications
+    }
+
+    /**
+     * 清除系统通知栏全部通知（含自定义 NotificationManager 发布的极光/Mattermost 通知）。
+     * JPush.clearAllNotifications 仅清 SDK 内部记录，无法移除本应用自定义 builder 发出的通知。
+     */
+    fun clearAllDisplayedNotifications(context: Context): Int {
+        val notificationManager = NotificationManagerCompat.from(context)
+        val systemNotificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val active = getDeliveredNotifications(context)
+        var cancelledCount = 0
+        for (sbn in active) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                notificationManager.cancel(sbn.tag, sbn.id)
+            } else {
+                notificationManager.cancel(sbn.id)
+            }
+            cancelledCount++
+        }
+        notificationManager.cancelAll()
+        systemNotificationManager.cancelAll()
+        saveMap(context, emptyMap())
+        return cancelledCount
     }
 
     fun addNotificationToPreferences(context: Context, notificationId: Int, notification: Bundle): Boolean {

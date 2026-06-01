@@ -7,12 +7,11 @@ import {Platform, View} from 'react-native';
 import {Notifications as RNNotifications} from 'react-native-notifications';
 import Permissions, {checkNotifications} from 'react-native-permissions';
 
+import {updateMe} from '@actions/remote/user';
 import {getCallsConfig} from '@calls/state';
-import FormattedText from '@components/formatted_text';
 import OptionItem from '@components/option_item';
 import SettingContainer from '@components/settings/container';
 import SettingItem from '@components/settings/item';
-import SettingSeparator from '@components/settings/separator';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -38,19 +37,32 @@ import SendTestNotificationNotice from './send_test_notification_notice';
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const SECTION_GAP = 16;
+const CARD_RADIUS = 12;
+const CARD_PADDING = 16;
 
-const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
-    sectionHeader: {
-        marginTop: SECTION_GAP,
-        marginBottom: 8,
-    },
-    sectionHeaderText: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        fontSize: 14,
-        lineHeight: 20,
-    },
-}));
+/** 暂隐藏：提及/推送/邮件子项与排查通知卡片，待产品就绪后改为 false */
+const HIDE_ADVANCED_NOTIFICATION_SETTINGS = true;
+
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
+    const borderSubtle = changeOpacity(theme.centerChannelColor, 0.08);
+
+    return {
+        card: {
+            borderRadius: CARD_RADIUS,
+            borderWidth: 1,
+            borderColor: borderSubtle,
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+            paddingHorizontal: CARD_PADDING,
+            paddingVertical: 4,
+            overflow: 'hidden',
+        },
+        cardDivider: {
+            height: 1,
+            backgroundColor: borderSubtle,
+            marginHorizontal: -CARD_PADDING,
+        },
+    };
+});
 
 const mentionTexts = defineMessages({
     crtOn: {
@@ -80,7 +92,8 @@ export type NotificationsProps = {
     isCRTEnabled: boolean;
     sendEmailNotifications: boolean;
     serverVersion: string;
-}
+};
+
 const Notifications = ({
     componentId,
     currentUser,
@@ -99,13 +112,34 @@ const Notifications = ({
     const callsRingingEnabled = useMemo(() => getCallsConfig(serverUrl).EnableRinging, [serverUrl]);
     const [isRegistered, setIsRegistered] = useState(true);
     const [messageNotifEnabled, setMessageNotifEnabled] = useState(true);
+    const [mentionOnlyEnabled, setMentionOnlyEnabled] = useState(false);
 
     const appState = useAppState();
 
     useEffect(() => {
-        getMessageNotificationEnabled().then(setMessageNotifEnabled);
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- load persisted preference once on mount
-    }, []);
+        setMentionOnlyEnabled(notifyProps?.push === 'mention');
+    }, [notifyProps?.push]);
+
+    useEffect(() => {
+        const loadPreferences = async () => {
+            try {
+                const localEnabled = await getMessageNotificationEnabled();
+                const pushPref = notifyProps?.push;
+                if (pushPref) {
+                    const serverEnabled = pushPref !== 'none';
+                    setMessageNotifEnabled(serverEnabled);
+                    if (serverEnabled !== localEnabled) {
+                        await setMessageNotificationEnabled(serverEnabled);
+                    }
+                } else {
+                    setMessageNotifEnabled(localEnabled);
+                }
+            } catch (error) {
+                logError('[Notifications.loadPreferences]', error);
+            }
+        };
+        loadPreferences();
+    }, [notifyProps?.push]);
 
     useEffect(() => {
         let isCurrent = true;
@@ -201,24 +235,56 @@ const Notifications = ({
         Permissions.openSettings('notifications');
     }, []));
 
+    const syncPushPreference = useCallback(async (push: UserNotifyPropsPush) => {
+        const result = await updateMe(serverUrl, {
+            notify_props: {
+                ...notifyProps,
+                push,
+            },
+        });
+        if (result.error) {
+            throw result.error;
+        }
+    }, [notifyProps, serverUrl]);
+
+    const syncJPushForCurrentUser = useCallback((push: UserNotifyPropsPush) => {
+        const userId = currentUser?.id;
+        if (userId) {
+            JPushManager.syncForNotifyPush(push, userId);
+        }
+    }, [currentUser?.id]);
+
     const handleMessageNotificationToggle = useCallback(async (enabled: boolean) => {
         const nextEnabled = Boolean(enabled);
         try {
             await setMessageNotificationEnabled(nextEnabled);
             setMessageNotifEnabled(nextEnabled);
+            const newPush: UserNotifyPropsPush = nextEnabled ? 'all' : 'none';
             if (nextEnabled) {
-                if (!JPushManager.isInitialized()) {
-                    JPushManager.init();
-                } else {
-                    JPushManager.resumePush();
-                }
-            } else {
-                JPushManager.stopPush();
+                setMentionOnlyEnabled(false);
             }
+            await syncPushPreference(newPush);
+            syncJPushForCurrentUser(newPush);
         } catch (error) {
             logError('[Notifications.handleMessageNotificationToggle]', error);
         }
-    }, []);
+    }, [syncJPushForCurrentUser, syncPushPreference]);
+
+    const handleMentionOnlyToggle = useCallback(async (enabled: boolean) => {
+        if (!messageNotifEnabled) {
+            return;
+        }
+        const nextEnabled = Boolean(enabled);
+        const previousEnabled = mentionOnlyEnabled;
+        setMentionOnlyEnabled(nextEnabled);
+        try {
+            const newPush: UserNotifyPropsPush = nextEnabled ? 'mention' : 'all';
+            await syncPushPreference(newPush);
+        } catch (error) {
+            setMentionOnlyEnabled(previousEnabled);
+            logError('[Notifications.handleMentionOnlyToggle]', error);
+        }
+    }, [mentionOnlyEnabled, messageNotifEnabled, syncPushPreference]);
 
     const close = useCallback(() => {
         popTopScreen(componentId);
@@ -231,10 +297,34 @@ const Notifications = ({
         defaultMessage: 'Message Notifications',
     });
 
+    const mentionOnlyLabel = intl.formatMessage({
+        id: 'notification_settings.mention_only',
+        defaultMessage: 'Only notify on @mentions',
+    });
+
+    const mentionOnlyDescription = intl.formatMessage({
+        id: 'notification_settings.mention_only_desc',
+        defaultMessage: 'When off, you will receive notifications for all new messages',
+    });
+
     const goToSystemLabel = intl.formatMessage({
         id: 'notification_settings.message_notification.go_to_system',
-        defaultMessage: 'Go to System Settings',
+        defaultMessage: 'Open',
     });
+
+    const systemNotificationTitle = intl.formatMessage({
+        id: 'notification_settings.system_notification.title',
+        defaultMessage: 'System notification settings',
+    });
+
+    const goToSystemDescription = intl.formatMessage({
+        id: 'notification_settings.system_notification.desc',
+        defaultMessage: 'Manage ringtone, banners, and lock screen alerts in system settings',
+    });
+
+    const handleOpenSystemSettings = useCallback(() => {
+        openChannelNotificationSettings();
+    }, [openChannelNotificationSettings]);
 
     return (
         <SettingContainer testID='notification_settings'>
@@ -242,46 +332,60 @@ const Notifications = ({
                 <NotificationsDisabledNotice
                     testID='notifications-disabled-notice'
                 />}
-            <OptionItem
-                action={handleMessageNotificationToggle}
-                icon='bell-outline'
-                label={messageNotificationLabel}
-                selected={messageNotifEnabled}
-                testID='notification_settings.message_notification.toggle'
-                type='toggle'
-            />
-            <SettingSeparator/>
-            {messageNotifEnabled && (
-                <>
-                    <View style={styles.sectionHeader}>
-                        <FormattedText
-                            id='notification_settings.sound_and_vibration'
-                            defaultMessage='Sound and Vibration'
-                            style={styles.sectionHeaderText}
+            <View style={styles.card}>
+                <OptionItem
+                    action={handleMessageNotificationToggle}
+                    icon='bell-outline'
+                    label={messageNotificationLabel}
+                    selected={messageNotifEnabled}
+                    testID='notification_settings.message_notification.toggle'
+                    type='toggle'
+                />
+                {messageNotifEnabled && (
+                    <>
+                        <View style={styles.cardDivider}/>
+                        <OptionItem
+                            action={handleMentionOnlyToggle}
+                            description={mentionOnlyDescription}
+                            descriptionNumberOfLines={2}
+                            icon='at'
+                            label={mentionOnlyLabel}
+                            selected={mentionOnlyEnabled}
+                            testID='notification_settings.mention_only.toggle'
+                            type='toggle'
                         />
-                    </View>
+                        <View style={styles.cardDivider}/>
+                        <OptionItem
+                            action={handleOpenSystemSettings}
+                            description={goToSystemDescription}
+                            descriptionNumberOfLines={2}
+                            icon='settings-outline'
+                            info={goToSystemLabel}
+                            label={systemNotificationTitle}
+                            testID='notification_settings.system_notification.option'
+                            type='arrow'
+                        />
+                    </>
+                )}
+            </View>
+            {!HIDE_ADVANCED_NOTIFICATION_SETTINGS && (
+                <>
                     <SettingItem
-                        info={goToSystemLabel}
-                        onPress={openChannelNotificationSettings}
-                        optionName='message_notification'
-                        testID='notification_settings.message_notification.option'
+                        onPress={goToNotificationSettingsMentions}
+                        optionName='mentions'
+                        label={intl.formatMessage({
+                            id: isCRTEnabled ? mentionTexts.crtOn.id : mentionTexts.crtOff.id,
+                            defaultMessage: isCRTEnabled ? mentionTexts.crtOn.defaultMessage : mentionTexts.crtOff.defaultMessage,
+                        })}
+                        testID='notification_settings.mentions.option'
+                    />
+                    <SettingItem
+                        optionName='push_notification'
+                        onPress={goToNotificationSettingsPush}
+                        testID='notification_settings.push_notifications.option'
                     />
                 </>
             )}
-            <SettingItem
-                onPress={goToNotificationSettingsMentions}
-                optionName='mentions'
-                label={intl.formatMessage({
-                    id: isCRTEnabled ? mentionTexts.crtOn.id : mentionTexts.crtOff.id,
-                    defaultMessage: isCRTEnabled ? mentionTexts.crtOn.defaultMessage : mentionTexts.crtOff.defaultMessage,
-                })}
-                testID='notification_settings.mentions.option'
-            />
-            <SettingItem
-                optionName='push_notification'
-                onPress={goToNotificationSettingsPush}
-                testID='notification_settings.push_notifications.option'
-            />
             {callsRingingEnabled &&
                 <SettingItem
                     optionName='call_notification'
@@ -293,12 +397,14 @@ const Notifications = ({
                     testID='notification_settings.call_notifications.option'
                 />
             }
-            <SettingItem
-                optionName='email'
-                onPress={goToEmailSettings}
-                info={intl.formatMessage(getEmailIntervalTexts(emailIntervalPref))}
-                testID='notification_settings.email_notifications.option'
-            />
+            {!HIDE_ADVANCED_NOTIFICATION_SETTINGS && (
+                <SettingItem
+                    optionName='email'
+                    onPress={goToEmailSettings}
+                    info={intl.formatMessage(getEmailIntervalTexts(emailIntervalPref))}
+                    testID='notification_settings.email_notifications.option'
+                />
+            )}
             {enableAutoResponder && (
                 <SettingItem
                     onPress={goToNotificationAutoResponder}
@@ -307,10 +413,12 @@ const Notifications = ({
                     testID='notification_settings.automatic_replies.option'
                 />
             )}
-            <SendTestNotificationNotice
-                serverVersion={serverVersion}
-                userId={currentUser?.id || ''}
-            />
+            {!HIDE_ADVANCED_NOTIFICATION_SETTINGS && (
+                <SendTestNotificationNotice
+                    serverVersion={serverVersion}
+                    userId={currentUser?.id || ''}
+                />
+            )}
         </SettingContainer>
     );
 };

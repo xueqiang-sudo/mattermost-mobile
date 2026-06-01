@@ -32,10 +32,13 @@ import {queryPostsByType} from '@queries/servers/post';
 import {getThemeForCurrentTeam} from '@queries/servers/preference';
 import {getCurrentUserId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
+import {getCurrentUser} from '@queries/servers/user';
 import {resetToHome, resetToLogin, resetToTeams, resetToOnboarding} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
+import {setMessageNotificationEnabled} from '@utils/notification/message_notification_pref';
 import {logError, logInfo} from '@utils/log';
+import {getNotificationProps} from '@utils/user';
 import {convertToNotificationData} from '@utils/notification';
 import {removeProtocol} from '@utils/url';
 
@@ -256,9 +259,43 @@ export const launchApp = async (props: LaunchProps) => {
     return loginResult;
 };
 
-export const launchToHome = async (props: LaunchProps) => {
+const syncJPushAfterLogin = async (serverUrl: string) => {
+    try {
+        const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+        if (!database) {
+            return;
+        }
+
+        const user = await getCurrentUser(database);
+        const userId = user?.id;
+        if (!userId) {
+            return;
+        }
+
+        const {push} = getNotificationProps(user);
+        logInfo('[Launch.syncJPushAfterLogin] push', push);
+        await setMessageNotificationEnabled(push !== 'none');
+        JPushManager.syncForNotifyPush(push, userId);
+    } catch (error) {
+        logError('[Launch.syncJPushAfterLogin]', error);
+    }
+};
+
+/** 登录后进入 Home 前同步 JPush（含消息通知开关与 alias） */
+export const prepareJPushAfterLogin = async (serverUrl: string) => {
     JPushManager.markAppReady();
     JPushManager.setLoggedIn(true);
+    await syncJPushAfterLogin(serverUrl);
+};
+
+export const launchToHome = async (props: LaunchProps) => {
+    logInfo('[Launch.launchToHome] launchToHome', props);
+    if (props.serverUrl) {
+        await prepareJPushAfterLogin(props.serverUrl);
+    } else {
+        JPushManager.markAppReady();
+        JPushManager.setLoggedIn(true);
+    }
 
     let openPushNotification = false;
 
