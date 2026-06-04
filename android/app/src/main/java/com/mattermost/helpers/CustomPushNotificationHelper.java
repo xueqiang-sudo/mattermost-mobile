@@ -282,18 +282,18 @@ public class CustomPushNotificationHelper {
 
         final NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
 
-        MessageNotificationChannel.ensureCreated(context);
+        MessageNotificationChannel.ensureAppNotificationChannels(context);
         if (mHighImportanceChannel == null) {
             NotificationChannel channel = notificationManager.getNotificationChannel(CHANNEL_JPUSH_NEW_MESSAGE_ID);
             if (channel != null) {
                 mHighImportanceChannel = channel;
             }
         }
-
         if (mMinImportanceChannel == null) {
-            mMinImportanceChannel = new NotificationChannel(CHANNEL_MIN_IMPORTANCE_ID, "其他通知", NotificationManager.IMPORTANCE_MIN);
-            mMinImportanceChannel.setShowBadge(true);
-            notificationManager.createNotificationChannel(mMinImportanceChannel);
+            NotificationChannel channel = notificationManager.getNotificationChannel(CHANNEL_MIN_IMPORTANCE_ID);
+            if (channel != null) {
+                mMinImportanceChannel = channel;
+            }
         }
     }
 

@@ -101,7 +101,7 @@ class MainApplication : NavigationApplication(), INotificationsApplication {
 
     private fun setupNotificationChannels() {
         JiguangOptibotLog.i("setupNotificationChannels start")
-        MessageNotificationChannel.ensureCreated(this)
+        MessageNotificationChannel.ensureAppNotificationChannels(this)
         MessageNotificationChannel.primeIfNeeded(this)
         CustomPushNotificationHelper.createNotificationChannels(this)
         JPushInterface.setDefaultPushNotificationBuilder(OptibotJPushNotificationBuilder(this))

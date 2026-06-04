@@ -36,7 +36,7 @@ import {getCurrentUser} from '@queries/servers/user';
 import {resetToHome, resetToLogin, resetToTeams, resetToOnboarding} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
-import {setMessageNotificationEnabled} from '@utils/notification/message_notification_pref';
+import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
 import {logError, logInfo} from '@utils/log';
 import {getNotificationProps} from '@utils/user';
 import {convertToNotificationData} from '@utils/notification';
@@ -272,10 +272,9 @@ const syncJPushAfterLogin = async (serverUrl: string) => {
             return;
         }
 
-        const {push} = getNotificationProps(user);
+        const notifyProps = getNotificationProps(user);
+        const {push} = await syncNotifyPushWithSystemSettings(serverUrl, userId, notifyProps);
         logInfo('[Launch.syncJPushAfterLogin] push', push);
-        await setMessageNotificationEnabled(push !== 'none');
-        JPushManager.syncForNotifyPush(push, userId);
     } catch (error) {
         logError('[Launch.syncJPushAfterLogin]', error);
     }

@@ -7,10 +7,11 @@ import VIForegroundService from '@voximplant/react-native-foreground-service';
 
 import {logError} from '@utils/log';
 
+/** 与 Android [CustomPushNotificationHelper.CHANNEL_MIN_IMPORTANCE_ID]「其他通知」一致 */
 const channelConfig = {
-    id: 'calls_channel',
-    name: 'Optibot',
-    description: 'Optibot Calls microphone while app is in the background',
+    id: 'channel_02',
+    name: '其他通知',
+    description: '其他通知',
     enableVibration: false,
 };
 
@@ -21,7 +22,7 @@ export const foregroundServiceSetup = () => {
 
 export const foregroundServiceStart = async () => {
     const notificationConfig = {
-        channelId: 'calls_channel',
+        channelId: 'channel_02',
         id: 345678,
         title: 'Optibot',
         text: 'Optibot Calls Microphone',

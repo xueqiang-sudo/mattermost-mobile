@@ -17,7 +17,7 @@ import PushNotifications from '@init/push_notifications';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {logDebug, logError, logInfo, logWarning} from '@utils/log';
-import {JPUSH_NEW_MESSAGE_CHANNEL_ID} from '@utils/notification/message_notification_pref';
+import {areSystemNotificationsEnabled, JPUSH_NEW_MESSAGE_CHANNEL_ID} from '@utils/notification/message_notification_pref';
 
 const JPUSH_APP_KEY = 'e5e6799b552158d3a1d22d0a';
 const JPUSH_CHANNEL = 'developer-default';
@@ -49,6 +49,9 @@ class JPushManager {
     private appReady = false;
     private pendingColdStartNotification: JPushNotificationEvent | null = null;
     private loggedIn = false;
+    private systemNotificationsEnabled = true;
+    private lastNotifyPush: UserNotifyPropsPush | string | undefined;
+    private lastUserId = '';
 
     /** 待 Registration 连接成功后设置的别名（userId） */
     private pendingUserId = '';
@@ -111,10 +114,23 @@ class JPushManager {
             this.initialized = true;
             logInfo(`${TAG} 极光 SDK 初始化成功`);
 
-            // Android：stopPush() 会持久化到下次启动；仅 init 不会自动恢复接收
             if (Platform.OS === 'android') {
-                logInfo(`${TAG} 恢复推送服务`);
-                JPush.resumePush();
+                const notificationSettings = NativeModules.NotificationSettings as {
+                    syncNotificationChannels?: () => Promise<boolean>;
+                } | undefined;
+                if (notificationSettings?.syncNotificationChannels) {
+                    logDebug(`${TAG} 调用 syncNotificationChannels`);
+                    // eslint-disable-next-line no-void
+                    void notificationSettings.syncNotificationChannels().then((synced) => {
+                        logDebug(`${TAG} syncNotificationChannels 完成`, {synced});
+                    }).catch((error: unknown) => {
+                        logError(`${TAG} syncNotificationChannels 失败`, error);
+                    });
+                }
+            }
+
+            // Android：stopPush() 会持久化到下次启动；resume 由 syncForNotifyPush 在权限校验通过后调用
+            if (Platform.OS === 'android') {
                 logInfo(`${TAG} 设置保留最近通知条数`);
                 JPush.setLatestNotificationNumber({notificationMaxNumber: 1});
                 const jpushModule = NativeModules.JPushModule as {
@@ -142,11 +158,10 @@ class JPushManager {
      * App 启动时调用：注册前后台监听，并清除通知栏极光通知（Android）
      */
     onAppStart() {
-        if (Platform.OS !== 'android') {
-            return;
-        }
         this.attachAppLifecycle();
-        this.clearDisplayedNotifications('appStart');
+        if (Platform.OS === 'android') {
+            this.clearDisplayedNotifications('appStart');
+        }
     }
 
     /**
@@ -161,6 +176,8 @@ class JPushManager {
         this.appStateSubscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
             if (this.lastAppState !== 'active' && nextState === 'active') {
                 this.clearDisplayedNotifications('foreground');
+                // eslint-disable-next-line no-void
+                void this.syncOnForegroundIfLoggedIn();
             }
             this.lastAppState = nextState;
         });
@@ -308,6 +325,12 @@ class JPushManager {
         });
 
         JPush.addNotificationListener((notification: JPushNotificationEvent) => {
+            if (!this.systemNotificationsEnabled) {
+                logDebug(`${TAG} 系统通知未开启，忽略极光远端通知`, {
+                    eventType: notification.notificationEventType,
+                });
+                return;
+            }
             logInfo(`${TAG} 收到极光远端通知`, {
                 eventType: notification.notificationEventType,
                 title: notification.title,
@@ -343,6 +366,7 @@ class JPushManager {
             return;
         }
 
+        // eslint-disable-next-line no-void
         void this.openChannelByExtras(notification);
     }
 
@@ -471,12 +495,38 @@ class JPushManager {
     }
 
     /**
-     * 按用户 notify_props.push 同步极光：none 则停止接收；all/mention 则 init/resume 并设置别名
+     * 按系统通知权限 + 用户 notify_props.push 同步极光：
+     * 权限关闭或 push=none 则停止接收；否则 init/resume 并设置别名
      */
-    syncForNotifyPush(push: UserNotifyPropsPush | string | undefined, userId: string) {
-        const shouldReceivePush = push !== 'none';
+    async syncForNotifyPush(push: UserNotifyPropsPush | string | undefined, userId: string) {
+        this.lastNotifyPush = push;
+
+        if (!userId) {
+            logWarning(`${TAG} syncForNotifyPush 跳过，缺少 userId`);
+            return;
+        }
+        this.lastUserId = userId;
+
+        logDebug(`${TAG} syncForNotifyPush 开始`, {
+            push,
+            userId,
+            initialized: this.initialized,
+        });
+
+        const systemEnabled = await areSystemNotificationsEnabled();
+        this.systemNotificationsEnabled = systemEnabled;
+
+        const shouldReceivePush = systemEnabled && push !== 'none';
+        logDebug(`${TAG} syncForNotifyPush 决策`, {
+            systemEnabled,
+            push,
+            shouldReceivePush,
+        });
         if (!shouldReceivePush) {
-            logInfo(`${TAG} notify_props.push=none，停止接收推送`);
+            logInfo(`${TAG} 停止接收极光推送`, {
+                push,
+                systemNotificationsEnabled: systemEnabled,
+            });
             this.pendingUserId = '';
             if (this.initialized) {
                 this.stopPush();
@@ -484,19 +534,37 @@ class JPushManager {
             return;
         }
 
-        if (!userId) {
-            logWarning(`${TAG} syncForNotifyPush 跳过，缺少 userId`);
-            return;
-        }
-
-        if (this.initialized) {
-            this.resumePush();
-        } else {
+        if (!this.initialized) {
             this.init();
         }
+        this.resumePush();
         this.pendingUserId = userId;
         this.applyPendingUserAlias();
         logInfo(`${TAG} 已按 notify_props.push 同步极光`, {push, userId, hasRegistration: Boolean(this.registerId)});
+    }
+
+    /** 从系统设置返回前台时，对齐 notify_props.push 并重新同步极光 */
+    private async syncOnForegroundIfLoggedIn() {
+        if (!this.loggedIn || !this.lastUserId) {
+            logDebug(`${TAG} syncOnForegroundIfLoggedIn 跳过`, {
+                loggedIn: this.loggedIn,
+                hasLastUserId: Boolean(this.lastUserId),
+            });
+            return;
+        }
+        logDebug(`${TAG} syncOnForegroundIfLoggedIn 重新同步`, {
+            push: this.lastNotifyPush,
+            userId: this.lastUserId,
+        });
+        const {syncActiveUserPushWithSystemSettings} = await import('@utils/notification/push_system_sync');
+        await syncActiveUserPushWithSystemSettings();
+    }
+
+    /**
+     * 设置页检测到系统通知权限变化时调用（与 notify_props.push 一并生效）
+     */
+    async syncForSystemNotificationPermission(push: UserNotifyPropsPush | string | undefined, userId: string) {
+        await this.syncForNotifyPush(push, userId);
     }
 
     /**

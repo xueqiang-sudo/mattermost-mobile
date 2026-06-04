@@ -1,8 +1,6 @@
 package com.optibot.cnshare
 
 import android.app.Activity
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -25,9 +23,6 @@ class MattermostShareImpl(private val reactContext: ReactApplicationContext) {
         const val NAME = "MattermostShare"
     }
 
-    init {
-        createNotificationChannel(reactContext)
-    }
 
     fun getCurrentActivityName(): String {
         val currentActivity: Activity? = reactContext.currentActivity
@@ -133,18 +128,6 @@ class MattermostShareImpl(private val reactContext: ReactApplicationContext) {
         promise?.resolve(items)
     }
 
-    private fun createNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Share Channel"
-            val descriptionText = "Channel for sharing content notifications"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel("SHARE_CHANNEL", name, importance).apply {
-                description = descriptionText
-            }
-            // Register the channel with the system
-            val notificationManager: NotificationManager =
-                    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
+    /** 分享相关通知走「其他通知」渠道。 */
+    fun shareNotificationChannelId(): String = ShareNotificationChannels.OTHER_NOTIFICATION_CHANNEL_ID
 }

@@ -3,11 +3,13 @@
 
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {StyleSheet, View} from 'react-native';
+import {Platform, StyleSheet, View} from 'react-native';
 import Permissions from 'react-native-permissions';
 
 import SectionNotice from '@components/section_notice';
 import {Screens} from '@constants';
+import {logDebug} from '@utils/log';
+import {openAppNotificationSettings} from '@utils/notification/message_notification_pref';
 
 const styles = StyleSheet.create({
     wrapper: {
@@ -22,7 +24,16 @@ type NotificationsDisabledNoticeProps = {
 const NotificationsDisabledNotice = (props: NotificationsDisabledNoticeProps) => {
     const intl = useIntl();
 
-    const onEnableNotificationClick = useCallback(() => {
+    const onEnableNotificationClick = useCallback(async () => {
+        logDebug('[NotificationsDisabledNotice.onEnableNotificationClick] 开始', {platform: Platform.OS});
+        if (Platform.OS === 'android') {
+            const opened = await openAppNotificationSettings();
+            logDebug('[NotificationsDisabledNotice.onEnableNotificationClick] Android 打开应用通知设置', {opened});
+            if (opened) {
+                return;
+            }
+            logDebug('[NotificationsDisabledNotice.onEnableNotificationClick] Native 失败，回退 Permissions.openSettings');
+        }
         Permissions.openSettings('notifications');
     }, []);
 

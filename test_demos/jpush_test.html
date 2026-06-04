@@ -661,7 +661,6 @@ function addExtra(obj, key, domId) {
 
 function addOverrideMsgId(options) {
     var raw = document.getElementById('optOverrideMsgId').value.trim();
-    console.error('qgstest raw1', raw)
     if (!raw || !/^\d+$/.test(raw)) {
         return;
     }

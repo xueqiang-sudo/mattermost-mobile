@@ -3,9 +3,8 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Platform, View} from 'react-native';
-import {Notifications as RNNotifications} from 'react-native-notifications';
-import Permissions, {checkNotifications} from 'react-native-permissions';
+import {Alert, Platform, View} from 'react-native';
+import Permissions from 'react-native-permissions';
 
 import {updateMe} from '@actions/remote/user';
 import {getCallsConfig} from '@calls/state';
@@ -23,15 +22,14 @@ import {popTopScreen} from '@screens/navigation';
 import {gotoSettingsScreen} from '@screens/settings/config';
 import {logError} from '@utils/log';
 import {
-    getMessageNotificationEnabled,
+    areSystemNotificationsEnabled,
     openAppNotificationSettings,
     openMessageNotificationChannelSettings,
-    setMessageNotificationEnabled,
 } from '@utils/notification/message_notification_pref';
+import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {getEmailInterval, getEmailIntervalTexts, getNotificationProps} from '@utils/user';
 
-import NotificationsDisabledNotice from './notifications_disabled_notice';
 import SendTestNotificationNotice from './send_test_notification_notice';
 
 import type UserModel from '@typings/database/models/servers/user';
@@ -110,8 +108,7 @@ const Notifications = ({
     const serverUrl = useServerUrl();
     const notifyProps = useMemo(() => getNotificationProps(currentUser), [currentUser]);
     const callsRingingEnabled = useMemo(() => getCallsConfig(serverUrl).EnableRinging, [serverUrl]);
-    const [isRegistered, setIsRegistered] = useState(true);
-    const [messageNotifEnabled, setMessageNotifEnabled] = useState(true);
+    const [systemNotifEnabled, setSystemNotifEnabled] = useState(false);
     const [mentionOnlyEnabled, setMentionOnlyEnabled] = useState(false);
 
     const appState = useAppState();
@@ -121,36 +118,29 @@ const Notifications = ({
     }, [notifyProps?.push]);
 
     useEffect(() => {
-        const loadPreferences = async () => {
-            try {
-                const localEnabled = await getMessageNotificationEnabled();
-                const pushPref = notifyProps?.push;
-                if (pushPref) {
-                    const serverEnabled = pushPref !== 'none';
-                    setMessageNotifEnabled(serverEnabled);
-                    if (serverEnabled !== localEnabled) {
-                        await setMessageNotificationEnabled(serverEnabled);
-                    }
-                } else {
-                    setMessageNotifEnabled(localEnabled);
-                }
-            } catch (error) {
-                logError('[Notifications.loadPreferences]', error);
-            }
-        };
-        loadPreferences();
-    }, [notifyProps?.push]);
-
-    useEffect(() => {
         let isCurrent = true;
         if (appState === 'active') {
             const checkNotificationStatus = async () => {
                 try {
-                    const registered = await RNNotifications.isRegisteredForRemoteNotifications();
-                    if (isCurrent) {
-                        setIsRegistered(registered);
-                        await checkNotifications();
+                    const userId = currentUser?.id;
+                    if (!userId || !notifyProps) {
+                        const systemEnabled = await areSystemNotificationsEnabled();
+                        if (isCurrent) {
+                            setSystemNotifEnabled(systemEnabled);
+                        }
+                        return;
                     }
+
+                    const {push, systemEnabled} = await syncNotifyPushWithSystemSettings(
+                        serverUrl,
+                        userId,
+                        notifyProps,
+                    );
+                    if (!isCurrent) {
+                        return;
+                    }
+                    setSystemNotifEnabled(systemEnabled);
+                    setMentionOnlyEnabled(push === 'mention');
                 } catch (error) {
                     if (isCurrent) {
                         logError('[Notifications.checkNotificationStatus]', error);
@@ -162,7 +152,7 @@ const Notifications = ({
         return () => {
             isCurrent = false;
         };
-    }, [appState]);
+    }, [appState, currentUser?.id, notifyProps, serverUrl]);
 
     const emailIntervalPref = useMemo(() =>
         getEmailInterval(
@@ -217,23 +207,63 @@ const Notifications = ({
         gotoSettingsScreen(screen, title);
     }, [intl]);
 
-    const openChannelNotificationSettings = usePreventDoubleTap(useCallback(async () => {
+    /** 消息通知开关 Alert：打开应用通知总览（整体开/关） */
+    const openAppNotificationSettingsForToggle = usePreventDoubleTap(useCallback(async () => {
+        if (Platform.OS === 'android') {
+            try {
+                const opened = await openAppNotificationSettings();
+                if (opened) {
+                    return;
+                }
+            } catch (error) {
+                logError('[Notifications.openAppNotificationSettingsForToggle]', error);
+            }
+        }
+        Permissions.openSettings('notifications');
+    }, []));
+
+    /** 「消息提醒方式」行：打开新消息通知渠道设置（横幅、锁屏、响铃） */
+    const openMessageAlertStyleSettings = usePreventDoubleTap(useCallback(async () => {
         if (Platform.OS === 'android') {
             try {
                 const opened = await openMessageNotificationChannelSettings();
                 if (opened) {
                     return;
                 }
-                const openedAppSettings = await openAppNotificationSettings();
-                if (openedAppSettings) {
-                    return;
-                }
+                Alert.alert(
+                    intl.formatMessage({
+                        id: 'notification_settings.channel_settings_fallback.title',
+                        defaultMessage: 'Open channel settings manually',
+                    }),
+                    intl.formatMessage({
+                        id: 'notification_settings.channel_settings_fallback.body',
+                        defaultMessage:
+                            'In App notifications, tap New message notifications under Other to adjust banners, lock screen, and sound.',
+                    }),
+                    [
+                        {
+                            text: intl.formatMessage({id: 'general.cancel', defaultMessage: 'Cancel'}),
+                            style: 'cancel',
+                        },
+                        {
+                            text: intl.formatMessage({
+                                id: 'notification_settings.message_notification.go_to_system',
+                                defaultMessage: 'Open system settings',
+                            }),
+                            onPress: () => {
+                                // eslint-disable-next-line no-void
+                                void openAppNotificationSettings();
+                            },
+                        },
+                    ],
+                );
+                return;
             } catch (error) {
-                logError('[Notifications.openChannelNotificationSettings]', error);
+                logError('[Notifications.openMessageAlertStyleSettings]', error);
             }
         }
         Permissions.openSettings('notifications');
-    }, []));
+    }, [intl]));
 
     const syncPushPreference = useCallback(async (push: UserNotifyPropsPush) => {
         const result = await updateMe(serverUrl, {
@@ -250,28 +280,61 @@ const Notifications = ({
     const syncJPushForCurrentUser = useCallback((push: UserNotifyPropsPush) => {
         const userId = currentUser?.id;
         if (userId) {
-            JPushManager.syncForNotifyPush(push, userId);
+            // eslint-disable-next-line no-void
+            void JPushManager.syncForNotifyPush(push, userId);
         }
     }, [currentUser?.id]);
 
-    const handleMessageNotificationToggle = useCallback(async (enabled: boolean) => {
-        const nextEnabled = Boolean(enabled);
-        try {
-            await setMessageNotificationEnabled(nextEnabled);
-            setMessageNotifEnabled(nextEnabled);
-            const newPush: UserNotifyPropsPush = nextEnabled ? 'all' : 'none';
-            if (nextEnabled) {
-                setMentionOnlyEnabled(false);
-            }
-            await syncPushPreference(newPush);
-            syncJPushForCurrentUser(newPush);
-        } catch (error) {
-            logError('[Notifications.handleMessageNotificationToggle]', error);
+    const handleMessageNotificationToggle = useCallback(() => {
+        const cancelLabel = intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'});
+        const confirmLabel = intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'});
+        const openSettings = () => {
+            openAppNotificationSettingsForToggle();
+        };
+
+        if (!systemNotifEnabled) {
+            Alert.alert(
+                intl.formatMessage({
+                    id: 'notification_settings.system_off_dialog.title',
+                    defaultMessage: 'Notifications Disabled',
+                }),
+                intl.formatMessage({
+                    id: 'notification_settings.system_off_dialog.body',
+                    defaultMessage: 'System message notifications are off. Open settings to enable?',
+                }),
+                [
+                    {text: cancelLabel, style: 'cancel'},
+                    {text: confirmLabel, onPress: openSettings},
+                ],
+            );
+            return;
         }
-    }, [syncJPushForCurrentUser, syncPushPreference]);
+
+        Alert.alert(
+            intl.formatMessage({
+                id: 'notification_settings.system_on_dialog.title',
+                defaultMessage: 'Turn Off Notifications',
+            }),
+            intl.formatMessage({
+                id: 'notification_settings.system_on_dialog.body',
+                defaultMessage: 'After turning off, you will no longer receive push notifications.',
+            }),
+            [
+                {text: cancelLabel, style: 'cancel'},
+                {
+                    text: intl.formatMessage({
+                        id: 'notification_settings.system_on_dialog.action',
+                        defaultMessage: 'Turn off in system settings',
+                    }),
+                    style: 'destructive',
+                    onPress: openSettings,
+                },
+            ],
+        );
+    }, [intl, openAppNotificationSettingsForToggle, systemNotifEnabled]);
 
     const handleMentionOnlyToggle = useCallback(async (enabled: boolean) => {
-        if (!messageNotifEnabled) {
+        if (!systemNotifEnabled) {
             return;
         }
         const nextEnabled = Boolean(enabled);
@@ -280,11 +343,12 @@ const Notifications = ({
         try {
             const newPush: UserNotifyPropsPush = nextEnabled ? 'mention' : 'all';
             await syncPushPreference(newPush);
+            syncJPushForCurrentUser(newPush);
         } catch (error) {
             setMentionOnlyEnabled(previousEnabled);
             logError('[Notifications.handleMentionOnlyToggle]', error);
         }
-    }, [mentionOnlyEnabled, messageNotifEnabled, syncPushPreference]);
+    }, [mentionOnlyEnabled, syncJPushForCurrentUser, syncPushPreference, systemNotifEnabled]);
 
     const close = useCallback(() => {
         popTopScreen(componentId);
@@ -314,34 +378,30 @@ const Notifications = ({
 
     const systemNotificationTitle = intl.formatMessage({
         id: 'notification_settings.system_notification.title',
-        defaultMessage: 'System notification settings',
+        defaultMessage: 'Message alert style',
     });
 
     const goToSystemDescription = intl.formatMessage({
         id: 'notification_settings.system_notification.desc',
-        defaultMessage: 'Manage ringtone, banners, and lock screen alerts in system settings',
+        defaultMessage: 'Manage banners, lock screen, ringtone, and sound',
     });
 
     const handleOpenSystemSettings = useCallback(() => {
-        openChannelNotificationSettings();
-    }, [openChannelNotificationSettings]);
+        openMessageAlertStyleSettings();
+    }, [openMessageAlertStyleSettings]);
 
     return (
         <SettingContainer testID='notification_settings'>
-            {!isRegistered &&
-                <NotificationsDisabledNotice
-                    testID='notifications-disabled-notice'
-                />}
             <View style={styles.card}>
                 <OptionItem
                     action={handleMessageNotificationToggle}
                     icon='bell-outline'
                     label={messageNotificationLabel}
-                    selected={messageNotifEnabled}
+                    selected={systemNotifEnabled}
                     testID='notification_settings.message_notification.toggle'
                     type='toggle'
                 />
-                {messageNotifEnabled && (
+                {systemNotifEnabled && (
                     <>
                         <View style={styles.cardDivider}/>
                         <OptionItem
