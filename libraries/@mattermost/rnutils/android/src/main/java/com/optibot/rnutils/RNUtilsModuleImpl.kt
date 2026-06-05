@@ -16,6 +16,7 @@ import com.optibot.cnutils.helpers.Notifications
 import com.optibot.cnutils.helpers.RealPathUtil
 import com.optibot.cnutils.helpers.SaveDataTask
 import com.optibot.cnutils.helpers.SplitView
+import com.optibot.cnutils.helpers.NotificationManagementSettings
 import androidx.core.graphics.toColorInt
 import com.facebook.react.bridge.LifecycleEventListener
 
@@ -265,5 +266,14 @@ class RNUtilsModuleImpl(private val reactContext: ReactApplicationContext): Life
                 android.util.Log.e("RNUtils", "Error setting navigation bar color: $colorHex", e)
             }
         }
+    }
+
+    fun openNotificationManagementSettings(packageName: String, promise: Promise?) {
+        val opened = try {
+            NotificationManagementSettings.openNotificationManagementSettings(reactContext.applicationContext, packageName)
+        } catch (error: Exception) {
+            false
+        }
+        promise?.resolve(opened)
     }
 }

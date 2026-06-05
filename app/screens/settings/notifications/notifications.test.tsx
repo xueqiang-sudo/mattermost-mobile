@@ -1,12 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {fireEvent} from '@testing-library/react-native';
 import React, {type ComponentProps} from 'react';
 
 import DatabaseManager from '@database/manager';
 import * as DeviceHooks from '@hooks/device';
 import {renderWithEverything, waitFor} from '@test/intl-test-helper';
 import TestHelper from '@test/test_helper';
+import {
+    openMessageNotificationChannelSettings,
+} from '@utils/notification/message_notification_pref';
 import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
 
 import Notifications from './notifications';
@@ -20,9 +24,11 @@ jest.mock('@utils/notification/push_system_sync', () => ({
 jest.mock('@utils/notification/message_notification_pref', () => ({
     areSystemNotificationsEnabled: jest.fn(),
     openAppNotificationSettings: jest.fn().mockResolvedValue(true),
+    openMessageNotificationChannelSettings: jest.fn().mockResolvedValue(true),
 }));
 
 const mockedSyncNotifyPushWithSystemSettings = jest.mocked(syncNotifyPushWithSystemSettings);
+const mockedOpenMessageNotificationChannelSettings = jest.mocked(openMessageNotificationChannelSettings);
 
 function getBaseProps(): ComponentProps<typeof Notifications> {
     return {
@@ -42,6 +48,7 @@ describe('Notifications message toggle (system-linked)', () => {
     const messageToggleTestId = 'notification_settings.message_notification.toggle.toggled.false.button';
     const messageToggleOnTestId = 'notification_settings.message_notification.toggle.toggled.true.button';
     const mentionToggleTestId = 'notification_settings.mention_only.toggle';
+    const systemNotificationOptionTestId = 'notification_settings.system_notification.option';
     const serverUrl = 'server-1';
 
     beforeAll(async () => {
@@ -83,6 +90,22 @@ describe('Notifications message toggle (system-linked)', () => {
             expect(wrapper.getByTestId(messageToggleOnTestId)).toBeVisible();
         });
         expect(wrapper.getByTestId(mentionToggleTestId)).toBeVisible();
+    });
+
+    it('should open system notification management when message alert style row is pressed', async () => {
+        mockedSyncNotifyPushWithSystemSettings.mockResolvedValue({
+            push: 'all',
+            changed: false,
+            systemEnabled: true,
+        });
+        const wrapper = renderWithEverything(<Notifications {...getBaseProps()}/>, {database});
+        await waitFor(() => {
+            expect(wrapper.getByTestId(systemNotificationOptionTestId)).toBeVisible();
+        });
+        fireEvent.press(wrapper.getByTestId(systemNotificationOptionTestId));
+        await waitFor(() => {
+            expect(mockedOpenMessageNotificationChannelSettings).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('should re-check system notification state when appState becomes active', async () => {

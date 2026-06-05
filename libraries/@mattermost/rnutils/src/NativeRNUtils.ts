@@ -79,6 +79,9 @@ export interface Spec extends TurboModule {
 
     // Android only
     setNavigationBarColor: (color: string, lightIcons: boolean) => void;
+
+    // Android only (system notification management UI)
+    openNotificationManagementSettings: (packageName: string) => Promise<boolean>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('RNUtils');

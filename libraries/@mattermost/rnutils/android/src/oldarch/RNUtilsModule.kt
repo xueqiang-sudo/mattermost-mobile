@@ -126,4 +126,9 @@ class RNUtilsModule(context: ReactApplicationContext) :
     fun setNavigationBarColor(colorHex: String, lightIcons: Boolean) {
         implementation.setNavigationBarColor(colorHex, lightIcons)
     }
+
+    @ReactMethod
+    fun openNotificationManagementSettings(packageName: String, promise: Promise?) {
+        implementation.openNotificationManagementSettings(packageName, promise)
+    }
 }

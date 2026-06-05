@@ -81,4 +81,8 @@ class RNUtilsModule(val reactContext: ReactApplicationContext) : NativeRNUtilsSp
         val pathList = paths.toArrayList().map { it.toString() }
         implementation.createZipFile(pathList, promise)
     }
+
+    override fun openNotificationManagementSettings(packageName: String, promise: Promise?) {
+        implementation.openNotificationManagementSettings(packageName, promise)
+    }
 }
