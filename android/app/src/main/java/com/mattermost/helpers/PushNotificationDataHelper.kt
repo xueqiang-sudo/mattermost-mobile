@@ -6,6 +6,7 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.mattermost.helpers.database_extension.getDatabaseForServer
+import com.mattermost.helpers.database_extension.queryCurrentTeamId
 import com.mattermost.helpers.database_extension.saveToDatabase
 import com.mattermost.helpers.push_notification.addToDefaultCategoryIfNeeded
 import com.mattermost.helpers.push_notification.fetchMyChannel
@@ -20,6 +21,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+/**
+ * 推送通知数据辅助类，用于获取并存储推送通知相关数据
+ */
 class PushNotificationDataHelper(private val context: Context) {
     suspend fun fetchAndStoreDataForPushNotification(initialData: Bundle, isReactInit: Boolean): Bundle? {
         return withContext(Dispatchers.Default) {
@@ -28,6 +32,9 @@ class PushNotificationDataHelper(private val context: Context) {
     }
 }
 
+/**
+ * 推送通知数据运行类，包含获取推送通知所需数据的核心逻辑
+ */
 class PushNotificationDataRunnable {
     companion object {
         internal val specialMentions = listOf("all", "here", "channel")
@@ -36,7 +43,6 @@ class PushNotificationDataRunnable {
 
         suspend fun start(context: Context, initialData: Bundle, isReactInit: Boolean): Bundle? {
             mutex.withLock {
-                // for more info see: https://blog.danlew.net/2020/01/28/coroutines-and-java-synchronization-dont-mix/
                 val serverUrl: String = initialData.getString("server_url") ?: return null
                 val db = dbHelper.getDatabaseForServer(context, serverUrl)
                 var result: Bundle? = null
@@ -74,13 +80,11 @@ class PushNotificationDataRunnable {
                             channelRes.second?.let { notificationData.putMap("myChannel", it) }
                             val loadedProfiles = channelRes.third
 
-                            // Fetch categories if needed
+                            // 获取分类信息
                             if (!teamId.isNullOrEmpty() && myTeam != null) {
-                                // should load all categories
                                 val res = fetchMyTeamCategories(db, serverUrl, teamId)
                                 res?.let { notificationData.putMap("categories", it) }
                             } else if (channel != null) {
-                                // check if the channel is in the category for the team
                                 val res = addToDefaultCategoryIfNeeded(db, channel)
                                 res?.let { notificationData.putArray("categoryChannels", it) }
                             }
@@ -134,22 +138,22 @@ class PushNotificationDataRunnable {
                     thread.getString("id")?.let { it1 -> threadIds.add(it1) }
                     threadsArray.add(thread)
                 }
-                for(i in 0 until it.size()) {
-                    val thread = it.getMap(i)!!
-                    val threadId = thread.getString("id")
-                    if (threadId != null) {
-                        if (threadIds.contains(threadId)) {
-                         // replace the values for participants and is_following
-                            val index = threadsArray.indexOfFirst { el -> el.getString("id") == threadId }
-                            val prev = threadsArray[index]
-                            val merge = Arguments.createMap()
-                            merge.merge(prev)
-                            merge.putBoolean("is_following", thread.getBoolean("is_following"))
-                            merge.putArray("participants", thread.getArray("participants"))
-                            threadsArray[index] = merge
-                        } else {
-                            threadsArray.add(thread)
-                            threadIds.add(threadId)
+                for (i in 0 until it.size()) {
+                    it.getMap(i)?.let { thread ->
+                        val threadId = thread.getString("id")
+                        if (threadId != null) {
+                            if (threadIds.contains(threadId)) {
+                                val index = threadsArray.indexOfFirst { el -> el.getString("id") == threadId }
+                                val prev = threadsArray[index]
+                                val merge = Arguments.createMap()
+                                merge.merge(prev)
+                                merge.putBoolean("is_following", thread.getBoolean("is_following"))
+                                merge.putArray("participants", thread.getArray("participants"))
+                                threadsArray[index] = merge
+                            } else {
+                                threadsArray.add(thread)
+                                threadIds.add(threadId)
+                            }
                         }
                     }
                 }

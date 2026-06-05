@@ -1517,8 +1517,6 @@ PODS:
     - Starscream (~> 4.0.8)
     - SwiftyJSON (~> 5.0.2)
     - Yoga
-  - react-native-notifications (5.1.0):
-    - React-Core
   - react-native-paste-input (0.8.1):
     - DoubleConversion
     - glog
@@ -2367,7 +2365,6 @@ DEPENDENCIES:
   - react-native-keyboard-controller (from `../node_modules/react-native-keyboard-controller`)
   - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - "react-native-network-client (from `../node_modules/@mattermost/react-native-network-client`)"
-  - react-native-notifications (from `../node_modules/react-native-notifications`)
   - "react-native-paste-input (from `../node_modules/@mattermost/react-native-paste-input`)"
   - react-native-performance (from `../node_modules/react-native-performance`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
@@ -2593,8 +2590,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/netinfo"
   react-native-network-client:
     :path: "../node_modules/@mattermost/react-native-network-client"
-  react-native-notifications:
-    :path: "../node_modules/react-native-notifications"
   react-native-paste-input:
     :path: "../node_modules/@mattermost/react-native-paste-input"
   react-native-performance:
@@ -2805,7 +2800,6 @@ SPEC CHECKSUMS:
   react-native-keyboard-controller: 0aff65ca209dae10cd0ac7c9c2404baabb625d42
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-network-client: 58074d41410fbbdf84d9e4808e5d0e8852112fb4
-  react-native-notifications: 3bafa1237ae8a47569a84801f17d80242fe9f6a5
   react-native-paste-input: c8fdbe9366a5d93a503848ba19fc335ae532c63b
   react-native-performance: 125a96c145e29918b55b45ce25cbba54f1e24dcd
   react-native-safe-area-context: fdb0a66feac038cb6eb1edafcf2ccee2b5cf0284

@@ -8,7 +8,7 @@ import {DeviceEventEmitter} from 'react-native';
 import {Events} from '@constants';
 import {NOTIFICATION_TYPE} from '@constants/push_notification';
 import {DEFAULT_LOCALE} from '@i18n';
-import PushNotifications from '@init/push_notifications';
+import {scheduleNotification} from '@init/push_notifications';
 import {getIntlShape} from '@utils/general';
 import {showNotificationChannelNotFoundSnackbar} from '@utils/snack_bar';
 
@@ -89,7 +89,7 @@ export const scheduleExpiredNotification = (serverUrl: string, session: Session,
     const title = intl.formatMessage({id: 'mobile.session_expired.title', defaultMessage: 'Session Expired'});
 
     if (expiresAt) {
-        return PushNotifications.scheduleNotification({
+        return scheduleNotification({
             fireDate: expiresAt,
             body,
             title,

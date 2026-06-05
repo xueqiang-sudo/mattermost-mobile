@@ -81,19 +81,6 @@ jest.mock('@react-native-community/netinfo', () => {
     };
 });
 
-let mockCancelLocalNotification: jest.Mock;
-jest.mock('react-native-notifications', () => {
-    const original = jest.requireActual('react-native-notifications');
-    mockCancelLocalNotification = jest.fn();
-    return {
-        ...original,
-        Notifications: {
-            ...original.Notifications,
-            cancelLocalNotification: mockCancelLocalNotification,
-        },
-    };
-});
-
 let mockGetCSRFFromCookie: jest.Mock;
 jest.mock('@utils/security', () => {
     const original = jest.requireActual('@utils/security');

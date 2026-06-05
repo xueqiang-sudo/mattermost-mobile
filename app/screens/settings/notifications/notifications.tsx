@@ -222,48 +222,18 @@ const Notifications = ({
         Permissions.openSettings('notifications');
     }, []));
 
-    /** 「消息提醒方式」行：打开新消息通知渠道设置（横幅、锁屏、响铃） */
+    /** 「消息提醒方式」行：打开系统通知设置页（横幅、锁屏、响铃） */
     const openMessageAlertStyleSettings = usePreventDoubleTap(useCallback(async () => {
         if (Platform.OS === 'android') {
             try {
-                const opened = await openMessageNotificationChannelSettings();
-                if (opened) {
-                    return;
-                }
-                Alert.alert(
-                    intl.formatMessage({
-                        id: 'notification_settings.channel_settings_fallback.title',
-                        defaultMessage: 'Open channel settings manually',
-                    }),
-                    intl.formatMessage({
-                        id: 'notification_settings.channel_settings_fallback.body',
-                        defaultMessage:
-                            'In App notifications, tap New message notifications under Other to adjust banners, lock screen, and sound.',
-                    }),
-                    [
-                        {
-                            text: intl.formatMessage({id: 'general.cancel', defaultMessage: 'Cancel'}),
-                            style: 'cancel',
-                        },
-                        {
-                            text: intl.formatMessage({
-                                id: 'notification_settings.message_notification.go_to_system',
-                                defaultMessage: 'Open system settings',
-                            }),
-                            onPress: () => {
-                                // eslint-disable-next-line no-void
-                                void openAppNotificationSettings();
-                            },
-                        },
-                    ],
-                );
+                await openMessageNotificationChannelSettings();
                 return;
             } catch (error) {
                 logError('[Notifications.openMessageAlertStyleSettings]', error);
             }
         }
         Permissions.openSettings('notifications');
-    }, [intl]));
+    }, []));
 
     const syncPushPreference = useCallback(async (push: UserNotifyPropsPush) => {
         const result = await updateMe(serverUrl, {

@@ -2,7 +2,6 @@
 // See LICENSE.txt for license information.
 
 import {AppState, Linking, Platform} from 'react-native';
-import {Notifications} from 'react-native-notifications';
 
 import {removePost} from '@actions/local/post';
 import {switchToChannelById} from '@actions/remote/channel';
@@ -24,15 +23,6 @@ import {initialLaunch, launchToHome, cleanupEphemeralPosts, getLaunchPropsFromNo
 
 import type ServersModel from '@typings/database/models/app/servers';
 import type {LaunchProps} from '@typings/launch';
-
-jest.mock('react-native-notifications', () => ({
-    Notifications: {
-        getInitialNotification: jest.fn().mockResolvedValue(null),
-        ios: {
-            getDeliveredNotifications: jest.fn().mockResolvedValue([]),
-        },
-    },
-}));
 
 jest.mock('@actions/local/post');
 jest.mock('@actions/remote/channel');

@@ -4,8 +4,6 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autoli
 
 rootProject.name = 'Optibot'
 include ':app'
-include ':reactnativenotifications'
-project(':reactnativenotifications').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-notifications/lib/android/app')
 include ':watermelondb-jsi'
 project(':watermelondb-jsi').projectDir = new File(rootProject.projectDir, '../node_modules/@nozbe/watermelondb/native/android-jsi')
 includeBuild('../node_modules/@react-native/gradle-plugin')

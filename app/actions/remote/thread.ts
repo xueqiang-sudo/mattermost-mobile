@@ -6,7 +6,7 @@ import {fetchPostThread} from '@actions/remote/post';
 import {General} from '@constants';
 import DatabaseManager from '@database/manager';
 import {removeDuplicatesModels} from '@helpers/database';
-import PushNotifications from '@init/push_notifications';
+import {removeChannelNotifications} from '@init/push_notifications';
 import AppsManager from '@managers/apps_manager';
 import NetworkManager from '@managers/network_manager';
 import {getPostById} from '@queries/servers/post';
@@ -139,7 +139,7 @@ export const markThreadAsRead = async (serverUrl: string, teamId: string | undef
 
         const post = await getPostById(database, threadId);
         if (post) {
-            PushNotifications.removeChannelNotifications(serverUrl, post.channelId);
+            removeChannelNotifications(serverUrl, post.channelId);
         }
 
         return {data};

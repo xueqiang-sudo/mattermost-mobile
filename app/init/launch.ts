@@ -3,8 +3,7 @@
 
 import {CONNECT_URL} from '@env';
 import Emm from '@mattermost/react-native-emm';
-import {Alert, AppState, DeviceEventEmitter, Linking, Platform} from 'react-native';
-import {Notifications} from 'react-native-notifications';
+import {Alert, DeviceEventEmitter, Linking, Platform} from 'react-native';
 
 import {removePost} from '@actions/local/post';
 import {terminateSession} from '@actions/local/session';
@@ -39,12 +38,9 @@ import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
 import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
 import {logError, logInfo} from '@utils/log';
 import {getNotificationProps} from '@utils/user';
-import {convertToNotificationData} from '@utils/notification';
 import {removeProtocol} from '@utils/url';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
-
-const initialNotificationTypes = [PushNotification.NOTIFICATION_TYPE.MESSAGE, PushNotification.NOTIFICATION_TYPE.SESSION];
 
 export const initialLaunch = async () => {
     logInfo('[Launch.startup] initialLaunch started');
@@ -54,24 +50,7 @@ export const initialLaunch = async () => {
         return launchAppFromDeepLink(deepLinkUrl, true);
     }
 
-    const notification = await Notifications.getInitialNotification();
-    let tapped = Platform.select({android: true, ios: false})!;
-    if (Platform.OS === 'ios' && notification) {
-        // when a notification is received on iOS, getInitialNotification, will return the notification
-        // as the app will initialized cause we are using background fetch,
-        // that does not necessarily mean that the app was opened cause of the notification was tapped.
-        // Here we are going to dettermine if the notification still exists in NotificationCenter to determine if
-        // the app was opened because of a tap or cause of the background fetch init
-        const delivered = await Notifications.ios.getDeliveredNotifications();
-        tapped = delivered.find((d) => (d as unknown as NotificationData).ack_id === notification?.payload.ack_id) == null;
-    }
-    if (initialNotificationTypes.includes(notification?.payload?.type) && tapped) {
-        logInfo('[Launch.startup] Launch from notification', {type: notification?.payload?.type});
-        const notificationData = convertToNotificationData(notification!);
-        EphemeralStore.setProcessingNotification(notificationData.identifier);
-        return launchAppFromNotification(notificationData, true);
-    }
-
+    // 冷启动通知由 JPush 处理
     const jpushNotification = JPushManager.getPendingColdStartNotification();
     if (jpushNotification) {
         logInfo('[Launch.startup] Launch from JPush notification');
@@ -85,9 +64,8 @@ export const initialLaunch = async () => {
         return launchAppFromNotification(notificationData, true);
     }
 
-    const coldStart = notification ? (tapped || AppState.currentState === 'active') : true;
-    logInfo('[Launch.startup] Launch as normal flow', {coldStart});
-    return launchApp({launchType: Launch.Normal, coldStart});
+    logInfo('[Launch.startup] Launch as normal flow', {coldStart: true});
+    return launchApp({launchType: Launch.Normal, coldStart: true});
 };
 
 const launchAppFromDeepLink = async (deepLinkUrl: string, coldStart = false) => {

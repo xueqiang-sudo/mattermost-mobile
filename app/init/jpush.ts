@@ -13,7 +13,7 @@ import {
     hasRequiredJPushExtras,
     resolveJPushServerUrl,
 } from '@init/jpush_notification';
-import PushNotifications from '@init/push_notifications';
+import {handleInAppNotification} from '@init/push_notifications';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {logDebug, logError, logInfo, logWarning} from '@utils/log';
@@ -113,21 +113,6 @@ class JPushManager {
             });
             this.initialized = true;
             logInfo(`${TAG} 极光 SDK 初始化成功`);
-
-            if (Platform.OS === 'android') {
-                const notificationSettings = NativeModules.NotificationSettings as {
-                    syncNotificationChannels?: () => Promise<boolean>;
-                } | undefined;
-                if (notificationSettings?.syncNotificationChannels) {
-                    logDebug(`${TAG} 调用 syncNotificationChannels`);
-                    // eslint-disable-next-line no-void
-                    void notificationSettings.syncNotificationChannels().then((synced) => {
-                        logDebug(`${TAG} syncNotificationChannels 完成`, {synced});
-                    }).catch((error: unknown) => {
-                        logError(`${TAG} syncNotificationChannels 失败`, error);
-                    });
-                }
-            }
 
             // Android：stopPush() 会持久化到下次启动；resume 由 syncForNotifyPush 在权限校验通过后调用
             if (Platform.OS === 'android') {
@@ -461,7 +446,7 @@ class JPushManager {
                 foreground: true,
             });
 
-            await PushNotifications.handleInAppNotification(
+            await handleInAppNotification(
                 serverUrl,
                 notificationData as unknown as NotificationWithData,
             );

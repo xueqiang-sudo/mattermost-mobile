@@ -18,7 +18,7 @@ import {Screens, Launch, DeepLink} from '@constants';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useScreenTransitionAnimation} from '@hooks/screen_transition_animation';
 import {getServerCredentials} from '@init/credentials';
-import PushNotifications from '@init/push_notifications';
+import {registerIfNeeded} from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
 import SecurityManager from '@managers/security_manager';
 import {getServerByDisplayName, getServerByIdentifier} from '@queries/app/servers';
@@ -185,7 +185,7 @@ const Server = ({
             return false;
         });
 
-        PushNotifications.registerIfNeeded();
+        registerIfNeeded();
 
         return () => backHandler.remove();
 

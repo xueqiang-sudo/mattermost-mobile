@@ -4,7 +4,7 @@
 import RNUtils from '@mattermost/rnutils/src';
 import React, {useEffect, useState} from 'react';
 import {DeviceEventEmitter, Platform, StyleSheet, View} from 'react-native';
-import {Notifications} from 'react-native-notifications';
+import JPush from 'jpush-react-native';
 
 import Badge from '@components/badge';
 import CompassIcon from '@components/compass_icon';
@@ -64,7 +64,7 @@ const updateBadge = () => {
             }
 
             logDebug('Setting the badge count based on database values to', mentions);
-            Notifications.ios.setBadgeCount(mentions);
+            JPush.setBadge({badge: mentions, appBadge: mentions});
         });
     }
 };

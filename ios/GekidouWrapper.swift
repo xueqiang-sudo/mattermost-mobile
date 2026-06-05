@@ -36,21 +36,6 @@ import TurboLogIOSNative
     }
   }
 
-  @objc func postNotificationReceipt(_ userInfo: [AnyHashable:Any]) {
-    PushNotification.default.postNotificationReceipt(userInfo)
-  }
-
-  @objc func fetchDataForPushNotification(_ notification: [AnyHashable:Any], withContentHandler contentHander: @escaping ((_ data: Data?) -> Void)) {
-    PushNotification.default.fetchDataForPushNotification(notification, withContentHandler: { data in
-      let jsonData = try? JSONEncoder().encode(data)
-      contentHander(jsonData)
-    })
-  }
-
-  @objc func verifySignature(_ notification: [AnyHashable:Any]) -> Bool {
-    return PushNotification.default.verifySignature(notification)
-  }
-
   @objc func attachSession(_ id: String, completionHandler: @escaping () -> Void) {
     let shareExtension = ShareExtension()
     shareExtension.attachSession(

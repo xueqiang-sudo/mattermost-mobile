@@ -32,11 +32,6 @@
 
 @synthesize orientationLock;
 
-NSString* const NOTIFICATION_MESSAGE_ACTION = @"message";
-NSString* const NOTIFICATION_CLEAR_ACTION = @"clear";
-NSString* const NOTIFICATION_UPDATE_BADGE_ACTION = @"update_badge";
-NSString* const NOTIFICATION_TEST_ACTION = @"test";
-
 -(void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
   os_log(OS_LOG_DEFAULT, "Mattermost will attach session from handleEventsForBackgroundURLSession!! identifier=%{public}@", identifier);
   [[GekidouWrapper default] attachSession:identifier completionHandler:completionHandler];
@@ -82,8 +77,7 @@ NSString* const NOTIFICATION_TEST_ACTION = @"test";
   [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error: nil];
   [[GekidouWrapper default] setPreference:@"true" forKey:@"ApplicationIsRunning"];
 
-  [RNNotifications startMonitorNotifications];
-
+  // JPush SDK 自行管理通知注册和展示，无需额外调用 RNNotifications
   os_log(OS_LOG_DEFAULT, "Mattermost started!!");
   [ReactNativeNavigation bootstrapWithDelegate:self launchOptions:launchOptions];
 
@@ -99,72 +93,8 @@ NSString* const NOTIFICATION_TEST_ACTION = @"test";
   return NO;
 }
 
-- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
-{
-  [RNNotifications didRegisterForRemoteNotificationsWithDeviceToken:deviceToken];
-}
-
-- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
-  [RNNotifications didFailToRegisterForRemoteNotificationsWithError:error];
-}
-
-// Required for the notification event.
-
--(void)application:(UIApplication *)application didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHandler {
-  UIApplicationState state = [UIApplication sharedApplication].applicationState;
-  NSString* action = [userInfo objectForKey:@"type"];
-  BOOL isClearAction = (action && [action isEqualToString: NOTIFICATION_CLEAR_ACTION]);
-  BOOL isTestAction = (action && [action isEqualToString: NOTIFICATION_TEST_ACTION]);
-  
-  if (isTestAction) {
-    completionHandler(UIBackgroundFetchResultNoData);
-    return;
-  }
-
-  if (![[GekidouWrapper default] verifySignature:userInfo]) {
-      NSMutableDictionary *notification = [userInfo mutableCopy];
-      [notification setValue:@"false" forKey:@"verified"];
-      [RNNotifications didReceiveBackgroundNotification:notification withCompletionHandler:completionHandler];
-      return;
-  }
-
-  if (isClearAction) {
-    // When CRT is OFF:
-    // If received a notification that a channel was read, remove all notifications from that channel (only with app in foreground/background)
-    // When CRT is ON:
-    // When rootId is nil, clear channel's root post notifications or else clear all thread notifications
-    [[NotificationHelper default] clearChannelOrThreadNotificationsWithUserInfo:userInfo];
-    [[GekidouWrapper default] postNotificationReceipt:userInfo];
-    [RNNotifications didReceiveBackgroundNotification:userInfo withCompletionHandler:completionHandler];
-    return;
-  }
-  
-  if (state != UIApplicationStateActive) {
-    [[GekidouWrapper default] fetchDataForPushNotification:userInfo withContentHandler:^(NSData * _Nullable data) {
-      NSMutableDictionary *notification = [userInfo mutableCopy];
-      if (notification == nil) {
-        [TurboLog writeWithLogLevel:TurboLogLevelError message:@[@"Mattermost AppDelegate: Failed to copy userInfo dictionary"]];
-        completionHandler(UIBackgroundFetchResultFailed);
-        return;
-      }
-
-      if (data != nil) {
-        NSError *jsonError = nil;
-        id json = [NSJSONSerialization JSONObjectWithData:data options:NULL error:&jsonError];
-        if (jsonError) {
-          [TurboLog writeWithLogLevel:TurboLogLevelError message:@[@"Mattermost AppDelegate: JSON serialization error", jsonError.localizedDescription]];
-        } else if (json != nil) {
-          [notification setObject:json forKey:@"data"];
-        } else {
-          [TurboLog writeWithLogLevel:TurboLogLevelWarning message:@[@"Mattermost AppDelegate: JSON serialization returned nil without error"]];
-        }
-      }
-      [RNNotifications didReceiveBackgroundNotification:notification withCompletionHandler:completionHandler];
-    }];
-  } else {
-    completionHandler(UIBackgroundFetchResultNewData);
-  }
-}
+// JPush SDK 自行处理远程通知注册和设备 token，无需 AppDelegate 方法
+// 通知接收和展示由 JPush iOS SDK 接管
 
 // Required for deeplinking
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options{

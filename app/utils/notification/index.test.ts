@@ -4,7 +4,6 @@
 import moment from 'moment-timezone';
 import {createIntl} from 'react-intl';
 import {DeviceEventEmitter} from 'react-native';
-import {Notifications} from 'react-native-notifications';
 
 import {Events} from '@constants';
 import {DEFAULT_LOCALE, getTranslations} from '@i18n';
@@ -16,6 +15,10 @@ import {
     emitNotificationError,
     scheduleExpiredNotification,
 } from '.';
+
+jest.mock('@init/push_notifications', () => ({
+    scheduleNotification: jest.fn(),
+}));
 
 jest.mock('@utils/snack_bar', () => ({
     showNotificationChannelNotFoundSnackbar: jest.fn(),
@@ -118,7 +121,7 @@ describe('Notification Utils', () => {
     describe('scheduleExpiredNotification', () => {
         it('should schedule a notification for session expiration with hours', () => {
             const result = scheduleExpiredNotification('server_url', session as any, 'ServerName', 'en');
-            expect(Notifications.postLocalNotification).toHaveBeenCalledWith(expect.objectContaining({
+            expect(scheduleNotification).toHaveBeenCalledWith(expect.objectContaining({
                 fireDate: new Date(session.expires_at).toISOString(),
                 body: 'Please log in to continue receiving notifications. Sessions for ServerName are configured to expire every 10 hours.',
                 title: 'Session Expired',

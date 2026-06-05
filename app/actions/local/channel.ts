@@ -8,7 +8,7 @@ import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import {getTeammateNameDisplaySetting} from '@helpers/api/preference';
 import {extractChannelDisplayName} from '@helpers/database';
-import PushNotifications from '@init/push_notifications';
+import {removeChannelNotifications} from '@init/push_notifications';
 import {
     prepareDeleteChannel, prepareMyChannelsForTeam, queryAllMyChannel,
     getMyChannel, getChannelById, queryUsersOnChannel, queryUserChannelsByTypes,
@@ -183,7 +183,7 @@ export async function markChannelAsViewed(serverUrl: string, channelId: string, 
                 m.lastViewedAt = Date.now();
             }
         });
-        PushNotifications.removeChannelNotifications(serverUrl, channelId);
+        removeChannelNotifications(serverUrl, channelId);
         if (!prepareRecordsOnly) {
             await operator.batchRecords([member], 'markChannelAsViewed');
         }

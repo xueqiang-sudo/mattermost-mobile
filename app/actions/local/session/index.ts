@@ -9,7 +9,7 @@ import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import {DEFAULT_LOCALE, resetMomentLocale} from '@i18n';
 import {getAllServerCredentials, removeServerCredentials} from '@init/credentials';
-import PushNotifications from '@init/push_notifications';
+import {cancelScheduleNotification, removeServerNotifications} from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {getDeviceToken} from '@queries/app/global';
@@ -89,7 +89,7 @@ export const cancelSessionNotification = async (serverUrl: string) => {
         const rechable = (await NetInfo.fetch()).isConnected; // .isInternetReachable
 
         if (expiredSession?.notificationId && rechable) {
-            PushNotifications.cancelScheduleNotification(parseInt(expiredSession.notificationId, 10));
+            cancelScheduleNotification(parseInt(expiredSession.notificationId, 10));
             operator.handleSystem({
                 systems: [{
                     id: SYSTEM_IDENTIFIERS.SESSION_EXPIRATION,
@@ -143,7 +143,7 @@ export const terminateSession = async (serverUrl: string, removeServer: boolean)
     });
 
     // Remove push notifications (synchronous, no error handling needed)
-    PushNotifications.removeServerNotifications(serverUrl);
+    removeServerNotifications(serverUrl);
 
     // Invalidate clients (synchronous, no error handling needed)
     NetworkManager.invalidateClient(serverUrl);

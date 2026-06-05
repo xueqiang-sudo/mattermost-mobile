@@ -10,7 +10,7 @@ import {getAllServerCredentials} from '@init/credentials';
 import JPushManager from '@init/jpush';
 import {initialLaunch} from '@init/launch';
 import ManagedApp from '@init/managed_app';
-import PushNotifications from '@init/push_notifications';
+import {requestPermissionIfNeeded} from '@init/push_notifications';
 import GlobalEventHandler from '@managers/global_event_handler';
 import NetworkManager from '@managers/network_manager';
 import SecurityManager from '@managers/security_manager';
@@ -100,8 +100,7 @@ export async function start() {
         logError('[app.start] 清理缓存更新 APK 失败', error);
     }
 
-    await PushNotifications.requestPermissionIfNeeded();
-    PushNotifications.init(serverCredentials.length > 0);
+    await requestPermissionIfNeeded();
 
     await WebsocketManager.init(serverCredentials);
 
