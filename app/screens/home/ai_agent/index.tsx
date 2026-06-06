@@ -3,7 +3,7 @@
 
 /**
  * AI Agent 页面
- * 使用 WebView 内嵌 https://chat.deepseek.com/ 网页
+ * 使用 WebView 内嵌 https://ai.optibot.cn:8065/plugins/com.mattermost.aiagent/ 网页
  */
 
 import React, {useState} from 'react';
@@ -32,7 +32,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const DEEPSEEK_URL = 'https://chat.deepseek.com/';
+const DEEPSEEK_URL = 'https://ai.optibot.cn:8065/plugins/com.mattermost.aiagent/';
 
 const AIAgent = () => {
     const theme = useTheme();

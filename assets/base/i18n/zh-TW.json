@@ -1530,7 +1530,7 @@
   "scheduled_post.root_post_not_exist.message": "您試圖評論的消息已被刪除。",
   "scheduled_post.tooltip.description": "長按項目查看已計劃的消息操作",
   "tab_bar.contacts.label": "通訊錄",
-  "tab_bar.ai_agent.label": "AI Agent",
+  "tab_bar.ai_agent.label": "助手",
   "tab_bar.home.label": "聊天",
   "tab_bar.my_homepage.label": "我的主頁",
   "tab_bar.under_development": "{pageName} 頁面開發中",

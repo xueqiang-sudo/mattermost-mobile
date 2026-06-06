@@ -1522,7 +1522,7 @@
   "scheduled_post.root_post_not_exist.message": "Someone delete the message on which you tried to post a comment.",
   "scheduled_post.tooltip.description": "Long-press on an item to see scheduled post actions",
   "tab_bar.contacts.label": "Contacts",
-  "tab_bar.ai_agent.label": "AI Agent",
+  "tab_bar.ai_agent.label": "Assistant",
   "tab_bar.home.label": "Chat",
   "tab_bar.my_homepage.label": "My Homepage",
   "tab_bar.under_development": "{pageName} page is under development",
