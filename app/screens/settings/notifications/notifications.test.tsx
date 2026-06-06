@@ -3,14 +3,12 @@
 
 import {fireEvent} from '@testing-library/react-native';
 import React, {type ComponentProps} from 'react';
+import {Linking} from 'react-native';
 
 import DatabaseManager from '@database/manager';
 import * as DeviceHooks from '@hooks/device';
 import {renderWithEverything, waitFor} from '@test/intl-test-helper';
 import TestHelper from '@test/test_helper';
-import {
-    openMessageNotificationChannelSettings,
-} from '@utils/notification/message_notification_pref';
 import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
 
 import Notifications from './notifications';
@@ -23,12 +21,10 @@ jest.mock('@utils/notification/push_system_sync', () => ({
 
 jest.mock('@utils/notification/message_notification_pref', () => ({
     areSystemNotificationsEnabled: jest.fn(),
-    openAppNotificationSettings: jest.fn().mockResolvedValue(true),
-    openMessageNotificationChannelSettings: jest.fn().mockResolvedValue(true),
 }));
 
 const mockedSyncNotifyPushWithSystemSettings = jest.mocked(syncNotifyPushWithSystemSettings);
-const mockedOpenMessageNotificationChannelSettings = jest.mocked(openMessageNotificationChannelSettings);
+const mockedOpenSettings = jest.mocked(Linking.openSettings);
 
 function getBaseProps(): ComponentProps<typeof Notifications> {
     return {
@@ -104,7 +100,7 @@ describe('Notifications message toggle (system-linked)', () => {
         });
         fireEvent.press(wrapper.getByTestId(systemNotificationOptionTestId));
         await waitFor(() => {
-            expect(mockedOpenMessageNotificationChannelSettings).toHaveBeenCalledTimes(1);
+            expect(mockedOpenSettings).toHaveBeenCalledTimes(1);
         });
     });
 

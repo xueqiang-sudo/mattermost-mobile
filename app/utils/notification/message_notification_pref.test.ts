@@ -3,8 +3,6 @@
 
 import {Linking, Platform} from 'react-native';
 
-import RNUtils from '@mattermost/rnutils';
-
 import {
     ANDROID_APP_PACKAGE,
     openAppNotificationSettings,
@@ -29,10 +27,6 @@ jest.mock('react-native', () => {
     };
 });
 
-jest.mock('@mattermost/rnutils', () => ({
-    openNotificationManagementSettings: jest.fn(),
-}));
-
 jest.mock('react-native-permissions', () => ({
     checkNotifications: jest.fn(),
     RESULTS: {
@@ -56,9 +50,6 @@ jest.mock('@utils/log', () => ({
 
 const mockedSendIntent = jest.mocked(Linking.sendIntent);
 const mockedOpenSettings = jest.mocked(Linking.openSettings);
-const mockedOpenNotificationManagementSettings = jest.mocked(
-    (RNUtils as unknown as {openNotificationManagementSettings: jest.Mock}).openNotificationManagementSettings,
-);
 
 describe('message_notification_pref Android notification settings', () => {
     beforeEach(() => {
@@ -79,29 +70,23 @@ describe('message_notification_pref Android notification settings', () => {
         expect(mockedOpenSettings).not.toHaveBeenCalled();
     });
 
-    it('openMessageNotificationChannelSettings should send APP_NOTIFICATION_SETTINGS intent', async () => {
-        mockedOpenNotificationManagementSettings.mockResolvedValue(true);
-
+    it('openMessageNotificationChannelSettings should call Linking.openSettings', async () => {
         const result = await openMessageNotificationChannelSettings();
 
         expect(result).toBe(true);
-        expect(mockedOpenNotificationManagementSettings).toHaveBeenCalledTimes(1);
-        expect(mockedOpenNotificationManagementSettings).toHaveBeenCalledWith(ANDROID_APP_PACKAGE);
+        expect(mockedOpenSettings).toHaveBeenCalledTimes(1);
     });
 
-    it('should fall back to Linking.openSettings when sendIntent fails', async () => {
-        mockedOpenNotificationManagementSettings.mockRejectedValue(new Error('native unavailable'));
-        mockedSendIntent.mockResolvedValue(undefined);
+    it('openAppNotificationSettings should fall back to openSettings when sendIntent fails', async () => {
+        mockedSendIntent.mockRejectedValue(new Error('intent unavailable'));
 
-        const result = await openMessageNotificationChannelSettings();
+        const result = await openAppNotificationSettings();
 
         expect(result).toBe(true);
-        // 回退链路：RNUtils 失败 => openAppNotificationSettings(App 通知) 的 sendIntent
-        expect(mockedSendIntent).toHaveBeenCalledTimes(1);
+        expect(mockedOpenSettings).toHaveBeenCalledTimes(1);
     });
 
-    it('should return false when both RNUtils and fallbacks fail', async () => {
-        mockedOpenNotificationManagementSettings.mockRejectedValue(new Error('native unavailable'));
+    it('should return false when all fallbacks fail', async () => {
         mockedSendIntent.mockRejectedValue(new Error('intent unavailable'));
         mockedOpenSettings.mockRejectedValue(new Error('openSettings unavailable'));
 
@@ -110,13 +95,11 @@ describe('message_notification_pref Android notification settings', () => {
         expect(result).toBe(false);
     });
 
-    it('should return false on non-Android platforms', async () => {
-        Object.defineProperty(Platform, 'OS', {value: 'ios'});
+    it('openMessageNotificationChannelSettings should return false on failure', async () => {
+        mockedOpenSettings.mockRejectedValue(new Error('openSettings unavailable'));
 
         const result = await openMessageNotificationChannelSettings();
 
         expect(result).toBe(false);
-        expect(mockedSendIntent).not.toHaveBeenCalled();
-        expect(mockedOpenSettings).not.toHaveBeenCalled();
     });
 });

@@ -3,8 +3,7 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Alert, Platform, View} from 'react-native';
-import Permissions from 'react-native-permissions';
+import {Alert, View} from 'react-native';
 
 import {updateMe} from '@actions/remote/user';
 import {getCallsConfig} from '@calls/state';
@@ -20,7 +19,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import JPushManager from '@init/jpush';
 import {popTopScreen} from '@screens/navigation';
 import {gotoSettingsScreen} from '@screens/settings/config';
-import {logError} from '@utils/log';
+import {logError, logInfo} from '@utils/log';
 import {
     areSystemNotificationsEnabled,
     openAppNotificationSettings,
@@ -209,30 +208,14 @@ const Notifications = ({
 
     /** 消息通知开关 Alert：打开应用通知总览（整体开/关） */
     const openAppNotificationSettingsForToggle = usePreventDoubleTap(useCallback(async () => {
-        if (Platform.OS === 'android') {
-            try {
-                const opened = await openAppNotificationSettings();
-                if (opened) {
-                    return;
-                }
-            } catch (error) {
-                logError('[Notifications.openAppNotificationSettingsForToggle]', error);
-            }
-        }
-        Permissions.openSettings('notifications');
+        const isOpenOk = await openAppNotificationSettings();
+        logInfo('[Notifications.openAppNotificationSettingsForToggle] isOpenOk:', isOpenOk);
     }, []));
 
     /** 「消息提醒方式」行：打开系统通知设置页（横幅、锁屏、响铃） */
     const openMessageAlertStyleSettings = usePreventDoubleTap(useCallback(async () => {
-        if (Platform.OS === 'android') {
-            try {
-                await openMessageNotificationChannelSettings();
-                return;
-            } catch (error) {
-                logError('[Notifications.openMessageAlertStyleSettings]', error);
-            }
-        }
-        Permissions.openSettings('notifications');
+        const isOpenOk = await openMessageNotificationChannelSettings();
+        logInfo('[Notifications.openMessageAlertStyleSettings] isOpenOk:', isOpenOk);
     }, []));
 
     const syncPushPreference = useCallback(async (push: UserNotifyPropsPush) => {
