@@ -63,6 +63,6 @@ describe('Account - Settings - About', () => {
         await expect(element(by.text(new RegExp('Copy version info', 'i')))).toBeVisible();
 
         const year = new Date().getFullYear();
-        await expect(AboutScreen.copyright).toHaveText(`© ${year} Optibot. All rights reserved.`);
+        await expect(AboutScreen.copyright).toHaveText(`© ${year} Dedalix. All rights reserved.`);
     });
 });

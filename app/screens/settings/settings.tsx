@@ -34,7 +34,7 @@ const Settings = ({componentId, siteName}: SettingsProps) => {
     const intl = useIntl();
     const serverDisplayName = useServerDisplayName();
 
-    const appTitle = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || siteName || serverDisplayName;
+    const appTitle = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Dedalix'}) || siteName || serverDisplayName;
 
     const close = useCallback(() => {
         dismissModal({componentId});

@@ -285,7 +285,7 @@ export function getChatBubbleOwnTextColor(theme: Theme): string {
 const themeTypeMap: ThemeTypeMap = {
     Mattermost: 'denim',
     Organization: 'sapphire',
-    'Optibot Dark': 'indigo',
+    'Dedalix Dark': 'indigo',
     'Windows Dark': 'onyx',
     Denim: 'denim',
     Sapphire: 'sapphire',

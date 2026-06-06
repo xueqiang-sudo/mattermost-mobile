@@ -9,7 +9,7 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
-import {Screens} from '@constants';
+import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -952,9 +952,9 @@ function DraftInput({
             updateValue={updateValue}
             value={value}
             onDismiss={() => dismissBottomSheet()}
-            showAtMention={!voiceMode}
+            showAtMention={!voiceMode && channelType !== General.DM_CHANNEL}
         />
-    ), [addFiles, canShowPostPriority, draftVideoProcessingBridge, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value, voiceMode]);
+    ), [addFiles, canShowPostPriority, draftVideoProcessingBridge, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value, voiceMode, channelType]);
 
     const openDraftMoreSheet = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();

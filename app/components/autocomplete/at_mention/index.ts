@@ -60,12 +60,20 @@ const enhanced = withObservables(['teamId'], ({database, channelId, teamId}: Wit
         switchMap((t) => of$(Boolean(t?.isGroupConstrained))),
     );
 
+    let channelType: Observable<ChannelType | undefined> = of$(undefined);
+    if (channelId) {
+        const currentChannel = observeChannel(database, channelId);
+        channelType = currentChannel.pipe(switchMap((c) => of$(c?.type)));
+    }
+
     return {
         isChannelConstrained,
         isTeamConstrained,
         useChannelMentions,
         useGroupMentions,
         teamId: team.pipe(switchMap((t) => of$(t?.id))),
+        channelType,
+        currentUserId: currentUser.pipe(switchMap((u) => of$(u?.id))),
     };
 });
 

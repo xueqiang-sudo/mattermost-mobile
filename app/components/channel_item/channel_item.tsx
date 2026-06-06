@@ -14,13 +14,13 @@ import {HOME_PADDING} from '@constants/view';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {isDMorGM} from '@utils/channel';
+import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {getHomeLastPostPreviewText} from '@utils/home_last_post_preview';
 import {formatMessagePreview} from '@utils/message_preview';
-import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {getUserIdFromChannelName} from '@utils/user';
+import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 
 import {ChannelBody} from './channel_body';
 
@@ -47,30 +47,38 @@ type Props = {
     testID?: string;
     hasCall: boolean;
     isOnCenterBg?: boolean;
+
     /** 与 `isOnCenterBg` 配合：奇偶行背景区分 */
     listRowIndex?: number;
+
     /**
      * 与 `listRowIndex` 同屏用于查找频道、已加入频道等列表：非私聊用展示名前二字替代成员拼图头像。
      */
     useListInitialsForNonDm?: boolean;
+
     /** 已加入/归档列表等：在标题旁显示群类型角标（与首页标签规则一致）。 */
     showChannelTypeTag?: boolean;
     showChannelName?: boolean;
     isOnHome?: boolean;
     lastPostAt?: number;
     lastPostPreview?: string | {message: string; files: FileInfo[]; header: string; channelType: ChannelType};
+
     /** Last root post `type` in home list (for localized preview overrides). */
     lastPostType?: string;
     isMilitaryTime: boolean;
+
     /** 是否为已归档频道列表项 */
     isArchivedItem?: boolean;
+
     /** 恢复频道的回调函数 */
     onRestore?: (channel: ChannelModel | Channel) => void;
+
     /** 彻底删除频道的回调函数 */
     onDelete?: (channel: ChannelModel | Channel) => void;
 }
 
 export const ROW_HEIGHT = 40;
+
 /** 查找频道 / 已加入列表等：卡片行内区域高度（含上下 padding） */
 export const ROW_HEIGHT_CENTER_LIST = 64;
 export const ROW_HEIGHT_WITH_TEAM = 58;
@@ -78,6 +86,7 @@ export const ROW_HEIGHT_CONVERSATION = 72;
 
 /** 首页私聊圆形头像：角标「骑」在头像右缘，约一半压在圆上一半伸入与标题间留白，避免整块压在圆弧上 */
 const HOME_DM_BADGE_TOP = 4;
+
 /** 48px 头像、Small 角标宽约 24–26：left≈32 使角标中心接近头像右缘 */
 const HOME_DM_BADGE_LEFT = 32;
 
@@ -135,6 +144,7 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: theme.sidebarBg,
         marginLeft: 0,
     },
+
     // 首页私聊：角标不沿用 iconBadge 的 right:-4（易与圆切线别扭），改用 left 锚定 + 描边/浅阴影分层
     iconBadgeHomeDm: {
         position: 'absolute' as const,
@@ -206,10 +216,12 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     filler: {
         flex: 1,
     },
+
     /** 按下时降低透明度，产生被按下的视觉效果 */
     centerListRowPressed: {
         opacity: 0.85,
     },
+
     // 已归档频道的操作按钮样式
     archivedActions: {
         flexDirection: 'row',
@@ -322,20 +334,21 @@ const ChannelItem = ({
     }, [channel, onDelete]);
 
     const textStyles = useMemo(() => [
-        isBolded && !isMuted ? textStyle.bold : textStyle.regular,
-        styles.text,
-        isBolded && styles.highlight,
-        showActive ? styles.textActive : null,
+
+        // 首页聊天列表名称使用固定的黑色和 Regular 字重，未读/已读/选中完全一致
+        // 非首页场景保持原有的加粗高亮逻辑
+        isOnHome? {color: '#1D1C1D', fontWeight: '400'}: (isBolded && !isMuted ? textStyle.bold : textStyle.regular),
+        isOnHome ? null : styles.text,
+        isOnHome ? null : isBolded && styles.highlight,
+        isOnHome ? null : showActive && styles.textActive,
         isOnCenterBg ? styles.textOnCenterBg : null,
         isMuted && styles.muted,
         isMuted && isOnCenterBg && styles.mutedOnCenterBg,
-    ], [isBolded, styles, isMuted, showActive, isOnCenterBg]);
+    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome]);
 
     const containerStyle = useMemo(() => {
         const listSurface =
-            isOnCenterBg && listRowIndex !== undefined ?
-                getChannelListModalRowSurfaceStyle(theme) :
-                null;
+            isOnCenterBg && listRowIndex !== undefined ?getChannelListModalRowSurfaceStyle(theme) :null;
         return [
             styles.container,
             listSurface,
@@ -379,15 +392,11 @@ const ChannelItem = ({
                 accessibilityRole='button'
                 android_disableSound={true}
                 android_ripple={
-                    isCenterListCard && Platform.OS === 'android' ?
-                        {color: '#00000000', borderless: false} :
-                        undefined
+                    isCenterListCard && Platform.OS === 'android' ?{color: '#00000000', borderless: false} :undefined
                 }
                 onPress={handleOnPress}
                 style={({pressed}) => (
-                    !isCenterListCard && pressed ?
-                        {opacity: 0.92} :
-                        undefined
+                    !isCenterListCard && pressed ?{opacity: 0.92} :undefined
                 )}
             >
                 {({pressed}) => (
@@ -481,15 +490,11 @@ const ChannelItem = ({
             accessibilityRole='button'
             android_disableSound={true}
             android_ripple={
-                isCenterListCard && Platform.OS === 'android' ?
-                    {color: '#00000000', borderless: false} :
-                    undefined
+                isCenterListCard && Platform.OS === 'android' ?{color: '#00000000', borderless: false} :undefined
             }
             onPress={handleOnPress}
             style={({pressed}) => (
-                !isCenterListCard && pressed ?
-                    {opacity: 0.92} :
-                    undefined
+                !isCenterListCard && pressed ?{opacity: 0.92} :undefined
             )}
         >
             {({pressed}) => (
@@ -500,127 +505,127 @@ const ChannelItem = ({
                     ]}
                     testID={channelItemTestId}
                 >
-                <View style={[styles.icon, isOnHome && styles.iconWrapper]}>
-                    <ChannelIcon
-                        channelId={channel.id}
-                        hasDraft={hasDraft}
-                        initialsSource={displayName}
-                        isActive={isTablet && isActive}
-                        isOnCenterBg={isOnCenterBg}
-                        isOnHome={isOnHome}
-                        isUnread={isBolded}
-                        isArchived={deleteAt > 0}
-                        membersCount={membersCount}
-                        name={channel.name}
-                        shared={channel.shared}
-                        promotedListAvatar={listRowIndex !== undefined}
-                        size={isOnHome ? 48 : (listRowIndex !== undefined ? 40 : 24)}
-                        type={channel.type}
-                        isMuted={isMuted}
-                        useListInitialsForNonDm={useListInitialsForNonDm}
-                        style={!isOnHome ? styles.icon : undefined}
-                    />
-                    {isOnHome && isMuted && (
-                        <View
-                            accessibilityLabel={mutedIndicatorA11yLabel}
-                            accessibilityRole='image'
-                            accessible={true}
-                            style={[styles.muteIndicator, isDmChannel && styles.muteIndicatorDm]}
-                            testID={`${channelItemTestId}.muted_indicator`}
-                        >
-                            <CompassIcon
-                                name='bell-off-outline'
-                                size={11}
-                                style={styles.muteIndicatorIcon}
-                            />
-                        </View>
-                    )}
-                    {showIconBadge && (
-                        <Badge
-                            visible={true}
-                            value={badgeValue}
-                            type='Small'
-                            backgroundColor='#FF3B30'
-                            color='#FFFFFF'
-                            borderColor={isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg}
-                            style={[
-                                styles.badge,
-                                isMuted && styles.mutedBadge,
-                                isOnCenterBg && styles.badgeOnCenterBg,
-                                isDmChannel ? styles.iconBadgeHomeDm : styles.iconBadge,
-                            ]}
+                    <View style={[styles.icon, isOnHome && styles.iconWrapper]}>
+                        <ChannelIcon
+                            channelId={channel.id}
+                            hasDraft={hasDraft}
+                            initialsSource={displayName}
+                            isActive={isTablet && isActive}
+                            isOnCenterBg={isOnCenterBg}
+                            isOnHome={isOnHome}
+                            isUnread={isBolded}
+                            isArchived={deleteAt > 0}
+                            membersCount={membersCount}
+                            name={channel.name}
+                            shared={channel.shared}
+                            promotedListAvatar={listRowIndex !== undefined}
+                            size={isOnHome ? 48 : (listRowIndex !== undefined ? 40 : 24)}
+                            type={channel.type}
+                            isMuted={isMuted}
+                            useListInitialsForNonDm={useListInitialsForNonDm}
+                            style={!isOnHome ? styles.icon : undefined}
                         />
-                    )}
-                </View>
-                {isOnHome ? (
-                    <View style={{flex: 1, minWidth: 0, justifyContent: 'center'}}>
-                        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                        {isOnHome && isMuted && (
+                            <View
+                                accessibilityLabel={mutedIndicatorA11yLabel}
+                                accessibilityRole='image'
+                                accessible={true}
+                                style={[styles.muteIndicator, isDmChannel && styles.muteIndicatorDm]}
+                                testID={`${channelItemTestId}.muted_indicator`}
+                            >
+                                <CompassIcon
+                                    name='bell-off-outline'
+                                    size={11}
+                                    style={styles.muteIndicatorIcon}
+                                />
+                            </View>
+                        )}
+                        {showIconBadge && (
+                            <Badge
+                                visible={true}
+                                value={badgeValue}
+                                type='Small'
+                                backgroundColor='#FF3B30'
+                                color='#FFFFFF'
+                                borderColor={isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg}
+                                style={[
+                                    styles.badge,
+                                    isMuted && styles.mutedBadge,
+                                    isOnCenterBg && styles.badgeOnCenterBg,
+                                    isDmChannel ? styles.iconBadgeHomeDm : styles.iconBadge,
+                                ]}
+                            />
+                        )}
+                    </View>
+                    {isOnHome ? (
+                        <View style={{flex: 1, minWidth: 0, justifyContent: 'center'}}>
+                            <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                                <ChannelBody
+                                    displayName={displayName}
+                                    isMuted={isMuted}
+                                    teamDisplayName=''
+                                    teammateId={teammateId}
+                                    testId={channelItemTestId}
+                                    textStyles={textStyles}
+                                    channelName={channelName}
+                                    channelType={channel.type}
+                                    channelNameKey={channel.name}
+                                    isOnHome={true}
+                                    showChannelTypeTag={showChannelTypeTag}
+                                    isOnCenterBg={isOnCenterBg}
+                                />
+                                {lastPostAt > 0 ? (
+                                    <FormattedConversationTime
+                                        timestamp={lastPostAt}
+                                        timeZone={currentTimezone ?? undefined}
+                                        isMilitaryTime={isMilitaryTime}
+                                        style={[styles.timestamp, isOnCenterBg && styles.timestampOnCenterBg]}
+                                    />
+                                ) : (
+                                    <View style={{minWidth: 24}}/>
+                                )}
+                            </View>
+                            {Boolean(subtitle) && (
+                                <Text
+                                    numberOfLines={1}
+                                    ellipsizeMode='tail'
+                                    style={[styles.subtitle, isMuted && styles.muted, isOnCenterBg && styles.subtitleOnCenterBg]}
+                                >
+                                    {subtitle}
+                                </Text>
+                            )}
+                        </View>
+                    ) : (
+                        <>
                             <ChannelBody
                                 displayName={displayName}
                                 isMuted={isMuted}
-                                teamDisplayName=''
+                                teamDisplayName={teamDisplayName}
                                 teammateId={teammateId}
                                 testId={channelItemTestId}
                                 textStyles={textStyles}
                                 channelName={channelName}
                                 channelType={channel.type}
                                 channelNameKey={channel.name}
-                                isOnHome={true}
+                                isOnHome={isOnHome}
                                 showChannelTypeTag={showChannelTypeTag}
                                 isOnCenterBg={isOnCenterBg}
                             />
-                            {lastPostAt > 0 ? (
-                                <FormattedConversationTime
-                                    timestamp={lastPostAt}
-                                    timeZone={currentTimezone ?? undefined}
-                                    isMilitaryTime={isMilitaryTime}
-                                    style={[styles.timestamp, isOnCenterBg && styles.timestampOnCenterBg]}
-                                />
-                            ) : (
-                                <View style={{minWidth: 24}}/>
-                            )}
-                        </View>
-                        {Boolean(subtitle) && (
-                            <Text
-                                numberOfLines={1}
-                                ellipsizeMode='tail'
-                                style={[styles.subtitle, isMuted && styles.muted, isOnCenterBg && styles.subtitleOnCenterBg]}
-                            >
-                                {subtitle}
-                            </Text>
-                        )}
-                    </View>
-                ) : (
-                    <>
-                        <ChannelBody
-                            displayName={displayName}
-                            isMuted={isMuted}
-                            teamDisplayName={teamDisplayName}
-                            teammateId={teammateId}
-                            testId={channelItemTestId}
-                            textStyles={textStyles}
-                            channelName={channelName}
-                            channelType={channel.type}
-                            channelNameKey={channel.name}
-                            isOnHome={isOnHome}
-                            showChannelTypeTag={showChannelTypeTag}
-                            isOnCenterBg={isOnCenterBg}
-                        />
-                        <View style={styles.filler}/>
-                        <Badge
-                            visible={mentionsCount > 0}
-                            value={mentionsCount}
-                            style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg]}
-                        />
-                        {hasCall && (
-                            <CompassIcon
-                                name='phone-in-talk'
-                                size={16}
-                                style={[textStyles, styles.hasCall]}
+                            <View style={styles.filler}/>
+                            <Badge
+                                visible={mentionsCount > 0}
+                                value={mentionsCount}
+                                style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg]}
                             />
-                        )}
-                    </>
-                )}
+                            {hasCall && (
+                                <CompassIcon
+                                    name='phone-in-talk'
+                                    size={16}
+                                    style={[textStyles, styles.hasCall]}
+                                />
+                            )}
+                        </>
+                    )}
                 </View>
             )}
         </Pressable>

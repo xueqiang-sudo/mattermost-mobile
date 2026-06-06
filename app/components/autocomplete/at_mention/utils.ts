@@ -210,14 +210,6 @@ export const makeSections = (teamMembers: Array<UserProfile | UserModel>, usersI
                 key: SECTION_KEY_SPECIAL,
             });
         }
-
-        if (usersOutOfChannel.length) {
-            newSections.push({
-                ...sectionMessages.nonmembers,
-                data: usersOutOfChannel,
-                key: SECTION_KEY_OUT_OF_CHANNEL,
-            });
-        }
     }
     return newSections;
 };

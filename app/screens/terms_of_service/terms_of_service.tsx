@@ -94,7 +94,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
 });
 
 const TermsOfService = ({
-    siteName = 'Optibot',
+    siteName = 'Dedalix',
     showToS,
     componentId,
 }: Props) => {

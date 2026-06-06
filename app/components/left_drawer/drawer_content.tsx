@@ -11,6 +11,7 @@ import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 
 import {logout} from '@actions/remote/session';
 import {handleTeamChange} from '@actions/remote/team';
+import CompanySvg from '@assets/images/svgs/company.svg';
 import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
 import CompassIcon from '@components/compass_icon';
 import FormattedName from '@components/formatted_name';
@@ -325,33 +326,6 @@ type DrawerTeamListProps = {
     onClose: () => void;
 };
 
-const AVATAR_COLORS = [
-    '#5D7A8C', '#6B8E6B', '#8B7355', '#7B68A0', '#A0525D',
-    '#4682B4', '#2E8B57', '#CD853F', '#6A5ACD', '#DC143C',
-];
-
-function getEnterpriseAvatarStyle(displayName: string) {
-    const hash = displayName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const color = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-    return {backgroundColor: changeOpacity(color, 0.9)};
-}
-
-function getEnterpriseInitials(displayName: string): string {
-    const trimmed = (displayName || '').trim();
-    if (!trimmed) {
-        return '?';
-    }
-    const isCJK = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(trimmed);
-    if (isCJK) {
-        return trimmed.slice(0, 2);
-    }
-    const segments = trimmed.split(/\s+/);
-    if (segments.length >= 2) {
-        return (segments[0][0] + segments[1][0]).toUpperCase().slice(0, 2);
-    }
-    return trimmed.slice(0, 2).toUpperCase();
-}
-
 function DrawerTeamListInner({
     myTeam,
     team,
@@ -379,9 +353,6 @@ function DrawerTeamListInner({
         return null;
     }
 
-    const initials = getEnterpriseInitials(team.displayName);
-    const avatarStyle = getEnterpriseAvatarStyle(team.displayName);
-
     return (
         <TouchableWithFeedback
             onPress={onPress}
@@ -390,14 +361,12 @@ function DrawerTeamListInner({
             testID={`left_drawer.team_row.${team.id}`}
         >
             {selected && <View style={styles.teamRowSelectedBar}/>}
-            <View style={[styles.teamAvatar, avatarStyle]}>
-                <Text
-                    numberOfLines={1}
-                    style={styles.teamAvatarText}
-                >
-                    {initials}
-                </Text>
-            </View>
+            <CompanySvg
+                width={36}
+                height={36}
+                color={selected ? theme.sidebarText : changeOpacity(theme.sidebarText, 0.64)}
+                style={{marginRight: 12, flexShrink: 0}}
+            />
             <Text
                 numberOfLines={1}
                 style={[styles.teamName, selected && styles.teamNameSelected]}
@@ -520,15 +489,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 12,
         paddingLeft: 14,
         borderRadius: 10,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        backgroundColor: 'transparent',
         borderWidth: 1,
         borderColor: changeOpacity(theme.centerChannelColor, 0.08),
         position: 'relative',
         overflow: 'hidden',
     },
     teamRowSelected: {
-        backgroundColor: changeOpacity(theme.sidebarTextActiveBorder, 0.22),
-        borderColor: changeOpacity(theme.sidebarTextActiveBorder, 0.45),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
     },
     teamRowSelectedBar: {
         position: 'absolute',
@@ -539,18 +507,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.sidebarTextActiveBorder,
         borderTopLeftRadius: 10,
         borderBottomLeftRadius: 10,
-    },
-    teamAvatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    teamAvatarText: {
-        color: '#FFFFFF',
-        ...typography('Heading', 75, 'SemiBold'),
     },
     teamName: {
         flex: 1,

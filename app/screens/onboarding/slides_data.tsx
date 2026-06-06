@@ -56,7 +56,7 @@ const useSlidesData = () => {
     const slidesData: OnboardingItem[] = [
         {
             title: intl.formatMessage({id: 'onboarding.welcome', defaultMessage: 'Welcome'}),
-            description: intl.formatMessage({id: 'onboaring.welcome_description', defaultMessage: 'Optibot is an open source platform for developer collaboration. Secure, flexible, and integrated with your tools.'}),
+            description: intl.formatMessage({id: 'onboaring.welcome_description', defaultMessage: 'Dedalix is an open source platform for developer collaboration. Secure, flexible, and integrated with your tools.'}),
             image: chatSvg,
         },
         {

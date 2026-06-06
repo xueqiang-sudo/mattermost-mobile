@@ -227,6 +227,26 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
     const currentUserId = useMemo(() => currentUser?.id, [currentUser]);
     const companyName = useMemo(() => currentTeam?.displayName?.trim(), [currentTeam]);
 
+    /** 跟踪 isEnterpriseManager 的稳定值，避免 observable 重算时短暂波动导致按钮消失 */
+    const prevTeamIdRef = useRef<string | undefined>(currentTeamId);
+    const isEnterpriseManagerRef = useRef(false);
+    const [enterpriseManager, setEnterpriseManager] = useState(false);
+
+    useEffect(() => {
+        const teamChanged = currentTeamId !== prevTeamIdRef.current;
+        if (teamChanged) {
+            prevTeamIdRef.current = currentTeamId;
+            setEnterpriseManager(false);
+            isEnterpriseManagerRef.current = false;
+        }
+
+        // 同一企业内：用 ref 记录上次值，只有真正发生变化才更新
+        if (isEnterpriseManager !== isEnterpriseManagerRef.current) {
+            isEnterpriseManagerRef.current = isEnterpriseManager;
+            setEnterpriseManager(isEnterpriseManager);
+        }
+    }, [isEnterpriseManager, currentTeamId]);
+
     const [topLevelDepartments, setTopLevelDepartments] = useState<MMDepartment[]>([]);
     const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<UserProfile[]>([]);
     const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
@@ -240,7 +260,7 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
 
     const contactsActionsReserve = Math.max(
         contactsHeaderActionsWidth,
-        isEnterpriseManager ? 72 : 40,
+        enterpriseManager ? 72 : 40,
     );
 
     /** RNN 弹窗关闭或 React Navigation Tab 再次聚焦时递增，触发主列表重新拉取 */
@@ -323,6 +343,14 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
         return () => listener.remove();
     }, [loadTagMeta]);
 
+    /** 成员被删除后刷新通讯录主列表 */
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(Events.CONTACTS_LIST_REFRESH, () => {
+            setHomeReappearTick((t) => t + 1);
+        });
+        return () => listener.remove();
+    }, []);
+
     useEffect(() => {
         if (!serverUrl || !currentTeamId || defaultDepartmentEmployees.length === 0) {
             setManagerIds(new Set());
@@ -355,7 +383,6 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
             }
 
             mounted.current = true;
-            setLoading(true);
             setServiceError(false);
 
             if (!currentTeamId) {
@@ -374,7 +401,7 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                 return;
             }
 
-            if (isEnterpriseManager) {
+            if (enterpriseManager) {
                 let isNewCreate = false;
                 if (!deptRes.data?.find((d) => d.name === DEFAULT_TEAM_DEPARTMENT_NAME)) {
                     // 没有默认部门，则创建默认部门
@@ -418,7 +445,7 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
         return () => {
             mounted.current = false;
         };
-    }, [currentTeamId, currentUserId, isFocused, serverUrl, homeReappearTick, isEnterpriseManager]);
+    }, [currentTeamId, currentUserId, isFocused, serverUrl, homeReappearTick, enterpriseManager]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: MMDepartment) => {
         const breadcrumb = [
@@ -628,7 +655,7 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                                         color={theme.sidebarHeaderTextColor}
                                     />
                                 </TouchableOpacity>
-                                {isEnterpriseManager && (
+                                {enterpriseManager && (
                                     <TouchableOpacity
                                         style={styles.headerIconButton}
                                         onPress={handleManageContacts}

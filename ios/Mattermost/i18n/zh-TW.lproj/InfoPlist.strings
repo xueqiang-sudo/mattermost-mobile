@@ -1,4 +1,4 @@
-CFBundleDisplayName = "優小智";
+CFBundleDisplayName = "允知智構";
 NSAppleMusicUsageDescription = "啓用對媒體庫的訪問意味着您可以將媒體庫中的文件附加到Optibot中的消息中。";
 NSBluetoothAlwaysUsageDescription = "啓用藍牙訪問意味着我們可以在您的設備和客戶端之間同步內容。";
 NSBluetoothPeripheralUsageDescription = "啓用對藍牙的訪問意味着我們可以連接到音頻外圍設備進行通話，並在您的設備和客戶端之間同步內容。";

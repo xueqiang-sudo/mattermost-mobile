@@ -364,13 +364,13 @@ lane :github do
     build = android_get_version_code(gradle_file: './android/app/build.gradle')
     changelog = File.read("metadata/changelog")
     android = [
-      "    * [Optibot arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-arm64-v8a.apk)",
-      "    * [Optibot armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-armeabi-v7a.apk)",
-      "    * [Optibot x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86.apk)",
-      "    * [Optibot x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86_64.apk)",
+      "    * [Dedalix arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-arm64-v8a.apk)",
+      "    * [Dedalix armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-armeabi-v7a.apk)",
+      "    * [Dedalix x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86.apk)",
+      "    * [Dedalix x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86_64.apk)",
     ]
     changelog.concat("* Android\n#{android.join("\n")}\n")
-    changelog.concat("* iOS\n    * [Optibot](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}.ipa)")
+    changelog.concat("* iOS\n    * [Dedalix](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}.ipa)")
 
     github_release = set_github_release(
       repository_name: "mattermost/mattermost-mobile",
@@ -417,7 +417,7 @@ platform :ios do
   lane :unsigned do
     UI.success('Building unsigned iOS app')
 
-    ENV['APP_NAME'] = 'Optibot'
+    ENV['APP_NAME'] = 'Dedalix'
     ENV['REPLACE_ASSETS'] = 'true'
     ENV['BUILD_FOR_RELEASE'] = 'true'
     ENV['APP_SCHEME'] = 'mattermost'
@@ -489,7 +489,7 @@ platform :ios do
 
   lane :update_settings do
     # Configure Main app settings
-    app_name = ENV['APP_NAME'] || 'Optibot'
+    app_name = ENV['APP_NAME'] || 'Dedalix'
     app_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.optibot.cn'
     app_group_id = ENV['IOS_APP_GROUP'] || 'group.com.optibot.cn'
     icloud_container = ENV['IOS_ICLOUD_CONTAINER'] || 'iCloud.com.optibot.cn'
@@ -672,7 +672,7 @@ platform :ios do
       sh 'cp -R ../dist/assets/release/splash_screen/ios/SplashIcon.imageset ../ios/Mattermost/Images.xcassets/'
     end
 
-    app_name =  ENV['APP_NAME'] || 'Optibot'
+    app_name =  ENV['APP_NAME'] || 'Dedalix'
     localization_base_path = '../dist/assets/i18n/'
     Dir.glob('*.json', base: localization_base_path) do |item|
       localization_file = File.read(localization_base_path + item)
@@ -797,7 +797,7 @@ platform :ios do
     root_dir = Dir[File.expand_path('..')].first
     ios_build_dir = "#{root_dir}/ios/Build/Products"
 
-    ENV['APP_NAME'] = 'Optibot'
+    ENV['APP_NAME'] = 'Dedalix'
     ENV['REPLACE_ASSETS'] = 'true'
     ENV['BUILD_FOR_RELEASE'] = 'true'
     ENV['APP_SCHEME'] = 'mattermost'
@@ -835,7 +835,7 @@ platform :android do
   lane :unsigned do
     UI.success('Building unsigned Android app')
 
-    ENV['APP_NAME'] = 'Optibot'
+    ENV['APP_NAME'] = 'Dedalix'
     ENV['REPLACE_ASSETS'] = 'true'
     ENV['BUILD_FOR_RELEASE'] = 'true'
     ENV['APP_SCHEME'] = 'mattermost'
@@ -872,7 +872,7 @@ platform :android do
 
   lane :update_identifiers do
     # Set the name for the app
-    app_name =  ENV['APP_NAME'] || 'Optibot'
+    app_name =  ENV['APP_NAME'] || 'Dedalix'
     sh "echo '#{app_name}' > ../fastlane/metadata/android/en-US/title.txt"
     android_change_string_app_name(
         newName: app_name,
@@ -881,20 +881,20 @@ platform :android do
 
     if ENV['BETA_BUILD'] == 'true'
       android_change_string_app_name(
-        newName: "优小智 Beta",
+        newName: "允知智构 Beta",
         stringsFile: './android/app/src/main/res/values-zh-rCN/strings.xml'
       )
       android_change_string_app_name(
-        newName: "優小智 Beta",
+        newName: "允知智構 Beta",
         stringsFile: './android/app/src/main/res/values-zh-rTW/strings.xml'
       )
     else
       android_change_string_app_name(
-        newName: "优小智",
+        newName: "允知智构",
         stringsFile: './android/app/src/main/res/values-zh-rCN/strings.xml'
       )
       android_change_string_app_name(
-        newName: "優小智",
+        newName: "允知智構",
         stringsFile: './android/app/src/main/res/values-zh-rTW/strings.xml'
       )
     end

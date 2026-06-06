@@ -561,17 +561,34 @@ const ContactsEmployeeProfile = ({
             return;
         }
         setDeleting(true);
-        const result = await removeUserFromTeam(serverUrl, companyIdProp, employee.id);
-        setDeleting(false);
-        if (result.error) {
+        try {
+            /** 先获取该成员所在部门，从各部门中移除后再从团队移除 */
+            const client = NetworkManager.getClient(serverUrl);
+            const departments = await client.getUserDepartments(employee.id, companyIdProp);
+            if (departments && departments.length > 0) {
+                for (const dept of departments) {
+                    await client.removeDepartmentMember(companyIdProp, dept.id, employee.id);
+                }
+            }
+            const result = await removeUserFromTeam(serverUrl, companyIdProp, employee.id);
+            if (result.error) {
+                Alert.alert(
+                    '',
+                    intl.formatMessage({id: 'contacts.delete_member_failed', defaultMessage: 'Failed to remove member. Please try again.'}),
+                );
+                return;
+            }
+            handleClose();
+            DeviceEventEmitter.emit(Events.CONTACTS_LIST_REFRESH);
+        } catch (error) {
             Alert.alert(
                 '',
                 intl.formatMessage({id: 'contacts.delete_member_failed', defaultMessage: 'Failed to remove member. Please try again.'}),
             );
-            return;
+        } finally {
+            setDeleting(false);
         }
-        handleClose();
-    }, [canDeleteEnterpriseMember, deleting, employee.id, companyIdProp, handleClose, intl, serverUrl]));
+    }, [canDeleteEnterpriseMember, deleting, employee.id, employee, companyIdProp, handleClose, intl, serverUrl, isSupplierCustomer, handleDeleteRelation]));
 
     const handleCopyBasicInfo = usePreventDoubleTap(
         useCallback(() => {

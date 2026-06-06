@@ -10,6 +10,7 @@ import AtMentionItem from '@components/autocomplete/at_mention_item';
 import AutocompleteSectionHeader from '@components/autocomplete/autocomplete_section_header';
 import SpecialMentionItem from '@components/autocomplete/special_mention_item';
 import {AT_MENTION_REGEX, AT_MENTION_SEARCH_REGEX} from '@constants/autocomplete';
+import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useDebounce} from '@hooks/utils';
 
@@ -34,6 +35,8 @@ type Props = {
     isChannelConstrained: boolean;
     isTeamConstrained: boolean;
     listStyle: StyleProp<ViewStyle>;
+    channelType?: ChannelType;
+    currentUserId?: string;
 }
 
 const AtMention = ({
@@ -50,8 +53,13 @@ const AtMention = ({
     isChannelConstrained,
     isTeamConstrained,
     listStyle,
+    channelType,
+    currentUserId,
 }: Props) => {
     const serverUrl = useServerUrl();
+
+    /** 两人聊天（DM）不支持 @提及 */
+    const isDM = channelType === General.DM_CHANNEL;
 
     const [sections, setSections] = useState<UserMentionSections>(emptySectionList);
     const [usersInChannel, setUsersInChannel] = useState<Array<UserProfile | UserModel>>(emptyUserlList);
@@ -92,16 +100,29 @@ const AtMention = ({
                 return;
             }
 
-            const filteredUsers = filterResults(fallbackUsers, term);
-            setFilteredLocalUsers(filteredUsers.length ? filteredUsers : emptyUserlList);
+            let filteredLocal = filterResults(fallbackUsers, term);
+
+            // 过滤掉当前用户自己
+            if (currentUserId) {
+                filteredLocal = filteredLocal.filter((u) => u.id !== currentUserId);
+            }
+            setFilteredLocalUsers(filteredLocal.length ? filteredLocal : emptyUserlList);
         } else if (receivedUsers) {
-            const [sortedMembers, sortedOutOfChannel] = await sortReceivedUsers(sUrl, term, receivedUsers?.users, receivedUsers?.out_of_channel);
+            let filtered = receivedUsers?.users || [];
+            let filteredOut = receivedUsers?.out_of_channel;
+
+            // 过滤掉当前用户自己
+            if (currentUserId) {
+                filtered = filtered.filter((u) => u.id !== currentUserId);
+                filteredOut = filteredOut?.filter((u) => u.id !== currentUserId);
+            }
+            const [sortedMembers, sortedOutOfChannel] = await sortReceivedUsers(sUrl, term, filtered, filteredOut);
             setUsersInChannel(sortedMembers.length ? sortedMembers : emptyUserlList);
             setUsersOutOfChannel(sortedOutOfChannel.length ? sortedOutOfChannel : emptyUserlList);
         }
 
         setLoading(false);
-    }, [localUsers]), 200);
+    }, [localUsers, currentUserId]), 200);
 
     const teamMembers = useMemo(
         () => [...usersInChannel, ...usersOutOfChannel],
@@ -212,6 +233,12 @@ const AtMention = ({
     }, [cursorPosition]);
 
     useEffect(() => {
+        // 两人聊天不支持 @提及
+        if (isDM) {
+            onShowingChange(false);
+            return;
+        }
+
         if (matchTerm === null) {
             resetState();
             onShowingChange(false);
@@ -227,13 +254,15 @@ const AtMention = ({
         runSearch(serverUrl, matchTerm, useGroupMentions, isChannelConstrained, isTeamConstrained, teamId, channelId);
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [matchTerm, teamId, useGroupMentions, isChannelConstrained, isTeamConstrained]);
+    }, [matchTerm, teamId, useGroupMentions, isChannelConstrained, isTeamConstrained, isDM]);
 
     useEffect(() => {
         if (noResultsTerm && !loading) {
             return;
         }
-        const showSpecialMentions = useChannelMentions && matchTerm != null && checkSpecialMentions(matchTerm);
+
+        // 群聊不显示特殊提及项（@channel, @here, @all）
+        const showSpecialMentions = false;
         const buildMemberSection = isSearch || (!channelId && teamMembers.length > 0);
         let newSections;
         if (useLocal) {

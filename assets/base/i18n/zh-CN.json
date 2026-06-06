@@ -689,7 +689,7 @@
   "markdown.max_nodes.error": "此信息过长，无法在移动客户端上完整显示。请在PC客户端上查看或联系管理员以增加消息限制长度。",
   "markdown.parse_error": "解析此文本时遇到错误",
   "markdown.render_error": "渲染此文本时遇到错误",
-  "mobile.app.display_name": "优小智",
+  "mobile.app.display_name": "允知智构",
   "mobile.about.appVersion": "应用版本：{version} (Build {number})",
   "mobile.account.settings.save": "保存",
   "mobile.acknowledgements.header": "感谢",

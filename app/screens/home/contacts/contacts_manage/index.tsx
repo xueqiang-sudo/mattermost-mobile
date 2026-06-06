@@ -145,7 +145,6 @@ const loadContent = async (
     setLoadingArg: React.Dispatch<React.SetStateAction<boolean>>,
     mounted: React.MutableRefObject<boolean>,
 ) => {
-    setLoadingArg(true);
     setErrorArg(false);
     if (!serverUrlArg) {
         if (mounted.current) {
@@ -353,6 +352,14 @@ const ContactsManage = ({
         });
         return () => listener.remove();
     }, [loadOwnerAndSelf]);
+
+    /** 成员被删除后（从员工详情弹窗），刷新当前管理列表 */
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(Events.CONTACTS_LIST_REFRESH, () => {
+            refetch();
+        });
+        return () => listener.remove();
+    }, [refetch]);
 
     const openManagerModal = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();

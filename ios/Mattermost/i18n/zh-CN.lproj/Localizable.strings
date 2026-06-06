@@ -695,7 +695,7 @@
 "markdown.max_nodes.error" = "此信息过长，无法在移动客户端上完整显示。请在PC客户端上查看或联系管理员以增加消息限制长度。";
 "markdown.parse_error" = "解析此文本时遇到错误";
 "markdown.render_error" = "渲染此文本时遇到错误";
-"mobile.app.display_name" = "优小智";
+"mobile.app.display_name" = "允知智构";
 "mobile.about.appVersion" = "应用版本：{version} (Build {number})";
 "mobile.account.settings.save" = "保存";
 "mobile.acknowledgements.header" = "感谢";
@@ -703,8 +703,8 @@
 "mobile.action_menu.select_multiple" = "选择一个或多个选项";
 "mobile.add_team.title" = "添加企业";
 "mobile.android.back_handler_exit" = "再次点击返回以退出";
-"mobile.android.photos_permission_denied_description" = "上传照片到您的 Mattermost 或保存到您的设备。打开设定并允许 Optibot 读写到您的相册。";
-"mobile.android.photos_permission_denied_title" = "Optibot 想要访问您的照片";
+"mobile.android.photos_permission_denied_description" = "上传照片到您的 Mattermost 或保存到您的设备。打开设定并允许 Dedalix 读写到您的相册。";
+"mobile.android.photos_permission_denied_title" = "Dedalix 想要访问您的照片";
 "mobile.announcement_banner.title" = "公告";
 "mobile.burn_on_read.placeholder" = "View message";
 "mobile.calls_audio_device" = "选择音频设备";
@@ -820,7 +820,7 @@
 "mobile.calls_viewing_screen" = "您正在观看{name}的屏幕";
 "mobile.calls_you" = "（您）";
 "mobile.calls_you_2" = "您";
-"mobile.camera_photo_permission_denied_description" = "拍照并上传到您的服务器或保存到您的设备。打开设定并允许 Optibot 读写到您的相机。";
+"mobile.camera_photo_permission_denied_description" = "拍照并上传到您的服务器或保存到您的设备。打开设定并允许 Dedalix 读写到您的相机。";
 "mobile.camera_photo_permission_denied_title" = "Optibot想要访问您的相机";
 "mobile.camera_type.title" = "相机选项";
 "mobile.camera_video.record_notice_continue" = "继续";
@@ -931,8 +931,8 @@
 "mobile.integration_selector.loading_options" = "正在载入选项…";
 "mobile.intune.login.canceled" = "Login was canceled. Please try again";
 "mobile.intune.login.failed" = "Authentication failed. Please try again";
-"mobile.ios.photos_permission_denied_description" = "拍照并上传到您的服务器或保存到您的设备。打开设定并允许 Optibot 读写到您的相册和视频集。";
-"mobile.ios.photos_permission_denied_title" = "Optibot 想要访问您的照片";
+"mobile.ios.photos_permission_denied_description" = "拍照并上传到您的服务器或保存到您的设备。打开设定并允许 Dedalix 读写到您的相册和视频集。";
+"mobile.ios.photos_permission_denied_title" = "Dedalix 想要访问您的照片";
 "mobile.join_channel.error" = "我们不会参加内部群{displayName}。";
 "mobile.leave_and_create_message" = "你当前正在 ~{leaveChannelName} 内部群通话。你要离开当前通话，并在 ~{joinChannelName} 内部群开始新的通话吗？";
 "mobile.leave_and_join_confirmation" = "离开 & 加入";
@@ -1117,8 +1117,8 @@
 "mobile.set_status.dnd" = "请勿打扰";
 "mobile.set_status.offline" = "离线";
 "mobile.set_status.online" = "在线";
-"mobile.storage_permission_denied_description" = "上传文件到您的 Mattermost。打开设定并允许 Optibot 读写此设备上的文件。";
-"mobile.storage_permission_denied_title" = "Optibot 想要访问您的文件";
+"mobile.storage_permission_denied_description" = "上传文件到您的 Mattermost。打开设定并允许 Dedalix 读写此设备上的文件。";
+"mobile.storage_permission_denied_title" = "Dedalix 想要访问您的文件";
 "mobile.suggestion.members" = "成员";
 "mobile.system_message.change_channel_privacy.to_private" = "此内部群已设为仅受邀成员可见。";
 "mobile.system_message.change_channel_privacy.to_public" = "此内部群已转为公开，企业成员可加入。";
@@ -1183,7 +1183,7 @@
 "mobile.update.android.install_error" = "安装失败，请重试";
 "mobile.update.android.back" = "返回";
 "mobile.user_list.deactivated" = "已停用";
-"mobile.write_storage_permission_denied_description" = "保存文件到你的设备。打开设定并允许 Optibot 读写此设备上的文件。";
+"mobile.write_storage_permission_denied_description" = "保存文件到你的设备。打开设定并允许 Dedalix 读写此设备上的文件。";
 "modal.manual_status.auto_responder.message_" = "您想切换您的状态到 \"{status}\" 并停用自动回复吗？";
 "more_messages.text" = "{count} 条{count, plural, one {新消息} other {新消息}}";
 "msg_typing.areTyping" = "{users}和{last}正在输入…";

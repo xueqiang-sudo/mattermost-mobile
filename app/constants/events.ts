@@ -51,6 +51,9 @@ export default keyMirror({
     DRAFT_SWIPEABLE: null,
     MANAGE_ENTERPRISE_REFRESH: null,
 
+    /** 通讯录成员删除后刷新列表 */
+    CONTACTS_LIST_REFRESH: null,
+
     /** 供应商/客户关系增删改后刷新「我的供应商/客户」列表 */
     SUPPLIER_CUSTOMER_CONTACTS_CHANGED: null,
     ACTIVE_SCREEN: null,

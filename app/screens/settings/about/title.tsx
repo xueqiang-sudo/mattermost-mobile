@@ -49,7 +49,7 @@ const Title = ({config}: TitleProps) => {
     const editionMessage =
         config.BuildEnterpriseReady === 'true' ? messages.editionEnterprise : messages.editionStandard;
 
-    const appName = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName;
+    const appName = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Dedalix'}) || config.SiteName;
 
     return (
         <View>

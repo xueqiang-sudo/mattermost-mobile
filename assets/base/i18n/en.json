@@ -693,7 +693,7 @@
   "markdown.max_nodes.error": "This message is too long to by shown fully on a mobile device. Please view it on desktop or contact an admin to increase this limit.",
   "markdown.parse_error": "An error occurred while parsing this text",
   "markdown.render_error": "An error occurred while rendering this text",
-  "mobile.app.display_name": "Optibot",
+  "mobile.app.display_name": "Dedalix",
   "mobile.about.appVersion": "App Version: {version} (Build {number})",
   "mobile.account.settings.save": "Save",
   "mobile.acknowledgements.header": "Acknowledgements",

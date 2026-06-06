@@ -24,8 +24,8 @@ export const foregroundServiceStart = async () => {
     const notificationConfig = {
         channelId: 'channel_02',
         id: 345678,
-        title: 'Optibot',
-        text: 'Optibot Calls Microphone',
+        title: 'Dedalix',
+        text: 'Dedalix Calls Microphone',
         icon: '',
         button: 'Stop',
     };

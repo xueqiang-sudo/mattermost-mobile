@@ -682,7 +682,7 @@
   "markdown.max_nodes.error": "此信息過長，無法在移動客戶端上完整顯示。請在PC客戶端上查看或聯繫管理員以增加消息限制長度。",
   "markdown.parse_error": "解析此文本時遇到錯誤",
   "markdown.render_error": "渲染此文本時遇到錯誤",
-  "mobile.app.display_name": "優小智",
+  "mobile.app.display_name": "允知智構",
   "mobile.about.appVersion": "應用版本：{version} (Build {number})",
   "mobile.account.settings.save": "保存",
   "mobile.acknowledgements.header": "感謝",

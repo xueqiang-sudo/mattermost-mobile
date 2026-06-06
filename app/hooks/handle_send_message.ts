@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter} from 'react-native';
 
@@ -80,12 +80,16 @@ export const useHandleSendMessage = ({
     const [sendingMessage, setSendingMessage] = useState(false);
     const [channelTimezoneCount, setChannelTimezoneCount] = useState(0);
 
+    /** 用 ref 追踪最新值，避免 IME 组合输入时 canSend 闭包中 value 过期 */
+    const valueRef = useRef(value);
+    valueRef.current = value;
+
     const canSend = useMemo(() => {
         if (sendingMessage) {
             return false;
         }
 
-        const messageLength = value.trim().length;
+        const messageLength = valueRef.current.trim().length;
 
         if (messageLength > maxMessageLength) {
             return false;

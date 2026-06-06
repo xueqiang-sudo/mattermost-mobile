@@ -128,7 +128,7 @@ const About = ({componentId, config}: AboutProps) => {
     useAndroidHardwareBackHandler(componentId, close);
 
     const appName =
-        intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Optibot'}) || config.SiteName;
+        intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Dedalix'}) || config.SiteName;
 
     const copyToClipboard = usePreventDoubleTap(
         useCallback(() => {

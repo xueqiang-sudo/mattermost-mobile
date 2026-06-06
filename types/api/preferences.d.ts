@@ -3,7 +3,7 @@
 
 type LegacyThemeKey = 'default' | 'organization' | 'optibotDark' | 'windows10';
 
-type LegacyThemeType = 'Optibot' | 'Organization' | 'Optibot Dark' | 'Windows Dark';
+type LegacyThemeType = 'Dedalix' | 'Organization' | 'Dedalix Dark' | 'Windows Dark';
 
 type ThemeKey = 'denim' | 'sapphire' | 'quartz' | 'indigo' | 'onyx' | 'custom';
 

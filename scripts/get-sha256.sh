@@ -19,7 +19,7 @@ if ! command -v keytool &> /dev/null; then
 fi
 
 echo "============================================"
-echo "  Optibot Android 签名证书 SHA256 指纹"
+echo "  Dedalix Android 签名证书 SHA256 指纹"
 echo "============================================"
 echo ""
 

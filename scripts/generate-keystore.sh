@@ -14,7 +14,7 @@ ALIAS="optibot"
 VALIDITY_DAYS=10000
 
 echo "============================================"
-echo "  Optibot Android Release 签名证书生成工具"
+echo "  Dedalix Android Release 签名证书生成工具"
 echo "============================================"
 echo ""
 
@@ -48,7 +48,7 @@ keytool -genkey -v \
     -validity "$VALIDITY_DAYS" \
     -storepass "$KEYSTORE_PASSWORD" \
     -keypass "$KEYSTORE_PASSWORD" \
-    -dname "CN=Optibot, OU=Optibot, O=Optibot, L=Beijing, ST=Beijing, C=CN" > /dev/null 2>&1
+    -dname "CN=Dedalix, OU=Dedalix, O=Dedalix, L=Beijing, ST=Beijing, C=CN" > /dev/null 2>&1
 
 echo "  ✓ 签名证书已生成: $KEYSTORE_FILE"
 

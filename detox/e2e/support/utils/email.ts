@@ -52,7 +52,7 @@ export const getJoinEmailTemplate = (siteUrl: string, sender: string, userEmail:
         `<join-link-check> Join now ( ${siteUrl}/signup_user_complete/?d=${encodeURIComponent(JSON.stringify({display_name: team.display_name.replace(' ', '+'), email: userEmail, name: team.name}))}&t=<actual-token> )`,
         '',
         'What is Mattermost?',
-        'Optibot is a flexible, open source messaging platform that enables secure team collaboration.',
+        'Dedalix is a flexible, open source messaging platform that enables secure team collaboration.',
         'Learn more ( mattermost.com )',
         '',
         `© ${currentYear} Mattermost, Inc. 530 Lytton Avenue, Second floor, Palo Alto, CA, 94301`,

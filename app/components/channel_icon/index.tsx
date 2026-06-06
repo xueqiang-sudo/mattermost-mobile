@@ -238,7 +238,7 @@ const ChannelIcon = ({
                 testID={`${testID}.archive`}
             />,
         );
-    } else if (hasDraft && !(isOnHome && type === General.OPEN_CHANNEL && name === General.DEFAULT_CHANNEL)) {
+    } else if (hasDraft && !(isOnHome && type === General.OPEN_CHANNEL && name === General.DEFAULT_CHANNEL) && !(isOnHome && type === General.GM_CHANNEL)) {
         icon = wrapIconInBox(
             <CompassIcon
                 name='pencil-outline'
