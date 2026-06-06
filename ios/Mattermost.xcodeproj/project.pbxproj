@@ -13,7 +13,6 @@
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		1AC06461F0B9867B11829943 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C9C33C1C823BB8E1B3E161 /* ExpoModulesProvider.swift */; };
 		27C667AA295241B600E590D5 /* Sentry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C667A8295241B600E590D5 /* Sentry.swift */; };
-		536CC6C323E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m in Sources */ = {isa = PBXBuildFile; fileRef = 536CC6C123E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m */; };
 		58495E36BF1A4EAB93609E57 /* Metropolis-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 54956DEFEBB74EF78C3A6AE5 /* Metropolis-SemiBold.ttf */; };
 		672D988829F1927F004228D6 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 672D984629F1927E004228D6 /* InfoPlist.strings */; };
 		672D988A29F1927F004228D6 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 672D984929F1927E004228D6 /* InfoPlist.strings */; };
@@ -69,7 +68,6 @@
 		7F292A711E8AB73400A450A3 /* SplashScreenResource in Resources */ = {isa = PBXBuildFile; fileRef = 7F292A701E8AB73400A450A3 /* SplashScreenResource */; };
 		7F42880A286672F6006B48E1 /* ServerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F428809286672F6006B48E1 /* ServerService.swift */; };
 		7F42880C2866A9C0006B48E1 /* ChannelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F42880B2866A9C0006B48E1 /* ChannelService.swift */; };
-		7F537B2928A517580086D6B3 /* NotificationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F537B2828A517580086D6B3 /* NotificationHelper.swift */; };
 		7F6E6D592BEA215C0003F141 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 672D985229F1927F004228D6 /* InfoPlist.strings */; };
 		7F6E6D5A2BEA215C0003F141 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 672D985E29F1927F004228D6 /* InfoPlist.strings */; };
 		7F6E6D5B2BEA215C0003F141 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 672D984629F1927E004228D6 /* InfoPlist.strings */; };
@@ -232,8 +230,6 @@
 		49AE36FB26D4452900EF4E52 /* Gekidou */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Gekidou; sourceTree = "<group>"; };
 		49B4BF51230C83D2006E919E /* libz.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.1.dylib; path = ../../../../../../../../../usr/lib/libz.1.dylib; sourceTree = "<group>"; };
 		531BEBC52513E93C00BC05B1 /* compass-icons.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "compass-icons.ttf"; path = "../assets/fonts/compass-icons.ttf"; sourceTree = "<group>"; };
-		536CC6C123E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "RNNotificationEventHandler+HandleReplyAction.m"; sourceTree = "<group>"; };
-		536CC6C223E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "RNNotificationEventHandler+HandleReplyAction.h"; sourceTree = "<group>"; };
 		54956DEFEBB74EF78C3A6AE5 /* Metropolis-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Metropolis-SemiBold.ttf"; path = "../assets/fonts/Metropolis-SemiBold.ttf"; sourceTree = "<group>"; };
 		6561AEAC21CC40B8A72ABB93 /* OpenSans-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "OpenSans-Light.ttf"; path = "../assets/fonts/OpenSans-Light.ttf"; sourceTree = "<group>"; };
 		672D984729F1927E004228D6 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = InfoPlist.strings; sourceTree = "<group>"; };
@@ -294,7 +290,6 @@
 		7F428809286672F6006B48E1 /* ServerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerService.swift; sourceTree = "<group>"; };
 		7F42880B2866A9C0006B48E1 /* ChannelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelService.swift; sourceTree = "<group>"; };
 		7F43D6051F6BF9EB001FC614 /* libPods-Mattermost.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libPods-Mattermost.a"; path = "../../../../../../../Library/Developer/Xcode/DerivedData/Mattermost-czlinsdviifujheezzjvmisotjrm/Build/Products/Debug-iphonesimulator/libPods-Mattermost.a"; sourceTree = "<group>"; };
-		7F537B2828A517580086D6B3 /* NotificationHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationHelper.swift; sourceTree = "<group>"; };
 		7F63D2C21E6DD98A001FAE12 /* Mattermost.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Mattermost.entitlements; path = Mattermost/Mattermost.entitlements; sourceTree = "<group>"; };
 		7F7E9F442864E6C60064BFAF /* Color.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Color.swift; sourceTree = "<group>"; };
 		7F7E9F452864E6C60064BFAF /* View.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
@@ -467,7 +462,6 @@
 			isa = PBXGroup;
 			children = (
 				7FFD23BF2BFE008600FB34FA /* Extensions */,
-				7FFD23BE2BFE004300FB34FA /* Helpers */,
 				7FFD23C02BFE011400FB34FA /* Utils */,
 				7F537B2228A515400086D6B3 /* Wrappers */,
 				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
@@ -926,20 +920,9 @@
 			path = MattermostShare;
 			sourceTree = "<group>";
 		};
-		7FFD23BE2BFE004300FB34FA /* Helpers */ = {
-			isa = PBXGroup;
-			children = (
-				7F537B2828A517580086D6B3 /* NotificationHelper.swift */,
-			);
-			name = Helpers;
-			path = Mattermost/Helpers;
-			sourceTree = "<group>";
-		};
 		7FFD23BF2BFE008600FB34FA /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				536CC6C223E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.h */,
-				536CC6C123E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m */,
 				7FCEFB9126B7934F006DC1DE /* SDWebImageDownloaderOperation+Swizzle.h */,
 				7FCEFB9226B7934F006DC1DE /* SDWebImageDownloaderOperation+Swizzle.m */,
 			);
@@ -1024,7 +1007,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				7F581D38221ED5C60099E66B /* PBXTargetDependency */,
 				7FC5698F28563FDB000B0905 /* PBXTargetDependency */,
 			);
 			name = Mattermost;
@@ -1502,9 +1484,7 @@
 				7FCEFB9326B7934F006DC1DE /* SDWebImageDownloaderOperation+Swizzle.m in Sources */,
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				7F151D3E221B062700FAD8F3 /* RuntimeUtils.swift in Sources */,
-				7F537B2928A517580086D6B3 /* NotificationHelper.swift in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
-				536CC6C323E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m in Sources */,
 				1AC06461F0B9867B11829943 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1565,9 +1545,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		7F581D38221ED5C60099E66B /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-		};
 		7FC5698F28563FDB000B0905 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 7FC5698528563FDB000B0905 /* MattermostShare */;

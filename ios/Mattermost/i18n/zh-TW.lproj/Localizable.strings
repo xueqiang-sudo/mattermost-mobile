@@ -1209,6 +1209,16 @@
 "notification_settings.email.never" = "不通知";
 "notification_settings.email.send" = "發送郵件通知";
 "notification_settings.mention.reply" = "發送回覆通知";
+"notification_settings.mention_only" = "僅在提及我時通知";
+"notification_settings.mention_only_desc" = "關閉後將接收所有新訊息通知";
+"notification_settings.message_notification" = "訊息通知";
+"notification_settings.message_notification.go_to_system" = "前往";
+"notification_settings.push_filter" = "推送篩選";
+"notification_settings.system_notification.desc" = "管理橫幅、鎖屏、響鈴與提示音";
+"notification_settings.system_notification.title" = "消息提醒方式";
+"notification_settings.system_settings" = "系統設置";
+"notification_settings.sound_and_vibration" = "聲音與振動";
+"notification_settings.sound_and_vibration_desc" = "在系統設置中調整鈴聲、振動與提醒方式";
 "notification_settings.mentions" = "提及";
 "notification_settings.mentions_replies" = "提及和回覆";
 "notification_settings.mentions.channelWide" = "羣聊範圍的提及";
@@ -1239,6 +1249,8 @@
 "notification.no_post" = "此消息沒有找到。";
 "notification.not_channel_member" = "此消息屬於一個您非其成員的羣聊。";
 "notification.not_team_member" = "此消息屬於一個您非其成員的企業。";
+"mobile.optibot.channel_not_accessible.title" = "無法開啟聊天";
+"mobile.optibot.channel_not_accessible.description" = "您不是該羣聊的成員，或該羣聊已不存在。";
 "onboarding.calls" = "立刻開始加密語音通話";
 "onboarding.calls_description" = "當打字不足夠快，只需輕點一下就能從基於羣聊對話模式切換到加密語音通話。";
 "onboarding.integrations" = "集成你喜愛的工具";
@@ -1848,6 +1860,7 @@
 "snack.bar.info.copied" = "信息已複製到剪貼板";
 "snack.bar.link.copied" = "鏈接已複製到剪貼板";
 "snack.bar.message.copied" = "文本已複製到剪貼板";
+"snack.bar.notification.channel.not.found" = "無法開啟對應對話，您可能已不在該對話中，或對話已不存在";
 "snack.bar.mute.channel" = "此羣聊已靜音";
 "snack.bar.playbook.error" = "無法執行操作。請稍後再試。";
 "snack.bar.remove.user" = "1個成員已從此羣聊刪除";

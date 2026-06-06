@@ -557,7 +557,8 @@ platform :ios do
       app_group_identifiers: [app_group_id]
     )
 
-    # Configure Notification Service settings
+    # Configure Notification Service settings (仅在 NotificationService 扩展存在时执行)
+    if Dir.exist?('./ios/NotificationService')
     notification_bundle_id = ENV['NOTIFICATION_SERVICE_IDENTIFIER'] || 'com.optibot.cn.NotificationService'
     update_info_plist(
       xcodeproj: './ios/Mattermost.xcodeproj',
@@ -584,6 +585,7 @@ platform :ios do
         entitlements_file: './ios/NotificationService/NotificationService.entitlements',
         app_group_identifiers: [app_group_id]
     )
+    end
 
     # Update the project Team ID if provided
     unless ENV['FASTLANE_TEAM_ID'].nil? || ENV['FASTLANE_TEAM_ID'].empty?
