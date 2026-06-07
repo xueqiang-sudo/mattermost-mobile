@@ -26,6 +26,8 @@ type Props = {
     channelId: string;
     channelIsArchived?: boolean;
     channelIsReadOnly: boolean;
+    channelType?: ChannelType;
+    channelName?: string;
     deactivatedChannel: boolean;
     files?: FileInfo[];
     isSearch?: boolean;
@@ -43,6 +45,8 @@ function PostDraft({
     channelId,
     channelIsArchived,
     channelIsReadOnly,
+    channelType,
+    channelName,
     deactivatedChannel,
     files,
     isSearch,
@@ -131,6 +135,8 @@ function PostDraft({
         return (
             <ReadOnly
                 testID={readOnlyTestID}
+                channelType={channelType}
+                channelName={channelName}
             />
         );
     }

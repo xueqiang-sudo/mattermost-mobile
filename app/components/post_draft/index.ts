@@ -69,10 +69,15 @@ const enhanced = withObservables(['channelId', 'rootId', 'channelIsArchived'], (
         }),
     );
 
+    const channelType = channel.pipe(switchMap((c) => of$(c?.type)));
+    const channelName = channel.pipe(switchMap((c) => of$(c?.name)));
+
     return {
         canPost,
         channelIsArchived,
         channelIsReadOnly,
+        channelType,
+        channelName,
         deactivatedChannel,
         files,
         message,

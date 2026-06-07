@@ -85,8 +85,8 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             color: theme.sidebarTextActiveBorder,
         },
         infoContainer: {
-            borderColor: changeOpacity(theme.sidebarTextActiveBorder, 0.16),
-            backgroundColor: changeOpacity(theme.sidebarTextActiveBorder, 0.08),
+            borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
         },
         successText: {
             color: theme.centerChannelColor,

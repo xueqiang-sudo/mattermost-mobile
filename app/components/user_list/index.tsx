@@ -173,7 +173,7 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
             justifyContent: 'center' as const,
         },
         sectionContainer: {
-            backgroundColor: theme.centerChannelColor,
+            backgroundColor: theme.centerChannelBg,
             paddingLeft: 16,
             justifyContent: 'center',
         },
@@ -286,6 +286,10 @@ export default function UserList({
 
     const renderItem = useCallback(({item, index, section}: RenderItemType) => {
         // The list will re-render when the selection changes because it's passed into the list as extraData
+        if (!item?.id) {
+            return null;
+        }
+
         const selected = selectedIds.has(item.id);
         const isSelf = item.id === currentUserId;
         const canAdd = variant === 'dm_only' ? true : selectedIds.size < General.MAX_USERS_IN_GM;

@@ -49,7 +49,10 @@ const Options = ({
                     {isCRTEnabled && (
                         <AutoFollowThreads channelId={channelId}/>
                     )}
-                    <IgnoreMentions channelId={channelId}/>
+                    {/* 群聊不需要显示忽略提及选项 */}
+                    {type !== General.GM_CHANNEL &&
+                        <IgnoreMentions channelId={channelId}/>
+                    }
                 </>
             )}
             <NotificationPreference channelId={channelId}/>
@@ -65,7 +68,11 @@ const Options = ({
             />
             }
             {type !== General.DM_CHANNEL &&
-                <Members channelId={channelId}/>
+                <Members
+                    channelId={channelId}
+                    channelType={type}
+                    isTeamDefaultOpenChannel={isTeamDefaultOpenChannel}
+                />
             }
             {canManageMembers &&
                 <AddMembers channelId={channelId}/>

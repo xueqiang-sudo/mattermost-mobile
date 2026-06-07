@@ -115,7 +115,8 @@ const ChannelInfo = ({
     useNavButtonPressed(closeButtonId, componentId, onPressed, [onPressed]);
     useAndroidHardwareBackHandler(componentId, onPressed);
 
-    const convertGMOptionAvailable = isConvertGMFeatureAvailable && type === General.GM_CHANNEL && !isGuestUser;
+    // 群聊不显示"转换为内部群"选项
+    const convertGMOptionAvailable = false;
 
     return (
         <View
