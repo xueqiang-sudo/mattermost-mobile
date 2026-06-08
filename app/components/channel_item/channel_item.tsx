@@ -335,16 +335,16 @@ const ChannelItem = ({
 
     const textStyles = useMemo(() => [
 
-        // 首页聊天列表名称使用主题色和 Regular 字重，未读/已读/选中完全一致
+        // 首页聊天列表名称使用 sidebarText 颜色（适配深色侧边栏背景），未读/已读/选中完全一致
         // 非首页场景保持原有的加粗高亮逻辑
-        isOnHome? {color: theme.centerChannelColor, fontWeight: '400'}: (isBolded && !isMuted ? textStyle.bold : textStyle.regular),
+        isOnHome? {color: theme.sidebarText, fontWeight: '400'}: (isBolded && !isMuted ? textStyle.bold : textStyle.regular),
         isOnHome ? null : styles.text,
         isOnHome ? null : isBolded && styles.highlight,
         isOnHome ? null : showActive && styles.textActive,
         isOnCenterBg ? styles.textOnCenterBg : null,
         isMuted && styles.muted,
         isMuted && isOnCenterBg && styles.mutedOnCenterBg,
-    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, theme.centerChannelColor]);
+    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, theme.sidebarText]);
 
     const containerStyle = useMemo(() => {
         const listSurface =

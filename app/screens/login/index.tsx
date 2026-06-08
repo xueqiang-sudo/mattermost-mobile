@@ -117,7 +117,7 @@ const LoginOptions = ({
         return () => navigationEvents.remove();
     }, [closeButtonId, componentId]);
 
-    const animatedStyles = useScreenTransitionAnimation(Screens.LOGIN);
+    const animatedStyles = useScreenTransitionAnimation(componentId);
 
     useNavButtonPressed(closeButtonId || '', componentId, dismiss, []);
     useAndroidHardwareBackHandler(componentId, pop);

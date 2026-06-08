@@ -282,7 +282,12 @@ const ContactsEmployeeProfile = ({
     const [relationDescription, setRelationDescription] = useState(() => description ?? '');
     const [relationRemark, setRelationRemark] = useState(() => remark?.trim() ?? '');
     const [isCompanyOwner, setIsCompanyOwner] = useState(false);
-    const [isCompanyManager, setIsCompanyManager] = useState(false);
+
+    /** 企业所有者 ID（用于标签计算） */
+    const [companyOwnerId, setCompanyOwnerId] = useState<string | undefined>();
+
+    /** 当前查看的员工所在企业的管理员 ID 集合 */
+    const [companyManagerIds, setCompanyManagerIds] = useState<Set<string> | undefined>();
     const remarkEditInput = useCustomInputModal();
     const relationDescriptionEditInput = useCustomInputModal();
 
@@ -301,7 +306,8 @@ const ContactsEmployeeProfile = ({
             if (!companyIdProp || !serverUrl) {
                 if (!cancelled) {
                     setIsCompanyOwner(false);
-                    setIsCompanyManager(false);
+                    setCompanyOwnerId(undefined);
+                    setCompanyManagerIds(undefined);
                 }
                 return;
             }
@@ -315,7 +321,8 @@ const ContactsEmployeeProfile = ({
             const isManager = memberRoles.split(' ').includes('team_admin');
             if (!cancelled) {
                 setIsCompanyOwner(Boolean(ownerId && ownerId === employee.id));
-                setIsCompanyManager(isManager);
+                setCompanyOwnerId(ownerId);
+                setCompanyManagerIds(isManager ? new Set([employee.id]) : undefined);
             }
         };
 
@@ -405,9 +412,9 @@ const ContactsEmployeeProfile = ({
     const isSelf = Boolean(currentUserId && employee.id && currentUserId === employee.id);
     const profileTagKeys = buildEnterpriseUserTagKeys({
         userId: employee.id,
-        ownerId: isCompanyOwner ? employee.id : undefined,
+        ownerId: companyOwnerId,
         currentUserId,
-        managerIds: isCompanyManager ? new Set([employee.id]) : undefined,
+        managerIds: companyManagerIds,
     });
 
     const handleSendMessage = usePreventDoubleTap(useCallback(async () => {

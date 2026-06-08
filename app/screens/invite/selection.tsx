@@ -485,6 +485,7 @@ export default function Selection({
                         renderItem={renderItem}
                         testID='invite.search_list'
                         style={searchListFlatListStyle}
+                        keyboardShouldPersistTaps='handled'
                     />
                 </View>
                 <View style={styles.optionsContainer}>

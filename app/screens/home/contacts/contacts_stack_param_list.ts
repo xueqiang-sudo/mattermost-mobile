@@ -12,6 +12,15 @@ export type ContactsStackParamList = {
         breadcrumb: string[];
         companyId: string;
         companyName?: string;
+
+        /** 标签相关：管理员用户 ID 列表（序列化数组，非 Set） */
+        managerIds?: string[];
+
+        /** 企业所有者用户 ID */
+        ownerId?: string;
+
+        /** 当前登录用户 ID */
+        currentUserId?: string;
     };
     [Screens.CONTACTS_SEARCH]: {
         companyId: string;

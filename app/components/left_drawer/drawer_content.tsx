@@ -11,8 +11,8 @@ import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 
 import {logout} from '@actions/remote/session';
 import {handleTeamChange} from '@actions/remote/team';
-import CompanySvg from '@assets/images/svgs/company.svg';
 import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
+import CompanyIcon from '@components/company_icon';
 import CompassIcon from '@components/compass_icon';
 import FormattedName from '@components/formatted_name';
 import ProfilePicture from '@components/profile_picture';
@@ -151,6 +151,7 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                             size={48}
                             showStatus={false}
                             borderRadius={5}
+                            useSidebarPalette={true}
                         />
                     </TouchableWithFeedback>
                     <TouchableWithFeedback
@@ -361,10 +362,11 @@ function DrawerTeamListInner({
             testID={`left_drawer.team_row.${team.id}`}
         >
             {selected && <View style={styles.teamRowSelectedBar}/>}
-            <CompanySvg
+            <CompanyIcon
                 width={36}
                 height={36}
-                color={selected ? theme.sidebarText : changeOpacity(theme.sidebarText, 0.64)}
+                bgColor={selected ? theme.sidebarHeaderTextColor : changeOpacity(theme.sidebarText, 0.12)}
+                iconColor={selected ? theme.sidebarHeaderBg : theme.sidebarText}
                 style={{marginRight: 12, flexShrink: 0}}
             />
             <Text
@@ -490,13 +492,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingLeft: 14,
         borderRadius: 10,
         backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
         position: 'relative',
         overflow: 'hidden',
     },
     teamRowSelected: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        backgroundColor: changeOpacity(theme.sidebarText, 0.08),
     },
     teamRowSelectedBar: {
         position: 'absolute',
@@ -504,7 +504,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         top: 0,
         bottom: 0,
         width: 4,
-        backgroundColor: theme.sidebarTextActiveBorder,
+        backgroundColor: theme.sidebarText,
         borderTopLeftRadius: 10,
         borderBottomLeftRadius: 10,
     },

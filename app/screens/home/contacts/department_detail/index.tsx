@@ -9,6 +9,7 @@ import {Navigation} from 'react-native-navigation';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchContactDirectoryContent, fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact_new';
+import {fetchTeamById, getTeamMembersByIds} from '@actions/remote/team';
 import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
@@ -21,9 +22,11 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
+import NetworkManager from '@managers/network_manager';
 import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
+import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -58,6 +61,11 @@ type Props = {
         breadcrumb: string[];
         companyId: string;
         companyName?: string;
+
+        /** 标签相关 */
+        managerIds?: string[];
+        ownerId?: string;
+        currentUserId?: string;
     }) => void;
     onBreadcrumbPress?: (toDismiss: number) => void;
 
@@ -69,6 +77,15 @@ type Props = {
 
     /** 通讯录 Tab 所在 RNN Home；关管理弹窗后 Home willAppear，栈内部门页据此刷新 */
     rnnHomeComponentId?: string;
+
+    /** 管理员用户 ID 列表（序列化数组，非 Set） */
+    managerIds?: string[];
+
+    /** 企业所有者用户 ID */
+    ownerId?: string;
+
+    /** 当前登录用户 ID */
+    currentUserId?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -209,7 +226,40 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     listItemName: {
         ...typography('Body', 200),
         color: theme.centerChannelColor,
+        flexShrink: 1,
+        minWidth: 0,
+    },
+    listItemMain: {
         flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minWidth: 0,
+        gap: 6,
+    },
+    userTagsWrap: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 2,
+        marginLeft: 'auto',
+    },
+    userTag: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+        borderWidth: 1,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.14),
+        borderColor: changeOpacity(theme.buttonBg, 0.35),
+    },
+    userTagText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    selfTag: {
+        backgroundColor: changeOpacity(theme.onlineIndicator, 0.12),
+        borderColor: changeOpacity(theme.onlineIndicator, 0.35),
+    },
+    selfTagText: {
+        color: theme.onlineIndicator,
     },
     emptyMessage: {
         ...typography('Body', 100),
@@ -241,6 +291,9 @@ const ContactsDepartmentDetail = ({
     fromEmployeeProfile = false,
     onSearchPress,
     rnnHomeComponentId,
+    managerIds,
+    ownerId,
+    currentUserId,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -253,6 +306,15 @@ const ContactsDepartmentDetail = ({
     const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
+
+    /** 标签数据：优先使用 props 传入，否则组件内部加载 */
+    const [localOwnerId, setLocalOwnerId] = useState<string | undefined>();
+    const [localCurrentUserId, setLocalCurrentUserId] = useState<string | undefined>();
+    const [localManagerIds, setLocalManagerIds] = useState<string[]>([]);
+
+    const resolvedOwnerId = ownerId ?? localOwnerId;
+    const resolvedCurrentUserId = currentUserId ?? localCurrentUserId;
+    const resolvedManagerIds = managerIds ?? localManagerIds;
 
     const baseBreadcrumb = React.useMemo(
         () => (breadcrumb.length > 0 ? breadcrumb : [
@@ -327,6 +389,9 @@ const ContactsDepartmentDetail = ({
                 breadcrumb: newBreadcrumb,
                 companyId,
                 companyName,
+                managerIds: resolvedManagerIds,
+                ownerId: resolvedOwnerId,
+                currentUserId: resolvedCurrentUserId,
             });
             return;
         }
@@ -342,6 +407,9 @@ const ContactsDepartmentDetail = ({
                     companyId,
                     companyName,
                     isStackScreen: true,
+                    managerIds: resolvedManagerIds,
+                    ownerId: resolvedOwnerId,
+                    currentUserId: resolvedCurrentUserId,
                 },
             );
         } else {
@@ -356,11 +424,14 @@ const ContactsDepartmentDetail = ({
                     companyId,
                     companyName,
                     closeButtonId: `close-department-${dept.id}`,
+                    managerIds: resolvedManagerIds,
+                    ownerId: resolvedOwnerId,
+                    currentUserId: resolvedCurrentUserId,
                 },
                 {useBackIcon: true},
             );
         }
-    }, [baseBreadcrumb, companyId, companyName, intl, isStackScreen, onNavigateToDepartment]));
+    }, [baseBreadcrumb, companyId, companyName, intl, isStackScreen, onNavigateToDepartment, resolvedManagerIds, resolvedOwnerId, resolvedCurrentUserId]));
 
     const depth = baseBreadcrumb.length - 1;
 
@@ -585,6 +656,67 @@ const ContactsDepartmentDetail = ({
     useOnComponentWillAppear(componentId, fetchData);
     useOnComponentWillAppear(rnnHomeComponentId, fetchData);
 
+    /** 当调用方未传入标签数据时，组件内部加载 ownerId 和 currentUserId */
+    useEffect(() => {
+        if (ownerId !== undefined && currentUserId !== undefined) {
+            return;
+        }
+        if (!serverUrl || !companyId) {
+            return;
+        }
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const [teamResult, meResult] = await Promise.all([
+                    fetchTeamById(serverUrl, companyId),
+                    NetworkManager.getClient(serverUrl).getMe(),
+                ]);
+                if (cancelled) {
+                    return;
+                }
+                if (ownerId === undefined) {
+                    setLocalOwnerId(teamResult.team?.creator_id);
+                }
+                if (currentUserId === undefined) {
+                    setLocalCurrentUserId(meResult?.id);
+                }
+            } catch {
+                // 标签降级展示，忽略错误
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, currentUserId, ownerId, serverUrl]);
+
+    /** 当调用方未传入 managerIds 时，从当前员工列表中加载管理员信息 */
+    useEffect(() => {
+        if (managerIds !== undefined) {
+            return;
+        }
+        if (!serverUrl || !companyId || employees.length === 0) {
+            setLocalManagerIds([]);
+            return;
+        }
+        let cancelled = false;
+        const load = async () => {
+            const memberIds = employees.map((e) => e.id);
+            const result = await getTeamMembersByIds(serverUrl, companyId, memberIds, true);
+            if (cancelled || result.error || !result.members) {
+                return;
+            }
+            const mgrIds = result.members.
+                filter((m) => m.roles.split(' ').includes('team_admin')).
+                map((m) => m.user_id);
+            setLocalManagerIds(mgrIds);
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, employees, managerIds, serverUrl]);
+
     const renderContent = () => {
         if (loading) {
             return (
@@ -654,12 +786,39 @@ const ContactsDepartmentDetail = ({
                                     size={40}
                                 />
                             </View>
-                            <Text
-                                style={styles.listItemName}
-                                numberOfLines={1}
-                            >
-                                {getContactListDisplayName(emp)}
-                            </Text>
+                            <View style={styles.listItemMain}>
+                                <Text
+                                    style={styles.listItemName}
+                                    numberOfLines={1}
+                                >
+                                    {getContactListDisplayName(emp)}
+                                </Text>
+                                <View style={styles.userTagsWrap}>
+                                    {buildEnterpriseUserTagKeys({
+                                        userId: emp.id,
+                                        ownerId: resolvedOwnerId,
+                                        currentUserId: resolvedCurrentUserId,
+                                        managerIds: resolvedManagerIds.length > 0 ? new Set(resolvedManagerIds) : undefined,
+                                    }).map((tagKey: EnterpriseUserTagKey) => {
+                                        const isSelf = tagKey === 'self';
+                                        return (
+                                            <View
+                                                key={`${emp.id}-${tagKey}`}
+                                                style={[styles.userTag, isSelf && styles.selfTag]}
+                                            >
+                                                <Text style={[styles.userTagText, isSelf && styles.selfTagText]}>
+                                                    {tagKey === 'owner' ?
+                                                        intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'}) :
+                                                        tagKey === 'manager' ?
+                                                            intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'}) :
+                                                            intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})
+                                                    }
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            </View>
                         </TouchableOpacity>
                         {empIdx < employees.length - 1 ? (
                             <View style={styles.insetDivider}/>

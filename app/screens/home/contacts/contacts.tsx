@@ -458,8 +458,11 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
             breadcrumb,
             companyId: currentTeamId ?? '',
             companyName,
+            managerIds: [...managerIds],
+            ownerId,
+            currentUserId: resolvedCurrentUserId,
         });
-    }, [companyName, intl, currentTeamId, navigation]));
+    }, [companyName, intl, currentTeamId, navigation, managerIds, ownerId, resolvedCurrentUserId]));
 
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile, deptName?: string) => {
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});

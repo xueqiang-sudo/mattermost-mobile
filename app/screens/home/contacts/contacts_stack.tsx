@@ -48,9 +48,17 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
             companyId={params.companyId}
             companyName={params.companyName}
             isStackScreen={true}
+            managerIds={params.managerIds}
+            ownerId={params.ownerId}
+            currentUserId={params.currentUserId ?? currentUserId}
             onBack={goBack}
             onNavigateToDepartment={(nextParams) => {
-                navigation.push(Screens.CONTACTS_DEPARTMENT_DETAIL, {...nextParams});
+                navigation.push(Screens.CONTACTS_DEPARTMENT_DETAIL, {
+                    ...nextParams,
+                    managerIds: nextParams.managerIds ?? params.managerIds,
+                    ownerId: nextParams.ownerId ?? params.ownerId,
+                    currentUserId: nextParams.currentUserId ?? params.currentUserId ?? currentUserId,
+                });
             }}
             onSearchPress={() => {
                 const enterpriseLabel = intl.formatMessage({

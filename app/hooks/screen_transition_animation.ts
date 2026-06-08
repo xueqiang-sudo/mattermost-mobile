@@ -40,5 +40,17 @@ export const useScreenTransitionAnimation = (componentId: string, animated: bool
         }
     }, [translateX, shouldAnimate]);
 
+    // Fallback: ensure content is visible even if componentDidAppear fires before listener registration
+    useEffect(() => {
+        if (shouldAnimate) {
+            // Delay setting translateX to 0 to allow animation if event fires in time
+            // If event already fired, this will ensure content becomes visible
+            const timer = setTimeout(() => {
+                translateX.value = 0;
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, []);
+
     return animatedStyle;
 };
