@@ -303,17 +303,16 @@ const ChannelHeader = ({
     }, [isTablet, isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, onChannelQuickAction, openPlaybooksRuns]);
 
     let title = displayName;
+    let titleSuffix: string | undefined;
     if (isOwnDirectMessage) {
         title = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
 
     // 手机微信风格：标题单行含人数，如「频道名 (7)」
+    // 群名可以被截断，但人数始终可见
     const weChatPhoneTitle = !isTablet && Boolean(memberCount) && channelType !== General.DM_CHANNEL;
     if (weChatPhoneTitle && memberCount) {
-        title = intl.formatMessage(
-            {id: 'channel_header.title_with_member_count', defaultMessage: '{name} ({count})'},
-            {name: displayName, count: memberCount},
-        );
+        titleSuffix = `(${memberCount})`;
     }
 
     let subtitle: string | undefined;
@@ -393,6 +392,7 @@ const ChannelHeader = ({
                 subtitle={subtitle}
                 subtitleCompanion={subtitleCompanion}
                 title={title}
+                titleSuffix={titleSuffix}
                 titleTag={titleTag}
                 useChatStyle={true}
             />

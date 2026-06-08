@@ -39,6 +39,9 @@ type Props = {
     theme: Theme;
     title?: string;
 
+    /** 标题后缀（如群聊人数），始终可见不被截断 */
+    titleSuffix?: string;
+
     /** 聊天顶栏：频道类型标签（置于标题前） */
     titleTag?: string;
 
@@ -206,6 +209,7 @@ const Header = ({
     subtitleCompanion,
     theme,
     title,
+    titleSuffix,
     titleTag,
     backgroundColor,
 }: Props) => {
@@ -326,6 +330,14 @@ const Header = ({
                             >
                                 {title}
                             </Animated.Text>
+                            {Boolean(titleSuffix) &&
+                            <Text
+                                style={[styles.title, backgroundColor && styles.titleChatStyle, {flexShrink: 0}]}
+                                testID='navigation.header.title_suffix'
+                            >
+                                {' '}{titleSuffix}
+                            </Text>
+                            }
                         </View>
                         }
                         {!isLargeTitle && Boolean(subtitle || subtitleCompanion) &&

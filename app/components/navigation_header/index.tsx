@@ -32,6 +32,9 @@ type Props = SearchProps & {
     title?: string;
     titleTag?: string;
 
+    /** 标题后缀（如群聊人数），始终可见不被截断 */
+    titleSuffix?: string;
+
     /** 用于聊天界面：浅灰背景、更简洁的视觉效果 */
     useChatStyle?: boolean;
 }
@@ -58,6 +61,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
     subtitle,
     subtitleCompanion,
     title = '',
+    titleSuffix,
     titleTag,
     useChatStyle = false,
     hideHeader,
@@ -109,6 +113,7 @@ const NavigationHeader = forwardRef<SearchRef, Props>(({
                 subtitleCompanion={subtitleCompanion}
                 theme={theme}
                 title={title}
+                titleSuffix={titleSuffix}
                 titleTag={titleTag}
                 backgroundColor={useChatStyle ? chatHeaderBackground : undefined}
             />

@@ -3,26 +3,24 @@
 
 import {DeviceEventEmitter} from 'react-native';
 
-import {General, Navigation as NavigationConstants, Preferences, Screens} from '@constants';
+import {General, Navigation as NavigationConstants, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
-import {getTeammateNameDisplaySetting} from '@helpers/api/preference';
 import {extractChannelDisplayName} from '@helpers/database';
 import {removeChannelNotifications} from '@init/push_notifications';
 import {
     prepareDeleteChannel, prepareMyChannelsForTeam, queryAllMyChannel,
-    getMyChannel, getChannelById, queryUsersOnChannel, queryUserChannelsByTypes,
+    getMyChannel, getChannelById, queryUserChannelsByTypes,
     prepareAllMyChannels,
 } from '@queries/servers/channel';
-import {queryDisplayNamePreferences} from '@queries/servers/preference';
-import {prepareCommonSystemValues, type PrepareCommonSystemValuesArgs, getCommonSystemValues, getCurrentTeamId, setCurrentChannelId, getCurrentUserId, getConfig, getLicense} from '@queries/servers/system';
+import {prepareCommonSystemValues, type PrepareCommonSystemValuesArgs, getCommonSystemValues, getCurrentTeamId, setCurrentChannelId, getCurrentUserId} from '@queries/servers/system';
 import {addChannelToTeamHistory, addTeamToTeamHistory, getTeamById, removeChannelFromTeamHistory} from '@queries/servers/team';
 import {getCurrentUser, queryUsersById} from '@queries/servers/user';
 import {dismissAllModalsAndPopToRoot, dismissAllModalsAndPopToScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTablet} from '@utils/helpers';
 import {logDebug, logError, logInfo} from '@utils/log';
-import {displayGroupMessageName, getUserIdFromChannelName, username2Nickname} from '@utils/user';
+import {getUserIdFromChannelName, username2Nickname} from '@utils/user';
 
 import type ServerDataOperator from '@database/operator/server_data_operator';
 import type {Model} from '@nozbe/watermelondb';
@@ -395,10 +393,6 @@ export async function updateChannelsDisplayName(serverUrl: string, channels: Cha
             return {};
         }
 
-        const license = await getLicense(database);
-        const config = await getConfig(database);
-        const preferences = await queryDisplayNamePreferences(database, Preferences.NAME_NAME_FORMAT).fetch();
-        const displaySettings = getTeammateNameDisplaySetting(preferences, config.LockTeammateNameDisplay, config.TeammateNameDisplay, license);
         const models: Model[] = [];
         for await (const channel of channels) {
             let newDisplayName = '';
@@ -406,18 +400,9 @@ export async function updateChannelsDisplayName(serverUrl: string, channels: Cha
                 const otherUserId = getUserIdFromChannelName(currentUser.id, channel.name);
                 const user = users.find((u) => u.id === otherUserId);
                 newDisplayName = username2Nickname(user, {locale: currentUser.locale, useFallbackUsername: false});
-            } else {
-                const dbProfiles = await queryUsersOnChannel(database, channel.id).fetch();
-                const profileIds = new Set(dbProfiles.map((p) => p.id));
-                const gmUsers = users.filter((u) => profileIds.has(u.id));
-                if (gmUsers.length) {
-                    const uIds = new Set(gmUsers.map((u) => u.id));
-                    const newProfiles: Array<UserModel|UserProfile> = dbProfiles.filter((u) => !uIds.has(u.id));
-                    newProfiles.push(...gmUsers);
-                    newDisplayName = displayGroupMessageName(newProfiles, currentUser.locale, displaySettings, currentUser.id);
-                }
             }
 
+            // 群聊（GM_CHANNEL）保持原始名称，不进行用户名到昵称的替换
             if (newDisplayName && channel.displayName !== newDisplayName) {
                 channel.prepareUpdate((c) => {
                     c.displayName = extractChannelDisplayName({

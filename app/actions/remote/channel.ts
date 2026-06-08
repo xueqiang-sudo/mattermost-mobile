@@ -602,15 +602,15 @@ export async function fetchMissingDirectChannelsInfo(
             result.data?.forEach((data) => {
                 if (data.users?.length) {
                     users.push(...data.users);
-                    if (data.users.length > 1) {
-                        displayNameByChannel[data.channelId] = displayGroupMessageName(data.users, locale, teammateDisplayNameSetting, currentUserId);
-                    } else {
+                    // 仅对 DM 频道（一对一私聊）生成显示名称，群聊保持原始名称
+                    if (data.users.length === 1) {
                         displayNameByChannel[data.channelId] = username2Nickname(data.users[0], {locale, useFallbackUsername: false});
                     }
                 }
             });
 
-            directChannels.forEach((c) => {
+            // 仅更新 DM 频道的显示名称，群聊使用服务器返回的原始名称
+            dms.forEach((c) => {
                 const displayName = displayNameByChannel[c.id];
                 if (displayName) {
                     c.display_name = displayName;
