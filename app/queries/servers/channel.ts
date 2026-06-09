@@ -7,7 +7,7 @@ import {Database, Model, Q, Query, Relation} from '@nozbe/watermelondb';
 import {of as of$, Observable, combineLatest} from 'rxjs';
 import {map as map$, switchMap, distinctUntilChanged, combineLatestWith} from 'rxjs/operators';
 
-import {General, Permissions} from '@constants';
+import {General, Permissions, Preferences} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
 import EphemeralStore from '@store/ephemeral_store';
@@ -15,6 +15,7 @@ import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
 import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
 
+import {queryPreferencesByCategoryAndName} from './preference';
 import {prepareDeletePost} from './post';
 import {queryRoles} from './role';
 import {observeCurrentChannelId, observeCurrentTeamId, getCurrentChannelId, observeCurrentUserId, observeConfigBooleanValue} from './system';
@@ -813,6 +814,49 @@ export const observeHasRecentConversationsForTeam = (database: Database): Observ
     );
 };
 
+/**
+ * 判断 DM/GM 频道是否在首页会话列表中可见（基于 DIRECT_CHANNEL_SHOW / GROUP_CHANNEL_SHOW 偏好）。
+ * 关闭对话仅将偏好设为 false，不会从数据库删除频道记录，因此在"查找群聊/联系人"和"已加入的群聊"中仍然可见。
+ */
+function isChannelVisibleInConversationList(
+    channel: ChannelModel,
+    currentUserId: string,
+    showPreferenceMap: Map<string, string>,
+): boolean {
+    // 非 DM/GM 频道始终显示（由 category 控制）
+    if (channel.type !== General.DM_CHANNEL && channel.type !== General.GM_CHANNEL) {
+        return true;
+    }
+    // 已删除的频道不显示
+    if (channel.deleteAt && channel.deleteAt !== 0) {
+        return false;
+    }
+    // DM 频道：偏好 key 为对方用户 ID（从 channel.name 解析）
+    if (channel.type === General.DM_CHANNEL) {
+        const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
+        if (!teammateId) {
+            return true; // 无法解析时默认显示
+        }
+        const preferenceKey = `${Preferences.CATEGORIES.DIRECT_CHANNEL_SHOW}:${teammateId}`;
+        const value = showPreferenceMap.get(preferenceKey);
+        if (value === undefined) {
+            return true; // 无偏好记录时默认显示
+        }
+        // 与 getPreferenceAsBool 一致：仅显式 'false' 时隐藏
+        return value !== 'false';
+    }
+    // GM 频道：偏好 key 为频道 ID
+    if (channel.type === General.GM_CHANNEL) {
+        const preferenceKey = `${Preferences.CATEGORIES.GROUP_CHANNEL_SHOW}:${channel.id}`;
+        const value = showPreferenceMap.get(preferenceKey);
+        if (value === undefined) {
+            return true; // 无偏好记录时默认显示
+        }
+        return value !== 'false';
+    }
+    return true;
+}
+
 export const observeRecentConversationsForTeam = (database: Database, teamId: string): Observable<ChannelModel[]> => {
     const myChannelsQuery = queryAllMyChannelsForTeam(database, teamId).extend(
         Q.on(CHANNEL, Q.where('delete_at', Q.eq(0))),
@@ -826,8 +870,19 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                 return of$([]);
             }
 
-            return combineLatest(myChannels.map((mc) => mc.channel.observe())).pipe(
-                map$((channels) => {
+            const {DIRECT_CHANNEL_SHOW, GROUP_CHANNEL_SHOW} = Preferences.CATEGORIES;
+            // 须 observeWithColumns：偏好 value 从 true→false 时集合成员不变，普通 observe 不会重算
+            const directPrefs = queryPreferencesByCategoryAndName(database, DIRECT_CHANNEL_SHOW).
+                observeWithColumns(['value', 'name']);
+            const groupPrefs = queryPreferencesByCategoryAndName(database, GROUP_CHANNEL_SHOW).
+                observeWithColumns(['value', 'name']);
+
+            return combineLatest([
+                combineLatest(myChannels.map((mc) => mc.channel.observe())),
+                directPrefs,
+                groupPrefs,
+            ]).pipe(
+                map$(([channels, directPreferences, groupPreferences]) => {
                     const channelMap = new Map<string, {channel: ChannelModel; myChannel: MyChannelModel}>();
                     channels.forEach((channel, index) => {
                         if (channel && index < myChannels.length) {
@@ -838,14 +893,30 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                     const values = [...channelMap.values()];
                     const emptyTeamUserIds = new Set<string>();
                     const emptyGmMembers = new Map<string, string[]>();
-                    const filtered = values.filter(({channel}) => channelBelongsToTeamScopedConversations(
+
+                    // 构建偏好查找表：category:name -> value
+                    const showPreferenceMap = new Map<string, string>();
+                    directPreferences.forEach((p) => {
+                        showPreferenceMap.set(`${DIRECT_CHANNEL_SHOW}:${p.name}`, p.value);
+                    });
+                    groupPreferences.forEach((p) => {
+                        showPreferenceMap.set(`${GROUP_CHANNEL_SHOW}:${p.name}`, p.value);
+                    });
+
+                    const teamScopedFiltered = values.filter(({channel}) => channelBelongsToTeamScopedConversations(
                         channel,
                         teamId,
                         currentUserId,
                         emptyTeamUserIds,
                         emptyGmMembers,
                     ));
-                    return sortRecentConversationEntries(filtered);
+
+                    // 过滤掉已关闭（visible=false）的 DM/GM 频道
+                    const visibilityFiltered = teamScopedFiltered.filter(({channel}) =>
+                        isChannelVisibleInConversationList(channel, currentUserId, showPreferenceMap),
+                    );
+
+                    return sortRecentConversationEntries(visibilityFiltered);
                 }),
             );
         }),

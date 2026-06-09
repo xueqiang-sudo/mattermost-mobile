@@ -4,16 +4,21 @@
 /* eslint-disable new-cap */
 
 import React, {memo} from 'react';
-import {Touchable, TouchableOpacity, TouchableNativeFeedback, TouchableWithoutFeedback, View, type StyleProp, type ViewStyle} from 'react-native';
+import {Pressable, TouchableNativeFeedback, TouchableWithoutFeedback, View, type StyleProp, type ViewStyle, type PressableStateCallbackType} from 'react-native';
 
-type TouchableProps = Touchable & {
+type TouchableProps = {
     children: React.ReactNode | React.ReactNode[];
     borderlessRipple?: boolean;
     rippleRadius?: number;
+    onPress?: () => void;
+    onLongPress?: () => void;
+    disabled?: boolean;
+    hitSlop?: {top: number; bottom: number; left: number; right: number};
     style?: StyleProp<ViewStyle>;
     testID: string;
     type: 'native' | 'opacity' | 'none';
     underlayColor: string;
+    [key: string]: unknown;
 }
 
 const TouchableWithFeedbackAndroid = ({borderlessRipple = false, children, rippleRadius, testID, type = 'native', underlayColor, ...props}: TouchableProps) => {
@@ -32,13 +37,24 @@ const TouchableWithFeedbackAndroid = ({borderlessRipple = false, children, rippl
                 </TouchableNativeFeedback>
             );
         case 'opacity':
+            // 使用 Pressable 替代 TouchableOpacity 解决 vivo 手机第一次点击无响应问题
+            // vivo OriginOS / Funtouch OS 在输入法组合状态下会拦截 TouchableOpacity 的 onPress 用于关闭 IME 组合
+            // Pressable 基于 React Native 新手势系统，不受此影响
             return (
-                <TouchableOpacity
+                <Pressable
                     testID={testID}
                     {...props}
+                    style={(state: PressableStateCallbackType) => {
+                        // 模仿 TouchableOpacity 的 opacity 效果
+                        const baseStyle = Array.isArray(props.style) ? props.style : [props.style];
+                        return [
+                            ...baseStyle,
+                            {opacity: state.pressed && !props.disabled ? 0.4 : 1},
+                        ];
+                    }}
                 >
                     {children}
-                </TouchableOpacity>
+                </Pressable>
             );
         default:
             return (

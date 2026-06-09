@@ -1,12 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {DeviceEventEmitter, FlatList, StyleSheet, Text, View} from 'react-native';
+import {DeviceEventEmitter, FlatList, Text, View} from 'react-native';
 
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
-import ChannelItem from '@components/channel_item';
 import {Events} from '@constants';
 import {CHANNEL, DRAFT, THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
@@ -14,7 +13,10 @@ import {useTheme} from '@context/theme';
 import {isDMorGM} from '@utils/channel';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
+import ConversationListSwipeableItem from './conversation_list_swipeable_item';
+
 import type ChannelModel from '@typings/database/models/servers/channel';
+import type {SwipeableMethods} from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 type Props = {
     sortedChannels: ChannelModel[];
@@ -33,15 +35,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     emptyTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: theme.centerChannelColor,
+        color: theme.sidebarText,
         marginBottom: 8,
         textAlign: 'center',
     },
     emptyHint: {
         fontSize: 14,
-        color: theme.centerChannelColor,
+        color: theme.sidebarText,
         opacity: 0.72,
         textAlign: 'center',
+    },
+    list: {
+        backgroundColor: theme.sidebarBg,
     },
 }));
 
@@ -65,8 +70,12 @@ const EmptyState = () => {
 };
 
 const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, onChannelSwitch}: Props) => {
+    const theme = useTheme();
+    const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
     const [isChannelScreenActive, setChannelScreenActive] = useState(true);
+    /** 用于追踪当前已打开的 swipeable 项，确保同时只有一个项处于滑动打开状态 */
+    const swipeableRegistrar = useRef<{current: React.RefObject<SwipeableMethods> | null}>({current: null});
 
     useEffect(() => {
         const listener = DeviceEventEmitter.addListener(Events.ACTIVE_SCREEN, (screen: string) => {
@@ -91,10 +100,10 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
 
     const renderItem = useCallback(
         ({item}: {item: ChannelModel}) => (
-            <ChannelItem
+            <ConversationListSwipeableItem
                 channel={item}
                 onPress={onChannelSwitch}
-                testID='channel_list.conversation.channel_item'
+                swipeableRegistrar={swipeableRegistrar.current}
                 shouldHighlightActive={isChannelScreenActive}
                 shouldHighlightState={true}
                 isOnHome={true}
@@ -111,6 +120,7 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
         <FlatList
             key={currentTeamId || 'no-team'}
             extraData={currentTeamId}
+            style={styles.list}
             data={sortedChannels}
             renderItem={renderItem}
             keyExtractor={extractKey}

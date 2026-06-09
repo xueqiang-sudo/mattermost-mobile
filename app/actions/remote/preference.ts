@@ -22,6 +22,7 @@ import {getUserIdFromChannelName} from '@utils/user';
 import {forceLogoutIfNecessary} from './session';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
+import type PreferenceModel from '@typings/database/models/servers/preference';
 
 export type MyPreferencesRequest = {
     preferences?: PreferenceType[];
@@ -207,20 +208,46 @@ const openChannels = async (serverUrl: string, channels: ChannelModel[], groupLa
 
 export const setDirectChannelVisible = async (serverUrl: string, channelId: string, visible = true) => {
     try {
-        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const channel = await getChannelById(database, channelId);
         if (channel?.type === General.DM_CHANNEL || channel?.type === General.GM_CHANNEL) {
             const userId = await getCurrentUserId(database);
             const {DIRECT_CHANNEL_SHOW, GROUP_CHANNEL_SHOW} = Preferences.CATEGORIES;
             const category = channel.type === General.DM_CHANNEL ? DIRECT_CHANNEL_SHOW : GROUP_CHANNEL_SHOW;
             const name = channel.type === General.DM_CHANNEL ? getUserIdFromChannelName(userId, channel.name) : channelId;
+            const value = visible.toString();
             const pref: PreferenceType = {
                 user_id: userId,
                 category,
                 name,
-                value: visible.toString(),
+                value,
             };
-            return savePreference(serverUrl, [pref]);
+
+            const existing = await queryPreferencesByCategoryAndName(database, category, name).fetch();
+            let preferences: PreferenceModel[] = [];
+
+            if (existing.length > 0) {
+                const record = existing[0];
+                if (record.value !== value) {
+                    await database.write(async () => {
+                        await record.update((p) => {
+                            p.value = value;
+                        });
+                    });
+                }
+                preferences = existing;
+            } else {
+                preferences = await operator.handlePreferences({
+                    preferences: [pref],
+                    prepareRecordsOnly: false,
+                });
+            }
+
+            // 服务端同步放后台，不阻塞本地列表刷新
+            const client = NetworkManager.getClient(serverUrl);
+            client.savePreferences(userId, [pref]);
+
+            return {preferences};
         }
 
         return {};
