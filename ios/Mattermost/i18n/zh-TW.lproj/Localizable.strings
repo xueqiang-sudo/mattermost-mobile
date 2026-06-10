@@ -815,7 +815,7 @@
 "mobile.calls_you" = "（您）";
 "mobile.calls_you_2" = "您";
 "mobile.camera_photo_permission_denied_description" = "拍照並上傳到您的服務器或保存到您的設備。打開設定並允許 Dedalix 讀寫到您的相機。";
-"mobile.camera_photo_permission_denied_title" = "Optibot想要訪問您的相機";
+"mobile.camera_photo_permission_denied_title" = "Dedalix想要訪問您的相機";
 "mobile.camera_type.title" = "相機選項";
 "mobile.camera_video.record_notice_continue" = "繼續";
 "mobile.camera_video.record_notice_message" = "影片最長可錄 1 分鐘。系統相機介面可能顯示不同時長，但仍會在 1 分鐘時停止。錄製畫面由裝置提供，若支援請用返回手勢或返回鍵放棄錄製。";
@@ -1543,7 +1543,7 @@
 "scheduled_post.root_post_not_exist.message" = "您試圖評論的消息已被刪除。";
 "scheduled_post.tooltip.description" = "長按項目查看已計劃的消息操作";
 "tab_bar.contacts.label" = "通訊錄";
-"tab_bar.ai_agent.label" = "AI Agent";
+"tab_bar.ai_agent.label" = "助手";
 "tab_bar.home.label" = "聊天";
 "tab_bar.my_homepage.label" = "我的主頁";
 "tab_bar.under_development" = "{pageName} 頁面開發中";
