@@ -336,7 +336,7 @@ lane :upload_file_to_s3 do |options|
                         })
     end
 
-    if options[:file]&.start_with?('Optibot_') && options[:file]&.end_with?('.app.zip')
+    if options[:file]&.start_with?('Dedalix_') && options[:file]&.end_with?('.app.zip')
       pretext = '#### New iOS build for VM/Simulator'
       msg = "Download link: #{links.first}"
       send_message_to_mattermost({
@@ -364,13 +364,13 @@ lane :github do
     build = android_get_version_code(gradle_file: './android/app/build.gradle')
     changelog = File.read("metadata/changelog")
     android = [
-      "    * [Dedalix arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-arm64-v8a.apk)",
-      "    * [Dedalix armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-armeabi-v7a.apk)",
-      "    * [Dedalix x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86.apk)",
-      "    * [Dedalix x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}-x86_64.apk)",
+      "    * [Dedalix arm64-v8a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Dedalix_#{version}-arm64-v8a.apk)",
+      "    * [Dedalix armeabi-v7a](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Dedalix_#{version}-armeabi-v7a.apk)",
+      "    * [Dedalix x86](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Dedalix_#{version}-x86.apk)",
+      "    * [Dedalix x86_64](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Dedalix_#{version}-x86_64.apk)",
     ]
     changelog.concat("* Android\n#{android.join("\n")}\n")
-    changelog.concat("* iOS\n    * [Dedalix](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Optibot_#{version}.ipa)")
+    changelog.concat("* iOS\n    * [Dedalix](https://releases.mattermost.com/mattermost-mobile/#{version}/#{build}/Dedalix_#{version}.ipa)")
 
     github_release = set_github_release(
       repository_name: "mattermost/mattermost-mobile",
@@ -378,7 +378,7 @@ lane :github do
       name: "Mobile Version #{version}",
       tag_name: tag,
       description: changelog,
-      upload_assets: ["./Optibot_#{version}-unsigned.ipa", "./Optibot_#{version}-unsigned.apk"],
+      upload_assets: ["./Dedalix_#{version}-unsigned.ipa", "./Dedalix_#{version}-unsigned.apk"],
       is_draft: true
     )
   end
@@ -427,9 +427,9 @@ platform :ios do
 
     version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
     if ENV['BETA_BUILD'] == 'true'
-      output_name = "Optibot_Beta_#{version_number}-unsigned.ipa"
+      output_name = "Dedalix_Beta_#{version_number}-unsigned.ipa"
     else
-      output_name = "Optibot_#{version_number}-unsigned.ipa"
+      output_name = "Dedalix_#{version_number}-unsigned.ipa"
     end
 
     build_ios_unsigned_or_simulator(
@@ -449,10 +449,10 @@ platform :ios do
     version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
     if host_arch == "arm64"
       build_arch = "arm64"
-      output_file = "Optibot_#{version_number}-simulator-arm64.app.zip"
+      output_file = "Dedalix_#{version_number}-simulator-arm64.app.zip"
     else
       build_arch = "x86_64"
-      output_file = "Optibot_#{version_number}-simulator-x86_64.app.zip"
+      output_file = "Dedalix_#{version_number}-simulator-x86_64.app.zip"
     end
 
     UI.message("Building for #{build_arch} architecture on #{host_arch} host")
@@ -764,9 +764,9 @@ platform :ios do
   def build_ios
     version_number = get_version_number(xcodeproj: './ios/Mattermost.xcodeproj', target: 'Mattermost')
     if ENV['BETA_BUILD'] == 'true'
-      output_base_name = "Optibot_Beta_#{version_number}"
+      output_base_name = "Dedalix_Beta_#{version_number}"
     else
-      output_base_name = "Optibot_#{version_number}"
+      output_base_name = "Dedalix_#{version_number}"
     end
     config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
     method = ENV['IOS_BUILD_EXPORT_METHOD'].nil? || ENV['IOS_BUILD_EXPORT_METHOD'].empty? ? 'ad-hoc' : ENV['IOS_BUILD_EXPORT_METHOD']
@@ -851,9 +851,9 @@ platform :android do
 
     version_name = android_get_version_name(gradle_file: './android/app/build.gradle')
     if ENV['BETA_BUILD'] == 'true'
-      output_name = "Optibot_Beta_#{version_name}-unsigned.apk"
+      output_name = "Dedalix_Beta_#{version_name}-unsigned.apk"
     else
-      output_name = "Optibot_#{version_name}-unsigned.apk"
+      output_name = "Dedalix_#{version_name}-unsigned.apk"
     end
 
     sh "mv #{lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]} #{Pathname.new(File.expand_path(File.dirname(__FILE__))).parent.to_s}/#{output_name}"
@@ -1042,9 +1042,9 @@ platform :android do
   def move_android_to_root
     version_name = android_get_version_name(gradle_file: './android/app/build.gradle')
     if ENV['BETA_BUILD'] == 'true'
-      base_name = "Optibot_Beta_#{version_name}"
+      base_name = "Dedalix_Beta_#{version_name}"
     else
-      base_name = "Optibot_#{version_name}"
+      base_name = "Dedalix_#{version_name}"
     end
     build_task = ENV['ANDROID_BUILD_TASK'].nil? || ENV['ANDROID_BUILD_TASK'].empty? ? 'assemble' : ENV['ANDROID_BUILD_TASK']
     build_task = build_task.split(",")
