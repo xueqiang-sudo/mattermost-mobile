@@ -735,6 +735,13 @@ platform :ios do
   end
 
   def setup_code_signing
+    # 打印所有环境变量用于调试
+    UI.message("=== 完整 ENV 环境变量 ===")
+    ENV.each do |key, value|
+      UI.message("#{key}=#{value}")
+    end
+    UI.message("=== ENV 结束 ===")
+
     update_code_signing_settings(
       use_automatic_signing: false,
       path: './ios/Mattermost.xcodeproj'
