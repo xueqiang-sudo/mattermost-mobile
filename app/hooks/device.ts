@@ -6,6 +6,7 @@ import React, {type RefObject, useEffect, useRef, useState, useContext} from 're
 import {AppState, Keyboard, NativeEventEmitter, Platform, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import {ENABLE_TABLET_SPLIT_VIEW} from '@constants/view';
 import {DeviceContext} from '@context/device';
 
 import type {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
@@ -50,6 +51,9 @@ export function useWindowDimensions() {
 }
 
 export function useIsTablet() {
+    if (!ENABLE_TABLET_SPLIT_VIEW) {
+        return false;
+    }
     const {isSplit, isTablet} = useContext(DeviceContext);
     return isTablet && !isSplit;
 }

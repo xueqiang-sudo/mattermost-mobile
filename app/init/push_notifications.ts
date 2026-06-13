@@ -98,22 +98,25 @@ export async function removeThreadNotifications(serverUrl: string, rootId: strin
     }
 }
 
-/** 以 JPush 本地通知方式调度一个通知 */
-export async function scheduleNotification(notification: LocalNotificationData) {
+/** 以 JPush 本地通知方式调度一个通知，返回实际使用的 messageID */
+export async function scheduleNotification(notification: LocalNotificationData): Promise<string | undefined> {
     if (Platform.OS === 'android') {
-        return;
+        return undefined;
     }
 
     try {
+        const messageID = notification.id?.toString() || String(Date.now());
         JPush.addLocalNotification({
-            messageID: notification.id?.toString() || '0',
+            messageID,
             title: notification.title || '',
             content: notification.body || '',
             extras: notification.userInfo || {},
             fireTime: notification.fireDate ? new Date(notification.fireDate) : new Date(Date.now() + 1000),
         });
+        return messageID;
     } catch (error) {
         logError(`${TAG} scheduleNotification 失败`, error);
+        return undefined;
     }
 }
 
@@ -123,8 +126,14 @@ export async function cancelScheduleNotification(notificationId: string) {
         return;
     }
 
+    const messageID = String(notificationId).trim();
+    if (!messageID || messageID === 'NaN' || messageID === 'undefined') {
+        logDebug(`${TAG} cancelScheduleNotification 跳过无效 messageID`, messageID);
+        return;
+    }
+
     try {
-        JPush.removeLocalNotification({messageID: notificationId});
+        JPush.removeLocalNotification({messageID});
     } catch (error) {
         logError(`${TAG} cancelScheduleNotification 失败`, error);
     }

@@ -8,7 +8,7 @@ import {removePushDisabledInServerAcknowledged} from '@actions/app/global';
 import DatabaseManager from '@database/manager';
 import {resetMomentLocale} from '@i18n';
 import {getAllServerCredentials, removeServerCredentials} from '@init/credentials';
-import PushNotifications from '@init/push_notifications';
+import {cancelScheduleNotification, removeServerNotifications} from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {getDeviceToken} from '@queries/app/global';
@@ -167,6 +167,7 @@ describe('session actions', () => {
                 notificationId: '123',
             } as SessionExpiration);
             jest.mocked(NetInfo.fetch).mockResolvedValue({
+                isConnected: true,
                 isInternetReachable: true,
             } as NetInfoState);
 
@@ -198,12 +199,13 @@ describe('session actions', () => {
             const expiredSession = {id: 'session1', notificationId: '123'};
             jest.mocked(getExpiredSession).mockResolvedValue(expiredSession as SessionExpiration);
             jest.mocked(NetInfo.fetch).mockResolvedValue({
+                isConnected: true,
                 isInternetReachable: true,
             } as NetInfoState);
 
             const result = await cancelSessionNotification(mockServerUrl);
 
-            expect(PushNotifications.cancelScheduleNotification).toHaveBeenCalledWith(123);
+            expect(cancelScheduleNotification).toHaveBeenCalledWith('123');
             expect(mockOperator.handleSystem).toHaveBeenCalledWith({
                 systems: [{
                     id: 'sessionExpiration',
@@ -218,12 +220,13 @@ describe('session actions', () => {
             const expiredSession = {id: 'session1', notificationId: ''};
             jest.mocked(getExpiredSession).mockResolvedValue(expiredSession as SessionExpiration);
             jest.mocked(NetInfo.fetch).mockResolvedValue({
+                isConnected: true,
                 isInternetReachable: true,
             } as NetInfoState);
 
             const result = await cancelSessionNotification(mockServerUrl);
 
-            expect(PushNotifications.cancelScheduleNotification).not.toHaveBeenCalled();
+            expect(cancelScheduleNotification).not.toHaveBeenCalled();
             expect(mockOperator.handleSystem).not.toHaveBeenCalled();
             expect(result).toEqual({});
         });
@@ -237,7 +240,7 @@ describe('session actions', () => {
 
             const result = await cancelSessionNotification(mockServerUrl);
 
-            expect(PushNotifications.cancelScheduleNotification).not.toHaveBeenCalled();
+            expect(cancelScheduleNotification).not.toHaveBeenCalled();
             expect(mockOperator.handleSystem).not.toHaveBeenCalled();
             expect(result).toEqual({});
         });
@@ -276,7 +279,7 @@ describe('session actions', () => {
 
             // Verify all cleanup functions called
             expect(removeServerCredentials).toHaveBeenCalledWith(mockServerUrl);
-            expect(PushNotifications.removeServerNotifications).toHaveBeenCalledWith(mockServerUrl);
+            expect(removeServerNotifications).toHaveBeenCalledWith(mockServerUrl);
             expect(NetworkManager.invalidateClient).toHaveBeenCalledWith(mockServerUrl);
             expect(WebsocketManager.invalidateClient).toHaveBeenCalledWith(mockServerUrl);
             expect(removePushDisabledInServerAcknowledged).toHaveBeenCalledWith(encodedServerUrl);

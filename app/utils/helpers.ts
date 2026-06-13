@@ -6,7 +6,7 @@ import moment, {type Moment} from 'moment-timezone';
 import {Platform} from 'react-native';
 
 import License from '@constants/license';
-import {STATUS_BAR_HEIGHT} from '@constants/view';
+import {ENABLE_TABLET_SPLIT_VIEW, STATUS_BAR_HEIGHT} from '@constants/view';
 
 // isMinimumServerVersion will return true if currentVersion is equal to higher or than
 // the provided minimum version. A non-equal major version will ignore minor and dot
@@ -181,6 +181,9 @@ export function getRoundedTime(value: Moment, roundedTo: number) {
 }
 
 export function isTablet() {
+    if (!ENABLE_TABLET_SPLIT_VIEW) {
+        return false;
+    }
     const result: SplitViewResult = RNUtils.isRunningInSplitView();
     if (!result) {
         return false;

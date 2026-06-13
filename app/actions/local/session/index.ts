@@ -89,7 +89,7 @@ export const cancelSessionNotification = async (serverUrl: string) => {
         const rechable = (await NetInfo.fetch()).isConnected; // .isInternetReachable
 
         if (expiredSession?.notificationId && rechable) {
-            cancelScheduleNotification(parseInt(expiredSession.notificationId, 10));
+            cancelScheduleNotification(String(expiredSession.notificationId));
             operator.handleSystem({
                 systems: [{
                     id: SYSTEM_IDENTIFIERS.SESSION_EXPIRATION,

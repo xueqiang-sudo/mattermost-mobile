@@ -15,6 +15,9 @@ export const TEAM_SIDEBAR_WIDTH = 72;
 export const TABLET_HEADER_HEIGHT = 44;
 export const TABLET_SIDEBAR_WIDTH = 320;
 
+/** 为 false 时 iPad 使用手机式全屏导航（列表 / 聊天分屏切换），不启用左右分栏 */
+export const ENABLE_TABLET_SPLIT_VIEW = false;
+
 export const STATUS_BAR_HEIGHT = 20;
 export const DEFAULT_HEADER_HEIGHT = Platform.select({android: 56, default: 44});
 export const LARGE_HEADER_TITLE_HEIGHT = 60;

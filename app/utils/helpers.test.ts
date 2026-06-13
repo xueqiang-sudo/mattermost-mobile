@@ -224,16 +224,14 @@ describe('Helpers', () => {
 
     describe('isTablet', () => {
         test('should identify tablet correctly', () => {
-            console.log('split mock', NativeModules.RNUtils.isRunningInSplitView());
             expect(isTablet()).toBe(false);
 
             const prevSplitViewModule = NativeModules.RNUtils.isRunningInSplitView;
             NativeModules.RNUtils.isRunningInSplitView = jest.fn().mockReturnValue({isSplit: false, isTablet: true});
-            console.log('split mock', NativeModules.RNUtils.isRunningInSplitView());
-            expect(isTablet()).toBe(true);
+            expect(isTablet()).toBe(false);
             NativeModules.RNUtils.isRunningInSplitView = jest.fn().mockReturnValue({isSplit: true, isTablet: true});
             expect(isTablet()).toBe(false);
-            NativeModules.RNUtils.isRunningInSplitView = prevSplitViewModule; // Restore original value
+            NativeModules.RNUtils.isRunningInSplitView = prevSplitViewModule;
         });
     });
 

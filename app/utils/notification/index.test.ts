@@ -7,6 +7,7 @@ import {DeviceEventEmitter} from 'react-native';
 
 import {Events} from '@constants';
 import {DEFAULT_LOCALE, getTranslations} from '@i18n';
+import {scheduleNotification} from '@init/push_notifications';
 import {showNotificationChannelNotFoundSnackbar} from '@utils/snack_bar';
 
 import {
@@ -119,19 +120,21 @@ describe('Notification Utils', () => {
     });
 
     describe('scheduleExpiredNotification', () => {
-        it('should schedule a notification for session expiration with hours', () => {
-            const result = scheduleExpiredNotification('server_url', session as any, 'ServerName', 'en');
+        it('should schedule a notification for session expiration with hours', async () => {
+            jest.mocked(scheduleNotification).mockResolvedValue('12345');
+            const result = await scheduleExpiredNotification('server_url', session as any, 'ServerName', 'en');
+            expect(result).toBeTruthy();
             expect(scheduleNotification).toHaveBeenCalledWith(expect.objectContaining({
-                fireDate: new Date(session.expires_at).toISOString(),
+                id: result,
+                fireDate: session.expires_at,
                 body: 'Please log in to continue receiving notifications. Sessions for ServerName are configured to expire every 10 hours.',
                 title: 'Session Expired',
             }));
-            expect(result).toBeDefined();
         });
 
-        it('should return 0 if expiresAt is not defined', () => {
-            const result = scheduleExpiredNotification('server_url', {} as any, 'ServerName', 'en');
-            expect(result).toBe(0);
+        it('should return empty string if expiresAt is not defined', async () => {
+            const result = await scheduleExpiredNotification('server_url', {} as any, 'ServerName', 'en');
+            expect(result).toBe('');
         });
     });
 });

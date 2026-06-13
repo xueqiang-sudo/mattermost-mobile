@@ -63,7 +63,17 @@ export const emitNotificationError = (type: NotificationErrorType) => {
     }, 500);
 };
 
-export const scheduleExpiredNotification = (serverUrl: string, session: Session, serverName: string, locale = DEFAULT_LOCALE) => {
+/** 每个 serverUrl 对应稳定的 JPush messageID，便于调度与取消 */
+function getSessionNotificationMessageId(serverUrl: string): string {
+    let hash = 0;
+    for (let i = 0; i < serverUrl.length; i++) {
+        hash = ((hash << 5) - hash) + serverUrl.charCodeAt(i);
+        hash |= 0;
+    }
+    return String(Math.abs(hash) || 1);
+}
+
+export const scheduleExpiredNotification = async (serverUrl: string, session: Session, serverName: string, locale = DEFAULT_LOCALE) => {
     const expiresAt = session?.expires_at || 0;
     const expiresInHours = Math.ceil(Math.abs(moment.duration(moment().diff(moment(expiresAt))).asHours()));
     const expiresInDays = Math.floor(expiresInHours / 24); // Calculate expiresInDays
@@ -89,7 +99,9 @@ export const scheduleExpiredNotification = (serverUrl: string, session: Session,
     const title = intl.formatMessage({id: 'mobile.session_expired.title', defaultMessage: 'Session Expired'});
 
     if (expiresAt) {
-        return scheduleNotification({
+        const id = getSessionNotificationMessageId(serverUrl);
+        await scheduleNotification({
+            id,
             fireDate: expiresAt,
             body,
             title,
@@ -99,7 +111,8 @@ export const scheduleExpiredNotification = (serverUrl: string, session: Session,
             server_url: serverUrl,
             type: 'session',
         });
+        return id;
     }
 
-    return 0;
+    return '';
 };

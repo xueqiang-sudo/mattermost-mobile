@@ -262,7 +262,7 @@ export const scheduleSessionNotification = async (serverUrl: string) => {
             const session = await findSession(serverUrl, sessions);
             if (session) {
                 const sessionId = session.id;
-                const notificationId = scheduleExpiredNotification(serverUrl, session, serverName, user?.locale);
+                const notificationId = await scheduleExpiredNotification(serverUrl, session, serverName, user?.locale);
                 operator.handleSystem({
                     systems: [{
                         id: SYSTEM_IDENTIFIERS.SESSION_EXPIRATION,
