@@ -145,3 +145,4 @@ node_modules/@mattermost/intune
 .tmp-jpush
 
 android/.kotlin
+android/app/src/main/assets/modules.json
