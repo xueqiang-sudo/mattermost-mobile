@@ -12,6 +12,10 @@ const defaultConfig = getDefaultConfig(__dirname);
  * @type {import('metro-config').MetroConfig}
  */
 const config = {
+    server: {
+        // RN 0.77 默认关闭；配合 start 脚本的 --client-logs 将 JS 日志转发到 Metro 终端
+        forwardClientLogs: true,
+    },
     transformer: {
         babelTransformerPath: require.resolve('react-native-svg-transformer/react-native'),
     },
