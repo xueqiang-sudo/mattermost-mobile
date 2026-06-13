@@ -4,7 +4,19 @@
 APPLY_16KB_PATCH=false
 
 function execute() {
-    cd fastlane && NODE_ENV=production bundle exec fastlane $1 $2
+    local env_flag=""
+    case "$1" in
+        ios)
+            case "$2" in
+                simulator) env_flag="--env ios.simulator" ;;
+                *) env_flag="--env ios.release" ;;
+            esac
+            ;;
+        android)
+            env_flag="--env android.release"
+            ;;
+    esac
+    cd fastlane && NODE_ENV=production bundle exec fastlane $1 $2 $env_flag
 }
 
 function cleanupAndroid16kbPagesizePatch() {

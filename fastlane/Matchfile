@@ -1,7 +1,30 @@
-#type "development" # The default type, can be: appstore, adhoc, enterprise or development
+# Match 证书存储仓库
+git_url("ssh://git@118.195.136.154:2522/mattermost-codes/build-helpers/ios-certificates.git")
 
-# app_identifier ["tools.fastlane.app", "tools.fastlane.app2"]
-# username "user@fastlane.tools" # Your Apple Developer Portal username
+# 存储模式
+storage_mode("git")
 
-# For all available options run `fastlane match --help`
-# Remove the # in the beginning of the line to enable the other options
+# 证书类型
+type("appstore")
+
+# Team ID
+team_id("DAR9DHG22M")
+
+# 使用 API Key 认证时不需要 username
+# username("wxwlhy@sina.com")
+
+# 涉及的 App Identifier
+app_identifier([
+  "com.optibot.cn",
+  "com.optibot.cn.MattermostShare"
+])
+
+# 首次使用需要生成证书，不启用只读
+# 证书生成后可以改为 true
+readonly(false)
+
+# 浅克隆，加快速度
+shallow_clone(true)
+
+# 跳过文档生成
+skip_docs(true)
