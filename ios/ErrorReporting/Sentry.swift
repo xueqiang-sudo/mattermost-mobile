@@ -1,6 +1,6 @@
 //
 //  Sentry.swift
-//  Mattermost
+//  Optibot
 //
 //  Created by Avinash Lingaloo on 20/12/2022.
 //  Copyright © 2022 Facebook. All rights reserved.

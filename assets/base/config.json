@@ -6,11 +6,11 @@
     "TestServerUrl": "http://localhost:8065",
     "AutoSelectServerUrl": false,
 
-    "WebsiteURL": "https://mattermost.com",
+    "WebsiteURL": "https://optibot.com",
     "AboutTermsUrl": "",
     "AboutPrivacyUrl": "",
-    "ServerNoticeURL": "https://github.com/mattermost/mattermost-server/blob/master/NOTICE.txt",
-    "MobileNoticeURL": "https://github.com/mattermost/mattermost-mobile/blob/master/NOTICE.txt",
+    "ServerNoticeURL": "https://github.com/optibot/optibot-server/blob/master/NOTICE.txt",
+    "MobileNoticeURL": "https://github.com/optibot/optibot-mobile/blob/master/NOTICE.txt",
 
     "RudderApiKey": "",
 

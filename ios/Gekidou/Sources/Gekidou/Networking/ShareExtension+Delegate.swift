@@ -25,7 +25,7 @@ extension ShareExtension: URLSessionDataDelegate {
         
         os_log(
             OSLogType.default,
-            "Mattermost BackgroundSession: Created identifier=%{public}@",
+            "Optibot BackgroundSession: Created identifier=%{public}@",
             id
         )
     }
@@ -34,7 +34,7 @@ extension ShareExtension: URLSessionDataDelegate {
         self.completionHandler = completionHandler
         os_log(
             OSLogType.default,
-            "Mattermost BackgroundSession: Attached session with completionHandler identifier=%{public}@",
+            "Optibot BackgroundSession: Attached session with completionHandler identifier=%{public}@",
             id
         )
         createBackroundSession(
@@ -61,7 +61,7 @@ extension ShareExtension: URLSessionDataDelegate {
           let uploadData = getUploadSessionData(id: id)
          else {
             os_log(
-                "Mattermost BackgroundSession: didReceived failed to getUploadSessionData identifier=%{public}@",
+                "Optibot BackgroundSession: didReceived failed to getUploadSessionData identifier=%{public}@",
                 log: .default,
                 type: .error,
                 session.configuration.identifier ?? "no identifier"
@@ -81,7 +81,7 @@ extension ShareExtension: URLSessionDataDelegate {
                 
                 os_log(
                     OSLogType.default,
-                    "Mattermost BackgroundSession: identifier=%{public}@ did upload file %{public}@ with ID %{public}@ total files %{public}@ of %{public}@",
+                    "Optibot BackgroundSession: identifier=%{public}@ did upload file %{public}@ with ID %{public}@ total files %{public}@ of %{public}@",
                     id,
                     filename,
                     fileId,
@@ -91,7 +91,7 @@ extension ShareExtension: URLSessionDataDelegate {
                 
                 os_log(
                     OSLogType.default,
-                    "Mattermost BackgroundSession: Append file to session identifier=%{public}@ file=%{public}@ with ID %{public}@",
+                    "Optibot BackgroundSession: Append file to session identifier=%{public}@ file=%{public}@ with ID %{public}@",
                     id,
                     filename,
                     fileId
@@ -101,28 +101,28 @@ extension ShareExtension: URLSessionDataDelegate {
             } else {
                 os_log(
                     OSLogType.default,
-                    "Mattermost BackgroundSession: identifier=%{public}@ no file info received %{public}@",
+                    "Optibot BackgroundSession: identifier=%{public}@ no file info received %{public}@",
                     id,
                     json
                 )
             }
         } catch {
             os_log(
-                "Mattermost BackgroundSession: Failed to receive data identifier=%{public}@ error=%{public}",
+                "Optibot BackgroundSession: Failed to receive data identifier=%{public}@ error=%{public}",
                 log: .default,
                 type: .error,
                 id,
                 error.localizedDescription
             )
             
-            print("Mattermost BackgroundSession: Failed to get the file upload response for id %@ %@", id, error.localizedDescription)
+            print("Optibot BackgroundSession: Failed to get the file upload response for id %@ %@", id, error.localizedDescription)
         }
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if error != nil {
             os_log(
-                "Mattermost BackgroundSession: didCompleteWithError delegate failed identifier=%{public}@ with error %{public}@",
+                "Optibot BackgroundSession: didCompleteWithError delegate failed identifier=%{public}@ with error %{public}@",
                 log: .default,
                 type: .error,
                 session.configuration.identifier ?? "no identifier",
@@ -133,7 +133,7 @@ extension ShareExtension: URLSessionDataDelegate {
         
         os_log(
             OSLogType.default,
-            "Mattermost BackgroundSession: didCompleteWithError delegate for identifier=%{public}@ after calling postMessageIfUploadFinished",
+            "Optibot BackgroundSession: didCompleteWithError delegate for identifier=%{public}@ after calling postMessageIfUploadFinished",
             session.configuration.identifier ?? "no identifier"
         )
     }
@@ -142,7 +142,7 @@ extension ShareExtension: URLSessionDataDelegate {
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         os_log(
             OSLogType.default,
-            "Mattermost BackgroundSession: urlSessionDidFinishEvents identifier=%{public}@",
+            "Optibot BackgroundSession: urlSessionDidFinishEvents identifier=%{public}@",
             session.configuration.identifier ?? "no identifier"
         )
         
@@ -152,7 +152,7 @@ extension ShareExtension: URLSessionDataDelegate {
                 if let handler = self.completionHandler {
                     os_log(
                         OSLogType.default,
-                        "Mattermost BackgroundSession: Called completionHandler"
+                        "Optibot BackgroundSession: Called completionHandler"
                     )
                     handler()
                 }
@@ -166,7 +166,7 @@ extension ShareExtension: URLSessionDataDelegate {
         guard let id = session.configuration.identifier, let data = getUploadSessionData(id: id)
         else {
             os_log(
-                "Mattermost BackgroundSession: postMessageIfUploadFinished failed to getUploadSessionData identifier=%{public}@",
+                "Optibot BackgroundSession: postMessageIfUploadFinished failed to getUploadSessionData identifier=%{public}@",
                 log: .default,
                 type: .error,
                 session.configuration.identifier ?? "no identifier"
@@ -180,7 +180,7 @@ extension ShareExtension: URLSessionDataDelegate {
         if count == total {
             os_log(
                 OSLogType.default,
-                "Mattermost BackgroundSession: posting message for identifier=%{public}@",
+                "Optibot BackgroundSession: posting message for identifier=%{public}@",
                 id
             )
 
@@ -192,7 +192,7 @@ extension ShareExtension: URLSessionDataDelegate {
         } else {
             os_log(
                 OSLogType.default,
-                "Mattermost BackgroundSession: finish uploading files %{public}@ of %{public}@ for identifier=%{public}@",
+                "Optibot BackgroundSession: finish uploading files %{public}@ of %{public}@ for identifier=%{public}@",
                 "\(count)",
                 "\(total)",
                 id

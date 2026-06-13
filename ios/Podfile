@@ -47,8 +47,8 @@ if use_local_sdwebimage then puts "📦 Using local SDWebImage from net-cache-re
 
 config = use_native_modules!
 
-target 'Mattermost' do
-  # Pods for Mattermost
+target 'Optibot' do
+  # Pods for Optibot
 
   use_expo_modules!
 
@@ -78,7 +78,7 @@ target 'Mattermost' do
   end
 end
 
-target 'MattermostShare' do
+target 'OptibotShare' do
   inherit! :search_paths
   pod 'Sentry/HybridSDK', '8.48.0'
   pod 'Gekidou', :path => './Gekidou'
@@ -124,7 +124,7 @@ post_install do |installer|
     end
 
     # ensure stdlib is embedded for Gekidou to work correctly in extensions
-    %w[MattermostShare].each do |ext_name|
+    %w[OptibotShare].each do |ext_name|
       target = installer.aggregate_targets.flat_map(&:user_project).flat_map(&:targets).find { |x| x.name == ext_name }
       next unless target
       target.build_configurations.each do |c|
@@ -134,7 +134,7 @@ post_install do |installer|
     end
 
     # make sure the main app is NOT extension-only
-    app_target = installer.aggregate_targets.flat_map(&:user_project).flat_map(&:targets).find { |t| t.name == 'Mattermost' }
+    app_target = installer.aggregate_targets.flat_map(&:user_project).flat_map(&:targets).find { |t| t.name == 'Optibot' }
     if app_target
       app_target.build_configurations.each do |c|
         c.build_settings.delete('APPLICATION_EXTENSION_API_ONLY')

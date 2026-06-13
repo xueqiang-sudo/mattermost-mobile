@@ -26,7 +26,7 @@ extension ShareExtension {
             createBackroundSession(id: id)
             os_log(
                 OSLogType.default,
-                "Mattermost BackgroundSession: uploading %{public}@ files for identifier=%{public}@",
+                "Optibot BackgroundSession: uploading %{public}@ files for identifier=%{public}@",
                 String(files.count),
                 id
             )
@@ -48,7 +48,7 @@ extension ShareExtension {
                         if let task = backgroundSession?.uploadTask(with: uploadRequest, fromFile: fileUrl) {
                             os_log(
                                 OSLogType.default,
-                                "Mattermost BackgroundSession: Start uploading file %{public}@ for identifier=%{public}@",
+                                "Optibot BackgroundSession: Start uploading file %{public}@ for identifier=%{public}@",
                                 filename,
                                 id
                             )
@@ -57,7 +57,7 @@ extension ShareExtension {
                         } else {
                             os_log(
                                 OSLogType.default,
-                                "Mattermost BackgroundSession: Task not created to upload file %{public}@ for identifier=%{public}@",
+                                "Optibot BackgroundSession: Task not created to upload file %{public}@ for identifier=%{public}@",
                                 filename,
                                 id
                             )
@@ -65,7 +65,7 @@ extension ShareExtension {
                     } else {
                         os_log(
                             OSLogType.default,
-                            "Mattermost BackgroundSession: The file %{public}@ for identifier=%{public}@ could not be processed for upload",
+                            "Optibot BackgroundSession: The file %{public}@ for identifier=%{public}@ could not be processed for upload",
                             filename,
                             id
                         )
@@ -74,7 +74,7 @@ extension ShareExtension {
                 } else {
                     os_log(
                         OSLogType.default,
-                        "Mattermost BackgroundSession: File %{public}@ for identifier=%{public}@ not found or is not a valid URL",
+                        "Optibot BackgroundSession: File %{public}@ for identifier=%{public}@ not found or is not a valid URL",
                         file,
                         id
                     )
@@ -85,7 +85,7 @@ extension ShareExtension {
         } else if !message.isEmpty {
             os_log(
                 OSLogType.default,
-                "Mattermost BackgroundSession: posting message for identifier=%{public}@ without files",
+                "Optibot BackgroundSession: posting message for identifier=%{public}@ without files",
                 id
             )
             self.postMessageForSession(withId: id, completionHandler: completionHandler)
@@ -99,7 +99,7 @@ extension ShareExtension {
         else {
             os_log(
                 OSLogType.default,
-                "Mattermost BackgroundSession: postMessageForSession fail to get data for identifier=%{public}@",
+                "Optibot BackgroundSession: postMessageForSession fail to get data for identifier=%{public}@",
                 id
             )
             return
@@ -118,7 +118,7 @@ extension ShareExtension {
                 completionHandler: {info, reponse, error in
                     if let err = error {
                         os_log(
-                            "Mattermost BackgroundSession: error to create post for session identifier=%{public}@ -- %{public}@",
+                            "Optibot BackgroundSession: error to create post for session identifier=%{public}@ -- %{public}@",
                             log: .default,
                             type: .error,
                             id,
@@ -129,7 +129,7 @@ extension ShareExtension {
                     if let handler = completionHandler {
                         os_log(
                             OSLogType.default,
-                            "Mattermost BackgroundSession: postMessageForSession without files call completionHandler for identifier=%{public}@",
+                            "Optibot BackgroundSession: postMessageForSession without files call completionHandler for identifier=%{public}@",
                             id
                         )
                         handler()

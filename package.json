@@ -1,9 +1,9 @@
 {
-  "name": "mattermost-mobile",
+  "name": "optibot-mobile",
   "version": "2.39.0",
-  "description": "Mattermost Mobile with React Native",
-  "repository": "git@github.com:mattermost/mattermost-mobile.git",
-  "author": "Mattermost, Inc.",
+  "description": "Optibot Mobile with React Native",
+  "repository": "git@github.com:optibot/optibot-mobile.git",
+  "author": "Optibot, Inc.",
   "license": "Apache 2.0",
   "private": true,
   "engines": {

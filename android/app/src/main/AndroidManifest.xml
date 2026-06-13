@@ -46,7 +46,7 @@
           <action android:name="android.intent.action.VIEW"/>
           <category android:name="android.intent.category.DEFAULT"/>
           <category android:name="android.intent.category.BROWSABLE"/>
-          <data android:scheme='mattermost'/>
+          <data android:scheme='optibot'/>
         </intent-filter>
         <intent-filter>
           <action android:name="android.intent.action.VIEW"/>
@@ -56,7 +56,7 @@
         </intent-filter>
       </activity>
       <activity android:name="com.reactnativenavigation.controllers.NavigationActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:resizeableActivity="true" android:exported="false"/>
-      <activity android:name="com.optibot.cnshare.ShareActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:taskAffinity="com.mattermost.share" android:exported="true">
+      <activity android:name="com.optibot.cnshare.ShareActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:taskAffinity="com.optibot.share" android:exported="true">
           <intent-filter>
               <action android:name="android.intent.action.SEND"/>
               <action android:name="android.intent.action.SEND_MULTIPLE"/>

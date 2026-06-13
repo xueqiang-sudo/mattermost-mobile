@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name                  = 'Gekidou'
-  s.author                = 'Mattermost, Inc.'
+  s.author                = 'Optibot, Inc.'
   s.version               = '0.1.0'
   s.license               = 'MIT'
   s.homepage              = 'https://github.com/mattermost/mattermost-mobile'

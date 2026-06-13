@@ -83,7 +83,7 @@ public class ShareExtension: NSObject {
         preferences.set(data.toDictionary(), forKey: id)
         os_log(
             OSLogType.default,
-            "Mattermost BackgroundSession: saveUploadSessionData for identifier=%{public}@",
+            "Optibot BackgroundSession: saveUploadSessionData for identifier=%{public}@",
             id
         )
     }
@@ -112,7 +112,7 @@ public class ShareExtension: NSObject {
         preferences.removeObject(forKey: id)
         os_log(
             OSLogType.default,
-            "Mattermost BackgroundSession: removeUploadSessionData for identifier=%{public}@",
+            "Optibot BackgroundSession: removeUploadSessionData for identifier=%{public}@",
             id
         )
     }
@@ -140,7 +140,7 @@ public class ShareExtension: NSObject {
             } catch {
                 os_log(
                     OSLogType.default,
-                    "Mattermost BackgroundSession: deleteUploadedFiles filed to delete=%{public}@",
+                    "Optibot BackgroundSession: deleteUploadedFiles filed to delete=%{public}@",
                     file
                 )
             }
