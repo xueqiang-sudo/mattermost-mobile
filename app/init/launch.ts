@@ -7,7 +7,6 @@ import {Alert, DeviceEventEmitter, Linking, Platform} from 'react-native';
 
 import {removePost} from '@actions/local/post';
 import {terminateSession} from '@actions/local/session';
-import {switchToChannelById} from '@actions/remote/channel';
 import {appEntry, pushNotificationEntry, upgradeEntry} from '@actions/remote/entry';
 import {openNotification} from '@actions/remote/notifications';
 import {logout} from '@actions/remote/session';
@@ -25,7 +24,7 @@ import {
 } from '@init/jpush_notification';
 import {getAutoClient} from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
-import {getLastViewedChannelIdAndServer, getOnboardingViewed, getLastViewedThreadIdAndServer} from '@queries/app/global';
+import {getOnboardingViewed, getLastViewedThreadIdAndServer} from '@queries/app/global';
 import {getAllServers} from '@queries/app/servers';
 import {queryPostsByType} from '@queries/servers/post';
 import {getThemeForCurrentTeam} from '@queries/servers/preference';
@@ -294,16 +293,13 @@ export const launchToHome = async (props: LaunchProps) => {
         }
         case Launch.Normal:
             if (props.coldStart) {
-                const lastViewedChannel = await getLastViewedChannelIdAndServer();
                 const lastViewedThread = await getLastViewedThreadIdAndServer();
 
                 if (lastViewedThread && lastViewedThread.server_url === props.serverUrl && lastViewedThread.thread_id) {
                     PerformanceMetricsManager.setLoadTarget('THREAD');
                     fetchAndSwitchToThread(props.serverUrl!, lastViewedThread.thread_id, false, undefined, true);
-                } else if (lastViewedChannel && lastViewedChannel.server_url === props.serverUrl && lastViewedChannel.channel_id) {
-                    PerformanceMetricsManager.setLoadTarget('CHANNEL');
-                    switchToChannelById(props.serverUrl!, lastViewedChannel.channel_id);
                 } else {
+                    // 冷启动停留在会话列表，不自动恢复上次频道（避免默认打开企业总群）
                     PerformanceMetricsManager.setLoadTarget('HOME');
                 }
 

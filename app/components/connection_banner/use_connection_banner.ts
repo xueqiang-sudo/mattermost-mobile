@@ -37,6 +37,7 @@ type UseConnectionBannerParams = {
     websocketState: WebsocketConnectedState;
     networkPerformanceState: NetworkPerformanceState;
     netInfo: NetInfoState;
+    isInternetReachable?: boolean | null;
     appState: string;
     intl: IntlShape;
 };
@@ -51,6 +52,7 @@ export const useConnectionBanner = ({
     websocketState,
     networkPerformanceState,
     netInfo,
+    isInternetReachable: isInternetReachableOverride,
     appState,
     intl,
 }: UseConnectionBannerParams): UseConnectionBannerReturn => {
@@ -112,6 +114,8 @@ export const useConnectionBanner = ({
     }, [websocketState, openCallback, intl, visible, bannerText]);
 
     const handleInternetUnreachableState = useCallback((): boolean => {
+        const isInternetReachable = isInternetReachableOverride === undefined ? netInfo.isInternetReachable : isInternetReachableOverride;
+
         if (netInfo.isConnected === false) {
             debugBanner('handleInternetUnreachableState:device_offline');
             setBannerText(intl.formatMessage({
@@ -124,7 +128,20 @@ export const useConnectionBanner = ({
             return true;
         }
 
-        if (netInfo.isInternetReachable === false) {
+        if (isInternetReachable === false) {
+            // Server ping (via connection_banner) replaces NetInfo isInternetReachable.
+            // An active websocket also proves the server is reachable.
+            if (websocketState === 'connected') {
+                debugBanner('handleInternetUnreachableState:skip_no_internet_ws_connected');
+                return false;
+            }
+
+            // Wait for the first ping result before showing this banner on cold start.
+            if (initialAppSession.current) {
+                debugBanner('handleInternetUnreachableState:skip_no_internet_initial_session');
+                return false;
+            }
+
             debugBanner('handleInternetUnreachableState:no_internet');
             setBannerText(intl.formatMessage({
                 id: 'connection_banner.no_internet',
@@ -136,7 +153,7 @@ export const useConnectionBanner = ({
             return true;
         }
         return false;
-    }, [netInfo.isConnected, netInfo.isInternetReachable, intl, openCallback, closeCallback]);
+    }, [netInfo.isConnected, netInfo.isInternetReachable, isInternetReachableOverride, websocketState, intl, openCallback, closeCallback]);
 
     const handleSlowNetworkState = useCallback((): boolean => {
         if (networkPerformanceState === 'slow' && !hasShownSlowBanner.current) {
@@ -256,6 +273,8 @@ export const useConnectionBanner = ({
         websocketState,
         networkPerformanceState,
         netInfo.isConnected,
+        netInfo.isInternetReachable,
+        isInternetReachableOverride,
     ]);
 
     useDidUpdate(() => {

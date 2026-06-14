@@ -9,6 +9,9 @@ import ConnectionBanner from './connection_banner';
 import {useConnectionBanner} from './use_connection_banner';
 
 jest.mock('./use_connection_banner');
+jest.mock('./use_server_reachability', () => ({
+    useServerReachability: () => true,
+}));
 
 jest.mock('@context/theme', () => ({
     useTheme: () => ({
@@ -47,6 +50,7 @@ describe('ConnectionBanner', () => {
 
         renderWithIntl(
             <ConnectionBanner
+                serverUrl='https://ai.optibot.cn:8065'
                 websocketState='connected'
                 networkPerformanceState='normal'
             />,
@@ -64,6 +68,7 @@ describe('ConnectionBanner', () => {
 
         renderWithIntl(
             <ConnectionBanner
+                serverUrl='https://ai.optibot.cn:8065'
                 websocketState='not_connected'
                 networkPerformanceState='normal'
             />,
@@ -81,6 +86,7 @@ describe('ConnectionBanner', () => {
 
         renderWithIntl(
             <ConnectionBanner
+                serverUrl='https://ai.optibot.cn:8065'
                 websocketState='connected'
                 networkPerformanceState='normal'
             />,
@@ -98,6 +104,7 @@ describe('ConnectionBanner', () => {
 
         renderWithIntl(
             <ConnectionBanner
+                serverUrl='https://ai.optibot.cn:8065'
                 websocketState='connected'
                 networkPerformanceState='slow'
             />,
@@ -115,6 +122,7 @@ describe('ConnectionBanner', () => {
 
         renderWithIntl(
             <ConnectionBanner
+                serverUrl='https://ai.optibot.cn:8065'
                 websocketState='not_connected'
                 networkPerformanceState='normal'
             />,

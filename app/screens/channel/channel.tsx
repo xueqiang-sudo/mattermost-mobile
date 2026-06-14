@@ -98,11 +98,8 @@ const Channel = ({
 
     useAndroidHardwareBackHandler(componentId, handleBack);
 
-    /**
-     * 与绝对定位顶栏对齐；略小于 defaultHeight，避免部分机型上顶栏视觉底边低于占位高度时出现「顶栏—断网条」白条隙。
-     * 仍显著高于旧版 (defaultHeight - insets.top - 40)，断网条不会被顶栏盖住。
-     */
-    const marginTop = defaultHeight - 16;
+    /** 消息区从顶栏占位底边开始，避免绝对定位顶栏（zIndex 10）盖住断网条 */
+    const marginTop = defaultHeight;
     useEffect(() => {
         // Give time to the WS event
         const t = setTimeout(() => {

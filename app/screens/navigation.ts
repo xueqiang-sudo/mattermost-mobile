@@ -716,7 +716,11 @@ export function showModal(name: AvailableScreens, title: string, passProps = {},
     }
     const theme = getThemeFromState();
     const edgeToEdge = edgeToEdgeHack(name, theme);
-    const modalPresentationStyle: OptionsModalPresentationStyle = Platform.OS === 'ios' ? OptionsModalPresentationStyle.pageSheet : OptionsModalPresentationStyle.none;
+    // iPad 上 pageSheet 会以居中卡片展示；本 App 在 iPad 使用手机式全屏导航，modal 需 fullScreen 与 Android 一致
+    const isIPad = Platform.OS === 'ios' && RNUtils.isRunningInSplitView()?.isTablet;
+    const modalPresentationStyle: OptionsModalPresentationStyle = Platform.OS === 'ios'
+        ? (isIPad ? OptionsModalPresentationStyle.fullScreen : OptionsModalPresentationStyle.pageSheet)
+        : OptionsModalPresentationStyle.none;
     const defaultOptions: Options = {
         modalPresentationStyle,
         layout: {

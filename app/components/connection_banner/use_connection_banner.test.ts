@@ -89,6 +89,20 @@ describe('useConnectionBanner', () => {
                 expect(result.current.bannerText).toBe('No network connection');
             });
         });
+
+        it('should not show no-internet banner during initial session when only isInternetReachable is false', async () => {
+            const {result} = renderHook(() => useConnectionBanner({
+                websocketState: 'not_connected' as WebsocketConnectedState,
+                networkPerformanceState: 'normal' as NetworkPerformanceState,
+                netInfo: createMockNetInfo({isInternetReachable: false}),
+                appState: 'active',
+                intl: mockIntl,
+            }));
+
+            await waitFor(() => {
+                expect(result.current.visible).toBe(false);
+            });
+        });
     });
 
     describe('after initial session (post-first-connection)', () => {
@@ -333,28 +347,13 @@ describe('useConnectionBanner', () => {
 
     describe('banner priorities', () => {
         it('should prioritize internet unreachable over disconnected', async () => {
-            const {result} = renderHook(() => useConnectionBanner({
-                websocketState: 'not_connected' as WebsocketConnectedState,
-                networkPerformanceState: 'normal' as NetworkPerformanceState,
-                netInfo: createMockNetInfo({isInternetReachable: false}),
-                appState: 'active',
-                intl: mockIntl,
-            }));
-
-            await waitFor(() => {
-                expect(result.current.visible).toBe(true);
-                expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');
-            });
-        });
-
-        it('should not show other banners when one is already visible with timeout', async () => {
             const {result, rerender} = renderHook(
                 (props) => useConnectionBanner(props),
                 {
                     initialProps: {
                         websocketState: 'connected' as WebsocketConnectedState,
                         networkPerformanceState: 'normal' as NetworkPerformanceState,
-                        netInfo: createMockNetInfo({isInternetReachable: false}),
+                        netInfo: createMockNetInfo(),
                         appState: 'active',
                         intl: mockIntl,
                     },
@@ -362,24 +361,36 @@ describe('useConnectionBanner', () => {
             );
 
             await waitFor(() => {
-                expect(result.current.visible).toBe(true);
-                expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');
+                expect(result.current.visible).toBe(false);
             });
 
-            // Try to trigger slow network while banner is visible
             act(() => {
                 rerender({
-                    websocketState: 'connected' as WebsocketConnectedState,
-                    networkPerformanceState: 'slow' as NetworkPerformanceState,
+                    websocketState: 'not_connected' as WebsocketConnectedState,
+                    networkPerformanceState: 'normal' as NetworkPerformanceState,
                     netInfo: createMockNetInfo({isInternetReachable: false}),
                     appState: 'active',
                     intl: mockIntl,
                 });
             });
 
-            // Should still show internet unreachable
             await waitFor(() => {
+                expect(result.current.visible).toBe(true);
                 expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');
+            });
+        });
+
+        it('should not show no-internet banner when websocket is connected', async () => {
+            const {result} = renderHook(() => useConnectionBanner({
+                websocketState: 'connected' as WebsocketConnectedState,
+                networkPerformanceState: 'normal' as NetworkPerformanceState,
+                netInfo: createMockNetInfo({isInternetReachable: false}),
+                appState: 'active',
+                intl: mockIntl,
+            }));
+
+            await waitFor(() => {
+                expect(result.current.visible).toBe(false);
             });
         });
     });
@@ -394,8 +405,8 @@ describe('useConnectionBanner', () => {
                 {
                     initialProps: {
                         websocketState: 'connected' as WebsocketConnectedState,
-                        networkPerformanceState: 'normal' as NetworkPerformanceState,
-                        netInfo: createMockNetInfo({isInternetReachable: false}),
+                        networkPerformanceState: 'slow' as NetworkPerformanceState,
+                        netInfo: createMockNetInfo(),
                         appState: 'active',
                         intl: mockIntl,
                     },
@@ -410,8 +421,8 @@ describe('useConnectionBanner', () => {
             act(() => {
                 rerender({
                     websocketState: 'connected' as WebsocketConnectedState,
-                    networkPerformanceState: 'normal' as NetworkPerformanceState,
-                    netInfo: createMockNetInfo({isInternetReachable: false}),
+                    networkPerformanceState: 'slow' as NetworkPerformanceState,
+                    netInfo: createMockNetInfo(),
                     appState: 'background',
                     intl: mockIntl,
                 });
@@ -544,12 +555,22 @@ describe('useConnectionBanner', () => {
                     initialProps: {
                         websocketState: 'connected' as WebsocketConnectedState,
                         networkPerformanceState: 'normal' as NetworkPerformanceState,
-                        netInfo: createMockNetInfo({isInternetReachable: false}),
+                        netInfo: createMockNetInfo(),
                         appState: 'active',
                         intl: mockIntl,
                     },
                 },
             );
+
+            act(() => {
+                rerender({
+                    websocketState: 'not_connected' as WebsocketConnectedState,
+                    networkPerformanceState: 'normal' as NetworkPerformanceState,
+                    netInfo: createMockNetInfo({isInternetReachable: false}),
+                    appState: 'active',
+                    intl: mockIntl,
+                });
+            });
 
             expect(result.current.visible).toBe(true);
             expect(result.current.bannerText).toBe('Connected to network, but internet is unavailable');

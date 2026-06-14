@@ -189,7 +189,7 @@ describe('Launch', () => {
             expect(resetToHome).toHaveBeenCalledWith(props);
         });
 
-        it('should handle cold start with last viewed channel', async () => {
+        it('should not restore last viewed channel on cold start', async () => {
             const lastChannel = {
                 server_url: serverUrl,
                 channel_id: 'channel1',
@@ -205,7 +205,7 @@ describe('Launch', () => {
 
             await launchToHome(props);
 
-            expect(switchToChannelById).toHaveBeenCalledWith(serverUrl, 'channel1');
+            expect(switchToChannelById).not.toHaveBeenCalled();
             expect(appEntry).toHaveBeenCalledWith(serverUrl);
         });
 

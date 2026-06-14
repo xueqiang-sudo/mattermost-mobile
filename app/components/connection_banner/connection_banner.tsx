@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {CONNECT_URL} from '@env';
 import {useNetInfo} from '@react-native-community/netinfo';
 import React, {useEffect} from 'react';
 import {useIntl} from 'react-intl';
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
+import LocalConfig from '@assets/config.json';
 import CompassIcon from '@components/compass_icon';
 import {ANNOUNCEMENT_BAR_HEIGHT} from '@constants/view';
 import {useTheme} from '@context/theme';
@@ -18,10 +20,12 @@ import {getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import {useConnectionBanner} from './use_connection_banner';
+import {useServerReachability} from './use_server_reachability';
 
 import type {NetworkPerformanceState} from '@managers/network_performance_manager';
 
 type Props = {
+    serverUrl: string;
     websocketState: WebsocketConnectedState;
     networkPerformanceState: NetworkPerformanceState;
     isChatUI?: boolean;
@@ -41,6 +45,7 @@ const getStyle = makeStyleSheetFromTheme((theme: Theme) => {
         background: {
             backgroundColor: theme.sidebarBg,
             zIndex: 1,
+            overflow: 'hidden' as const,
         },
         chatUIBackground: {
             backgroundColor: getChatListBackdropColor(theme),
@@ -72,6 +77,7 @@ const getStyle = makeStyleSheetFromTheme((theme: Theme) => {
 });
 
 const ConnectionBanner = ({
+    serverUrl,
     websocketState,
     networkPerformanceState,
     isChatUI = false,
@@ -82,11 +88,14 @@ const ConnectionBanner = ({
     const appState = useAppState();
     const netInfo = useNetInfo();
     const height = useSharedValue(0);
+    const pingServerUrl = serverUrl || CONNECT_URL || LocalConfig.DefaultServerUrl;
+    const isServerReachable = useServerReachability(pingServerUrl, netInfo.isConnected, appState);
 
     const {visible, bannerText, isShowingConnectedBanner} = useConnectionBanner({
         websocketState,
         networkPerformanceState,
         netInfo,
+        isInternetReachable: isServerReachable,
         appState,
         intl,
     });

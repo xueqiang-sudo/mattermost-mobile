@@ -215,15 +215,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
  */
 const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, error, placeholder}: PhoneInputProps) => {
     const styles = getStyleSheet(theme);
-    const phoneRef = useRef<TextInput>(null);
-    const countryCodeRef = useRef<TextInput>(null);
     const intl = useIntl();
 
     // 状态管理
     const [phoneAreaCodeTmp, phoneTmp] = splitPhone(defaultValue || '');
     const trimmedDefaultValue = defaultValue.trim();
-    const defaultIsPhoneInput = Boolean(trimmedDefaultValue) && (/^\d+$/.test(trimmedDefaultValue) || Boolean(phoneTmp));
+    const defaultIsPhoneInput = trimmedDefaultValue
+        ? Boolean(trimmedDefaultValue) && (/^\d+$/.test(trimmedDefaultValue) || Boolean(phoneTmp))
+        : true;
+
+    const phoneRef = useRef<TextInput>(null);
+    const countryCodeRef = useRef<TextInput>(null);
+    const wasPhoneOnFocusRef = useRef(defaultIsPhoneInput);
     const [isPhoneInput, setIsPhoneInput] = useState<boolean>(defaultIsPhoneInput);
+    const [isIdentifierFocused, setIsIdentifierFocused] = useState(false);
     const [countryCode, setCountryCode] = useState<string>(phoneAreaCodeTmp || '+86');
     const [inputValue, setInputValue] = useState<string>(defaultIsPhoneInput ? (phoneTmp || trimmedDefaultValue) : trimmedDefaultValue);
     const [showCountryCodeModal, setShowCountryCodeModal] = useState<boolean>(false);
@@ -234,21 +239,41 @@ const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, 
         onInputTypeChange?.(isPhoneInput);
     }, [isPhoneInput, onInputTypeChange]);
 
-    // 输入框失去焦点时校验
+    const resolveInputType = useCallback((text: string): boolean => {
+        const trimmedText = text.trim();
+        if (!trimmedText) {
+            return true;
+        }
+        return /^\d+$/.test(trimmedText);
+    }, []);
+
+    const onInputFocus = useCallback(() => {
+        wasPhoneOnFocusRef.current = isPhoneInput;
+        setIsIdentifierFocused(true);
+    }, [isPhoneInput]);
+
+    // 输入框失去焦点时根据内容确定输入类型并校验
     const onInputBlur = useCallback(() => {
+        setIsIdentifierFocused(false);
+
+        const nextIsPhoneInput = resolveInputType(inputValue);
+        if (nextIsPhoneInput !== isPhoneInput) {
+            setIsPhoneInput(nextIsPhoneInput);
+        }
+
         if (!inputValue) {
             setValidationError(undefined);
             return;
         }
 
-        if (isPhoneInput) {
+        if (nextIsPhoneInput) {
             const errorMsg = checkPhoneRule(countryCode, inputValue);
             setValidationError(errorMsg ? intl.formatMessage(messages.validPhone) : undefined);
             return;
         }
 
         setValidationError(isEmail(inputValue.trim()) ? undefined : intl.formatMessage(messages.validEmail));
-    }, [countryCode, inputValue, intl, isPhoneInput]);
+    }, [countryCode, inputValue, intl, isPhoneInput, resolveInputType]);
 
     // 区号输入变化处理
     const onCountryCodeChange = useCallback((text: string) => {
@@ -264,9 +289,6 @@ const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, 
         const onlyDigits = /^\d+$/.test(trimmedText);
 
         if (!trimmedText) {
-            if (isPhoneInput) {
-                setIsPhoneInput(false);
-            }
             setInputValue('');
             onChangeText('');
             setValidationError(undefined);
@@ -347,10 +369,13 @@ const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, 
         inputPlaceholder = intl.formatMessage(isPhoneInput ? messages.enterPhoneNumber : messages.enterEmail);
     }
 
+    const showPhoneUI = isPhoneInput && (!isIdentifierFocused || wasPhoneOnFocusRef.current);
+    const keyboardType = showPhoneUI ? 'phone-pad' : 'email-address';
+
     return (
         <View style={styles.container}>
             <View style={styles.phoneNumberContainer}>
-                {isPhoneInput && (
+                {showPhoneUI && (
                     showCountryCodeInput ? (
                         <TextInput
                             ref={countryCodeRef}
@@ -389,8 +414,9 @@ const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, 
                         ]}
                         value={inputValue}
                         onChangeText={onIdentifierChange}
+                        onFocus={onInputFocus}
                         onBlur={onInputBlur}
-                        keyboardType={isPhoneInput ? 'phone-pad' : 'email-address'}
+                        keyboardType={keyboardType}
                         placeholder={inputPlaceholder}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
                         testID='login_form.phone.input'
@@ -407,7 +433,7 @@ const PhoneInput = ({defaultValue = '', onChangeText, onInputTypeChange, theme, 
 
             {/* 国家列表选择模态框 */}
             <Modal
-                visible={showCountryCodeModal && isPhoneInput}
+                visible={showCountryCodeModal && showPhoneUI}
                 animationType='slide'
                 transparent={true}
                 onRequestClose={onCloseModal}
