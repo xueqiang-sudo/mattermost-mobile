@@ -2,8 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {Linking, NativeModules, Platform} from 'react-native';
-import {checkNotifications, RESULTS} from 'react-native-permissions';
-import Permissions from 'react-native-permissions';
+import Permissions, {checkNotifications, RESULTS} from 'react-native-permissions';
 
 import {storeGlobal} from '@actions/app/global';
 import {GLOBAL_IDENTIFIERS} from '@constants/database';
@@ -46,8 +45,28 @@ export async function openAppNotificationSettings(): Promise<boolean> {
     }
 }
 
-/** 打开系统设置页（「消息提醒方式」使用，打开应用信息页） */
+/** 打开系统通知详情页（「消息提醒方式」：横幅、锁屏、响铃与提示音） */
 export async function openMessageNotificationChannelSettings(): Promise<boolean> {
+    if (Platform.OS === 'ios') {
+        try {
+            logDebug('[message_notification_pref.openMessageNotificationChannelSettings] try Permissions.openSettings notifications');
+            await Permissions.openSettings('notifications');
+            logDebug('[message_notification_pref.openMessageNotificationChannelSettings] Permissions.openSettings notifications 成功');
+            return true;
+        } catch (error) {
+            logError('[message_notification_pref.openMessageNotificationChannelSettings] Permissions.openSettings 失败，回退 openSettings', error);
+            try {
+                logDebug('[message_notification_pref.openMessageNotificationChannelSettings] try Linking.openSettings');
+                await Linking.openSettings();
+                logDebug('[message_notification_pref.openMessageNotificationChannelSettings] Linking.openSettings 成功');
+                return true;
+            } catch (fallbackError) {
+                logError('[message_notification_pref.openMessageNotificationChannelSettings] Linking.openSettings 失败', fallbackError);
+                return false;
+            }
+        }
+    }
+
     try {
         logDebug('[message_notification_pref.openMessageNotificationChannelSettings] try Linking.openSettings');
         await Linking.openSettings();

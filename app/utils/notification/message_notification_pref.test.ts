@@ -2,9 +2,9 @@
 // See LICENSE.txt for license information.
 
 import {Linking, Platform} from 'react-native';
+import Permissions from 'react-native-permissions';
 
 import {
-    ANDROID_APP_PACKAGE,
     openAppNotificationSettings,
     openMessageNotificationChannelSettings,
 } from './message_notification_pref';
@@ -28,6 +28,10 @@ jest.mock('react-native', () => {
 });
 
 jest.mock('react-native-permissions', () => ({
+    __esModule: true,
+    default: {
+        openSettings: jest.fn(),
+    },
     checkNotifications: jest.fn(),
     RESULTS: {
         GRANTED: 'granted',
@@ -48,37 +52,45 @@ jest.mock('@utils/log', () => ({
     logError: jest.fn(),
 }));
 
-const mockedSendIntent = jest.mocked(Linking.sendIntent);
+const mockedPermissionsOpenSettings = jest.mocked(Permissions.openSettings);
 const mockedOpenSettings = jest.mocked(Linking.openSettings);
 
-describe('message_notification_pref Android notification settings', () => {
+describe('message_notification_pref notification settings', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         Object.defineProperty(Platform, 'OS', {value: 'android'});
-        mockedSendIntent.mockResolvedValue(undefined);
+        mockedPermissionsOpenSettings.mockResolvedValue(undefined);
         mockedOpenSettings.mockResolvedValue(undefined);
     });
 
-    it('openAppNotificationSettings should send APP_NOTIFICATION_SETTINGS intent', async () => {
+    it('openAppNotificationSettings should open system notification settings', async () => {
         const result = await openAppNotificationSettings();
 
         expect(result).toBe(true);
-        expect(mockedSendIntent).toHaveBeenCalledWith(
-            'android.settings.APP_NOTIFICATION_SETTINGS',
-            [{key: 'android.provider.extra.APP_PACKAGE', value: ANDROID_APP_PACKAGE}],
-        );
+        expect(mockedPermissionsOpenSettings).toHaveBeenCalledWith('notifications');
         expect(mockedOpenSettings).not.toHaveBeenCalled();
     });
 
-    it('openMessageNotificationChannelSettings should call Linking.openSettings', async () => {
+    it('openMessageNotificationChannelSettings should call Linking.openSettings on Android', async () => {
         const result = await openMessageNotificationChannelSettings();
 
         expect(result).toBe(true);
         expect(mockedOpenSettings).toHaveBeenCalledTimes(1);
+        expect(mockedPermissionsOpenSettings).not.toHaveBeenCalled();
     });
 
-    it('openAppNotificationSettings should fall back to openSettings when sendIntent fails', async () => {
-        mockedSendIntent.mockRejectedValue(new Error('intent unavailable'));
+    it('openMessageNotificationChannelSettings should open notification settings on iOS', async () => {
+        Object.defineProperty(Platform, 'OS', {value: 'ios'});
+
+        const result = await openMessageNotificationChannelSettings();
+
+        expect(result).toBe(true);
+        expect(mockedPermissionsOpenSettings).toHaveBeenCalledWith('notifications');
+        expect(mockedOpenSettings).not.toHaveBeenCalled();
+    });
+
+    it('openAppNotificationSettings should fall back to Linking.openSettings when Permissions.openSettings fails', async () => {
+        mockedPermissionsOpenSettings.mockRejectedValue(new Error('permissions unavailable'));
 
         const result = await openAppNotificationSettings();
 
@@ -86,8 +98,8 @@ describe('message_notification_pref Android notification settings', () => {
         expect(mockedOpenSettings).toHaveBeenCalledTimes(1);
     });
 
-    it('should return false when all fallbacks fail', async () => {
-        mockedSendIntent.mockRejectedValue(new Error('intent unavailable'));
+    it('openAppNotificationSettings should return false when all fallbacks fail', async () => {
+        mockedPermissionsOpenSettings.mockRejectedValue(new Error('permissions unavailable'));
         mockedOpenSettings.mockRejectedValue(new Error('openSettings unavailable'));
 
         const result = await openAppNotificationSettings();
@@ -95,7 +107,17 @@ describe('message_notification_pref Android notification settings', () => {
         expect(result).toBe(false);
     });
 
-    it('openMessageNotificationChannelSettings should return false on failure', async () => {
+    it('openMessageNotificationChannelSettings should return false on Android when Linking.openSettings fails', async () => {
+        mockedOpenSettings.mockRejectedValue(new Error('openSettings unavailable'));
+
+        const result = await openMessageNotificationChannelSettings();
+
+        expect(result).toBe(false);
+    });
+
+    it('openMessageNotificationChannelSettings should return false on iOS when all fallbacks fail', async () => {
+        Object.defineProperty(Platform, 'OS', {value: 'ios'});
+        mockedPermissionsOpenSettings.mockRejectedValue(new Error('permissions unavailable'));
         mockedOpenSettings.mockRejectedValue(new Error('openSettings unavailable'));
 
         const result = await openMessageNotificationChannelSettings();
