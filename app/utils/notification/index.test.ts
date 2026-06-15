@@ -120,16 +120,10 @@ describe('Notification Utils', () => {
     });
 
     describe('scheduleExpiredNotification', () => {
-        it('should schedule a notification for session expiration with hours', async () => {
-            jest.mocked(scheduleNotification).mockResolvedValue('12345');
+        it('should not schedule session expiration local notifications', async () => {
             const result = await scheduleExpiredNotification('server_url', session as any, 'ServerName', 'en');
-            expect(result).toBeTruthy();
-            expect(scheduleNotification).toHaveBeenCalledWith(expect.objectContaining({
-                id: result,
-                fireDate: session.expires_at,
-                body: 'Please log in to continue receiving notifications. Sessions for ServerName are configured to expire every 10 hours.',
-                title: 'Session Expired',
-            }));
+            expect(result).toBe('');
+            expect(scheduleNotification).not.toHaveBeenCalled();
         });
 
         it('should return empty string if expiresAt is not defined', async () => {
