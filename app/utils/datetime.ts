@@ -26,6 +26,14 @@ export function isYesterday(date: Date): boolean {
     return isSameDate(date, yesterday);
 }
 
+// 判断是否为前天
+export function isDayBeforeYesterday(date: Date): boolean {
+    const dayBeforeYesterday = new Date();
+    dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+
+    return isSameDate(date, dayBeforeYesterday);
+}
+
 export function toMilliseconds({days, hours, minutes, seconds}: {days?: number; hours?: number; minutes?: number; seconds?: number}) {
     const totalSeconds = toSeconds({days, hours, minutes, seconds});
     return totalSeconds * 1000;

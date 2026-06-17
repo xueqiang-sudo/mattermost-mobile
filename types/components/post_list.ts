@@ -22,7 +22,7 @@ export type PostListItem = {
 }
 
 export type PostListOtherItem = {
-    type: 'date' | 'thread-overview' | 'start-of-new-messages' | 'user-activity';
+    type: 'date' | 'thread-overview' | 'start-of-new-messages' | 'user-activity' | 'time-separator';
     value: string;
 }
 

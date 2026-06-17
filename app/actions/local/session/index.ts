@@ -9,6 +9,7 @@ import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import {DEFAULT_LOCALE, resetMomentLocale} from '@i18n';
 import {getAllServerCredentials, removeServerCredentials} from '@init/credentials';
+import JPushManager from '@init/jpush';
 import {cancelScheduleNotification, removeServerNotifications} from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
 import WebsocketManager from '@managers/websocket_manager';
@@ -131,6 +132,11 @@ export const terminateSession = async (serverUrl: string, removeServer: boolean)
             }
         }
     };
+
+    // JPush 登出清理（非关键，失败不阻塞本地 session 清理）
+    await safeExecute('resetJPushForLogout', async () => {
+        JPushManager.resetForLogout('terminateSession');
+    }, false);
 
     // Cancel session notification (critical)
     await safeExecute('cancelSessionNotification', async () => {

@@ -8,6 +8,7 @@ import {removePushDisabledInServerAcknowledged} from '@actions/app/global';
 import DatabaseManager from '@database/manager';
 import {resetMomentLocale} from '@i18n';
 import {getAllServerCredentials, removeServerCredentials} from '@init/credentials';
+import JPushManager from '@init/jpush';
 import {cancelScheduleNotification, removeServerNotifications} from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
 import WebsocketManager from '@managers/websocket_manager';
@@ -43,6 +44,12 @@ jest.mock('@i18n', () => ({
     resetMomentLocale: jest.fn(),
 }));
 jest.mock('@init/credentials');
+jest.mock('@init/jpush', () => ({
+    __esModule: true,
+    default: {
+        resetForLogout: jest.fn(),
+    },
+}));
 jest.mock('@init/push_notifications', () => ({
     removeServerNotifications: jest.fn(),
     cancelScheduleNotification: jest.fn(),
@@ -277,6 +284,7 @@ describe('session actions', () => {
         it('should call all cleanup functions in correct order for removeServer=true', async () => {
             await terminateSession(mockServerUrl, true);
 
+            expect(JPushManager.resetForLogout).toHaveBeenCalledWith('terminateSession');
             // Verify all cleanup functions called
             expect(removeServerCredentials).toHaveBeenCalledWith(mockServerUrl);
             expect(removeServerNotifications).toHaveBeenCalledWith(mockServerUrl);
@@ -294,6 +302,7 @@ describe('session actions', () => {
         it('should call deleteServerDatabase when removeServer=false', async () => {
             await terminateSession(mockServerUrl, false);
 
+            expect(JPushManager.resetForLogout).toHaveBeenCalledWith('terminateSession');
             expect(DatabaseManager.deleteServerDatabase).toHaveBeenCalledWith(mockServerUrl);
             expect(DatabaseManager.destroyServerDatabase).not.toHaveBeenCalled();
             expect(removePushDisabledInServerAcknowledged).not.toHaveBeenCalled();
@@ -344,6 +353,18 @@ describe('session actions', () => {
             await new Promise((resolve) => setImmediate(resolve));
 
             expect(resetMomentLocale).toHaveBeenCalledWith();
+        });
+
+        it('should continue session cleanup when JPush reset fails', async () => {
+            jest.mocked(JPushManager.resetForLogout).mockImplementationOnce(() => {
+                throw new Error('JPush reset failed');
+            });
+
+            const result = await terminateSession(mockServerUrl, true);
+
+            expect(JPushManager.resetForLogout).toHaveBeenCalledWith('terminateSession');
+            expect(removeServerCredentials).toHaveBeenCalledWith(mockServerUrl);
+            expect(result).toEqual({});
         });
     });
 });

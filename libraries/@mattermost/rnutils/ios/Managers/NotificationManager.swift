@@ -114,4 +114,8 @@ import React
             self.notificationCenter.removeDeliveredNotifications(withIdentifiers: notificationIds)
         })
     }
+
+    @objc public func clearAllDeliveredNotifications() {
+        notificationCenter.removeAllDeliveredNotifications()
+    }
 }

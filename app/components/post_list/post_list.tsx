@@ -10,6 +10,7 @@ import {removePost} from '@actions/local/post';
 import {fetchPosts} from '@actions/remote/post';
 import CombinedUserActivity from '@components/post_list/combined_user_activity';
 import DateSeparator from '@components/post_list/date_separator';
+import MessageTimeSeparator from '@components/post_list/message_time_separator';
 import NewMessagesLine from '@components/post_list/new_message_line';
 import Post from '@components/post_list/post';
 import ThreadOverview from '@components/post_list/thread_overview';
@@ -17,7 +18,7 @@ import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {getDateForDateLine, preparePostList} from '@utils/post_list';
+import {getDateForDateLine, getTimeForTimeLine, preparePostList} from '@utils/post_list';
 import {changeOpacity, getChatListBackdropColor} from '@utils/theme';
 
 import {INITIAL_BATCH_TO_RENDER, SCROLL_POSITION_CONFIG, VIEWABILITY_CONFIG} from './config';
@@ -40,6 +41,7 @@ type Props = {
     highlightedId?: PostModel['id'];
     highlightPinnedOrSaved?: boolean;
     isCRTEnabled?: boolean;
+    isMilitaryTime?: boolean;
     isPostAcknowledgementEnabled?: boolean;
     lastViewedAt: number;
     location: AvailableScreens;
@@ -99,6 +101,7 @@ const PostList = ({
     highlightedId,
     highlightPinnedOrSaved = true,
     isCRTEnabled,
+    isMilitaryTime,
     isPostAcknowledgementEnabled,
     lastViewedAt,
     location,
@@ -142,8 +145,9 @@ const PostList = ({
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
-        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
-    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
+        const useWeChatMode = location === Screens.CHANNEL || location === Screens.PERMALINK;
+        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds, useWeChatMode);
+    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds, location]);
 
     const orderedPostsRef = useRef(orderedPosts);
     orderedPostsRef.current = orderedPosts;
@@ -332,6 +336,15 @@ const PostList = ({
                         compact={location === Screens.CHANNEL || location === Screens.PERMALINK}
                         date={getDateForDateLine(item.value)}
                         timezone={currentTimezone}
+                    />
+                );
+            case 'time-separator':
+                return (
+                    <MessageTimeSeparator
+                        key={item.value}
+                        createAt={getTimeForTimeLine(item.value)}
+                        timezone={currentTimezone}
+                        isMilitaryTime={isMilitaryTime ?? true}
                     />
                 );
             case 'thread-overview':

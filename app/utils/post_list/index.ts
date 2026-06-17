@@ -6,7 +6,7 @@ import moment from 'moment-timezone';
 import {Post} from '@constants';
 import {isExpiredBoRPost} from '@utils/bor';
 import {toMilliseconds} from '@utils/datetime';
-import {isFromWebhook} from '@utils/post';
+import {isFromWebhook, isSystemMessage} from '@utils/post';
 import {ensureString, includes, isArrayOf, isStringArray, secureGetFromRecord} from '@utils/types';
 
 import type {PostList, PostWithPrevAndNext} from '@typings/components/post_list';
@@ -49,6 +49,7 @@ const postTypePriority = {
 
 export const COMBINED_USER_ACTIVITY = 'user-activity-';
 export const DATE_LINE = 'date-';
+export const TIME_SEPARATOR = 'time-separator-';
 export const START_OF_NEW_MESSAGES = 'start-of-new-messages';
 export const THREAD_OVERVIEW = 'thread-overview';
 export const MAX_COMBINED_SYSTEM_POSTS = 100;
@@ -61,7 +62,7 @@ function combineUserActivityPosts(orderedPosts: PostList) {
 
     for (let i = 0; i < orderedPosts.length; i++) {
         const item = orderedPosts[i];
-        if (item.type === 'start-of-new-messages' || item.type === 'date' || item.type === 'thread-overview') {
+        if (item.type === 'start-of-new-messages' || item.type === 'date' || item.type === 'time-separator' || item.type === 'thread-overview') {
             // Not a post, so it won't be combined
             out.push(item);
 
@@ -181,25 +182,27 @@ function isJoinLeavePostForUsername(post: PostModel, currentUsername: string): b
 
 export function selectOrderedPostsWithPrevAndNext(
     posts: PostModel[], lastViewedAt: number, indicateNewMessages: boolean, currentUserId: string, currentUsername: string, showJoinLeave: boolean,
-    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(),
+    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), useWeChatMode = false,
 ): PostList {
     return selectOrderedPosts(
         posts, lastViewedAt, indicateNewMessages,
         currentUserId, currentUsername, showJoinLeave,
-        currentTimezone, isThreadScreen, savedPostIds, true,
+        currentTimezone, isThreadScreen, savedPostIds, true, useWeChatMode,
     );
 }
 
 export function selectOrderedPosts(
     posts: PostModel[], lastViewedAt: number, indicateNewMessages: boolean, currentUserId: string, currentUsername: string, showJoinLeave: boolean,
-    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), includePrevNext = false) {
+    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), includePrevNext = false, useWeChatMode = false) {
     if (posts.length === 0) {
         return [];
     }
 
     const out: PostList = [];
     let lastDate;
+    let lastPostTime;
     let addedNewMessagesIndicator = false;
+    const FIVE_MINUTES = 5 * 60 * 1000;
 
     // Iterating through the posts from oldest to newest
     for (let i = posts.length - 1; i >= 0; i--) {
@@ -234,7 +237,7 @@ export function selectOrderedPosts(
             continue;
         }
 
-        // Push on a date header if the last post was on a different day than the current one
+        // 计算时区修正后的帖子日期
         const postDate = new Date(post.currentPost.createAt);
         const currentOffset = toMilliseconds({minutes: postDate.getTimezoneOffset()});
         if (currentTimezone) {
@@ -245,9 +248,31 @@ export function selectOrderedPosts(
             }
         }
 
-        if (!lastDate || lastDate.toDateString() !== postDate.toDateString()) {
-            out.push({type: 'date', value: DATE_LINE + postDate.getTime()});
+        // 判断是否为系统消息（不触发时间分隔符）
+        const isSystemMsg = isSystemMessage(post.currentPost);
 
+        if (useWeChatMode) {
+            // 微信模式：插入时间分隔符
+            // 系统消息不触发分隔符，也不更新追踪状态
+            if (!isSystemMsg) {
+                if (lastPostTime === undefined) {
+                    // 第一条非系统消息始终显示分隔符
+                    out.push({type: 'time-separator', value: TIME_SEPARATOR + post.currentPost.createAt});
+                } else {
+                    const gap = post.currentPost.createAt - lastPostTime;
+                    if (gap > FIVE_MINUTES || lastDate.toDateString() !== postDate.toDateString()) {
+                        out.push({type: 'time-separator', value: TIME_SEPARATOR + post.currentPost.createAt});
+                    }
+                }
+                // 只有非系统消息才更新追踪状态
+                lastDate = postDate;
+                lastPostTime = post.currentPost.createAt;
+            }
+        } else {
+            // 非微信模式：原有日期分隔符逻辑
+            if (!lastDate || lastDate.toDateString() !== postDate.toDateString()) {
+                out.push({type: 'date', value: DATE_LINE + postDate.getTime()});
+            }
             lastDate = postDate;
         }
 
@@ -382,6 +407,11 @@ export function getDateForDateLine(item: string) {
     return parseInt(item.substring(DATE_LINE.length), 10);
 }
 
+// 从 time-separator 项中提取时间戳
+export function getTimeForTimeLine(item: string) {
+    return parseInt(item.substring(TIME_SEPARATOR.length), 10);
+}
+
 export function getPostIdsForCombinedUserActivityPost(item: string) {
     if (!item.startsWith(COMBINED_USER_ACTIVITY)) {
         throw new Error(`Invalid prefix, expected string to start with '${COMBINED_USER_ACTIVITY}'`);
@@ -392,8 +422,8 @@ export function getPostIdsForCombinedUserActivityPost(item: string) {
 
 export function preparePostList(
     posts: PostModel[], lastViewedAt: number, indicateNewMessages: boolean, currentUserId: string, currentUsername: string, showJoinLeave: boolean,
-    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>()) {
-    const orderedPosts = selectOrderedPostsWithPrevAndNext(posts, lastViewedAt, indicateNewMessages, currentUserId, currentUsername, showJoinLeave, currentTimezone, isThreadScreen, savedPostIds);
+    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), useWeChatMode = false) {
+    const orderedPosts = selectOrderedPostsWithPrevAndNext(posts, lastViewedAt, indicateNewMessages, currentUserId, currentUsername, showJoinLeave, currentTimezone, isThreadScreen, savedPostIds, useWeChatMode);
     return combineUserActivityPosts(orderedPosts);
 }
 

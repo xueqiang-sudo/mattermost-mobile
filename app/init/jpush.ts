@@ -140,13 +140,11 @@ class JPushManager {
     }
 
     /**
-     * App 启动时调用：注册前后台监听，并清除通知栏极光通知（Android）
+     * App 启动时调用：注册前后台监听，并清除通知栏极光通知
      */
     onAppStart() {
         this.attachAppLifecycle();
-        if (Platform.OS === 'android') {
-            this.clearDisplayedNotifications('appStart');
-        }
+        this.clearDisplayedNotifications('appStart');
     }
 
     /**
@@ -166,22 +164,19 @@ class JPushManager {
             }
             this.lastAppState = nextState;
         });
-        logDebug(`${TAG} 已注册 App 前后台监听（进入前台时清理极光通知）`);
+        logDebug(`${TAG} 已注册 App 前后台监听（进入前台时清理通知）`);
     }
 
     /**
-     * 统一清理系统通知栏中的极光/应用推送通知（Android Only）
-     * JPush.clearAllNotifications 仅清 SDK 内部记录；须配合 RNUtils 取消系统 NotificationManager 上的通知。
+     * 统一清理系统通知栏中的极光/应用推送通知。
+     * JPush.clearAllNotifications 仅清 SDK 内部记录；须配合 RNUtils 清除系统通知中心已投递通知。
      */
-    clearDisplayedNotifications(source: 'appStart' | 'foreground' | 'notificationOpened') {
-        if (Platform.OS !== 'android') {
-            return;
-        }
+    clearDisplayedNotifications(source: 'appStart' | 'foreground' | 'notificationOpened' | 'logout') {
         try {
             if (typeof RNUtils.clearAllDeliveredNotifications === 'function') {
                 RNUtils.clearAllDeliveredNotifications();
             } else {
-                logWarning(`${TAG} RNUtils.clearAllDeliveredNotifications 不可用，请重新编译 Android`);
+                logWarning(`${TAG} RNUtils.clearAllDeliveredNotifications 不可用，请重新编译原生工程`);
             }
             JPush.clearLocalNotifications();
             JPush.clearAllNotifications();
@@ -242,6 +237,11 @@ class JPushManager {
         this.appReady = true;
         const pending = this.pendingColdStartNotification;
         if (pending) {
+            if (!this.loggedIn) {
+                logInfo(`${TAG} [markAppReady] 未登录，丢弃暂存冷启动通知`);
+                this.pendingColdStartNotification = null;
+                return;
+            }
             logInfo(`${TAG} [markAppReady] App 就绪，处理暂存冷启动通知`);
             this.pendingColdStartNotification = null;
             this.handleNotificationOpened(pending);
@@ -269,6 +269,29 @@ class JPushManager {
 
     isLoggedIn(): boolean {
         return this.loggedIn;
+    }
+
+    /**
+     * 登出/会话终止时清理极光推送状态：清 alias、停 Android push、清 pending 与通知栏。
+     * 保留 registerId 与 initialized，下次登录由 syncForNotifyPush 恢复。
+     */
+    resetForLogout(source: string) {
+        logInfo(`${TAG} resetForLogout`, {source});
+        this.loggedIn = false;
+        this.pendingUserId = '';
+        this.lastUserId = '';
+        this.lastNotifyPush = undefined;
+        this.pendingColdStartNotification = null;
+        EphemeralStore.clearPendingJPushNotification();
+
+        this.clearDisplayedNotifications('logout');
+
+        if (this.initialized) {
+            const sequence = Date.now();
+            logInfo(`${TAG} 清除用户别名`, {sequence, source});
+            JPush.deleteAlias({sequence});
+            this.stopPush();
+        }
     }
 
     private clearRegistrationIdRetries() {
@@ -316,6 +339,15 @@ class JPushManager {
                 });
                 return;
             }
+            if (!this.loggedIn) {
+                logInfo(`${TAG} 未登录，忽略极光远端通知`, {
+                    eventType: notification.notificationEventType,
+                });
+                if (notification.notificationEventType === 'notificationOpened') {
+                    this.clearDisplayedNotifications('notificationOpened');
+                }
+                return;
+            }
             logInfo(`${TAG} 收到极光远端通知`, {
                 eventType: notification.notificationEventType,
                 title: notification.title,
@@ -342,6 +374,11 @@ class JPushManager {
         const {extras} = notification;
         if (!extras) {
             logWarning(`${TAG} [handleNotificationOpened] 通知 extras 为空，无法处理`);
+            return;
+        }
+
+        if (!this.loggedIn) {
+            logInfo(`${TAG} [handleNotificationOpened] 未登录，忽略通知跳转`);
             return;
         }
 
@@ -417,6 +454,11 @@ class JPushManager {
     private async handleNotificationArrived(notification: JPushNotificationEvent) {
         const {extras} = notification;
         if (!extras) {
+            return;
+        }
+
+        if (!this.loggedIn) {
+            logDebug(`${TAG} [handleNotificationArrived] 未登录，忽略前台通知`);
             return;
         }
 
