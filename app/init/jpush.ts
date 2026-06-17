@@ -235,17 +235,7 @@ class JPushManager {
      */
     markAppReady() {
         this.appReady = true;
-        const pending = this.pendingColdStartNotification;
-        if (pending) {
-            if (!this.loggedIn) {
-                logInfo(`${TAG} [markAppReady] 未登录，丢弃暂存冷启动通知`);
-                this.pendingColdStartNotification = null;
-                return;
-            }
-            logInfo(`${TAG} [markAppReady] App 就绪，处理暂存冷启动通知`);
-            this.pendingColdStartNotification = null;
-            this.handleNotificationOpened(pending);
-        }
+        this.processPendingColdStartNotification('markAppReady');
     }
 
     /**
@@ -255,7 +245,6 @@ class JPushManager {
     getPendingColdStartNotification(): JPushNotificationEvent | null {
         const pending = this.pendingColdStartNotification;
         this.pendingColdStartNotification = null;
-        this.appReady = true;
         return pending;
     }
 
@@ -265,6 +254,9 @@ class JPushManager {
      */
     setLoggedIn(status: boolean) {
         this.loggedIn = status;
+        if (status) {
+            this.processPendingColdStartNotification('setLoggedIn');
+        }
     }
 
     isLoggedIn(): boolean {
@@ -345,6 +337,7 @@ class JPushManager {
                 });
                 if (notification.notificationEventType === 'notificationOpened') {
                     this.clearDisplayedNotifications('notificationOpened');
+                    this.handleNotificationOpened(notification);
                 }
                 return;
             }
@@ -377,19 +370,38 @@ class JPushManager {
             return;
         }
 
-        if (!this.loggedIn) {
-            logInfo(`${TAG} [handleNotificationOpened] 未登录，忽略通知跳转`);
-            return;
-        }
-
         if (!this.appReady) {
             this.pendingColdStartNotification = notification;
             logInfo(`${TAG} [handleNotificationOpened] 冷启动，暂存通知等待 App 就绪`);
             return;
         }
 
+        if (!this.loggedIn) {
+            logInfo(`${TAG} [handleNotificationOpened] 未登录，忽略通知跳转`);
+            return;
+        }
+
         // eslint-disable-next-line no-void
         void this.openChannelByExtras(notification);
+    }
+
+    private processPendingColdStartNotification(source: 'markAppReady' | 'setLoggedIn') {
+        const pending = this.pendingColdStartNotification;
+        if (!pending) {
+            return;
+        }
+
+        if (!this.appReady || !this.loggedIn) {
+            logInfo(`${TAG} [${source}] 冷启动通知等待 App 就绪与登录态恢复`, {
+                appReady: this.appReady,
+                loggedIn: this.loggedIn,
+            });
+            return;
+        }
+
+        logInfo(`${TAG} [${source}] App 就绪且已登录，处理暂存冷启动通知`);
+        this.pendingColdStartNotification = null;
+        this.handleNotificationOpened(pending);
     }
 
     /**

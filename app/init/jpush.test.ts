@@ -10,6 +10,8 @@ const mockStopPush = jest.fn();
 const mockClearLocalNotifications = jest.fn();
 const mockClearAllNotifications = jest.fn();
 const mockSetBadge = jest.fn();
+const mockAddConnectEventListener = jest.fn();
+const mockAddNotificationListener = jest.fn();
 
 jest.mock('jcore-react-native', () => ({
     __esModule: true,
@@ -24,8 +26,8 @@ jest.mock('jpush-react-native', () => ({
         clearLocalNotifications: (...args: unknown[]) => mockClearLocalNotifications(...args),
         clearAllNotifications: (...args: unknown[]) => mockClearAllNotifications(...args),
         setBadge: (...args: unknown[]) => mockSetBadge(...args),
-        addConnectEventListener: jest.fn(),
-        addNotificationListener: jest.fn(),
+        addConnectEventListener: (...args: unknown[]) => mockAddConnectEventListener(...args),
+        addNotificationListener: (...args: unknown[]) => mockAddNotificationListener(...args),
         init: jest.fn(),
         setBackgroundEnable: jest.fn(),
         setLoggerEnable: jest.fn(),
@@ -73,6 +75,8 @@ import JPushManager from './jpush';
 
 type JPushManagerInternals = {
     initialized: boolean;
+    listenersAttached: boolean;
+    appReady: boolean;
     pendingColdStartNotification: unknown;
 };
 
@@ -97,6 +101,8 @@ describe('JPushManager logout cleanup', () => {
         jest.clearAllMocks();
         JPushManager.setLoggedIn(false);
         (JPushManager as unknown as JPushManagerInternals).initialized = false;
+        (JPushManager as unknown as JPushManagerInternals).listenersAttached = false;
+        (JPushManager as unknown as JPushManagerInternals).appReady = false;
         (JPushManager as unknown as JPushManagerInternals).pendingColdStartNotification = null;
     });
 
@@ -136,12 +142,31 @@ describe('JPushManager logout cleanup', () => {
         expect(mockStopPush).not.toHaveBeenCalled();
     });
 
-    it('markAppReady discards pending cold start notification when not logged in', () => {
+    it('markAppReady keeps pending cold start notification until login is restored', () => {
         (JPushManager as unknown as JPushManagerInternals).pendingColdStartNotification = baseNotification;
         JPushManager.setLoggedIn(false);
 
         JPushManager.markAppReady();
 
-        expect((JPushManager as unknown as JPushManagerInternals).pendingColdStartNotification).toBeNull();
+        expect((JPushManager as unknown as JPushManagerInternals).pendingColdStartNotification).toBe(baseNotification);
+    });
+
+    it('stores opened notification during cold start before login is restored', () => {
+        JPushManager.setLoggedIn(false);
+        (JPushManager as unknown as JPushManagerInternals).appReady = false;
+        (JPushManager as unknown as {setupListeners: () => void}).setupListeners();
+        const notificationListener = mockAddNotificationListener.mock.calls[0][0];
+
+        notificationListener(baseNotification);
+
+        expect((JPushManager as unknown as JPushManagerInternals).pendingColdStartNotification).toBe(baseNotification);
+    });
+
+    it('does not mark app ready when initial launch checks for pending notification', () => {
+        JPushManager.setLoggedIn(false);
+
+        expect(JPushManager.getPendingColdStartNotification()).toBeNull();
+
+        expect((JPushManager as unknown as JPushManagerInternals).appReady).toBe(false);
     });
 });
