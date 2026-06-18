@@ -38,7 +38,6 @@ export const allOrientations: LayoutOrientation[] = ['sensor', 'sensorLandscape'
 export const portraitOrientation: LayoutOrientation[] = ['portrait'];
 
 const loginFlowScreens = new Set<AvailableScreens>([
-    Screens.SERVER,
     Screens.LOGIN,
     Screens.SSO,
     Screens.STARTUP_LOADING,
@@ -252,12 +251,10 @@ Appearance.addChangeListener(() => {
     const theme = getThemeFromState();
     const screens = NavigationStore.getScreensInStack();
 
-    if (screens.includes(Screens.SERVER)) {
-        for (const screen of screens) {
-            if (appearanceControlledScreens.has(screen)) {
-                Navigation.updateProps(screen, {theme});
-                setNavigatorStyles(screen, theme, loginAnimationOptions(), theme.sidebarBg);
-            }
+    for (const screen of screens) {
+        if (appearanceControlledScreens.has(screen)) {
+            Navigation.updateProps(screen, {theme});
+            setNavigatorStyles(screen, theme, loginAnimationOptions(), theme.sidebarBg);
         }
     }
 });
@@ -331,7 +328,6 @@ export function resetToHome(passProps: LaunchProps = {launchType: Launch.Normal}
     const edgeToEdge = edgeToEdgeHack(Screens.HOME, theme);
 
     if (!passProps.coldStart && (passProps.launchType === Launch.AddServer || passProps.launchType === Launch.AddServerFromDeepLink)) {
-        dismissModal({componentId: Screens.SERVER});
         dismissModal({componentId: Screens.LOGIN});
         dismissModal({componentId: Screens.SSO});
         dismissModal({componentId: Screens.BOTTOM_SHEET});

@@ -30,7 +30,6 @@ import {alertErrorWithFallback, errorBadChannel, errorUnkownUser} from '@utils/d
 import {getIntlShape} from '@utils/general';
 import {logError} from '@utils/log';
 import {escapeRegex} from '@utils/markdown';
-import {addNewServer} from '@utils/server';
 import {removeProtocol, stripTrailingSlashes} from '@utils/url';
 import {
     TEAM_NAME_PATH_PATTERN,
@@ -55,8 +54,6 @@ export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: Int
 
         // After checking the server for http & https then we add it
         if (!existingServerUrl) {
-            const theme = EphemeralStore.theme || getDefaultThemeByAppearance();
-
             if (deepLink.type === DeepLink.MagicLink && 'token' in deepLink.data) {
                 const result = await magicLinkLogin(deepLink.data.serverUrl, deepLink.data.token);
                 if (result.error) {
@@ -65,12 +62,7 @@ export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: Int
                 }
                 return {error: false};
             }
-            if (NavigationStore.getVisibleScreen() === Screens.SERVER) {
-                Navigation.updateProps(Screens.SERVER, {serverUrl: deepLink.data.serverUrl});
-            } else if (!NavigationStore.getScreensInStack().includes(Screens.SERVER)) {
-                addNewServer(theme, deepLink.data.serverUrl, undefined, deepLink);
-            }
-            return {error: false};
+            return {error: true};
         }
 
         if (existingServerUrl !== currentServerUrl && NavigationStore.getVisibleScreen()) {

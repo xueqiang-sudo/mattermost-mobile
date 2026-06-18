@@ -27,7 +27,6 @@ import {addSentryContext} from '@utils/sentry';
 
 import AdditionalTabletView from './additional_tablet_view';
 import ConversationList from './conversation_list';
-import Servers from './servers';
 
 import type {LaunchType} from '@typings/launch';
 
@@ -81,7 +80,6 @@ const ChannelListScreen = (props: ChannelProps) => {
     const insets = useSafeAreaInsets();
     const serverUrl = useServerUrl();
     const params = route.params as {direction: string};
-    const canAddOtherServers = false; //managedConfig?.allowOtherServers !== 'false';
 
     const handleBackPress = useCallback(() => {
         const isHomeScreen = NavigationStore.getVisibleScreen() === Screens.HOME;
@@ -201,12 +199,11 @@ const ChannelListScreen = (props: ChannelProps) => {
                     <AnnouncementBanner/>
                 }
                 <View style={styles.content}>
-                    {canAddOtherServers && <Servers/>}
                     <Animated.View
                         style={[styles.content, animated]}
                     >
                         <ConversationList
-                            iconPad={canAddOtherServers}
+                            iconPad={false}
                             isCRTEnabled={props.isCRTEnabled}
                             moreThanOneTeam={props.hasMoreThanOneTeam}
                             hasChannels={props.hasChannels}

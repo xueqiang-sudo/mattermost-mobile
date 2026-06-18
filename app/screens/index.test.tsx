@@ -16,7 +16,6 @@ import PlaybookRun from '@playbooks/screens/playbook_run';
 import PlaybooksRuns from '@playbooks/screens/playbooks_runs';
 import {logDebug} from '@utils/log';
 
-import EditServer from './edit_server';
 import InAppNotification from './in_app_notification';
 import ReportProblem from './report_a_problem';
 
@@ -83,12 +82,6 @@ jest.mock('@screens/report_a_problem', () => ({
     default: jest.fn(),
 }));
 jest.mocked(ReportProblem).mockImplementation((props) => <Text {...props}>{Screens.REPORT_PROBLEM}</Text>);
-
-jest.mock('@screens/edit_server', () => ({
-    __esModule: true,
-    default: jest.fn(),
-}));
-jest.mocked(EditServer).mockImplementation((props) => <Text {...props}>{Screens.EDIT_SERVER}</Text>);
 
 jest.mock('@screens/in_app_notification', () => ({
     __esModule: true,

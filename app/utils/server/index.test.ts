@@ -9,17 +9,13 @@ import {getIntlShape} from '@utils/general';
 import {isMinimumServerVersion} from '@utils/helpers';
 
 import {
-    addNewServer,
     alertServerAlreadyConnected,
     alertServerError,
     alertServerLogout,
-    alertServerRemove,
-    editServer,
     isSupportedServer,
     loginOptions,
     loginToServer,
     semverFromServerVersion,
-    sortServersByDisplayName,
     unsupportedServer,
 } from './index';
 

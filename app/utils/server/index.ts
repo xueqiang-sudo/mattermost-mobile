@@ -39,22 +39,6 @@ export function semverFromServerVersion(value: string) {
     return `${major}.${minor}.${patch}`;
 }
 
-export async function addNewServer(theme: Theme, serverUrl?: string, displayName?: string, deepLinkProps?: DeepLinkWithData) {
-    await dismissBottomSheet();
-    const closeButtonId = 'close-server';
-    const props = {
-        closeButtonId,
-        displayName,
-        launchType: deepLinkProps ? Launch.AddServerFromDeepLink : Launch.AddServer,
-        serverUrl,
-        theme,
-        extra: deepLinkProps,
-    };
-    const options = buildServerModalOptions(theme, closeButtonId);
-
-    showModal(Screens.SERVER, '', props, options);
-}
-
 export function loginOptions(config: ClientConfig, license: ClientLicense) {
     const isLicensed = license.IsLicensed === 'true';
     const samlEnabled = config.EnableSaml === 'true' && isLicensed && license.SAML === 'true';
@@ -120,18 +104,6 @@ export async function loginToServer(theme: Theme, serverUrl: string, displayName
     showModal(screen, '', props, options);
 }
 
-export async function editServer(theme: Theme, server: ServersModel) {
-    const closeButtonId = 'close-server-edit';
-    const props = {
-        closeButtonId,
-        server,
-        theme,
-    };
-    const options = buildServerModalOptions(theme, closeButtonId);
-
-    showModal(Screens.EDIT_SERVER, '', props, options);
-}
-
 export async function alertServerLogout(displayName: string, onPress: () => void, intl: IntlShape) {
     Alert.alert(
         intl.formatMessage({
@@ -148,27 +120,6 @@ export async function alertServerLogout(displayName: string, onPress: () => void
         }, {
             style: 'destructive',
             text: intl.formatMessage({id: 'servers.logout', defaultMessage: 'Log out'}),
-            onPress,
-        }],
-    );
-}
-
-export async function alertServerRemove(displayName: string, onPress: () => void, intl: IntlShape) {
-    Alert.alert(
-        intl.formatMessage({
-            id: 'server.remove.alert_title',
-            defaultMessage: 'Are you sure you want to remove {displayName}?',
-        }, {displayName}),
-        intl.formatMessage({
-            id: 'server.remove.alert_description',
-            defaultMessage: 'This will remove it from your list of servers. All associated data will be removed',
-        }),
-        [{
-            style: 'cancel',
-            text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
-        }, {
-            style: 'destructive',
-            text: intl.formatMessage({id: 'servers.remove', defaultMessage: 'Remove'}),
             onPress,
         }],
     );
@@ -194,20 +145,6 @@ export function alertServerAlreadyConnected(intl: IntlShape) {
         }),
     );
 }
-
-export const sortServersByDisplayName = (servers: ServersModel[], intl: IntlShape) => {
-    function serverName(s: ServersModel) {
-        if (s.displayName === s.url) {
-            return intl.formatMessage({id: 'servers.default', defaultMessage: 'Default Server'});
-        }
-
-        return s.displayName;
-    }
-
-    return servers.sort((a, b) => {
-        return serverName(a).localeCompare(serverName(b));
-    });
-};
 
 function unsupportedServerAdminAlert(serverDisplayName: string, intl: IntlShape, onPress?: () => void) {
     const title = intl.formatMessage({id: 'mobile.server_upgrade.title', defaultMessage: 'Server upgrade required'});

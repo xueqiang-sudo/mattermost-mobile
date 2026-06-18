@@ -159,9 +159,6 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EDIT_PROFILE:
             screen = withServerDatabase(require('@screens/edit_profile').default);
             break;
-        case Screens.EDIT_SERVER:
-            screen = withIntl(require('@screens/edit_server').default);
-            break;
         case Screens.EMOJI_PICKER:
             screen = withServerDatabase(require('@screens/emoji_picker').default);
             break;
@@ -399,8 +396,5 @@ Navigation.setLazyComponentRegistrator((screenName) => {
 export function registerScreens() {
     const homeScreen = require('@screens/home').default;
 
-    // const serverScreen = require('@screens/server').default;
-
-    // Navigation.registerComponent(Screens.SERVER, () => withSafeAreaInsets(withGestures(withIntl(withManagedConfig(serverScreen)))));
     Navigation.registerComponent(Screens.HOME, () => withGestures(withSafeAreaInsets(withServerDatabase(withManagedConfig(homeScreen)))));
 }

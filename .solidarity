@@ -5,10 +5,10 @@
   },
   "requirements": {
     "Android": [
-      {
-        "rule": "cli",
-        "binary": "emulator"
-      },
+      // {
+      //   "rule": "cli",
+      //   "binary": "emulator"
+      // },
       {
         "rule": "env",
         "variable": "ANDROID_HOME",

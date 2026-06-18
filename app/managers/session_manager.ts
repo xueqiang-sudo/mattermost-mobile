@@ -15,11 +15,9 @@ import IntuneManager from '@managers/intune_manager';
 import SecurityManager from '@managers/security_manager';
 import {queryGlobalValue} from '@queries/app/global';
 import {getAllServers, getServerDisplayName} from '@queries/app/servers';
-import {getThemeFromState} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {deleteFileCacheByDir} from '@utils/file';
 import {isMainActivity} from '@utils/helpers';
-import {addNewServer} from '@utils/server';
 
 import type {LaunchType} from '@typings/launch';
 
@@ -153,9 +151,7 @@ export class SessionManagerSingleton {
             const serverDisplayName = await getServerDisplayName(serverUrl);
 
             await relaunchApp({launchType: Launch.Normal, serverUrl, displayName: serverDisplayName});
-            if (activeServerUrl) {
-                addNewServer(getThemeFromState(), serverUrl, serverDisplayName);
-            } else {
+            if (!activeServerUrl) {
                 EphemeralStore.theme = undefined;
             }
         } finally {
