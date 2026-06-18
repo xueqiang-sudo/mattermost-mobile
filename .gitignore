@@ -49,7 +49,7 @@ local.properties
 *.iml
 *.hprof
 .cxx/
-*.keystore
+#*.keystore
 !debug.keystore
 android/app/bin
 android/app/build
