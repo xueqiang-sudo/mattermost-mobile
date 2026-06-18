@@ -400,8 +400,6 @@ export function registerScreens() {
     const homeScreen = require('@screens/home').default;
 
     // const serverScreen = require('@screens/server').default;
-    const onboardingScreen = require('@screens/onboarding').default;
-    Navigation.registerComponent(Screens.ONBOARDING, () => withGestures(withIntl(withManagedConfig(onboardingScreen))));
 
     // Navigation.registerComponent(Screens.SERVER, () => withSafeAreaInsets(withGestures(withIntl(withManagedConfig(serverScreen)))));
     Navigation.registerComponent(Screens.HOME, () => withGestures(withSafeAreaInsets(withServerDatabase(withManagedConfig(homeScreen)))));

@@ -432,9 +432,7 @@ class JPushManager {
         const screensInStack = NavigationStore.getScreensInStack();
         const visibleScreen = NavigationStore.getVisibleScreen();
         const isAtLoginOrOnboarding = visibleScreen === Screens.LOGIN ||
-            visibleScreen === Screens.ONBOARDING ||
-            screensInStack.includes(Screens.LOGIN) ||
-            screensInStack.includes(Screens.ONBOARDING);
+            screensInStack.includes(Screens.LOGIN);
 
         if (isAtLoginOrOnboarding) {
             logInfo(`${TAG} [openChannelByExtras] 当前在登录/引导页，忽略通知跳转`);

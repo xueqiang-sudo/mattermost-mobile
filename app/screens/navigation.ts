@@ -38,7 +38,6 @@ export const allOrientations: LayoutOrientation[] = ['sensor', 'sensorLandscape'
 export const portraitOrientation: LayoutOrientation[] = ['portrait'];
 
 const loginFlowScreens = new Set<AvailableScreens>([
-    Screens.ONBOARDING,
     Screens.SERVER,
     Screens.LOGIN,
     Screens.SSO,
@@ -253,7 +252,7 @@ Appearance.addChangeListener(() => {
     const theme = getThemeFromState();
     const screens = NavigationStore.getScreensInStack();
 
-    if (screens.includes(Screens.SERVER) || screens.includes(Screens.ONBOARDING)) {
+    if (screens.includes(Screens.SERVER)) {
         for (const screen of screens) {
             if (appearanceControlledScreens.has(screen)) {
                 Navigation.updateProps(screen, {theme});
@@ -462,52 +461,6 @@ export function resetToStartupLoading() {
                         },
                     },
                 }],
-            },
-        },
-    });
-}
-
-export function resetToOnboarding(passProps: LaunchProps) {
-    const theme = getDefaultThemeByAppearance();
-    const edgeToEdge = edgeToEdgeHack(Screens.ONBOARDING, theme);
-
-    const children = [{
-        component: {
-            id: Screens.ONBOARDING,
-            name: Screens.ONBOARDING,
-            passProps: {
-                ...passProps,
-                theme,
-            },
-            options: {
-                layout: {
-                    backgroundColor: theme.centerChannelBg,
-                    componentBackgroundColor: theme.centerChannelBg,
-                },
-                statusBar: {
-                    visible: true,
-                    backgroundColor: theme.sidebarBg,
-                    ...edgeToEdge,
-                },
-                topBar: {
-                    backButton: {
-                        color: theme.sidebarHeaderTextColor,
-                        title: '',
-                    },
-                    background: {
-                        color: theme.sidebarBg,
-                    },
-                    visible: false,
-                    height: 0,
-                },
-            },
-        },
-    }];
-
-    return Navigation.setRoot({
-        root: {
-            stack: {
-                children,
             },
         },
     });

@@ -11,12 +11,12 @@ import LocalConfig from '@assets/config.json';
 import {DeepLink, Launch, PushNotification} from '@constants';
 import DatabaseManager from '@database/manager';
 import {getActiveServerUrl, getServerCredentials} from '@init/credentials';
-import {getLastViewedChannelIdAndServer, getOnboardingViewed, getLastViewedThreadIdAndServer} from '@queries/app/global';
+import {getLastViewedChannelIdAndServer, getLastViewedThreadIdAndServer} from '@queries/app/global';
 import {getAllServers} from '@queries/app/servers';
 import {queryPostsByType} from '@queries/servers/post';
 import {getCurrentUserId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
-import {resetToHome, resetToLogin, resetToOnboarding} from '@screens/navigation';
+import {resetToHome, resetToLogin} from '@screens/navigation';
 import {getLaunchPropsFromDeepLink} from '@utils/deep_link';
 
 import {initialLaunch, launchToHome, cleanupEphemeralPosts, getLaunchPropsFromNotification} from './launch';
@@ -53,7 +53,6 @@ jest.mock('@screens/navigation', () => ({
     resetToHome: jest.fn().mockResolvedValue(''),
     resetToLogin: jest.fn().mockResolvedValue(''),
     resetToTeams: jest.fn().mockResolvedValue(''),
-    resetToOnboarding: jest.fn().mockResolvedValue(''),
 }));
 jest.mock('@utils/deep_link');
 jest.mock('@store/ephemeral_store');
@@ -137,16 +136,6 @@ describe('Launch', () => {
             expect(resetToHome).toHaveBeenCalledWith(expect.objectContaining({launchType: Launch.Upgrade}));
         });
 
-        it('should show onboarding when enabled and not viewed', async () => {
-            LocalConfig.ShowOnboarding = true;
-            jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(null);
-            jest.mocked(getActiveServerUrl).mockResolvedValue(undefined);
-            jest.mocked(getOnboardingViewed).mockResolvedValue(false);
-
-            await initialLaunch();
-
-            expect(resetToOnboarding).toHaveBeenCalled();
-        });
     });
 
     describe('launchToHome', () => {

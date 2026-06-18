@@ -14,7 +14,6 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 import type {IntlShape} from 'react-intl';
 
 export const appearanceControlledScreens = new Set<AvailableScreens>([
-    Screens.ONBOARDING,
     Screens.SERVER,
     Screens.LOGIN,
     Screens.FORGOT_PASSWORD,

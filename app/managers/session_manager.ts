@@ -3,7 +3,7 @@
 
 import {AppState, type AppStateStatus, DeviceEventEmitter, Platform} from 'react-native';
 
-import {storeGlobal, storeOnboardingViewedValue} from '@actions/app/global';
+import {storeGlobal} from '@actions/app/global';
 import {cancelAllSessionNotifications, terminateSession} from '@actions/local/session';
 import {logout, scheduleSessionNotification} from '@actions/remote/session';
 import {Events, Launch} from '@constants';
@@ -128,12 +128,6 @@ export class SessionManagerSingleton {
                     if (activeServerDisplayName) {
                         displayName = activeServerDisplayName;
                     }
-                }
-
-                // set the onboardingViewed value to false so the launch will show the onboarding screen after all servers were removed
-                const servers = await getAllServers();
-                if (!servers.length) {
-                    await storeOnboardingViewedValue(false);
                 }
 
                 relaunchApp({launchType, serverUrl, displayName});

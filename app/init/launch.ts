@@ -24,14 +24,14 @@ import {
 } from '@init/jpush_notification';
 import {getAutoClient} from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
-import {getOnboardingViewed, getLastViewedThreadIdAndServer} from '@queries/app/global';
+import {getLastViewedThreadIdAndServer} from '@queries/app/global';
 import {getAllServers} from '@queries/app/servers';
 import {queryPostsByType} from '@queries/servers/post';
 import {getThemeForCurrentTeam} from '@queries/servers/preference';
 import {getCurrentUserId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
 import {getCurrentUser} from '@queries/servers/user';
-import {resetToHome, resetToLogin, resetToTeams, resetToOnboarding} from '@screens/navigation';
+import {resetToHome, resetToLogin, resetToTeams} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
 import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
@@ -216,14 +216,7 @@ export const launchApp = async (props: LaunchProps) => {
         }
     }
 
-    logInfo('[Launch.startup] Checking onboarding viewed state', LocalConfig.ShowOnboarding);
-    const onboardingViewed = LocalConfig.ShowOnboarding && await getOnboardingViewed();
-
-    // if the config value is set and the onboarding has not been seeing yet, show the onboarding
-    if (LocalConfig.ShowOnboarding && !onboardingViewed) {
-        logInfo('[Launch.startup] Routing to onboarding');
-        return resetToOnboarding(props);
-    }
+    logInfo('[Launch.startup] Onboarding disabled, routing directly to login');
 
     logInfo('[Launch.startup] Routing to login', {serverUrl});
     const loginResult = resetToLogin({...props, serverUrl});

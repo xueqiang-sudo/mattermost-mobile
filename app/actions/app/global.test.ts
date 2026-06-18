@@ -8,7 +8,6 @@ import {
     getDontAskForReview,
     getFirstLaunch,
     getLastAskedForReview,
-    getOnboardingViewed,
     getLastViewedChannelIdAndServer,
     getLastViewedThreadIdAndServer,
     getPushDisabledInServerAcknowledged,
@@ -18,7 +17,6 @@ import {
 import {
     storeGlobal,
     storeDeviceToken,
-    storeOnboardingViewedValue,
     storeMultiServerTutorial,
     storeProfileLongPressTutorial,
     storeSkinEmojiSelectorTutorial,
@@ -67,19 +65,6 @@ describe('/app/actions/app/global', () => {
 
         storedValue = await getDeviceToken();
         expect(storedValue).toBe(inputValue);
-    });
-
-    test('storeOnboardingViewedValue', async () => {
-        let storedValue = await getOnboardingViewed();
-        expect(storedValue).toBe(false);
-
-        await storeOnboardingViewedValue();
-        storedValue = await getOnboardingViewed();
-        expect(storedValue).toBe(true);
-
-        await storeOnboardingViewedValue(false);
-        storedValue = await getOnboardingViewed();
-        expect(storedValue).toBe(false);
     });
 
     test('storeMultiServerTutorial', async () => {

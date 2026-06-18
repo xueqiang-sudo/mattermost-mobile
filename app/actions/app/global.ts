@@ -24,10 +24,6 @@ export const storeDeviceToken = async (token: string, prepareRecordsOnly = false
     return storeGlobal(GLOBAL_IDENTIFIERS.DEVICE_TOKEN, token, prepareRecordsOnly);
 };
 
-export const storeOnboardingViewedValue = async (value = true) => {
-    return storeGlobal(GLOBAL_IDENTIFIERS.ONBOARDING, value, false);
-};
-
 export const storeMultiServerTutorial = async (prepareRecordsOnly = false) => {
     return storeGlobal(Tutorial.MULTI_SERVER, 'true', prepareRecordsOnly);
 };

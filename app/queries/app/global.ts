@@ -31,16 +31,6 @@ export const queryGlobalValue = (key: string) => {
     }
 };
 
-export const getOnboardingViewed = async (): Promise<boolean> => {
-    try {
-        const {database} = DatabaseManager.getAppDatabaseAndOperator();
-        const onboardingVal = await database.get<GlobalModel>(GLOBAL).find(GLOBAL_IDENTIFIERS.ONBOARDING);
-        return onboardingVal?.value ?? false;
-    } catch {
-        return false;
-    }
-};
-
 export const getLastAskedForReview = async () => {
     const records = await queryGlobalValue(GLOBAL_IDENTIFIERS.LAST_ASK_FOR_REVIEW)?.fetch();
     if (!records?.[0]?.value) {
