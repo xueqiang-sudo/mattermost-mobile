@@ -156,6 +156,15 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.EDIT_CHANNEL_ANNOUNCEMENT:
             screen = withServerDatabase(require('@screens/edit_channel_announcement').default);
             break;
+        case Screens.EDIT_GROUP_NICKNAME:
+            screen = withServerDatabase(require('@screens/edit_group_nickname').default);
+            break;
+        case Screens.EDIT_GROUP_NAME:
+            screen = withServerDatabase(require('@screens/edit_group_name').default);
+            break;
+        case Screens.REMOVE_MEMBERS:
+            screen = withServerDatabase(require('@screens/remove_members').default);
+            break;
         case Screens.EDIT_PROFILE:
             screen = withServerDatabase(require('@screens/edit_profile').default);
             break;

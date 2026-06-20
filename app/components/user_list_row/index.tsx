@@ -45,6 +45,7 @@ type Props = {
     selectable: boolean;
     disabled?: boolean;
     selected: boolean;
+    locked?: boolean;
     showManageMode: boolean;
     testID: string;
     tutorialWatched?: boolean;
@@ -139,6 +140,7 @@ function UserListRow({
     selectable,
     disabled,
     selected,
+    locked = false,
     showManageMode = false,
     testID,
     tutorialWatched = false,
@@ -225,21 +227,32 @@ function UserListRow({
         if (variant === 'dm_only') {
             return null;
         }
-        if (!selectable && !selected) {
+        if (!selectable && !selected && !locked) {
             return null;
         }
 
-        const color = selected ? theme.buttonBg : changeOpacity(theme.centerChannelColor, DEFAULT_ICON_OPACITY);
+        let color;
+        let iconName: string;
+        if (locked) {
+            color = changeOpacity(theme.centerChannelColor, 0.32);
+            iconName = 'check-circle';
+        } else if (selected) {
+            color = theme.buttonBg;
+            iconName = 'check-circle';
+        } else {
+            color = changeOpacity(theme.centerChannelColor, DEFAULT_ICON_OPACITY);
+            iconName = 'circle-outline';
+        }
         return (
             <View style={[style.selector, contactSelectLayout && style.selectorLeft]}>
                 <CompassIcon
-                    name={selected ? 'check-circle' : 'circle-outline'}
+                    name={iconName}
                     size={contactSelectLayout ? 30 : 28}
                     color={color}
                 />
             </View>
         );
-    }, [selectable, selected, theme.buttonBg, theme.centerChannelColor, style.selector, style.selectorLeft, contactSelectLayout, variant]);
+    }, [selectable, selected, locked, theme.buttonBg, theme.centerChannelColor, style.selector, style.selectorLeft, contactSelectLayout, variant]);
 
     const chatButton = useMemo(() => {
         if (variant !== 'dm_only' || user.id === currentUserId) {
@@ -318,7 +331,7 @@ function UserListRow({
                 size={contactSelectLayout ? CONTACT_SELECT_AVATAR_SIZE : 24}
                 contactSelectLayout={contactSelectLayout}
                 showCurrentUserSuffix={!candidateTags.includes('self')}
-                disabled={disabled && !selected}
+                disabled={(disabled && !selected) || locked}
                 viewRef={viewRef}
                 padding={contactSelectLayout ? 16 : 20}
                 includeMargin={includeMargin}

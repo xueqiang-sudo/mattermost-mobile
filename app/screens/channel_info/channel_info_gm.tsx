@@ -3,11 +3,12 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, ScrollView, StyleSheet, View} from 'react-native';
+import {Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {clearChannelHistory, leaveChannel, patchChannel, toggleMuteChannel, updateChannelNotifyProps} from '@actions/remote/channel';
+import {clearChannelHistory, leaveChannel, toggleMuteChannel} from '@actions/remote/channel';
 import {toggleFavoriteChannel} from '@actions/remote/category';
+import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -16,7 +17,8 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
-import {DangerSection, EditableField, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
+import {typography} from '@utils/typography';
+import {DangerSection, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -52,6 +54,39 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 0,
         paddingVertical: 0,
     },
+    toggleSection: {
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.12),
+        paddingHorizontal: 16,
+        paddingVertical: 0,
+    },
+    nicknameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    nicknameLabel: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    nicknameArrow: {
+        color: changeOpacity(theme.centerChannelColor, 0.32),
+    },
+    navRowLabel: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    navRowValue: {
+        flex: 1,
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        textAlign: 'right',
+        marginRight: 4,
+        ...typography('Body', 200),
+    },
 }));
 
 const ChannelInfoGM = ({
@@ -80,13 +115,14 @@ const ChannelInfoGM = ({
     const handleAddPeople = useCallback(async () => {
         await dismissModal({componentId});
         await dismissAllModalsAndPopToRoot();
-        const title = intl.formatMessage({id: 'more_direct_channels.title', defaultMessage: 'Direct Messages'});
+        const title = intl.formatMessage({id: 'mobile.add_members.title', defaultMessage: 'Add Members'});
         goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {channelId, isExistingChannel: true});
     }, [channelId, componentId, intl]);
 
     const handleRemovePeople = useCallback(async () => {
-        // TODO: Implement remove members modal
-    }, []);
+        const title = intl.formatMessage({id: 'gm_settings.remove_title', defaultMessage: 'Remove Members'});
+        goToScreen(Screens.REMOVE_MEMBERS, title, {channelId});
+    }, [channelId, intl]);
 
     const handleSearchHistory = useCallback(async () => {
         // TODO: Implement dedicated search history screen
@@ -100,13 +136,22 @@ const ChannelInfoGM = ({
         toggleFavoriteChannel(serverUrl, channelId);
     }, [channelId, serverUrl]);
 
-    const handleSaveGroupName = useCallback((newName: string) => {
-        patchChannel(serverUrl, channelId, {display_name: newName});
-    }, [channelId, serverUrl]);
+    const handleEditGroupName = useCallback(() => {
+        const title = intl.formatMessage({id: 'gm_settings.edit_group_name_title', defaultMessage: 'Edit Group Name'});
+        goToScreen(Screens.EDIT_GROUP_NAME, title, {
+            channelId,
+            initialDisplayName: displayName || '',
+            memberIds,
+        });
+    }, [channelId, displayName, memberIds, intl]);
 
-    const handleSaveNickname = useCallback((newNickname: string) => {
-        updateChannelNotifyProps(serverUrl, channelId, {nickname: newNickname});
-    }, [channelId, serverUrl]);
+    const handleEditNickname = useCallback(() => {
+        const title = intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'});
+        goToScreen(Screens.EDIT_GROUP_NICKNAME, title, {
+            channelId,
+            initialNickname: myNickname || '',
+        });
+    }, [channelId, myNickname, intl]);
 
     const handleClearHistory = useCallback(() => {
         Alert.alert(
@@ -194,23 +239,32 @@ const ChannelInfoGM = ({
                         testID='channel_info_gm.group_id'
                     />
 
-                    {/* Group Name (editable) */}
-                    <EditableField
-                        label={intl.formatMessage({id: 'channel_info_rhs.gm.group_name', defaultMessage: 'Group Name'})}
-                        value={displayName || ''}
-                        placeholder={intl.formatMessage({id: 'channel_info_rhs.gm.group_name_placeholder', defaultMessage: 'Other members will be notified after modification'})}
-                        onSave={handleSaveGroupName}
+                    {/* Group Name — tap to open edit screen */}
+                    <TouchableOpacity
+                        onPress={handleEditGroupName}
+                        style={styles.nicknameRow}
                         testID='channel_info_gm.group_name'
-                    />
+                    >
+                        <Text style={styles.navRowLabel}>
+                            {intl.formatMessage({id: 'channel_info_rhs.gm.group_name', defaultMessage: 'Group Name'})}
+                        </Text>
+                        <Text style={styles.navRowValue} numberOfLines={1}>
+                            {displayName || ''}
+                        </Text>
+                        <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
+                    </TouchableOpacity>
 
-                    {/* My Nickname in this group */}
-                    <EditableField
-                        label={intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'})}
-                        value={myNickname || ''}
-                        placeholder={intl.formatMessage({id: 'channel_info_rhs.gm.nickname_placeholder', defaultMessage: 'Your real name will be used if empty'})}
-                        onSave={handleSaveNickname}
+                    {/* My Nickname in this group — tap to open edit screen */}
+                    <TouchableOpacity
+                        onPress={handleEditNickname}
+                        style={styles.nicknameRow}
                         testID='channel_info_gm.my_nickname'
-                    />
+                    >
+                        <Text style={styles.nicknameLabel}>
+                            {intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'})}
+                        </Text>
+                        <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
+                    </TouchableOpacity>
 
                     {/* Search chat history */}
                     <SearchNavRow
@@ -219,7 +273,7 @@ const ChannelInfoGM = ({
                     />
 
                     {/* Toggle section */}
-                    <View style={styles.section}>
+                    <View style={styles.toggleSection}>
                         <ToggleRow
                             icon='star-outline'
                             activeIcon='star'

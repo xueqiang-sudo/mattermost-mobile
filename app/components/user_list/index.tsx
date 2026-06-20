@@ -210,6 +210,7 @@ type Props = {
     showManageMode?: boolean;
     showNoResults: boolean;
     selectedIds: Set<string>;
+    lockedIds?: Set<string>;
     testID?: string;
     term?: string;
     tutorialWatched: boolean;
@@ -225,6 +226,7 @@ export default function UserList({
     profiles,
     channelMembers,
     selectedIds,
+    lockedIds,
     handleSelectProfile,
     fetchMore,
     loading,
@@ -291,6 +293,7 @@ export default function UserList({
         }
 
         const selected = selectedIds.has(item.id);
+        const locked = Boolean(lockedIds?.has(item.id));
         const isSelf = item.id === currentUserId;
         const canAdd = variant === 'dm_only' ? true : selectedIds.size < General.MAX_USERS_IN_GM;
 
@@ -310,6 +313,7 @@ export default function UserList({
                 selectable={variant === 'dm_only' ? false : (manageMode || canAdd)}
                 disabled={isSelf || !canAdd}
                 selected={selected}
+                locked={locked}
                 showManageMode={showManageMode}
                 testID='create_direct_message.user_list.user_item'
                 tutorialWatched={tutorialWatched}
@@ -318,7 +322,7 @@ export default function UserList({
                 variant={variant}
             />
         );
-    }, [selectedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, tutorialWatched, includeUserMargin, contactSelectLayout, variant, currentUserId]);
+    }, [selectedIds, lockedIds, manageMode, handleSelectProfile, openUserProfile, showManageMode, tutorialWatched, includeUserMargin, contactSelectLayout, variant, currentUserId]);
 
     const renderLoading = useCallback(() => {
         if (!loading) {

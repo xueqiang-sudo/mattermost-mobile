@@ -7,7 +7,9 @@ import {Keyboard, type LayoutChangeEvent, StyleSheet, Text, View} from 'react-na
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
-import {makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {addMembersToChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {queryChannelMembers} from '@queries/servers/channel';
+import DatabaseManager from '@database/database_manager';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import Search from '@components/search';
@@ -68,6 +70,8 @@ type Props = {
     teammateNameDisplay: string;
     tutorialWatched: boolean;
     variant?: CreateDMWindowVariant;
+    channelId?: string;
+    isExistingChannel?: boolean;
 }
 
 type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
@@ -204,6 +208,8 @@ export default function CreateDirectMessage({
     teammateNameDisplay,
     tutorialWatched,
     variant = 'default',
+    channelId,
+    isExistingChannel,
 }: Props) {
     const serverUrl = useServerUrl();
     const theme = useTheme();
@@ -217,9 +223,43 @@ export default function CreateDirectMessage({
 
     const [term, setTerm] = useState('');
     const [startingConversation, setStartingConversation] = useState(false);
+    const [lockedIds, setLockedIds] = useState<Set<string>>(new Set<string>());
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set<string>());
     const [showToast, setShowToast] = useState(false);
-    const selectedCount = selectedIds.size;
+
+    // Newly selected = selected minus locked (for tags, count, and confirm)
+    const newSelectedIds = useMemo(() => {
+        const s = new Set<string>();
+        selectedIds.forEach((id) => {
+            if (!lockedIds.has(id)) {
+                s.add(id);
+            }
+        });
+        return s;
+    }, [selectedIds, lockedIds]);
+    const selectedCount = newSelectedIds.size;
+
+    // Fetch existing channel members when in "Add Members" mode
+    useEffect(() => {
+        if (!isExistingChannel || !channelId) {
+            return;
+        }
+        try {
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            queryChannelMembers(database, channelId).fetch().then((members) => {
+                const ids = new Set<string>();
+                members.forEach((m) => {
+                    if (m.userId !== currentUserId) {
+                        ids.add(m.userId);
+                    }
+                });
+                setLockedIds(ids);
+                setSelectedIds(ids);
+            });
+        } catch {
+            // ignore
+        }
+    }, [isExistingChannel, channelId, serverUrl, currentUserId]);
 
     const color = changeOpacity(theme.centerChannelColor, 0.72);
 
@@ -227,8 +267,11 @@ export default function CreateDirectMessage({
         if (selectedCount > 1) {
             return formatMessage(messages.doneWithCount, {count: selectedCount});
         }
+        if (isExistingChannel) {
+            return formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'});
+        }
         return formatMessage(messages.buttonText);
-    }, [formatMessage, selectedCount]);
+    }, [formatMessage, selectedCount, isExistingChannel]);
 
     /**
      * 清空搜索
@@ -271,7 +314,7 @@ export default function CreateDirectMessage({
     }, [intl, serverUrl]);
 
     /**
-     * 开始对话
+     * 开始对话 / 添加成员到已有群
      */
     const startConversation = useCallback(async (selectedId?: string) => {
         if (startingConversation) {
@@ -280,14 +323,26 @@ export default function CreateDirectMessage({
 
         setStartingConversation(true);
 
-        const idsToUse = selectedId ? [selectedId] : Array.from(selectedIds);
         let success;
-        if (idsToUse.length === 0) {
-            success = false;
-        } else if (variant === 'group_only' || (variant === 'default' && idsToUse.length > 1)) {
-            success = await createGroupChannel(idsToUse);
+
+        if (isExistingChannel && channelId) {
+            // Add new members to existing channel
+            const idsToAdd = selectedId ? [selectedId] : Array.from(newSelectedIds);
+            if (idsToAdd.length === 0) {
+                success = false;
+            } else {
+                const result = await addMembersToChannel(serverUrl, channelId, idsToAdd);
+                success = !result.error;
+            }
         } else {
-            success = await createDirectChannel(idsToUse[0]);
+            const idsToUse = selectedId ? [selectedId] : Array.from(newSelectedIds);
+            if (idsToUse.length === 0) {
+                success = false;
+            } else if (variant === 'group_only' || (variant === 'default' && idsToUse.length > 1)) {
+                success = await createGroupChannel(idsToUse);
+            } else {
+                success = await createDirectChannel(idsToUse[0]);
+            }
         }
 
         if (success) {
@@ -295,13 +350,18 @@ export default function CreateDirectMessage({
         } else {
             setStartingConversation(false);
         }
-    }, [startingConversation, selectedIds, createGroupChannel, createDirectChannel, variant]);
+    }, [startingConversation, newSelectedIds, isExistingChannel, channelId, serverUrl, createGroupChannel, createDirectChannel, variant]);
 
     /**
      * 选择用户
      */
     const handleSelectProfile = useCallback((user: UserProfile) => {
         if (user.id === currentUserId) {
+            return;
+        }
+
+        // Locked members (existing channel members) cannot be toggled
+        if (lockedIds.has(user.id)) {
             return;
         }
 
@@ -315,17 +375,17 @@ export default function CreateDirectMessage({
                 return removeProfileFromList(current, user.id);
             }
 
-            if (selectedCount >= General.MAX_USERS_IN_GM) {
+            if (newSelectedIds.size >= General.MAX_USERS_IN_GM) {
                 setShowToast(true);
                 return current;
             }
 
-            const newSelectedIds = new Set(current);
-            newSelectedIds.add(user.id);
+            const updated = new Set(current);
+            updated.add(user.id);
 
-            return newSelectedIds;
+            return updated;
         });
-    }, [currentUserId, selectedCount, startConversation, variant]);
+    }, [currentUserId, selectedCount, lockedIds, newSelectedIds.size, startConversation, variant]);
 
     /**
      * 处理布局变化
@@ -453,6 +513,7 @@ export default function CreateDirectMessage({
                     <ServerUserList
                         handleSelectProfile={handleSelectProfile}
                         selectedIds={selectedIds}
+                        lockedIds={lockedIds}
                         term={term}
                         testID='create_direct_message.user_list'
                         tutorialWatched={tutorialWatched}
@@ -479,7 +540,7 @@ export default function CreateDirectMessage({
                             },
                             {max: General.MAX_USERS_IN_GM},
                         )}
-                        selectedIds={selectedIds}
+                        selectedIds={newSelectedIds}
                         onRemove={handleRemoveProfile}
                         teammateNameDisplay={teammateNameDisplay}
                         onPress={startConversation}

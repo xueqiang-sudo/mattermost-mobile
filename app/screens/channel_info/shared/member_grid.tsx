@@ -243,8 +243,15 @@ const MemberGridInner = ({
 
     const keyExtractor = useCallback((item: string) => item, []);
 
-    const ListHeaderComponent = useMemo(() => {
+    const ListFooterComponent = useMemo(() => {
         const items: React.ReactNode[] = [];
+        if (extraCount > 0) {
+            items.push(
+                <View key='more' style={styles.moreCount}>
+                    <Text style={styles.moreCountText}>{`+${extraCount}`}</Text>
+                </View>,
+            );
+        }
         if (showAddButton) {
             items.push(
                 <ActionButton
@@ -266,18 +273,7 @@ const MemberGridInner = ({
             );
         }
         return items.length > 0 ? <>{items}</> : null;
-    }, [showAddButton, showRemoveButton, intl, onAddPress, onRemovePress]);
-
-    const ListFooterComponent = useMemo(() => {
-        if (extraCount <= 0) {
-            return null;
-        }
-        return (
-            <View style={styles.moreCount}>
-                <Text style={styles.moreCountText}>{`+${extraCount}`}</Text>
-            </View>
-        );
-    }, [extraCount, styles]);
+    }, [extraCount, styles, showAddButton, showRemoveButton, intl, onAddPress, onRemovePress]);
 
     return (
         <View style={styles.container} testID={testID || 'channel_info.shared.member_grid'}>
@@ -301,7 +297,6 @@ const MemberGridInner = ({
                 horizontal={true}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.grid}
-                ListHeaderComponent={ListHeaderComponent}
                 ListFooterComponent={ListFooterComponent}
             />
         </View>
