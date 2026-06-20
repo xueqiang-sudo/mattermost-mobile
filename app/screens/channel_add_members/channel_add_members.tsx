@@ -10,8 +10,10 @@ import {addMembersToChannel, fetchChannelMemberships} from '@actions/remote/chan
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
+import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {getLastPictureUpdate} from '@utils/user';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {popTopScreen} from '@screens/navigation';
 import {alertErrorWithFallback} from '@utils/draft';
@@ -71,25 +73,24 @@ type Props = {
     inModal?: boolean;
 };
 
+/**
+ * Custom avatar that shows profile image or generic icon (never initials).
+ */
+function AvatarNoInitials({author, size, showStatus = false}: {author: CandidateProfile; size: number; showStatus?: boolean}) {
+    const hasImage = author ? getLastPictureUpdate(author) > 0 : false;
+    return (
+        <ProfilePicture
+            author={hasImage ? author : undefined}
+            size={size}
+            showStatus={showStatus}
+        />
+    );
+}
+
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
-    },
-    topBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    closeButton: {
-        padding: 4,
-        width: 32,
-    },
-    closeIcon: {
-        color: theme.centerChannelColor,
     },
     searchSection: {
         paddingHorizontal: 16,
@@ -414,7 +415,7 @@ export default function ChannelAddMembers({
                 disabled={isLocked}
             >
                 {renderCheckbox(user.id)}
-                <ProfilePicture
+                <AvatarNoInitials
                     author={user}
                     size={40}
                     showStatus={false}
@@ -476,7 +477,7 @@ export default function ChannelAddMembers({
                             onPress={() => setShowDropdown(true)}
                         >
                             {selectedProfiles.map((user) => (
-                                <ProfilePicture
+                                <AvatarNoInitials
                                     key={user.id}
                                     author={user}
                                     size={28}
@@ -505,7 +506,7 @@ export default function ChannelAddMembers({
                                         onPress={() => toggleSelect(user.id)}
                                     >
                                         {renderCheckbox(user.id)}
-                                        <ProfilePicture
+                                        <AvatarNoInitials
                                             author={user}
                                             size={32}
                                             showStatus={false}
@@ -529,14 +530,6 @@ export default function ChannelAddMembers({
 
     return (
         <SafeAreaView style={style.container} edges={['top', 'left', 'right']}>
-            {/* Top Bar */}
-            <View style={style.topBar}>
-                <TouchableOpacity style={style.closeButton} onPress={handleClose}>
-                    <CompassIcon name='close' size={24} style={style.closeIcon}/>
-                </TouchableOpacity>
-                <View style={{flex: 1}}/>
-            </View>
-
             {/* Search Section */}
             {renderSearchSection()}
 
