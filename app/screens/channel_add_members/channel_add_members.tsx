@@ -86,18 +86,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     closeButton: {
         padding: 4,
+        width: 32,
     },
     closeIcon: {
         color: theme.centerChannelColor,
-    },
-    title: {
-        flex: 1,
-        textAlign: 'center',
-        color: theme.centerChannelColor,
-        ...typography('Heading', 600, 'SemiBold'),
-    },
-    titlePlaceholder: {
-        width: 32,
     },
     searchSection: {
         paddingHorizontal: 16,
@@ -114,10 +106,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 8,
         minHeight: 40,
     },
-    searchBarExpanded: {
-        flexDirection: 'column',
-        alignItems: 'stretch',
-    },
     searchIcon: {
         color: changeOpacity(theme.centerChannelColor, 0.5),
         marginRight: 8,
@@ -127,18 +115,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         fontSize: 16,
         padding: 0,
-    },
-    avatarChips: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 6,
-        marginBottom: 8,
-    },
-    avatarChip: {
-        position: 'relative',
-    },
-    selectedMembersList: {
-        marginBottom: 12,
     },
     selectedMemberRow: {
         flexDirection: 'row',
@@ -235,6 +211,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.buttonColor,
         ...typography('Body', 200, 'SemiBold'),
     },
+    dropdownOverlay: {
+        backgroundColor: theme.centerChannelBg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+        maxHeight: 300,
+    },
+    dropdownList: {
+        paddingHorizontal: 16,
+    },
+    collapseButtonContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
 }));
 
 export default function ChannelAddMembers({
@@ -251,14 +243,15 @@ export default function ChannelAddMembers({
 
     const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [candidates, setCandidates] = useState<{
         suppliers: CandidateProfile[];
         customers: CandidateProfile[];
         enterprise: CandidateProfile[];
-    }>({suppliers: [], customers: [], enterprise: []});
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise']));
+        searchResults: CandidateProfile[];
+    }>({suppliers: [], customers: [], enterprise: [], searchResults: []});
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'searchResults']));
     const [isAdding, setIsAdding] = useState(false);
 
     const teamIdForMembersList = channel?.teamId || currentTeamId || '';
@@ -284,13 +277,27 @@ export default function ChannelAddMembers({
     useEffect(() => {
         getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId).then((drafts) => {
             const profiles = mapCandidateDraftsToProfiles(drafts);
-            setCandidates({
+            setCandidates((prev) => ({
+                ...prev,
                 suppliers: profiles.filter((p) => p.mmCandidateTags?.includes('supplier')),
                 customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer')),
                 enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise')),
-            });
+            }));
         });
     }, [serverUrl, teamIdForMembersList, currentUserId]);
+
+    // Exact search for non-supplier/customer/enterprise members
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            setCandidates((prev) => ({...prev, searchResults: []}));
+            return;
+        }
+        searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, searchTerm).then((drafts) => {
+            const profiles = mapCandidateDraftsToProfiles(drafts);
+            // Include all search results (global exact matches)
+            setCandidates((prev) => ({...prev, searchResults: profiles}));
+        });
+    }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId]);
 
     // Compute newSelectedIds
     const newSelectedIds = useMemo(() => {
@@ -443,65 +450,32 @@ export default function ChannelAddMembers({
             ...candidates.suppliers,
             ...candidates.customers,
             ...candidates.enterprise,
+            ...candidates.searchResults,
         ];
-        return allProfiles.filter((p) => newSelectedIds.has(p.id));
+        // Deduplicate by id
+        const seen = new Set<string>();
+        return allProfiles.filter((p) => {
+            if (seen.has(p.id) || !newSelectedIds.has(p.id)) {
+                return false;
+            }
+            seen.add(p.id);
+            return true;
+        });
     }, [candidates, newSelectedIds]);
 
     const renderSearchSection = () => {
-        if (isSearchExpanded) {
-            return (
-                <View style={style.searchSection}>
-                    <View style={[style.searchBar, style.searchBarExpanded]}>
-                        {selectedProfiles.length > 0 && (
-                            <View style={style.selectedMembersList}>
-                                {selectedProfiles.map((user) => {
-                                    const name = displayUsername(user, teammateNameDisplay);
-                                    return (
-                                        <TouchableOpacity
-                                            key={user.id}
-                                            style={style.selectedMemberRow}
-                                            onPress={() => toggleSelect(user.id)}
-                                        >
-                                            {renderCheckbox(user.id)}
-                                            <ProfilePicture
-                                                author={user}
-                                                size={32}
-                                                showStatus={false}
-                                            />
-                                            <Text style={style.selectedMemberName}>{name}</Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
-                        )}
-                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <CompassIcon name='magnify' size={20} style={style.searchIcon}/>
-                            <TextInput
-                                style={style.searchInput}
-                                value={searchTerm}
-                                onChangeText={setSearchTerm}
-                                placeholder={intl.formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search nickname...'})}
-                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                                autoFocus={true}
-                            />
-                        </View>
-                    </View>
-                </View>
-            );
-        }
-
         return (
             <View style={style.searchSection}>
-                <TouchableOpacity
-                    style={style.searchBar}
-                    onPress={() => setIsSearchExpanded(true)}
-                >
+                <View style={style.searchBar}>
                     {selectedProfiles.length === 0 && (
                         <CompassIcon name='magnify' size={20} style={style.searchIcon}/>
                     )}
                     {selectedProfiles.length > 0 && (
-                        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, flex: 1}}>
-                            {selectedProfiles.slice(0, 5).map((user) => (
+                        <TouchableOpacity
+                            style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginRight: 8}}
+                            onPress={() => setShowDropdown(true)}
+                        >
+                            {selectedProfiles.map((user) => (
                                 <ProfilePicture
                                     key={user.id}
                                     author={user}
@@ -509,22 +483,46 @@ export default function ChannelAddMembers({
                                     showStatus={false}
                                 />
                             ))}
-                            {selectedProfiles.length > 5 && (
-                                <View style={{alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 14, backgroundColor: changeOpacity(theme.centerChannelColor, 0.1)}}>
-                                    <Text style={{color: theme.centerChannelColor, fontSize: 12}}>+{selectedProfiles.length - 5}</Text>
-                                </View>
-                            )}
-                        </View>
+                        </TouchableOpacity>
                     )}
                     <TextInput
                         style={style.searchInput}
                         value={searchTerm}
                         onChangeText={setSearchTerm}
-                        placeholder={intl.formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search nickname...'})}
+                        placeholder={intl.formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search...'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                        editable={false}
                     />
-                </TouchableOpacity>
+                </View>
+                {showDropdown && (
+                    <View style={style.dropdownOverlay}>
+                        <View style={style.dropdownList}>
+                            {selectedProfiles.map((user) => {
+                                const name = displayUsername(user, teammateNameDisplay);
+                                return (
+                                    <TouchableOpacity
+                                        key={user.id}
+                                        style={style.selectedMemberRow}
+                                        onPress={() => toggleSelect(user.id)}
+                                    >
+                                        {renderCheckbox(user.id)}
+                                        <ProfilePicture
+                                            author={user}
+                                            size={32}
+                                            showStatus={false}
+                                        />
+                                        <Text style={style.selectedMemberName}>{name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <TouchableOpacity
+                            style={style.collapseButtonContainer}
+                            onPress={() => setShowDropdown(false)}
+                        >
+                            <CompassIcon name='chevron-up' size={24} style={{color: theme.buttonBg}}/>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         );
     };
@@ -536,10 +534,7 @@ export default function ChannelAddMembers({
                 <TouchableOpacity style={style.closeButton} onPress={handleClose}>
                     <CompassIcon name='close' size={24} style={style.closeIcon}/>
                 </TouchableOpacity>
-                <Text style={style.title}>
-                    {intl.formatMessage({id: 'channel_add_members.title', defaultMessage: 'Add Members'})}
-                </Text>
-                <View style={style.titlePlaceholder}/>
+                <View style={{flex: 1}}/>
             </View>
 
             {/* Search Section */}
@@ -566,6 +561,11 @@ export default function ChannelAddMembers({
                             intl.formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
                             'enterprise',
                             filteredCandidates.enterprise,
+                        )}
+                        {candidates.searchResults.length > 0 && renderSection(
+                            intl.formatMessage({id: 'channel_add_members.search_results', defaultMessage: 'Search Results'}),
+                            'searchResults',
+                            candidates.searchResults,
                         )}
                     </>
                 }
