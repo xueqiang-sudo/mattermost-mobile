@@ -1257,6 +1257,25 @@ export const updateChannelNotifyProps = async (serverUrl: string, channelId: str
     }
 };
 
+export const clearChannelHistory = async (serverUrl: string, channelId: string) => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const userId = await getCurrentUserId(database);
+        await client.clearChannelHistory(channelId, userId);
+
+        // Update local cleared_at in notify_props
+        const clearedAt = Date.now().toString();
+        await updateChannelNotifyProps(serverUrl, channelId, {cleared_at: clearedAt} as Partial<ChannelNotifyProps>);
+
+        return {data: true};
+    } catch (error) {
+        logDebug('error on clearChannelHistory', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
 export const toggleMuteChannel = async (serverUrl: string, channelId: string, showSnackBar = false) => {
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);

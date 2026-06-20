@@ -6,11 +6,9 @@ import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, Platform, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
-import {CHANNEL_ACTIONS_OPTIONS_HEIGHT} from '@components/channel_actions/channel_actions';
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
-import {ITEM_HEIGHT} from '@components/option_item';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -18,18 +16,15 @@ import {useIsTablet} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
 import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@playbooks/screens/navigation';
-import {BOTTOM_SHEET_ANDROID_OFFSET} from '@screens/bottom_sheet';
 import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
-import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
+import {popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
-import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import ChannelHeaderBookmarks from './bookmarks';
-import QuickActions, {MARGIN, SEPARATOR_HEIGHT} from './quick_actions';
 
 import type {HeaderRightButton} from '@components/navigation_header/header';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -218,45 +213,9 @@ const ChannelHeader = ({
     }), [channelId, channelName, channelType, intl, theme]));
 
     const onChannelQuickAction = useCallback(() => {
-        if (isTablet) {
-            onTitlePress();
-            return;
-        }
-
-        // When calls is enabled, we need space to move the "Copy Link" from a button to an option
-        let items = 2;
-        if (callsAvailable && !isDMorGM) {
-            items += 1;
-        }
-        if (isPlaybooksEnabled && !isDMorGM) {
-            items += 1;
-        }
-        let height = CHANNEL_ACTIONS_OPTIONS_HEIGHT + SEPARATOR_HEIGHT + MARGIN + (items * ITEM_HEIGHT);
-        if (Platform.OS === 'android') {
-            height += BOTTOM_SHEET_ANDROID_OFFSET;
-        }
-
-        const renderContent = () => {
-            return (
-                <QuickActions
-                    channelId={channelId}
-                    callsEnabled={callsAvailable}
-                    channelDisplayName={displayName ?? ''}
-                    isDMorGM={isDMorGM}
-                    isPlaybooksEnabled={isPlaybooksEnabled}
-                    playbooksActiveRuns={playbooksActiveRuns}
-                />
-            );
-        };
-
-        bottomSheet({
-            title: '',
-            renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(1, height)],
-            theme,
-            closeButtonId: 'close-channel-quick-actions',
-        });
-    }, [isTablet, callsAvailable, isDMorGM, hasPlaybookRuns, isPlaybooksEnabled, playbooksActiveRuns, displayName, theme, onTitlePress, channelId]);
+        // 直接打开频道设置页面（与 PC webapp 对齐），不再弹出底部菜单
+        onTitlePress();
+    }, [onTitlePress]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead

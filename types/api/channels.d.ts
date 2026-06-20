@@ -19,6 +19,8 @@ type ChannelNotifyProps = {
     ignore_channel_mentions: 'default' | 'off' | 'on';
     channel_auto_follow_threads: 'on' | 'off';
     push_threads: 'all' | 'mention';
+    nickname?: string;
+    cleared_at?: string;
 };
 type Channel = {
     id: string;
@@ -48,6 +50,9 @@ type Channel = {
 
     /** Whether the channel has Attribute-Based Access Control (ABAC) policy enforcement enabled, controlling access based on user attributes */
     policy_enforced?: boolean;
+
+    /** Whether the display_name was customized by the user (used for GM channels) */
+    display_name_customized?: boolean;
 };
 type ChannelPatch = {
     name?: string;

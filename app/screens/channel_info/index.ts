@@ -3,14 +3,20 @@
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {combineLatest, of as of$} from 'rxjs';
-import {distinctUntilChanged, switchMap, combineLatestWith} from 'rxjs/operators';
+import {distinctUntilChanged, switchMap, combineLatestWith, map} from 'rxjs/operators';
 
 import {observeIsCallsEnabledInChannel} from '@calls/observers';
 import {observeCallsConfig} from '@calls/state';
 import {General} from '@constants';
 import {withServerUrl} from '@context/server';
 import {observeIsPlaybooksEnabled} from '@playbooks/database/queries/version';
-import {observeCurrentChannel} from '@queries/servers/channel';
+import {observeIsChannelFavorited} from '@queries/servers/categories';
+import {
+    observeChannelMembers,
+    observeChannelSettings,
+    observeCurrentChannel,
+    observeIsMutedSetting,
+} from '@queries/servers/channel';
 import {observeCanAddBookmarks} from '@queries/servers/channel_bookmark';
 import {observeCanManageChannelMembers, observeCanManageChannelSettings} from '@queries/servers/role';
 import {
@@ -20,11 +26,12 @@ import {
     observeCurrentTeamId,
     observeCurrentUserId,
 } from '@queries/servers/system';
+import {observeCurrentTeam} from '@queries/servers/team';
 import {observeIsCRTEnabled} from '@queries/servers/thread';
-import {observeCurrentUser, observeUserIsChannelAdmin, observeUserIsTeamAdmin} from '@queries/servers/user';
-import {isDefaultChannel, isTypeDMorGM} from '@utils/channel';
+import {observeCurrentUser, observeUser, observeUserIsChannelAdmin, observeUserIsTeamAdmin} from '@queries/servers/user';
+import {getChannelTitleDisplayName, isDefaultChannel, isTypeDMorGM} from '@utils/channel';
 import {isMinimumServerVersion} from '@utils/helpers';
-import {isSystemAdmin} from '@utils/user';
+import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
 
 import ChannelInfo from './channel_info';
 
@@ -153,6 +160,61 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
 
     const isPlaybooksEnabled = observeIsPlaybooksEnabled(database);
 
+    // New observables for PC-aligned channel info screens
+    const isFavorite = combineLatest([teamId, channelId]).pipe(
+        switchMap(([tId, cId]) => (tId && cId ? observeIsChannelFavorited(database, tId, cId) : of$(false))),
+        distinctUntilChanged(),
+    );
+
+    const isMuted = channelId.pipe(
+        switchMap((cId) => (cId ? observeIsMutedSetting(database, cId) : of$(false))),
+        distinctUntilChanged(),
+    );
+
+    const channelSettings = channelId.pipe(
+        switchMap((cId) => (cId ? observeChannelSettings(database, cId) : of$(undefined))),
+    );
+
+    const memberIds = channelId.pipe(
+        switchMap((cId) => (cId ? observeChannelMembers(database, cId) : of$([]))),
+        map((members) => members.map((m) => m.userId)),
+        distinctUntilChanged(),
+    );
+
+    const channelMembersCount = memberIds.pipe(
+        map((ids) => ids.length),
+        distinctUntilChanged(),
+    );
+
+    // For DM: observe the other user in the conversation
+    const dmUserId = combineLatest([observeCurrentUserId(database), channel]).pipe(
+        switchMap(([currentUserId, c]) => {
+            if (!c) {
+                return of$('');
+            }
+            return of$(getUserIdFromChannelName(currentUserId, c.name));
+        }),
+        distinctUntilChanged(),
+    );
+
+    const dmUser = dmUserId.pipe(
+        switchMap((id) => (id ? observeUser(database, id) : of$(undefined))),
+    );
+
+    const currentUserId = observeCurrentUserId(database);
+
+    const currentTeam = observeCurrentTeam(database);
+    const displayName = combineLatest([channel, currentTeam]).pipe(
+        switchMap(([c, t]) => of$(getChannelTitleDisplayName(c, t?.displayName))),
+        distinctUntilChanged(),
+    );
+
+    // For GM: get myNickname from channel settings
+    const myNickname = channelSettings.pipe(
+        switchMap((s) => of$((s?.notifyProps as Record<string, string>)?.nickname || '')),
+        distinctUntilChanged(),
+    );
+
     return {
         channelId,
         type,
@@ -168,6 +230,15 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         isGuestUser,
         isConvertGMFeatureAvailable,
         isPlaybooksEnabled,
+        isFavorite,
+        isMuted,
+        channelSettings,
+        memberIds,
+        channelMembersCount,
+        dmUser,
+        currentUserId,
+        myNickname,
+        displayName,
     };
 });
 
