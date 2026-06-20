@@ -6,7 +6,7 @@ import React from 'react';
 import OptionItem from '@components/option_item';
 
 type Props = {
-    icon: string;
+    icon?: string;
     activeIcon?: string;
     label: string;
     value: boolean;
@@ -15,10 +15,11 @@ type Props = {
 }
 
 const ToggleRow = ({icon, activeIcon, label, value, onToggle, testID}: Props) => {
+    const resolvedIcon = value && activeIcon ? activeIcon : icon;
     return (
         <OptionItem
             action={onToggle}
-            icon={value && activeIcon ? activeIcon : icon}
+            icon={resolvedIcon || undefined}
             label={label}
             type='toggle'
             selected={value}

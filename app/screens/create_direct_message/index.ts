@@ -21,7 +21,7 @@ type OwnProps = WithDatabaseArgs & {
     currentUserId?: string;
 }
 
-const enhanced = withObservables([], ({database, channelId, isExistingChannel}: OwnProps) => {
+const enhanced = withObservables(['channelId', 'isExistingChannel'], ({database, channelId, isExistingChannel}: OwnProps) => {
     const restrictDirectMessage = observeConfigValue(database, 'RestrictDirectMessage').pipe(
         switchMap((v) => of$(v !== General.RESTRICT_DIRECT_MESSAGE_ANY)),
     );

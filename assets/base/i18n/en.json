@@ -2181,7 +2181,7 @@
   "gm_settings.remove_search_placeholder": "Search members",
   "gm_settings.remove_no_members": "No members found",
   "channel_info_rhs.gm.mute_notifications": "Mute Notifications",
-  "channel_info_rhs.gm.pin_to_top": "Pin to Top",
+  "channel_info_rhs.gm.pin_to_top": "Pin Chat to Top",
   "channel_info_rhs.gm.clear_history": "Clear Chat History",
   "channel_info_rhs.gm.leave_group": "Leave Group",
   "channel_info_rhs.gm.group_id": "Group ID",

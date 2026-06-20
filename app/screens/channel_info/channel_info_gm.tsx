@@ -68,11 +68,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
-    nicknameLabel: {
-        flex: 1,
-        color: theme.centerChannelColor,
-        ...typography('Body', 200),
-    },
     nicknameArrow: {
         color: changeOpacity(theme.centerChannelColor, 0.32),
     },
@@ -260,8 +255,11 @@ const ChannelInfoGM = ({
                         style={styles.nicknameRow}
                         testID='channel_info_gm.my_nickname'
                     >
-                        <Text style={styles.nicknameLabel}>
+                        <Text style={styles.navRowLabel}>
                             {intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'})}
+                        </Text>
+                        <Text style={styles.navRowValue} numberOfLines={1}>
+                            {myNickname || ''}
                         </Text>
                         <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
                     </TouchableOpacity>
@@ -275,16 +273,14 @@ const ChannelInfoGM = ({
                     {/* Toggle section */}
                     <View style={styles.toggleSection}>
                         <ToggleRow
-                            icon='star-outline'
-                            activeIcon='star'
-                            label={intl.formatMessage({id: 'channel_info_rhs.gm.pin_to_top', defaultMessage: 'Pin to Top'})}
+                            icon=''
+                            label={intl.formatMessage({id: 'channel_info_rhs.gm.pin_to_top', defaultMessage: 'Pin Chat to Top'})}
                             value={isFavorite}
                             onToggle={handleToggleFavorite}
                             testID='channel_info_gm.favorite'
                         />
                         <ToggleRow
-                            icon='bell-outline'
-                            activeIcon='bell-off-outline'
+                            icon=''
                             label={intl.formatMessage({id: 'channel_info_rhs.gm.mute_notifications', defaultMessage: 'Mute Notifications'})}
                             value={isMuted}
                             onToggle={handleToggleMute}

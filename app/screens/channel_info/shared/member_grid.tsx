@@ -4,7 +4,7 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
@@ -172,6 +172,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         padding: 0,
     },
     grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         paddingHorizontal: 4,
     },
     moreCount: {
@@ -290,15 +292,14 @@ const MemberGridInner = ({
                     />
                 </View>
             )}
-            <FlatList
-                data={visibleIds}
-                renderItem={renderItem}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.grid}
-                ListFooterComponent={ListFooterComponent}
-            />
+            <View style={styles.grid}>
+                {visibleIds.map((userId) => (
+                    <View key={userId}>
+                        {renderItem({item: userId} as {item: string})}
+                    </View>
+                ))}
+                {ListFooterComponent}
+            </View>
         </View>
     );
 };

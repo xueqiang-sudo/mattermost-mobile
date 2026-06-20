@@ -2179,7 +2179,7 @@
   "gm_settings.remove_search_placeholder": "搜索成员",
   "gm_settings.remove_no_members": "未找到成员",
   "channel_info_rhs.gm.mute_notifications": "消息免打扰",
-  "channel_info_rhs.gm.pin_to_top": "置顶",
+  "channel_info_rhs.gm.pin_to_top": "置顶聊天",
   "channel_info_rhs.gm.clear_history": "清空聊天记录",
   "channel_info_rhs.gm.leave_group": "退出群聊",
   "channel_info_rhs.gm.group_id": "群 ID",

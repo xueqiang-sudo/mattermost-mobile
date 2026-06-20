@@ -48,7 +48,6 @@ const SearchNavRow = ({onPress, testID}: Props) => {
             style={styles.container}
             testID={testID || 'channel_info.shared.search_nav_row'}
         >
-            <CompassIcon name='magnify' size={20} style={styles.icon}/>
             <FormattedText
                 id='gm_settings.search_chat_history'
                 defaultMessage='Search Chat History'

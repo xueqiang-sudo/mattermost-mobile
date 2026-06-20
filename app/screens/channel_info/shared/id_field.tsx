@@ -22,15 +22,18 @@ type Props = {
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
     label: {
         color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginBottom: 6,
-        ...typography('Body', 75, 'SemiBold'),
+        marginRight: 8,
+        ...typography('Body', 200, 'SemiBold'),
     },
     row: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
