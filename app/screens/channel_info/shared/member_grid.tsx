@@ -5,14 +5,12 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import {of as of$} from 'rxjs';
-import {switchMap} from 'rxjs/operators';
-
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
+import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
 import {useTheme} from '@context/theme';
-import {observeUser} from '@queries/servers/user';
-import {displayUsername} from '@utils/user';
+import {observeUser, queryUsersById} from '@queries/servers/user';
+import {displayUsername, getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -46,15 +44,20 @@ const MemberAvatarItemBody = ({user, nickname, onPress}: MemberAvatarItemProps) 
     const theme = useTheme();
     const name = nickname || displayUsername(user);
 
+    // Show custom avatar if user has one, otherwise show default person icon
+    const hasCustomAvatar = user ? getLastPictureUpdate(user) > 0 : false;
+    const profileSource = hasCustomAvatar ? undefined : ACCOUNT_OUTLINE_IMAGE;
+
     return (
         <TouchableOpacity
             onPress={() => user && onPress?.(user.id)}
             style={avatarItemStyles.container}
         >
             <ProfilePicture
-                author={user}
+                author={hasCustomAvatar ? user : undefined}
                 size={40}
                 showStatus={false}
+                source={profileSource}
             />
             <Text
                 numberOfLines={1}
@@ -128,10 +131,11 @@ const ActionButton = ({type, label, onPress}: ActionButtonProps) => {
     );
 };
 
-// --- MemberGrid ---
+// --- MemberGrid (inner, receives observed users) ---
 
 type Props = {
     memberIds: string[];
+    users: UserModel[];
     currentUserId?: string;
     myNickname?: string;
     showAddButton?: boolean;
@@ -182,8 +186,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const MemberGrid = ({
+const MemberGridInner = ({
     memberIds,
+    users,
     currentUserId,
     myNickname,
     showAddButton,
@@ -199,11 +204,32 @@ const MemberGrid = ({
     const styles = getStyleSheet(theme);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Note: search filtering would require user profile data which we don't have here.
-    // The filtering is delegated to the parent via searchTerm prop in a more advanced impl.
-    // For simplicity, we show all memberIds and rely on the search bar being a UX hint.
-    const visibleIds = maxVisible ? memberIds.slice(0, maxVisible) : memberIds;
-    const extraCount = maxVisible ? Math.max(0, memberIds.length - maxVisible) : 0;
+    // Build a lookup map for users by ID
+    const userMap = useMemo(() => {
+        const map = new Map<string, UserModel>();
+        users.forEach((u) => map.set(u.id, u));
+        return map;
+    }, [users]);
+
+    // Filter members by search term (matching webapp logic: displayUsername + username)
+    const filteredIds = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return memberIds;
+        }
+        const term = searchTerm.toLowerCase();
+        return memberIds.filter((id) => {
+            const user = userMap.get(id);
+            if (!user) {
+                return false;
+            }
+            const dName = displayUsername(user).toLowerCase();
+            const uname = (user.username || '').toLowerCase();
+            return dName.includes(term) || uname.includes(term);
+        });
+    }, [memberIds, searchTerm, userMap]);
+
+    const visibleIds = maxVisible ? filteredIds.slice(0, maxVisible) : filteredIds;
+    const extraCount = maxVisible ? Math.max(0, filteredIds.length - maxVisible) : 0;
 
     const renderItem = useCallback(({item: userId}: {item: string}) => {
         const nickname = (userId === currentUserId) ? myNickname : undefined;
@@ -281,5 +307,26 @@ const MemberGrid = ({
         </View>
     );
 };
+
+// --- Enhanced MemberGrid: observes users from database ---
+
+type OuterProps = {
+    memberIds: string[];
+    currentUserId?: string;
+    myNickname?: string;
+    showAddButton?: boolean;
+    showRemoveButton?: boolean;
+    showSearch?: boolean;
+    onAddPress?: () => void;
+    onRemovePress?: () => void;
+    maxVisible?: number;
+    testID?: string;
+}
+
+const enhanced = withObservables(['memberIds'], ({memberIds, database}: OuterProps & WithDatabaseArgs) => ({
+    users: queryUsersById(database, memberIds).observeWithColumns(['last_picture_update', 'username', 'first_name', 'last_name', 'nickname']),
+}));
+
+const MemberGrid = withDatabase(enhanced(MemberGridInner));
 
 export default MemberGrid;

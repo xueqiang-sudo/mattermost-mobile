@@ -1,9 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, ScrollView, StyleSheet, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {clearChannelHistory, leaveChannel, patchChannel, toggleMuteChannel, updateChannelNotifyProps} from '@actions/remote/channel';
@@ -16,10 +16,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
-import {typography} from '@utils/typography';
-
 import {DangerSection, EditableField, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
-import GroupAvatars from './title/group_message/avatars';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -49,17 +46,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         backgroundColor: theme.centerChannelBg,
     },
-    headerSection: {
-        alignItems: 'center',
-        paddingVertical: 20,
-        paddingHorizontal: 16,
-    },
-    displayName: {
-        color: theme.centerChannelColor,
-        marginTop: 12,
-        ...typography('Heading', 600, 'SemiBold'),
-        textAlign: 'center',
-    },
     section: {
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.12),
@@ -83,9 +69,6 @@ const ChannelInfoGM = ({
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
-
-    // Exclude current user from avatar display (matching PC webapp behavior: show all including current user)
-    const avatarUserIds = useMemo(() => memberIds.filter((id) => id !== currentUserId), [memberIds, currentUserId]);
 
     const close = useCallback(() => {
         return dismissModal({componentId});
@@ -189,12 +172,6 @@ const ChannelInfoGM = ({
                     alwaysBounceVertical={false}
                     contentContainerStyle={styles.content}
                 >
-                    {/* Header: Avatars + Name */}
-                    <View style={styles.headerSection}>
-                        <GroupAvatars userIds={avatarUserIds}/>
-                        <Text style={styles.displayName}>{displayName}</Text>
-                    </View>
-
                     {/* Member grid with search + add/remove buttons */}
                     <View style={styles.section}>
                         <MemberGrid
