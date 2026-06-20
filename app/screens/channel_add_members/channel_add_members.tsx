@@ -252,6 +252,7 @@ export default function ChannelAddMembers({
         searchResults: CandidateProfile[];
     }>({suppliers: [], customers: [], enterprise: [], searchResults: []});
     const [showDropdown, setShowDropdown] = useState(false);
+    const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'searchResults']));
     const [isAdding, setIsAdding] = useState(false);
 
@@ -284,6 +285,11 @@ export default function ChannelAddMembers({
                 customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer')),
                 enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise')),
             }));
+            setKnownProfiles((prev) => {
+                const next = new Map(prev);
+                profiles.forEach((p) => next.set(p.id, p));
+                return next;
+            });
         });
     }, [serverUrl, teamIdForMembersList, currentUserId]);
 
@@ -297,6 +303,11 @@ export default function ChannelAddMembers({
             const profiles = mapCandidateDraftsToProfiles(drafts);
             // Include all search results (global exact matches)
             setCandidates((prev) => ({...prev, searchResults: profiles}));
+            setKnownProfiles((prev) => {
+                const next = new Map(prev);
+                profiles.forEach((p) => next.set(p.id, p));
+                return next;
+            });
         });
     }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId]);
 
@@ -348,6 +359,7 @@ export default function ChannelAddMembers({
             }
             return next;
         });
+        setSearchTerm('');
     }, [lockedIds]);
 
     const handleDone = useCallback(async () => {
@@ -447,22 +459,8 @@ export default function ChannelAddMembers({
     };
 
     const selectedProfiles = useMemo(() => {
-        const allProfiles = [
-            ...candidates.suppliers,
-            ...candidates.customers,
-            ...candidates.enterprise,
-            ...candidates.searchResults,
-        ];
-        // Deduplicate by id
-        const seen = new Set<string>();
-        return allProfiles.filter((p) => {
-            if (seen.has(p.id) || !newSelectedIds.has(p.id)) {
-                return false;
-            }
-            seen.add(p.id);
-            return true;
-        });
-    }, [candidates, newSelectedIds]);
+        return Array.from(knownProfiles.values()).filter((p) => newSelectedIds.has(p.id));
+    }, [knownProfiles, newSelectedIds]);
 
     const renderSearchSection = () => {
         return (
@@ -497,7 +495,7 @@ export default function ChannelAddMembers({
                 {showDropdown && (
                     <View style={style.dropdownOverlay}>
                         <View style={style.dropdownList}>
-                            {selectedProfiles.map((user) => {
+                            {Array.from(knownProfiles.values()).map((user) => {
                                 const name = displayUsername(user, teammateNameDisplay);
                                 return (
                                     <TouchableOpacity
