@@ -8,8 +8,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {addMembersToChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
-import {queryChannelMembers} from '@queries/servers/channel';
-import DatabaseManager from '@database/database_manager';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import Search from '@components/search';
@@ -72,6 +70,7 @@ type Props = {
     variant?: CreateDMWindowVariant;
     channelId?: string;
     isExistingChannel?: boolean;
+    existingMemberIds?: string[];
 }
 
 type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
@@ -210,6 +209,7 @@ export default function CreateDirectMessage({
     variant = 'default',
     channelId,
     isExistingChannel,
+    existingMemberIds = [],
 }: Props) {
     const serverUrl = useServerUrl();
     const theme = useTheme();
@@ -239,27 +239,20 @@ export default function CreateDirectMessage({
     }, [selectedIds, lockedIds]);
     const selectedCount = newSelectedIds.size;
 
-    // Fetch existing channel members when in "Add Members" mode
+    // Initialize locked/existing members when in "Add Members" mode
     useEffect(() => {
-        if (!isExistingChannel || !channelId) {
+        if (!isExistingChannel || existingMemberIds.length === 0) {
             return;
         }
-        try {
-            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-            queryChannelMembers(database, channelId).fetch().then((members) => {
-                const ids = new Set<string>();
-                members.forEach((m) => {
-                    if (m.userId !== currentUserId) {
-                        ids.add(m.userId);
-                    }
-                });
-                setLockedIds(ids);
-                setSelectedIds(ids);
-            });
-        } catch {
-            // ignore
-        }
-    }, [isExistingChannel, channelId, serverUrl, currentUserId]);
+        const ids = new Set<string>();
+        existingMemberIds.forEach((id) => {
+            if (id !== currentUserId) {
+                ids.add(id);
+            }
+        });
+        setLockedIds(ids);
+        setSelectedIds(ids);
+    }, [isExistingChannel, existingMemberIds, currentUserId]);
 
     const color = changeOpacity(theme.centerChannelColor, 0.72);
 
