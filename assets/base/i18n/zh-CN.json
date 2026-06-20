@@ -2171,6 +2171,8 @@
   "gm_settings.confirm": "确定",
   "mobile.add_members.title": "添加成员",
   "mobile.add_members.done": "完成",
+  "mobile.add_members.banner": "选择要添加到该群的成员",
+  "mobile.add_members.existing_hint": "{count} 位已有成员已锁定",
   "gm_settings.remove_title": "移除成员",
   "gm_settings.remove_confirm_title": "移除成员",
   "gm_settings.remove_confirm_message": "确定要将 {count} 位成员从群聊中移除吗？",

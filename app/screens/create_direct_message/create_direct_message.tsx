@@ -8,6 +8,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {addMembersToChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {queryChannelMembers} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import Search from '@components/search';
@@ -27,6 +28,7 @@ import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} 
 import {typography} from '@utils/typography';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
+import type {Database} from '@nozbe/watermelondb';
 
 export type CreateDMWindowVariant = 'default' | 'group_only' | 'dm_only';
 
@@ -70,7 +72,7 @@ type Props = {
     variant?: CreateDMWindowVariant;
     channelId?: string;
     isExistingChannel?: boolean;
-    existingMemberIds?: string[];
+    database: Database;
 }
 
 type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
@@ -185,6 +187,21 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
             color: changeOpacity(theme.centerChannelColor, 0.5),
             ...typography('Body', 600, 'Regular'),
         },
+        addMembersBanner: {
+            backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 12,
+        },
+        addMembersBannerText: {
+            color: theme.buttonBg,
+            ...typography('Body', 200, 'SemiBold'),
+        },
+        addMembersBannerHint: {
+            color: changeOpacity(theme.centerChannelColor, 0.64),
+            marginTop: 4,
+            ...typography('Body', 75, 'Regular'),
+        },
     };
 });
 
@@ -209,7 +226,7 @@ export default function CreateDirectMessage({
     variant = 'default',
     channelId,
     isExistingChannel,
-    existingMemberIds = [],
+    database,
 }: Props) {
     const serverUrl = useServerUrl();
     const theme = useTheme();
@@ -241,18 +258,22 @@ export default function CreateDirectMessage({
 
     // Initialize locked/existing members when in "Add Members" mode
     useEffect(() => {
-        if (!isExistingChannel || existingMemberIds.length === 0) {
+        console.log('[CreateDM] isExistingChannel:', isExistingChannel, 'channelId:', channelId);
+        if (!isExistingChannel || !channelId) {
             return;
         }
-        const ids = new Set<string>();
-        existingMemberIds.forEach((id) => {
-            if (id !== currentUserId) {
-                ids.add(id);
-            }
+        queryChannelMembers(database, channelId).fetch().then((members) => {
+            const ids = new Set<string>();
+            members.forEach((m) => {
+                if (m.userId !== currentUserId) {
+                    ids.add(m.userId);
+                }
+            });
+            console.log('[CreateDM] Setting lockedIds:', ids.size);
+            setLockedIds(ids);
+            setSelectedIds(ids);
         });
-        setLockedIds(ids);
-        setSelectedIds(ids);
-    }, [isExistingChannel, existingMemberIds, currentUserId]);
+    }, [isExistingChannel, channelId, database, currentUserId]);
 
     const color = changeOpacity(theme.centerChannelColor, 0.72);
 
@@ -475,6 +496,23 @@ export default function CreateDirectMessage({
             edges={['top', 'left', 'right']}
         >
             <View style={style.contentContainer}>
+                {/* Add Members mode banner - ALWAYS show when isExistingChannel for debugging */}
+                {isExistingChannel ? (
+                    <View style={style.addMembersBanner}>
+                        <Text style={style.addMembersBannerText}>
+                            {formatMessage({id: 'mobile.add_members.banner', defaultMessage: 'Select members to add to this group'})}
+                        </Text>
+                        {lockedIds.size > 0 && (
+                            <Text style={style.addMembersBannerHint}>
+                                {formatMessage({id: 'mobile.add_members.existing_hint', defaultMessage: '{count} existing members are locked'}, {count: lockedIds.size})}
+                            </Text>
+                        )}
+                    </View>
+                ) : (
+                    <View style={{...style.addMembersBanner, backgroundColor: 'rgba(255,0,0,0.1)'}}>
+                        <Text style={{color: 'red'}}>DEBUG: isExistingChannel={String(isExistingChannel)}, channelId={channelId}</Text>
+                    </View>
+                )}
                 <View style={style.searchCard}>
                     <View style={style.searchBar}>
                         <Search
@@ -491,7 +529,7 @@ export default function CreateDirectMessage({
                             inputStyle={style.searchBarInput}
                         />
                     </View>
-                    {variant === 'default' && (
+                    {variant === 'default' && !isExistingChannel && (
                         <Text
                             style={style.selectionHintPrefix}
                             testID='create_direct_message.selection_hint'

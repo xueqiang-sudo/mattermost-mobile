@@ -17,7 +17,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {observeChannelMembers} from '@queries/servers/channel';
 import {queryUsersById} from '@queries/servers/user';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {displayUsername, getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -137,7 +137,7 @@ const RemoveMembers = ({
     const [isRemoving, setIsRemoving] = useState(false);
 
     const close = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, close);

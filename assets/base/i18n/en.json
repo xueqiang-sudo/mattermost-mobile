@@ -2173,6 +2173,8 @@
   "gm_settings.confirm": "Confirm",
   "mobile.add_members.title": "Add Members",
   "mobile.add_members.done": "Done",
+  "mobile.add_members.banner": "Select members to add to this group",
+  "mobile.add_members.existing_hint": "{count} existing members are locked",
   "gm_settings.remove_title": "Remove Members",
   "gm_settings.remove_confirm_title": "Remove Members",
   "gm_settings.remove_confirm_message": "Are you sure you want to remove {count, plural, one {# member} other {# members}} from this group?",
