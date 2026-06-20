@@ -108,11 +108,9 @@ const ChannelInfoGM = ({
     useAndroidHardwareBackHandler(componentId, close);
 
     const handleAddPeople = useCallback(async () => {
-        await dismissModal({componentId});
-        await dismissAllModalsAndPopToRoot();
         const title = intl.formatMessage({id: 'mobile.add_members.title', defaultMessage: 'Add Members'});
-        goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {channelId, isExistingChannel: true});
-    }, [channelId, componentId, intl]);
+        goToScreen(Screens.CHANNEL_ADD_MEMBERS, title, {channelId, inModal: true});
+    }, [channelId, intl]);
 
     const handleRemovePeople = useCallback(async () => {
         const title = intl.formatMessage({id: 'gm_settings.remove_title', defaultMessage: 'Remove Members'});

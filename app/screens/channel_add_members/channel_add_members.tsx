@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {defineMessage, defineMessages, useIntl} from 'react-intl';
 import {Keyboard, type LayoutChangeEvent, Platform, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -190,6 +190,21 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
             borderBottomLeftRadius: 0,
             borderBottomRightRadius: 0,
         },
+        addMembersBanner: {
+            backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 12,
+        },
+        addMembersBannerText: {
+            color: theme.buttonBg,
+            ...typography('Body', 200, 'SemiBold'),
+        },
+        addMembersBannerHint: {
+            color: changeOpacity(theme.centerChannelColor, 0.64),
+            marginTop: 4,
+            ...typography('Body', 75, 'Regular'),
+        },
     };
 });
 
@@ -220,8 +235,20 @@ export default function ChannelAddMembers({
 
     const [term, setTerm] = useState('');
     const [addingMembers, setAddingMembers] = useState(false);
+    const [lockedIds, setLockedIds] = useState<Set<string>>(new Set<string>());
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set<string>());
     const [showBanner, setShowBanner] = useState(Boolean(channel?.abacPolicyEnforced));
+
+    // Newly selected = selected minus locked
+    const newSelectedIds = useMemo(() => {
+        const s = new Set<string>();
+        selectedIds.forEach((id) => {
+            if (!lockedIds.has(id)) {
+                s.add(id);
+            }
+        });
+        return s;
+    }, [selectedIds, lockedIds]);
 
     // Use the hook to fetch access control attributes
     const {attributeTags} = useAccessControlAttributes('channel', channel?.id, channel?.abacPolicyEnforced);
@@ -229,6 +256,23 @@ export default function ChannelAddMembers({
     const handleDismissBanner = useCallback(() => {
         setShowBanner(false);
     }, []);
+
+    // Fetch existing channel members and initialize lockedIds + selectedIds
+    useEffect(() => {
+        if (!channel) {
+            return;
+        }
+        fetchChannelMemberships(serverUrl, channel.id, {}, true).then(({members = []}) => {
+            const ids = new Set<string>();
+            members.forEach((m: ChannelMembership) => {
+                if (m.user_id !== currentUserId) {
+                    ids.add(m.user_id);
+                }
+            });
+            setLockedIds(ids);
+            setSelectedIds(ids);
+        });
+    }, [channel, serverUrl, currentUserId]);
 
     const clearSearch = useCallback(() => {
         setTerm('');
@@ -247,7 +291,7 @@ export default function ChannelAddMembers({
             return;
         }
 
-        const idsToUse = Array.from(selectedIds);
+        const idsToUse = Array.from(newSelectedIds);
         if (!idsToUse.length) {
             return;
         }
@@ -262,21 +306,26 @@ export default function ChannelAddMembers({
             close();
             showAddChannelMembersSnackbar(idsToUse.length);
         }
-    }, [channel, addingMembers, selectedIds, serverUrl, intl]);
+    }, [channel, addingMembers, newSelectedIds, serverUrl, intl]);
 
     const handleSelectProfile = useCallback((user: UserProfile) => {
+        // Locked members (existing channel members) cannot be toggled
+        if (lockedIds.has(user.id)) {
+            return;
+        }
+
         clearSearch();
         setSelectedIds((current) => {
             if (current.has(user.id)) {
                 return removeProfileFromList(current, user.id);
             }
 
-            const newSelectedIds = new Set(current);
-            newSelectedIds.add(user.id);
+            const updated = new Set(current);
+            updated.add(user.id);
 
-            return newSelectedIds;
+            return updated;
         });
-    }, [clearSearch]);
+    }, [clearSearch, lockedIds]);
 
     const onTextChange = useCallback((searchTerm: string) => {
         setTerm(searchTerm);
@@ -294,35 +343,25 @@ export default function ChannelAddMembers({
     const teamIdForMembersList = channel?.teamId || currentTeamId || '';
 
     const userFetchFunction = useCallback(async (page: number) => {
-        if (page > 0 || !channel) {
+        if (page > 0) {
             return [];
         }
 
         const candidates = await getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId);
-        const {members = []} = await fetchChannelMemberships(serverUrl, channel.id, {}, true);
-        const existingMemberIds = new Set(members.map((m: ChannelMembership) => m.user_id));
-
         const profiles = mapCandidateDraftsToProfiles(candidates);
-        return profiles.filter((p) => !existingMemberIds.has(p.id) && !p.delete_at);
-    }, [serverUrl, channel, teamIdForMembersList, currentUserId]);
+        return profiles.filter((p) => !p.delete_at);
+    }, [serverUrl, teamIdForMembersList, currentUserId]);
 
     const userSearchFunction = useCallback(async (searchTerm: string) => {
-        if (!channel) {
-            return [];
-        }
-
         const trimmedTerm = searchTerm.trim();
         if (!trimmedTerm) {
             return [];
         }
 
         const candidates = await searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, trimmedTerm);
-        const {members = []} = await fetchChannelMemberships(serverUrl, channel.id, {}, true);
-        const existingMemberIds = new Set(members.map((m: ChannelMembership) => m.user_id));
-
         const profiles = mapCandidateDraftsToProfiles(candidates);
-        return profiles.filter((p) => !existingMemberIds.has(p.id));
-    }, [serverUrl, channel, teamIdForMembersList, currentUserId]);
+        return profiles;
+    }, [serverUrl, teamIdForMembersList, currentUserId]);
 
     const createUserFilter = useCallback(() => {
         return () => true;
@@ -372,6 +411,17 @@ export default function ChannelAddMembers({
                 />
             )}
             <View style={style.contentContainer}>
+                {/* Add Members mode banner */}
+                <View style={style.addMembersBanner}>
+                    <Text style={style.addMembersBannerText}>
+                        {formatMessage({id: 'channel_add_members.banner', defaultMessage: 'Select members to add to this group'})}
+                    </Text>
+                    {lockedIds.size > 0 && (
+                        <Text style={style.addMembersBannerHint}>
+                            {formatMessage({id: 'channel_add_members.existing_hint', defaultMessage: '{count} existing members are locked'}, {count: lockedIds.size})}
+                        </Text>
+                    )}
+                </View>
                 <View style={style.searchCard}>
                     <View style={style.searchBar}>
                         <Search
@@ -401,6 +451,7 @@ export default function ChannelAddMembers({
                     <ServerUserList
                         handleSelectProfile={handleSelectProfile}
                         selectedIds={selectedIds}
+                        lockedIds={lockedIds}
                         term={term}
                         testID={`${TEST_ID}.user_list`}
                         tutorialWatched={tutorialWatched}
@@ -415,12 +466,12 @@ export default function ChannelAddMembers({
                 </View>
                 <SelectedUsers
                     keyboardOverlap={keyboardOverlap}
-                    selectedIds={selectedIds}
+                    selectedIds={newSelectedIds}
                     onRemove={handleRemoveProfile}
                     teammateNameDisplay={teammateNameDisplay}
                     onPress={addMembers}
                     buttonIcon={'account-plus-outline'}
-                    buttonText={formatMessage({id: 'channel_add_members.add_members.button', defaultMessage: 'Add Members'})}
+                    buttonText={newSelectedIds.size > 0 ? formatMessage({id: 'channel_add_members.done_with_count', defaultMessage: 'Done ({count})'}, {count: newSelectedIds.size}) : formatMessage({id: 'channel_add_members.done', defaultMessage: 'Done'})}
                     testID={`${TEST_ID}.selected`}
                 />
             </View>
