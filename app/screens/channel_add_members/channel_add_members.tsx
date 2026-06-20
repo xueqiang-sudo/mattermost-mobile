@@ -223,6 +223,7 @@ export default function ChannelAddMembers({
     tutorialWatched,
     inModal,
 }: Props) {
+    console.log('[ChannelAddMembers] Rendering with channelId:', channel?.id, 'inModal:', inModal);
     const serverUrl = useServerUrl();
     const theme = useTheme();
     const style = getStyleFromTheme(theme);
@@ -411,13 +412,16 @@ export default function ChannelAddMembers({
                 />
             )}
             <View style={style.contentContainer}>
-                {/* Add Members mode banner */}
-                <View style={style.addMembersBanner}>
-                    <Text style={style.addMembersBannerText}>
+                {/* Add Members mode banner - VISIBLE DEBUG */}
+                <View style={{...style.addMembersBanner, backgroundColor: '#FFD700', borderWidth: 2, borderColor: '#FF6600'}}>
+                    <Text style={{...style.addMembersBannerText, color: '#000', fontSize: 16}}>
+                        🆕 NEW ADD MEMBERS UI - channelId: {channel?.id || 'undefined'}
+                    </Text>
+                    <Text style={{...style.addMembersBannerHint, color: '#333'}}>
                         {formatMessage({id: 'channel_add_members.banner', defaultMessage: 'Select members to add to this group'})}
                     </Text>
                     {lockedIds.size > 0 && (
-                        <Text style={style.addMembersBannerHint}>
+                        <Text style={{...style.addMembersBannerHint, color: '#333'}}>
                             {formatMessage({id: 'channel_add_members.existing_hint', defaultMessage: '{count} existing members are locked'}, {count: lockedIds.size})}
                         </Text>
                     )}
