@@ -108,7 +108,6 @@ const ChannelInfoGM = ({
     useAndroidHardwareBackHandler(componentId, close);
 
     const handleAddPeople = useCallback(async () => {
-        console.log('[ChannelInfoGM] handleAddPeople called, channelId:', channelId);
         const title = intl.formatMessage({id: 'mobile.add_members.title', defaultMessage: 'Add Members'});
         goToScreen(Screens.CHANNEL_ADD_MEMBERS, title, {channelId, inModal: true});
     }, [channelId, intl]);

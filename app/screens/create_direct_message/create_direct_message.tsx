@@ -258,7 +258,6 @@ export default function CreateDirectMessage({
 
     // Initialize locked/existing members when in "Add Members" mode
     useEffect(() => {
-        console.log('[CreateDM] isExistingChannel:', isExistingChannel, 'channelId:', channelId);
         if (!isExistingChannel || !channelId) {
             return;
         }
@@ -269,7 +268,6 @@ export default function CreateDirectMessage({
                     ids.add(m.userId);
                 }
             });
-            console.log('[CreateDM] Setting lockedIds:', ids.size);
             setLockedIds(ids);
             setSelectedIds(ids);
         });
@@ -496,8 +494,8 @@ export default function CreateDirectMessage({
             edges={['top', 'left', 'right']}
         >
             <View style={style.contentContainer}>
-                {/* Add Members mode banner - ALWAYS show when isExistingChannel for debugging */}
-                {isExistingChannel ? (
+                {/* Add Members mode banner */}
+                {isExistingChannel && (
                     <View style={style.addMembersBanner}>
                         <Text style={style.addMembersBannerText}>
                             {formatMessage({id: 'mobile.add_members.banner', defaultMessage: 'Select members to add to this group'})}
@@ -507,10 +505,6 @@ export default function CreateDirectMessage({
                                 {formatMessage({id: 'mobile.add_members.existing_hint', defaultMessage: '{count} existing members are locked'}, {count: lockedIds.size})}
                             </Text>
                         )}
-                    </View>
-                ) : (
-                    <View style={{...style.addMembersBanner, backgroundColor: 'rgba(255,0,0,0.1)'}}>
-                        <Text style={{color: 'red'}}>DEBUG: isExistingChannel={String(isExistingChannel)}, channelId={channelId}</Text>
                     </View>
                 )}
                 <View style={style.searchCard}>
