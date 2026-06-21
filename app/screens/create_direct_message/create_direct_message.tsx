@@ -262,10 +262,11 @@ export default function CreateDirectMessage({
         suppliers: CandidateProfile[];
         customers: CandidateProfile[];
         enterprise: CandidateProfile[];
+        external: CandidateProfile[];
         searchResults: CandidateProfile[];
-    }>({suppliers: [], customers: [], enterprise: [], searchResults: []});
+    }>({suppliers: [], customers: [], enterprise: [], external: [], searchResults: []});
     const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'searchResults']));
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'external', 'searchResults']));
     const [startingConversation, setStartingConversation] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
 
@@ -303,11 +304,12 @@ export default function CreateDirectMessage({
     useEffect(() => {
         getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId).then((drafts) => {
             const profiles = mapCandidateDraftsToProfiles(drafts);
+            const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
             setCandidates((prev) => ({
                 ...prev,
-                suppliers: profiles.filter((p) => p.mmCandidateTags?.includes('supplier')),
-                customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer')),
-                enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise')),
+                suppliers: profiles.filter((p) => p.mmCandidateTags?.includes('supplier') && notSelf(p)),
+                customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer') && notSelf(p)),
+                enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise') && notSelf(p)),
             }));
             setKnownProfiles((prev) => {
                 const next = new Map(prev);
@@ -325,7 +327,16 @@ export default function CreateDirectMessage({
         }
         searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, searchTerm).then((drafts) => {
             const profiles = mapCandidateDraftsToProfiles(drafts);
-            setCandidates((prev) => ({...prev, searchResults: profiles}));
+            const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
+            const isExternal = (p: CandidateProfile) =>
+                !p.mmCandidateTags?.includes('customer') &&
+                !p.mmCandidateTags?.includes('supplier') &&
+                !p.mmCandidateTags?.includes('enterprise');
+            setCandidates((prev) => ({
+                ...prev,
+                searchResults: profiles.filter(notSelf),
+                external: profiles.filter((p) => notSelf(p) && isExternal(p)),
+            }));
             setKnownProfiles((prev) => {
                 const next = new Map(prev);
                 profiles.forEach((p) => next.set(p.id, p));
@@ -349,6 +360,7 @@ export default function CreateDirectMessage({
             suppliers: candidates.suppliers.filter(filterFn),
             customers: candidates.customers.filter(filterFn),
             enterprise: candidates.enterprise.filter(filterFn),
+            external: candidates.external.filter(filterFn),
             searchResults: candidates.searchResults,
         };
     }, [candidates, searchTerm, teammateNameDisplay]);
@@ -642,6 +654,11 @@ export default function CreateDirectMessage({
                             intl.formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
                             'enterprise',
                             filteredCandidates.enterprise,
+                        )}
+                        {filteredCandidates.external.length > 0 && renderSection(
+                            intl.formatMessage({id: 'channel_add_members.external', defaultMessage: 'External Contacts'}),
+                            'external',
+                            filteredCandidates.external,
                         )}
                         {filteredCandidates.searchResults.length > 0 && renderSection(
                             intl.formatMessage({id: 'channel_add_members.search_results', defaultMessage: 'Search Results'}),

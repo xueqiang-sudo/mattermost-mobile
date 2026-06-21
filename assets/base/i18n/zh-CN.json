@@ -117,6 +117,7 @@
   "channel_add_members.suppliers": "我的供应商",
   "channel_add_members.customers": "我的客户",
   "channel_add_members.enterprise": "企业内部成员",
+  "channel_add_members.external": "外部联系人",
   "channel_add_members.existing": "已有成员",
   "channel_add_members.search_placeholder": "搜索",
   "channel_add_members.search_results": "搜索结果",

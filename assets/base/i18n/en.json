@@ -117,6 +117,7 @@
   "channel_add_members.suppliers": "My Suppliers",
   "channel_add_members.customers": "My Customers",
   "channel_add_members.enterprise": "Enterprise Members",
+  "channel_add_members.external": "External Contacts",
   "channel_add_members.existing": "Existing member",
   "channel_add_members.search_placeholder": "Search",
   "channel_add_members.search_results": "Search Results",

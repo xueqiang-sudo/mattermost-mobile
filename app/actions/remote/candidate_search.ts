@@ -136,3 +136,74 @@ export async function getEmployeeCandidates(
     });
     return candidateDrafts;
 }
+
+/** 获取外部候选联系人（仅供应商 + 客户，不含企业内成员） */
+export async function getExternalCandidates(
+    serverUrl: string,
+    currentUserId: string,
+): Promise<CandidateDraft[]> {
+    const drafts = new Map<string, CandidateDraft>();
+    const draftUids = new Set<string>();
+    const fullEmployeeContactsRes = await fetchAllEmployeeContacts(serverUrl, currentUserId, {granularity: 2});
+    for (const employeeContact of fullEmployeeContactsRes.data?.suppliers ?? []) {
+        const draft = ensureDraft(draftUids, drafts, employeeContact.contact as SimpleUserProfile, currentUserId);
+        draft.sourceFlags.supplier = true;
+    }
+    for (const employeeContact of fullEmployeeContactsRes.data?.customers ?? []) {
+        const draft = ensureDraft(draftUids, drafts, employeeContact.contact as SimpleUserProfile, currentUserId);
+        draft.sourceFlags.customer = true;
+    }
+    const candidateDrafts: CandidateDraft[] = [];
+    draftUids.forEach((uid) => {
+        const draft = drafts.get(uid);
+        if (draft) {
+            candidateDrafts.push(draft);
+        }
+    });
+    return candidateDrafts;
+}
+
+/** 搜索外部候选联系人（精确匹配，仅供应商 + 客户，不含企业内成员） */
+export async function searchExternalCandidates(
+    serverUrl: string,
+    currentUserId: string,
+    term: string,
+): Promise<CandidateDraft[]> {
+    const trimmed = term.trim();
+    if (!trimmed) {
+        return [];
+    }
+
+    const drafts = new Map<string, CandidateDraft>();
+    const draftUids = new Set<string>();
+
+    const [globalExactRes, suppliersRes, customersRes] = await Promise.all([
+        searchProfiles(serverUrl, trimmed, {exact_match: true}),
+        searchEmployeeContacts(serverUrl, MMEmployeeContactTypes.Supplier, currentUserId, trimmed, {granularity: 2}),
+        searchEmployeeContacts(serverUrl, MMEmployeeContactTypes.Customer, currentUserId, trimmed, {granularity: 2}),
+    ]);
+
+    for (const employee of globalExactRes.data ?? []) {
+        const draft = ensureDraft(draftUids, drafts, employee, currentUserId);
+        draft.sourceFlags.globalSearch = true;
+    }
+
+    for (const employeeContact of suppliersRes.data ?? []) {
+        const draft = ensureDraft(draftUids, drafts, employeeContact.contact, currentUserId);
+        draft.sourceFlags.supplier = true;
+    }
+
+    for (const employeeContact of customersRes.data ?? []) {
+        const draft = ensureDraft(draftUids, drafts, employeeContact.contact, currentUserId);
+        draft.sourceFlags.customer = true;
+    }
+
+    const candidateDrafts: CandidateDraft[] = [];
+    draftUids.forEach((uid) => {
+        const draft = drafts.get(uid);
+        if (draft) {
+            candidateDrafts.push(draft);
+        }
+    });
+    return candidateDrafts;
+}
