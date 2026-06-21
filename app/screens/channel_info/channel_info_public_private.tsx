@@ -15,7 +15,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal, goToScreen} from '@screens/navigation';
+import {dismissModal, goToScreen, showModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import {DangerSection, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
@@ -87,6 +87,13 @@ const ChannelInfoPublicPrivate = ({
     useNavButtonPressed(closeButtonId, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
 
+    const handleInvitePeople = useCallback(() => {
+        showModal(
+            Screens.INVITE,
+            intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
+        );
+    }, [intl]);
+
     const handleSearchHistory = useCallback(async () => {
         const title = intl.formatMessage({id: 'gm_settings.search_chat_history', defaultMessage: 'Search Chat History'});
         goToScreen(Screens.SEARCH_CHAT_HISTORY, title, {channelId, memberIds});
@@ -150,10 +157,11 @@ const ChannelInfoPublicPrivate = ({
                     <View style={styles.section}>
                         <MemberGrid
                             memberIds={memberIds}
-                            showAddButton={false}
+                            showAddButton={true}
                             showRemoveButton={false}
                             showSearch={true}
                             maxVisible={MAX_VISIBLE_MEMBERS}
+                            onAddPress={handleInvitePeople}
                             testID='channel_info_public_private.member_grid'
                         />
                     </View>
