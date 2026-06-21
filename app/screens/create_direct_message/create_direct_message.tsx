@@ -238,12 +238,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
-    hint: {
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        paddingHorizontal: 16,
-        paddingTop: 8,
-        ...typography('Body', 75),
-    },
 }));
 
 export default function CreateDirectMessage({
@@ -626,16 +620,6 @@ export default function CreateDirectMessage({
                     </View>
                 )}
             </View>
-
-            {/* Hint for default variant */}
-            {variant === 'default' && !isExistingChannel && (
-                <Text style={style.hint}>
-                    {intl.formatMessage({
-                        id: 'create_direct_message.selection_hint_prefix',
-                        defaultMessage: 'One person: private chat · Several: discussion group.',
-                    })}
-                </Text>
-            )}
 
             {/* Member list */}
             <FlatList
