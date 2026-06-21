@@ -8,13 +8,18 @@
 
 import React, {useState} from 'react';
 import {ActivityIndicator, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 
 import {useTheme} from '@context/theme';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
+const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
+
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
+    flex: {
+        flex: 1,
+    },
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
@@ -54,23 +59,28 @@ const AIAgent = () => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <WebView
-                source={{uri: DEEPSEEK_URL}}
-                style={{flex: 1}}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                onLoadStart={onLoadStart}
-                onLoadEnd={onLoadEnd}
-                startInLoadingState={false}
-                allowsInlineMediaPlayback={true}
-                mediaPlaybackRequiresUserAction={false}
-            />
-            {isLoading && (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size='large' color={theme.buttonBg}/>
-                </View>
-            )}
+        <SafeAreaView
+            edges={edges}
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+        >
+            <View style={styles.container}>
+                <WebView
+                    source={{uri: DEEPSEEK_URL}}
+                    style={{flex: 1}}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    onLoadStart={onLoadStart}
+                    onLoadEnd={onLoadEnd}
+                    startInLoadingState={false}
+                    allowsInlineMediaPlayback={true}
+                    mediaPlaybackRequiresUserAction={false}
+                />
+                {isLoading && (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size='large' color={theme.buttonBg}/>
+                    </View>
+                )}
+            </View>
         </SafeAreaView>
     );
 };

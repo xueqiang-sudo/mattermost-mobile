@@ -7,7 +7,7 @@ import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {refetchCurrentUser} from '@actions/remote/user';
 import FloatingCallContainer from '@calls/components/floating_call_container';
@@ -44,7 +44,8 @@ type ChannelProps = {
     showIncomingCalls: boolean;
 };
 
-const edges: Edge[] = ['bottom', 'left', 'right'];
+/** 与我的主页 / 通讯录 Tab 一致：四边安全区 + sidebarBg 顶栏色 */
+const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 const styles = StyleSheet.create({
     content: {
@@ -77,7 +78,6 @@ const ChannelListScreen = (props: ChannelProps) => {
     const route = useRoute();
     const isFocused = useIsFocused();
     const navigation = useNavigation();
-    const insets = useSafeAreaInsets();
     const serverUrl = useServerUrl();
     const params = route.params as {direction: string};
 
@@ -126,10 +126,6 @@ const ChannelListScreen = (props: ChannelProps) => {
             transform: [{translateX: withTiming(0, {duration: 150})}],
         };
     }, [isFocused, params]);
-
-    const top = useAnimatedStyle(() => {
-        return {height: insets.top, backgroundColor: theme.sidebarBg};
-    }, [theme, insets.top]);
 
     useEffect(() => {
         if (!props.hasTeams) {
@@ -187,40 +183,37 @@ const ChannelListScreen = (props: ChannelProps) => {
     );
 
     return (
-        <>
-            <Animated.View style={top}/>
-            <SafeAreaView
-                style={styles.flex}
-                edges={edges}
-                testID='channel_list.screen'
-            >
-                <ConnectionBanner/>
-                {props.isLicensed &&
-                    <AnnouncementBanner/>
-                }
-                <View style={styles.content}>
-                    <Animated.View
-                        style={[styles.content, animated]}
-                    >
-                        <ConversationList
-                            iconPad={false}
-                            isCRTEnabled={props.isCRTEnabled}
-                            moreThanOneTeam={props.hasMoreThanOneTeam}
-                            hasChannels={props.hasChannels}
+        <SafeAreaView
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+            edges={edges}
+            testID='channel_list.screen'
+        >
+            <ConnectionBanner/>
+            {props.isLicensed &&
+                <AnnouncementBanner/>
+            }
+            <View style={styles.content}>
+                <Animated.View
+                    style={[styles.content, animated]}
+                >
+                    <ConversationList
+                        iconPad={false}
+                        isCRTEnabled={props.isCRTEnabled}
+                        moreThanOneTeam={props.hasMoreThanOneTeam}
+                        hasChannels={props.hasChannels}
+                    />
+                    {isTablet && props.hasChannels &&
+                        <AdditionalTabletView/>
+                    }
+                    {props.showIncomingCalls && !isTablet &&
+                        <FloatingCallContainer
+                            showIncomingCalls={props.showIncomingCalls}
+                            channelsScreen={true}
                         />
-                        {isTablet && props.hasChannels &&
-                            <AdditionalTabletView/>
-                        }
-                        {props.showIncomingCalls && !isTablet &&
-                            <FloatingCallContainer
-                                showIncomingCalls={props.showIncomingCalls}
-                                channelsScreen={true}
-                            />
-                        }
-                    </Animated.View>
-                </View>
-            </SafeAreaView>
-        </>
+                    }
+                </Animated.View>
+            </View>
+        </SafeAreaView>
     );
 };
 

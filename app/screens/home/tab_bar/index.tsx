@@ -6,12 +6,15 @@ import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {Shadow} from 'react-native-shadow-2';
 
 import {Events, Navigation as NavigationConstants, Screens, View as ViewConstants} from '@constants';
-import {useWindowDimensions} from '@hooks/device';
 import NavigationStore from '@store/navigation_store';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {
+    changeOpacity,
+    makeStyleSheetFromTheme,
+    WECHAT_HOME_DIVIDER_OPACITY,
+    WECHAT_HOME_SECONDARY_TEXT_OPACITY,
+} from '@utils/theme';
 
 import AIAgent from './ai_agent';
 import Contacts from './contacts';
@@ -22,7 +25,7 @@ import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        backgroundColor: theme.centerChannelBg,
+        backgroundColor: theme.sidebarBg,
         alignContent: 'center',
         flexDirection: 'row',
         height: ViewConstants.BOTTOM_TAB_HEIGHT,
@@ -38,30 +41,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 2,
     },
     separator: {
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
+        borderTopColor: changeOpacity(theme.centerChannelColor, WECHAT_HOME_DIVIDER_OPACITY),
         borderTopWidth: 0.5,
     },
-    slider: {
-        backgroundColor: theme.buttonBg,
-        borderBottomLeftRadius: 4,
-        borderBottomRightRadius: 4,
-        width: 48,
-        height: 4,
-    },
-    sliderContainer: {
-        height: 4,
-        position: 'absolute',
-        top: 0,
-        left: 10,
-        alignItems: 'center',
-    },
-    shadowBorder: {
-        borderRadius: 6,
-    },
 }));
-
-const shadowSides = {top: true, bottom: false, end: false, start: false};
-const shadowOffset: [x: number | string, y: number | string] = [0, -0.5];
 
 const TabComponents: Record<string, any> = {
     [Screens.HOME_TAB_AI_AGENT]: AIAgent,
@@ -80,8 +63,6 @@ const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
 function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {theme: Theme}) {
     const intl = useIntl();
     const [visible, setVisible] = useState<boolean|undefined>();
-    const {width} = useWindowDimensions();
-    const tabWidth = width / state.routes.length;
     const style = getStyleSheet(theme);
     const safeareaInsets = useSafeAreaInsets();
 
@@ -127,13 +108,6 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
         return () => listner.remove();
     }, [state]);
 
-    const transform = useAnimatedStyle(() => {
-        const translateX = withTiming(state.index * tabWidth, {duration: 150});
-        return {
-            transform: [{translateX}],
-        };
-    }, [state.index, tabWidth]);
-
     const animatedStyle = useAnimatedStyle(() => {
         if (visible === undefined) {
             return {transform: [{translateY: -safeareaInsets.bottom}]};
@@ -147,26 +121,6 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
 
     return (
         <Animated.View style={[style.container, style.separator, animatedStyle]}>
-            <Shadow
-                startColor='rgba(61, 60, 64, 0.08)'
-                distance={4}
-                offset={shadowOffset}
-                style={{
-                    position: 'absolute',
-                    borderRadius: 6,
-                    width,
-                }}
-                sides={shadowSides}
-            />
-            <Animated.View
-                style={[
-                    style.sliderContainer,
-                    {width: tabWidth - 20},
-                    transform,
-                ]}
-            >
-                <View style={style.slider}/>
-            </Animated.View>
             {state.routes.map((route, index) => {
                 const {options} = descriptors[route.key];
 
@@ -207,7 +161,7 @@ function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {th
                 };
 
                 const tabLabel = TAB_LABELS[route.name];
-                const labelColor = isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.48);
+                const labelColor = isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY);
 
                 return (
                     <TouchableOpacity

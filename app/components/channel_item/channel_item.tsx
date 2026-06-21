@@ -10,14 +10,13 @@ import ChannelIcon from '@components/channel_icon';
 import CompassIcon from '@components/compass_icon';
 import FormattedConversationTime from '@components/formatted_conversation_time';
 import {General} from '@constants';
-import {HOME_PADDING} from '@constants/view';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {isDMorGM} from '@utils/channel';
 import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {getHomeLastPostPreviewText} from '@utils/home_last_post_preview';
 import {formatMessagePreview} from '@utils/message_preview';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getUserIdFromChannelName} from '@utils/user';
 import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
@@ -144,6 +143,9 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: theme.sidebarBg,
         marginLeft: 0,
     },
+    iconBadgeHome: {
+        borderColor: theme.centerChannelBg,
+    },
 
     // 首页私聊：角标不沿用 iconBadge 的 right:-4（易与圆切线别扭），改用 left 锚定 + 描边/浅阴影分层
     iconBadgeHomeDm: {
@@ -202,6 +204,19 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     subtitleOnCenterBg: {
         color: changeOpacity(theme.centerChannelColor, 0.64),
     },
+    timestampHome: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
+        marginLeft: 8,
+    },
+    subtitleHome: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
+        marginTop: 2,
+    },
+    homeRowPressed: {
+        backgroundColor: theme.sidebarTextHoverBg,
+    },
     activeItem: {
         backgroundColor: changeOpacity(theme.sidebarTextActiveColor, 0.1),
         borderLeftColor: theme.sidebarTextActiveBorder,
@@ -217,7 +232,7 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
     },
 
-    /** 按下时降低透明度，产生被按下的视觉效果 */
+    /** 按下时降低透明度，产生被按下的视觉效果（非首页列表） */
     centerListRowPressed: {
         opacity: 0.85,
     },
@@ -334,32 +349,37 @@ const ChannelItem = ({
     }, [channel, onDelete]);
 
     const textStyles = useMemo(() => [
-
-        // 首页聊天列表名称使用 sidebarText 颜色（适配深色侧边栏背景），未读/已读/选中完全一致
-        // 非首页场景保持原有的加粗高亮逻辑
-        isOnHome? {color: theme.sidebarText, fontWeight: '400'}: (isBolded && !isMuted ? textStyle.bold : textStyle.regular),
+        isOnHome ?
+            (isBolded && !isMuted ? {...textStyle.bold, color: theme.centerChannelColor} : {...textStyle.regular, color: theme.centerChannelColor}) :
+            (isBolded && !isMuted ? textStyle.bold : textStyle.regular),
         isOnHome ? null : styles.text,
         isOnHome ? null : isBolded && styles.highlight,
         isOnHome ? null : showActive && styles.textActive,
         isOnCenterBg ? styles.textOnCenterBg : null,
-        isMuted && styles.muted,
+        isMuted && !isOnHome && styles.muted,
+        isMuted && isOnHome && {color: changeOpacity(theme.centerChannelColor, 0.32)},
         isMuted && isOnCenterBg && styles.mutedOnCenterBg,
-    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, theme.sidebarText]);
+    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, theme]);
+
+    const homePadding = useMemo(() => ({
+        paddingLeft: WECHAT_HOME_PADDING_H,
+        paddingRight: WECHAT_HOME_PADDING_H,
+    }), []);
 
     const containerStyle = useMemo(() => {
         const listSurface =
-            isOnCenterBg && listRowIndex !== undefined ?getChannelListModalRowSurfaceStyle(theme) :null;
+            isOnCenterBg && listRowIndex !== undefined ? getChannelListModalRowSurfaceStyle(theme) : null;
         return [
             styles.container,
             listSurface,
-            isOnHome && HOME_PADDING,
+            isOnHome ? homePadding : null,
             showActive && styles.activeItem,
             showActive && isOnHome && {
-                paddingLeft: HOME_PADDING.paddingLeft - styles.activeItem.borderLeftWidth,
+                paddingLeft: WECHAT_HOME_PADDING_H - styles.activeItem.borderLeftWidth,
             },
             {minHeight: height},
         ];
-    }, [height, showActive, styles, isOnHome, isOnCenterBg, listRowIndex, theme]);
+    }, [height, showActive, styles, isOnHome, isOnCenterBg, listRowIndex, theme, homePadding]);
 
     const showIconBadge = isOnHome && (mentionsCount > 0 || (isUnread && !isMuted));
 
@@ -494,7 +514,7 @@ const ChannelItem = ({
             }
             onPress={handleOnPress}
             style={({pressed}) => (
-                !isCenterListCard && pressed ?{opacity: 0.92} :undefined
+                !isCenterListCard && !isOnHome && pressed ? {opacity: 0.92} : undefined
             )}
         >
             {({pressed}) => (
@@ -502,6 +522,7 @@ const ChannelItem = ({
                     style={[
                         containerStyle,
                         isCenterListCard && pressed && styles.centerListRowPressed,
+                        isOnHome && pressed && styles.homeRowPressed,
                     ]}
                     testID={channelItemTestId}
                 >
@@ -545,13 +566,14 @@ const ChannelItem = ({
                                 visible={true}
                                 value={badgeValue}
                                 type='Small'
-                                backgroundColor='#FF3B30'
-                                color='#FFFFFF'
-                                borderColor={isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg}
+                                backgroundColor={theme.errorTextColor}
+                                color={theme.buttonColor}
+                                borderColor={isOnHome ? theme.centerChannelBg : (isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg)}
                                 style={[
                                     styles.badge,
                                     isMuted && styles.mutedBadge,
                                     isOnCenterBg && styles.badgeOnCenterBg,
+                                    isOnHome && styles.iconBadgeHome,
                                     isDmChannel ? styles.iconBadgeHomeDm : styles.iconBadge,
                                 ]}
                             />
@@ -579,7 +601,7 @@ const ChannelItem = ({
                                         timestamp={lastPostAt}
                                         timeZone={currentTimezone ?? undefined}
                                         isMilitaryTime={isMilitaryTime}
-                                        style={[styles.timestamp, isOnCenterBg && styles.timestampOnCenterBg]}
+                                        style={[styles.timestampHome, isOnCenterBg && styles.timestampOnCenterBg]}
                                     />
                                 ) : (
                                     <View style={{minWidth: 24}}/>
@@ -589,7 +611,7 @@ const ChannelItem = ({
                                 <Text
                                     numberOfLines={1}
                                     ellipsizeMode='tail'
-                                    style={[styles.subtitle, isMuted && styles.muted, isOnCenterBg && styles.subtitleOnCenterBg]}
+                                    style={[styles.subtitleHome, isMuted && {color: changeOpacity(theme.centerChannelColor, 0.32)}, isOnCenterBg && styles.subtitleOnCenterBg]}
                                 >
                                     {subtitle}
                                 </Text>

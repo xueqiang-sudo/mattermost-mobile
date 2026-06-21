@@ -80,7 +80,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75, 'SemiBold'),
     },
     channelItemWrapper: {
-        backgroundColor: theme.sidebarBg,
+        backgroundColor: theme.centerChannelBg,
     },
 }));
 

@@ -13,7 +13,7 @@ import {subscribeAllServers} from '@database/subscription/servers';
 import {subscribeUnreadAndMentionsByServer, type UnreadObserverArgs} from '@database/subscription/unreads';
 import useDidUpdate from '@hooks/did_update';
 import {logDebug} from '@utils/log';
-import {changeOpacity} from '@utils/theme';
+import {changeOpacity, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 
 import type ServersModel from '@typings/database/models/app/servers';
 import type {UnreadMessages, UnreadSubscription} from '@typings/database/subscriptions';
@@ -171,11 +171,11 @@ const Home = ({isFocused, theme}: Props) => {
             <CompassIcon
                 size={BOTTOM_TAB_ICON_SIZE}
                 name='message-text-outline'
-                color={isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.48)}
+                color={isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY)}
             />
             <Badge
-                backgroundColor={theme.buttonBg}
-                borderColor={theme.centerChannelBg}
+                backgroundColor={theme.errorTextColor}
+                borderColor={theme.sidebarBg}
                 color={theme.buttonColor}
                 style={unreadStyle}
                 visible={!isFocused && Boolean(unreadStyle)}

@@ -6,8 +6,9 @@ import {createBottomTabNavigator, type BottomTabBarProps} from '@react-navigatio
 import {NavigationContainer, DefaultTheme} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {DeviceEventEmitter, Platform, StyleSheet, View} from 'react-native';
+import {DeviceEventEmitter, Platform, StatusBar, StyleSheet, View} from 'react-native';
 import {enableFreeze, enableScreens} from 'react-native-screens';
+import tinyColor from 'tinycolor2';
 
 import {autoUpdateTimezone} from '@actions/remote/user';
 import LeftDrawer from '@components/left_drawer';
@@ -148,9 +149,13 @@ export function HomeScreen(props: HomeProps) {
 
     return (
         <View
-            style={styles.flex}
+            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
             nativeID={SecurityManager.getShieldScreenId(Screens.HOME, true)}
         >
+            <StatusBar
+                backgroundColor={theme.sidebarBg}
+                barStyle={tinyColor(theme.sidebarBg).isDark() ? 'light-content' : 'dark-content'}
+            />
             <LeftDrawerProvider>
                 <NavigationContainer
                     theme={{

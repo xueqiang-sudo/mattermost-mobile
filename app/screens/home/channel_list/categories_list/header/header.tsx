@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
-import {type Insets, Text, TouchableWithoutFeedback, View} from 'react-native';
+import {type Insets, StyleSheet, Text, TouchableWithoutFeedback, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {logout} from '@actions/remote/session';
@@ -13,7 +13,6 @@ import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
-import {HOME_PADDING} from '@constants/view';
 import {useLeftDrawer} from '@context/left_drawer';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -23,7 +22,7 @@ import {bottomSheet} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {alertPushProxyError, alertPushProxyUnknown} from '@utils/push_proxy';
 import {alertServerLogout} from '@utils/server';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import LoadingUnreads from './loading_unreads';
@@ -48,12 +47,23 @@ type Props = {
 }
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
+    headerContainer: {
+        backgroundColor: theme.sidebarBg,
+    },
+    headerContent: {
+        paddingLeft: WECHAT_HOME_PADDING_H,
+        paddingRight: WECHAT_HOME_PADDING_H,
+    },
+    headerDivider: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, WECHAT_HOME_DIVIDER_OPACITY),
+    },
     headingStyles: {
-        color: theme.sidebarText,
+        color: theme.centerChannelColor,
         ...typography('Heading', 300, 'SemiBold'),
     },
     subHeadingStyles: {
-        color: changeOpacity(theme.sidebarText, 0.56),
+        color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
         ...typography('Body', 75),
         lineHeight: 16,
         marginTop: 1,
@@ -67,7 +77,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         marginLeft: 4,
     },
     chevronIcon: {
-        color: changeOpacity(theme.sidebarText, 0.8),
+        color: changeOpacity(theme.centerChannelColor, 0.8),
         fontSize: 24,
     },
     rightButtonsContainer: {
@@ -75,7 +85,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
     },
     plusButton: {
-        backgroundColor: changeOpacity(theme.sidebarText, 0.08),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
         height: PLUS_BUTTON_SIZE,
         width: PLUS_BUTTON_SIZE,
         borderRadius: PLUS_BUTTON_SIZE / 2,
@@ -83,7 +93,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
     },
     searchButton: {
-        backgroundColor: changeOpacity(theme.sidebarText, 0.08),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
         height: PLUS_BUTTON_SIZE,
         width: PLUS_BUTTON_SIZE,
         borderRadius: PLUS_BUTTON_SIZE / 2,
@@ -92,7 +102,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         marginRight: 8,
     },
     plusIcon: {
-        color: changeOpacity(theme.sidebarText, 0.8),
+        color: changeOpacity(theme.centerChannelColor, 0.8),
         fontSize: 18,
     },
     pushAlert: {
@@ -104,7 +114,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingRight: 48,
     },
     noTeamHeadingStyles: {
-        color: changeOpacity(theme.sidebarText, 0.64),
+        color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
         ...typography('Body', 100, 'SemiBold'),
     },
     noTeamHeaderRow: {
@@ -231,7 +241,7 @@ const ChannelListHeader = ({
                     <OpenDrawerIcon
                         width={26}
                         height={26}
-                        color={theme.sidebarText}
+                        color={theme.centerChannelColor}
                     />
                 </TouchableWithFeedback>
                 <View style={styles.firstBox}>
@@ -336,8 +346,13 @@ const ChannelListHeader = ({
     }
 
     return (
-        <Animated.View style={[animatedStyle, HOME_PADDING]}>
-            {header}
+        <Animated.View style={animatedStyle}>
+            <View style={styles.headerContainer}>
+                <View style={styles.headerContent}>
+                    {header}
+                </View>
+                <View style={styles.headerDivider}/>
+            </View>
         </Animated.View>
     );
 };

@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {DeviceEventEmitter, FlatList, Text, View} from 'react-native';
+import {DeviceEventEmitter, FlatList, StyleSheet, Text, View} from 'react-native';
 
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import {Events} from '@constants';
@@ -11,7 +11,7 @@ import {CHANNEL, DRAFT, THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {isDMorGM} from '@utils/channel';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_INSET, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 
 import ConversationListSwipeableItem from './conversation_list_swipeable_item';
 
@@ -35,18 +35,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     emptyTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: theme.sidebarText,
+        color: theme.centerChannelColor,
         marginBottom: 8,
         textAlign: 'center',
     },
     emptyHint: {
         fontSize: 14,
-        color: theme.sidebarText,
-        opacity: 0.72,
+        color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
         textAlign: 'center',
     },
     list: {
-        backgroundColor: theme.sidebarBg,
+        backgroundColor: theme.centerChannelBg,
+    },
+    divider: {
+        marginLeft: WECHAT_HOME_DIVIDER_INSET,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, WECHAT_HOME_DIVIDER_OPACITY),
     },
 }));
 
@@ -112,6 +116,10 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
         [isChannelScreenActive, onChannelSwitch],
     );
 
+    const renderSeparator = useCallback(() => (
+        <View style={styles.divider}/>
+    ), [styles.divider]);
+
     if (!hasChannels || sortedChannels.length === 0) {
         return <EmptyState/>;
     }
@@ -123,6 +131,7 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
             style={styles.list}
             data={sortedChannels}
             renderItem={renderItem}
+            ItemSeparatorComponent={renderSeparator}
             keyExtractor={extractKey}
         />
     );

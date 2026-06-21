@@ -335,6 +335,15 @@ export function setThemeDefaults(theme: ExtendedTheme): Theme {
     return processedTheme;
 }
 
+export {
+    WECHAT_HOME_AVATAR_GAP,
+    WECHAT_HOME_AVATAR_SIZE,
+    WECHAT_HOME_DIVIDER_INSET,
+    WECHAT_HOME_DIVIDER_OPACITY,
+    WECHAT_HOME_PADDING_H,
+    WECHAT_HOME_SECONDARY_TEXT_OPACITY,
+} from './wechat_home';
+
 export const updateThemeIfNeeded = (theme: Theme, force = false) => {
     const storedTheme = EphemeralStore.theme;
     if (!deepEqual(theme, storedTheme) || force) {

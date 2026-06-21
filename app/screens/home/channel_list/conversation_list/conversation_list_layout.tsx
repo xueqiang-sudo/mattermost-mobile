@@ -27,8 +27,7 @@ import type ChannelModel from '@typings/database/models/servers/channel';
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
-        backgroundColor: theme.sidebarBg,
-        paddingTop: 6,
+        backgroundColor: theme.centerChannelBg,
     },
 }));
 
