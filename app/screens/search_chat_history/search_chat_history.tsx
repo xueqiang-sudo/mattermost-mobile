@@ -210,7 +210,7 @@ const SearchChatHistory = ({
         setIsLoading(true);
 
         try {
-            let searchTerms = `channel:${channelId}`;
+            let searchTerms = `in:${channel.name}`;
 
             if (activeTab === 'files') {
                 searchTerms += ' has:file';
@@ -289,7 +289,7 @@ const SearchChatHistory = ({
                 setIsLoading(false);
             }
         }
-    }, [channelId, serverUrl, teamId, activeTab, selectedDate, selectedMemberId, userMap]);
+    }, [channel, channelId, serverUrl, teamId, activeTab, selectedDate, selectedMemberId, userMap]);
 
     // Debounced search on input/filter change
     useEffect(() => {
