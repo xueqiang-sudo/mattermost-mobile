@@ -1,31 +1,28 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {addMembersToChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
 import {queryChannelMembers} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
-import Loading from '@components/loading';
-import Search from '@components/search';
-import SelectedUsers from '@components/selected_users';
-import ServerUserList from '@components/server_user_list';
-import {General, Screens} from '@constants';
+import ProfilePicture from '@components/profile_picture';
+import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
+import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {useKeyboardOverlap} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, setButtons} from '@screens/navigation';
-import {createContactSectionsByNickname} from '@utils/contact_section';
 import {alertErrorWithFallback} from '@utils/draft';
-import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {displayUsername, getLastPictureUpdate} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {Database} from '@nozbe/watermelondb';
@@ -41,27 +38,9 @@ const messages = defineMessages({
         id: 'mobile.open_gm.error',
         defaultMessage: "We couldn't open a discussion group with those users. Please check your connection and try again.",
     },
-    buttonText: {
-        id: 'mobile.create_direct_message.start',
-        defaultMessage: 'Start Conversation',
-    },
-    doneWithCount: {
-        id: 'create_direct_message.done_with_count',
-        defaultMessage: 'Done ({count})',
-    },
-    selectionHint: {
-        id: 'create_direct_message.selection_hint',
-        defaultMessage: 'One person: private chat · Several: discussion group. Long-press a row for profile.',
-    },
-    selectionHintPrefix: {
-        id: 'create_direct_message.selection_hint_prefix',
-        defaultMessage: 'One person: private chat · Several: discussion group.',
-    },
 });
 
 const CLOSE_BUTTON = 'close-dms';
-
-const SCREEN_PADDING_H = 16;
 
 type Props = {
     componentId: AvailableScreens;
@@ -112,139 +91,166 @@ function mapCandidateDraftsToProfiles(drafts: CandidateDraft[]): CandidateProfil
     return profiles;
 }
 
-/**
- * 关闭界面
- */
+function AvatarNoInitials({author, size, showStatus = false}: {author: CandidateProfile; size: number; showStatus?: boolean}) {
+    const hasImage = author ? getLastPictureUpdate(author) > 0 : false;
+    return (
+        <ProfilePicture
+            author={hasImage ? author : undefined}
+            size={size}
+            showStatus={showStatus}
+        />
+    );
+}
+
 const close = () => {
     Keyboard.dismiss();
     dismissModal();
 };
 
-/**
- * 获取创建私信界面的样式
- */
-const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
-    return {
-        container: {
-            flex: 1,
-            backgroundColor: theme.centerChannelBg,
-        },
-        contentContainer: {
-            flex: 1,
-            paddingHorizontal: SCREEN_PADDING_H,
-            paddingTop: 12,
-        },
-        listFlex: {
-            flex: 1,
-            minHeight: 0,
-            marginTop: 16,
-        },
-        searchCard: {
-            borderRadius: 12,
-            padding: 12,
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
-        },
-        searchBar: {
-            marginBottom: 0,
-        },
-        selectionHint: {
-            marginTop: 8,
-            color: changeOpacity(theme.centerChannelColor, 0.56),
-            ...typography('Body', 100, 'Regular'),
-        },
-        selectionHintPrefix: {
-            fontWeight: '600',
-            fontSize: 14,
-            color: changeOpacity(theme.centerChannelColor, 0.8),
-            paddingTop: 8,
-        },
-        searchBarContainer: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-            borderRadius: 8,
-            height: 56,
-        },
-        searchBarInput: {
-            backgroundColor: 'transparent',
-        },
-        loadingContainer: {
-            alignItems: 'center',
-            backgroundColor: theme.centerChannelBg,
-            height: 70,
-            justifyContent: 'center',
-        },
-        loadingText: {
-            color: changeOpacity(theme.centerChannelColor, 0.6),
-        },
-        noResultContainer: {
-            flexGrow: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        noResultText: {
-            color: changeOpacity(theme.centerChannelColor, 0.5),
-            ...typography('Body', 600, 'Regular'),
-        },
-        addMembersBanner: {
-            backgroundColor: changeOpacity(theme.buttonBg, 0.08),
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 12,
-        },
-        addMembersBannerText: {
-            color: theme.buttonBg,
-            ...typography('Body', 200, 'SemiBold'),
-        },
-        addMembersBannerHint: {
-            color: changeOpacity(theme.centerChannelColor, 0.64),
-            marginTop: 4,
-            ...typography('Body', 75, 'Regular'),
-        },
-    };
-});
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
+    container: {
+        flex: 1,
+        backgroundColor: theme.centerChannelBg,
+    },
+    searchSection: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        minHeight: 40,
+    },
+    searchIcon: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        fontSize: 16,
+        padding: 0,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
+    },
+    checkboxUnchecked: {
+        borderColor: changeOpacity(theme.centerChannelColor, 0.3),
+    },
+    checkIcon: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    sectionHeaderText: {
+        flex: 1,
+        color: changeOpacity(theme.centerChannelColor, 0.7),
+        ...typography('Body', 100, 'SemiBold'),
+    },
+    sectionCount: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        ...typography('Body', 100),
+    },
+    chevron: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginRight: 4,
+    },
+    memberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.05),
+    },
+    memberName: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    bottomBar: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    doneButton: {
+        backgroundColor: theme.buttonBg,
+        borderRadius: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+    },
+    doneButtonDisabled: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
+    },
+    doneButtonText: {
+        color: theme.buttonColor,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    hint: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        ...typography('Body', 75),
+    },
+}));
 
-/**
- * 从列表中移除用户
- */
-function removeProfileFromList(list: Set<string>, id: string) {
-    const newSelectedIds = new Set(list);
-    newSelectedIds.delete(id);
-    return newSelectedIds;
-}
-
-/**
- * 创建私信/内部群界面组件
- */
 export default function CreateDirectMessage({
     componentId,
     currentTeamId,
     currentUserId,
     teammateNameDisplay,
-    tutorialWatched,
     variant = 'default',
     channelId,
     isExistingChannel,
     database,
 }: Props) {
-    const serverUrl = useServerUrl();
-    const theme = useTheme();
-    const style = getStyleFromTheme(theme);
     const intl = useIntl();
-    const {formatMessage} = intl;
+    const theme = useTheme();
+    const style = getStyleSheet(theme);
+    const serverUrl = useServerUrl();
 
-    const mainView = useRef<View>(null);
-    const [containerHeight, setContainerHeight] = useState(0);
-    const keyboardOverlap = useKeyboardOverlap(mainView, containerHeight);
-
-    const [term, setTerm] = useState('');
+    const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [searchTerm, setSearchTerm] = useState('');
+    const [candidates, setCandidates] = useState<{
+        suppliers: CandidateProfile[];
+        customers: CandidateProfile[];
+        enterprise: CandidateProfile[];
+        searchResults: CandidateProfile[];
+    }>({suppliers: [], customers: [], enterprise: [], searchResults: []});
+    const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'searchResults']));
     const [startingConversation, setStartingConversation] = useState(false);
-    const [lockedIds, setLockedIds] = useState<Set<string>>(new Set<string>());
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set<string>());
-    const [showToast, setShowToast] = useState(false);
 
-    // Newly selected = selected minus locked (for tags, count, and confirm)
+    const teamIdForMembersList = currentTeamId || '';
+
+    // Newly selected = selected minus locked
     const newSelectedIds = useMemo(() => {
         const s = new Set<string>();
         selectedIds.forEach((id) => {
@@ -254,7 +260,6 @@ export default function CreateDirectMessage({
         });
         return s;
     }, [selectedIds, lockedIds]);
-    const selectedCount = newSelectedIds.size;
 
     // Initialize locked/existing members when in "Add Members" mode
     useEffect(() => {
@@ -273,72 +278,107 @@ export default function CreateDirectMessage({
         });
     }, [isExistingChannel, channelId, database, currentUserId]);
 
-    const color = changeOpacity(theme.centerChannelColor, 0.72);
+    // Fetch candidates
+    useEffect(() => {
+        getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId).then((drafts) => {
+            const profiles = mapCandidateDraftsToProfiles(drafts);
+            setCandidates((prev) => ({
+                ...prev,
+                suppliers: profiles.filter((p) => p.mmCandidateTags?.includes('supplier')),
+                customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer')),
+                enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise')),
+            }));
+            setKnownProfiles((prev) => {
+                const next = new Map(prev);
+                profiles.forEach((p) => next.set(p.id, p));
+                return next;
+            });
+        });
+    }, [serverUrl, teamIdForMembersList, currentUserId]);
 
-    const primaryActionLabel = useMemo(() => {
-        if (selectedCount > 1) {
-            return formatMessage(messages.doneWithCount, {count: selectedCount});
+    // Search
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            setCandidates((prev) => ({...prev, searchResults: []}));
+            return;
         }
-        if (isExistingChannel) {
-            return formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'});
+        searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, searchTerm).then((drafts) => {
+            const profiles = mapCandidateDraftsToProfiles(drafts);
+            setCandidates((prev) => ({...prev, searchResults: profiles}));
+            setKnownProfiles((prev) => {
+                const next = new Map(prev);
+                profiles.forEach((p) => next.set(p.id, p));
+                return next;
+            });
+        });
+    }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId]);
+
+    // Filter candidates by search term (client-side for the 3 sections)
+    const filteredCandidates = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return candidates;
         }
-        return formatMessage(messages.buttonText);
-    }, [formatMessage, selectedCount, isExistingChannel]);
+        const term = searchTerm.toLowerCase();
+        const filterFn = (p: CandidateProfile) => {
+            const name = displayUsername(p, teammateNameDisplay).toLowerCase();
+            const username = (p.username || '').toLowerCase();
+            return name.includes(term) || username.includes(term);
+        };
+        return {
+            suppliers: candidates.suppliers.filter(filterFn),
+            customers: candidates.customers.filter(filterFn),
+            enterprise: candidates.enterprise.filter(filterFn),
+            searchResults: candidates.searchResults,
+        };
+    }, [candidates, searchTerm, teammateNameDisplay]);
 
-    /**
-     * 清空搜索
-     */
-    const clearSearch = useCallback(() => {
-        setTerm('');
-    }, []);
+    // Set up the left close button in the navigation bar
+    const updateNavigationButtons = useCallback(async () => {
+        const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
+        const closeIcon = await CompassIcon.getImageSource('close', 24, closeIconColor);
+        setButtons(componentId, {
+            leftButtons: [{
+                id: CLOSE_BUTTON,
+                icon: closeIcon,
+                testID: 'close.create_direct_message.button',
+            }],
+        });
+    }, [componentId, theme.centerChannelColor]);
 
-    /**
-     * 移除已选用户
-     */
-    const handleRemoveProfile = useCallback((id: string) => {
-        setSelectedIds((current) => removeProfileFromList(current, id));
-    }, []);
+    useEffect(() => {
+        updateNavigationButtons();
+    }, [updateNavigationButtons]);
 
-    /**
-     * 创建私信频道
-     */
+    useNavButtonPressed(CLOSE_BUTTON, componentId, close, [close]);
+    useAndroidHardwareBackHandler(componentId, close);
+
+    // Create direct channel
     const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
         const result = await makeDirectChannel(serverUrl, id);
-
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.dm);
         }
-
         return !result.error;
     }, [intl, serverUrl]);
 
-    /**
-     * 创建内部群频道
-     */
+    // Create group channel
     const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
         const result = await makeGroupChannel(serverUrl, ids);
-
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.gm);
         }
-
         return !result.error;
     }, [intl, serverUrl]);
 
-    /**
-     * 开始对话 / 添加成员到已有群
-     */
+    // Start conversation / add members
     const startConversation = useCallback(async (selectedId?: string) => {
         if (startingConversation) {
             return;
         }
-
         setStartingConversation(true);
 
         let success;
-
         if (isExistingChannel && channelId) {
-            // Add new members to existing channel
             const idsToAdd = selectedId ? [selectedId] : Array.from(newSelectedIds);
             if (idsToAdd.length === 0) {
                 success = false;
@@ -364,219 +404,216 @@ export default function CreateDirectMessage({
         }
     }, [startingConversation, newSelectedIds, isExistingChannel, channelId, serverUrl, createGroupChannel, createDirectChannel, variant]);
 
-    /**
-     * 选择用户
-     */
-    const handleSelectProfile = useCallback((user: UserProfile) => {
-        if (user.id === currentUserId) {
+    // Toggle select
+    const toggleSelect = useCallback((userId: string) => {
+        if (userId === currentUserId || lockedIds.has(userId)) {
             return;
         }
 
-        // Locked members (existing channel members) cannot be toggled
-        if (lockedIds.has(user.id)) {
-            return;
-        }
-
+        // dm_only: single tap starts conversation immediately
         if (variant === 'dm_only') {
-            startConversation(user.id);
+            startConversation(userId);
             return;
         }
 
-        setSelectedIds((current) => {
-            if (current.has(user.id)) {
-                return removeProfileFromList(current, user.id);
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(userId)) {
+                next.delete(userId);
+            } else {
+                if (newSelectedIds.size >= General.MAX_USERS_IN_GM) {
+                    return prev;
+                }
+                next.add(userId);
             }
+            return next;
+        });
+    }, [currentUserId, lockedIds, newSelectedIds.size, startConversation, variant]);
 
-            if (newSelectedIds.size >= General.MAX_USERS_IN_GM) {
-                setShowToast(true);
-                return current;
+    const toggleSection = useCallback((section: string) => {
+        setExpandedSections((prev) => {
+            const next = new Set(prev);
+            if (next.has(section)) {
+                next.delete(section);
+            } else {
+                next.add(section);
             }
-
-            const updated = new Set(current);
-            updated.add(user.id);
-
-            return updated;
+            return next;
         });
-    }, [currentUserId, selectedCount, lockedIds, newSelectedIds.size, startConversation, variant]);
-
-    /**
-     * 处理布局变化
-     */
-    const onLayout = useCallback((e: LayoutChangeEvent) => {
-        setContainerHeight(e.nativeEvent.layout.height);
     }, []);
 
-    /**
-     * 更新导航按钮
-     */
-    const updateNavigationButtons = useCallback(async () => {
-        const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
-        const closeIcon = await CompassIcon.getImageSource('close', 24, closeIconColor);
-        setButtons(componentId, {
-            leftButtons: [{
-                id: CLOSE_BUTTON,
-                icon: closeIcon,
-                testID: 'close.create_direct_message.button',
-            }],
-        });
-    }, [componentId, theme.centerChannelColor]);
+    const handleDone = useCallback(() => {
+        startConversation();
+    }, [startConversation]);
 
-    /**
-     * 处理搜索文本变化
-     */
-    const onChangeText = useCallback((searchTerm: string) => {
-        setTerm(searchTerm);
-    }, []);
-
-    /**
-     * 获取用户列表
-     */
-    const userFetchFunction = useCallback(async (page: number) => {
-        if (page > 0) {
-            return [];
+    // Done button label
+    const doneLabel = useMemo(() => {
+        const count = newSelectedIds.size;
+        if (count > 1) {
+            return intl.formatMessage({id: 'create_direct_message.done_with_count', defaultMessage: 'Done ({count})'}, {count});
         }
-        const candidates = await getEmployeeCandidates(serverUrl, currentTeamId, currentUserId);
-        return mapCandidateDraftsToProfiles(candidates);
-    }, [currentTeamId, currentUserId, serverUrl]);
-
-    /**
-     * 搜索用户
-     */
-    const userSearchFunction = useCallback(async (searchTerm: string) => {
-        const trimmedTerm = searchTerm.trim();
-        if (!trimmedTerm) {
-            return [];
+        if (isExistingChannel) {
+            return intl.formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'});
         }
+        return intl.formatMessage({id: 'mobile.create_direct_message.start', defaultMessage: 'Start Conversation'});
+    }, [intl, newSelectedIds.size, isExistingChannel]);
 
-        const candidates = await searchEmployeeCandidates(serverUrl, currentTeamId, currentUserId, trimmedTerm);
-        return mapCandidateDraftsToProfiles(candidates);
-    }, [currentTeamId, currentUserId, serverUrl]);
+    const renderCheckbox = (userId: string) => {
+        const isSelected = selectedIds.has(userId);
+        const isLocked = lockedIds.has(userId);
 
-    /**
-     * 创建用户过滤器
-     */
-    const createUserFilter = useCallback(() => {
-        return () => true;
-    }, []);
+        if (isLocked) {
+            return (
+                <View style={[style.checkbox, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.3), borderColor: changeOpacity(theme.centerChannelColor, 0.3)}]}>
+                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
+                </View>
+            );
+        }
+        if (isSelected) {
+            return (
+                <View style={[style.checkbox, style.checkboxChecked]}>
+                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
+                </View>
+            );
+        }
+        return <View style={[style.checkbox, style.checkboxUnchecked]}/>;
+    };
 
-    useNavButtonPressed(CLOSE_BUTTON, componentId, close, [close]);
-    useAndroidHardwareBackHandler(componentId, close);
+    const renderMemberRow = (user: CandidateProfile) => {
+        const isLocked = lockedIds.has(user.id);
+        const name = displayUsername(user, teammateNameDisplay);
 
-    /**
-     * 初始化导航按钮
-     */
-    useEffect(() => {
-        updateNavigationButtons();
-    }, [updateNavigationButtons]);
-
-    /**
-     * 检查是否达到最大用户数
-     */
-    useEffect(() => {
-        setShowToast(selectedCount >= General.MAX_USERS_IN_GM);
-    }, [selectedCount]);
-
-    if (startingConversation) {
         return (
-            <View style={style.container}>
-                <Loading color={theme.buttonBg}/>
+            <TouchableOpacity
+                key={user.id}
+                style={[style.memberRow, isLocked && {opacity: 0.5}]}
+                onPress={() => toggleSelect(user.id)}
+                disabled={isLocked || user.id === currentUserId}
+            >
+                {variant !== 'dm_only' && renderCheckbox(user.id)}
+                <AvatarNoInitials author={user} size={40} showStatus={false}/>
+                <Text style={style.memberName}>{name}</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderSection = (title: string, sectionKey: string, members: CandidateProfile[]) => {
+        if (members.length === 0) {
+            return null;
+        }
+        const isExpanded = expandedSections.has(sectionKey);
+        return (
+            <View key={sectionKey}>
+                <TouchableOpacity style={style.sectionHeader} onPress={() => toggleSection(sectionKey)}>
+                    <CompassIcon
+                        name={isExpanded ? 'chevron-down' : 'chevron-right'}
+                        size={20}
+                        style={style.chevron}
+                    />
+                    <Text style={style.sectionHeaderText}>{title}</Text>
+                    <Text style={style.sectionCount}>({members.length})</Text>
+                </TouchableOpacity>
+                {isExpanded && members.map(renderMemberRow)}
             </View>
         );
-    }
+    };
+
+    // Selected profiles for avatar display in search bar
+    const selectedProfiles = useMemo(() => {
+        return Array.from(knownProfiles.values()).filter((p) => newSelectedIds.has(p.id));
+    }, [knownProfiles, newSelectedIds]);
 
     return (
         <SafeAreaView
             style={style.container}
             testID='create_direct_message.screen'
             nativeID={SecurityManager.getShieldScreenId(componentId)}
-            onLayout={onLayout}
-            ref={mainView}
             edges={['top', 'left', 'right']}
         >
-            <View style={style.contentContainer}>
-                {/* Add Members mode banner */}
-                {isExistingChannel && (
-                    <View style={style.addMembersBanner}>
-                        <Text style={style.addMembersBannerText}>
-                            {formatMessage({id: 'mobile.add_members.banner', defaultMessage: 'Select members to add to this group'})}
-                        </Text>
-                        {lockedIds.size > 0 && (
-                            <Text style={style.addMembersBannerHint}>
-                                {formatMessage({id: 'mobile.add_members.existing_hint', defaultMessage: '{count} existing members are locked'}, {count: lockedIds.size})}
-                            </Text>
-                        )}
-                    </View>
-                )}
-                <View style={style.searchCard}>
-                    <View style={style.searchBar}>
-                        <Search
-                            testID='create_direct_message.search_bar'
-                            placeholder={formatMessage({id: 'create_direct_message.search_placeholder', defaultMessage: 'Search by name, phone, or username'})}
-                            cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                            placeholderTextColor={color}
-                            onChangeText={onChangeText}
-                            onCancel={clearSearch}
-                            autoCapitalize='none'
-                            keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
-                            value={term}
-                            inputContainerStyle={style.searchBarContainer}
-                            inputStyle={style.searchBarInput}
-                        />
-                    </View>
-                    {variant === 'default' && !isExistingChannel && (
-                        <Text
-                            style={style.selectionHintPrefix}
-                            testID='create_direct_message.selection_hint'
-                            allowFontScaling={false}
-                            maxFontSizeMultiplier={1}
-                        >
-                            {formatMessage(messages.selectionHintPrefix)}
-                        </Text>
+            {/* Search bar */}
+            <View style={style.searchSection}>
+                <View style={style.searchBar}>
+                    {selectedProfiles.length === 0 && (
+                        <CompassIcon name='magnify' size={20} style={style.searchIcon}/>
                     )}
-                </View>
-                <View style={style.listFlex}>
-                    <ServerUserList
-                        handleSelectProfile={handleSelectProfile}
-                        selectedIds={selectedIds}
-                        lockedIds={lockedIds}
-                        term={term}
-                        testID='create_direct_message.user_list'
-                        tutorialWatched={tutorialWatched}
-                        fetchFunction={userFetchFunction}
-                        searchFunction={userSearchFunction}
-                        createFilter={createUserFilter}
-                        location={Screens.CREATE_DIRECT_MESSAGE}
-                        customSection={createContactSectionsByNickname}
-                        disableClientFilter={true}
-                        variant={variant}
-                        currentUserId={currentUserId}
+                    {selectedProfiles.length > 0 && variant !== 'dm_only' && (
+                        <TouchableOpacity
+                            style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginRight: 8}}
+                        >
+                            {selectedProfiles.map((user) => (
+                                <AvatarNoInitials
+                                    key={user.id}
+                                    author={user}
+                                    size={28}
+                                    showStatus={false}
+                                />
+                            ))}
+                        </TouchableOpacity>
+                    )}
+                    <TextInput
+                        style={style.searchInput}
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                        placeholder={intl.formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search...'})}
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                        autoCapitalize='none'
                     />
                 </View>
-                {variant !== 'dm_only' && (
-                    <SelectedUsers
-                        keyboardOverlap={keyboardOverlap}
-                        showToast={showToast}
-                        setShowToast={setShowToast}
-                        toastIcon={'check'}
-                        toastMessage={formatMessage(
-                            {
-                                id: 'mobile.create_direct_message.max_limit_reached',
-                                defaultMessage: 'A discussion group can include up to {max, number} people besides you',
-                            },
-                            {max: General.MAX_USERS_IN_GM},
-                        )}
-                        selectedIds={newSelectedIds}
-                        onRemove={handleRemoveProfile}
-                        teammateNameDisplay={teammateNameDisplay}
-                        onPress={startConversation}
-                        buttonIcon={'forum-outline'}
-                        buttonText={primaryActionLabel}
-                        testID='create_direct_message'
-                        maxUsers={General.MAX_USERS_IN_GM}
-                        avatarBorderRadius={8}
-                    />
-                )}
             </View>
+
+            {/* Hint for default variant */}
+            {variant === 'default' && !isExistingChannel && (
+                <Text style={style.hint}>
+                    {intl.formatMessage({
+                        id: 'create_direct_message.selection_hint_prefix',
+                        defaultMessage: 'One person: private chat · Several: discussion group.',
+                    })}
+                </Text>
+            )}
+
+            {/* Member list */}
+            <FlatList
+                style={{flex: 1}}
+                data={[]}
+                renderItem={() => null}
+                ListHeaderComponent={
+                    <>
+                        {renderSection(
+                            intl.formatMessage({id: 'channel_add_members.suppliers', defaultMessage: 'My Suppliers'}),
+                            'suppliers',
+                            filteredCandidates.suppliers,
+                        )}
+                        {renderSection(
+                            intl.formatMessage({id: 'channel_add_members.customers', defaultMessage: 'My Customers'}),
+                            'customers',
+                            filteredCandidates.customers,
+                        )}
+                        {renderSection(
+                            intl.formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
+                            'enterprise',
+                            filteredCandidates.enterprise,
+                        )}
+                        {filteredCandidates.searchResults.length > 0 && renderSection(
+                            intl.formatMessage({id: 'channel_add_members.search_results', defaultMessage: 'Search Results'}),
+                            'searchResults',
+                            filteredCandidates.searchResults,
+                        )}
+                    </>
+                }
+            />
+
+            {/* Bottom bar — only for default and group_only variants */}
+            {variant !== 'dm_only' && (
+                <View style={style.bottomBar}>
+                    <TouchableOpacity
+                        style={[style.doneButton, newSelectedIds.size === 0 && style.doneButtonDisabled]}
+                        onPress={handleDone}
+                        disabled={newSelectedIds.size === 0 || startingConversation}
+                    >
+                        <Text style={style.doneButtonText}>{doneLabel}</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </SafeAreaView>
     );
 }

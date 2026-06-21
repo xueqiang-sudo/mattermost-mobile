@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {type Insets, Text, TouchableWithoutFeedback, View} from 'react-native';
+import {Dimensions, type Insets, Text, TouchableWithoutFeedback, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {logout} from '@actions/remote/session';
@@ -157,7 +157,8 @@ const ChannelListHeader = ({
     }), []);
     const serverUrl = useServerUrl();
     const [dropdownVisible, setDropdownVisible] = useState(false);
-    const [dropdownAnchorY, setDropdownAnchorY] = useState(0);
+    const [dropdownAnchorRight, setDropdownAnchorRight] = useState(0);
+    const [dropdownAnchorTop, setDropdownAnchorTop] = useState(0);
     const plusButtonRef = useRef<View>(null);
 
     useEffect(() => {
@@ -233,7 +234,9 @@ const ChannelListHeader = ({
     const onPress = usePreventDoubleTap(useCallback(() => {
         if (plusButtonRef.current) {
             plusButtonRef.current.measureInWindow((x, y, width, height) => {
-                setDropdownAnchorY(y + height);
+                const screenWidth = Dimensions.get('window').width;
+                setDropdownAnchorRight(screenWidth - x - width);
+                setDropdownAnchorTop(y + height + 4);
                 setDropdownVisible(true);
             });
         } else {
@@ -387,7 +390,8 @@ const ChannelListHeader = ({
             </Animated.View>
             <DropdownMenu
                 visible={dropdownVisible}
-                anchorY={dropdownAnchorY}
+                anchorRight={dropdownAnchorRight}
+                anchorTop={dropdownAnchorTop}
                 items={menuItems}
                 onClose={() => setDropdownVisible(false)}
             />

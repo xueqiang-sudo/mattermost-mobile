@@ -26,7 +26,8 @@ export type MenuEntry = MenuItem | MenuSeparator;
 
 type Props = {
     visible: boolean;
-    anchorY: number;
+    anchorRight: number;
+    anchorTop: number;
     items: MenuEntry[];
     onClose: () => void;
 }
@@ -76,7 +77,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const DropdownMenu = ({visible, anchorY, items, onClose}: Props) => {
+const DropdownMenu = ({visible, anchorRight, anchorTop, items, onClose}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -88,8 +89,8 @@ const DropdownMenu = ({visible, anchorY, items, onClose}: Props) => {
     const menuStyle = [
         styles.menu,
         {
-            right: 8,
-            top: anchorY + 4,
+            right: anchorRight,
+            top: anchorTop,
         },
     ];
 

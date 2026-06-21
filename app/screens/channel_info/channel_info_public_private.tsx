@@ -54,6 +54,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 0,
         paddingVertical: 0,
     },
+    toggleSection: {
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.12),
+        paddingHorizontal: 16,
+        paddingVertical: 0,
+    },
 }));
 
 const ChannelInfoPublicPrivate = ({
@@ -159,7 +165,7 @@ const ChannelInfoPublicPrivate = ({
                     />
 
                     {/* Toggle section */}
-                    <View style={styles.section}>
+                    <View style={styles.toggleSection}>
                         <ToggleRow
                             icon=''
                             label={intl.formatMessage({id: 'channel_info_rhs.gm.mute_notifications', defaultMessage: 'Mute Notifications'})}
