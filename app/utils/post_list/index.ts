@@ -182,18 +182,18 @@ function isJoinLeavePostForUsername(post: PostModel, currentUsername: string): b
 
 export function selectOrderedPostsWithPrevAndNext(
     posts: PostModel[], lastViewedAt: number, indicateNewMessages: boolean, currentUserId: string, currentUsername: string, showJoinLeave: boolean,
-    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), useWeChatMode = false,
+    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(),
 ): PostList {
     return selectOrderedPosts(
         posts, lastViewedAt, indicateNewMessages,
         currentUserId, currentUsername, showJoinLeave,
-        currentTimezone, isThreadScreen, savedPostIds, true, useWeChatMode,
+        currentTimezone, isThreadScreen, savedPostIds, true,
     );
 }
 
 export function selectOrderedPosts(
     posts: PostModel[], lastViewedAt: number, indicateNewMessages: boolean, currentUserId: string, currentUsername: string, showJoinLeave: boolean,
-    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), includePrevNext = false, useWeChatMode = false) {
+    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), includePrevNext = false) {
     if (posts.length === 0) {
         return [];
     }
@@ -251,29 +251,26 @@ export function selectOrderedPosts(
         // 判断是否为系统消息（不触发时间分隔符）
         const isSystemMsg = isSystemMessage(post.currentPost);
 
-        if (useWeChatMode) {
-            // 微信模式：插入时间分隔符
-            // 系统消息不触发分隔符，也不更新追踪状态
-            if (!isSystemMsg) {
-                if (lastPostTime === undefined) {
-                    // 第一条非系统消息始终显示分隔符
-                    out.push({type: 'time-separator', value: TIME_SEPARATOR + post.currentPost.createAt});
-                } else {
-                    const gap = post.currentPost.createAt - lastPostTime;
-                    if (gap > FIVE_MINUTES || lastDate.toDateString() !== postDate.toDateString()) {
-                        out.push({type: 'time-separator', value: TIME_SEPARATOR + post.currentPost.createAt});
-                    }
-                }
-                // 只有非系统消息才更新追踪状态
-                lastDate = postDate;
-                lastPostTime = post.currentPost.createAt;
-            }
-        } else {
-            // 非微信模式：原有日期分隔符逻辑
-            if (!lastDate || lastDate.toDateString() !== postDate.toDateString()) {
-                out.push({type: 'date', value: DATE_LINE + postDate.getTime()});
-            }
+        // 插入时间分隔符
+        // 首条消息始终显示时间分隔符（无论是否为系统消息）
+        if (lastPostTime === undefined) {
+            out.push({type: 'time-separator', value: TIME_SEPARATOR + post.currentPost.createAt});
+            lastPostTime = post.currentPost.createAt;
             lastDate = postDate;
+        }
+
+        // 系统消息不触发分隔符，也不更新追踪状态
+        if (!isSystemMsg) {
+            if (lastPostTime !== undefined) {
+                const gap = post.currentPost.createAt - lastPostTime;
+                if (gap > FIVE_MINUTES || (lastDate && lastDate.toDateString() !== postDate.toDateString())) {
+                    out.push({type: 'time-separator', value: TIME_SEPARATOR + post.currentPost.createAt});
+                }
+            }
+
+            // 只有非系统消息才更新追踪状态
+            lastDate = postDate;
+            lastPostTime = post.currentPost.createAt;
         }
 
         if (
@@ -422,8 +419,8 @@ export function getPostIdsForCombinedUserActivityPost(item: string) {
 
 export function preparePostList(
     posts: PostModel[], lastViewedAt: number, indicateNewMessages: boolean, currentUserId: string, currentUsername: string, showJoinLeave: boolean,
-    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>(), useWeChatMode = false) {
-    const orderedPosts = selectOrderedPostsWithPrevAndNext(posts, lastViewedAt, indicateNewMessages, currentUserId, currentUsername, showJoinLeave, currentTimezone, isThreadScreen, savedPostIds, useWeChatMode);
+    currentTimezone: string | null, isThreadScreen = false, savedPostIds = new Set<string>()) {
+    const orderedPosts = selectOrderedPostsWithPrevAndNext(posts, lastViewedAt, indicateNewMessages, currentUserId, currentUsername, showJoinLeave, currentTimezone, isThreadScreen, savedPostIds);
     return combineUserActivityPosts(orderedPosts);
 }
 

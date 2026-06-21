@@ -1,9 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils from '@mattermost/rnutils/src';
 import React, {useEffect, useState} from 'react';
-import {DeviceEventEmitter, Platform, StyleSheet, View} from 'react-native';
+import {DeviceEventEmitter, StyleSheet, View} from 'react-native';
 import JPush from 'jpush-react-native';
 
 import Badge from '@components/badge';
@@ -11,7 +10,6 @@ import CompassIcon from '@components/compass_icon';
 import {BOTTOM_TAB_ICON_SIZE} from '@constants/view';
 import {subscribeAllServers} from '@database/subscription/servers';
 import {subscribeUnreadAndMentionsByServer, type UnreadObserverArgs} from '@database/subscription/unreads';
-import {useAppState} from '@hooks/device';
 import useDidUpdate from '@hooks/did_update';
 import {logDebug} from '@utils/log';
 import {changeOpacity} from '@utils/theme';
@@ -47,26 +45,19 @@ const style = StyleSheet.create({
 const getTotalMentionsAndUnread = () => {
     let unread = false;
     let mentions = 0;
+    let unreadCount = 0;
     subscriptions.forEach((value) => {
         unread = unread || value.unread;
         mentions += value.mentions;
+        unreadCount += value.unreadCount;
     });
-    return {unread, mentions};
+    return {unread, mentions, unreadCount};
 };
 
 const updateBadge = () => {
-    if (Platform.OS === 'ios') {
-        const {mentions} = getTotalMentionsAndUnread();
-        RNUtils.getDeliveredNotifications().then((delivered) => {
-            if (mentions === 0 && delivered.length > 0) {
-                logDebug('Not updating badge count, since we have no mentions in the database, and the number of notifications in the notification center is', delivered.length);
-                return;
-            }
-
-            logDebug('Setting the badge count based on database values to', mentions);
-            JPush.setBadge({badge: mentions, appBadge: mentions});
-        });
-    }
+    const {unreadCount} = getTotalMentionsAndUnread();
+    logDebug('Setting the badge count based on unread channel count to', unreadCount);
+    JPush.setBadge({badge: unreadCount, appBadge: unreadCount});
 };
 
 const unreadsSubscription = (serverUrl: string, {myChannels, settings, threadMentionCount}: UnreadObserverArgs) => {
@@ -74,14 +65,19 @@ const unreadsSubscription = (serverUrl: string, {myChannels, settings, threadMen
     if (unreads) {
         let mentions = 0;
         let unread = false;
+        let unreadCount = 0;
         for (const myChannel of myChannels) {
             const isMuted = settings?.[myChannel.id]?.mark_unread === 'mention';
             mentions += isMuted ? 0 : myChannel.mentionsCount;
-            unread = unread || (myChannel.isUnread && !isMuted);
+            if (myChannel.isUnread && !isMuted) {
+                unread = true;
+                unreadCount += 1;
+            }
         }
 
         unreads.mentions = mentions + threadMentionCount;
         unreads.unread = unread;
+        unreads.unreadCount = unreadCount;
         subscriptions.set(serverUrl, unreads);
         DeviceEventEmitter.emit(HOME_TOTAL_MENTIONS_EVENT);
     }
@@ -104,6 +100,7 @@ const serversObserver = async (servers: ServersModel[]) => {
             const unreads: UnreadSubscription = {
                 mentions: 0,
                 unread: false,
+                unreadCount: 0,
             };
             subscriptions.set(url, unreads);
             unreads.subscription = subscribeUnreadAndMentionsByServer(url, unreadsSubscription);
@@ -119,14 +116,13 @@ const serversObserver = async (servers: ServersModel[]) => {
 };
 
 const Home = ({isFocused, theme}: Props) => {
-    const [total, setTotal] = useState<UnreadMessages>({mentions: 0, unread: false});
-    const appState = useAppState();
+    const [total, setTotal] = useState<UnreadMessages>({mentions: 0, unread: false, unreadCount: 0});
 
     useEffect(() => {
         const totalMentionsEventListener = () => {
             setTotal((prev) => {
                 const newTotal = getTotalMentionsAndUnread();
-                if (prev.mentions === newTotal.mentions && prev.unread === newTotal.unread) {
+                if (prev.mentions === newTotal.mentions && prev.unread === newTotal.unread && prev.unreadCount === newTotal.unreadCount) {
                     return prev;
                 }
                 return newTotal;
@@ -148,10 +144,8 @@ const Home = ({isFocused, theme}: Props) => {
     }, []);
 
     useDidUpdate(() => {
-        if (appState !== 'active') {
-            updateBadge();
-        }
-    }, [total, appState !== 'active']);
+        updateBadge();
+    }, [total]);
 
     let unreadStyle;
     if (total.mentions) {

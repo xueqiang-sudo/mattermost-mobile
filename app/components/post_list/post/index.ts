@@ -7,6 +7,7 @@ import {of as of$, combineLatest} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
 import {Permissions, Preferences, Screens} from '@constants';
+import {observeChannel} from '@queries/servers/channel';
 import {queryFilesForPost} from '@queries/servers/file';
 import {observePost, observePostAuthor, queryPostsBetween, observeIsPostPriorityEnabled} from '@queries/servers/post';
 import {queryReactionsForPost} from '@queries/servers/reaction';
@@ -158,6 +159,7 @@ const withPost = withObservables(
             isPostPriorityEnabled: observeIsPostPriorityEnabled(database),
             post: post.observe(),
             author,
+            channel: observeChannel(database, post.channelId),
             thread: isCRTEnabled ? observeThreadById(database, post.id) : of$(undefined),
             hasReactions,
             isLastPost: of$(!nextPost),

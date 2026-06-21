@@ -96,10 +96,8 @@ export function formatTimeSeparatorLabel(
         );
     }
 
-    const diffDays = Math.floor((now.valueOf() - m.valueOf()) / (24 * 60 * 60 * 1000));
-
-    // 一周内（3-7天）
-    if (diffDays < 7) {
+    // 本周内（3-7天）：使用 ISO 周判断，避免跨周问题
+    if (m.isSame(now, 'isoWeek')) {
         const weekday = intl.formatDate(new Date(createAt), {weekday: 'long', timeZone: zone});
         return intl.formatMessage(
             {id: 'wechat_time.weekday_time_separator', defaultMessage: '{weekday} {time}'},

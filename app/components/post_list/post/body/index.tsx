@@ -11,6 +11,7 @@ import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
 import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
+import {PROFILE_PICTURE_SIZE} from '@constants/view';
 import {THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import StatusUpdatePost from '@playbooks/components/status_update_post';
@@ -33,6 +34,14 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 
 /** 三角与气泡上沿留白，避免负 margin 参与异常拉伸；略对齐头像侧 */
 const WECHAT_BUBBLE_TAIL_MARGIN_TOP = 6;
+
+/** 气泡三角半高（borderTopWidth），与 bubbleTailLeft/Right 一致 */
+const WECHAT_BUBBLE_TAIL_HALF_HEIGHT = 5;
+
+/**
+ * 仅头像行：气泡顶与头像顶对齐时，箭头垂直中心对准头像中心（微信私聊效果）
+ */
+const weChatBubbleTailMarginTopAvatarOnly = (PROFILE_PICTURE_SIZE / 2) - WECHAT_BUBBLE_TAIL_HALF_HEIGHT;
 
 /** 微信气泡（含尾巴）相对屏宽上限（本人右栏另用 90% 约束整列） */
 const WECHAT_BUBBLE_MAX_WIDTH_SCREEN_RATIO = 0.80;
@@ -60,6 +69,7 @@ type BodyProps = {
     searchPatterns?: SearchPattern[];
     showAddReaction?: boolean;
     theme: Theme;
+    weChatAvatarOnlyRow?: boolean;
     onLongPress?: (event?: GestureResponderEvent) => void;
 };
 
@@ -203,7 +213,7 @@ const useWeChatStyle = (location: AvailableScreens) =>
 const Body = ({
     appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
     isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isOwnPost, author, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
-    location, post, searchPatterns, showAddReaction, theme, onLongPress,
+    location, post, searchPatterns, showAddReaction, theme, weChatAvatarOnlyRow, onLongPress,
 }: BodyProps) => {
     const style = getStyleSheet(theme);
     const isEdited = postEdited(post);
@@ -266,6 +276,9 @@ const Body = ({
     }, []);
 
     const weChatStyleActive = useWeChatStyle(location);
+    const weChatBubbleTailMarginTop = weChatAvatarOnlyRow ?
+        weChatBubbleTailMarginTopAvatarOnly :
+        WECHAT_BUBBLE_TAIL_MARGIN_TOP;
     const weChatBubbleMaxWidth = useMemo(
         () => Math.floor(Dimensions.get('window').width * WECHAT_BUBBLE_MAX_WIDTH_SCREEN_RATIO),
         [],
@@ -524,7 +537,7 @@ const Body = ({
                     <View
                         style={[
                             style.bubbleTailLeft,
-                            {borderRightColor: chatBubbleSurface.othersBg},
+                            {borderRightColor: chatBubbleSurface.othersBg, marginTop: weChatBubbleTailMarginTop},
                         ]}
                     />
                 )}
@@ -535,7 +548,7 @@ const Body = ({
                     <View
                         style={[
                             style.bubbleTailRight,
-                            {borderLeftColor: chatBubbleSurface.ownBg},
+                            {borderLeftColor: chatBubbleSurface.ownBg, marginTop: weChatBubbleTailMarginTop},
                         ]}
                     />
                 )}

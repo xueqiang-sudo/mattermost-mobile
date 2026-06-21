@@ -6,6 +6,8 @@ import type {Subscription} from 'rxjs';
 export type UnreadMessages = {
     mentions: number;
     unread: boolean;
+    /** 非静音未读频道总数 */
+    unreadCount: number;
 };
 
 export type UnreadSubscription = UnreadMessages & {

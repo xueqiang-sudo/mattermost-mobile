@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, type StyleProp, TouchableHighlight, View, type ViewStyle} from 'react-native';
+import {Keyboard, type StyleProp, Text, TouchableHighlight, View, type ViewStyle} from 'react-native';
 
 import {fetchMissingProfilesByIds, fetchMissingProfilesByUsernames} from '@actions/remote/user';
 import Markdown from '@components/markdown';
@@ -17,6 +17,7 @@ import {emptyFunction} from '@utils/general';
 import {isUserActivityProp} from '@utils/post_list';
 import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {typography} from '@utils/typography';
 import {secureGetFromRecord} from '@utils/types';
 import {username2Nickname} from '@utils/user';
 
@@ -62,8 +63,29 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexDirection: 'column',
             marginLeft: 12,
         },
+
+        /** 微信风格：居中灰字系统通知，无头像/系统名/时间 */
+        containerCompact: {
+            alignItems: 'center',
+            alignSelf: 'center',
+            marginVertical: 12,
+            maxWidth: '88%',
+            paddingHorizontal: 16,
+        },
+        messageCompact: {
+            color: changeOpacity(theme.centerChannelColor, 0.45),
+            ...typography('Body', 75, 'Regular'),
+            lineHeight: 18,
+            textAlign: 'center',
+        },
     };
 });
+
+/** 微信系统通知为纯文本，去掉 Markdown 加粗标记 */
+const stripMarkdownEmphasis = (text: string): string => text.replace(/\*\*([^*]+)\*\*/g, '$1');
+
+const useWeChatStyle = (location: AvailableScreens) =>
+    location === Screens.CHANNEL || location === Screens.PERMALINK;
 
 const CombinedUserActivity = ({
     canDelete, channelType, currentUserId, currentUsername, location,
@@ -73,6 +95,7 @@ const CombinedUserActivity = ({
     const isTablet = useIsTablet();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
+    const weChatStyle = useWeChatStyle(location);
     const content = [];
     const removedUserIds: string[] = [];
 
@@ -155,6 +178,7 @@ const CombinedUserActivity = ({
                     key={postType + actorId}
                     channelId={post.channel_id}
                     actor={actor}
+                    compact={weChatStyle}
                     location={location}
                     postType={postType}
                     theme={theme}
@@ -182,6 +206,18 @@ const CombinedUserActivity = ({
 
         // We default to empty string, but this should never happen
         const formattedMessage = localeHolder ? intl.formatMessage(localeHolder, {firstUser, secondUser, actor}) : '';
+
+        if (weChatStyle) {
+            return (
+                <Text
+                    key={postType + actorId}
+                    style={styles.messageCompact}
+                >
+                    {stripMarkdownEmphasis(formattedMessage)}
+                </Text>
+            );
+        }
+
         return (
             <Markdown
                 channelId={post.channel_id}
@@ -243,6 +279,26 @@ const CombinedUserActivity = ({
     if (removedUserIds.length > 0) {
         const uniqueRemovedUserIds = [...new Set(removedUserIds)];
         content.push(renderMessage(PostConstants.POST_TYPES.REMOVE_FROM_CHANNEL, uniqueRemovedUserIds, currentUserId || ''));
+    }
+
+    if (weChatStyle) {
+        return (
+            <View
+                style={style}
+                testID={testID}
+            >
+                <TouchableHighlight
+                    testID={itemTestID}
+                    onPress={emptyFunction}
+                    onLongPress={onLongPress}
+                    underlayColor='transparent'
+                >
+                    <View style={styles.containerCompact}>
+                        {content}
+                    </View>
+                </TouchableHighlight>
+            </View>
+        );
     }
 
     return (

@@ -55,15 +55,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         containerCompact: {
             alignSelf: 'center',
-            marginVertical: 4,
+            alignItems: 'center',
+            marginVertical: 12,
+            maxWidth: '88%',
+            paddingHorizontal: 16,
         },
         systemMessage: {
             color: changeOpacity(theme.centerChannelColor, 0.6),
             ...typography('Body', 200, 'Regular'),
         },
         systemMessageCompact: {
-            color: changeOpacity(theme.centerChannelColor, 0.5),
+            color: changeOpacity(theme.centerChannelColor, 0.45),
             ...typography('Body', 75, 'Regular'),
+            lineHeight: 18,
+            textAlign: 'center',
         },
         announcementCard: {
             flexDirection: 'row',
@@ -106,9 +111,11 @@ const renderMessage = ({location, post, styles, intl, localeHolder, theme, value
 
     if (skipMarkdown) {
         return (
-            <Text style={messageStyle}>
-                {intl.formatMessage(localeHolder, values)}
-            </Text>
+            <View style={containerStyle}>
+                <Text style={messageStyle}>
+                    {intl.formatMessage(localeHolder, values)}
+                </Text>
+            </View>
         );
     }
 
@@ -251,7 +258,7 @@ const renderHeaderChangeMessage = ({post, author, channelType, location, styles,
     });
 
     const sheet = getStyleSheet(theme);
-    if (channelSupportsAnnouncementUx(channelType)) {
+    if (channelSupportsAnnouncementUx(channelType) && !compact) {
         return (
             <View style={sheet.announcementCard}>
                 <CompassIcon
@@ -612,7 +619,7 @@ export const SystemMessage = ({post, location, author, channelType, compact, hid
 
     const renderer = secureGetFromRecord(systemMessageRenderers, post.type);
     if (!renderer) {
-        return (
+        const fallback = (
             <Markdown
                 baseTextStyle={styles.messageStyle}
                 channelId={post.channelId}
@@ -622,6 +629,14 @@ export const SystemMessage = ({post, location, author, channelType, compact, hid
                 theme={theme}
             />
         );
+        if (compact) {
+            return (
+                <View style={styles.containerStyle}>
+                    {fallback}
+                </View>
+            );
+        }
+        return fallback;
     }
 
     return renderer(rendererProps);

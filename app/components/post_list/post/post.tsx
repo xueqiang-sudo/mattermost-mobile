@@ -18,7 +18,7 @@ import {isCallsCustomMessage} from '@calls/utils';
 import UnrevealedBurnOnReadPost from '@components/post_list/post/burn_on_read/unrevealed';
 import SystemAvatar from '@components/system_avatar';
 import SystemHeader from '@components/system_header';
-import {Events} from '@constants';
+import {Events, General} from '@constants';
 import {POST_TIME_TO_FAIL, PostPriorityType} from '@constants/post';
 import * as Screens from '@constants/screens';
 import {useHideExtraKeyboardIfNeeded} from '@context/extra_keyboard';
@@ -41,6 +41,7 @@ import PreHeader from './pre_header';
 import SystemMessage from './system_message';
 import UnreadDot from './unread_dot';
 
+import type ChannelModel from '@typings/database/models/servers/channel';
 import type PostModel from '@typings/database/models/servers/post';
 import type ThreadModel from '@typings/database/models/servers/thread';
 import type UserModel from '@typings/database/models/servers/user';
@@ -53,6 +54,7 @@ type PostProps = {
     canEdit: boolean;
     currentUser?: UserModel;
     author?: UserModel;
+    channel?: ChannelModel;
     customEmojiNames: string[];
     differentThreadSequence: boolean;
     hasFiles: boolean;
@@ -124,6 +126,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         pendingPost: {opacity: 0.5},
         postContent: {paddingHorizontal: 16},
 
+        /** 微信居中系统消息：触摸区占满行宽以便子级居中 */
+        postContentSystemCentered: {
+            alignSelf: 'stretch',
+        },
+
         /** 微信风格：触摸区域仅限气泡+头像，空白处不触发 */
         postContentOwnWeChat: {alignSelf: 'flex-end'},
         postContentOthersWeChat: {alignSelf: 'flex-start'},
@@ -151,6 +158,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         postStyleWeChatSpacing: {
             marginBottom: 20,
         },
+
+        /** 微信居中系统消息：间距略紧，避免与日期分隔条重复留白 */
+        postStyleWeChatSystemSpacing: {
+            marginBottom: 8,
+        },
         profilePictureContainer: {
             marginBottom: 4,
             marginRight: 10,
@@ -174,6 +186,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         profilePictureContainerOwnWeChat: {
             marginTop: 4,
             marginLeft: 12,
+        },
+
+        /** 仅头像行（私聊等）：气泡与头像顶对齐，去掉昵称行预留的 marginTop */
+        profilePictureContainerWeChatAvatarOnly: {
+            marginTop: 0,
         },
         rightColumn: {
             flex: 1,
@@ -217,6 +234,7 @@ const Post = ({
     canDelete,
     canEdit,
     author,
+    channel,
     currentUser,
     customEmojiNames,
     differentThreadSequence,
@@ -464,6 +482,7 @@ const Post = ({
     const weChatStyle = useWeChatStyle(location);
     const showInvalidTip = isInvalidEphemeralTipPost(post);
     const showSystemCentered = weChatStyle && isSystemPost && !isAutoResponder;
+    const isDmChannel = channel?.type === General.DM_CHANNEL;
 
     /**
      * 语音转文字失败等 invalid ephemeral 仅推给操作者，但 post.userId 可能与 currentUser 不一致，
@@ -472,19 +491,30 @@ const Post = ({
     const invalidTipWeChatOwnRow = showInvalidTip && weChatStyle;
 
     /**
-     * system_ephemeral 会满足 showSystemCentered，若与 invalid 本人行同时成立，
-     * 原逻辑会先命中 useCenteredNoAvatarLayout 而清空头像且跳过 Header，导致无时间、无头像（图1）。
-     * 微信 invalid 提示必须与「撤回」一致走下方分支，故排除 invalidTipWeChatOwnRow。
+     * 自己发的消息：头像在右 + 隐藏名字（仅显示时间）
      */
-    const useCenteredNoAvatarLayout =
-        !invalidTipWeChatOwnRow &&
-        (showSystemCentered || (showInvalidTip && !weChatStyle));
-    const showOwnLayout = weChatStyle && ((isOwnPost && !isSystemPost) || invalidTipWeChatOwnRow);
+    const showOwnLayout = (weChatStyle && isOwnPost && !isSystemPost) || invalidTipWeChatOwnRow;
+
+    /**
+     * 私聊对方消息：头像在左 + 隐藏名字（仅显示时间）
+     */
+    const hideNameInDm = weChatStyle && isDmChannel && !isOwnPost && !isSystemPost && !invalidTipWeChatOwnRow;
+
+    /**
+     * 系统消息居中：无头像、无系统名
+     */
+    const useCenteredNoAvatarLayout = showSystemCentered;
+
+    /**
+     * 微信仅头像行：无昵称/时间头，气泡顶与头像顶对齐，箭头对准头像垂直中心
+     */
+    const weChatAvatarOnlyRow = weChatStyle && !isSystemPost && !invalidTipWeChatOwnRow && (hideNameInDm || showOwnLayout);
+
     const effectiveConsecutivePost = weChatStyle ? false : isConsecutivePost;
 
     const rightColumnStyle: StyleProp<ViewStyle> = [
         showOwnLayout ? styles.rightColumnOwnSizing : (
-            weChatStyle && !useCenteredNoAvatarLayout ? styles.rightColumnOthersWeChat : styles.rightColumn
+            weChatStyle ? styles.rightColumnOthersWeChat : styles.rightColumn
         ),
         (Boolean(post.rootId) && isLastReply && styles.rightColumnPadding),
         showOwnLayout && styles.rightColumnOwn,
@@ -521,6 +551,7 @@ const Post = ({
         const avatarContainerStyle = [
             showOwnLayout ? styles.profilePictureContainerOwn : styles.profilePictureContainer,
             weChatStyle && (showOwnLayout ? styles.profilePictureContainerOwnWeChat : styles.profilePictureContainerWeChat),
+            weChatAvatarOnlyRow && styles.profilePictureContainerWeChatAvatarOnly,
         ];
         postAvatar = (
             <View style={[avatarContainerStyle, pendingPostStyle]}>
@@ -556,6 +587,8 @@ const Post = ({
                     timeOnly={true}
                 />
             );
+        } else if (hideNameInDm) {
+            header = null;
         } else if (isSystemPost && !isAutoResponder && !useCenteredNoAvatarLayout) {
             header = (
                 <SystemHeader
@@ -564,6 +597,9 @@ const Post = ({
                     isEphemeral={isEphemeral}
                 />
             );
+        } else if (showSystemCentered) {
+            // 系统消息居中：不显示 header（系统名/头像）
+            header = null;
         } else {
             header = (
                 <Header
@@ -650,6 +686,7 @@ const Post = ({
                 searchPatterns={searchPatterns}
                 showAddReaction={showAddReaction}
                 theme={theme}
+                weChatAvatarOnlyRow={weChatAvatarOnlyRow}
                 onLongPress={showPostOptions}
             />
         );
@@ -676,6 +713,7 @@ const Post = ({
 
     const touchableStyle = [
         styles.postContent,
+        useCenteredNoAvatarLayout && styles.postContentSystemCentered,
         weChatStyle && showOwnLayout && styles.postContentOwnWeChat,
         weChatStyle && !showOwnLayout && !useCenteredNoAvatarLayout && styles.postContentOthersWeChat,
         weChatStyle && !useCenteredNoAvatarLayout && {alignSelf: showOwnLayout ? 'flex-end' : 'flex-start'},
@@ -688,7 +726,7 @@ const Post = ({
                 styles.postStyle,
                 weChatStyle && styles.postStyleWeChatNoFlex,
                 weChatStyle && styles.postStyleWeChatOverflow,
-                weChatStyle && styles.postStyleWeChatSpacing,
+                weChatStyle && (useCenteredNoAvatarLayout ? styles.postStyleWeChatSystemSpacing : styles.postStyleWeChatSpacing),
                 style,
                 highlightedStyle,
             ]}
@@ -713,7 +751,7 @@ const Post = ({
                         styles.container,
                         consecutiveStyle,
                         showOwnLayout && styles.containerOwn,
-                        useCenteredNoAvatarLayout && styles.containerSystem,
+                        showSystemCentered && styles.containerSystem,
                         weChatStyle && !useCenteredNoAvatarLayout && styles.containerWeChatAlign,
                     ]}
                 >

@@ -221,6 +221,10 @@ const Header = (props: HeaderProps) => {
     );
 
     if (timeOnly) {
+        // 微信频道时间走日期分隔条；避免空 minHeight 头把气泡挤到与头像垂直居中
+        if (useWeChatRelativeTime) {
+            return null;
+        }
         return (
             <View style={[style.container, style.containerTimeOnly, pendingPostStyle]}>
                 <View style={style.timeOnlyWrapper}>
@@ -236,6 +240,9 @@ const Header = (props: HeaderProps) => {
     }
 
     if (hideOthersNameInDm) {
+        if (useWeChatRelativeTime) {
+            return null;
+        }
         return (
             <View style={[style.container, style.containerOthersDmTime, pendingPostStyle]}>
                 {timeEl}
@@ -287,7 +294,7 @@ const Header = (props: HeaderProps) => {
                             label={post.metadata.priority.priority}
                         />
                     )}
-                    {timeEl}
+                    {!useWeChatRelativeTime && timeEl}
                     {isEphemeral && (
                         <FormattedText
                             id='post_header.visible_message'

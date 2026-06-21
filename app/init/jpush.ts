@@ -180,9 +180,6 @@ class JPushManager {
             }
             JPush.clearLocalNotifications();
             JPush.clearAllNotifications();
-            if (typeof JPush.setBadge === 'function') {
-                JPush.setBadge({badge: 0, appBadge: 0});
-            }
             logInfo(`${TAG} 已清除通知栏推送通知`, {source});
         } catch (error) {
             logError(`${TAG} 清除通知栏推送失败`, {source, error});
@@ -277,6 +274,11 @@ class JPushManager {
         EphemeralStore.clearPendingJPushNotification();
 
         this.clearDisplayedNotifications('logout');
+
+        // 登出时角标清零
+        if (typeof JPush.setBadge === 'function') {
+            JPush.setBadge({badge: 0, appBadge: 0});
+        }
 
         if (this.initialized) {
             const sequence = Date.now();
