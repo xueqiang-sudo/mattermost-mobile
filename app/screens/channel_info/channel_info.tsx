@@ -26,11 +26,15 @@ import {
     CHANNEL_INFO_SCREEN_PADDING_H,
     makeChannelInfoModalOptionBoxStyle,
 } from './channel_info_constants';
+import ChannelInfoDM from './channel_info_dm';
+import ChannelInfoGM from './channel_info_gm';
+import ChannelInfoPublicPrivate from './channel_info_public_private';
 import DestructiveOptions from './destructive_options';
 import Extra from './extra';
 import Options from './options';
 import Title from './title';
 
+import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type Props = {
@@ -50,6 +54,17 @@ type Props = {
     isGuestUser: boolean;
     isTeamDefaultOpenChannel?: boolean;
     type?: ChannelType;
+
+    // New props for PC-aligned screens
+    isFavorite: boolean;
+    isMuted: boolean;
+    channelSettings?: any;
+    memberIds: string[];
+    channelMembersCount: number;
+    dmUser?: UserModel;
+    currentUserId: string;
+    myNickname?: string;
+    displayName?: string;
 }
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
@@ -91,6 +106,15 @@ const ChannelInfo = ({
     isGuestUser,
     isTeamDefaultOpenChannel = false,
     type,
+    isFavorite,
+    isMuted,
+    channelSettings,
+    memberIds,
+    channelMembersCount,
+    dmUser,
+    currentUserId,
+    myNickname,
+    displayName,
 }: Props) => {
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -115,6 +139,52 @@ const ChannelInfo = ({
     useNavButtonPressed(closeButtonId, componentId, onPressed, [onPressed]);
     useAndroidHardwareBackHandler(componentId, onPressed);
 
+    // Route to PC-aligned screens based on channel type
+    if (type === General.DM_CHANNEL) {
+        return (
+            <ChannelInfoDM
+                channelId={channelId}
+                closeButtonId={closeButtonId}
+                componentId={componentId}
+                dmUser={dmUser}
+                isFavorite={isFavorite}
+                isMuted={isMuted}
+            />
+        );
+    }
+
+    if (type === General.GM_CHANNEL) {
+        return (
+            <ChannelInfoGM
+                channelId={channelId}
+                closeButtonId={closeButtonId}
+                componentId={componentId}
+                currentUserId={currentUserId}
+                displayName={displayName}
+                isFavorite={isFavorite}
+                isMuted={isMuted}
+                memberIds={memberIds}
+                myNickname={myNickname}
+            />
+        );
+    }
+
+    if (type === General.OPEN_CHANNEL || type === General.PRIVATE_CHANNEL) {
+        return (
+            <ChannelInfoPublicPrivate
+                channelId={channelId}
+                closeButtonId={closeButtonId}
+                componentId={componentId}
+                displayName={displayName}
+                isFavorite={isFavorite}
+                isMuted={isMuted}
+                memberIds={memberIds}
+                type={type}
+            />
+        );
+    }
+
+    // Fallback to original layout for any other channel type
     // 群聊不显示"转换为内部群"选项
     const convertGMOptionAvailable = false;
 

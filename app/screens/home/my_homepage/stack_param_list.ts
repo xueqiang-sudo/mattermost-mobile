@@ -19,7 +19,10 @@ export type MyHomepageStackParamList = {
         initialContactEmail?: string;
         initialContactPhone?: string;
         initialContactPosition?: string;
+        initialContactUsername?: string;
         /** When known (e.g. matches Mattermost user id), skip email lookup for avatar */
         mattermostUserIdForAvatar?: string;
+        /** Read-only detail view (no editing) */
+        readOnly?: boolean;
     };
 };

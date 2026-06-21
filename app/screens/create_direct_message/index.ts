@@ -14,7 +14,12 @@ import CreateDirectMessage from './create_direct_message';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 
-const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
+type OwnProps = WithDatabaseArgs & {
+    channelId?: string;
+    isExistingChannel?: boolean;
+}
+
+const enhanced = withObservables([], ({database}: OwnProps) => {
     const restrictDirectMessage = observeConfigValue(database, 'RestrictDirectMessage').pipe(
         switchMap((v) => of$(v !== General.RESTRICT_DIRECT_MESSAGE_ANY)),
     );
@@ -29,4 +34,3 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 });
 
 export default withDatabase(enhanced(CreateDirectMessage));
-

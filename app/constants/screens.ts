@@ -47,6 +47,10 @@ export const DRAFT_SCHEDULED_POST_OPTIONS = 'DraftScheduledPostOptions';
 export const DRAFT_VIDEO_RECORDER = 'DraftVideoRecorder';
 export const EDIT_POST = 'EditPost';
 export const EDIT_CHANNEL_ANNOUNCEMENT = 'EditChannelAnnouncement';
+export const EDIT_GROUP_NICKNAME = 'EditGroupNickname';
+export const EDIT_GROUP_NAME = 'EditGroupName';
+export const REMOVE_MEMBERS = 'RemoveMembers';
+export const SEARCH_CHAT_HISTORY = 'SearchChatHistory';
 export const EDIT_PROFILE = 'EditProfile';
 export const EDIT_SERVER = 'EditServer';
 export const EMOJI_PICKER = 'EmojiPicker';
@@ -169,6 +173,10 @@ export default {
     DRAFT_VIDEO_RECORDER,
     EDIT_POST,
     EDIT_CHANNEL_ANNOUNCEMENT,
+    EDIT_GROUP_NICKNAME,
+    EDIT_GROUP_NAME,
+    REMOVE_MEMBERS,
+    SEARCH_CHAT_HISTORY,
     EDIT_PROFILE,
     EDIT_SERVER,
     EMOJI_PICKER,

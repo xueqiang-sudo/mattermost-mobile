@@ -1,15 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState, useRef} from 'react';
-import {type IntlShape, useIntl} from 'react-intl';
-import {Keyboard} from 'react-native';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {useIntl, type IntlShape} from 'react-intl';
+import {FlatList, Keyboard, Share, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {searchEmployeeCandidates} from '@actions/remote/candidate_search';
+import {getEmployeeCandidates, searchExternalCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {addUserToDefaultDepartment, addUserToDepartment} from '@actions/remote/contact_new';
 import {getTeamMembersByIds} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
+import ProfilePicture from '@components/profile_picture';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -17,89 +18,70 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, setButtons} from '@screens/navigation';
-import {mergeNavigationOptions} from '@utils/navigation';
-import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
-import {secureGetFromRecord} from '@utils/types';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {typography} from '@utils/typography';
+import {displayUsername, getLastPictureUpdate} from '@utils/user';
 
-import {sendGuestInvites, sendMembersInvites} from './actions';
-import Selection from './selection';
+import {sendMembersInvites} from './actions';
 import Summary from './summary';
 
-import type {InviteCandidate, InviteCandidateTag, InviteResult, Result, SearchResult, SendOptions} from './types';
-import type {AvailableScreens, NavButtons} from '@typings/screens/navigation';
-import type {OptionsTopBarButton} from 'react-native-navigation';
+import type {InviteResult, Result, SearchResult} from './types';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-invite';
-const SELECT_ALL_BUTTON_ID = 'select-all-invite';
-const SEND_BUTTON_ID = 'send-invite';
-const TIMEOUT_MILLISECONDS = 200;
-const DEFAULT_RESULT = {sent: [], notSent: []};
+const DEFAULT_RESULT: Result = {sent: [], notSent: []};
 
-const makeLeftButton = (theme: Theme): OptionsTopBarButton => ({
-    id: CLOSE_BUTTON_ID,
-    icon: CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor),
-    testID: 'invite.close.button',
-});
+type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'self';
+type CandidateProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
 
-const makeRightButton = (
-    theme: Theme,
-    formatMessage: IntlShape['formatMessage'],
-    enabled: boolean,
-): OptionsTopBarButton => ({
-    id: SEND_BUTTON_ID,
-    text: formatMessage({id: 'invite.add_selected', defaultMessage: 'Add to enterprise'}),
-    showAsAction: 'always',
-    testID: 'invite.send.button',
-    color: theme.sidebarHeaderTextColor,
-    disabledColor: changeOpacity(theme.sidebarHeaderTextColor, 0.4),
-    enabled,
-});
+function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
+    const tags: CandidateTag[] = [];
+    if (draft.sourceFlags.globalSearch) {
+        tags.push('exactMatch');
+    }
+    if (draft.sourceFlags.customer) {
+        tags.push('customer');
+    }
+    if (draft.sourceFlags.supplier) {
+        tags.push('supplier');
+    }
+    if (draft.sourceFlags.self) {
+        tags.push('self');
+    }
+    return tags;
+}
 
-const makeSelectAllButton = (
-    theme: Theme,
-    formatMessage: IntlShape['formatMessage'],
-    enabled: boolean,
-    allSelected: boolean,
-): OptionsTopBarButton => ({
-    id: SELECT_ALL_BUTTON_ID,
-    text: allSelected ? (
-        formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'})
-    ) : (
-        formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})
-    ),
-    showAsAction: 'always',
-    testID: 'invite.select_all.button',
-    color: theme.sidebarHeaderTextColor,
-    disabledColor: changeOpacity(theme.sidebarHeaderTextColor, 0.4),
-    enabled,
-});
+function mapDraftsToProfiles(drafts: CandidateDraft[]): CandidateProfile[] {
+    const profiles: CandidateProfile[] = [];
+    for (const draft of drafts) {
+        if (!draft.user) {
+            continue;
+        }
+        profiles.push({
+            ...draft.user,
+            mmCandidateTags: getCandidateTags(draft),
+        });
+    }
+    return profiles;
+}
+
+function AvatarNoInitials({author, size}: {author: CandidateProfile; size: number}) {
+    const hasImage = author ? getLastPictureUpdate(author) > 0 : false;
+    return (
+        <ProfilePicture
+            author={hasImage ? author : undefined}
+            size={size}
+            showStatus={false}
+        />
+    );
+}
 
 const closeModal = async () => {
     Keyboard.dismiss();
     await dismissModal();
 };
 
-const getStyleSheet = makeStyleSheetFromTheme(() => {
-    return {
-        container: {
-            flex: 1,
-            flexDirection: 'column',
-        },
-        loadingContainer: {
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-        },
-    };
-});
-
-enum Stage {
-    SELECTION = 'selection',
-    RESULT = 'result',
-    LOADING = 'loading',
-}
-
-type InviteProps = {
+type Props = {
     componentId: AvailableScreens;
     teamId: string;
     teamDisplayName: string;
@@ -109,340 +91,616 @@ type InviteProps = {
     canInviteGuests: boolean;
     allowGuestMagicLink: boolean;
     currentUserId?: string;
-
-    /** 从企业通讯录入口打开邀请时，传入目标部门 ID（null 表示默认部门） */
     contactTargetDepartmentId?: number | null;
 }
 
-export default function Invite(props: InviteProps) {
-    const {
-        componentId,
-        teamId,
-        teamDisplayName,
-        teamLastIconUpdate,
-        teamInviteId,
-        isAdmin,
-        canInviteGuests,
-        allowGuestMagicLink,
-        currentUserId,
-        contactTargetDepartmentId,
-    } = props;
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
+    container: {
+        flex: 1,
+        backgroundColor: theme.centerChannelBg,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    searchSection: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        minHeight: 40,
+    },
+    searchIcon: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        fontSize: 16,
+        padding: 0,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
+    },
+    checkboxUnchecked: {
+        borderColor: changeOpacity(theme.centerChannelColor, 0.3),
+    },
+    checkIcon: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    sectionHeaderText: {
+        flex: 1,
+        color: changeOpacity(theme.centerChannelColor, 0.7),
+        ...typography('Body', 100, 'SemiBold'),
+    },
+    sectionCount: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        ...typography('Body', 100),
+    },
+    chevron: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginRight: 4,
+    },
+    memberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.05),
+    },
+    memberRowJoined: {
+        opacity: 0.5,
+    },
+    memberName: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    memberJoined: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        fontSize: 12,
+        marginLeft: 4,
+    },
+    bottomBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    shareLinkButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    shareLinkText: {
+        color: theme.buttonBg,
+        marginLeft: 6,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    doneButton: {
+        backgroundColor: theme.buttonBg,
+        borderRadius: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+    },
+    doneButtonDisabled: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
+    },
+    doneButtonText: {
+        color: theme.buttonColor,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    dropdownOverlay: {
+        backgroundColor: theme.centerChannelBg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+        maxHeight: 300,
+    },
+    dropdownList: {
+        paddingHorizontal: 16,
+    },
+    selectedMemberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        gap: 12,
+    },
+    selectedMemberName: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    collapseButtonContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+}));
+
+enum Stage {
+    SELECTION = 'selection',
+    RESULT = 'result',
+    LOADING = 'loading',
+}
+
+export default function Invite({
+    componentId,
+    teamId,
+    teamDisplayName,
+    teamInviteId,
+    isAdmin,
+    currentUserId,
+    contactTargetDepartmentId,
+}: Props) {
     const intl = useIntl();
     const {formatMessage} = intl;
     const theme = useTheme();
-    const styles = getStyleSheet(theme);
+    const style = getStyleSheet(theme);
     const serverUrl = useServerUrl();
 
-    const searchTimeoutId = useRef<NodeJS.Timeout | null>(null);
-    const retryTimeoutId = useRef<NodeJS.Timeout | null>(null);
-
-    const [term, setTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<InviteCandidate[]>([]);
-    const [selectedIds, setSelectedIds] = useState<{[id: string]: SearchResult}>({});
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState<Result>(DEFAULT_RESULT);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectedProfiles, setSelectedProfiles] = useState<Map<string, CandidateProfile>>(new Map());
+    const [searchTerm, setSearchTerm] = useState('');
+    const [candidates, setCandidates] = useState<{
+        suppliers: CandidateProfile[];
+        customers: CandidateProfile[];
+        enterprise: CandidateProfile[];
+        searchResults: CandidateProfile[];
+    }>({suppliers: [], customers: [], enterprise: [], searchResults: []});
+    const [alreadyJoinedIds, setAlreadyJoinedIds] = useState<Set<string>>(new Set());
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['enterprise', 'suppliers', 'customers', 'searchResults']));
+    const [showDropdown, setShowDropdown] = useState(false);
     const [stage, setStage] = useState(Stage.SELECTION);
+    const [result, setResult] = useState<Result>(DEFAULT_RESULT);
     const [sendError, setSendError] = useState('');
+    const [sending, setSending] = useState(false);
 
-    const [sendOptions, setSendOptions] = useState<SendOptions>({
-        inviteAsGuest: false,
-        includeCustomMessage: false,
-        customMessage: '',
-        selectedChannels: [],
-        guestMagicLink: false,
-    });
+    // Fetch all candidates on mount (enterprise + suppliers + customers)
+    useEffect(() => {
+        getEmployeeCandidates(serverUrl, teamId, currentUserId ?? '').then((drafts) => {
+            const profiles = mapDraftsToProfiles(drafts);
+            const enterprise = profiles.filter((p) => p.mmCandidateTags?.includes('enterprise'));
+            const suppliers = profiles.filter((p) => p.mmCandidateTags?.includes('supplier'));
+            const customers = profiles.filter((p) => p.mmCandidateTags?.includes('customer'));
 
-    const isResult = stage === Stage.RESULT;
-    const isSelecting = stage === Stage.SELECTION;
+            // Enterprise members are auto-selected and locked (already joined)
+            const enterpriseIds = new Set(enterprise.map((p) => p.id));
+            setAlreadyJoinedIds(enterpriseIds);
+            setSelectedIds(enterpriseIds);
+            const enterpriseProfileMap = new Map(enterprise.map((p) => [p.id, p]));
+            setSelectedProfiles(enterpriseProfileMap);
 
-    const selectedCount = Object.keys(selectedIds).length;
-    const hasSelection = selectedCount > 0;
-    const selectableCandidates = searchResults.filter((candidate) => !candidate.isAlreadyJoined);
-    const selectableIds = selectableCandidates.map((candidate) => candidate.user.id);
-    const hasSelectable = selectableIds.length > 0;
-    const isAllSelectableSelected = hasSelectable && selectableIds.every((id) => Boolean(selectedIds[id]));
+            setCandidates({suppliers, customers, enterprise, searchResults: []});
+        });
+    }, [serverUrl, teamId, currentUserId]);
 
-    const handleClearSearch = useCallback(() => {
-        setTerm('');
-        setSearchResults([]);
+    // Search external candidates (exact match only)
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            setCandidates((prev) => ({...prev, searchResults: []}));
+            return;
+        }
+        searchExternalCandidates(serverUrl, currentUserId ?? '', searchTerm).then(async (drafts) => {
+            const profiles = mapDraftsToProfiles(drafts);
+            // Check which users are already team members
+            const userIds = profiles.map((p) => p.id);
+            const joined = new Set<string>();
+            if (userIds.length) {
+                const {members = []} = await getTeamMembersByIds(serverUrl, teamId, userIds);
+                for (const member of members) {
+                    joined.add(member.user_id);
+                }
+            }
+            setAlreadyJoinedIds((prev) => {
+                const next = new Set(prev);
+                joined.forEach((id) => next.add(id));
+                return next;
+            });
+            setCandidates((prev) => ({...prev, searchResults: profiles}));
+        });
+    }, [searchTerm, serverUrl, currentUserId, teamId]);
+
+    // Filter candidates by search term (client-side for suppliers/customers/enterprise)
+    const filteredCandidates = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return candidates;
+        }
+        const term = searchTerm.toLowerCase();
+        const filterFn = (p: CandidateProfile) => {
+            const name = displayUsername(p).toLowerCase();
+            const username = (p.username || '').toLowerCase();
+            return name.includes(term) || username.includes(term);
+        };
+        return {
+            suppliers: candidates.suppliers.filter(filterFn),
+            customers: candidates.customers.filter(filterFn),
+            enterprise: candidates.enterprise.filter(filterFn),
+            searchResults: candidates.searchResults,
+        };
+    }, [candidates, searchTerm]);
+
+    // Selected profiles array for display
+    const selectedProfilesArray = useMemo(() => {
+        return Array.from(selectedProfiles.values());
+    }, [selectedProfiles]);
+
+    // Navigation buttons
+    useEffect(() => {
+        const closeIconColor = theme.sidebarHeaderTextColor;
+        const closeIcon = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
+        setButtons(componentId, {
+            leftButtons: [{
+                id: CLOSE_BUTTON_ID,
+                icon: closeIcon,
+                testID: 'invite.close.button',
+            }],
+        });
+    }, [componentId, theme.sidebarHeaderTextColor]);
+
+    useNavButtonPressed(CLOSE_BUTTON_ID, componentId, closeModal, []);
+    useAndroidHardwareBackHandler(componentId, closeModal);
+
+    // Toggle select
+    const toggleSelect = useCallback((userId: string) => {
+        if (alreadyJoinedIds.has(userId)) {
+            return;
+        }
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(userId)) {
+                next.delete(userId);
+                setSelectedProfiles((prevP) => {
+                    const nextP = new Map(prevP);
+                    nextP.delete(userId);
+                    return nextP;
+                });
+            } else {
+                next.add(userId);
+                // Find profile from candidates
+                const allProfiles = [...candidates.enterprise, ...candidates.suppliers, ...candidates.customers, ...candidates.searchResults];
+                const profile = allProfiles.find((p) => p.id === userId);
+                if (profile) {
+                    setSelectedProfiles((prevP) => {
+                        const nextP = new Map(prevP);
+                        nextP.set(userId, profile);
+                        return nextP;
+                    });
+                }
+            }
+            return next;
+        });
+        setSearchTerm('');
+    }, [alreadyJoinedIds, candidates]);
+
+    const toggleSection = useCallback((section: string) => {
+        setExpandedSections((prev) => {
+            const next = new Set(prev);
+            if (next.has(section)) {
+                next.delete(section);
+            } else {
+                next.add(section);
+            }
+            return next;
+        });
     }, []);
 
-    const searchUsers = useCallback(async (searchTerm: string) => {
-        if (searchTerm === '') {
-            handleClearSearch();
-            return;
-        }
-
-        const candidates = await searchEmployeeCandidates(serverUrl, teamId, currentUserId ?? '', searchTerm.toLowerCase());
-        const users = candidates.map((candidate) => candidate.user).filter(Boolean) as UserProfile[];
-        const userIds = users.map((u) => u.id);
-        const alreadyJoinedIds = new Set<string>();
-
-        if (userIds.length) {
-            const {members = []} = await getTeamMembersByIds(serverUrl, teamId, userIds);
-            for (const member of members) {
-                alreadyJoinedIds.add(member.user_id);
-            }
-        }
-
-        const candidateByUserId = new Map(candidates.map((candidate) => [candidate.userId, candidate]));
-        const results: InviteCandidate[] = users.map((user) => {
-            const matched = candidateByUserId.get(user.id);
-            const tags: InviteCandidateTag[] = [];
-            if (matched?.sourceFlags.globalSearch) {
-                tags.push('exactMatch');
-            }
-            if (matched?.sourceFlags.self) {
-                tags.push('self');
-            }
-            if (matched?.sourceFlags.customer) {
-                tags.push('customer');
-            }
-            if (matched?.sourceFlags.supplier) {
-                tags.push('supplier');
-            }
-            if (matched?.sourceFlags.enterpriseSearch) {
-                tags.push('enterprise');
-            }
-            return {
-                user,
-                tags,
-                isAlreadyJoined: alreadyJoinedIds.has(user.id),
-            };
-        });
-
-        results.sort((a, b) => {
-            if (a.isAlreadyJoined === b.isAlreadyJoined) {
-                return 0;
-            }
-            return a.isAlreadyJoined ? 1 : -1;
-        });
-
-        setSearchResults(results);
-    }, [currentUserId, handleClearSearch, serverUrl, teamId]);
-
-    const handleReset = useCallback(() => {
-        setSendError('');
-        setTerm('');
-        setSearchResults([]);
-        setResult(DEFAULT_RESULT);
-        setStage(Stage.SELECTION);
-    }, []);
-
-    const handleSearchChange = useCallback((text: string) => {
-        setLoading(true);
-        if (text !== term) {
-            setSelectedIds({});
-        }
-        setTerm(text);
-
-        if (searchTimeoutId.current) {
-            clearTimeout(searchTimeoutId.current);
-        }
-
-        searchTimeoutId.current = setTimeout(async () => {
-            await searchUsers(text);
-            setLoading(false);
-        }, TIMEOUT_MILLISECONDS);
-    }, [searchUsers, term]);
-
-    const handleSelectItem = useCallback((item: SearchResult) => {
-        const email = typeof item === 'string';
-        const id = email ? item : item.id;
-        const newSelectedIds = Object.assign({}, selectedIds);
-
-        if (secureGetFromRecord(selectedIds, id)) {
-            Reflect.deleteProperty(newSelectedIds, id);
-        } else {
-            newSelectedIds[id] = item;
-        }
-
-        setSelectedIds(newSelectedIds);
-    }, [selectedIds]);
-
-    const handleSendError = useCallback(() => {
-        setSendError(formatMessage({id: 'invite.send_error', defaultMessage: 'Something went wrong while trying to send invitations. Please check your network connection and try again.'}));
-        setResult(DEFAULT_RESULT);
-        setStage(Stage.RESULT);
-    }, [formatMessage]);
-
-    const handleSelectAll = useCallback(() => {
-        if (!hasSelectable) {
-            return;
-        }
-
-        const updated = {...selectedIds};
-
-        if (isAllSelectableSelected) {
-            for (const id of selectableIds) {
-                Reflect.deleteProperty(updated, id);
-            }
-            setSelectedIds(updated);
-            return;
-        }
-
-        for (const candidate of selectableCandidates) {
-            updated[candidate.user.id] = candidate.user;
-        }
-        setSelectedIds(updated);
-    }, [hasSelectable, isAllSelectableSelected, selectableCandidates, selectableIds, selectedIds]);
-
+    // Add sent users to department
     const addSentUsersToDepartment = useCallback(async (sent: InviteResult[]) => {
-        const targetDepartmentId = (typeof contactTargetDepartmentId === 'number') ? contactTargetDepartmentId : null;
-
         await Promise.all(sent.map(async (item) => {
             if (!item.userId) {
                 return;
             }
-
-            const selected = selectedIds[item.userId];
-            if (!selected || typeof selected === 'string') {
+            const uid = item.userId;
+            if (typeof contactTargetDepartmentId === 'number') {
+                await addUserToDepartment(serverUrl, teamId, contactTargetDepartmentId, uid);
                 return;
             }
-
-            const uid = selected.id;
-            if (typeof targetDepartmentId === 'number') {
-                await addUserToDepartment(serverUrl, teamId, targetDepartmentId, uid);
-                return;
-            }
-
             await addUserToDefaultDepartment(serverUrl, teamId, uid);
         }));
-    }, [contactTargetDepartmentId, selectedIds, serverUrl, teamId]);
+    }, [contactTargetDepartmentId, serverUrl, teamId]);
 
+    // Handle send (invite selected users)
     const handleSend = useCallback(async () => {
-        if (!hasSelection) {
+        if (selectedIds.size === 0 || sending) {
             return;
         }
-
+        setSending(true);
         setStage(Stage.LOADING);
 
-        if (sendOptions.inviteAsGuest) {
-            const {sent, notSent} = await sendGuestInvites(serverUrl, teamId, selectedIds, sendOptions, formatMessage);
-            setResult({sent, notSent});
-            setStage(Stage.RESULT);
-            await addSentUsersToDepartment(sent);
-            return;
-        }
+        // Convert selectedProfiles Map to the format expected by sendMembersInvites
+        const selectedMap = Object.fromEntries(selectedProfiles) as {[id: string]: SearchResult};
 
-        const {sent, notSent, error} = await sendMembersInvites(serverUrl, teamId, selectedIds, isAdmin, teamDisplayName, formatMessage);
+        const {sent, notSent, error} = await sendMembersInvites(serverUrl, teamId, selectedMap, isAdmin, teamDisplayName, formatMessage);
         if (error) {
-            handleSendError();
+            setSendError(formatMessage({id: 'invite.send_error', defaultMessage: 'Something went wrong while trying to send invitations.'}));
+            setResult(DEFAULT_RESULT);
         } else {
             setResult({sent, notSent});
-            setStage(Stage.RESULT);
             await addSentUsersToDepartment(sent);
         }
-    }, [addSentUsersToDepartment, formatMessage, handleSendError, isAdmin, hasSelection, selectedIds, sendOptions, serverUrl, teamDisplayName, teamId]);
+        setStage(Stage.RESULT);
+        setSending(false);
+    }, [selectedIds, sending, selectedProfiles, serverUrl, teamId, isAdmin, teamDisplayName, formatMessage, addSentUsersToDepartment]);
 
-    const handleRetry = useCallback(() => {
+    // Share link
+    const handleShareLink = useCallback(async () => {
+        const url = `${serverUrl}/signup_user_complete/?id=${teamInviteId}`;
+        const title = formatMessage(
+            {id: 'invite_people_to_team.title', defaultMessage: 'Join the {team} enterprise'},
+            {team: teamDisplayName},
+        );
+        const message = formatMessage({id: 'invite_people_to_team.message', defaultMessage: "Here's a link to collaborate and communicate with us on Mattermost."});
+
+        await closeModal();
+        try {
+            await Share.share({
+                title,
+                message: `${message}\n${url}`,
+                url,
+            });
+        } catch {
+            // User cancelled share
+        }
+    }, [serverUrl, teamInviteId, teamDisplayName, formatMessage]);
+
+    // Done button label
+    const doneLabel = useMemo(() => {
+        const count = selectedIds.size;
+        if (count > 0) {
+            return formatMessage({id: 'create_direct_message.done_with_count', defaultMessage: 'Done ({count})'}, {count});
+        }
+        return formatMessage({id: 'invite.add_selected', defaultMessage: 'Add to enterprise'});
+    }, [formatMessage, selectedIds.size]);
+
+    // Handle back from summary
+    const handleBackToSelection = useCallback(() => {
         setSendError('');
-        setStage(Stage.LOADING);
-
-        retryTimeoutId.current = setTimeout(() => {
-            handleSend();
-        }, TIMEOUT_MILLISECONDS);
-    }, [handleSend]);
-
-    useNavButtonPressed(CLOSE_BUTTON_ID, componentId, closeModal, [closeModal]);
-    useNavButtonPressed(SELECT_ALL_BUTTON_ID, componentId, handleSelectAll, [handleSelectAll]);
-    useNavButtonPressed(SEND_BUTTON_ID, componentId, handleSend, [handleSend]);
-
-    useEffect(() => {
-        const buttons: NavButtons = {
-            leftButtons: [makeLeftButton(theme)],
-            rightButtons: isSelecting ? [
-                makeRightButton(theme, formatMessage, hasSelection),
-                makeSelectAllButton(theme, formatMessage, hasSelectable, isAllSelectableSelected),
-            ] : [],
-        };
-
-        setButtons(componentId, buttons);
-    }, [theme, componentId, hasSelectable, hasSelection, isSelecting, formatMessage, isAllSelectableSelected]);
-
-    useEffect(() => {
-        mergeNavigationOptions(componentId, {
-            topBar: {
-                title: {
-                    color: theme.sidebarHeaderTextColor,
-                    text: isResult ? (
-                        formatMessage({id: 'invite.title.summary', defaultMessage: 'Invitation results'})
-                    ) : (
-                        formatMessage({id: 'invite.title', defaultMessage: 'Invite people to enterprise'})
-                    ),
-                },
-            },
-        });
-    }, [componentId, formatMessage, isResult, theme]);
-
-    useEffect(() => {
-        return () => {
-            if (searchTimeoutId.current) {
-                clearTimeout(searchTimeoutId.current);
-            }
-
-            if (retryTimeoutId.current) {
-                clearTimeout(retryTimeoutId.current);
-            }
-        };
+        setResult(DEFAULT_RESULT);
+        setStage(Stage.SELECTION);
     }, []);
 
-    useAndroidHardwareBackHandler(componentId, closeModal);
+    const renderCheckbox = (userId: string) => {
+        const isSelected = selectedIds.has(userId);
+        const isJoined = alreadyJoinedIds.has(userId);
 
-    const renderContent = () => {
-        switch (stage) {
-            case Stage.LOADING:
-                return (
-                    <Loading
-                        containerStyle={styles.loadingContainer}
-                        size='large'
-                        color={theme.centerChannelColor}
-                    />
-                );
-            case Stage.RESULT:
-                return (
-                    <Summary
-                        result={result}
-                        selectedIds={selectedIds}
-                        error={sendError}
-                        onClose={closeModal}
-                        onRetry={handleRetry}
-                        onBack={handleReset}
-                        testID='invite.screen.summary'
-                    />
-                );
-            default:
-                return (
-                    <Selection
-                        teamId={teamId}
-                        teamDisplayName={teamDisplayName}
-                        teamLastIconUpdate={teamLastIconUpdate}
-                        teamInviteId={teamInviteId}
-                        serverUrl={serverUrl}
-                        term={term}
-                        searchResults={searchResults}
-                        selectedIds={selectedIds}
-                        loading={loading}
-                        onSearchChange={handleSearchChange}
-                        onSelectItem={handleSelectItem}
-                        onClose={closeModal}
-                        testID='invite.screen.selection'
-                        sendOptions={sendOptions}
-                        onSendOptionsChange={setSendOptions}
-                        canInviteGuests={canInviteGuests}
-                        allowGuestMagicLink={allowGuestMagicLink}
-                    />
-                );
+        if (isJoined) {
+            return (
+                <View style={[style.checkbox, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.3), borderColor: changeOpacity(theme.centerChannelColor, 0.3)}]}>
+                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
+                </View>
+            );
         }
+        if (isSelected) {
+            return (
+                <View style={[style.checkbox, style.checkboxChecked]}>
+                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
+                </View>
+            );
+        }
+        return <View style={[style.checkbox, style.checkboxUnchecked]}/>;
     };
+
+    const renderMemberRow = (user: CandidateProfile) => {
+        const isJoined = alreadyJoinedIds.has(user.id);
+        const name = displayUsername(user);
+
+        return (
+            <TouchableOpacity
+                key={user.id}
+                style={[style.memberRow, isJoined && style.memberRowJoined]}
+                onPress={() => toggleSelect(user.id)}
+                disabled={isJoined}
+            >
+                {renderCheckbox(user.id)}
+                <AvatarNoInitials author={user} size={40}/>
+                <Text style={style.memberName}>
+                    {name}
+                    {isJoined && (
+                        <Text style={style.memberJoined}>
+                            {` (${formatMessage({id: 'invite.tag.already_joined', defaultMessage: 'Already added'})})`}
+                        </Text>
+                    )}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderSection = (title: string, sectionKey: string, members: CandidateProfile[]) => {
+        if (members.length === 0) {
+            return null;
+        }
+        const isExpanded = expandedSections.has(sectionKey);
+        return (
+            <View key={sectionKey}>
+                <TouchableOpacity style={style.sectionHeader} onPress={() => toggleSection(sectionKey)}>
+                    <CompassIcon
+                        name={isExpanded ? 'chevron-down' : 'chevron-right'}
+                        size={20}
+                        style={style.chevron}
+                    />
+                    <Text style={style.sectionHeaderText}>{title}</Text>
+                    <Text style={style.sectionCount}>({members.length})</Text>
+                </TouchableOpacity>
+                {isExpanded && members.map(renderMemberRow)}
+            </View>
+        );
+    };
+
+    if (stage === Stage.LOADING) {
+        return (
+            <SafeAreaView style={style.container} edges={['top', 'left', 'right']}>
+                <View style={style.loadingContainer}>
+                    <Loading color={theme.centerChannelColor} size='large'/>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (stage === Stage.RESULT) {
+        return (
+            <SafeAreaView style={style.container} edges={['top', 'left', 'right']}>
+                <Summary
+                    result={result}
+                    selectedIds={Object.fromEntries(selectedProfiles)}
+                    error={sendError}
+                    onClose={closeModal}
+                    onRetry={handleSend}
+                    onBack={handleBackToSelection}
+                    testID='invite.screen.summary'
+                />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView
-            style={styles.container}
+            style={style.container}
             testID='invite.screen'
             nativeID={SecurityManager.getShieldScreenId(componentId)}
+            edges={['top', 'left', 'right']}
         >
-            {renderContent()}
+            {/* Search bar */}
+            <View style={style.searchSection}>
+                <View style={style.searchBar}>
+                    {selectedProfilesArray.length === 0 && (
+                        <CompassIcon name='magnify' size={20} style={style.searchIcon}/>
+                    )}
+                    {selectedProfilesArray.length > 0 && (
+                        <TouchableOpacity
+                            style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginRight: 8}}
+                            onPress={() => setShowDropdown(true)}
+                        >
+                            {selectedProfilesArray.map((user) => (
+                                <AvatarNoInitials
+                                    key={user.id}
+                                    author={user}
+                                    size={28}
+                                />
+                            ))}
+                        </TouchableOpacity>
+                    )}
+                    <TextInput
+                        style={style.searchInput}
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                        placeholder={formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search...'})}
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                        autoCapitalize='none'
+                    />
+                </View>
+                {showDropdown && (
+                    <View style={style.dropdownOverlay}>
+                        <View style={style.dropdownList}>
+                            {selectedProfilesArray.map((user) => {
+                                const name = displayUsername(user);
+                                return (
+                                    <TouchableOpacity
+                                        key={user.id}
+                                        style={style.selectedMemberRow}
+                                        onPress={() => toggleSelect(user.id)}
+                                    >
+                                        {renderCheckbox(user.id)}
+                                        <AvatarNoInitials author={user} size={32}/>
+                                        <Text style={style.selectedMemberName}>{name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <TouchableOpacity
+                            style={style.collapseButtonContainer}
+                            onPress={() => setShowDropdown(false)}
+                        >
+                            <CompassIcon name='chevron-up' size={24} style={{color: theme.buttonBg}}/>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+
+            {/* Member list */}
+            <FlatList
+                style={{flex: 1}}
+                data={[]}
+                renderItem={() => null}
+                ListHeaderComponent={
+                    <>
+                        {renderSection(
+                            formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
+                            'enterprise',
+                            filteredCandidates.enterprise,
+                        )}
+                        {renderSection(
+                            formatMessage({id: 'channel_add_members.suppliers', defaultMessage: 'My Suppliers'}),
+                            'suppliers',
+                            filteredCandidates.suppliers,
+                        )}
+                        {renderSection(
+                            formatMessage({id: 'channel_add_members.customers', defaultMessage: 'My Customers'}),
+                            'customers',
+                            filteredCandidates.customers,
+                        )}
+                        {filteredCandidates.searchResults.length > 0 && renderSection(
+                            formatMessage({id: 'channel_add_members.search_results', defaultMessage: 'Search Results'}),
+                            'searchResults',
+                            filteredCandidates.searchResults,
+                        )}
+                    </>
+                }
+            />
+
+            {/* Bottom bar: Share Link + Done */}
+            <View style={style.bottomBar}>
+                <TouchableOpacity
+                    style={style.shareLinkButton}
+                    onPress={handleShareLink}
+                >
+                    <CompassIcon name='export-variant' size={20} style={{color: theme.buttonBg}}/>
+                    <Text style={style.shareLinkText}>
+                        {formatMessage({id: 'invite.shareLink', defaultMessage: 'Share link'})}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[style.doneButton, selectedIds.size === 0 && style.doneButtonDisabled]}
+                    onPress={handleSend}
+                    disabled={selectedIds.size === 0 || sending}
+                >
+                    <Text style={style.doneButtonText}>{doneLabel}</Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 }

@@ -1,32 +1,31 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Keyboard, type LayoutChangeEvent, StyleSheet, Text, View} from 'react-native';
+import {FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
-import {makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {addMembersToChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {queryChannelMembers} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
-import Loading from '@components/loading';
-import Search from '@components/search';
-import SelectedUsers from '@components/selected_users';
-import ServerUserList from '@components/server_user_list';
-import {General, Screens} from '@constants';
+import ProfilePicture from '@components/profile_picture';
+import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
+import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {useKeyboardOverlap} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal, setButtons} from '@screens/navigation';
-import {createContactSectionsByNickname} from '@utils/contact_section';
+import {dismissModal, popTopScreen, setButtons} from '@screens/navigation';
 import {alertErrorWithFallback} from '@utils/draft';
-import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {displayUsername, getLastPictureUpdate} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
+import type {Database} from '@nozbe/watermelondb';
 
 export type CreateDMWindowVariant = 'default' | 'group_only' | 'dm_only';
 
@@ -39,27 +38,9 @@ const messages = defineMessages({
         id: 'mobile.open_gm.error',
         defaultMessage: "We couldn't open a discussion group with those users. Please check your connection and try again.",
     },
-    buttonText: {
-        id: 'mobile.create_direct_message.start',
-        defaultMessage: 'Start Conversation',
-    },
-    doneWithCount: {
-        id: 'create_direct_message.done_with_count',
-        defaultMessage: 'Done ({count})',
-    },
-    selectionHint: {
-        id: 'create_direct_message.selection_hint',
-        defaultMessage: 'One person: private chat · Several: discussion group. Long-press a row for profile.',
-    },
-    selectionHintPrefix: {
-        id: 'create_direct_message.selection_hint_prefix',
-        defaultMessage: 'One person: private chat · Several: discussion group.',
-    },
 });
 
 const CLOSE_BUTTON = 'close-dms';
-
-const SCREEN_PADDING_H = 16;
 
 type Props = {
     componentId: AvailableScreens;
@@ -68,6 +49,9 @@ type Props = {
     teammateNameDisplay: string;
     tutorialWatched: boolean;
     variant?: CreateDMWindowVariant;
+    channelId?: string;
+    isExistingChannel?: boolean;
+    database: Database;
 }
 
 type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
@@ -107,236 +91,287 @@ function mapCandidateDraftsToProfiles(drafts: CandidateDraft[]): CandidateProfil
     return profiles;
 }
 
-/**
- * 关闭界面
- */
-const close = () => {
-    Keyboard.dismiss();
-    dismissModal();
-};
-
-/**
- * 获取创建私信界面的样式
- */
-const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
-    return {
-        container: {
-            flex: 1,
-            backgroundColor: theme.centerChannelBg,
-        },
-        contentContainer: {
-            flex: 1,
-            paddingHorizontal: SCREEN_PADDING_H,
-            paddingTop: 12,
-        },
-        listFlex: {
-            flex: 1,
-            minHeight: 0,
-            marginTop: 16,
-        },
-        searchCard: {
-            borderRadius: 12,
-            padding: 12,
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: changeOpacity(theme.centerChannelColor, 0.1),
-        },
-        searchBar: {
-            marginBottom: 0,
-        },
-        selectionHint: {
-            marginTop: 8,
-            color: changeOpacity(theme.centerChannelColor, 0.56),
-            ...typography('Body', 100, 'Regular'),
-        },
-        selectionHintPrefix: {
-            fontWeight: '600',
-            fontSize: 14,
-            color: changeOpacity(theme.centerChannelColor, 0.8),
-            paddingTop: 8,
-        },
-        searchBarContainer: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-            borderRadius: 8,
-            height: 56,
-        },
-        searchBarInput: {
-            backgroundColor: 'transparent',
-        },
-        loadingContainer: {
-            alignItems: 'center',
-            backgroundColor: theme.centerChannelBg,
-            height: 70,
-            justifyContent: 'center',
-        },
-        loadingText: {
-            color: changeOpacity(theme.centerChannelColor, 0.6),
-        },
-        noResultContainer: {
-            flexGrow: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        noResultText: {
-            color: changeOpacity(theme.centerChannelColor, 0.5),
-            ...typography('Body', 600, 'Regular'),
-        },
-    };
-});
-
-/**
- * 从列表中移除用户
- */
-function removeProfileFromList(list: Set<string>, id: string) {
-    const newSelectedIds = new Set(list);
-    newSelectedIds.delete(id);
-    return newSelectedIds;
+function AvatarNoInitials({author, size, showStatus = false}: {author: CandidateProfile; size: number; showStatus?: boolean}) {
+    const hasImage = author ? getLastPictureUpdate(author) > 0 : false;
+    return (
+        <ProfilePicture
+            author={hasImage ? author : undefined}
+            size={size}
+            showStatus={showStatus}
+        />
+    );
 }
 
-/**
- * 创建私信/内部群界面组件
- */
+const close = () => {
+    Keyboard.dismiss();
+};
+
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
+    container: {
+        flex: 1,
+        backgroundColor: theme.centerChannelBg,
+    },
+    searchSection: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        minHeight: 40,
+    },
+    searchIcon: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        fontSize: 16,
+        padding: 0,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
+    },
+    checkboxUnchecked: {
+        borderColor: changeOpacity(theme.centerChannelColor, 0.3),
+    },
+    checkIcon: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    sectionHeaderText: {
+        flex: 1,
+        color: changeOpacity(theme.centerChannelColor, 0.7),
+        ...typography('Body', 100, 'SemiBold'),
+    },
+    sectionCount: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        ...typography('Body', 100),
+    },
+    chevron: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginRight: 4,
+    },
+    memberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.05),
+    },
+    memberName: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    bottomBar: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    doneButton: {
+        backgroundColor: theme.buttonBg,
+        borderRadius: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+    },
+    doneButtonDisabled: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
+    },
+    doneButtonText: {
+        color: theme.buttonColor,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    dropdownOverlay: {
+        backgroundColor: theme.centerChannelBg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+        maxHeight: 300,
+    },
+    dropdownList: {
+        paddingHorizontal: 16,
+    },
+    selectedMemberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        gap: 12,
+    },
+    selectedMemberName: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    collapseButtonContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+}));
+
 export default function CreateDirectMessage({
     componentId,
     currentTeamId,
     currentUserId,
     teammateNameDisplay,
-    tutorialWatched,
     variant = 'default',
+    channelId,
+    isExistingChannel,
+    database,
 }: Props) {
-    const serverUrl = useServerUrl();
-    const theme = useTheme();
-    const style = getStyleFromTheme(theme);
     const intl = useIntl();
-    const {formatMessage} = intl;
+    const theme = useTheme();
+    const style = getStyleSheet(theme);
+    const serverUrl = useServerUrl();
 
-    const mainView = useRef<View>(null);
-    const [containerHeight, setContainerHeight] = useState(0);
-    const keyboardOverlap = useKeyboardOverlap(mainView, containerHeight);
-
-    const [term, setTerm] = useState('');
+    const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [searchTerm, setSearchTerm] = useState('');
+    const [candidates, setCandidates] = useState<{
+        suppliers: CandidateProfile[];
+        customers: CandidateProfile[];
+        enterprise: CandidateProfile[];
+        external: CandidateProfile[];
+    }>({suppliers: [], customers: [], enterprise: [], external: []});
+    const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'external']));
     const [startingConversation, setStartingConversation] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set<string>());
-    const [showToast, setShowToast] = useState(false);
-    const selectedCount = selectedIds.size;
+    const [showDropdown, setShowDropdown] = useState(false);
 
-    const color = changeOpacity(theme.centerChannelColor, 0.72);
+    const teamIdForMembersList = currentTeamId || '';
 
-    const primaryActionLabel = useMemo(() => {
-        if (selectedCount > 1) {
-            return formatMessage(messages.doneWithCount, {count: selectedCount});
-        }
-        return formatMessage(messages.buttonText);
-    }, [formatMessage, selectedCount]);
-
-    /**
-     * 清空搜索
-     */
-    const clearSearch = useCallback(() => {
-        setTerm('');
-    }, []);
-
-    /**
-     * 移除已选用户
-     */
-    const handleRemoveProfile = useCallback((id: string) => {
-        setSelectedIds((current) => removeProfileFromList(current, id));
-    }, []);
-
-    /**
-     * 创建私信频道
-     */
-    const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
-        const result = await makeDirectChannel(serverUrl, id);
-
-        if (result.error) {
-            alertErrorWithFallback(intl, result.error, messages.dm);
-        }
-
-        return !result.error;
-    }, [intl, serverUrl]);
-
-    /**
-     * 创建内部群频道
-     */
-    const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
-        const result = await makeGroupChannel(serverUrl, ids);
-
-        if (result.error) {
-            alertErrorWithFallback(intl, result.error, messages.gm);
-        }
-
-        return !result.error;
-    }, [intl, serverUrl]);
-
-    /**
-     * 开始对话
-     */
-    const startConversation = useCallback(async (selectedId?: string) => {
-        if (startingConversation) {
-            return;
-        }
-
-        setStartingConversation(true);
-
-        const idsToUse = selectedId ? [selectedId] : Array.from(selectedIds);
-        let success;
-        if (idsToUse.length === 0) {
-            success = false;
-        } else if (variant === 'group_only' || (variant === 'default' && idsToUse.length > 1)) {
-            success = await createGroupChannel(idsToUse);
-        } else {
-            success = await createDirectChannel(idsToUse[0]);
-        }
-
-        if (success) {
-            close();
-        } else {
-            setStartingConversation(false);
-        }
-    }, [startingConversation, selectedIds, createGroupChannel, createDirectChannel, variant]);
-
-    /**
-     * 选择用户
-     */
-    const handleSelectProfile = useCallback((user: UserProfile) => {
-        if (user.id === currentUserId) {
-            return;
-        }
-
-        if (variant === 'dm_only') {
-            startConversation(user.id);
-            return;
-        }
-
-        setSelectedIds((current) => {
-            if (current.has(user.id)) {
-                return removeProfileFromList(current, user.id);
+    // Newly selected = selected minus locked
+    const newSelectedIds = useMemo(() => {
+        const s = new Set<string>();
+        selectedIds.forEach((id) => {
+            if (!lockedIds.has(id)) {
+                s.add(id);
             }
-
-            if (selectedCount >= General.MAX_USERS_IN_GM) {
-                setShowToast(true);
-                return current;
-            }
-
-            const newSelectedIds = new Set(current);
-            newSelectedIds.add(user.id);
-
-            return newSelectedIds;
         });
-    }, [currentUserId, selectedCount, startConversation, variant]);
+        return s;
+    }, [selectedIds, lockedIds]);
 
-    /**
-     * 处理布局变化
-     */
-    const onLayout = useCallback((e: LayoutChangeEvent) => {
-        setContainerHeight(e.nativeEvent.layout.height);
-    }, []);
+    // Initialize locked/existing members when in "Add Members" mode
+    useEffect(() => {
+        if (!isExistingChannel || !channelId) {
+            return;
+        }
+        queryChannelMembers(database, channelId).fetch().then((members) => {
+            const ids = new Set<string>();
+            members.forEach((m) => {
+                if (m.userId !== currentUserId) {
+                    ids.add(m.userId);
+                }
+            });
+            setLockedIds(ids);
+            setSelectedIds(ids);
+        });
+    }, [isExistingChannel, channelId, database, currentUserId]);
 
-    /**
-     * 更新导航按钮
-     */
+    // Fetch candidates
+    useEffect(() => {
+        getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId).then((drafts) => {
+            const profiles = mapCandidateDraftsToProfiles(drafts);
+            const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
+            setCandidates((prev) => ({
+                ...prev,
+                suppliers: profiles.filter((p) => p.mmCandidateTags?.includes('supplier') && notSelf(p)),
+                customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer') && notSelf(p)),
+                enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise') && notSelf(p)),
+            }));
+            setKnownProfiles((prev) => {
+                const next = new Map(prev);
+                profiles.forEach((p) => next.set(p.id, p));
+                return next;
+            });
+        });
+    }, [serverUrl, teamIdForMembersList, currentUserId]);
+
+    // Search for external contacts only (suppliers/customers/enterprise are filtered client-side)
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            return;
+        }
+        searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, searchTerm).then((drafts) => {
+            const profiles = mapCandidateDraftsToProfiles(drafts);
+            const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
+            const isExternal = (p: CandidateProfile) =>
+                !p.mmCandidateTags?.includes('customer') &&
+                !p.mmCandidateTags?.includes('supplier') &&
+                !p.mmCandidateTags?.includes('enterprise');
+            const newExternals = profiles.filter((p) => notSelf(p) && isExternal(p));
+            if (newExternals.length > 0) {
+                setCandidates((prev) => ({
+                    ...prev,
+                    external: [...prev.external, ...newExternals.filter((p) => !prev.external.some((e) => e.id === p.id))],
+                }));
+                setKnownProfiles((prev) => {
+                    const next = new Map(prev);
+                    newExternals.forEach((p) => next.set(p.id, p));
+                    return next;
+                });
+            }
+        });
+    }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId]);
+
+    // Filter candidates by search term (client-side for all sections)
+    const filteredCandidates = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return candidates;
+        }
+        const term = searchTerm.toLowerCase();
+        const filterFn = (p: CandidateProfile) => {
+            const name = displayUsername(p, teammateNameDisplay).toLowerCase();
+            const username = (p.username || '').toLowerCase();
+            return name.includes(term) || username.includes(term);
+        };
+        return {
+            suppliers: candidates.suppliers.filter(filterFn),
+            customers: candidates.customers.filter(filterFn),
+            enterprise: candidates.enterprise.filter(filterFn),
+            external: candidates.external.filter(filterFn),
+        };
+    }, [candidates, searchTerm, teammateNameDisplay]);
+
+    // Close handler that works for both pushed screens (goToScreen) and modals (showModal)
+    const handleClose = useCallback(async () => {
+        Keyboard.dismiss();
+        await popTopScreen(componentId);
+        await dismissModal({componentId});
+    }, [componentId]);
+
+    // Set up the left close button in the navigation bar
     const updateNavigationButtons = useCallback(async () => {
         const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
         const closeIcon = await CompassIcon.getImageSource('close', 24, closeIconColor);
@@ -349,148 +384,297 @@ export default function CreateDirectMessage({
         });
     }, [componentId, theme.centerChannelColor]);
 
-    /**
-     * 处理搜索文本变化
-     */
-    const onChangeText = useCallback((searchTerm: string) => {
-        setTerm(searchTerm);
-    }, []);
-
-    /**
-     * 获取用户列表
-     */
-    const userFetchFunction = useCallback(async (page: number) => {
-        if (page > 0) {
-            return [];
-        }
-        const candidates = await getEmployeeCandidates(serverUrl, currentTeamId, currentUserId);
-        return mapCandidateDraftsToProfiles(candidates);
-    }, [currentTeamId, currentUserId, serverUrl]);
-
-    /**
-     * 搜索用户
-     */
-    const userSearchFunction = useCallback(async (searchTerm: string) => {
-        const trimmedTerm = searchTerm.trim();
-        if (!trimmedTerm) {
-            return [];
-        }
-
-        const candidates = await searchEmployeeCandidates(serverUrl, currentTeamId, currentUserId, trimmedTerm);
-        return mapCandidateDraftsToProfiles(candidates);
-    }, [currentTeamId, currentUserId, serverUrl]);
-
-    /**
-     * 创建用户过滤器
-     */
-    const createUserFilter = useCallback(() => {
-        return () => true;
-    }, []);
-
-    useNavButtonPressed(CLOSE_BUTTON, componentId, close, [close]);
-    useAndroidHardwareBackHandler(componentId, close);
-
-    /**
-     * 初始化导航按钮
-     */
     useEffect(() => {
         updateNavigationButtons();
     }, [updateNavigationButtons]);
 
-    /**
-     * 检查是否达到最大用户数
-     */
-    useEffect(() => {
-        setShowToast(selectedCount >= General.MAX_USERS_IN_GM);
-    }, [selectedCount]);
+    useNavButtonPressed(CLOSE_BUTTON, componentId, handleClose, [handleClose]);
+    useAndroidHardwareBackHandler(componentId, handleClose);
 
-    if (startingConversation) {
+    // Create direct channel
+    const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
+        const result = await makeDirectChannel(serverUrl, id);
+        if (result.error) {
+            alertErrorWithFallback(intl, result.error, messages.dm);
+        }
+        return !result.error;
+    }, [intl, serverUrl]);
+
+    // Create group channel
+    const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
+        const result = await makeGroupChannel(serverUrl, ids);
+        if (result.error) {
+            alertErrorWithFallback(intl, result.error, messages.gm);
+        }
+        return !result.error;
+    }, [intl, serverUrl]);
+
+    // Start conversation / add members
+    const startConversation = useCallback(async (selectedId?: string) => {
+        if (startingConversation) {
+            return;
+        }
+        setStartingConversation(true);
+
+        let success;
+        if (isExistingChannel && channelId) {
+            const idsToAdd = selectedId ? [selectedId] : Array.from(newSelectedIds);
+            if (idsToAdd.length === 0) {
+                success = false;
+            } else {
+                const result = await addMembersToChannel(serverUrl, channelId, idsToAdd);
+                success = !result.error;
+            }
+        } else {
+            const idsToUse = selectedId ? [selectedId] : Array.from(newSelectedIds);
+            if (idsToUse.length === 0) {
+                success = false;
+            } else if (variant === 'group_only' || (variant === 'default' && idsToUse.length > 1)) {
+                success = await createGroupChannel(idsToUse);
+            } else {
+                success = await createDirectChannel(idsToUse[0]);
+            }
+        }
+
+        if (success) {
+            handleClose();
+        } else {
+            setStartingConversation(false);
+        }
+    }, [startingConversation, newSelectedIds, isExistingChannel, channelId, serverUrl, createGroupChannel, createDirectChannel, variant]);
+
+    // Toggle select
+    const toggleSelect = useCallback((userId: string) => {
+        if (userId === currentUserId || lockedIds.has(userId)) {
+            return;
+        }
+
+        // dm_only: single tap starts conversation immediately
+        if (variant === 'dm_only') {
+            startConversation(userId);
+            return;
+        }
+
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(userId)) {
+                next.delete(userId);
+            } else {
+                if (newSelectedIds.size >= General.MAX_USERS_IN_GM) {
+                    return prev;
+                }
+                next.add(userId);
+            }
+            return next;
+        });
+        setSearchTerm('');
+    }, [currentUserId, lockedIds, newSelectedIds.size, startConversation, variant]);
+
+    const toggleSection = useCallback((section: string) => {
+        setExpandedSections((prev) => {
+            const next = new Set(prev);
+            if (next.has(section)) {
+                next.delete(section);
+            } else {
+                next.add(section);
+            }
+            return next;
+        });
+    }, []);
+
+    const handleDone = useCallback(() => {
+        startConversation();
+    }, [startConversation]);
+
+    // Done button label
+    const doneLabel = useMemo(() => {
+        const count = newSelectedIds.size;
+        if (count > 1) {
+            return intl.formatMessage({id: 'create_direct_message.done_with_count', defaultMessage: 'Done ({count})'}, {count});
+        }
+        if (isExistingChannel) {
+            return intl.formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'});
+        }
+        return intl.formatMessage({id: 'mobile.create_direct_message.start', defaultMessage: 'Start Conversation'});
+    }, [intl, newSelectedIds.size, isExistingChannel]);
+
+    const renderCheckbox = (userId: string) => {
+        const isSelected = selectedIds.has(userId);
+        const isLocked = lockedIds.has(userId);
+
+        if (isLocked) {
+            return (
+                <View style={[style.checkbox, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.3), borderColor: changeOpacity(theme.centerChannelColor, 0.3)}]}>
+                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
+                </View>
+            );
+        }
+        if (isSelected) {
+            return (
+                <View style={[style.checkbox, style.checkboxChecked]}>
+                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
+                </View>
+            );
+        }
+        return <View style={[style.checkbox, style.checkboxUnchecked]}/>;
+    };
+
+    const renderMemberRow = (user: CandidateProfile) => {
+        const isLocked = lockedIds.has(user.id);
+        const name = displayUsername(user, teammateNameDisplay);
+
         return (
-            <View style={style.container}>
-                <Loading color={theme.buttonBg}/>
+            <TouchableOpacity
+                key={user.id}
+                style={[style.memberRow, isLocked && {opacity: 0.5}]}
+                onPress={() => toggleSelect(user.id)}
+                disabled={isLocked || user.id === currentUserId}
+            >
+                {variant !== 'dm_only' && renderCheckbox(user.id)}
+                <AvatarNoInitials author={user} size={40} showStatus={false}/>
+                <Text style={style.memberName}>{name}</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderSection = (title: string, sectionKey: string, members: CandidateProfile[]) => {
+        if (members.length === 0) {
+            return null;
+        }
+        const isExpanded = expandedSections.has(sectionKey);
+        return (
+            <View key={sectionKey}>
+                <TouchableOpacity style={style.sectionHeader} onPress={() => toggleSection(sectionKey)}>
+                    <CompassIcon
+                        name={isExpanded ? 'chevron-down' : 'chevron-right'}
+                        size={20}
+                        style={style.chevron}
+                    />
+                    <Text style={style.sectionHeaderText}>{title}</Text>
+                    <Text style={style.sectionCount}>({members.length})</Text>
+                </TouchableOpacity>
+                {isExpanded && members.map(renderMemberRow)}
             </View>
         );
-    }
+    };
+
+    // Selected profiles for avatar display in search bar
+    const selectedProfiles = useMemo(() => {
+        return Array.from(knownProfiles.values()).filter((p) => newSelectedIds.has(p.id));
+    }, [knownProfiles, newSelectedIds]);
 
     return (
         <SafeAreaView
             style={style.container}
             testID='create_direct_message.screen'
             nativeID={SecurityManager.getShieldScreenId(componentId)}
-            onLayout={onLayout}
-            ref={mainView}
             edges={['top', 'left', 'right']}
         >
-            <View style={style.contentContainer}>
-                <View style={style.searchCard}>
-                    <View style={style.searchBar}>
-                        <Search
-                            testID='create_direct_message.search_bar'
-                            placeholder={formatMessage({id: 'create_direct_message.search_placeholder', defaultMessage: 'Search by name, phone, or username'})}
-                            cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                            placeholderTextColor={color}
-                            onChangeText={onChangeText}
-                            onCancel={clearSearch}
-                            autoCapitalize='none'
-                            keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
-                            value={term}
-                            inputContainerStyle={style.searchBarContainer}
-                            inputStyle={style.searchBarInput}
-                        />
-                    </View>
-                    {variant === 'default' && (
-                        <Text
-                            style={style.selectionHintPrefix}
-                            testID='create_direct_message.selection_hint'
-                            allowFontScaling={false}
-                            maxFontSizeMultiplier={1}
-                        >
-                            {formatMessage(messages.selectionHintPrefix)}
-                        </Text>
+            {/* Search bar */}
+            <View style={style.searchSection}>
+                <View style={style.searchBar}>
+                    {selectedProfiles.length === 0 && (
+                        <CompassIcon name='magnify' size={20} style={style.searchIcon}/>
                     )}
-                </View>
-                <View style={style.listFlex}>
-                    <ServerUserList
-                        handleSelectProfile={handleSelectProfile}
-                        selectedIds={selectedIds}
-                        term={term}
-                        testID='create_direct_message.user_list'
-                        tutorialWatched={tutorialWatched}
-                        fetchFunction={userFetchFunction}
-                        searchFunction={userSearchFunction}
-                        createFilter={createUserFilter}
-                        location={Screens.CREATE_DIRECT_MESSAGE}
-                        customSection={createContactSectionsByNickname}
-                        disableClientFilter={true}
-                        variant={variant}
-                        currentUserId={currentUserId}
+                    {selectedProfiles.length > 0 && variant !== 'dm_only' && (
+                        <TouchableOpacity
+                            style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginRight: 8}}
+                            onPress={() => setShowDropdown(true)}
+                        >
+                            {selectedProfiles.map((user) => (
+                                <AvatarNoInitials
+                                    key={user.id}
+                                    author={user}
+                                    size={28}
+                                    showStatus={false}
+                                />
+                            ))}
+                        </TouchableOpacity>
+                    )}
+                    <TextInput
+                        style={style.searchInput}
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                        placeholder={intl.formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search...'})}
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                        autoCapitalize='none'
                     />
                 </View>
-                {variant !== 'dm_only' && (
-                    <SelectedUsers
-                        keyboardOverlap={keyboardOverlap}
-                        showToast={showToast}
-                        setShowToast={setShowToast}
-                        toastIcon={'check'}
-                        toastMessage={formatMessage(
-                            {
-                                id: 'mobile.create_direct_message.max_limit_reached',
-                                defaultMessage: 'A discussion group can include up to {max, number} people besides you',
-                            },
-                            {max: General.MAX_USERS_IN_GM},
-                        )}
-                        selectedIds={selectedIds}
-                        onRemove={handleRemoveProfile}
-                        teammateNameDisplay={teammateNameDisplay}
-                        onPress={startConversation}
-                        buttonIcon={'forum-outline'}
-                        buttonText={primaryActionLabel}
-                        testID='create_direct_message'
-                        maxUsers={General.MAX_USERS_IN_GM}
-                        avatarBorderRadius={8}
-                    />
+                {showDropdown && (
+                    <View style={style.dropdownOverlay}>
+                        <View style={style.dropdownList}>
+                            {selectedProfiles.map((user) => {
+                                const name = displayUsername(user, teammateNameDisplay);
+                                return (
+                                    <TouchableOpacity
+                                        key={user.id}
+                                        style={style.selectedMemberRow}
+                                        onPress={() => toggleSelect(user.id)}
+                                    >
+                                        {renderCheckbox(user.id)}
+                                        <AvatarNoInitials
+                                            author={user}
+                                            size={32}
+                                            showStatus={false}
+                                        />
+                                        <Text style={style.selectedMemberName}>{name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <TouchableOpacity
+                            style={style.collapseButtonContainer}
+                            onPress={() => setShowDropdown(false)}
+                        >
+                            <CompassIcon name='chevron-up' size={24} style={{color: theme.buttonBg}}/>
+                        </TouchableOpacity>
+                    </View>
                 )}
             </View>
+
+            {/* Member list */}
+            <FlatList
+                style={{flex: 1}}
+                data={[]}
+                renderItem={() => null}
+                ListHeaderComponent={
+                    <>
+                        {renderSection(
+                            intl.formatMessage({id: 'channel_add_members.suppliers', defaultMessage: 'My Suppliers'}),
+                            'suppliers',
+                            filteredCandidates.suppliers,
+                        )}
+                        {renderSection(
+                            intl.formatMessage({id: 'channel_add_members.customers', defaultMessage: 'My Customers'}),
+                            'customers',
+                            filteredCandidates.customers,
+                        )}
+                        {renderSection(
+                            intl.formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
+                            'enterprise',
+                            filteredCandidates.enterprise,
+                        )}
+                        {filteredCandidates.external.length > 0 && renderSection(
+                            intl.formatMessage({id: 'channel_add_members.external', defaultMessage: 'External Contacts'}),
+                            'external',
+                            filteredCandidates.external,
+                        )}
+                    </>
+                }
+            />
+
+            {/* Bottom bar — only for default and group_only variants */}
+            {variant !== 'dm_only' && (
+                <View style={style.bottomBar}>
+                    <TouchableOpacity
+                        style={[style.doneButton, newSelectedIds.size === 0 && style.doneButtonDisabled]}
+                        onPress={handleDone}
+                        disabled={newSelectedIds.size === 0 || startingConversation}
+                    >
+                        <Text style={style.doneButtonText}>{doneLabel}</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </SafeAreaView>
     );
 }

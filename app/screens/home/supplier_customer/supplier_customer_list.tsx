@@ -30,8 +30,8 @@ import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {showModalWithBackButton} from '@screens/navigation';
 import {getContactListDisplayName, getSupplierCustomerDisplayName} from '@utils/contact_section';
+import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -167,6 +167,9 @@ const SupplierCustomerListRow = memo(({
     onViewProfile,
     relationDescriptionLabel,
 }: RowProps) => {
+    if (!item.contact) {
+        return null;
+    }
     const contactId = item.contact.id;
     const displayName = getContactDisplayName(item);
     const sub = formatContactSubtitle(item, relationDescriptionLabel);
@@ -180,7 +183,7 @@ const SupplierCustomerListRow = memo(({
             >
                 <View style={styles.listItemAvatarWrap}>
                     <ContactAvatar
-                        employee={item.contact}
+                        employee={getLastPictureUpdate(item.contact) > 0 ? item.contact : undefined}
                         size={40}
                     />
                 </View>
@@ -283,7 +286,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         try {
             const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
             if (!result.error && result.data) {
-                setItems(result.data as MMEmployeeContactSimple[]);
+                setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
             }
         } finally {
             if (!silent) {
@@ -300,7 +303,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         try {
             const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
             if (!result.error && result.data) {
-                setItems(result.data as MMEmployeeContactSimple[]);
+                setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
             }
         } finally {
             setRefreshing(false);
@@ -338,6 +341,8 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             initialContactEmail?: string;
             initialContactPhone?: string;
             initialContactPosition?: string;
+            initialContactUsername?: string;
+            readOnly?: boolean;
         }) => {
             if (!ownerId) {
                 return;
@@ -352,6 +357,8 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 initialContactEmail: opts.initialContactEmail,
                 initialContactPhone: opts.initialContactPhone,
                 initialContactPosition: opts.initialContactPosition,
+                initialContactUsername: opts.initialContactUsername,
+                readOnly: opts.readOnly,
             });
         },
         [kind, navigation, ownerId],
@@ -374,6 +381,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 initialContactEmail: row?.contact.email,
                 initialContactPhone: row?.contact.phone,
                 initialContactPosition: row?.contact.position,
+                initialContactUsername: row?.contact.username,
             });
         },
         [items, openForm],
@@ -420,23 +428,19 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
     const handleViewProfile = usePreventDoubleTap(
         useCallback(
             (contact: MMEmployeeContactSimple) => {
-                const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
-                showModalWithBackButton(
-                    Screens.CONTACTS_EMPLOYEE_PROFILE,
-                    title,
-                    `close-supplier-customer-${contact.contact.id}`,
-                    {
-                        employee: contact.contact,
-                        description: contact.description,
-                        remark: contact.remark,
-                        relationType: contact.contact_type,
-                        currentUserId: currentUser?.id,
-                        closeButtonId: `close-supplier-customer-${contact.contact.id}`,
-                    },
-                    {useBackIcon: true},
-                );
+                openForm({
+                    existingContactId: contact.contact.id,
+                    initialContactName: getContactListDisplayName(contact.contact),
+                    initialDescription: contact.description,
+                    initialRemark: contact.remark,
+                    initialContactEmail: contact.contact.email,
+                    initialContactPhone: contact.contact.phone,
+                    initialContactPosition: contact.contact.position,
+                    initialContactUsername: contact.contact.username,
+                    readOnly: true,
+                });
             },
-            [intl, currentUser?.id],
+            [openForm],
         ),
     );
 

@@ -17,6 +17,7 @@ type Props = {
     handleSelectProfile: (user: UserProfile) => void;
     term: string;
     selectedIds: Set<string>;
+    lockedIds?: Set<string>;
     fetchFunction: (page: number) => Promise<UserProfile[]>;
     searchFunction: (term: string) => Promise<UserProfile[]>;
     createFilter: (exactMatches: UserProfile[], term: string) => ((p: UserProfile) => boolean);
@@ -39,6 +40,7 @@ export default function ServerUserList({
     handleSelectProfile,
     term,
     selectedIds,
+    lockedIds,
     fetchFunction,
     searchFunction,
     createFilter,
@@ -147,6 +149,7 @@ export default function ServerUserList({
             loading={loading}
             profiles={data}
             selectedIds={selectedIds}
+            lockedIds={lockedIds}
             showNoResults={!loading && page.current !== -1}
             fetchMore={getProfiles}
             term={term}

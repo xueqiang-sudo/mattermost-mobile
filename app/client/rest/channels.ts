@@ -19,6 +19,7 @@ export interface ClientChannelsMix {
     updateChannelPrivacy: (channelId: string, privacy: any) => Promise<Channel>;
     patchChannel: (channelId: string, channelPatch: Partial<Channel>) => Promise<Channel>;
     updateChannelNotifyProps: (props: ChannelNotifyProps & {channel_id: string; user_id: string}) => Promise<any>;
+    clearChannelHistory: (channelId: string, userId: string) => Promise<any>;
     getChannel: (channelId: string, groupLabel?: RequestGroupLabel) => Promise<Channel>;
     getChannelByName: (teamId: string, channelName: string, includeDeleted?: boolean) => Promise<Channel>;
     getChannelByNameAndTeamName: (teamName: string, channelName: string, includeDeleted?: boolean) => Promise<Channel>;
@@ -155,6 +156,13 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         return this.doFetch(
             `${this.getChannelMemberRoute(props.channel_id, props.user_id)}/notify_props`,
             {method: 'put', body: props},
+        );
+    };
+
+    clearChannelHistory = async (channelId: string, userId: string) => {
+        return this.doFetch(
+            `${this.getChannelMemberRoute(channelId, userId)}/clear_history`,
+            {method: 'post'},
         );
     };
 

@@ -28,6 +28,9 @@ export function getSupplierCustomerDisplayName(remark: string | null | undefined
     const nickname = getContactListDisplayName(contact);
     const trimmedRemark = remark?.trim();
     if (trimmedRemark) {
+        if (trimmedRemark === nickname) {
+            return trimmedRemark;
+        }
         return `${trimmedRemark} (${nickname})`;
     }
     return nickname;
