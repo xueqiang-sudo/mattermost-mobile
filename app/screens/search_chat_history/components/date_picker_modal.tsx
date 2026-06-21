@@ -17,7 +17,15 @@ type Props = {
     onCancel: () => void;
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAY_KEYS = [
+    {id: 'gm_settings.weekday_mon', defaultMessage: 'Mon'},
+    {id: 'gm_settings.weekday_tue', defaultMessage: 'Tue'},
+    {id: 'gm_settings.weekday_wed', defaultMessage: 'Wed'},
+    {id: 'gm_settings.weekday_thu', defaultMessage: 'Thu'},
+    {id: 'gm_settings.weekday_fri', defaultMessage: 'Fri'},
+    {id: 'gm_settings.weekday_sat', defaultMessage: 'Sat'},
+    {id: 'gm_settings.weekday_sun', defaultMessage: 'Sun'},
+];
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 
@@ -179,7 +187,10 @@ const DatePickerModal = ({visible, selectedDate, onConfirm, onCancel}: Props) =>
         onConfirm(`${viewYear}-${month}-${dayStr}`);
     }, [selectedDay, viewYear, viewMonth, onConfirm]);
 
-    const monthTitle = `${viewYear} ${intl.formatMessage({id: 'gm_settings.year_month', defaultMessage: ''})} ${viewMonth + 1}`;
+    const monthTitle = intl.formatMessage(
+        {id: 'gm_settings.date_picker_title', defaultMessage: '{year}/{month}'},
+        {year: viewYear, month: viewMonth + 1},
+    );
 
     return (
         <Modal
@@ -207,9 +218,9 @@ const DatePickerModal = ({visible, selectedDate, onConfirm, onCancel}: Props) =>
 
                     {/* Weekday headers */}
                     <View style={styles.weekdayRow}>
-                        {WEEKDAYS.map((d) => (
-                            <View key={d} style={styles.weekdayCell}>
-                                <Text style={styles.weekdayText}>{d}</Text>
+                        {WEEKDAY_KEYS.map((wd) => (
+                            <View key={wd.id} style={styles.weekdayCell}>
+                                <Text style={styles.weekdayText}>{intl.formatMessage(wd)}</Text>
                             </View>
                         ))}
                     </View>

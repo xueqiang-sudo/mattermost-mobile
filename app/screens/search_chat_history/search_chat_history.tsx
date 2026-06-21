@@ -17,6 +17,7 @@ import DatabaseManager from '@database/manager';
 import {queryUsersById} from '@queries/servers/user';
 import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, getKeyboardAppearanceFromTheme} from '@utils/theme';
+import {displayUsername} from '@utils/user';
 
 import DatePickerModal from './components/date_picker_modal';
 import MemberListItem from './components/member_list_item';
@@ -234,7 +235,7 @@ const SearchChatHistory = ({
 
             const result = await searchPosts(serverUrl, teamId, {
                 terms: searchTerms,
-                is_or_search: false,
+                is_or_search: true,
                 page: searchPage,
                 per_page: PAGE_SIZE,
             });
@@ -460,7 +461,7 @@ const SearchChatHistory = ({
                     <View style={styles.memberFilterTag}>
                         <View style={s.memberFilterTagBg}>
                             <Text style={s.memberFilterName}>
-                                {selectedMember.username}
+                                {displayUsername(selectedMember)}
                             </Text>
                             <TouchableOpacity onPress={() => setSelectedMemberId(null)}>
                                 <CompassIcon
@@ -515,7 +516,7 @@ const SearchChatHistory = ({
                             ListEmptyComponent={
                                 <View style={styles.empty}>
                                     <Text style={s.emptyText}>
-                                        {formatMessage({id: 'gm_settings.search_chat_no_results', defaultMessage: 'No members found'})}
+                                        {formatMessage({id: 'gm_settings.search_no_members', defaultMessage: 'No members found'})}
                                     </Text>
                                 </View>
                             }
