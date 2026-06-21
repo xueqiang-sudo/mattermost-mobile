@@ -51,7 +51,7 @@ const messages = defineMessages({
         id: 'general_settings.notifications',
     },
     display: {
-        defaultMessage: 'Display',
+        defaultMessage: 'Interface and Display',
         id: 'general_settings.display',
     },
     advanced_settings: {
@@ -91,7 +91,7 @@ const messages = defineMessages({
         id: 'mobile.display_settings.clockDisplay',
     },
     theme: {
-        defaultMessage: 'Theme',
+        defaultMessage: 'Dark mode',
         id: 'mobile.display_settings.theme',
     },
     timezone: {

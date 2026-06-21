@@ -66,7 +66,7 @@ export function withServerDatabase<T extends JSX.IntrinsicAttributes>(Component:
                 <DeviceInfoProvider>
                     <UserLocaleProvider database={state.database}>
                         <ServerProvider server={{displayName: state.serverDisplayName, url: state.serverUrl}}>
-                            <ThemeProvider database={state.database}>
+                            <ThemeProvider>
                                 <Component {...props}/>
                             </ThemeProvider>
                         </ServerProvider>

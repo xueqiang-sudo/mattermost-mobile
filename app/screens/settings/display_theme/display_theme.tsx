@@ -1,71 +1,131 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
+import {useIntl} from 'react-intl';
 
-import {savePreference} from '@actions/remote/preference';
+import {storeDarkModeSetting} from '@actions/app/global';
+import SettingBlock from '@components/settings/block';
 import SettingContainer from '@components/settings/container';
-import {Preferences} from '@constants';
-import {useServerUrl} from '@context/server';
-import {useTheme} from '@context/theme';
+import SettingOption from '@components/settings/option';
+import SettingSeparator from '@components/settings/separator';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useDidUpdate from '@hooks/did_update';
+import useBackNavigation from '@hooks/navigate_back';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {observeDarkModeSetting} from '@queries/app/global';
 import {popTopScreen} from '@screens/navigation';
-
-import CustomTheme from './custom_theme';
-import {ThemeTiles} from './theme_tiles';
+import {
+    DARK_MODE_SETTING,
+    parseStoredDarkModeSetting,
+    type DarkModeSetting,
+} from '@utils/theme/dark_mode';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type DisplayThemeProps = {
-    allowedThemeKeys: string[];
     componentId: AvailableScreens;
-    currentTeamId: string;
-    currentUserId: string;
 }
-const DisplayTheme = ({allowedThemeKeys, componentId, currentTeamId, currentUserId}: DisplayThemeProps) => {
-    const serverUrl = useServerUrl();
-    const theme = useTheme();
-    const [customTheme, setCustomTheme] = useState(theme.type?.toLowerCase() === 'custom' ? theme : undefined);
 
-    const close = () => popTopScreen(componentId);
+const DisplayTheme = ({componentId}: DisplayThemeProps) => {
+    const intl = useIntl();
+    const [followSystem, setFollowSystem] = useState(true);
+    const [manualMode, setManualMode] = useState<typeof DARK_MODE_SETTING.LIGHT | typeof DARK_MODE_SETTING.DARK>(
+        DARK_MODE_SETTING.LIGHT,
+    );
 
-    const handleThemeChange = usePreventDoubleTap(useCallback(async (themeSelected: string) => {
-        const allowedTheme = allowedThemeKeys.find((tk) => tk === themeSelected);
-        const themeJson = Preferences.THEMES[allowedTheme as ThemeKey] || customTheme;
+    useEffect(() => {
+        const subscription = observeDarkModeSetting().subscribe((record) => {
+            const setting = parseStoredDarkModeSetting(record?.value);
+            setFollowSystem(setting === DARK_MODE_SETTING.SYSTEM);
+            setManualMode(setting === DARK_MODE_SETTING.DARK ? DARK_MODE_SETTING.DARK : DARK_MODE_SETTING.LIGHT);
+        });
 
-        const pref: PreferenceType = {
-            category: Preferences.CATEGORIES.THEME,
-            name: currentTeamId,
-            user_id: currentUserId,
-            value: JSON.stringify(themeJson),
-        };
-        await savePreference(serverUrl, [pref]);
-    }, [allowedThemeKeys, currentTeamId, currentUserId, customTheme, serverUrl]));
+        return () => subscription.unsubscribe();
+    }, []);
 
-    useDidUpdate(() => {
-        // when the user selects any of the predefined theme when the current theme is custom, the custom theme will disappear.
-        // by storing the current theme in the state, the custom theme will remain, and the user can switch back to it
-        if (theme.type?.toLowerCase() === 'custom') {
-            setCustomTheme(theme);
+    const close = useCallback(() => {
+        popTopScreen(componentId);
+    }, [componentId]);
+
+    const persistDarkModeSetting = useCallback(async (setting: DarkModeSetting) => {
+        await storeDarkModeSetting(setting);
+    }, []);
+
+    const onToggleFollowSystem = usePreventDoubleTap(useCallback(async (enabled: string | boolean) => {
+        const isEnabled = Boolean(enabled);
+        setFollowSystem(isEnabled);
+
+        if (isEnabled) {
+            await persistDarkModeSetting(DARK_MODE_SETTING.SYSTEM);
+            return;
         }
-    }, [theme.type]);
 
+        await persistDarkModeSetting(manualMode);
+    }, [manualMode, persistDarkModeSetting]));
+
+    const onSelectManualMode = usePreventDoubleTap(useCallback(async (value: string | boolean) => {
+        if (typeof value !== 'string') {
+            return;
+        }
+
+        const nextMode = value as typeof DARK_MODE_SETTING.LIGHT | typeof DARK_MODE_SETTING.DARK;
+        setManualMode(nextMode);
+        await persistDarkModeSetting(nextMode);
+    }, [persistDarkModeSetting]));
+
+    useBackNavigation(close);
     useAndroidHardwareBackHandler(componentId, close);
 
     return (
         <SettingContainer testID='theme_display_settings'>
-            <ThemeTiles
-                allowedThemeKeys={allowedThemeKeys}
-                onThemeChange={handleThemeChange}
-                selectedTheme={theme.type}
-            />
-            {customTheme && (
-                <CustomTheme
-                    setTheme={handleThemeChange}
-                    displayTheme={'custom'}
+            <SettingBlock disableHeader={true}>
+                <SettingOption
+                    action={onToggleFollowSystem}
+                    description={intl.formatMessage({
+                        id: 'mobile.display_settings.dark_mode.follow_system.description',
+                        defaultMessage: 'When enabled, Dark Mode will turn on or off according to the system settings',
+                    })}
+                    label={intl.formatMessage({
+                        id: 'mobile.display_settings.dark_mode.follow_system',
+                        defaultMessage: 'Follow system',
+                    })}
+                    selected={followSystem}
+                    testID='theme_display_settings.follow_system.option'
+                    type='toggle'
                 />
+            </SettingBlock>
+            {!followSystem && (
+                <SettingBlock
+                    headerText={{
+                        id: 'mobile.display_settings.dark_mode.manual_select',
+                        defaultMessage: 'Manual selection',
+                    }}
+                >
+                    <SettingOption
+                        action={onSelectManualMode}
+                        label={intl.formatMessage({
+                            id: 'mobile.display_settings.dark_mode.light_mode',
+                            defaultMessage: 'Normal mode',
+                        })}
+                        selected={manualMode === DARK_MODE_SETTING.LIGHT}
+                        testID='theme_display_settings.light_mode.option'
+                        type='select'
+                        value={DARK_MODE_SETTING.LIGHT}
+                    />
+                    <SettingSeparator/>
+                    <SettingOption
+                        action={onSelectManualMode}
+                        label={intl.formatMessage({
+                            id: 'mobile.display_settings.dark_mode.dark_mode',
+                            defaultMessage: 'Dark mode',
+                        })}
+                        selected={manualMode === DARK_MODE_SETTING.DARK}
+                        testID='theme_display_settings.dark_mode.option'
+                        type='select'
+                        value={DARK_MODE_SETTING.DARK}
+                    />
+                    <SettingSeparator/>
+                </SettingBlock>
             )}
         </SettingContainer>
     );

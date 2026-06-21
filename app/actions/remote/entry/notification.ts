@@ -5,20 +5,21 @@ import {fetchMyChannel, switchToChannelById} from '@actions/remote/channel';
 import {fetchPostById} from '@actions/remote/post';
 import {fetchMyTeam} from '@actions/remote/team';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
-import {getDefaultThemeByAppearance} from '@context/theme';
+import {resolveThemeFromDarkModeSetting} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import WebsocketManager from '@managers/websocket_manager';
+import {getStoredDarkModeSetting} from '@queries/app/global';
 import {getMyChannel} from '@queries/servers/channel';
 import {getPostById} from '@queries/servers/post';
-import {queryThemePreferences} from '@queries/servers/preference';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {getMyTeamById} from '@queries/servers/team';
 import {getIsCRTEnabled} from '@queries/servers/thread';
 import EphemeralStore from '@store/ephemeral_store';
 import {isErrorWithStatusCode} from '@utils/errors';
 import {emitNotificationError} from '@utils/notification';
-import {setThemeDefaults, updateThemeIfNeeded} from '@utils/theme';
+import {parseStoredDarkModeSetting} from '@utils/theme/dark_mode';
+import {updateThemeIfNeeded} from '@utils/theme';
 
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
 import type MyTeamModel from '@typings/database/models/servers/my_team';
@@ -55,11 +56,8 @@ export async function pushNotificationEntry(serverUrl: string, notification: Not
         // When opening the app from a push notification the theme may not be set in the EphemeralStore
         // causing the goToScreen to use the Appearance theme instead and that causes the screen background color to potentially
         // not match the theme
-        const themes = await queryThemePreferences(database, teamId).fetch();
-        let theme = getDefaultThemeByAppearance();
-        if (themes.length) {
-            theme = setThemeDefaults(JSON.parse(themes[0].value) as Theme);
-        }
+        const storedSetting = await getStoredDarkModeSetting();
+        const theme = resolveThemeFromDarkModeSetting(parseStoredDarkModeSetting(storedSetting));
         updateThemeIfNeeded(theme, true);
     }
 

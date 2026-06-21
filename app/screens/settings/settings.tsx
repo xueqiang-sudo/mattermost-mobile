@@ -62,7 +62,7 @@ const Settings = ({componentId, siteName}: SettingsProps) => {
 
     const goToDisplaySettings = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.SETTINGS_DISPLAY;
-        const title = intl.formatMessage({id: 'settings.display', defaultMessage: 'Display'});
+        const title = intl.formatMessage({id: 'settings.display', defaultMessage: 'Interface and Display'});
 
         goToScreen(screen, title);
     }, [intl]));

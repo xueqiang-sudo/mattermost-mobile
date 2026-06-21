@@ -2,13 +2,12 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import {combineLatest, of as of$} from 'rxjs';
+import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {Preferences} from '@constants';
 import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
-import {observeAllowedThemesKeys, observeConfigBooleanValue} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
 
 import DisplaySettings from './display';
@@ -16,17 +15,7 @@ import DisplaySettings from './display';
 import type {WithDatabaseArgs} from '@typings/database/database';
 
 const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
-    const allowsThemeSwitching = observeConfigBooleanValue(database, 'EnableThemeSelection');
-    const allowedThemeKeys = observeAllowedThemesKeys(database);
-
-    const isThemeSwitchingEnabled = combineLatest([allowsThemeSwitching, allowedThemeKeys]).pipe(
-        switchMap(([ts, ath]) => {
-            return of$(ts && ath.length > 1);
-        }),
-    );
-
     return {
-        isThemeSwitchingEnabled,
         hasMilitaryTimeFormat: queryDisplayNamePreferences(database).
             observeWithColumns(['value']).pipe(
                 switchMap(

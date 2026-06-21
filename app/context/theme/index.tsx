@@ -1,23 +1,21 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withObservables} from '@nozbe/watermelondb/react';
 import React, {type ComponentType, createContext, useEffect, useState} from 'react';
 import {Appearance} from 'react-native';
 
 import {Preferences} from '@constants';
-import useDidUpdate from '@hooks/did_update';
-import {queryThemePreferences} from '@queries/servers/preference';
-import {observeCurrentTeamId} from '@queries/servers/system';
-import {setThemeDefaults, updateThemeIfNeeded} from '@utils/theme';
-
-import type {PreferenceModel} from '@database/models/server';
-import type Database from '@nozbe/watermelondb/Database';
+import {observeDarkModeSetting} from '@queries/app/global';
+import {
+    DARK_MODE_SETTING,
+    getThemeForDarkModeSetting,
+    parseStoredDarkModeSetting,
+    type DarkModeSetting,
+} from '@utils/theme/dark_mode';
+import {updateThemeIfNeeded} from '@utils/theme';
 
 type Props = {
-    currentTeamId?: string;
     children: React.ReactNode;
-    themes: PreferenceModel[];
 }
 
 type WithThemeProps = {
@@ -31,73 +29,47 @@ export function getDefaultThemeByAppearance(): Theme {
     return Preferences.THEMES.quartz;
 }
 
+export function resolveThemeFromDarkModeSetting(setting: DarkModeSetting): Theme {
+    const presetTheme = getThemeForDarkModeSetting(setting);
+    if (presetTheme) {
+        return presetTheme;
+    }
+
+    return getDefaultThemeByAppearance();
+}
+
 export const ThemeContext = createContext(getDefaultThemeByAppearance());
 const {Consumer, Provider} = ThemeContext;
 
-const themeCache = new Map<string, Theme>();
-let clearingThemeCache = false;
-const clearThemeCache = () => {
-    if (clearingThemeCache) {
-        return;
-    }
-    clearingThemeCache = true;
-    themeCache.clear();
-    setTimeout(() => {
-        // We set this timeout to avoid clearing the cache multiple times
-        // this would happen as we have a Provider for each screen in the stack
-        // and when the themes changes we only want to invalidate the cache once
-        clearingThemeCache = false;
-    }, 300);
-};
-
-const getTheme = (teamId: string | undefined, themes: PreferenceModel[]): Theme => {
-    if (teamId && themeCache.has(teamId)) {
-        return themeCache.get(teamId)!;
-    }
-
-    const newTheme = (() => {
-        if (teamId) {
-            const teamTheme = themes.find((t) => t.name === teamId) || themes[0];
-            if (teamTheme?.value) {
-                try {
-                    return setThemeDefaults(JSON.parse(teamTheme.value));
-                } catch {
-                    // no theme change
-                }
-            }
-        }
-        return getDefaultThemeByAppearance();
-    })();
-
-    themeCache.set(teamId || 'default', newTheme);
-    return newTheme;
-};
-
-const ThemeProvider = ({currentTeamId, children, themes}: Props) => {
-    const [theme, setTheme] = useState(() => getTheme(currentTeamId, themes));
+const ThemeProvider = ({children}: Props) => {
+    const [darkModeSetting, setDarkModeSetting] = useState<DarkModeSetting>(DARK_MODE_SETTING.SYSTEM);
+    const [theme, setTheme] = useState(() => resolveThemeFromDarkModeSetting(DARK_MODE_SETTING.SYSTEM));
 
     useEffect(() => {
+        const subscription = observeDarkModeSetting().subscribe((record) => {
+            const setting = parseStoredDarkModeSetting(record?.value);
+            setDarkModeSetting(setting);
+            setTheme(resolveThemeFromDarkModeSetting(setting));
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (darkModeSetting !== DARK_MODE_SETTING.SYSTEM) {
+            return undefined;
+        }
+
         const listener = Appearance.addChangeListener(() => {
-            const newTheme = getTheme(currentTeamId, themes);
-            if (theme !== newTheme) {
-                setTheme(newTheme);
-            }
+            setTheme(getDefaultThemeByAppearance());
         });
 
         return () => listener.remove();
-    }, [currentTeamId, themes, theme]);
+    }, [darkModeSetting]);
 
     useEffect(() => {
         updateThemeIfNeeded(theme);
     }, [theme]);
-
-    useDidUpdate(() => {
-        clearThemeCache();
-    }, [themes]);
-
-    useDidUpdate(() => {
-        setTheme(getTheme(currentTeamId, themes));
-    }, [currentTeamId, themes]);
 
     return (<Provider value={theme}>{children}</Provider>);
 };
@@ -125,9 +97,4 @@ export function useTheme(): Theme {
     return React.useContext(ThemeContext);
 }
 
-const enhancedThemeProvider = withObservables([], ({database}: {database: Database}) => ({
-    currentTeamId: observeCurrentTeamId(database),
-    themes: queryThemePreferences(database).observeWithColumns(['value']),
-}));
-
-export default enhancedThemeProvider(ThemeProvider);
+export default ThemeProvider;

@@ -6,6 +6,7 @@ import {GLOBAL_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import {getActiveServerUrl} from '@init/credentials';
 import {logError} from '@utils/log';
+import {type DarkModeSetting} from '@utils/theme/dark_mode';
 
 export const storeGlobal = async (id: string, value: unknown, prepareRecordsOnly = false) => {
     try {
@@ -92,4 +93,8 @@ export const storePushDisabledInServerAcknowledged = async (serverUrl: string) =
 
 export const removePushDisabledInServerAcknowledged = async (serverUrl: string) => {
     return storeGlobal(`${GLOBAL_IDENTIFIERS.PUSH_DISABLED_ACK}${serverUrl}`, null, false);
+};
+
+export const storeDarkModeSetting = async (setting: DarkModeSetting) => {
+    return storeGlobal(GLOBAL_IDENTIFIERS.DARK_MODE_SETTING, setting, false);
 };

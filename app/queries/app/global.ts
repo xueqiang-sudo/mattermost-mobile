@@ -90,3 +90,19 @@ export const observeTutorialWatched = (tutorial: string) => {
         switchMap((v) => of$(Boolean(v))),
     );
 };
+
+export const observeDarkModeSetting = () => {
+    const query = queryGlobalValue(GLOBAL_IDENTIFIERS.DARK_MODE_SETTING);
+    if (!query) {
+        return of$(undefined);
+    }
+
+    return query.observe().pipe(
+        switchMap((result) => (result.length ? result[0].observe() : of$(undefined))),
+    );
+};
+
+export const getStoredDarkModeSetting = async () => {
+    const records = await queryGlobalValue(GLOBAL_IDENTIFIERS.DARK_MODE_SETTING)?.fetch();
+    return records?.[0]?.value;
+};

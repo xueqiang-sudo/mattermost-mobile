@@ -11,7 +11,7 @@ import {getPreferenceAsBool} from '@helpers/api/preference';
 import NetworkManager from '@managers/network_manager';
 import {queryAllUnreadDMsAndGMsIds, getChannelById} from '@queries/servers/channel';
 import {truncateCrtRelatedTables} from '@queries/servers/entry';
-import {queryPreferencesByCategoryAndName, querySavedPostsPreferences} from '@queries/servers/preference';
+import {deletePreferences as deleteLocalPreferences, queryPreferencesByCategoryAndName, querySavedPostsPreferences} from '@queries/servers/preference';
 import {getCurrentUserId} from '@queries/servers/system';
 import EphemeralStore from '@store/ephemeral_store';
 import {isDMorGM} from '@utils/channel';
@@ -108,6 +108,27 @@ export const savePreference = async (serverUrl: string, preferences: PreferenceT
         return {preferences: preferenceModels};
     } catch (error) {
         logDebug('error on savePreference', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
+export const deletePreference = async (serverUrl: string, preferences: PreferenceType[]) => {
+    try {
+        if (!preferences.length) {
+            return {success: true};
+        }
+
+        const client = NetworkManager.getClient(serverUrl);
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const userId = await getCurrentUserId(database);
+
+        client.deletePreferences(userId, preferences);
+        await deleteLocalPreferences({database, operator}, preferences);
+
+        return {success: true};
+    } catch (error) {
+        logDebug('error on deletePreference', getFullErrorMessage(error));
         forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }

@@ -1,18 +1,23 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {defineMessage, type MessageDescriptor, useIntl} from 'react-intl';
 
 import SettingContainer from '@components/settings/container';
 import SettingItem from '@components/settings/item';
 import {Screens} from '@constants';
-import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getLocaleFromLanguage} from '@i18n';
+import {observeDarkModeSetting} from '@queries/app/global';
 import {goToScreen, popTopScreen} from '@screens/navigation';
 import {gotoSettingsScreen} from '@screens/settings/config';
+import {
+    DARK_MODE_SETTING,
+    parseStoredDarkModeSetting,
+    type DarkModeSetting,
+} from '@utils/theme/dark_mode';
 import {getUserTimezoneProps} from '@utils/user';
 
 import type UserModel from '@typings/database/models/servers/user';
@@ -53,6 +58,21 @@ const LANGUAGE_LABEL_ZH_TW: MessageDescriptor = {
     defaultMessage: 'Traditional Chinese',
 };
 
+const DARK_MODE_INFO: Record<DarkModeSetting, MessageDescriptor> = {
+    [DARK_MODE_SETTING.SYSTEM]: {
+        id: 'mobile.display_settings.dark_mode.system',
+        defaultMessage: 'Follow system',
+    },
+    [DARK_MODE_SETTING.LIGHT]: {
+        id: 'mobile.display_settings.dark_mode.light_mode',
+        defaultMessage: 'Normal mode',
+    },
+    [DARK_MODE_SETTING.DARK]: {
+        id: 'mobile.display_settings.dark_mode.dark_mode',
+        defaultMessage: 'Dark mode',
+    },
+};
+
 function getAppLocaleLabelMessage(locale: string): MessageDescriptor {
     const normalized = getLocaleFromLanguage(locale);
     switch (normalized) {
@@ -69,17 +89,29 @@ type DisplayProps = {
     componentId: AvailableScreens;
     currentUser?: UserModel;
     hasMilitaryTimeFormat: boolean;
-    isThemeSwitchingEnabled: boolean;
 }
 
-const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isThemeSwitchingEnabled}: DisplayProps) => {
+const Display = ({componentId, currentUser, hasMilitaryTimeFormat}: DisplayProps) => {
     const intl = useIntl();
-    const theme = useTheme();
     const timezone = useMemo(() => getUserTimezoneProps(currentUser), [currentUser?.timezone]);
+    const [darkModeSetting, setDarkModeSetting] = useState<DarkModeSetting>(DARK_MODE_SETTING.SYSTEM);
+
+    useEffect(() => {
+        const subscription = observeDarkModeSetting().subscribe((record) => {
+            setDarkModeSetting(parseStoredDarkModeSetting(record?.value));
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const darkModeInfo = useMemo(
+        () => intl.formatMessage(DARK_MODE_INFO[darkModeSetting]),
+        [darkModeSetting, intl],
+    );
 
     const goToThemeSettings = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.SETTINGS_DISPLAY_THEME;
-        const title = intl.formatMessage({id: 'display_settings.theme', defaultMessage: 'Theme'});
+        const title = intl.formatMessage({id: 'display_settings.theme', defaultMessage: 'Dark mode'});
         goToScreen(screen, title);
     }, [intl]));
 
@@ -114,14 +146,12 @@ const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isThemeSwitch
 
     return (
         <SettingContainer testID='display_settings'>
-            {isThemeSwitchingEnabled && (
-                <SettingItem
-                    optionName='theme'
-                    onPress={goToThemeSettings}
-                    info={theme.type!}
-                    testID='display_settings.theme.option'
-                />
-            )}
+            <SettingItem
+                optionName='theme'
+                onPress={goToThemeSettings}
+                info={darkModeInfo}
+                testID='display_settings.theme.option'
+            />
             <SettingItem
                 optionName='clock'
                 onPress={goToClockDisplaySettings}

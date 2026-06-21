@@ -10,10 +10,12 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {IntlProvider} from 'react-intl';
 import {Appearance, BackHandler} from 'react-native';
 
-import {getDefaultThemeByAppearance} from '@context/theme';
+import {getDefaultThemeByAppearance, resolveThemeFromDarkModeSetting} from '@context/theme';
 import {DEFAULT_LOCALE, getTranslations} from '@i18n';
 import {initialize} from '@init/app';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
+import {getStoredDarkModeSetting} from '@queries/app/global';
+import {parseStoredDarkModeSetting} from '@utils/theme/dark_mode';
 import {extractStartLink, isValidUrl} from '@utils/url';
 
 import ChannelsScreen from './screens/channels';
@@ -77,6 +79,9 @@ const ShareExtension = () => {
         initialize().finally(async () => {
             const items = await MattermostShare.getSharedData();
             setData(items);
+
+            const storedSetting = await getStoredDarkModeSetting();
+            setTheme(resolveThemeFromDarkModeSetting(parseStoredDarkModeSetting(storedSetting)));
         });
 
         const backListener = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -88,8 +93,10 @@ const ShareExtension = () => {
             return false;
         });
 
-        const appearanceListener = Appearance.addChangeListener(() => {
-            setTheme(getDefaultThemeByAppearance());
+        const appearanceListener = Appearance.addChangeListener(async () => {
+            const storedSetting = await getStoredDarkModeSetting();
+            const setting = parseStoredDarkModeSetting(storedSetting);
+            setTheme(resolveThemeFromDarkModeSetting(setting));
         });
 
         return () => {

@@ -91,6 +91,7 @@ export const GLOBAL_IDENTIFIERS = {
     PUSH_DISABLED_ACK: 'pushDisabledAck',
     CACHE_MIGRATION: 'cacheMigration',
     MESSAGE_NOTIFICATION_ENABLED: 'messageNotificationEnabled',
+    DARK_MODE_SETTING: 'darkModeSetting',
 };
 
 export enum OperationType {

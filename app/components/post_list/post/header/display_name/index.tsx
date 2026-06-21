@@ -54,7 +54,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignItems: 'center',
         },
         displayNameContainerWeChat: {
-            maxWidth: '92%',
+            flexGrow: 1,
             flexDirection: 'row',
             alignItems: 'flex-start',
             flexShrink: 1,
