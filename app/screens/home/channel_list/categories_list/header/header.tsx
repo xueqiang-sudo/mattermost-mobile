@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {type Insets, Text, TouchableWithoutFeedback, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
@@ -9,8 +9,8 @@ import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-nati
 import {logout} from '@actions/remote/session';
 import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
 import CompassIcon from '@components/compass_icon';
-import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
+import {Screens} from '@constants';
 import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import {HOME_PADDING} from '@constants/view';
@@ -18,17 +18,15 @@ import {useLeftDrawer} from '@context/left_drawer';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {findChannels} from '@screens/navigation';
-import {bottomSheet} from '@screens/navigation';
-import {bottomSheetSnapPoint} from '@utils/helpers';
+import {findChannels, showModal} from '@screens/navigation';
+import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {alertPushProxyError, alertPushProxyUnknown} from '@utils/push_proxy';
 import {alertServerLogout} from '@utils/server';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import DropdownMenu, {type MenuEntry} from './dropdown_menu';
 import LoadingUnreads from './loading_unreads';
-import PlusMenu from './plus_menu';
-import {SEPARATOR_HEIGHT} from './plus_menu/separator';
 
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -158,45 +156,90 @@ const ChannelListHeader = ({
         marginLeft: withTiming(marginLeft.value, {duration: 350}),
     }), []);
     const serverUrl = useServerUrl();
+    const [dropdownVisible, setDropdownVisible] = useState(false);
+    const [dropdownAnchorY, setDropdownAnchorY] = useState(0);
+    const plusButtonRef = useRef<View>(null);
+
     useEffect(() => {
         marginLeft.value = iconPad ? 50 : 0;
     }, [iconPad]);
 
-    const onPress = usePreventDoubleTap(useCallback(() => {
-        const renderContent = () => {
-            return (
-                <PlusMenu
-                    canCreateChannels={canCreateChannels}
-                    canInvitePeople={canInvitePeople}
-                />
-            );
-        };
-
-        const closeButtonId = 'close-plus-menu';
-        let items = 1; // 私信
-        let separators = 0;
-
-        if (canCreateChannels) {
-            items += 1;
-        }
-
-        if (canInvitePeople) {
-            items += 1;
-            separators += 1;
-        }
-
-        // 扫一扫
-        items += 1;
-        separators += 1;
-
-        bottomSheet({
-            closeButtonId,
-            renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(items, ITEM_HEIGHT) + (separators * SEPARATOR_HEIGHT)],
-            theme,
-            title: intl.formatMessage({id: 'home.header.plus_menu', defaultMessage: 'Start a conversation'}),
+    const openGroupChat = useCallback(() => {
+        const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'});
+        const closeIconColor = theme.sidebarHeaderTextColor;
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
+        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+            closeButton,
+            variant: 'default',
         });
-    }, [intl, theme, canCreateChannels, canInvitePeople]));
+    }, [intl, theme]);
+
+    const createNewChannel = useCallback(() => {
+        const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
+        showModal(Screens.CREATE_OR_EDIT_CHANNEL, title);
+    }, [intl]);
+
+    const invitePeopleToTeam = useCallback(() => {
+        showModal(
+            Screens.INVITE,
+            intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
+        );
+    }, [intl]);
+
+    const scanQRCode = useCallback(() => {
+        showQrScannerModal(intl);
+    }, [intl]);
+
+    const menuItems: MenuEntry[] = [
+        {
+            icon: 'account-multiple-outline',
+            labelId: 'plus_menu.open_group_chat.title',
+            defaultLabel: 'Start group chat',
+            onPress: openGroupChat,
+            testID: 'plus_menu_item.open_group_chat',
+        },
+    ];
+
+    if (canCreateChannels && ENABLE_INTERNAL_GROUPS) {
+        menuItems.push({
+            icon: 'plus',
+            labelId: 'plus_menu.create_new_channel.title',
+            defaultLabel: 'Create New Channel',
+            onPress: createNewChannel,
+            testID: 'plus_menu_item.create_new_channel',
+        });
+    }
+
+    if (canInvitePeople) {
+        menuItems.push({type: 'separator'});
+        menuItems.push({
+            icon: 'account-plus-outline',
+            labelId: 'plus_menu.invite_people_to_team.title',
+            defaultLabel: 'Invite new members to the enterprise',
+            onPress: invitePeopleToTeam,
+            testID: 'plus_menu_item.invite_people_to_team',
+        });
+    }
+
+    menuItems.push({type: 'separator'});
+    menuItems.push({
+        icon: 'camera-outline',
+        labelId: 'plus_menu.scan_qr_code.title',
+        defaultLabel: 'Scan QR Code',
+        onPress: scanQRCode,
+        testID: 'plus_menu_item.scan_qr_code',
+    });
+
+    const onPress = usePreventDoubleTap(useCallback(() => {
+        if (plusButtonRef.current) {
+            plusButtonRef.current.measureInWindow((x, y, width, height) => {
+                setDropdownAnchorY(y + height);
+                setDropdownVisible(true);
+            });
+        } else {
+            setDropdownVisible((prev) => !prev);
+        }
+    }, []));
 
     const onSearchPress = usePreventDoubleTap(useCallback(() => {
         const titleId = ENABLE_INTERNAL_GROUPS ? 'find_channels.title' : 'find_channels.title_no_internal';
@@ -291,20 +334,28 @@ const ChannelListHeader = ({
                             name='magnify'
                         />
                     </TouchableWithFeedback>
-                    <TouchableWithFeedback
-                        hitSlop={hitSlop}
-                        onPress={onPress}
-                        style={styles.plusButton}
-                        testID='channel_list_header.plus.button'
-                        type='opacity'
-                    >
-                        <CompassIcon
-                            style={styles.plusIcon}
-                            name='plus'
-                        />
-                    </TouchableWithFeedback>
+                    <View ref={plusButtonRef} collapsable={false}>
+                        <TouchableWithFeedback
+                            hitSlop={hitSlop}
+                            onPress={onPress}
+                            style={styles.plusButton}
+                            testID='channel_list_header.plus.button'
+                            type='opacity'
+                        >
+                            <CompassIcon
+                                style={styles.plusIcon}
+                                name='plus'
+                            />
+                        </TouchableWithFeedback>
+                    </View>
                 </View>
             </View>
+            <DropdownMenu
+                visible={dropdownVisible}
+                anchorY={dropdownAnchorY}
+                items={menuItems}
+                onClose={() => setDropdownVisible(false)}
+            />
         );
     } else {
         header = (

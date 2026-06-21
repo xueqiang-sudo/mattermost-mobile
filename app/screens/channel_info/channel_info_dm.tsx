@@ -19,7 +19,6 @@ import SecurityManager from '@managers/security_manager';
 import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen} from '@screens/navigation';
 import {displayUsername} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
-import {typography} from '@utils/typography';
 
 import {DangerSection, SearchNavRow, ToggleRow} from './shared';
 
@@ -50,15 +49,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.centerChannelBg,
     },
     headerSection: {
+        flexDirection: 'row',
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+    },
+    avatarItem: {
         alignItems: 'center',
-        paddingVertical: 24,
-        paddingHorizontal: 16,
+        width: 68,
+        marginBottom: 8,
     },
     displayName: {
-        color: theme.centerChannelColor,
-        marginTop: 12,
-        ...typography('Heading', 600, 'SemiBold'),
+        fontSize: 11,
+        lineHeight: 16,
+        marginTop: 4,
         textAlign: 'center',
+        overflow: 'hidden',
+        color: changeOpacity(theme.centerChannelColor, 0.75),
     },
     section: {
         borderTopWidth: StyleSheet.hairlineWidth,
@@ -66,21 +72,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
-    addActionGrid: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.12),
-    },
-    addActionItem: {
+    addButtonItem: {
         alignItems: 'center',
         width: 68,
+        marginBottom: 8,
     },
-    addActionIcon: {
-        width: 48,
-        height: 48,
+    addButtonIcon: {
+        width: 40,
+        height: 40,
         borderWidth: 1,
         borderStyle: 'dashed',
         borderRadius: 4,
@@ -88,10 +87,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    addActionLabel: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
+    addButtonText: {
+        fontSize: 11,
+        lineHeight: 16,
         marginTop: 4,
-        ...typography('Body', 75),
+        textAlign: 'center',
+        color: changeOpacity(theme.centerChannelColor, 0.56),
     },
 }));
 
@@ -176,32 +177,35 @@ const ChannelInfoDM = ({
                     alwaysBounceVertical={false}
                     contentContainerStyle={styles.content}
                 >
-                    {/* Header: Avatar + Name */}
+                    {/* Header: Avatar (name below) + Add button — same style as MemberGrid */}
                     <View style={styles.headerSection}>
-                        <ProfilePicture
-                            author={dmUser}
-                            size={80}
-                            showStatus={true}
-                            statusSize={20}
-                        />
-                        <Text style={styles.displayName}>{displayName}</Text>
-                    </View>
-
-                    {/* Add people action */}
-                    <View style={styles.addActionGrid}>
+                        <View style={styles.avatarItem}>
+                            <ProfilePicture
+                                author={dmUser}
+                                size={40}
+                                showStatus={true}
+                                statusSize={12}
+                            />
+                            <Text
+                                numberOfLines={1}
+                                style={styles.displayName}
+                            >
+                                {displayName}
+                            </Text>
+                        </View>
                         <TouchableOpacity
                             onPress={handleAddPeople}
-                            style={styles.addActionItem}
+                            style={styles.addButtonItem}
                             testID='channel_info_dm.add_people'
                         >
-                            <View style={styles.addActionIcon}>
+                            <View style={styles.addButtonIcon}>
                                 <CompassIcon
                                     name='plus'
-                                    size={24}
+                                    size={20}
                                     color={changeOpacity(theme.centerChannelColor, 0.5)}
                                 />
                             </View>
-                            <Text style={styles.addActionLabel}>
+                            <Text style={styles.addButtonText}>
                                 {intl.formatMessage({id: 'gm_settings.add_label', defaultMessage: 'Add'})}
                             </Text>
                         </TouchableOpacity>
@@ -216,16 +220,14 @@ const ChannelInfoDM = ({
                     {/* Toggle section */}
                     <View style={styles.section}>
                         <ToggleRow
-                            icon='bell-outline'
-                            activeIcon='bell-off-outline'
+                            icon=''
                             label={intl.formatMessage({id: 'channel_info_rhs.gm.mute_notifications', defaultMessage: 'Mute Notifications'})}
                             value={isMuted}
                             onToggle={handleToggleMute}
                             testID='channel_info_dm.mute'
                         />
                         <ToggleRow
-                            icon='star-outline'
-                            activeIcon='star'
+                            icon=''
                             label={intl.formatMessage({id: 'channel_info_rhs.gm.pin_to_top', defaultMessage: 'Pin to Top'})}
                             value={isFavorite}
                             onToggle={handleToggleFavorite}

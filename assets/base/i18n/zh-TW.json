@@ -1432,6 +1432,7 @@
   "plus_menu.create_new_channel.title": "創建新的羣聊",
   "plus_menu.invite_people_to_team.title": "邀請新人到企業",
   "plus_menu.open_direct_message.title": "私聊或討論組",
+  "plus_menu.open_group_chat.title": "發起群聊",
   "post_body.check_for_out_of_channel_groups_mentions.message": "未收到此提及因爲他們不在此羣聊。同時他們也不是此羣聊關聯組的成員。",
   "post_body.check_for_out_of_channel_groups_mentions.message.discussion": "未收到此提及因爲他們不在此討論組。同時他們也不是此討論組關聯組的成員。",
   "post_body.check_for_out_of_channel_mentions.link.and": " 以及 ",

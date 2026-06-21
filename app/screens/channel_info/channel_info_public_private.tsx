@@ -1,15 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, ScrollView, StyleSheet, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {clearChannelHistory, toggleMuteChannel} from '@actions/remote/channel';
 import {toggleFavoriteChannel} from '@actions/remote/category';
-import CompassIcon from '@components/compass_icon';
-import {General, Screens} from '@constants';
+import {fetchProfilesInChannel} from '@actions/remote/user';
+import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -17,7 +17,6 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
-import {typography} from '@utils/typography';
 
 import {DangerSection, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
 
@@ -49,33 +48,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         backgroundColor: theme.centerChannelBg,
     },
-    headerSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 20,
-        paddingHorizontal: 16,
-    },
-    headerIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 4,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    headerInfo: {
-        flex: 1,
-    },
-    headerName: {
-        color: theme.centerChannelColor,
-        ...typography('Heading', 400, 'SemiBold'),
-    },
-    headerType: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 2,
-        ...typography('Body', 75),
-    },
     section: {
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.12),
@@ -88,26 +60,19 @@ const ChannelInfoPublicPrivate = ({
     channelId,
     closeButtonId,
     componentId,
-    displayName,
     isFavorite,
     isMuted,
     memberIds,
-    type,
 }: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
-    const isPrivate = type === General.PRIVATE_CHANNEL;
-    const channelIcon = isPrivate ? 'lock-outline' : 'globe';
-    const channelTypeName = isPrivate
-        ? intl.formatMessage({id: 'channel_settings.type_private', defaultMessage: 'Private Channel'})
-        : intl.formatMessage({id: 'channel_settings.type_public', defaultMessage: 'Public Channel'});
-    const membersCountText = intl.formatMessage(
-        {id: 'channel_settings.members_count', defaultMessage: '{count} members'},
-        {count: memberIds.length},
-    );
+    // Fetch all channel members from server so local DB has complete membership records
+    useEffect(() => {
+        fetchProfilesInChannel(serverUrl, channelId, undefined, {page: 0, per_page: 200});
+    }, [serverUrl, channelId]);
 
     const close = useCallback(() => {
         return dismissModal({componentId});
@@ -168,21 +133,6 @@ const ChannelInfoPublicPrivate = ({
                     alwaysBounceVertical={false}
                     contentContainerStyle={styles.content}
                 >
-                    {/* Header: Icon + Name + Type */}
-                    <View style={styles.headerSection}>
-                        <View style={styles.headerIcon}>
-                            <CompassIcon
-                                name={channelIcon}
-                                size={24}
-                                color={changeOpacity(theme.centerChannelColor, 0.72)}
-                            />
-                        </View>
-                        <View style={styles.headerInfo}>
-                            <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
-                            <Text style={styles.headerType}>{channelTypeName} · {membersCountText}</Text>
-                        </View>
-                    </View>
-
                     {/* Channel ID */}
                     <IdField
                         id={channelId}
@@ -211,16 +161,14 @@ const ChannelInfoPublicPrivate = ({
                     {/* Toggle section */}
                     <View style={styles.section}>
                         <ToggleRow
-                            icon='bell-outline'
-                            activeIcon='bell-off-outline'
+                            icon=''
                             label={intl.formatMessage({id: 'channel_info_rhs.gm.mute_notifications', defaultMessage: 'Mute Notifications'})}
                             value={isMuted}
                             onToggle={handleToggleMute}
                             testID='channel_info_public_private.mute'
                         />
                         <ToggleRow
-                            icon='star-outline'
-                            activeIcon='star'
+                            icon=''
                             label={intl.formatMessage({id: 'channel_info_rhs.gm.pin_to_top', defaultMessage: 'Pin to Top'})}
                             value={isFavorite}
                             onToggle={handleToggleFavorite}
