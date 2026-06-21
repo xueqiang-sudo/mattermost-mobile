@@ -1585,6 +1585,7 @@
   "supplier_customer.fill_info": "填寫資訊",
   "supplier_customer.account": "帳號",
   "supplier_customer.detail_info": "詳細資訊",
+  "supplier_customer.description": "描述",
   "supplier_customer.send_message": "發送訊息",
   "supplier_customer.nickname": "暱稱",
   "supplier_customer.company_required": "請先選擇企業，以便搜尋已透過通訊錄服務在本企業註冊的員工。",

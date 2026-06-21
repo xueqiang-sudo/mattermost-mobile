@@ -250,11 +250,10 @@ export default function ChannelAddMembers({
         customers: CandidateProfile[];
         enterprise: CandidateProfile[];
         external: CandidateProfile[];
-        searchResults: CandidateProfile[];
-    }>({suppliers: [], customers: [], enterprise: [], external: [], searchResults: []});
+    }>({suppliers: [], customers: [], enterprise: [], external: []});
     const [showDropdown, setShowDropdown] = useState(false);
     const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'external', 'searchResults']));
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'external']));
     const [isAdding, setIsAdding] = useState(false);
 
     const teamIdForMembersList = channel?.teamId || currentTeamId || '';
@@ -295,10 +294,9 @@ export default function ChannelAddMembers({
         });
     }, [serverUrl, teamIdForMembersList, currentUserId]);
 
-    // Exact search for non-supplier/customer/enterprise members
+    // Search for external contacts only (suppliers/customers/enterprise are filtered client-side)
     useEffect(() => {
         if (!searchTerm.trim()) {
-            setCandidates((prev) => ({...prev, searchResults: []}));
             return;
         }
         searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, searchTerm).then((drafts) => {
@@ -308,16 +306,18 @@ export default function ChannelAddMembers({
                 !p.mmCandidateTags?.includes('customer') &&
                 !p.mmCandidateTags?.includes('supplier') &&
                 !p.mmCandidateTags?.includes('enterprise');
-            setCandidates((prev) => ({
-                ...prev,
-                searchResults: profiles.filter(notSelf),
-                external: profiles.filter((p) => notSelf(p) && isExternal(p)),
-            }));
-            setKnownProfiles((prev) => {
-                const next = new Map(prev);
-                profiles.forEach((p) => next.set(p.id, p));
-                return next;
-            });
+            const newExternals = profiles.filter((p) => notSelf(p) && isExternal(p));
+            if (newExternals.length > 0) {
+                setCandidates((prev) => ({
+                    ...prev,
+                    external: [...prev.external, ...newExternals.filter((p) => !prev.external.some((e) => e.id === p.id))],
+                }));
+                setKnownProfiles((prev) => {
+                    const next = new Map(prev);
+                    newExternals.forEach((p) => next.set(p.id, p));
+                    return next;
+                });
+            }
         });
     }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId]);
 
@@ -568,11 +568,6 @@ export default function ChannelAddMembers({
                             intl.formatMessage({id: 'channel_add_members.external', defaultMessage: 'External Contacts'}),
                             'external',
                             filteredCandidates.external,
-                        )}
-                        {candidates.searchResults.length > 0 && renderSection(
-                            intl.formatMessage({id: 'channel_add_members.search_results', defaultMessage: 'Search Results'}),
-                            'searchResults',
-                            candidates.searchResults,
                         )}
                     </>
                 }

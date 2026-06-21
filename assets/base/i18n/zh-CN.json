@@ -1605,6 +1605,7 @@
   "supplier_customer.fill_info": "填写信息",
   "supplier_customer.account": "账号",
   "supplier_customer.detail_info": "详细信息",
+  "supplier_customer.description": "描述",
   "supplier_customer.send_message": "发送消息",
   "supplier_customer.nickname": "昵称",
   "supplier_customer.company_required": "请先选择企业，以便搜索已通过通讯录服务在本企业注册的员工。",

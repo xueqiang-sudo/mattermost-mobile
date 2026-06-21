@@ -94,8 +94,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     scrollInner: {
         flexGrow: 1,
         paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 24,
+        paddingTop: 8,
+        paddingBottom: 12,
     },
     section: {
         backgroundColor: theme.centerChannelBg,
@@ -127,7 +127,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     textArea: {
-        minHeight: 100,
+        minHeight: 72,
         textAlignVertical: 'top',
     },
     fieldDivider: {
@@ -146,7 +146,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
     },
     saveButtonSection: {
-        marginTop: 8,
+        marginTop: 4,
         marginBottom: 8,
     },
     saveButton: {
@@ -335,7 +335,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     // --- Edit mode styles ---
     editHeaderSection: {
         alignItems: 'center',
-        paddingVertical: 20,
+        paddingVertical: 12,
         paddingHorizontal: 16,
     },
     editAvatarName: {
@@ -350,7 +350,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     detailRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        paddingVertical: 12,
+        paddingVertical: 10,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
@@ -375,7 +375,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'SemiBold'),
         color: changeOpacity(theme.centerChannelColor, 0.72),
         marginBottom: 8,
-        marginTop: 16,
+        marginTop: 10,
     },
     readonlyText: {
         ...typography('Body', 200),
@@ -817,7 +817,8 @@ const SupplierCustomerFormScreen = ({
         const isExpanded = expandedSections.has('searchResults');
 
         return (
-            <>
+            <View style={{flex: 1, backgroundColor: theme.centerChannelBg}}>
+                <>
                 {/* Search bar */}
                 <View style={styles.searchSection}>
                     <View style={styles.searchBar}>
@@ -918,11 +919,12 @@ const SupplierCustomerFormScreen = ({
                         <Text style={styles.doneButtonText}>
                             {selectedUsers.size > 0
                                 ? intl.formatMessage({id: 'create_direct_message.done_with_count', defaultMessage: 'Done ({count})'}, {count: selectedUsers.size})
-                                : intl.formatMessage({id: 'supplier_customer.form_add_title', defaultMessage: 'Add'})}
+                                : intl.formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'})}
                         </Text>
                     </TouchableOpacity>
                 </View>
-            </>
+                </>
+            </View>
         );
     };
 
@@ -963,7 +965,7 @@ const SupplierCustomerFormScreen = ({
                             />
                             <View style={styles.fieldDivider}/>
                             <Text style={styles.label}>
-                                {intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'})}
+                                {intl.formatMessage({id: 'supplier_customer.description', defaultMessage: 'Description'})}
                             </Text>
                             <TextInput
                                 style={[styles.input, styles.textArea]}
@@ -975,7 +977,7 @@ const SupplierCustomerFormScreen = ({
                                         return next;
                                     });
                                 }}
-                                placeholder={intl.formatMessage({id: 'supplier_customer.add_description_placeholder', defaultMessage: 'Describe how you work with this contact.'})}
+                                placeholder=''
                                 placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
                                 multiline={true}
                                 numberOfLines={3}
@@ -1027,10 +1029,7 @@ const SupplierCustomerFormScreen = ({
         </View>
     );
 
-    const editDescriptionPlaceholder = intl.formatMessage({
-        id: 'supplier_customer.field_description_edit_placeholder',
-        defaultMessage: 'How do you work together? Add context—for example projects, roles, or reminders—for yourself and your enterprise. (optional)',
-    });
+    const editDescriptionPlaceholder = '';
 
     const editBody = (
         <>
@@ -1089,7 +1088,7 @@ const SupplierCustomerFormScreen = ({
                 />
 
                 <Text style={styles.editFieldLabel}>
-                    {intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'})}
+                    {intl.formatMessage({id: 'supplier_customer.description', defaultMessage: 'Description'})}
                 </Text>
                 <TextInput
                     style={[styles.input, styles.textArea]}
@@ -1223,7 +1222,7 @@ const SupplierCustomerFormScreen = ({
                 </Text>
 
                 <Text style={styles.editFieldLabel}>
-                    {intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'})}
+                    {intl.formatMessage({id: 'supplier_customer.description', defaultMessage: 'Description'})}
                 </Text>
                 <Text style={[styles.readonlyText, !readOnlyDescription && styles.readonlyTextEmpty]}>
                     {readOnlyDescription || '-'}

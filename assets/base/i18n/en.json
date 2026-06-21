@@ -1581,6 +1581,7 @@
   "supplier_customer.fill_info": "Fill Info",
   "supplier_customer.account": "Account",
   "supplier_customer.detail_info": "Detail Info",
+  "supplier_customer.description": "Description",
   "supplier_customer.send_message": "Send Message",
   "supplier_customer.nickname": "Nickname",
   "supplier_customer.company_required": "Select an enterprise first to search employees registered for this enterprise via the contacts service.",

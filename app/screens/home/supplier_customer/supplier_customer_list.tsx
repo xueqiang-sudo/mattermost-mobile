@@ -31,6 +31,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getContactListDisplayName, getSupplierCustomerDisplayName} from '@utils/contact_section';
+import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -179,7 +180,7 @@ const SupplierCustomerListRow = memo(({
             >
                 <View style={styles.listItemAvatarWrap}>
                     <ContactAvatar
-                        employee={item.contact}
+                        employee={getLastPictureUpdate(item.contact) > 0 ? item.contact : undefined}
                         size={40}
                     />
                 </View>
