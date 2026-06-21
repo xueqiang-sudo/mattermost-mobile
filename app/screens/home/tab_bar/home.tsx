@@ -5,6 +5,7 @@ import React, {useEffect, useState} from 'react';
 import {DeviceEventEmitter, StyleSheet, View} from 'react-native';
 import JPush from 'jpush-react-native';
 
+import JPushManager from '@init/jpush';
 import Badge from '@components/badge';
 import CompassIcon from '@components/compass_icon';
 import {BOTTOM_TAB_ICON_SIZE} from '@constants/view';
@@ -55,6 +56,12 @@ const getTotalMentionsAndUnread = () => {
 };
 
 const updateBadge = () => {
+    // 未登录时角标清零，不应显示未读数
+    if (!JPushManager.isLoggedIn()) {
+        JPush.setBadge({badge: 0, appBadge: 0});
+        logDebug('Not logged in, clearing badge');
+        return;
+    }
     const {unreadCount} = getTotalMentionsAndUnread();
     logDebug('Setting the badge count based on unread channel count to', unreadCount);
     JPush.setBadge({badge: unreadCount, appBadge: unreadCount});

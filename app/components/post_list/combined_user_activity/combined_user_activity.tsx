@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, type StyleProp, Text, TouchableHighlight, View, type ViewStyle} from 'react-native';
+import {Keyboard, Pressable, type StyleProp, Text, TouchableHighlight, View, type ViewStyle} from 'react-native';
 
 import {fetchMissingProfilesByIds, fetchMissingProfilesByUsernames} from '@actions/remote/user';
 import Markdown from '@components/markdown';
@@ -287,16 +287,19 @@ const CombinedUserActivity = ({
                 style={style}
                 testID={testID}
             >
-                <TouchableHighlight
+                {/*
+                 * 不用 TouchableHighlight：其 onPress 会吞掉子级 Text.onPress，
+                 * 导致「N 其他人」无法展开完整名单。
+                 */}
+                <Pressable
                     testID={itemTestID}
-                    onPress={emptyFunction}
                     onLongPress={onLongPress}
-                    underlayColor='transparent'
+                    delayLongPress={200}
                 >
                     <View style={styles.containerCompact}>
                         {content}
                     </View>
-                </TouchableHighlight>
+                </Pressable>
             </View>
         );
     }

@@ -3,7 +3,7 @@
 
 import React, {useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Text} from 'react-native';
+import {Text, View} from 'react-native';
 
 import FormattedMarkdownText from '@components/formatted_markdown_text';
 import FormattedText from '@components/formatted_text';
@@ -46,9 +46,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             textAlign: 'center',
         },
         linkTextCompact: {
-            color: changeOpacity(theme.centerChannelColor, 0.45),
+            color: theme.linkColor,
             ...typography('Body', 75, 'Regular'),
             lineHeight: 18,
+        },
+        compactRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            maxWidth: '100%',
         },
     };
 });
@@ -121,16 +128,16 @@ const LastUsers = ({actor, channelId, compact, location, postType, theme, userna
         const plainType = typeLabel.replace(/\*\*([^*]+)\*\*/g, '$1');
 
         return (
-            <Text style={textStyle}>
-                {andPrefix}
+            <View style={style.compactRow}>
+                <Text style={textStyle}>{andPrefix}</Text>
                 <Text
                     onPress={onPress}
                     style={linkStyle}
                 >
                     {othersLabel}
                 </Text>
-                {plainType}
-            </Text>
+                <Text style={textStyle}>{plainType}</Text>
+            </View>
         );
     }
 

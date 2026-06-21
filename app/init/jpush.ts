@@ -180,6 +180,10 @@ class JPushManager {
             }
             JPush.clearLocalNotifications();
             JPush.clearAllNotifications();
+            // 仅在 App 启动时清角标（此时用户尚未登录，角标应无意义）
+            if (source === 'appStart' && typeof JPush.setBadge === 'function') {
+                JPush.setBadge({badge: 0, appBadge: 0});
+            }
             logInfo(`${TAG} 已清除通知栏推送通知`, {source});
         } catch (error) {
             logError(`${TAG} 清除通知栏推送失败`, {source, error});
