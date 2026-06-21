@@ -167,6 +167,9 @@ const SupplierCustomerListRow = memo(({
     onViewProfile,
     relationDescriptionLabel,
 }: RowProps) => {
+    if (!item.contact) {
+        return null;
+    }
     const contactId = item.contact.id;
     const displayName = getContactDisplayName(item);
     const sub = formatContactSubtitle(item, relationDescriptionLabel);
@@ -283,7 +286,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         try {
             const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
             if (!result.error && result.data) {
-                setItems(result.data as MMEmployeeContactSimple[]);
+                setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
             }
         } finally {
             if (!silent) {
@@ -300,7 +303,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
         try {
             const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
             if (!result.error && result.data) {
-                setItems(result.data as MMEmployeeContactSimple[]);
+                setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
             }
         } finally {
             setRefreshing(false);
@@ -338,6 +341,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             initialContactEmail?: string;
             initialContactPhone?: string;
             initialContactPosition?: string;
+            initialContactUsername?: string;
             readOnly?: boolean;
         }) => {
             if (!ownerId) {
@@ -353,6 +357,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 initialContactEmail: opts.initialContactEmail,
                 initialContactPhone: opts.initialContactPhone,
                 initialContactPosition: opts.initialContactPosition,
+                initialContactUsername: opts.initialContactUsername,
                 readOnly: opts.readOnly,
             });
         },
@@ -376,6 +381,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 initialContactEmail: row?.contact.email,
                 initialContactPhone: row?.contact.phone,
                 initialContactPosition: row?.contact.position,
+                initialContactUsername: row?.contact.username,
             });
         },
         [items, openForm],
@@ -430,6 +436,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                     initialContactEmail: contact.contact.email,
                     initialContactPhone: contact.contact.phone,
                     initialContactPosition: contact.contact.position,
+                    initialContactUsername: contact.contact.username,
                     readOnly: true,
                 });
             },

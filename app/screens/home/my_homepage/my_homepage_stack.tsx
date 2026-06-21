@@ -40,6 +40,7 @@ function SupplierCustomerFormWrapper() {
             initialContactEmail={params.initialContactEmail}
             initialContactPhone={params.initialContactPhone}
             initialContactPosition={params.initialContactPosition}
+            initialContactUsername={params.initialContactUsername}
             mattermostUserIdForAvatar={params.mattermostUserIdForAvatar}
             readOnly={params.readOnly}
             onBack={() => navigation.goBack()}

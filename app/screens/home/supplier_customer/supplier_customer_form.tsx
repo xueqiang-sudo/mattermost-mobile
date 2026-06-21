@@ -425,6 +425,7 @@ export type SupplierCustomerFormProps = {
     initialContactEmail?: string;
     initialContactPhone?: string;
     initialContactPosition?: string;
+    initialContactUsername?: string;
     mattermostUserIdForAvatar?: string;
     onBack?: () => void;
     componentId?: AvailableScreens;
@@ -443,6 +444,7 @@ const SupplierCustomerFormScreen = ({
     initialContactEmail,
     initialContactPhone,
     initialContactPosition,
+    initialContactUsername,
     mattermostUserIdForAvatar,
     onBack,
     componentId,
@@ -1013,7 +1015,7 @@ const SupplierCustomerFormScreen = ({
     const editDisplayName = (initialRemarkTrimmed || initialContactName) ?? existingContactId ?? '';
 
     // Determine the account identifier (username)
-    const accountValue = existingContactId ?? '';
+    const accountValue = initialContactUsername ?? existingContactId ?? '';
     const isAccountPhone = /^\+?[\d\s\-()]{6,}$/.test(accountValue);
     const isAccountEmail = accountValue.includes('@');
 
@@ -1128,7 +1130,7 @@ const SupplierCustomerFormScreen = ({
     const readOnlyRemark = typeof initialRemark === 'string' ? initialRemark.trim() : '';
     const readOnlyDescription = typeof initialDescription === 'string' ? initialDescription.trim() : '';
     const readOnlyDisplayName = (readOnlyRemark || initialContactName) ?? existingContactId ?? '';
-    const readOnlyAccountValue = existingContactId ?? '';
+    const readOnlyAccountValue = initialContactUsername ?? existingContactId ?? '';
     const readOnlyIsAccountPhone = /^\+?[\d\s\-()]{6,}$/.test(readOnlyAccountValue);
     const readOnlyIsAccountEmail = readOnlyAccountValue.includes('@');
 
