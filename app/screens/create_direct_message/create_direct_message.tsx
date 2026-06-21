@@ -18,7 +18,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal, setButtons} from '@screens/navigation';
+import {dismissModal, popTopScreen, setButtons} from '@screens/navigation';
 import {alertErrorWithFallback} from '@utils/draft';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -104,7 +104,6 @@ function AvatarNoInitials({author, size, showStatus = false}: {author: Candidate
 
 const close = () => {
     Keyboard.dismiss();
-    dismissModal();
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -212,6 +211,33 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.buttonColor,
         ...typography('Body', 200, 'SemiBold'),
     },
+    dropdownOverlay: {
+        backgroundColor: theme.centerChannelBg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+        maxHeight: 300,
+    },
+    dropdownList: {
+        paddingHorizontal: 16,
+    },
+    selectedMemberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        gap: 12,
+    },
+    selectedMemberName: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
+    collapseButtonContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
     hint: {
         color: changeOpacity(theme.centerChannelColor, 0.5),
         paddingHorizontal: 16,
@@ -247,6 +273,7 @@ export default function CreateDirectMessage({
     const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'searchResults']));
     const [startingConversation, setStartingConversation] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     const teamIdForMembersList = currentTeamId || '';
 
@@ -332,6 +359,13 @@ export default function CreateDirectMessage({
         };
     }, [candidates, searchTerm, teammateNameDisplay]);
 
+    // Close handler that works for both pushed screens (goToScreen) and modals (showModal)
+    const handleClose = useCallback(async () => {
+        Keyboard.dismiss();
+        await popTopScreen(componentId);
+        await dismissModal({componentId});
+    }, [componentId]);
+
     // Set up the left close button in the navigation bar
     const updateNavigationButtons = useCallback(async () => {
         const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
@@ -349,8 +383,8 @@ export default function CreateDirectMessage({
         updateNavigationButtons();
     }, [updateNavigationButtons]);
 
-    useNavButtonPressed(CLOSE_BUTTON, componentId, close, [close]);
-    useAndroidHardwareBackHandler(componentId, close);
+    useNavButtonPressed(CLOSE_BUTTON, componentId, handleClose, [handleClose]);
+    useAndroidHardwareBackHandler(componentId, handleClose);
 
     // Create direct channel
     const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
@@ -398,7 +432,7 @@ export default function CreateDirectMessage({
         }
 
         if (success) {
-            close();
+            handleClose();
         } else {
             setStartingConversation(false);
         }
@@ -428,6 +462,7 @@ export default function CreateDirectMessage({
             }
             return next;
         });
+        setSearchTerm('');
     }, [currentUserId, lockedIds, newSelectedIds.size, startConversation, variant]);
 
     const toggleSection = useCallback((section: string) => {
@@ -539,6 +574,7 @@ export default function CreateDirectMessage({
                     {selectedProfiles.length > 0 && variant !== 'dm_only' && (
                         <TouchableOpacity
                             style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginRight: 8}}
+                            onPress={() => setShowDropdown(true)}
                         >
                             {selectedProfiles.map((user) => (
                                 <AvatarNoInitials
@@ -559,6 +595,36 @@ export default function CreateDirectMessage({
                         autoCapitalize='none'
                     />
                 </View>
+                {showDropdown && (
+                    <View style={style.dropdownOverlay}>
+                        <View style={style.dropdownList}>
+                            {selectedProfiles.map((user) => {
+                                const name = displayUsername(user, teammateNameDisplay);
+                                return (
+                                    <TouchableOpacity
+                                        key={user.id}
+                                        style={style.selectedMemberRow}
+                                        onPress={() => toggleSelect(user.id)}
+                                    >
+                                        {renderCheckbox(user.id)}
+                                        <AvatarNoInitials
+                                            author={user}
+                                            size={32}
+                                            showStatus={false}
+                                        />
+                                        <Text style={style.selectedMemberName}>{name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <TouchableOpacity
+                            style={style.collapseButtonContainer}
+                            onPress={() => setShowDropdown(false)}
+                        >
+                            <CompassIcon name='chevron-up' size={24} style={{color: theme.buttonBg}}/>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
 
             {/* Hint for default variant */}

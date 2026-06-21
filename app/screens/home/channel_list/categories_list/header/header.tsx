@@ -236,7 +236,7 @@ const ChannelListHeader = ({
             plusButtonRef.current.measureInWindow((x, y, width, height) => {
                 const screenWidth = Dimensions.get('window').width;
                 setDropdownAnchorRight(screenWidth - x - width);
-                setDropdownAnchorTop(y + height + 4);
+                setDropdownAnchorTop(y + height + 8);
                 setDropdownVisible(true);
             });
         } else {
