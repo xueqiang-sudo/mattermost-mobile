@@ -16,7 +16,7 @@ import {typography} from '@utils/typography';
 import {getInitialsForAvatar} from '@utils/user';
 
 type Props = {
-    employee: UserProfile | SimpleUserProfile;
+    employee?: UserProfile | SimpleUserProfile;
     size?: number;
 };
 
@@ -42,7 +42,7 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
     const styles = getStyleSheet(theme);
 
     const lastPictureUpdate = useMemo(() => {
-        return employee.last_picture_update || 0;
+        return employee?.last_picture_update || 0;
     }, [employee]);
 
     const imgSource = useMemo(() => {
@@ -53,7 +53,7 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
         return {uri: buildAbsoluteUrl(serverUrl, pictureUrl)};
     }, [employee, serverUrl, lastPictureUpdate]);
 
-    const initials = useMemo(() => getInitialsForAvatar(employee), [employee]);
+    const initials = useMemo(() => employee ? getInitialsForAvatar(employee) : '', [employee]);
 
     const containerStyle = useMemo(() => [
         styles.container,
@@ -83,7 +83,7 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
         return (
             <View
                 style={containerStyle}
-                testID={`contact_avatar.${employee.id}`}
+                testID={`contact_avatar.${employee?.id ?? 'unknown'}`}
             >
                 <Text
                     style={textStyle}
@@ -98,7 +98,7 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
     return (
         <View
             style={containerStyle}
-            testID={`contact_avatar.${employee.id}`}
+            testID={`contact_avatar.${employee?.id ?? 'unknown'}`}
         >
             <CompassIcon
                 name={ACCOUNT_OUTLINE_IMAGE}
