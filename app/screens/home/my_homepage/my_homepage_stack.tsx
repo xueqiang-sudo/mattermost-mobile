@@ -41,6 +41,7 @@ function SupplierCustomerFormWrapper() {
             initialContactPhone={params.initialContactPhone}
             initialContactPosition={params.initialContactPosition}
             mattermostUserIdForAvatar={params.mattermostUserIdForAvatar}
+            readOnly={params.readOnly}
             onBack={() => navigation.goBack()}
         />
     );

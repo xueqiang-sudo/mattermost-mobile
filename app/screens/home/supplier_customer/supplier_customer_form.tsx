@@ -39,6 +39,7 @@ import NetworkManager from '@managers/network_manager';
 import {dismissModal} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {getContactListDisplayName} from '@utils/contact_section';
+import {getLastPictureUpdate} from '@utils/user';
 import {logError} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -127,7 +128,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     textArea: {
-        minHeight: 72,
+        minHeight: 48,
         textAlignVertical: 'top',
     },
     fieldDivider: {
@@ -746,7 +747,7 @@ const SupplierCustomerFormScreen = ({
                 ? intl.formatMessage({id: 'supplier_customer.form_edit_supplier_title', defaultMessage: 'Edit supplier'})
                 : intl.formatMessage({id: 'supplier_customer.form_edit_customer_title', defaultMessage: 'Edit customer'}))
             : (addStage === AddStage.SEARCH
-                ? `${addScreenTitle} ${typeLabel}`
+                ? `${addScreenTitle}${typeLabel}`
                 : intl.formatMessage({id: 'supplier_customer.fill_info', defaultMessage: 'Fill Info'})));
 
     const renderCheckbox = (row: EmployeeContactSearchRow) => {
@@ -784,7 +785,7 @@ const SupplierCustomerFormScreen = ({
                 disabled={isDisabled}
             >
                 {renderCheckbox(row)}
-                <ContactAvatar employee={row.employee} size={40}/>
+                <ContactAvatar employee={getLastPictureUpdate(row.employee) > 0 ? row.employee : undefined} size={40}/>
                 <View style={{flex: 1}}>
                     <Text style={styles.memberName}>{name}</Text>
                     {meta ? <Text style={styles.memberMeta}>{meta}</Text> : null}
@@ -831,7 +832,7 @@ const SupplierCustomerFormScreen = ({
                                 onPress={() => setShowDropdown(true)}
                             >
                                 {selectedUsersArray.map((user) => (
-                                    <ContactAvatar key={user.id} employee={user} size={28}/>
+                                    <ContactAvatar key={user.id} employee={getLastPictureUpdate(user) > 0 ? user : undefined} size={28}/>
                                 ))}
                             </TouchableOpacity>
                         )}
@@ -862,7 +863,7 @@ const SupplierCustomerFormScreen = ({
                                             <View style={[styles.checkbox, styles.checkboxChecked]}>
                                                 <CompassIcon name='check' size={14} style={styles.checkIcon}/>
                                             </View>
-                                            <ContactAvatar employee={user} size={32}/>
+                                            <ContactAvatar employee={getLastPictureUpdate(user) > 0 ? user : undefined} size={32}/>
                                             <Text style={styles.selectedMemberName}>{name}</Text>
                                         </TouchableOpacity>
                                     );
@@ -943,7 +944,7 @@ const SupplierCustomerFormScreen = ({
                     return (
                         <View key={user.id} style={styles.fillInfoCard}>
                             <View style={styles.fillInfoCardHeader}>
-                                <ContactAvatar employee={user} size={40}/>
+                                <ContactAvatar employee={getLastPictureUpdate(user) > 0 ? user : undefined} size={40}/>
                                 <Text style={styles.fillInfoCardName}>{name}</Text>
                             </View>
                             <Text style={styles.label}>
@@ -1033,7 +1034,7 @@ const SupplierCustomerFormScreen = ({
 
     const editBody = (
         <>
-            {/* Header: Avatar + Name (centered) */}
+            {/* Header: Avatar (centered) */}
             <View style={styles.editHeaderSection}>
                 {avatarMattermostUserId ? (
                     <ProfilePicture
@@ -1042,11 +1043,8 @@ const SupplierCustomerFormScreen = ({
                         size={56}
                     />
                 ) : (
-                    <ContactAvatar employee={displayContactEmployee} size={56}/>
+                    <ContactAvatar employee={undefined} size={56}/>
                 )}
-                <Text style={styles.editAvatarName} numberOfLines={2}>
-                    {editDisplayName}
-                </Text>
             </View>
 
             {/* Detail info grid */}
@@ -1172,7 +1170,7 @@ const SupplierCustomerFormScreen = ({
 
     const readOnlyBody = (
         <>
-            {/* Header: Avatar + Name */}
+            {/* Header: Avatar */}
             <View style={styles.editHeaderSection}>
                 {avatarMattermostUserId ? (
                     <ProfilePicture
@@ -1181,11 +1179,8 @@ const SupplierCustomerFormScreen = ({
                         size={56}
                     />
                 ) : (
-                    <ContactAvatar employee={displayContactEmployee} size={56}/>
+                    <ContactAvatar employee={undefined} size={56}/>
                 )}
-                <Text style={styles.editAvatarName} numberOfLines={2}>
-                    {readOnlyDisplayName}
-                </Text>
             </View>
 
             {/* Detail info grid */}
