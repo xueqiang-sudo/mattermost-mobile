@@ -41,7 +41,7 @@ type Props = {
     highlightedId?: PostModel['id'];
     highlightPinnedOrSaved?: boolean;
     isCRTEnabled?: boolean;
-    isMilitaryTime?: boolean;
+    isMilitaryTime: boolean;
     isPostAcknowledgementEnabled?: boolean;
     lastViewedAt: number;
     location: AvailableScreens;
@@ -343,7 +343,7 @@ const PostList = ({
                         key={item.value}
                         createAt={getTimeForTimeLine(item.value)}
                         timezone={currentTimezone}
-                        isMilitaryTime={isMilitaryTime ?? true}
+                        isMilitaryTime={isMilitaryTime}
                     />
                 );
             case 'thread-overview':

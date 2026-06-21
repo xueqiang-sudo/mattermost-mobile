@@ -78,6 +78,7 @@ describe('components/post_list/PostList', () => {
         savedPostIds: new Set(),
         testID: 'post_list',
         shouldShowJoinLeaveMessages: false,
+        isMilitaryTime: false,
     };
 
     it('renders correctly with basic props', () => {

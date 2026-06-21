@@ -19,7 +19,7 @@ type MessageTimeSeparatorProps = {
     timezone?: string | null;
 
     /** 是否使用24小时制 */
-    isMilitaryTime?: boolean;
+    isMilitaryTime: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -36,7 +36,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const MessageTimeSeparator = ({createAt, timezone, isMilitaryTime = true}: MessageTimeSeparatorProps) => {
+const MessageTimeSeparator = ({createAt, timezone, isMilitaryTime}: MessageTimeSeparatorProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);

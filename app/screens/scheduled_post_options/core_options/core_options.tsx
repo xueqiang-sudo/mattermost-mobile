@@ -75,7 +75,7 @@ export function ScheduledPostCoreOptions({userTimezone, isMilitaryTime, onSelect
         tz(userTimezone).
         set({hour: 9, minute: 0, second: 0, millisecond: 0}).
         valueOf();
-    const formattedTimeString = getFormattedTime(isMilitaryTime, userTimezone, nineAmTime);
+    const formattedTimeString = getFormattedTime(isMilitaryTime, userTimezone, nineAmTime, intl.locale);
 
     const optionMonday = (
         <PickerOption

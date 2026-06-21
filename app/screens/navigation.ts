@@ -884,6 +884,10 @@ export function showOverlay(name: AvailableScreens, passProps = {}, options: Opt
         overlay: {
             interceptTouchOutside: false,
         },
+        statusBar: {
+            drawBehind: true,
+            visible: true,
+        },
     };
 
     Navigation.showOverlay({

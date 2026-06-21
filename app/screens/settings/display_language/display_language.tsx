@@ -12,6 +12,7 @@ import SettingOption from '@components/settings/option';
 import SettingSeparator from '@components/settings/separator';
 import {useServerUrl} from '@context/server';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
+import useBackNavigation from '@hooks/navigate_back';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getLocaleFromLanguage, resetMomentLocale} from '@i18n';
 import {popTopScreen} from '@screens/navigation';
@@ -41,6 +42,7 @@ const DisplayLanguage = ({componentId, currentUser}: DisplayLanguageProps) => {
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, close);
+    useBackNavigation(close);
 
     const selectLanguage = useCallback(async (raw: string | boolean) => {
         if (typeof raw !== 'string') {

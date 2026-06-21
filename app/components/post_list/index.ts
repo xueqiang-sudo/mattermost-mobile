@@ -4,9 +4,12 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 import {of as of$} from 'rxjs';
-import {switchMap} from 'rxjs/operators';
+import {map, switchMap} from 'rxjs/operators';
 
+import {Preferences} from '@constants';
+import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
 import {queryAllCustomEmojis} from '@queries/servers/custom_emoji';
+import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {observeSavedPostsByIds, observeIsPostAcknowledgementsEnabled} from '@queries/servers/post';
 import {observeConfigBooleanValue} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
@@ -29,6 +32,10 @@ const enhancedWithoutPosts = withObservables([], ({database}: WithDatabaseArgs) 
             switchMap((customEmojis) => of$(mapCustomEmojiNames(customEmojis))),
         ),
         isPostAcknowledgementEnabled: observeIsPostAcknowledgementsEnabled(database),
+        isMilitaryTime: queryDisplayNamePreferences(database).
+            observeWithColumns(['value']).pipe(
+                map((prefs) => getDisplayNamePreferenceAsBool(prefs, Preferences.USE_MILITARY_TIME)),
+            ),
     };
 });
 

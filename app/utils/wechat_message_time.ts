@@ -9,6 +9,30 @@ import {isToday, isYesterday, isDayBeforeYesterday} from '@utils/datetime';
 
 import type {IntlShape} from 'react-intl';
 
+function isChineseLocale(locale: string): boolean {
+    return getLocaleFromLanguage(locale).startsWith('zh');
+}
+
+/** 微信风格月日：中文「6月14日」；其他语言走 locale（如 en-US「Jun 14」） */
+function formatWeChatMonthDayDate(
+    intl: IntlShape,
+    createAt: number,
+    timeZone: string,
+    includeYear: boolean,
+): string {
+    if (isChineseLocale(intl.locale)) {
+        const m = moment.tz(createAt, timeZone);
+        return includeYear ? m.format('YYYY[年]M[月]D[日]') : m.format('M[月]D[日]');
+    }
+
+    return intl.formatDate(new Date(createAt), {
+        day: 'numeric',
+        month: 'short',
+        ...(includeYear ? {year: 'numeric'} : {}),
+        timeZone,
+    });
+}
+
 /**
  * 微信风格：今天仅时间；昨天「昨天」+时间；今年内「M月D日」+时间；跨年带年份。
  */
@@ -22,7 +46,7 @@ export function formatWeChatPostHeaderTime(
     const m = moment.tz(createAt, zone);
     const now = moment.tz(zone);
     moment.locale(getLocaleFromLanguage(intl.locale).toLowerCase());
-    const timeStr = getFormattedTime(isMilitaryTime, zone, createAt);
+    const timeStr = getFormattedTime(isMilitaryTime, zone, createAt, intl.locale);
 
     if (m.isSame(now, 'day')) {
         return timeStr;
@@ -48,13 +72,13 @@ export function formatWeChatPostHeaderTime(
     if (m.isSame(now, 'year')) {
         return intl.formatMessage(
             {id: 'wechat_time.month_day_time', defaultMessage: '{date} {time}'},
-            {date: m.format('M/D'), time: timeStr},
+            {date: formatWeChatMonthDayDate(intl, createAt, zone, false), time: timeStr},
         );
     }
 
     return intl.formatMessage(
         {id: 'wechat_time.full_date_time', defaultMessage: '{date} {time}'},
-        {date: m.format('YYYY/M/D'), time: timeStr},
+        {date: formatWeChatMonthDayDate(intl, createAt, zone, true), time: timeStr},
     );
 }
 
@@ -76,7 +100,7 @@ export function formatTimeSeparatorLabel(
     const m = moment.tz(createAt, zone);
     const now = moment.tz(zone);
     moment.locale(getLocaleFromLanguage(intl.locale).toLowerCase());
-    const timeStr = getFormattedTime(isMilitaryTime, zone, createAt);
+    const timeStr = getFormattedTime(isMilitaryTime, zone, createAt, intl.locale);
 
     if (isToday(m.toDate())) {
         return timeStr;
@@ -107,7 +131,7 @@ export function formatTimeSeparatorLabel(
 
     // 超过一周：日期+时间，跨年显示年
     const isSameYear = m.year() === now.year();
-    const dateStr = isSameYear ? m.format('M[月]D[日]') : m.format('YYYY[年]M[月]D[日]');
+    const dateStr = formatWeChatMonthDayDate(intl, createAt, zone, !isSameYear);
     return intl.formatMessage(
         {id: 'wechat_time.year_month_day_time', defaultMessage: '{date} {time}'},
         {date: dateStr, time: timeStr},
