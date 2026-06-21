@@ -165,6 +165,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.REMOVE_MEMBERS:
             screen = withServerDatabase(require('@screens/remove_members').default);
             break;
+        case Screens.SEARCH_CHAT_HISTORY:
+            screen = withServerDatabase(require('@screens/search_chat_history').default);
+            break;
         case Screens.EDIT_PROFILE:
             screen = withServerDatabase(require('@screens/edit_profile').default);
             break;

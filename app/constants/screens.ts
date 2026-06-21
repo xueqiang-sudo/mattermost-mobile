@@ -50,6 +50,7 @@ export const EDIT_CHANNEL_ANNOUNCEMENT = 'EditChannelAnnouncement';
 export const EDIT_GROUP_NICKNAME = 'EditGroupNickname';
 export const EDIT_GROUP_NAME = 'EditGroupName';
 export const REMOVE_MEMBERS = 'RemoveMembers';
+export const SEARCH_CHAT_HISTORY = 'SearchChatHistory';
 export const EDIT_PROFILE = 'EditProfile';
 export const EDIT_SERVER = 'EditServer';
 export const EMOJI_PICKER = 'EmojiPicker';
@@ -175,6 +176,7 @@ export default {
     EDIT_GROUP_NICKNAME,
     EDIT_GROUP_NAME,
     REMOVE_MEMBERS,
+    SEARCH_CHAT_HISTORY,
     EDIT_PROFILE,
     EDIT_SERVER,
     EMOJI_PICKER,

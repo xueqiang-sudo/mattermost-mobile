@@ -125,9 +125,9 @@ const ChannelInfoDM = ({
     }, [channelId, componentId, intl]);
 
     const handleSearchHistory = useCallback(async () => {
-        // TODO: Implement a dedicated search history screen/modal
-        // For now, navigate to global search with channel filter
-    }, []);
+        const title = intl.formatMessage({id: 'gm_settings.search_chat_history', defaultMessage: 'Search Chat History'});
+        goToScreen(Screens.SEARCH_CHAT_HISTORY, title, {channelId, memberIds: []});
+    }, [channelId, intl]);
 
     const handleToggleMute = useCallback(() => {
         toggleMuteChannel(serverUrl, channelId);

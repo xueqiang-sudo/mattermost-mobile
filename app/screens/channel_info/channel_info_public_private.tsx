@@ -9,13 +9,13 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {clearChannelHistory, toggleMuteChannel} from '@actions/remote/channel';
 import {toggleFavoriteChannel} from '@actions/remote/category';
 import CompassIcon from '@components/compass_icon';
-import {General} from '@constants';
+import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal} from '@screens/navigation';
+import {dismissModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -117,8 +117,9 @@ const ChannelInfoPublicPrivate = ({
     useAndroidHardwareBackHandler(componentId, close);
 
     const handleSearchHistory = useCallback(async () => {
-        // TODO: Implement dedicated search history screen
-    }, []);
+        const title = intl.formatMessage({id: 'gm_settings.search_chat_history', defaultMessage: 'Search Chat History'});
+        goToScreen(Screens.SEARCH_CHAT_HISTORY, title, {channelId, memberIds});
+    }, [channelId, memberIds, intl]);
 
     const handleToggleMute = useCallback(() => {
         toggleMuteChannel(serverUrl, channelId);
