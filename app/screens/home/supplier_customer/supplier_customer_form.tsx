@@ -153,7 +153,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     saveButton: {
         backgroundColor: theme.buttonBg,
         borderRadius: 12,
-        paddingVertical: 15,
+        paddingVertical: 12,
+        marginHorizontal: 40,
         alignItems: 'center',
     },
     saveButtonDisabled: {
@@ -971,7 +972,7 @@ const SupplierCustomerFormScreen = ({
                                 {intl.formatMessage({id: 'supplier_customer.description', defaultMessage: 'Description'})}
                             </Text>
                             <TextInput
-                                style={[styles.input, styles.textArea]}
+                                style={styles.input}
                                 value={userDescriptions.get(user.id) || ''}
                                 onChangeText={(text) => {
                                     setUserDescriptions((prev) => {
@@ -982,8 +983,6 @@ const SupplierCustomerFormScreen = ({
                                 }}
                                 placeholder=''
                                 placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
-                                multiline={true}
-                                numberOfLines={3}
                             />
                         </View>
                     );
@@ -1091,13 +1090,11 @@ const SupplierCustomerFormScreen = ({
                     {intl.formatMessage({id: 'supplier_customer.description', defaultMessage: 'Description'})}
                 </Text>
                 <TextInput
-                    style={[styles.input, styles.textArea]}
+                    style={styles.input}
                     value={description}
                     onChangeText={setDescription}
                     placeholder={editDescriptionPlaceholder}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
-                    multiline={true}
-                    numberOfLines={4}
                 />
             </View>
 
