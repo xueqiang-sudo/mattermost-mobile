@@ -350,12 +350,6 @@ const ChannelListHeader = ({
                     </View>
                 </View>
             </View>
-            <DropdownMenu
-                visible={dropdownVisible}
-                anchorY={dropdownAnchorY}
-                items={menuItems}
-                onClose={() => setDropdownVisible(false)}
-            />
         );
     } else {
         header = (
@@ -387,9 +381,17 @@ const ChannelListHeader = ({
     }
 
     return (
-        <Animated.View style={[animatedStyle, HOME_PADDING]}>
-            {header}
-        </Animated.View>
+        <>
+            <Animated.View style={[animatedStyle, HOME_PADDING]}>
+                {header}
+            </Animated.View>
+            <DropdownMenu
+                visible={dropdownVisible}
+                anchorY={dropdownAnchorY}
+                items={menuItems}
+                onClose={() => setDropdownVisible(false)}
+            />
+        </>
     );
 };
 
