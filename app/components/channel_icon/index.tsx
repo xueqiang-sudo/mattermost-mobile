@@ -299,7 +299,7 @@ const ChannelIcon = ({
         } else {
             icon = wrapIconInBox(
                 <CompassIcon
-                    name={isTownSquare ? 'home-variant-outline' : 'globe'}
+                    name='globe'
                     style={[commonIconStyles, {left: 1}]}
                     testID={`${testID}.${isTownSquare ? 'town_square' : 'public'}`}
                 />,
