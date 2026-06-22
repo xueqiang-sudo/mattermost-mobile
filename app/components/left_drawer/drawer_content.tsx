@@ -160,14 +160,14 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                         style={styles.userTextTouchable}
                         testID='left_drawer.user_block'
                     >
-                        <View style={styles.userText}>
+                        <View style={[styles.userText, styles.userNameRowOnly]}>
                             <View style={styles.userNameRow}>
                                 <Text
                                     numberOfLines={1}
                                     style={styles.userDisplayName}
                                     testID='left_drawer.user_block.display_name'
                                 >
-                                    {nicknameDisplay}
+                                    {(currentUser.nickname && currentUser.nickname.trim()) ? nicknameDisplay : fullName}
                                 </Text>
                                 <CompassIcon
                                     name='chevron-right'
@@ -176,15 +176,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                                     style={styles.userNameChevron}
                                 />
                             </View>
-                            {Boolean(fullName) && (
-                                <Text
-                                    numberOfLines={1}
-                                    style={styles.userSubtitle}
-                                    testID='left_drawer.user_block.full_name'
-                                >
-                                    {fullName}
-                                </Text>
-                            )}
                         </View>
                     </TouchableWithFeedback>
                     <TouchableWithFeedback
@@ -203,11 +194,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                     </TouchableWithFeedback>
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>
-                        {intl.formatMessage({id: 'left_drawer.enterprises', defaultMessage: 'Enterprises'})}
-                    </Text>
-                </View>
             </View>
 
             <View style={styles.listWrapper}>
@@ -427,11 +413,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.sidebarText,
         ...typography('Heading', 400, 'SemiBold'),
     },
-    userSubtitle: {
-        color: changeOpacity(theme.sidebarText, 0.72),
-        ...typography('Body', 100),
-        marginTop: 2,
-    },
     externalCardButton: {
         width: 44,
         height: 44,
@@ -447,16 +428,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    section: {
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 8,
-    },
-    sectionLabel: {
-        color: changeOpacity(theme.sidebarText, 0.56),
-        ...typography('Heading', 50, 'SemiBold'),
-        letterSpacing: 0.5,
-    },
     emptyTeams: {
         color: changeOpacity(theme.sidebarText, 0.64),
         ...typography('Body', 100),
@@ -468,7 +439,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         paddingVertical: 10,
         paddingHorizontal: 12,
-        paddingLeft: 14,
         borderRadius: 10,
         backgroundColor: 'transparent',
         position: 'relative',
