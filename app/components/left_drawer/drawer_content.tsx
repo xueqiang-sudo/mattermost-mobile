@@ -11,7 +11,7 @@ import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 
 import {logout} from '@actions/remote/session';
 import {handleTeamChange} from '@actions/remote/team';
-import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
+
 import CompanyIcon from '@components/company_icon';
 import CompassIcon from '@components/compass_icon';
 
@@ -46,7 +46,6 @@ type DrawerContentProps = {
     myOrderedTeams: MyTeamModel[];
 };
 
-const CLOSE_EXTERNAL_PROFILE = 'close-left-drawer-external-profile';
 const CLOSE_CREATE_TEAM = 'close-left-drawer-create-team';
 const CLOSE_JOIN_TEAM_QR = 'close-left-drawer-join-team-qr';
 function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerContentProps) {
@@ -61,14 +60,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
         showModal(
             Screens.ACCOUNT_MODAL,
             intl.formatMessage({id: 'account.modal_title', defaultMessage: 'Account'}),
-        );
-    }, [intl]));
-
-    const openExternalCard = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
-            Screens.EXTERNAL_PROFILE_CARD,
-            intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'}),
-            CLOSE_EXTERNAL_PROFILE,
         );
     }, [intl]));
 
@@ -116,13 +107,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
 
     const openScanQRCode = usePreventDoubleTap(useCallback(() => {
         showQrScannerModal(intl);
-    }, [intl]));
-
-    const openSettings = usePreventDoubleTap(useCallback(() => {
-        showModal(
-            Screens.SETTINGS,
-            intl.formatMessage({id: 'mobile.screen.settings', defaultMessage: 'Settings'}),
-        );
     }, [intl]));
 
     const handleLogout = usePreventDoubleTap(useCallback(() => {
@@ -176,20 +160,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                                     style={styles.userNameChevron}
                                 />
                             </View>
-                        </View>
-                    </TouchableWithFeedback>
-                    <TouchableWithFeedback
-                        onPress={openExternalCard}
-                        type='opacity'
-                        style={styles.externalCardButton}
-                        testID='left_drawer.user_block.external_card'
-                    >
-                        <View style={styles.externalCardIconCircle}>
-                            <QrcodeSvg
-                                width={22}
-                                height={22}
-                                color={theme.sidebarText}
-                            />
                         </View>
                     </TouchableWithFeedback>
                 </View>
@@ -249,21 +219,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                     />
                     <Text style={styles.menuLabel}>
                         {intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'})}
-                    </Text>
-                </TouchableWithFeedback>
-                <TouchableWithFeedback
-                    onPress={openSettings}
-                    type='opacity'
-                    style={styles.menuRow}
-                    testID='left_drawer.settings'
-                >
-                    <CompassIcon
-                        name='settings-outline'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                    <Text style={styles.menuLabel}>
-                        {intl.formatMessage({id: 'account.settings', defaultMessage: 'Settings'})}
                     </Text>
                 </TouchableWithFeedback>
                 <View style={styles.divider}/>
@@ -412,21 +367,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     userDisplayName: {
         color: theme.sidebarText,
         ...typography('Heading', 400, 'SemiBold'),
-    },
-    externalCardButton: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 8,
-    },
-    externalCardIconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: changeOpacity(theme.sidebarText, 0.12),
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     emptyTeams: {
         color: changeOpacity(theme.sidebarText, 0.64),

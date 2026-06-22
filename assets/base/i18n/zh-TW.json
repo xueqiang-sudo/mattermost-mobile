@@ -1553,7 +1553,7 @@
   "tab_bar.contacts.label": "通訊錄",
   "tab_bar.ai_agent.label": "助手",
   "tab_bar.home.label": "聊天",
-  "tab_bar.my_homepage.label": "我的主頁",
+  "tab_bar.me.label": "我",
   "tab_bar.under_development": "{pageName} 頁面開發中",
   "my_homepage.my_suppliers": "我的供應商",
   "my_homepage.my_customers": "我的客戶",

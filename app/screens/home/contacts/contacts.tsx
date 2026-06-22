@@ -210,6 +210,40 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
     },
     subSection: {},
+    myContactSection: {
+        marginTop: 12,
+        marginHorizontal: 16,
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    myContactItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+    },
+    myContactIcon: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 14,
+        borderRadius: 6,
+    },
+    myContactLabel: {
+        flex: 1,
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
+    },
+    myContactChevron: {
+        color: changeOpacity(theme.centerChannelColor, 0.32),
+    },
+    myContactDivider: {
+        height: 0.5,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+        marginLeft: 70,
+    },
 }));
 
 const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeComponentId}: Props) => {
@@ -446,6 +480,14 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
             mounted.current = false;
         };
     }, [currentTeamId, currentUserId, isFocused, serverUrl, homeReappearTick, enterpriseManager]);
+
+    const handleMySuppliers = usePreventDoubleTap(useCallback(() => {
+        navigation.navigate(Screens.MY_SUPPLIERS);
+    }, [navigation]));
+
+    const handleMyCustomers = usePreventDoubleTap(useCallback(() => {
+        navigation.navigate(Screens.MY_CUSTOMERS);
+    }, [navigation]));
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((department: MMDepartment) => {
         const breadcrumb = [
@@ -686,6 +728,53 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                                     </Text>
                                 </View>
                                 {renderEnterpriseContent()}
+                            </View>
+                            <View style={styles.myContactSection}>
+                                <TouchableOpacity
+                                    style={styles.myContactItem}
+                                    onPress={handleMySuppliers}
+                                    activeOpacity={0.7}
+                                    testID='contacts.my_suppliers'
+                                >
+                                    <View style={[styles.myContactIcon, {backgroundColor: changeOpacity(theme.linkColor, 0.12)}]}>
+                                        <CompassIcon
+                                            name='car-outline'
+                                            size={24}
+                                            color={theme.linkColor}
+                                        />
+                                    </View>
+                                    <Text style={styles.myContactLabel}>
+                                        {intl.formatMessage({id: 'my_homepage.my_suppliers', defaultMessage: 'My Suppliers'})}
+                                    </Text>
+                                    <CompassIcon
+                                        name='chevron-right'
+                                        size={20}
+                                        style={styles.myContactChevron}
+                                    />
+                                </TouchableOpacity>
+                                <View style={styles.myContactDivider}/>
+                                <TouchableOpacity
+                                    style={styles.myContactItem}
+                                    onPress={handleMyCustomers}
+                                    activeOpacity={0.7}
+                                    testID='contacts.my_customers'
+                                >
+                                    <View style={[styles.myContactIcon, {backgroundColor: changeOpacity(theme.onlineIndicator, 0.12)}]}>
+                                        <CompassIcon
+                                            name='account-outline'
+                                            size={24}
+                                            color={theme.onlineIndicator}
+                                        />
+                                    </View>
+                                    <Text style={styles.myContactLabel}>
+                                        {intl.formatMessage({id: 'my_homepage.my_customers', defaultMessage: 'My Customers'})}
+                                    </Text>
+                                    <CompassIcon
+                                        name='chevron-right'
+                                        size={20}
+                                        style={styles.myContactChevron}
+                                    />
+                                </TouchableOpacity>
                             </View>
                         </ScrollView>
                     </View>

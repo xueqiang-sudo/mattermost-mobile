@@ -19,7 +19,7 @@ import {
 import AIAgent from './ai_agent';
 import Contacts from './contacts';
 import Home from './home';
-import MyHomepage from './my_homepage';
+import Me from './me';
 
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 
@@ -50,14 +50,14 @@ const TabComponents: Record<string, any> = {
     [Screens.HOME_TAB_AI_AGENT]: AIAgent,
     [Screens.HOME_TAB_CHAT]: Home,
     [Screens.HOME_TAB_CONTACTS]: Contacts,
-    [Screens.HOME_TAB_MY_HOMEPAGE]: MyHomepage,
+    [Screens.HOME_TAB_ME]: Me,
 };
 
 const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
     [Screens.HOME_TAB_AI_AGENT]: {id: 'tab_bar.ai_agent.label', defaultMessage: 'Assistant'},
     [Screens.HOME_TAB_CHAT]: {id: 'tab_bar.home.label', defaultMessage: 'Chat'},
     [Screens.HOME_TAB_CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
-    [Screens.HOME_TAB_MY_HOMEPAGE]: {id: 'tab_bar.my_homepage.label', defaultMessage: 'My Homepage'},
+    [Screens.HOME_TAB_ME]: {id: 'tab_bar.me.label', defaultMessage: 'Me'},
 };
 
 function TabBar({state, descriptors, navigation, theme}: BottomTabBarProps & {theme: Theme}) {

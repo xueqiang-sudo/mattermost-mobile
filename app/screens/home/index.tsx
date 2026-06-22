@@ -32,7 +32,7 @@ import ChannelList from './channel_list';
 import Contacts from './contacts';
 import TabBar from './tab_bar';
 import AIAgent from './ai_agent';
-import MyHomepage from './my_homepage';
+import Me from './me';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 
@@ -194,18 +194,18 @@ export function HomeScreen(props: HomeProps) {
                             {() => <AIAgent/>}
                         </Tab.Screen>
                         <Tab.Screen
-                            name={Screens.HOME_TAB_MY_HOMEPAGE}
-                            options={{tabBarButtonTestID: 'tab_bar.my_homepage.tab', freezeOnBlur: true, lazy: true}}
-                        >
-                            {() => <MyHomepage/>}
-                        </Tab.Screen>
-                        <Tab.Screen
                             name={Screens.HOME_TAB_CONTACTS}
                             options={{tabBarButtonTestID: 'tab_bar.contacts.tab', freezeOnBlur: true, lazy: true}}
                         >
                             {() => (
                                 <Contacts rnnHomeComponentId={props.componentId}/>
                             )}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_ME}
+                            options={{tabBarButtonTestID: 'tab_bar.me.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => <Me/>}
                         </Tab.Screen>
                     </Tab.Navigator>
                 </NavigationContainer>

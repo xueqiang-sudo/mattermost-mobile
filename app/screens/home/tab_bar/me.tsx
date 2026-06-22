@@ -13,16 +13,16 @@ type Props = {
     theme: Theme;
 }
 
-const MyHomepage = ({isFocused, theme}: Props) => {
+const Me = ({isFocused, theme}: Props) => {
     return (
         <View>
             <CompassIcon
                 size={BOTTOM_TAB_ICON_SIZE}
-                name='monitor'
+                name='account-circle-outline'
                 color={isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY)}
             />
         </View>
     );
 };
 
-export default MyHomepage;
+export default Me;

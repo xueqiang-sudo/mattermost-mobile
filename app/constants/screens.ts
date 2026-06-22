@@ -73,7 +73,7 @@ export const HOME = 'Home';
 export const HOME_TAB_CHAT = 'HomeTabChat';
 export const HOME_TAB_AI_AGENT = 'HomeTabAIAgent';
 export const HOME_TAB_CONTACTS = 'HomeTabContacts';
-export const HOME_TAB_MY_HOMEPAGE = 'HomeTabMyHomepage';
+export const HOME_TAB_ME = 'HomeTabMe';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -83,7 +83,7 @@ export const LATEX = 'Latex';
 export const LOGIN = 'Login';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
 export const MFA = 'MFA';
-/** 我的主页 Stack 内根屏路由名（底部 Tab 槽位见 `HOME_TAB_MY_HOMEPAGE`） */
+/** 我的主页 Stack 内根屏路由名（供应商/客户已迁移至通讯录 Stack） */
 export const MY_HOMEPAGE = 'MyHomepage';
 export const MY_SUPPLIERS = 'MySuppliers';
 export const MY_CUSTOMERS = 'MyCustomers';
@@ -197,7 +197,7 @@ export default {
     HOME_TAB_AI_AGENT,
     HOME_TAB_CHAT,
     HOME_TAB_CONTACTS,
-    HOME_TAB_MY_HOMEPAGE,
+    HOME_TAB_ME,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,
