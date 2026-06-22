@@ -4,7 +4,7 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
@@ -50,6 +50,7 @@ type Props = {
     /** 从管理界面进入时用于「设置部门」：每人只能属于一个部门 */
     departmentId?: number;
     companyId?: string;
+    companyName?: string;
 
     /** 从管理界面进入时为 true，显示「设置部门」入口 */
     fromManage?: boolean;
@@ -95,6 +96,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 200),
         color: theme.centerChannelColor,
         flex: 1,
+    },
+    detailValueDisabled: {
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+    },
+    detailInput: {
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
+        flex: 1,
+        padding: 0,
+        textAlign: 'right',
     },
     sectionTitle: {
         ...typography('Body', 100, 'SemiBold'),
@@ -267,6 +282,7 @@ const ContactsEmployeeProfile = ({
     departmentParentPath,
     departmentId,
     companyId: companyIdProp,
+    companyName,
     currentUserId,
     fromManage = false,
     description,
@@ -282,6 +298,41 @@ const ContactsEmployeeProfile = ({
     const [relationDescription, setRelationDescription] = useState(() => description ?? '');
     const [relationRemark, setRelationRemark] = useState(() => remark?.trim() ?? '');
     const [isCompanyOwner, setIsCompanyOwner] = useState(false);
+
+    // 管理模式下的可编辑字段
+    const [editNickname, setEditNickname] = useState(() => employee.nickname ?? '');
+    const [editFirstName, setEditFirstName] = useState(() => employee.firstName ?? '');
+    const [editLastName, setEditLastName] = useState(() => employee.lastName ?? '');
+    const [editEmail, setEditEmail] = useState(() => employee.email ?? '');
+    const [editPhone, setEditPhone] = useState(() => employee.phone ?? '');
+    const [editPosition, setEditPosition] = useState(() => employee.position ?? '');
+    const [saving, setSaving] = useState(false);
+
+    const handleSaveProfile = usePreventDoubleTap(useCallback(async () => {
+        if (!serverUrl || saving) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            await client.patchUser({
+                id: employee.id,
+                nickname: editNickname,
+                first_name: editFirstName,
+                last_name: editLastName,
+                email: editEmail,
+                phone: editPhone,
+                position: editPosition,
+            });
+            dismissModal({componentId});
+        } catch (e) {
+            Alert.alert(
+                intl.formatMessage({id: 'mobile.edit_profile.error', defaultMessage: 'Failed to save profile'}),
+            );
+        } finally {
+            setSaving(false);
+        }
+    }, [serverUrl, saving, employee.id, editNickname, editFirstName, editLastName, editEmail, editPhone, editPosition, intl, componentId]));
 
     /** 企业所有者 ID（用于标签计算） */
     const [companyOwnerId, setCompanyOwnerId] = useState<string | undefined>();
@@ -702,67 +753,149 @@ const ContactsEmployeeProfile = ({
                 </View>
 
                 <View style={styles.detailGrid}>
-                    {employee.username ? (
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>
-                                {intl.formatMessage({id: 'supplier_customer.account', defaultMessage: 'Account'})}
-                            </Text>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'supplier_customer.account', defaultMessage: 'Account'})}
+                        </Text>
+                        <Text style={[styles.detailValue, fromManage && styles.detailValueDisabled]} numberOfLines={1}>
+                            {employee.username || '-'}
+                        </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'supplier_customer.nickname', defaultMessage: 'Nickname'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editNickname}
+                                onChangeText={setEditNickname}
+                                placeholder='-'
+                                testID='employee_profile.edit.nickname'
+                            />
+                        ) : (
                             <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
-                                {employee.username}
+                                {employee.nickname || '-'}
                             </Text>
-                        </View>
-                    ) : null}
-                    {employee.email ? (
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>
-                                {intl.formatMessage({id: 'contacts.email', defaultMessage: 'Email'})}
-                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'user.settings.general.firstName', defaultMessage: 'First Name'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editFirstName}
+                                onChangeText={setEditFirstName}
+                                placeholder='-'
+                                testID='employee_profile.edit.firstName'
+                            />
+                        ) : (
                             <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
-                                {employee.email}
+                                {employee.firstName || '-'}
                             </Text>
-                        </View>
-                    ) : null}
-                    {employee.phone ? (
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>
-                                {intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'})}
-                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'user.settings.general.lastName', defaultMessage: 'Last Name'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editLastName}
+                                onChangeText={setEditLastName}
+                                placeholder='-'
+                                testID='employee_profile.edit.lastName'
+                            />
+                        ) : (
                             <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
-                                {employee.phone}
+                                {employee.lastName || '-'}
                             </Text>
-                        </View>
-                    ) : null}
-                    {employee.nickname ? (
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>
-                                {intl.formatMessage({id: 'supplier_customer.nickname', defaultMessage: 'Nickname'})}
-                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'contacts.email', defaultMessage: 'Email'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editEmail}
+                                onChangeText={setEditEmail}
+                                placeholder='-'
+                                keyboardType='email-address'
+                                autoCapitalize='none'
+                                testID='employee_profile.edit.email'
+                            />
+                        ) : (
                             <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
-                                {employee.nickname}
+                                {employee.email || '-'}
                             </Text>
-                        </View>
-                    ) : null}
-                    {employee.position ? (
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>
-                                {intl.formatMessage({id: 'channel_info.position', defaultMessage: 'Position'})}
-                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editPhone}
+                                onChangeText={setEditPhone}
+                                placeholder='-'
+                                keyboardType='phone-pad'
+                                testID='employee_profile.edit.phone'
+                            />
+                        ) : (
                             <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
-                                {employee.position}
+                                {employee.phone || '-'}
                             </Text>
-                        </View>
-                    ) : null}
-                    {departmentName ? (
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>
-                                {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'channel_info.position', defaultMessage: 'Position'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editPosition}
+                                onChangeText={setEditPosition}
+                                placeholder='-'
+                                testID='employee_profile.edit.position'
+                            />
+                        ) : (
+                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
+                                {employee.position || '-'}
                             </Text>
-                            <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
-                                {departmentName}
-                            </Text>
-                        </View>
-                    ) : null}
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
+                        </Text>
+                        <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
+                            {departmentName || companyName || '-'}
+                        </Text>
+                    </View>
                 </View>
+
+                {fromManage && (
+                    <View style={styles.buttonSection}>
+                        <Button
+                            theme={theme}
+                            onPress={handleSaveProfile}
+                            type='solid'
+                            size='lg'
+                            disabled={saving}
+                            buttonContainerStyle={styles.sendButton}
+                            testID='contacts.employee_profile.save'
+                            text={intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: 'Save'})}
+                        />
+                    </View>
+                )}
 
                 <View style={styles.buttonSection}>
                     {canSendMessage && (

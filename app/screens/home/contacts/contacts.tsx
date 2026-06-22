@@ -54,8 +54,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexShrink: 0,
     },
     headerTitle: {
-        ...typography('Heading', 300, 'SemiBold'),
+        ...typography('Heading', 200, 'SemiBold'),
         color: theme.sidebarText,
+        textAlign: 'center',
     },
     scrollContent: {
         flexGrow: 1,
@@ -218,6 +219,7 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                                 textStyle={styles.headerTitle}
                                 testID='contacts.header.title'
                                 barWidth={contactsHeaderWidth}
+                                actionsBlockWidth={0}
                             />
                         </View>
                         <ScrollView

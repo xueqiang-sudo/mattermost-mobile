@@ -23,7 +23,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
-import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModalWithBackButton} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
 import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
@@ -306,6 +306,7 @@ const ContactsDepartmentDetail = ({
     const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
+    const [manageMode, setManageMode] = useState(false);
 
     /** 标签数据：优先使用 props 传入，否则组件内部加载 */
     const [localOwnerId, setLocalOwnerId] = useState<string | undefined>();
@@ -547,31 +548,19 @@ const ContactsDepartmentDetail = ({
                 departmentParentPath,
                 companyName,
                 companyId,
+                fromManage: manageMode,
                 closeButtonId: `close-employee-${employee.id}`,
             },
             {useBackIcon: true},
         );
-    }, [baseBreadcrumb, companyId, departmentName, companyName, intl]));
+    }, [baseBreadcrumb, companyId, departmentName, companyName, intl, manageMode]));
 
-    const handleOpenManage = usePreventDoubleTap(useCallback(() => {
-        const manageCloseButtonId = `close-contacts-manage-dept-${departmentId}`;
-        showModal(
-            Screens.CONTACTS_MANAGE,
-            '',
-            {
-                companyId,
-                companyName,
-                departmentId,
-                departmentName,
-                breadcrumb: baseBreadcrumb,
-                closeButtonId: manageCloseButtonId,
-            },
-            {topBar: {visible: false}, componentId: manageCloseButtonId},
-        );
-    }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName]));
+    const handleToggleManage = usePreventDoubleTap(useCallback(() => {
+        setManageMode((prev) => !prev);
+    }, []));
 
     useNavButtonPressed(DEPT_SEARCH_BUTTON_ID, effectiveCloseButtonId, handleSearch, [handleSearch]);
-    useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleOpenManage, [handleOpenManage]);
+    useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleToggleManage, [handleToggleManage]);
 
     useEffect(() => {
         if (onBack || fromEmployeeProfile) {
@@ -819,6 +808,14 @@ const ContactsDepartmentDetail = ({
                                     })}
                                 </View>
                             </View>
+                            {manageMode && (
+                                <CompassIcon
+                                    name='pencil-outline'
+                                    size={18}
+                                    color={theme.linkColor}
+                                    style={{marginLeft: 8}}
+                                />
+                            )}
                         </TouchableOpacity>
                         {empIdx < employees.length - 1 ? (
                             <View style={styles.insetDivider}/>

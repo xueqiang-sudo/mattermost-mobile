@@ -15,7 +15,7 @@ import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {alertServerLogout} from '@utils/server';
-import {showModal, showModalWithBackButton} from '@screens/navigation';
+import {goToScreen, showModal, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {formatFullName} from '@utils/display_name';
@@ -138,6 +138,17 @@ const MeScreen = ({currentUser}: Props) => {
         );
     }, [intl]));
 
+    const openMyEnterprise = usePreventDoubleTap(useCallback(() => {
+        const title = intl.formatMessage({id: 'me.my_enterprise', defaultMessage: 'My Enterprise'});
+        goToScreen(Screens.MANAGE_ENTERPRISE, title);
+    }, [intl]));
+
+    const openAbout = usePreventDoubleTap(useCallback(() => {
+        const appTitle = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Dedalix'});
+        const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About {appTitle}'}, {appTitle});
+        goToScreen(Screens.ABOUT, title);
+    }, [intl]));
+
     const handleLogout = usePreventDoubleTap(useCallback(() => {
         alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
     }, [intl, serverDisplayName, serverUrl]));
@@ -157,9 +168,9 @@ const MeScreen = ({currentUser}: Props) => {
                     {currentUser && (
                         <ProfilePicture
                             author={currentUser}
-                            size={64}
+                            size={32}
                             showStatus={false}
-                            borderRadius={8}
+                            borderRadius={4}
                         />
                     )}
                     <View style={styles.profileInfo}>
@@ -223,6 +234,50 @@ const MeScreen = ({currentUser}: Props) => {
                         />
                         <Text style={styles.menuLabel}>
                             {intl.formatMessage({id: 'account.settings', defaultMessage: 'Settings'})}
+                        </Text>
+                        <CompassIcon
+                            name='chevron-right'
+                            size={20}
+                            style={styles.menuChevron}
+                        />
+                    </TouchableOpacity>
+                    <View style={styles.divider}/>
+                    <TouchableOpacity
+                        style={styles.menuItem}
+                        onPress={openMyEnterprise}
+                        activeOpacity={0.7}
+                        testID='me.my_enterprise'
+                    >
+                        <CompassIcon
+                            name='sitemap'
+                            size={24}
+                            color={theme.centerChannelColor}
+                            style={styles.menuIcon}
+                        />
+                        <Text style={styles.menuLabel}>
+                            {intl.formatMessage({id: 'me.my_enterprise', defaultMessage: 'My Enterprise'})}
+                        </Text>
+                        <CompassIcon
+                            name='chevron-right'
+                            size={20}
+                            style={styles.menuChevron}
+                        />
+                    </TouchableOpacity>
+                    <View style={styles.divider}/>
+                    <TouchableOpacity
+                        style={styles.menuItem}
+                        onPress={openAbout}
+                        activeOpacity={0.7}
+                        testID='me.about'
+                    >
+                        <CompassIcon
+                            name='information-outline'
+                            size={24}
+                            color={theme.centerChannelColor}
+                            style={styles.menuIcon}
+                        />
+                        <Text style={styles.menuLabel}>
+                            {intl.formatMessage({id: 'settings.about', defaultMessage: 'About'})}
                         </Text>
                         <CompassIcon
                             name='chevron-right'
