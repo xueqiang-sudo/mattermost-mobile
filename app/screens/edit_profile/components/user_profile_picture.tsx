@@ -22,7 +22,7 @@ const UserProfilePicture = ({currentUser, lockedPicture, onUpdateProfilePicture}
         return (
             <ProfilePicture
                 author={currentUser}
-                size={USER_PROFILE_PICTURE_SIZE}
+                size={80}
                 showStatus={false}
                 testID={`edit_profile.${currentUser.id}.profile_picture`}
             />

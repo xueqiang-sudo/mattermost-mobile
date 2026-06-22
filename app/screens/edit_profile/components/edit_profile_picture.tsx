@@ -21,7 +21,7 @@ type ChangeProfilePictureProps = {
     onUpdateProfilePicture: (info: { localPath?: string; isRemoved?: boolean }) => void;
 };
 
-const SIZE = 128;
+const SIZE = 80;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {

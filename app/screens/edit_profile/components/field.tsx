@@ -31,7 +31,7 @@ export type FieldProps = {
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     return {
         viewContainer: {
-            marginVertical: 8,
+            marginVertical: 4,
             alignItems: 'center',
             width: '100%',
         },

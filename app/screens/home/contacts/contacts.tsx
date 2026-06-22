@@ -54,7 +54,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexShrink: 0,
     },
     headerTitle: {
-        ...typography('Heading', 600, 'SemiBold'),
+        ...typography('Heading', 300, 'SemiBold'),
         color: theme.sidebarText,
     },
     scrollContent: {

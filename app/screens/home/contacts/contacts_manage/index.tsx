@@ -76,7 +76,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
     },
     headerTitle: {
-        ...typography('Heading', 600, 'SemiBold'),
+        ...typography('Heading', 300, 'SemiBold'),
         color: theme.sidebarText,
         textAlign: 'center',
     },

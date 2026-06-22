@@ -65,7 +65,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         padding: 4,
     },
     headerTitle: {
-        ...typography('Heading', 600, 'SemiBold'),
+        ...typography('Heading', 300, 'SemiBold'),
         color: theme.sidebarText,
         textAlign: 'center',
         flex: 1,

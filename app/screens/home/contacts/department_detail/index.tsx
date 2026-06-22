@@ -112,7 +112,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginHorizontal: 4,
     },
     stackHeaderTitle: {
-        ...typography('Heading', 600, 'SemiBold'),
+        ...typography('Heading', 300, 'SemiBold'),
         color: theme.sidebarHeaderTextColor,
     },
     stackHeaderActions: {

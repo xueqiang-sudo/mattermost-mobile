@@ -119,7 +119,7 @@ const MeScreen = ({currentUser}: Props) => {
     const openEditProfile = usePreventDoubleTap(useCallback(() => {
         showModal(
             Screens.EDIT_PROFILE,
-            intl.formatMessage({id: 'account.your_profile', defaultMessage: 'Your Profile'}),
+            intl.formatMessage({id: 'me.my_profile', defaultMessage: 'My Profile'}),
         );
     }, [intl]));
 
@@ -200,7 +200,7 @@ const MeScreen = ({currentUser}: Props) => {
                             style={styles.menuIcon}
                         />
                         <Text style={styles.menuLabel}>
-                            {intl.formatMessage({id: 'account.your_profile', defaultMessage: 'Your Profile'})}
+                            {intl.formatMessage({id: 'me.my_profile', defaultMessage: 'My Profile'})}
                         </Text>
                         <CompassIcon
                             name='chevron-right'
