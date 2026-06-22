@@ -879,14 +879,14 @@ const ContactsDepartmentDetail = ({
                             />
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={handleOpenManage}
+                            onPress={handleToggleManage}
                             style={styles.stackHeaderBack}
                             testID='contacts.department_detail.manage.button'
                         >
                             <CompassIcon
-                                name='format-list-bulleted'
+                                name={manageMode ? 'check' : 'format-list-bulleted'}
                                 size={24}
-                                color={theme.sidebarHeaderTextColor}
+                                color={manageMode ? theme.linkColor : theme.sidebarHeaderTextColor}
                             />
                         </TouchableOpacity>
                     </View>
