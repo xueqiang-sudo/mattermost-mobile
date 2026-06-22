@@ -144,8 +144,7 @@ const MeScreen = ({currentUser}: Props) => {
     }, [intl]));
 
     const openAbout = usePreventDoubleTap(useCallback(() => {
-        const appTitle = intl.formatMessage({id: 'mobile.app.display_name', defaultMessage: 'Dedalix'});
-        const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About {appTitle}'}, {appTitle});
+        const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About'});
         goToScreen(Screens.ABOUT, title);
     }, [intl]));
 

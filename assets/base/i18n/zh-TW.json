@@ -924,6 +924,7 @@
   "mobile.video_upload.preparing_video_short": "正在準備影片…",
   "mobile.video_upload.progress_label": "進度",
   "mobile.edit_profile.remove_profile_photo": "刪除照片",
+  "mobile.edit_profile.save": "儲存",
   "mobile.files_paste.error_description": "粘貼文件時遇到錯誤。請重試。",
   "mobile.files_paste.error_dismiss": "解除",
   "mobile.files_paste.error_title": "粘貼失敗",

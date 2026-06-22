@@ -940,6 +940,7 @@
   "mobile.video_upload.preparing_video_short": "Preparing video…",
   "mobile.video_upload.progress_label": "Progress",
   "mobile.edit_profile.remove_profile_photo": "Remove Photo",
+  "mobile.edit_profile.save": "Save",
   "mobile.files_paste.error_description": "An error occurred while pasting the file(s). Please try again.",
   "mobile.files_paste.error_dismiss": "Dismiss",
   "mobile.files_paste.error_title": "Paste failed",

@@ -933,6 +933,7 @@
   "mobile.video_upload.preparing_video_short": "正在准备视频…",
   "mobile.video_upload.progress_label": "进度",
   "mobile.edit_profile.remove_profile_photo": "删除照片",
+  "mobile.edit_profile.save": "保存",
   "mobile.files_paste.error_description": "粘贴文件时遇到错误。请重试。",
   "mobile.files_paste.error_dismiss": "解除",
   "mobile.files_paste.error_title": "粘贴失败",

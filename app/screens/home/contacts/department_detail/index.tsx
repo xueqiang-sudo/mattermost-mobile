@@ -812,7 +812,7 @@ const ContactsDepartmentDetail = ({
                                 <CompassIcon
                                     name='pencil-outline'
                                     size={18}
-                                    color={theme.linkColor}
+                                    color={changeOpacity(theme.centerChannelColor, 0.48)}
                                     style={{marginLeft: 8}}
                                 />
                             )}
@@ -884,9 +884,9 @@ const ContactsDepartmentDetail = ({
                             testID='contacts.department_detail.manage.button'
                         >
                             <CompassIcon
-                                name={manageMode ? 'check' : 'format-list-bulleted'}
+                                name='format-list-bulleted'
                                 size={24}
-                                color={manageMode ? theme.linkColor : theme.sidebarHeaderTextColor}
+                                color={theme.sidebarHeaderTextColor}
                             />
                         </TouchableOpacity>
                     </View>

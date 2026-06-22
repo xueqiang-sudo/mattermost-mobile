@@ -109,7 +109,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         flex: 1,
         padding: 0,
-        textAlign: 'right',
     },
     sectionTitle: {
         ...typography('Body', 100, 'SemiBold'),
@@ -877,12 +876,12 @@ const ContactsEmployeeProfile = ({
                             {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
                         </Text>
                         <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
-                            {departmentName || companyName || '-'}
+                            {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
                         </Text>
                     </View>
                 </View>
 
-                {fromManage && (
+                {fromManage ? (
                     <View style={styles.buttonSection}>
                         <Button
                             theme={theme}
@@ -894,47 +893,35 @@ const ContactsEmployeeProfile = ({
                             testID='contacts.employee_profile.save'
                             text={intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: 'Save'})}
                         />
+                        {canDelete && (
+                            <Button
+                                theme={theme}
+                                onPress={handleDeleteMember}
+                                size='lg'
+                                isDestructive={true}
+                                disabled={deleting}
+                                buttonContainerStyle={styles.deleteButton}
+                                testID='contacts.employee_profile.delete'
+                                text={intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete Member'})}
+                            />
+                        )}
+                    </View>
+                ) : (
+                    <View style={styles.buttonSection}>
+                        {canSendMessage && (
+                            <Button
+                                theme={theme}
+                                onPress={handleSendMessage}
+                                type='solid'
+                                size='lg'
+                                disabled={sending}
+                                buttonContainerStyle={styles.sendButton}
+                                testID='contacts.employee_profile.send_message'
+                                text={intl.formatMessage({id: 'contacts.send_message', defaultMessage: 'Send Message'})}
+                            />
+                        )}
                     </View>
                 )}
-
-                <View style={styles.buttonSection}>
-                    {canSendMessage && (
-                        <Button
-                            theme={theme}
-                            onPress={handleSendMessage}
-                            type='solid'
-                            size='lg'
-                            disabled={sending}
-                            buttonContainerStyle={styles.sendButton}
-                            testID='contacts.employee_profile.send_message'
-                            text={intl.formatMessage({id: 'contacts.send_message', defaultMessage: 'Send Message'})}
-                        />
-                    )}
-                    {isSupplierCustomer && (
-                        <Button
-                            theme={theme}
-                            onPress={handleDeleteRelation}
-                            size='lg'
-                            isDestructive={true}
-                            disabled={deleting}
-                            buttonContainerStyle={styles.deleteButton}
-                            testID='contacts.employee_profile.delete_relation'
-                            text={intl.formatMessage({id: 'supplier_customer.delete_relation', defaultMessage: 'Remove {relation}'}, {relation: relationType === 'supplier' ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}) : intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'})})}
-                        />
-                    )}
-                    {!isSupplierCustomer && canDelete && (
-                        <Button
-                            theme={theme}
-                            onPress={handleDeleteMember}
-                            size='lg'
-                            isDestructive={true}
-                            disabled={deleting}
-                            buttonContainerStyle={styles.deleteButton}
-                            testID='contacts.employee_profile.delete'
-                            text={intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete'})}
-                        />
-                    )}
-                </View>
             </ScrollView>
             <CustomInputModal
                 visible={remarkEditInput.visible}
