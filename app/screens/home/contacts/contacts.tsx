@@ -10,27 +10,16 @@ import {DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'reac
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {
-    syncTeamMembersToDefaultDepartment,
-    fetchDepartmentsByTeam,
-    fetchEmployeesOfDefaultDepartment,
-    ensureTeamDefaultDepartment,
-} from '@actions/remote/contact_new';
-import {fetchTeamById, fetchTeamMemberCount, getTeamMembersByIds} from '@actions/remote/team';
-import {DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
+import {fetchTeamById} from '@actions/remote/team';
 import {ContactsBarEnterpriseTitle} from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
-import ContactAvatar from '@components/contact_avatar';
-import Loading from '@components/loading';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
-import {showModal, showModalWithBackButton} from '@screens/navigation';
-import {getContactListDisplayName} from '@utils/contact_section';
-import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
+import {showModal} from '@screens/navigation';
 import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -79,137 +68,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     headerIconButton: {
         padding: 4,
     },
-    section: {
-        marginTop: 12,
-        marginHorizontal: 16,
-    },
-    sectionTitle: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        paddingHorizontal: 16,
-        paddingTop: 4,
-        paddingBottom: 6,
-    },
-    enterpriseSection: {
-        marginTop: 0,
-        marginHorizontal: 4,
-        backgroundColor: theme.centerChannelBg,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    enterpriseHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: 4,
-    },
-    enterpriseTitle: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-    },
-    memberCount: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-    },
-    memberCountFooter: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-    },
-    listItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-    },
-    listItemAvatar: {
-        marginRight: 14,
-    },
-    listItemName: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-        flexShrink: 1,
-        minWidth: 0,
-    },
-    listItemMain: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        minWidth: 0,
-        gap: 6,
-    },
-    userTagsWrap: {
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 2,
-        marginLeft: 'auto',
-    },
-    userTag: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
-        borderWidth: 1,
-        backgroundColor: changeOpacity(theme.buttonBg, 0.14),
-        borderColor: changeOpacity(theme.buttonBg, 0.35),
-    },
-    userTagText: {
-        ...typography('Body', 50, 'SemiBold'),
-        color: theme.buttonBg,
-    },
-    selfTag: {
-        backgroundColor: changeOpacity(theme.onlineIndicator, 0.12),
-        borderColor: changeOpacity(theme.onlineIndicator, 0.35),
-    },
-    selfTagText: {
-        color: theme.onlineIndicator,
-    },
     scrollContent: {
         flexGrow: 1,
         paddingBottom: 32,
     },
-    emptyMessage: {
-        ...typography('Body', 100),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        paddingVertical: 24,
-        paddingHorizontal: 20,
-        textAlign: 'center',
-    },
-    serviceError: {
-        ...typography('Body', 100),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        paddingVertical: 24,
-        paddingHorizontal: 20,
-        textAlign: 'center',
-    },
-    departmentRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-    },
-    insetDivider: {
-        height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        marginLeft: 56,
-        marginRight: 16,
-    },
-    departmentFolderIcon: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 14,
-        backgroundColor: changeOpacity(theme.linkColor, 0.12),
-        borderRadius: 6,
-    },
-    departmentRowName: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-        flex: 1,
-    },
-    subSection: {},
     myContactSection: {
         marginTop: 12,
         marginHorizontal: 16,
@@ -261,40 +123,14 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
     const currentUserId = useMemo(() => currentUser?.id, [currentUser]);
     const companyName = useMemo(() => currentTeam?.displayName?.trim(), [currentTeam]);
 
-    /** 跟踪 isEnterpriseManager 的稳定值，避免 observable 重算时短暂波动导致按钮消失 */
-    const prevTeamIdRef = useRef<string | undefined>(currentTeamId);
-    const isEnterpriseManagerRef = useRef(false);
-    const [enterpriseManager, setEnterpriseManager] = useState(false);
-
-    useEffect(() => {
-        const teamChanged = currentTeamId !== prevTeamIdRef.current;
-        if (teamChanged) {
-            prevTeamIdRef.current = currentTeamId;
-            setEnterpriseManager(false);
-            isEnterpriseManagerRef.current = false;
-        }
-
-        // 同一企业内：用 ref 记录上次值，只有真正发生变化才更新
-        if (isEnterpriseManager !== isEnterpriseManagerRef.current) {
-            isEnterpriseManagerRef.current = isEnterpriseManager;
-            setEnterpriseManager(isEnterpriseManager);
-        }
-    }, [isEnterpriseManager, currentTeamId]);
-
-    const [topLevelDepartments, setTopLevelDepartments] = useState<MMDepartment[]>([]);
-    const [defaultDepartmentEmployees, setDefaultDepartmentEmployees] = useState<UserProfile[]>([]);
-    const [companyEmployeeCount, setCompanyEmployeeCount] = useState<number>(0);
-    const [loading, setLoading] = useState(true);
-    const [serviceError, setServiceError] = useState(false);
     const [contactsHeaderWidth, setContactsHeaderWidth] = useState(0);
     const [contactsHeaderActionsWidth, setContactsHeaderActionsWidth] = useState(0);
-    const [managerIds, setManagerIds] = useState<Set<string>>(new Set());
     const [ownerId, setOwnerId] = useState<string | undefined>();
     const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | undefined>(currentUserId);
 
     const contactsActionsReserve = Math.max(
         contactsHeaderActionsWidth,
-        enterpriseManager ? 72 : 40,
+        40,
     );
 
     /** RNN 弹窗关闭或 React Navigation Tab 再次聚焦时递增，触发主列表重新拉取 */
@@ -319,20 +155,6 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
             currentUserId: currentUserId,
         });
     }, [companyName, currentTeamId, currentUserId, navigation]));
-
-    const handleManageContacts = usePreventDoubleTap(useCallback(() => {
-        const closeButtonId = 'close-contacts-manage';
-        showModal(
-            Screens.CONTACTS_MANAGE,
-            '',
-            {
-                companyId: currentTeamId ?? '',
-                companyName,
-                closeButtonId,
-            },
-            {topBar: {visible: false}, componentId: closeButtonId},
-        );
-    }, [companyName, currentTeamId]));
 
     const bumpHomeReappearTick = useCallback(() => {
         logDebug('[ContactsScreen.bumpHomeReappearTick] isFocusedRef.current:', isFocusedRef.current);
@@ -385,102 +207,6 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
         return () => listener.remove();
     }, []);
 
-    useEffect(() => {
-        if (!serverUrl || !currentTeamId || defaultDepartmentEmployees.length === 0) {
-            setManagerIds(new Set());
-            return;
-        }
-        let cancelled = false;
-        const loadManagers = async () => {
-            const ids = defaultDepartmentEmployees.map((u) => u.id);
-            const result = await getTeamMembersByIds(serverUrl, currentTeamId, ids, true);
-            if (cancelled || result.error || !result.members) {
-                return;
-            }
-            const next = new Set(
-                result.members.filter((m) => m.roles.split(' ').includes('team_admin')).map((m) => m.user_id),
-            );
-            setManagerIds(next);
-        };
-        loadManagers();
-        return () => {
-            cancelled = true;
-        };
-    }, [currentTeamId, defaultDepartmentEmployees, serverUrl]);
-
-    useEffect(() => {
-        const fetchEnterprise = async () => {
-            logDebug('[ContactsScreen.fetchEnterprise] isFocused:', isFocused);
-            if (!isFocused) {
-                logDebug('[ContactsScreen.fetchEnterprise] isFocused is false, return');
-                return;
-            }
-
-            mounted.current = true;
-            setServiceError(false);
-
-            if (!currentTeamId) {
-                logDebug('[ContactsScreen.fetchEnterprise] currentTeamId is false, return');
-                setLoading(false);
-                return;
-            }
-
-            const deptRes = await fetchDepartmentsByTeam(serverUrl, currentTeamId, {parentId: -1, perPage: 10000});
-            if (!mounted.current) {
-                return;
-            }
-            if (deptRes.error) {
-                setServiceError(true);
-                setLoading(false);
-                return;
-            }
-
-            if (enterpriseManager) {
-                let isNewCreate = false;
-                if (!deptRes.data?.find((d) => d.name === DEFAULT_TEAM_DEPARTMENT_NAME)) {
-                    // 没有默认部门，则创建默认部门
-                    logDebug('没有默认部门，则创建默认部门');
-                    const ensureRes = await ensureTeamDefaultDepartment(serverUrl, currentTeamId);
-                    if (ensureRes.isNewCreate !== undefined) {
-                        isNewCreate = ensureRes.isNewCreate;
-                    }
-                }
-                if (!isNewCreate) {
-                    // 同步团队成员到默认部门
-                    const syncRes = await syncTeamMembersToDefaultDepartment(serverUrl, currentTeamId);
-                    // eslint-disable-next-line no-unused-expressions
-                    syncRes.data && syncRes.data.length && logDebug('同步团队成员到默认部门成功, 个数:', syncRes.data.length, ' ,uids:', syncRes.data.join(','));
-                }
-            }
-
-            setTopLevelDepartments((deptRes.data || []).filter((d) => d.name !== DEFAULT_TEAM_DEPARTMENT_NAME));
-
-            const [defaultEmpRes, countRes] = await Promise.all([
-                fetchEmployeesOfDefaultDepartment(serverUrl, currentTeamId),
-                fetchTeamMemberCount(serverUrl, currentTeamId),
-            ]);
-
-            if (!mounted.current) {
-                return;
-            }
-            if (defaultEmpRes.error) {
-                setServiceError(true);
-            } else {
-                setDefaultDepartmentEmployees(defaultEmpRes.data ?? []);
-            }
-            if (!countRes.error && countRes.data !== undefined) {
-                setCompanyEmployeeCount(countRes.data);
-            }
-            setLoading(false);
-        };
-
-        fetchEnterprise();
-
-        return () => {
-            mounted.current = false;
-        };
-    }, [currentTeamId, currentUserId, isFocused, serverUrl, homeReappearTick, enterpriseManager]);
-
     const handleMySuppliers = usePreventDoubleTap(useCallback(() => {
         navigation.navigate(Screens.MY_SUPPLIERS);
     }, [navigation]));
@@ -489,167 +215,25 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
         navigation.navigate(Screens.MY_CUSTOMERS);
     }, [navigation]));
 
-    const handleDepartmentPress = usePreventDoubleTap(useCallback((department: MMDepartment) => {
+    const handleEnterpriseContacts = usePreventDoubleTap(useCallback(() => {
         const breadcrumb = [
             intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
-            department.name,
         ];
         navigation.navigate(Screens.CONTACTS_DEPARTMENT_DETAIL, {
-            departmentId: department.id,
-            departmentName: department.name,
+            departmentId: null,
+            departmentName: intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
             breadcrumb,
             companyId: currentTeamId ?? '',
             companyName,
-            managerIds: [...managerIds],
             ownerId,
             currentUserId: resolvedCurrentUserId,
         });
-    }, [companyName, intl, currentTeamId, navigation, managerIds, ownerId, resolvedCurrentUserId]));
-
-    const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile, deptName?: string) => {
-        const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
-        showModalWithBackButton(
-            Screens.CONTACTS_EMPLOYEE_PROFILE,
-            title,
-            `close-employee-${employee.id}`,
-            {
-                employee,
-                departmentName: deptName,
-                companyName,
-                companyId: currentTeamId ?? undefined,
-                currentUserId: currentUserId ?? '',
-                closeButtonId: `close-employee-${employee.id}`,
-            },
-            {useBackIcon: true},
-        );
-    }, [companyName, currentTeamId, currentUserId, intl]));
+    }, [companyName, intl, currentTeamId, navigation, ownerId, resolvedCurrentUserId]));
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
         transform: [{translateX: withTiming(0, {duration: 150})}],
     }), []);
-
-    const renderEnterpriseContent = () => {
-        if (serviceError) {
-            return (
-                <Text style={styles.serviceError}>
-                    {intl.formatMessage({id: 'contacts.service_unavailable', defaultMessage: 'Contact service is not available'})}
-                </Text>
-            );
-        }
-        if (loading) {
-            return (
-                <View style={[styles.listItem, {justifyContent: 'center', paddingVertical: 24}]}>
-                    <Loading
-                        color={theme.centerChannelColor}
-                        size='small'
-                    />
-                    <Text style={[styles.memberCount, {marginTop: 8}]}>
-                        {intl.formatMessage({id: 'contacts.loading', defaultMessage: 'Loading...'})}
-                    </Text>
-                </View>
-            );
-        }
-        if (topLevelDepartments.length === 0 && defaultDepartmentEmployees.length === 0) {
-            return (
-                <Text style={styles.emptyMessage}>
-                    {intl.formatMessage({id: 'contacts.no_enterprise_contacts', defaultMessage: 'No enterprise contacts'})}
-                </Text>
-            );
-        }
-        return (
-            <View style={styles.subSection}>
-                {topLevelDepartments.map((dept, deptIdx) => (
-                    <React.Fragment key={dept.id}>
-                        <TouchableOpacity
-                            style={styles.departmentRow}
-                            onPress={() => handleDepartmentPress(dept)}
-                            activeOpacity={0.7}
-                            testID={`contacts.department.${dept.id}`}
-                        >
-                            <View style={styles.departmentFolderIcon}>
-                                <CompassIcon
-                                    name='folder-outline'
-                                    size={24}
-                                    color={theme.linkColor}
-                                />
-                            </View>
-                            <Text
-                                style={styles.departmentRowName}
-                                numberOfLines={1}
-                            >
-                                {dept.name}
-                            </Text>
-                        </TouchableOpacity>
-                        {deptIdx < topLevelDepartments.length - 1 || defaultDepartmentEmployees.length > 0 ? (
-                            <View style={styles.insetDivider}/>
-                        ) : null}
-                    </React.Fragment>
-                ))}
-                {defaultDepartmentEmployees.map((emp, empIdx) => (
-                    <React.Fragment key={emp.id}>
-                        <TouchableOpacity
-                            style={styles.listItem}
-                            onPress={() => handleEmployeePress(emp, intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'}))}
-                            activeOpacity={0.7}
-                            testID={`contacts.employee.${emp.id}`}
-                        >
-                            <View style={styles.listItemAvatar}>
-                                <ContactAvatar
-                                    employee={emp}
-                                    size={40}
-                                />
-                            </View>
-                            <View style={styles.listItemMain}>
-                                <Text
-                                    style={styles.listItemName}
-                                    numberOfLines={1}
-                                >
-                                    {getContactListDisplayName(emp)}
-                                </Text>
-                                <View style={styles.userTagsWrap}>
-                                    {buildEnterpriseUserTagKeys({
-                                        userId: emp.id,
-                                        ownerId,
-                                        currentUserId: resolvedCurrentUserId,
-                                        managerIds,
-                                    }).map((tagKey: EnterpriseUserTagKey) => {
-                                        const isSelf = tagKey === 'self';
-                                        return (
-                                            <View
-                                                key={`${emp.id}-${tagKey}`}
-                                                style={[styles.userTag, isSelf && styles.selfTag]}
-                                            >
-                                                <Text style={[styles.userTagText, isSelf && styles.selfTagText]}>
-                                                    {tagKey === 'owner' ?
-                                                        intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'}) :
-                                                        tagKey === 'manager' ?
-                                                            intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'}) :
-                                                            intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})
-                                                    }
-                                                </Text>
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                        {empIdx < defaultDepartmentEmployees.length - 1 ? (
-                            <View style={styles.insetDivider}/>
-                        ) : null}
-                    </React.Fragment>
-                ))}
-                <View style={styles.memberCountFooter}>
-                    <Text style={styles.memberCount}>
-                        {intl.formatMessage(
-                            {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
-                            {count: companyEmployeeCount},
-                        )}
-                    </Text>
-                </View>
-            </View>
-        );
-    };
 
     return (
         <Freeze freeze={!isFocused}>
@@ -700,20 +284,6 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                                         color={theme.sidebarHeaderTextColor}
                                     />
                                 </TouchableOpacity>
-                                {enterpriseManager && (
-                                    <TouchableOpacity
-                                        style={styles.headerIconButton}
-                                        onPress={handleManageContacts}
-                                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                                        testID='contacts.header.manage'
-                                    >
-                                        <CompassIcon
-                                            name='format-list-bulleted'
-                                            size={24}
-                                            color={theme.sidebarHeaderTextColor}
-                                        />
-                                    </TouchableOpacity>
-                                )}
                             </View>
                         </View>
                         <ScrollView
@@ -721,15 +291,30 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                             contentContainerStyle={[styles.scrollContent, {paddingBottom: 24}]}
                             showsVerticalScrollIndicator={false}
                         >
-                            <View style={styles.enterpriseSection}>
-                                <View style={styles.enterpriseHeader}>
-                                    <Text style={styles.enterpriseTitle}>
+                            <View style={styles.myContactSection}>
+                                <TouchableOpacity
+                                    style={styles.myContactItem}
+                                    onPress={handleEnterpriseContacts}
+                                    activeOpacity={0.7}
+                                    testID='contacts.enterprise'
+                                >
+                                    <View style={[styles.myContactIcon, {backgroundColor: changeOpacity(theme.sidebarTextActiveBorder || theme.linkColor, 0.12)}]}>
+                                        <CompassIcon
+                                            name='account-multiple-outline'
+                                            size={24}
+                                            color={theme.sidebarTextActiveBorder || theme.linkColor}
+                                        />
+                                    </View>
+                                    <Text style={styles.myContactLabel}>
                                         {intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'})}
                                     </Text>
-                                </View>
-                                {renderEnterpriseContent()}
-                            </View>
-                            <View style={styles.myContactSection}>
+                                    <CompassIcon
+                                        name='chevron-right'
+                                        size={20}
+                                        style={styles.myContactChevron}
+                                    />
+                                </TouchableOpacity>
+                                <View style={styles.myContactDivider}/>
                                 <TouchableOpacity
                                     style={styles.myContactItem}
                                     onPress={handleMySuppliers}

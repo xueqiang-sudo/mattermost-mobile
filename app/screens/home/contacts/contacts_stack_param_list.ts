@@ -25,7 +25,7 @@ export type ContactsStackParamList = {
         readOnly?: boolean;
     };
     [Screens.CONTACTS_DEPARTMENT_DETAIL]: {
-        departmentId: number;
+        departmentId: number | null;
         departmentName: string;
         breadcrumb: string[];
         companyId: string;

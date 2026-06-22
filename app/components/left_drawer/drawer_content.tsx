@@ -5,33 +5,26 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {FlatList, Text, View} from 'react-native';
-import {Navigation} from 'react-native-navigation';
 import {of as of$, combineLatest} from 'rxjs';
 import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 
-import {logout} from '@actions/remote/session';
 import {handleTeamChange} from '@actions/remote/team';
 
 import CompanyIcon from '@components/company_icon';
 import CompassIcon from '@components/compass_icon';
-
-import ProfilePicture from '@components/profile_picture';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Preferences, Screens} from '@constants';
-import {useServerDisplayName, useServerUrl} from '@context/server';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {useUserLocale} from '@context/user_locale';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams, queryMyTeams, observeTeam} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
-import {showModal, showModalWithBackButton, bottomSheet, dismissBottomSheet} from '@screens/navigation';
+import {showModalWithBackButton, bottomSheet, dismissBottomSheet} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
-import {formatFullName} from '@utils/display_name';
 import {bottomSheetSnapPoint} from '@utils/helpers';
-import {alertServerLogout} from '@utils/server';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -51,17 +44,8 @@ const CLOSE_JOIN_TEAM_QR = 'close-left-drawer-join-team-qr';
 function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerContentProps) {
     const theme = useTheme();
     const intl = useIntl();
-    const locale = useUserLocale();
     const serverUrl = useServerUrl();
-    const serverDisplayName = useServerDisplayName();
     const styles = getStyleSheet(theme);
-
-    const openAccountModal = usePreventDoubleTap(useCallback(() => {
-        showModal(
-            Screens.ACCOUNT_MODAL,
-            intl.formatMessage({id: 'account.modal_title', defaultMessage: 'Account'}),
-        );
-    }, [intl]));
 
     const openCreateOrJoinSheet = usePreventDoubleTap(useCallback(() => {
         const renderContent = () => (
@@ -109,63 +93,12 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
         showQrScannerModal(intl);
     }, [intl]));
 
-    const handleLogout = usePreventDoubleTap(useCallback(() => {
-        Navigation.updateProps(Screens.HOME, {extra: undefined});
-        alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
-    }, [serverDisplayName, serverUrl, intl]));
-
     if (!currentUser) {
         return null;
     }
 
-    const fullName = formatFullName(locale, currentUser.lastName ?? '', currentUser.firstName ?? '');
-    const nicknameDisplay = (currentUser.nickname && currentUser.nickname.trim()) || currentUser.username;
-
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <View style={styles.userBlock}>
-                    <TouchableWithFeedback
-                        onPress={openAccountModal}
-                        type='opacity'
-                        testID='left_drawer.user_block.avatar'
-                    >
-                        <ProfilePicture
-                            author={currentUser}
-                            size={48}
-                            showStatus={false}
-                            borderRadius={5}
-                            useSidebarPalette={true}
-                        />
-                    </TouchableWithFeedback>
-                    <TouchableWithFeedback
-                        onPress={openAccountModal}
-                        type='opacity'
-                        style={styles.userTextTouchable}
-                        testID='left_drawer.user_block'
-                    >
-                        <View style={[styles.userText, styles.userNameRowOnly]}>
-                            <View style={styles.userNameRow}>
-                                <Text
-                                    numberOfLines={1}
-                                    style={styles.userDisplayName}
-                                    testID='left_drawer.user_block.display_name'
-                                >
-                                    {(currentUser.nickname && currentUser.nickname.trim()) ? nicknameDisplay : fullName}
-                                </Text>
-                                <CompassIcon
-                                    name='chevron-right'
-                                    size={20}
-                                    color={changeOpacity(theme.sidebarText, 0.7)}
-                                    style={styles.userNameChevron}
-                                />
-                            </View>
-                        </View>
-                    </TouchableWithFeedback>
-                </View>
-
-            </View>
-
             <View style={styles.listWrapper}>
                 {myOrderedTeams.length === 0 ? (
                     <Text style={styles.emptyTeams}>
@@ -219,22 +152,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                     />
                     <Text style={styles.menuLabel}>
                         {intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'})}
-                    </Text>
-                </TouchableWithFeedback>
-                <View style={styles.divider}/>
-                <TouchableWithFeedback
-                    onPress={handleLogout}
-                    type='opacity'
-                    style={styles.menuRow}
-                    testID='left_drawer.logout'
-                >
-                    <CompassIcon
-                        name='exit-to-app'
-                        size={24}
-                        color={theme.dndIndicator}
-                    />
-                    <Text style={[styles.menuLabel, styles.logoutLabel]}>
-                        {intl.formatMessage({id: 'account.logout', defaultMessage: 'Log out'})}
                     </Text>
                 </TouchableWithFeedback>
             </View>
@@ -318,9 +235,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
     },
-    header: {
-        flexShrink: 0,
-    },
     listWrapper: {
         flex: 1,
         minHeight: 0,
@@ -336,37 +250,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexShrink: 0,
         paddingTop: 4,
         paddingBottom: 20,
-    },
-    userBlock: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        backgroundColor: theme.sidebarBg,
-    },
-    userTextTouchable: {
-        flex: 1,
-        minWidth: 0,
-        marginLeft: 12,
-    },
-    userText: {
-        flex: 1,
-    },
-    userNameRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        minWidth: 0,
-    },
-    userNameRowOnly: {
-        minHeight: 48,
-        justifyContent: 'center',
-    },
-    userNameChevron: {
-        marginLeft: 6,
-    },
-    userDisplayName: {
-        color: theme.sidebarText,
-        ...typography('Heading', 400, 'SemiBold'),
     },
     emptyTeams: {
         color: changeOpacity(theme.sidebarText, 0.64),
@@ -424,9 +307,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.sidebarText,
         ...typography('Body', 200),
         marginLeft: 12,
-    },
-    logoutLabel: {
-        color: theme.dndIndicator,
     },
 }));
 

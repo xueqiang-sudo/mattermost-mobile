@@ -5,7 +5,7 @@ import React, {useMemo} from 'react';
 import {Platform, Text, View} from 'react-native';
 
 import {buildAbsoluteUrl} from '@actions/remote/file';
-import {buildProfileImageUrlFromUser} from '@actions/remote/user';
+import {buildDefaultProfileImageUrl, buildProfileImageUrlFromUser} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import {ExpoImageAnimated} from '@components/expo_image';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
@@ -46,8 +46,12 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
     }, [employee]);
 
     const imgSource = useMemo(() => {
-        if (!employee || lastPictureUpdate === 0) {
+        if (!employee) {
             return undefined;
+        }
+        if (lastPictureUpdate === 0) {
+            const defaultUrl = buildDefaultProfileImageUrl(serverUrl, employee.id);
+            return defaultUrl ? {uri: buildAbsoluteUrl(serverUrl, defaultUrl)} : undefined;
         }
         const pictureUrl = buildProfileImageUrlFromUser(serverUrl, employee);
         return {uri: buildAbsoluteUrl(serverUrl, pictureUrl)};
