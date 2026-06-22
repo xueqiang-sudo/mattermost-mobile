@@ -1656,6 +1656,7 @@
   "supplier_customer.delete_failed": "移除失败，请重试。",
   "contacts.contact_info": "联系信息",
   "contacts.personal_info": "个人信息",
+  "contacts.employee_info": "员工信息",
   "contacts.copy_basic_info": "复制",
   "contacts.profile_display_name": "显示名",
   "contacts.clipboard_full_name": "姓名",

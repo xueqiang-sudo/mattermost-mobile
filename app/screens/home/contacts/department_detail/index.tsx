@@ -535,7 +535,7 @@ const ContactsDepartmentDetail = ({
     }, [depth, isStackScreen, onBreadcrumbPress]));
 
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile) => {
-        const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
+        const title = intl.formatMessage({id: 'contacts.employee_info', defaultMessage: 'Employee Info'});
         const departmentParentPath = baseBreadcrumb.length > 1? baseBreadcrumb.slice(0, -1).join('/'): undefined;
         showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
@@ -895,6 +895,7 @@ const ContactsDepartmentDetail = ({
                     </View>
                 </View>
             ) : null}
+            {departmentId !== null && (
             <View style={styles.headerRow}>
                 <ScrollView
                     ref={breadcrumbScrollRef}
@@ -949,6 +950,7 @@ const ContactsDepartmentDetail = ({
                     ))}
                 </ScrollView>
             </View>
+            )}
             <ScrollView
                 style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 contentContainerStyle={{paddingBottom: 24}}

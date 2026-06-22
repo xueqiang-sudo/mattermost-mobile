@@ -215,7 +215,7 @@ const ContactsManage = ({
     currentDeptIdRef.current = currentDepartmentId;
 
     const effectiveCloseButtonId = closeButtonId ?? CLOSE_BUTTON_ID;
-    const subtitle = currentDepartmentId == null ? (enterpriseDisplayName ?? companyName) : currentDepartmentName;
+    const subtitle = currentDepartmentId == null ? undefined : currentDepartmentName;
 
     const handleClose = useCallback(() => {
         dismissModals(1);

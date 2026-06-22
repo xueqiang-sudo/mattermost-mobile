@@ -1636,6 +1636,7 @@
   "supplier_customer.delete_failed": "移除失敗，請重試。",
   "contacts.contact_info": "聯絡資訊",
   "contacts.personal_info": "個人信息",
+  "contacts.employee_info": "員工信息",
   "contacts.copy_basic_info": "複製",
   "contacts.profile_display_name": "顯示名稱",
   "contacts.clipboard_full_name": "姓名",

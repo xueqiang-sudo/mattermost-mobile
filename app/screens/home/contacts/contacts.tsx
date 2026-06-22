@@ -19,7 +19,6 @@ import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
-import {showModal} from '@screens/navigation';
 import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -57,16 +56,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     headerTitle: {
         ...typography('Heading', 600, 'SemiBold'),
         color: theme.sidebarText,
-    },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexShrink: 0,
-        gap: 12,
-        marginLeft: 'auto',
-    },
-    headerIconButton: {
-        padding: 4,
     },
     scrollContent: {
         flexGrow: 1,
@@ -124,37 +113,13 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
     const companyName = useMemo(() => currentTeam?.displayName?.trim(), [currentTeam]);
 
     const [contactsHeaderWidth, setContactsHeaderWidth] = useState(0);
-    const [contactsHeaderActionsWidth, setContactsHeaderActionsWidth] = useState(0);
     const [ownerId, setOwnerId] = useState<string | undefined>();
     const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | undefined>(currentUserId);
-
-    const contactsActionsReserve = Math.max(
-        contactsHeaderActionsWidth,
-        40,
-    );
 
     /** RNN 弹窗关闭或 React Navigation Tab 再次聚焦时递增，触发主列表重新拉取 */
     const [homeReappearTick, setHomeReappearTick] = useState(0);
 
     const styles = getStyleSheet(theme);
-
-    const openAccount = usePreventDoubleTap(useCallback(() => {
-        showModal(
-            Screens.ACCOUNT_MODAL,
-            intl.formatMessage({id: 'account.modal_title', defaultMessage: 'Account'}),
-        );
-    }, [intl]));
-
-    const handleSearch = usePreventDoubleTap(useCallback(() => {
-        if (!currentTeamId) {
-            return;
-        }
-        navigation.navigate(Screens.CONTACTS_SEARCH, {
-            companyId: currentTeamId,
-            companyName,
-            currentUserId: currentUserId,
-        });
-    }, [companyName, currentTeamId, currentUserId, navigation]));
 
     const bumpHomeReappearTick = useCallback(() => {
         logDebug('[ContactsScreen.bumpHomeReappearTick] isFocusedRef.current:', isFocusedRef.current);
@@ -248,43 +213,12 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                             style={[styles.header, {position: 'relative', minHeight: 44}]}
                             onLayout={(e) => setContactsHeaderWidth(e.nativeEvent.layout.width)}
                         >
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                onPress={openAccount}
-                                style={{
-                                    position: 'absolute',
-                                    left: 16,
-                                    right: contactsActionsReserve + 16 + 8,
-                                    top: 0,
-                                    bottom: 0,
-                                    zIndex: 0,
-                                }}
-                                testID='contacts.header.account'
-                            />
                             <ContactsBarEnterpriseTitle
                                 text={(companyName?.trim()) || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
                                 textStyle={styles.headerTitle}
                                 testID='contacts.header.title'
                                 barWidth={contactsHeaderWidth}
-                                actionsBlockWidth={contactsActionsReserve}
                             />
-                            <View
-                                style={[styles.headerActions, {zIndex: 2}]}
-                                onLayout={(e) => setContactsHeaderActionsWidth(e.nativeEvent.layout.width)}
-                            >
-                                <TouchableOpacity
-                                    style={styles.headerIconButton}
-                                    onPress={handleSearch}
-                                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                                    testID='contacts.header.search'
-                                >
-                                    <CompassIcon
-                                        name='magnify'
-                                        size={24}
-                                        color={theme.sidebarHeaderTextColor}
-                                    />
-                                </TouchableOpacity>
-                            </View>
                         </View>
                         <ScrollView
                             style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}

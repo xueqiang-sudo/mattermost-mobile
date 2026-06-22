@@ -1632,6 +1632,7 @@
   "supplier_customer.delete_failed": "Failed to remove. Please try again.",
   "contacts.contact_info": "Contact Info",
   "contacts.personal_info": "Personal Information",
+  "contacts.employee_info": "Employee Info",
   "contacts.copy_basic_info": "Copy",
   "contacts.profile_display_name": "Display name",
   "contacts.clipboard_full_name": "Full name",
