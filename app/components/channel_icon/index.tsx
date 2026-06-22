@@ -264,9 +264,9 @@ const ChannelIcon = ({
         );
     } else if (type === General.OPEN_CHANNEL) {
         const isTownSquare = name === General.DEFAULT_CHANNEL;
-        if (channelId && (isOnHome || listModalAvatar)) {
-            const boxSize = isOnHome ? size : LIST_MODAL_AVATAR_SIZE;
-            const boxRadius = listModalAvatar ? LIST_MODAL_AVATAR_RADIUS : roundedSquareRadius;
+        if (channelId && listModalAvatar) {
+            const boxSize = LIST_MODAL_AVATAR_SIZE;
+            const boxRadius = LIST_MODAL_AVATAR_RADIUS;
             if (useInitialsInsteadOfMemberGrid) {
                 icon = (
                     <ListInitialsAvatar

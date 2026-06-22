@@ -12,7 +12,7 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {refetchCurrentUser} from '@actions/remote/user';
 import FloatingCallContainer from '@calls/components/floating_call_container';
 import AnnouncementBanner from '@components/announcement_banner';
-import ConnectionBanner from '@components/connection_banner';
+
 import {Navigation as NavigationConstants, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -188,7 +188,7 @@ const ChannelListScreen = (props: ChannelProps) => {
             edges={edges}
             testID='channel_list.screen'
         >
-            <ConnectionBanner/>
+
             {props.isLicensed &&
                 <AnnouncementBanner/>
             }

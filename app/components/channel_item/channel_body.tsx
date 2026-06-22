@@ -1,10 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 import React from 'react';
-import {useIntl} from 'react-intl';
 import {type StyleProp, Text, type TextStyle, View} from 'react-native';
-
-import {General} from '@constants';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {nonBreakingString} from '@utils/strings';
@@ -49,27 +46,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         customStatus: {
             marginLeft: 4,
         },
-        tag: {
-            marginLeft: 6,
-            paddingHorizontal: 6,
-            paddingVertical: 2,
-            borderRadius: 4,
-            backgroundColor: changeOpacity(theme.sidebarText, 0.12),
-            flexShrink: 0,
-        },
-        tagOnCenterBg: {
-            backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        },
-        tagText: {
-            ...typography('Body', 50, 'SemiBold'),
-            color: changeOpacity(theme.sidebarText, 0.72),
-        },
-        tagTextOnCenterBg: {
-            color: changeOpacity(theme.centerChannelColor, 0.56),
-        },
-        tagMuted: {
-            opacity: 0.6,
-        },
     };
 });
 export const ChannelBody = ({
@@ -80,64 +56,13 @@ export const ChannelBody = ({
     isMuted,
     textStyles,
     testId,
-    channelType,
-    channelNameKey,
-    isOnHome = false,
-    showChannelTypeTag = false,
-    isOnCenterBg = false,
 }: Props) => {
-    const {formatMessage} = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const isTablet = useIsTablet();
     const nonBreakingDisplayName = nonBreakingString(displayName);
 
-    let tagLabel: string | undefined;
-    if ((isOnHome || showChannelTypeTag) && channelType) {
-        if (channelNameKey === General.DEFAULT_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.enterprise_group', defaultMessage: 'All staff'});
-        } else if (channelType === General.GM_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.discussion_group', defaultMessage: 'Discussion group'});
-        } else if (channelType === General.PRIVATE_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.group_chat', defaultMessage: 'Group chat'});
-        } else if (channelType === General.OPEN_CHANNEL) {
-            tagLabel = formatMessage({id: 'channel_list.tag.public_group_chat', defaultMessage: 'Public group chat'});
-        }
-    }
-
-    const channelText = tagLabel ? (
-        <View style={[styles.flex, {flexDirection: 'row', alignItems: 'center', minWidth: 0}]}>
-            <Text
-                ellipsizeMode='tail'
-                numberOfLines={1}
-                style={[textStyles, styles.flex]}
-                testID={`${testId}.display_name`}
-            >
-                {nonBreakingDisplayName}
-                {Boolean(channelName) && (
-                    <Text style={styles.channelName}>
-                        {nonBreakingString(` ~${channelName}`)}
-                    </Text>
-                )}
-            </Text>
-            <View
-                style={[
-                    styles.tag,
-                    isOnCenterBg && styles.tagOnCenterBg,
-                    isMuted && styles.tagMuted,
-                ]}
-            >
-                <Text
-                    style={[
-                        styles.tagText,
-                        isOnCenterBg && styles.tagTextOnCenterBg,
-                    ]}
-                >
-                    {tagLabel}
-                </Text>
-            </View>
-        </View>
-    ) : (
+    const channelText = (
         <Text
             ellipsizeMode='tail'
             numberOfLines={1}

@@ -6,7 +6,7 @@ import React, {useMemo} from 'react';
 import {Platform, Text, View} from 'react-native';
 
 import {buildAbsoluteUrl} from '@actions/remote/file';
-import {buildProfileImageUrlFromUser} from '@actions/remote/user';
+import {buildDefaultProfileImageUrl, buildProfileImageUrlFromUser} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import {ExpoImageAnimated} from '@components/expo_image';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
@@ -74,13 +74,18 @@ const Image = ({author, forwardRef, iconSize, size, source, url, borderRadius, u
             return undefined;
         }
 
-        // 用户从未上传过头像（lastPictureUpdateAt 为 0），跳过图片加载，降级到首字显示
-        if (lastPictureUpdateAt === 0 && !source) {
-            return undefined;
+        if (source) {
+            return source;
+        }
+
+        // 用户从未上传过头像 → 请求服务端生成的默认头像（彩色剪影）
+        if (lastPictureUpdateAt === 0) {
+            const defaultUrl = buildDefaultProfileImageUrl(serverUrl, author.id);
+            return defaultUrl ? {uri: buildAbsoluteUrl(serverUrl, defaultUrl)} : undefined;
         }
 
         const pictureUrl = buildProfileImageUrlFromUser(serverUrl, author);
-        return source ?? {uri: buildAbsoluteUrl(serverUrl, pictureUrl)};
+        return {uri: buildAbsoluteUrl(serverUrl, pictureUrl)};
 
     // We need to pass the lastPictureUpdateAt, because changes in this
     // value are used internally, and may not be followed by a change

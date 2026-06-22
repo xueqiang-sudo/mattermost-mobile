@@ -1,9 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNetInfo} from '@react-native-community/netinfo';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Dimensions, type Insets, StyleSheet, Text, TouchableWithoutFeedback, View} from 'react-native';
+import {Dimensions, type Insets, StyleSheet, Text, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {logout} from '@actions/remote/session';
@@ -12,20 +13,21 @@ import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Screens} from '@constants';
 import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
-import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
+
 import {useLeftDrawer} from '@context/left_drawer';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import WebsocketManager from '@managers/websocket_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {findChannels, showModal} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
-import {alertPushProxyError, alertPushProxyUnknown} from '@utils/push_proxy';
+
 import {alertServerLogout} from '@utils/server';
 import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import DropdownMenu, {type MenuEntry} from './dropdown_menu';
-import LoadingUnreads from './loading_unreads';
+
 
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -141,6 +143,14 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         marginLeft: -6,
     },
+    statusText: {
+        position: 'absolute',
+        left: 52,
+        right: 108,
+        textAlign: 'center',
+        color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
+        ...typography('Body', 75),
+    },
 }));
 
 const hitSlop: Insets = {top: 10, bottom: 30, left: 20, right: 20};
@@ -168,6 +178,86 @@ const ChannelListHeader = ({
     const [dropdownAnchorRight, setDropdownAnchorRight] = useState(0);
     const [dropdownAnchorTop, setDropdownAnchorTop] = useState(0);
     const plusButtonRef = useRef<View>(null);
+
+    // --- 连接状态 ---
+    const netInfo = useNetInfo();
+    const [wsState, setWsState] = useState<WebsocketConnectedState>('not_connected');
+    const [statusText, setStatusText] = useState('');
+    const initialSessionRef = useRef(true);
+    const prevWsStateRef = useRef<WebsocketConnectedState>('not_connected');
+    const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        if (!serverUrl) {
+            return undefined;
+        }
+        const sub = WebsocketManager.observeWebsocketState(serverUrl).subscribe((s) => {
+            setWsState(s);
+        });
+        return () => sub.unsubscribe();
+    }, [serverUrl]);
+
+    // 标记首次会话结束
+    useEffect(() => {
+        if (wsState === 'connected') {
+            initialSessionRef.current = false;
+        }
+    }, [wsState]);
+
+    // 根据 WS 状态和网络状态更新提示文本
+    useEffect(() => {
+        if (statusTimerRef.current) {
+            clearTimeout(statusTimerRef.current);
+            statusTimerRef.current = null;
+        }
+
+        // 设备无网络
+        if (netInfo.isConnected === false) {
+            setStatusText(intl.formatMessage({id: 'connection_banner.device_offline', defaultMessage: 'No network connection'}));
+            statusTimerRef.current = setTimeout(() => setStatusText(''), 2000);
+            return;
+        }
+
+        // WS 重新连接成功（非首次）→ 显示 2 秒后消失
+        if (wsState === 'connected' && prevWsStateRef.current !== 'connected') {
+            prevWsStateRef.current = wsState;
+            if (!initialSessionRef.current) {
+                setStatusText(intl.formatMessage({id: 'connection_banner.connected', defaultMessage: 'Connection restored'}));
+                statusTimerRef.current = setTimeout(() => setStatusText(''), 2000);
+            }
+            return;
+        }
+
+        if (wsState === 'connected') {
+            prevWsStateRef.current = wsState;
+            setStatusText('');
+            return;
+        }
+
+        // WS 断开
+        if (wsState === 'not_connected') {
+            prevWsStateRef.current = wsState;
+            setStatusText(intl.formatMessage({id: 'connection_banner.server_unreachable', defaultMessage: 'Unable to reach server. Reconnecting...'}));
+            return;
+        }
+
+        // WS 正在连接
+        if (wsState === 'connecting') {
+            prevWsStateRef.current = wsState;
+            if (!initialSessionRef.current) {
+                setStatusText(intl.formatMessage({id: 'connection_banner.connecting', defaultMessage: 'Connecting...'}));
+            }
+            return;
+        }
+    }, [wsState, netInfo.isConnected, intl]);
+
+    useEffect(() => {
+        return () => {
+            if (statusTimerRef.current) {
+                clearTimeout(statusTimerRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         marginLeft.value = iconPad ? 50 : 0;
@@ -235,20 +325,11 @@ const ChannelListHeader = ({
     }, []));
 
     const onSearchPress = usePreventDoubleTap(useCallback(() => {
-        const titleId = ENABLE_INTERNAL_GROUPS ? 'find_channels.title' : 'find_channels.title_no_internal';
         findChannels(
-            intl.formatMessage({id: titleId, defaultMessage: 'Search groups, chats & contacts'}),
+            intl.formatMessage({id: 'find_channels.title', defaultMessage: '搜索群聊、联系人'}),
             theme,
         );
     }, [intl, theme]));
-
-    const onPushAlertPress = useCallback(() => {
-        if (pushProxyStatus === PUSH_PROXY_STATUS_NOT_AVAILABLE) {
-            alertPushProxyError(intl);
-        } else {
-            alertPushProxyUnknown(intl);
-        }
-    }, [pushProxyStatus, intl]);
 
     const onLogoutPress = useCallback(() => {
         alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
@@ -270,49 +351,17 @@ const ChannelListHeader = ({
                         color={theme.centerChannelColor}
                     />
                 </TouchableWithFeedback>
-                <View style={styles.firstBox}>
-                    <View style={styles.headerRow}>
-                        <TouchableWithoutFeedback
-                            onPress={onHeaderPress}
-                        >
-                            <View style={styles.headerRow}>
-                                <Text
-                                    numberOfLines={1}
-                                    ellipsizeMode='tail'
-                                    style={styles.headingStyles}
-                                    testID='channel_list_header.team_display_name'
-                                >
-                                    {displayName}
-                                </Text>
-                            </View>
-                        </TouchableWithoutFeedback>
-                    </View>
-                    <View style={styles.subHeadingView}>
-                        <Text
-                            numberOfLines={1}
-                            ellipsizeMode='tail'
-                            style={styles.subHeadingStyles}
-                            testID='channel_list_header.server_display_name'
-                        >
-                            {serverDisplayName}
-                        </Text>
-                        {pushProxyStatus !== PUSH_PROXY_STATUS_VERIFIED && (
-                            <TouchableWithFeedback
-                                onPress={onPushAlertPress}
-                                testID='channel_list_header.push_alert'
-                                type='opacity'
-                            >
-                                <CompassIcon
-                                    name='alert-outline'
-                                    color={theme.errorTextColor}
-                                    size={14}
-                                    style={styles.pushAlert}
-                                />
-                            </TouchableWithFeedback>
-                        )}
-                        <LoadingUnreads/>
-                    </View>
-                </View>
+                <View style={{flex: 1}}/>
+                {Boolean(statusText) && (
+                    <Text
+                        numberOfLines={1}
+                        ellipsizeMode='tail'
+                        style={styles.statusText}
+                        testID='channel_list_header.connection_status'
+                    >
+                        {statusText}
+                    </Text>
+                )}
                 <View style={styles.rightButtonsContainer}>
                     {threadsButton}
                     <TouchableWithFeedback

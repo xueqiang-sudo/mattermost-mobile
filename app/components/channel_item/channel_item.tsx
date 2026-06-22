@@ -8,7 +8,7 @@ import {Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 import Badge from '@components/badge';
 import ChannelIcon from '@components/channel_icon';
 import CompassIcon from '@components/compass_icon';
-import FormattedConversationTime from '@components/formatted_conversation_time';
+
 import {General} from '@constants';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -309,12 +309,7 @@ const ChannelItem = ({
 
     let displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
     if (channel.name === General.DEFAULT_CHANNEL) {
-        /** 列表统一「企业总群」；会话内顶栏仅 town-square 显示企业名（getChannelTitleDisplayName） */
-        const townSquareLabel = formatMessage({
-            id: 'channel_list.town_square.display_name',
-            defaultMessage: 'Enterprise main channel',
-        });
-        displayName = townSquareLabel;
+        displayName = teamDisplayName || displayName;
     } else if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
@@ -581,7 +576,7 @@ const ChannelItem = ({
                     </View>
                     {isOnHome ? (
                         <View style={{flex: 1, minWidth: 0, justifyContent: 'center'}}>
-                            <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <View style={{flexDirection: 'row', alignItems: 'center'}}>
                                 <ChannelBody
                                     displayName={displayName}
                                     isMuted={isMuted}
@@ -590,22 +585,7 @@ const ChannelItem = ({
                                     testId={channelItemTestId}
                                     textStyles={textStyles}
                                     channelName={channelName}
-                                    channelType={channel.type}
-                                    channelNameKey={channel.name}
-                                    isOnHome={true}
-                                    showChannelTypeTag={showChannelTypeTag}
-                                    isOnCenterBg={isOnCenterBg}
                                 />
-                                {lastPostAt > 0 ? (
-                                    <FormattedConversationTime
-                                        timestamp={lastPostAt}
-                                        timeZone={currentTimezone ?? undefined}
-                                        isMilitaryTime={isMilitaryTime}
-                                        style={[styles.timestampHome, isOnCenterBg && styles.timestampOnCenterBg]}
-                                    />
-                                ) : (
-                                    <View style={{minWidth: 24}}/>
-                                )}
                             </View>
                             {Boolean(subtitle) && (
                                 <Text
@@ -627,11 +607,6 @@ const ChannelItem = ({
                                 testId={channelItemTestId}
                                 textStyles={textStyles}
                                 channelName={channelName}
-                                channelType={channel.type}
-                                channelNameKey={channel.name}
-                                isOnHome={isOnHome}
-                                showChannelTypeTag={showChannelTypeTag}
-                                isOnCenterBg={isOnCenterBg}
                             />
                             <View style={styles.filler}/>
                             <Badge

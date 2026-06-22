@@ -14,7 +14,7 @@ import {handleTeamChange} from '@actions/remote/team';
 import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
 import CompanyIcon from '@components/company_icon';
 import CompassIcon from '@components/compass_icon';
-import FormattedName from '@components/formatted_name';
+
 import ProfilePicture from '@components/profile_picture';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
@@ -161,50 +161,29 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                         testID='left_drawer.user_block'
                     >
                         <View style={styles.userText}>
-                            {fullName ? (
-                                <>
-                                    <View style={styles.userNameRow}>
-                                        <FormattedName
-                                            locale={locale}
-                                            surname={currentUser.lastName ?? ''}
-                                            givenName={currentUser.firstName ?? ''}
-                                            numberOfLines={1}
-                                            style={styles.userDisplayName}
-                                            testID='left_drawer.user_block.display_name'
-                                        />
-                                        <CompassIcon
-                                            name='chevron-right'
-                                            size={20}
-                                            color={changeOpacity(theme.sidebarText, 0.7)}
-                                            style={styles.userNameChevron}
-                                        />
-                                    </View>
-                                    <Text
-                                        numberOfLines={1}
-                                        style={styles.userSubtitle}
-                                        testID='left_drawer.user_block.nickname'
-                                    >
-                                        {nicknameDisplay}
-                                    </Text>
-                                </>
-                            ) : (
-                                <View style={styles.userNameRowOnly}>
-                                    <View style={styles.userNameRow}>
-                                        <Text
-                                            numberOfLines={1}
-                                            style={styles.userDisplayName}
-                                            testID='left_drawer.user_block.nickname'
-                                        >
-                                            {nicknameDisplay}
-                                        </Text>
-                                        <CompassIcon
-                                            name='chevron-right'
-                                            size={20}
-                                            color={changeOpacity(theme.sidebarText, 0.7)}
-                                            style={styles.userNameChevron}
-                                        />
-                                    </View>
-                                </View>
+                            <View style={styles.userNameRow}>
+                                <Text
+                                    numberOfLines={1}
+                                    style={styles.userDisplayName}
+                                    testID='left_drawer.user_block.display_name'
+                                >
+                                    {nicknameDisplay}
+                                </Text>
+                                <CompassIcon
+                                    name='chevron-right'
+                                    size={20}
+                                    color={changeOpacity(theme.sidebarText, 0.7)}
+                                    style={styles.userNameChevron}
+                                />
+                            </View>
+                            {Boolean(fullName) && (
+                                <Text
+                                    numberOfLines={1}
+                                    style={styles.userSubtitle}
+                                    testID='left_drawer.user_block.full_name'
+                                >
+                                    {fullName}
+                                </Text>
                             )}
                         </View>
                     </TouchableWithFeedback>

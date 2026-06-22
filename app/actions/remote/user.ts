@@ -809,6 +809,15 @@ export const buildProfileImageUrlFromUser = (serverUrl: string, user: UserModel 
     return buildProfileImageUrl(serverUrl, user.id, lastPictureUpdate);
 };
 
+export const buildDefaultProfileImageUrl = (serverUrl: string, userId: string) => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        return client.getDefaultProfilePictureUrl(userId);
+    } catch (error) {
+        return '';
+    }
+};
+
 export const autoUpdateTimezone = async (serverUrl: string, groupLabel?: RequestGroupLabel) => {
     let database;
     try {

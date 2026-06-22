@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo} from 'react';
-import {defineMessages, useIntl} from 'react-intl';
+import {useIntl} from 'react-intl';
 import {Keyboard, Platform, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
@@ -29,28 +29,6 @@ import ChannelHeaderBookmarks from './bookmarks';
 import type {HeaderRightButton} from '@components/navigation_header/header';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const channelTypeTagMessages = defineMessages({
-    privateChat: {
-        id: 'channel_header.tag.private_chat',
-        defaultMessage: 'Private chat',
-    },
-    groupChat: {
-        id: 'channel_header.tag.group_chat',
-        defaultMessage: 'Group chat',
-    },
-    discussionGroup: {
-        id: 'channel_header.tag.discussion_group',
-        defaultMessage: 'Discussion group',
-    },
-    publicGroupChat: {
-        id: 'channel_header.tag.public_group_chat',
-        defaultMessage: 'Public group chat',
-    },
-    enterprisePublic: {
-        id: 'channel_header.tag.enterprise_public',
-        defaultMessage: 'Public channel',
-    },
-});
 
 type ChannelProps = {
     announcementMarkdown: string;
@@ -143,23 +121,6 @@ const ChannelHeader = ({
     const serverUrl = useServerUrl();
 
     const callsConfig = getCallsConfig(serverUrl);
-
-    const titleTag = useMemo(() => {
-        switch (channelType) {
-            case General.DM_CHANNEL:
-                return intl.formatMessage(channelTypeTagMessages.privateChat);
-            case General.GM_CHANNEL:
-                return intl.formatMessage(channelTypeTagMessages.discussionGroup);
-            case General.PRIVATE_CHANNEL:
-                return intl.formatMessage(channelTypeTagMessages.groupChat);
-            case General.OPEN_CHANNEL:
-                return channelName === General.DEFAULT_CHANNEL
-                    ? intl.formatMessage(channelTypeTagMessages.enterprisePublic)
-                    : intl.formatMessage(channelTypeTagMessages.publicGroupChat);
-            default:
-                return '';
-        }
-    }, [channelName, channelType, intl]);
 
     // NOTE: callsEnabledInChannel will be true/false (not undefined) based on explicit state + the DefaultEnabled system setting
     //   which ultimately comes from channel/index.tsx, and observeIsCallsEnabledInChannel
@@ -352,7 +313,6 @@ const ChannelHeader = ({
                 subtitleCompanion={subtitleCompanion}
                 title={title}
                 titleSuffix={titleSuffix}
-                titleTag={titleTag}
                 useChatStyle={true}
             />
             {showBookmarkBar &&
