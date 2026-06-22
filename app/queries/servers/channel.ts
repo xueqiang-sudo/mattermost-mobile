@@ -7,6 +7,7 @@ import {Database, Model, Q, Query, Relation} from '@nozbe/watermelondb';
 import {of as of$, Observable, combineLatest} from 'rxjs';
 import {map as map$, switchMap, distinctUntilChanged, combineLatestWith} from 'rxjs/operators';
 
+import {FAVORITES_CATEGORY} from '@constants/categories';
 import {General, Permissions, Preferences} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
@@ -15,6 +16,7 @@ import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
 import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
 
+import {queryChannelCategory} from './categories';
 import {queryPreferencesByCategoryAndName} from './preference';
 import {prepareDeletePost} from './post';
 import {queryRoles} from './role';
@@ -769,6 +771,7 @@ export function channelBelongsToTeamScopedConversations(
 
 function sortRecentConversationEntries(
     entries: Array<{channel: ChannelModel; myChannel: MyChannelModel}>,
+    favoriteIds?: Set<string>,
 ): ChannelModel[] {
     return [...entries].sort((a, b) => {
         const aIsDefault = a.channel.name === General.DEFAULT_CHANNEL;
@@ -777,6 +780,15 @@ function sortRecentConversationEntries(
             return -1;
         }
         if (!aIsDefault && bIsDefault) {
+            return 1;
+        }
+
+        const aIsFavorite = favoriteIds?.has(a.channel.id) ?? false;
+        const bIsFavorite = favoriteIds?.has(b.channel.id) ?? false;
+        if (aIsFavorite && !bIsFavorite) {
+            return -1;
+        }
+        if (!aIsFavorite && bIsFavorite) {
             return 1;
         }
 
@@ -876,13 +888,16 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                 observeWithColumns(['value', 'name']);
             const groupPrefs = queryPreferencesByCategoryAndName(database, GROUP_CHANNEL_SHOW).
                 observeWithColumns(['value', 'name']);
+            const favoritePrefs = queryPreferencesByCategoryAndName(database, FAVORITES_CATEGORY).
+                observeWithColumns(['value', 'name']);
 
             return combineLatest([
                 combineLatest(myChannels.map((mc) => mc.channel.observe())),
                 directPrefs,
                 groupPrefs,
+                favoritePrefs,
             ]).pipe(
-                map$(([channels, directPreferences, groupPreferences]) => {
+                map$(([channels, directPreferences, groupPreferences, favoritePreferences]) => {
                     const channelMap = new Map<string, {channel: ChannelModel; myChannel: MyChannelModel}>();
                     channels.forEach((channel, index) => {
                         if (channel && index < myChannels.length) {
@@ -916,7 +931,15 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                         isChannelVisibleInConversationList(channel, currentUserId, showPreferenceMap),
                     );
 
-                    return sortRecentConversationEntries(visibilityFiltered);
+                    // 构建收藏频道 ID 集合
+                    const favoriteIds = new Set<string>();
+                    favoritePreferences.forEach((p) => {
+                        if (p.value === 'true') {
+                            favoriteIds.add(p.name);
+                        }
+                    });
+
+                    return sortRecentConversationEntries(visibilityFiltered, favoriteIds);
                 }),
             );
         }),

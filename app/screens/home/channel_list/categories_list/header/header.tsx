@@ -31,7 +31,7 @@ import DropdownMenu, {type MenuEntry} from './dropdown_menu';
 
 import type UserModel from '@typings/database/models/servers/user';
 
-const PLUS_BUTTON_SIZE = 28;
+const PLUS_BUTTON_SIZE = 32;
 
 type Props = {
     canCreateChannels: boolean;
@@ -102,7 +102,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     plusIcon: {
         color: changeOpacity(theme.centerChannelColor, 0.8),
-        fontSize: 18,
+        fontSize: 22,
     },
     pushAlert: {
         marginLeft: 5,
@@ -137,8 +137,8 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 0,
     },
     menuButton: {
-        width: 44,
-        height: 44,
+        width: 36,
+        height: 36,
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: -6,
@@ -346,8 +346,8 @@ const ChannelListHeader = ({
                     type='opacity'
                 >
                     <OpenDrawerIcon
-                        width={26}
-                        height={26}
+                        width={22}
+                        height={22}
                         color={theme.centerChannelColor}
                     />
                 </TouchableWithFeedback>

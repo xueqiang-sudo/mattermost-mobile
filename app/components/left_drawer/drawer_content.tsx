@@ -10,7 +10,7 @@ import {switchMap, map, distinctUntilChanged} from 'rxjs/operators';
 
 import {handleTeamChange} from '@actions/remote/team';
 
-import CompanyIcon from '@components/company_icon';
+
 import CompassIcon from '@components/compass_icon';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
@@ -131,7 +131,7 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                     testID='left_drawer.create_join_enterprise'
                 >
                     <CompassIcon
-                        name='plus-box-outline'
+                        name='sitemap'
                         size={24}
                         color={theme.sidebarText}
                     />
@@ -199,11 +199,10 @@ function DrawerTeamListInner({
             testID={`left_drawer.team_row.${team.id}`}
         >
             {selected && <View style={styles.teamRowSelectedBar}/>}
-            <CompanyIcon
-                width={36}
-                height={36}
-                bgColor={selected ? theme.sidebarHeaderTextColor : changeOpacity(theme.sidebarText, 0.12)}
-                iconColor={selected ? theme.sidebarHeaderBg : theme.sidebarText}
+            <CompassIcon
+                name='sitemap'
+                size={24}
+                color={selected ? theme.sidebarHeaderTextColor : theme.sidebarText}
                 style={{marginRight: 12, flexShrink: 0}}
             />
             <Text
@@ -261,7 +260,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingHorizontal: 0,
         borderRadius: 10,
         backgroundColor: 'transparent',
         position: 'relative',

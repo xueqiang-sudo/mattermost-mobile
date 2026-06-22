@@ -10,6 +10,7 @@ import {observeChannelsWithCalls} from '@calls/state';
 import {General, Preferences} from '@constants';
 import {withServerUrl} from '@context/server';
 import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
+import {observeIsChannelFavorited} from '@queries/servers/categories';
 import {observeIsMutedSetting, observeMyChannel, queryChannelMembers, observeChannelInfo} from '@queries/servers/channel';
 import {queryDraft} from '@queries/servers/drafts';
 import {observeLastPostInChannel} from '@queries/servers/post';
@@ -180,12 +181,15 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
             distinctUntilChanged(),
         );
 
+    const isFavorite = teamId ? observeIsChannelFavorited(database, teamId, channel.id) : of$(false);
+
     return {
         channel: 'observe' in channel ? channel.observe() : of$(channel),
         currentUserId,
         currentTimezone,
         hasDraft,
         isActive,
+        isFavorite,
         isMuted,
         membersCount,
         isUnread,

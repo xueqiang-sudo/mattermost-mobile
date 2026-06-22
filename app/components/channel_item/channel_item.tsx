@@ -36,6 +36,7 @@ type Props = {
     currentTimezone?: string | null;
     hasDraft: boolean;
     isActive: boolean;
+    isFavorite?: boolean;
     isMuted: boolean;
     membersCount: number;
     isUnread: boolean;
@@ -269,6 +270,7 @@ const ChannelItem = ({
     currentTimezone,
     hasDraft,
     isActive,
+    isFavorite = false,
     isMuted,
     membersCount,
     isUnread,
@@ -368,13 +370,14 @@ const ChannelItem = ({
             styles.container,
             listSurface,
             isOnHome ? homePadding : null,
+            isOnHome && isFavorite && {backgroundColor: theme.sidebarBg},
             showActive && styles.activeItem,
             showActive && isOnHome && {
                 paddingLeft: WECHAT_HOME_PADDING_H - styles.activeItem.borderLeftWidth,
             },
             {minHeight: height},
         ];
-    }, [height, showActive, styles, isOnHome, isOnCenterBg, listRowIndex, theme, homePadding]);
+    }, [height, showActive, styles, isOnHome, isFavorite, isOnCenterBg, listRowIndex, theme, homePadding]);
 
     const showIconBadge = isOnHome && (mentionsCount > 0 || (isUnread && !isMuted));
 

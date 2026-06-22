@@ -544,7 +544,7 @@ const ContactsDepartmentDetail = ({
             `close-employee-${employee.id}`,
             {
                 employee,
-                departmentName,
+                departmentName: departmentId != null ? departmentName : undefined,
                 departmentParentPath,
                 companyName,
                 companyId,
@@ -553,7 +553,7 @@ const ContactsDepartmentDetail = ({
             },
             {useBackIcon: true},
         );
-    }, [baseBreadcrumb, companyId, departmentName, companyName, intl, manageMode]));
+    }, [baseBreadcrumb, companyId, departmentId, departmentName, companyName, intl, manageMode]));
 
     const handleToggleManage = usePreventDoubleTap(useCallback(() => {
         setManageMode((prev) => !prev);
