@@ -4,7 +4,7 @@
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {logout} from '@actions/remote/session';
 import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
@@ -23,7 +23,7 @@ import {useUserLocale} from '@context/user_locale';
 
 import type UserModel from '@typings/database/models/servers/user';
 
-const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
+const edges: Edge[] = ['bottom', 'left', 'right'];
 
 type Props = {
     currentUser?: UserModel;
@@ -109,6 +109,7 @@ const MeScreen = ({currentUser}: Props) => {
     const serverUrl = useServerUrl();
     const serverDisplayName = useServerDisplayName();
     const locale = useUserLocale();
+    const insets = useSafeAreaInsets();
     const styles = getStyleSheet(theme);
 
     const fullName = useMemo(() => {
@@ -168,6 +169,12 @@ const MeScreen = ({currentUser}: Props) => {
             style={[styles.flex, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.04)}]}
             testID='me.screen'
         >
+            {/* 导航栏：延伸到状态栏区域，标题"我"居中显示，支持三语 */}
+            <View style={[styles.navBar, {paddingTop: insets.top, backgroundColor: theme.sidebarBg}]}>
+                <Text style={styles.navTitle}>
+                    {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: 'Me'})}
+                </Text>
+            </View>
             <ScrollView
                 style={styles.flex}
                 contentContainerStyle={styles.scrollContent}
