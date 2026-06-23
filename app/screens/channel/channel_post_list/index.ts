@@ -9,7 +9,7 @@ import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
 import {Preferences} from '@constants';
 import {getAdvanceSettingPreferenceAsBool} from '@helpers/api/preference';
-import {observeMyChannel} from '@queries/servers/channel';
+import {observeMyChannel, observeChannelSettings} from '@queries/servers/channel';
 import {queryPostsBetween, queryPostsInChannel} from '@queries/servers/post';
 import {queryAdvanceSettingsPreferences} from '@queries/servers/preference';
 import {observeIsCRTEnabled} from '@queries/servers/thread';
@@ -22,6 +22,16 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
     const isCRTEnabledObserver = observeIsCRTEnabled(database);
     const postsInChannelObserver = queryPostsInChannel(database, channelId).observeWithColumns(['earliest', 'latest']);
     const myChannelObserver = observeMyChannel(database, channelId);
+
+    // 观察频道的 cleared_at 时间戳（"清空聊天记录"功能设置），
+    // cleared_at 之前的帖子不再显示，仅影响当前用户，其他成员不受影响
+    const clearedAt$ = observeChannelSettings(database, channelId).pipe(
+        switchMap((settings) => {
+            const clearedAt = settings?.notifyProps?.cleared_at;
+            return of$(clearedAt ? parseInt(clearedAt, 10) : 0);
+        }),
+        distinctUntilChanged(),
+    );
 
     return {
         isCRTEnabled: isCRTEnabledObserver,
@@ -38,14 +48,17 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
             }),
             distinctUntilChanged(),
         ),
-        posts: combineLatest([isCRTEnabledObserver, postsInChannelObserver]).pipe(
-            switchMap(([isCRTEnabled, postsInChannel]) => {
+        // 帖子查询加入 cleared_at 过滤：如果有 cleared_at 时间戳，
+        // 用它替代 earliest 作为查询下限，过滤掉清空前的历史帖子
+        posts: combineLatest([isCRTEnabledObserver, postsInChannelObserver, clearedAt$]).pipe(
+            switchMap(([isCRTEnabled, postsInChannel, clearedAt]) => {
                 if (!postsInChannel.length) {
                     return of$([]);
                 }
 
                 const {earliest, latest} = postsInChannel[0];
-                return queryPostsBetween(database, earliest, latest, Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe();
+                const effectiveEarliest = clearedAt > 0 ? Math.max(earliest, clearedAt) : earliest;
+                return queryPostsBetween(database, effectiveEarliest, latest, Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe();
             }),
         ),
         shouldShowJoinLeaveMessages: queryAdvanceSettingsPreferences(database, Preferences.ADVANCED_FILTER_JOIN_LEAVE).

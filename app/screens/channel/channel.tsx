@@ -7,7 +7,7 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
 import FloatingCallContainer from '@calls/components/floating_call_container';
-import ConnectionBanner from '@components/connection_banner';
+
 import FreezeScreen from '@components/freeze_screen';
 import PostDraft from '@components/post_draft';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
@@ -57,12 +57,6 @@ const styles = StyleSheet.create({
     messageArea: {
         flex: 1,
         flexDirection: 'column',
-    },
-
-    /** 断网条在 FlatList 之上，避免 Android elevation 盖住条带（仍低于顶栏 zIndex 10） */
-    connectionBannerWrap: {
-        zIndex: 2,
-        elevation: 2,
     },
 });
 
@@ -143,9 +137,6 @@ const Channel = ({
                 {shouldRender &&
                 <ExtraKeyboardProvider>
                     <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
-                        <View style={styles.connectionBannerWrap}>
-                            <ConnectionBanner isChatUI={true}/>
-                        </View>
                         <View style={{flex: 1}}>
                             <ChannelPostList
                                 channelId={channelId}

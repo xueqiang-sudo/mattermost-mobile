@@ -22,12 +22,24 @@ type QrScannerOptions = {
      * 扫码结果在回调中会将该对象合并进解析出的 payload 一并传给后续页面。
      */
     extra?: Record<string, unknown>;
+
+    /**
+     * 自定义扫描结果处理回调。若提供此回调，将优先使用它处理扫描结果，
+     * 返回 true 表示已处理（扫描器自动关闭），返回 false 则回退到默认处理逻辑。
+     * 适用于需要获取原始扫描内容（如入库/出库扫码）的场景。
+     */
+    onScanResultCallback?: (value: string) => boolean;
 };
 
 export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) => {
     const scanContext = options?.scanContext;
     showModal(Screens.QR_SCANNER, '', {
         onScanResult: (value: string, context?: string) => {
+            // 自定义回调优先处理（如入库/出库扫码等需要原始内容的场景）
+            if (options?.onScanResultCallback) {
+                return options.onScanResultCallback(value);
+            }
+
             const isUrl = value.startsWith('http://') || value.startsWith('https://');
             if (isUrl) {
                 const qrdata = getUrlQueryParam(value, 'qrdata');

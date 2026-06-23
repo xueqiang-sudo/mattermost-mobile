@@ -2,17 +2,21 @@
 // See LICENSE.txt for license information.
 
 /**
- * AI Agent 页面
- * 使用 WebView 内嵌 https://ai.optibot.cn:8065/plugins/com.mattermost.aiagent/ 网页
+ * 应用页面
+ * 提供入库/出库功能：点击按钮后打开视频扫描二维码，显示扫描结果，点击发送。
+ * 暂不调用 API，后续补充。
  */
 
-import React, {useState} from 'react';
-import {ActivityIndicator, View} from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {useIntl} from 'react-intl';
+import {Platform, Pressable, Text, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
-import {WebView} from 'react-native-webview';
 
+import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
-import {makeStyleSheetFromTheme} from '@utils/theme';
+import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
+import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
+import {typography} from '@utils/typography';
 
 const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
@@ -20,64 +24,228 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
         flex: 1,
     },
+    navBar: {
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.sidebarBg,
+    },
+    navTitle: {
+        color: theme.sidebarHeaderTextColor,
+        ...typography('Heading', 200, 'SemiBold'),
+    },
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
+        paddingHorizontal: 24,
+        paddingTop: 40,
     },
-    loadingContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+    actionButton: {
+        height: 60,
+        borderRadius: 12,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: theme.centerChannelBg,
-        zIndex: 10,
+        marginBottom: 20,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: {width: 0, height: 2},
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+            },
+            default: {
+                elevation: 3,
+            },
+        }),
+    },
+    stockInButton: {
+        backgroundColor: '#4A90D9',
+    },
+    stockOutButton: {
+        backgroundColor: '#F5A623',
+    },
+    sendButton: {
+        backgroundColor: theme.buttonBg,
+        marginTop: 16,
+    },
+    buttonText: {
+        color: '#FFFFFF',
+        marginLeft: 10,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    resultContainer: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 8,
+    },
+    resultLabel: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginBottom: 8,
+        ...typography('Body', 75, 'Regular'),
+    },
+    resultValue: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200, 'Regular'),
+    },
+    successContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 20,
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: changeOpacity('#4CAF50', 0.1),
+    },
+    successText: {
+        color: '#4CAF50',
+        marginLeft: 8,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    scanTypeLabel: {
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        textAlign: 'center',
+        marginTop: 4,
+        marginBottom: 24,
+        ...typography('Body', 75, 'Regular'),
     },
 }));
 
-const DEEPSEEK_URL = 'https://ai.optibot.cn:8065/plugins/com.mattermost.aiagent/';
+type ScanType = 'stock_in' | 'stock_out' | null;
 
-const AIAgent = () => {
+const AppsScreen = () => {
+    const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
-    const [isLoading, setIsLoading] = useState(true);
+    const [scanType, setScanType] = useState<ScanType>(null);
+    const [scanResult, setScanResult] = useState<string>('');
+    const [showSuccess, setShowSuccess] = useState(false);
 
-    /**
-     * 网页开始加载时的回调
-     */
-    const onLoadStart = () => {
-        setIsLoading(true);
-    };
+    // 3 秒后自动清除成功提示和扫描结果
+    useEffect(() => {
+        if (showSuccess) {
+            const timer = setTimeout(() => {
+                setShowSuccess(false);
+                setScanResult('');
+                setScanType(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+        return undefined;
+    }, [showSuccess]);
 
-    /**
-     * 网页加载完成时的回调
-     */
-    const onLoadEnd = () => {
-        setIsLoading(false);
-    };
+    // 打开扫码器的通用方法
+    const openScanner = useCallback((type: ScanType) => {
+        setScanType(type);
+        setScanResult('');
+        setShowSuccess(false);
+
+        showQrScannerModal(intl, {
+            onScanResultCallback: (value: string) => {
+                setScanResult(value);
+                return true; // 返回 true 让扫描器自动关闭
+            },
+        });
+    }, [intl]);
+
+    const handleStockIn = useCallback(() => {
+        openScanner('stock_in');
+    }, [openScanner]);
+
+    const handleStockOut = useCallback(() => {
+        openScanner('stock_out');
+    }, [openScanner]);
+
+    // 发送按钮：暂不调用 API，仅显示成功提示
+    const handleSend = useCallback(() => {
+        setShowSuccess(true);
+    }, []);
+
+    const scanTypeLabel = scanType === 'stock_in'
+        ? intl.formatMessage({id: 'apps.stock_in', defaultMessage: 'Stock In'})
+        : scanType === 'stock_out'
+            ? intl.formatMessage({id: 'apps.stock_out', defaultMessage: 'Stock Out'})
+            : '';
 
     return (
         <SafeAreaView
             edges={edges}
             style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
         >
+            {/* 导航栏：标题"应用"居中显示，支持三语 */}
+            <View style={styles.navBar}>
+                <Text style={styles.navTitle}>
+                    {intl.formatMessage({id: 'tab_bar.apps.label', defaultMessage: 'Apps'})}
+                </Text>
+            </View>
+
             <View style={styles.container}>
-                <WebView
-                    source={{uri: DEEPSEEK_URL}}
-                    style={{flex: 1}}
-                    javaScriptEnabled={true}
-                    domStorageEnabled={true}
-                    onLoadStart={onLoadStart}
-                    onLoadEnd={onLoadEnd}
-                    startInLoadingState={false}
-                    allowsInlineMediaPlayback={true}
-                    mediaPlaybackRequiresUserAction={false}
-                />
-                {isLoading && (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size='large' color={theme.buttonBg}/>
+                {/* 入库按钮 */}
+                <Pressable
+                    onPress={handleStockIn}
+                    style={({pressed}) => [
+                        styles.actionButton,
+                        styles.stockInButton,
+                        pressed && {opacity: 0.85},
+                    ]}
+                >
+                    <CompassIcon name='download-outline' size={24} color='#FFFFFF'/>
+                    <Text style={styles.buttonText}>
+                        {intl.formatMessage({id: 'apps.stock_in', defaultMessage: 'Stock In'})}
+                    </Text>
+                </Pressable>
+
+                {/* 出库按钮 */}
+                <Pressable
+                    onPress={handleStockOut}
+                    style={({pressed}) => [
+                        styles.actionButton,
+                        styles.stockOutButton,
+                        pressed && {opacity: 0.85},
+                    ]}
+                >
+                    <CompassIcon name='export-variant' size={24} color='#FFFFFF'/>
+                    <Text style={styles.buttonText}>
+                        {intl.formatMessage({id: 'apps.stock_out', defaultMessage: 'Stock Out'})}
+                    </Text>
+                </Pressable>
+
+                {/* 扫描结果区域（扫描后显示） */}
+                {scanResult ? (
+                    <>
+                        <Text style={styles.scanTypeLabel}>{scanTypeLabel}</Text>
+                        <View style={styles.resultContainer}>
+                            <Text style={styles.resultLabel}>
+                                {intl.formatMessage({id: 'apps.scan_result', defaultMessage: 'Scan Result'})}
+                            </Text>
+                            <Text style={styles.resultValue}>{scanResult}</Text>
+                        </View>
+
+                        {/* 发送按钮 */}
+                        <Pressable
+                            onPress={handleSend}
+                            style={({pressed}) => [
+                                styles.actionButton,
+                                styles.sendButton,
+                                pressed && {opacity: 0.85},
+                            ]}
+                        >
+                            <CompassIcon name='send' size={22} color='#FFFFFF'/>
+                            <Text style={styles.buttonText}>
+                                {intl.formatMessage({id: 'apps.send', defaultMessage: 'Send'})}
+                            </Text>
+                        </Pressable>
+                    </>
+                ) : null}
+
+                {/* 发送成功提示 */}
+                {showSuccess && (
+                    <View style={styles.successContainer}>
+                        <CompassIcon name='check-circle' size={22} color='#4CAF50'/>
+                        <Text style={styles.successText}>
+                            {intl.formatMessage({id: 'apps.send_success', defaultMessage: 'Send Successful'})}
+                        </Text>
                     </View>
                 )}
             </View>
@@ -85,4 +253,4 @@ const AIAgent = () => {
     );
 };
 
-export default AIAgent;
+export default AppsScreen;

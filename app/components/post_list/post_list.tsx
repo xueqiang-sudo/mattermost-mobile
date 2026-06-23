@@ -118,7 +118,8 @@ const PostList = ({
     unreadCount = 0,
     isManualUnread = false,
 }: Props) => {
-    const firstIdInPosts = posts[0]?.id;
+    // 反转后数组尾部是最新帖子，用于检测新消息到达
+    const newestPostId = posts[posts.length - 1]?.id;
 
     const listRef = useRef<FlatList<string | PostModel>>(null);
     const onScrollEndIndexListener = useRef<onScrollEndIndexListenerEvent>();
@@ -128,7 +129,10 @@ const PostList = ({
     const effectiveHighlightedId = jumpHighlightPostId || highlightedId;
     const [refreshing, setRefreshing] = useState(false);
     const [showScrollToEndBtn, setShowScrollToEndBtn] = useState(false);
-    const [lastPostId, setLastPostId] = useState<string | undefined>(firstIdInPosts);
+    const [lastPostId, setLastPostId] = useState<string | undefined>(newestPostId);
+    // 跟踪内容尺寸和视口尺寸，用于判断是否在列表底部
+    const contentSizeRef = useRef(0);
+    const layoutSizeRef = useRef(0);
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const listContentStyle = useMemo(() => {
@@ -137,7 +141,7 @@ const PostList = ({
             return undefined;
         }
         const base = {backgroundColor: getChatListBackdropColor(theme)};
-        /** 频道倒序列表：flexGrow 在消息少时会在视觉顶部与断网条之间撑出多余空隙 */
+        /** 频道正序列表：不使用 flexGrow 避免消息少时顶部出现大片空白 */
         if (location === Screens.CHANNEL) {
             return base;
         }
@@ -145,7 +149,10 @@ const PostList = ({
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
-        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
+        const result = preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
+        // 反转数组：原为降序（最新在前），反转后升序（最旧在前），
+        // 配合 inverted={false} 实现自上而下显示（最旧在顶部，最新在底部）
+        return [...result].reverse();
     }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
 
     const orderedPostsRef = useRef(orderedPosts);
@@ -155,10 +162,11 @@ const PostList = ({
         return orderedPosts.findIndex((i) => i.type === 'start-of-new-messages');
     }, [orderedPosts]);
 
-    const isNewMessage = lastPostId ? firstIdInPosts !== lastPostId : false;
+    const isNewMessage = lastPostId ? newestPostId !== lastPostId : false;
 
+    // 非反转列表：scrollToEnd 滚动到内容最底部（最新帖子所在位置）
     const scrollToEnd = useCallback((animated = true) => {
-        listRef.current?.scrollToOffset({offset: 0, animated});
+        listRef.current?.scrollToEnd({animated});
     }, []);
 
     useEffect(() => {
@@ -236,22 +244,30 @@ const PostList = ({
             animated,
             index,
             viewOffset: applyOffset ? Platform.select({ios: -45, default: 0}) : 0,
-            viewPosition: 1, // 0 is at bottom
+            viewPosition: 0, // 0 = 项显示在视口顶部（非反转列表的标准行为）
         });
     }, []);
 
     const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const {y} = event.nativeEvent.contentOffset;
-        const isThresholdReached = y > CONTENT_OFFSET_THRESHOLD;
+        const {contentOffset, contentSize, layoutMeasurement} = event.nativeEvent;
+        const y = contentOffset.y;
+        contentSizeRef.current = contentSize.height;
+        layoutSizeRef.current = layoutMeasurement.height;
 
-        if (isThresholdReached !== showScrollToEndBtn) {
-            setShowScrollToEndBtn(isThresholdReached);
+        // 非反转列表：距底部的距离 = 内容高度 - 视口高度 - 当前偏移
+        const distanceFromBottom = contentSize.height - layoutMeasurement.height - y;
+        const isNearBottom = distanceFromBottom < CONTENT_OFFSET_THRESHOLD;
+
+        // 不在底部时显示"回到底部"按钮
+        if (!isNearBottom !== showScrollToEndBtn) {
+            setShowScrollToEndBtn(!isNearBottom);
         }
 
-        if (!y && lastPostId !== firstIdInPosts) {
-            setLastPostId(firstIdInPosts);
+        // 到达底部时更新已见最新帖子 ID
+        if (isNearBottom && lastPostId !== newestPostId) {
+            setLastPostId(newestPostId);
         }
-    }, [firstIdInPosts, lastPostId, showScrollToEndBtn]);
+    }, [lastPostId, newestPostId, showScrollToEndBtn]);
 
     const onScrollToIndexFailed = useCallback((info: ScrollIndexFailed) => {
         const index = Math.min(info.highestMeasuredFrameIndex, info.index);
@@ -449,7 +465,7 @@ const PostList = ({
                 style={styles.flex}
                 viewabilityConfig={VIEWABILITY_CONFIG}
                 testID={`${testID}.flat_list`}
-                inverted={true}
+                inverted={false}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
             />

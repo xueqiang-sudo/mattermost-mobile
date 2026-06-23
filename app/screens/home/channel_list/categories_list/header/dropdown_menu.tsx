@@ -3,7 +3,8 @@
 
 import React from 'react';
 import {useIntl} from 'react-intl';
-import {Modal, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Modal, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
@@ -81,16 +82,21 @@ const DropdownMenu = ({visible, anchorRight, anchorTop, items, onClose}: Props) 
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
+    const insets = useSafeAreaInsets();
 
     if (!visible) {
         return null;
     }
 
+    // Android 上 statusBarTranslucent Modal 的坐标系包含状态栏，
+    // 但 measureInWindow 返回的 Y 不包含状态栏高度，需补偿 insets.top
+    const topOffset = Platform.OS === 'android' ? insets.top : 0;
+
     const menuStyle = [
         styles.menu,
         {
             right: anchorRight,
-            top: anchorTop,
+            top: anchorTop + topOffset,
         },
     ];
 

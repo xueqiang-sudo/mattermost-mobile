@@ -236,6 +236,7 @@ Navigation.setDefaultOptions({
         title: {
             fontSize: 18,
             fontWeight: '600',
+            alignment: 'center',
         },
         backButton: {
             enableMenu: false,

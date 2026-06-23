@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     separator: {
-        height: 15,
+        height: 6,
     },
 });
 
@@ -89,7 +89,7 @@ const NICKNAME_FIELD = 'nickname';
 const POSITION_FIELD = 'position';
 const PHONE_FIELD = 'phone';
 
-const profileKeys = [FIRST_NAME_FIELD, LAST_NAME_FIELD, USERNAME_FIELD, EMAIL_FIELD, NICKNAME_FIELD, POSITION_FIELD];
+const profileKeys = [USERNAME_FIELD, NICKNAME_FIELD, FIRST_NAME_FIELD, LAST_NAME_FIELD, EMAIL_FIELD, PHONE_FIELD, POSITION_FIELD];
 
 export const getFieldKey = (key: string) => `${CUSTOM_ATTRS_PREFIX}.${key}`;
 
@@ -144,14 +144,14 @@ const ProfileForm = ({
                     break;
                 case USERNAME_FIELD:
                     fields[USERNAME_FIELD] = {
-                        isDisabled: service !== '',
+                        isDisabled: true,
                         maxLength: 22,
                         error: errorMessage,
                     };
                     break;
                 case EMAIL_FIELD:
                     fields[EMAIL_FIELD] = {
-                        isDisabled: true, //,//service !== '',
+                        isDisabled: false,
                     };
                     break;
                 case NICKNAME_FIELD:
@@ -263,6 +263,7 @@ const ProfileForm = ({
             fieldKey={key}
             fieldRef={setRef(key)}
             isDisabled={userProfileFields[key].isDisabled}
+            keyboardType={key === EMAIL_FIELD ? 'email-address' : key === PHONE_FIELD ? 'phone-pad' : undefined}
             label={formatMessage(FIELDS[key])}
             testID={`edit_profile_form.${key}`}
             value={getValue(key)}
@@ -326,9 +327,6 @@ const ProfileForm = ({
     const renderAttribute = (key: string, notLast: boolean) => {
         if (key.startsWith(CUSTOM_ATTRS_PREFIX)) {
             return renderCustomAttribute(key, notLast);
-        }
-        if (key === EMAIL_FIELD) {
-            return renderEmailAttribute();
         }
         return renderStandardAttribute(key, notLast);
     };

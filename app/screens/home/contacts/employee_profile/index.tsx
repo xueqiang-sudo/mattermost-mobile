@@ -4,7 +4,7 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeDirectChannel} from '@actions/remote/channel';
@@ -50,6 +50,7 @@ type Props = {
     /** 从管理界面进入时用于「设置部门」：每人只能属于一个部门 */
     departmentId?: number;
     companyId?: string;
+    companyName?: string;
 
     /** 从管理界面进入时为 true，显示「设置部门」入口 */
     fromManage?: boolean;
@@ -72,29 +73,42 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     avatarSection: {
         alignItems: 'center',
-        paddingVertical: 32,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
-        marginBottom: 16,
+        paddingVertical: 24,
     },
-    avatar: {
-        marginBottom: 16,
-    },
-    name: {
-        ...typography('Heading', 400),
-        color: theme.centerChannelColor,
-        textAlign: 'center',
-    },
-    nameDirectoryHint: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        textAlign: 'center',
-        marginTop: 4,
-    },
-    section: {
+    avatar: {},
+    detailGrid: {
         paddingHorizontal: 16,
         marginBottom: 20,
+    },
+    detailRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    detailLabel: {
+        ...typography('Body', 100),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        width: 72,
+    },
+    detailValue: {
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    detailValueDisabled: {
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+    },
+    detailInput: {
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
+        flex: 1,
+        padding: 0,
     },
     sectionTitle: {
         ...typography('Body', 100, 'SemiBold'),
@@ -267,6 +281,7 @@ const ContactsEmployeeProfile = ({
     departmentParentPath,
     departmentId,
     companyId: companyIdProp,
+    companyName,
     currentUserId,
     fromManage = false,
     description,
@@ -282,6 +297,41 @@ const ContactsEmployeeProfile = ({
     const [relationDescription, setRelationDescription] = useState(() => description ?? '');
     const [relationRemark, setRelationRemark] = useState(() => remark?.trim() ?? '');
     const [isCompanyOwner, setIsCompanyOwner] = useState(false);
+
+    // 管理模式下的可编辑字段
+    const [editNickname, setEditNickname] = useState(() => employee.nickname ?? '');
+    const [editFirstName, setEditFirstName] = useState(() => employee.firstName ?? '');
+    const [editLastName, setEditLastName] = useState(() => employee.lastName ?? '');
+    const [editEmail, setEditEmail] = useState(() => employee.email ?? '');
+    const [editPhone, setEditPhone] = useState(() => employee.phone ?? '');
+    const [editPosition, setEditPosition] = useState(() => employee.position ?? '');
+    const [saving, setSaving] = useState(false);
+
+    const handleSaveProfile = usePreventDoubleTap(useCallback(async () => {
+        if (!serverUrl || saving) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            await client.patchUser({
+                id: employee.id,
+                nickname: editNickname,
+                first_name: editFirstName,
+                last_name: editLastName,
+                email: editEmail,
+                phone: editPhone,
+                position: editPosition,
+            });
+            dismissModal({componentId});
+        } catch (e) {
+            Alert.alert(
+                intl.formatMessage({id: 'mobile.edit_profile.error', defaultMessage: 'Failed to save profile'}),
+            );
+        } finally {
+            setSaving(false);
+        }
+    }, [serverUrl, saving, employee.id, editNickname, editFirstName, editLastName, editEmail, editPhone, editPosition, intl, componentId]));
 
     /** 企业所有者 ID（用于标签计算） */
     const [companyOwnerId, setCompanyOwnerId] = useState<string | undefined>();
@@ -696,326 +746,182 @@ const ContactsEmployeeProfile = ({
                     <View style={styles.avatar}>
                         <ContactAvatar
                             employee={employee}
-                            size={80}
+                            size={56}
                         />
                     </View>
-                    <Text
-                        style={styles.name}
-                        numberOfLines={2}
-                    >
-                        {relationRemark.trim() || getContactListDisplayName(employee)}
-                    </Text>
-                    {relationRemark.trim() ? (
-                        <Text
-                            style={styles.nameDirectoryHint}
-                            numberOfLines={1}
-                        >
-                            {intl.formatMessage({
-                                id: 'supplier_customer.directory_name_subtitle',
-                                defaultMessage: 'Nickname',
-                            })}
-                            {': '}
-                            {getContactListDisplayName(employee)}
-                        </Text>
-                    ) : null}
-                    {profileTagKeys.length > 0 ? (
-                        <View style={styles.tagsRow}>
-                            {profileTagKeys.map((tagKey: EnterpriseUserTagKey) => {
-                                if (tagKey === 'owner') {
-                                    return (
-                                        <View
-                                            key='owner'
-                                            style={[styles.selfTag, styles.ownerTag]}
-                                        >
-                                            <Text style={[styles.selfTagText, styles.ownerTagText]}>
-                                                {intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'})}
-                                            </Text>
-                                        </View>
-                                    );
-                                }
-                                if (tagKey === 'manager') {
-                                    return (
-                                        <View
-                                            key='manager'
-                                            style={[styles.selfTag, styles.managerTag]}
-                                        >
-                                            <Text style={[styles.selfTagText, styles.managerTagText]}>
-                                                {intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'})}
-                                            </Text>
-                                        </View>
-                                    );
-                                }
-                                return (
-                                    <View
-                                        key='self'
-                                        style={styles.selfTag}
-                                    >
-                                        <Text style={styles.selfTagText}>
-                                            {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    ) : null}
                 </View>
 
-                {isSupplierCustomer && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>
-                            {intl.formatMessage({id: 'supplier_customer.relation_info', defaultMessage: 'Relation Info'})}
+                <View style={styles.detailGrid}>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'supplier_customer.account', defaultMessage: 'Account'})}
                         </Text>
-                        <View style={styles.card}>
-                            <View style={styles.cardRow}>
-                                <Text style={styles.cardLabel}>
-                                    {intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'})}
-                                </Text>
-                                <View style={styles.cardValueWrap}>
-                                    <Text
-                                        style={styles.cardValue}
-                                        numberOfLines={2}
-                                    >
-                                        {relationRemark.trim() || '-'}
-                                    </Text>
-                                    <TouchableOpacity
-                                        style={styles.changeDepartmentInline}
-                                        onPress={handleEditRemark}
-                                        activeOpacity={0.7}
-                                        disabled={!canEditRelationFields}
-                                        testID='supplier_customer.edit_remark'
-                                    >
-                                        <CompassIcon
-                                            name='pencil-outline'
-                                            size={16}
-                                            color={theme.linkColor}
-                                        />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                            <View style={styles.cardRow}>
-                                <Text style={styles.cardLabel}>
-                                    {intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'})}
-                                </Text>
-                                <View style={styles.cardValueWrap}>
-                                    <Text
-                                        style={styles.cardValue}
-                                        numberOfLines={2}
-                                    >
-                                        {relationDescription || '-'}
-                                    </Text>
-                                    <TouchableOpacity
-                                        style={styles.changeDepartmentInline}
-                                        onPress={handleEditRelationDescription}
-                                        activeOpacity={0.7}
-                                        disabled={!canEditRelationFields}
-                                        testID='supplier_customer.edit_relation'
-                                    >
-                                        <CompassIcon
-                                            name='pencil-outline'
-                                            size={16}
-                                            color={theme.linkColor}
-                                        />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                            {relationType && (
-                                <View style={[styles.cardRow, styles.cardRowLast]}>
-                                    <Text style={styles.cardLabel}>
-                                        {intl.formatMessage({id: 'supplier_customer.type', defaultMessage: 'Type'})}
-                                    </Text>
-                                    <View
-                                        style={[
-                                            styles.relationBadge,
-                                            {
-                                                backgroundColor: relationType === 'supplier'? changeOpacity(theme.linkColor, 0.08): changeOpacity(theme.onlineIndicator, 0.08),
-                                            },
-                                        ]}
-                                    >
-                                        <CompassIcon
-                                            name={relationType === 'supplier' ? 'car-outline' : 'account-multiple-outline'}
-                                            size={18}
-                                            color={relationType === 'supplier' ? theme.linkColor : theme.onlineIndicator}
-                                        />
-                                        <Text
-                                            style={[
-                                                styles.relationBadgeText,
-                                                {
-                                                    color: relationType === 'supplier'? theme.linkColor: theme.onlineIndicator,
-                                                },
-                                            ]}
-                                        >
-                                            {relationType === 'supplier'? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}): intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'})
-                                            }
-                                        </Text>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
+                        <Text style={[styles.detailValue, fromManage && styles.detailValueDisabled]} numberOfLines={1}>
+                            {employee.username || '-'}
+                        </Text>
                     </View>
-                )}
-
-                <View style={styles.section}>
-                    <View style={styles.sectionTitleRow}>
-                        <Text style={styles.sectionTitleInRow}>
-                            {intl.formatMessage({id: 'contacts.contact_info', defaultMessage: 'Contact Info'})}
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'supplier_customer.nickname', defaultMessage: 'Nickname'})}
                         </Text>
-                        <TouchableOpacity
-                            style={styles.copyInfoButton}
-                            onPress={handleCopyBasicInfo}
-                            activeOpacity={0.7}
-                            testID='contacts.employee_profile.copy_basic_info'
-                        >
-                            <CompassIcon
-                                name='content-copy'
-                                size={18}
-                                color={theme.linkColor}
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editNickname}
+                                onChangeText={setEditNickname}
+                                placeholder='-'
+                                testID='employee_profile.edit.nickname'
                             />
-                            <Text style={styles.copyInfoButtonText}>
-                                {intl.formatMessage({id: 'contacts.copy_basic_info', defaultMessage: 'Copy'})}
+                        ) : (
+                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
+                                {employee.nickname || '-'}
                             </Text>
-                        </TouchableOpacity>
+                        )}
                     </View>
-                    <View style={styles.card}>
-                        {employee.email ? (
-                            <View style={styles.cardRow}>
-                                <Text style={styles.cardLabel}>
-                                    {intl.formatMessage({id: 'contacts.email', defaultMessage: 'Email'})}
-                                </Text>
-                                <Text
-                                    style={styles.cardValue}
-                                    numberOfLines={1}
-                                >
-                                    {employee.email}
-                                </Text>
-                            </View>
-                        ) : null}
-                        {employee.phone ? (
-                            <View style={styles.cardRow}>
-                                <Text style={styles.cardLabel}>
-                                    {intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'})}
-                                </Text>
-                                <Text
-                                    style={styles.cardValue}
-                                    numberOfLines={1}
-                                >
-                                    {employee.phone}
-                                </Text>
-                            </View>
-                        ) : null}
-                        {employee.position ? (
-                            <View style={styles.cardRow}>
-                                <Text style={styles.cardLabel}>
-                                    {intl.formatMessage({id: 'contacts.position', defaultMessage: 'Position'})}
-                                </Text>
-                                <Text
-                                    style={styles.cardValue}
-                                    numberOfLines={1}
-                                >
-                                    {employee.position}
-                                </Text>
-                            </View>
-                        ) : null}
-                        {(departmentName || departmentParentPath) ? (
-                            <View style={[styles.cardRow, styles.cardRowLast]}>
-                                <Text style={styles.cardLabel}>
-                                    {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
-                                </Text>
-                                <View style={styles.departmentValueWithAction}>
-                                    <View style={styles.departmentValueWrap}>
-                                        {departmentParentPath && departmentParentPath.includes('/') ? (
-                                            <View style={styles.cardValueColumn}>
-                                                {departmentName ? (
-                                                    <Text
-                                                        style={[styles.cardValue, {flex: undefined}]}
-                                                        numberOfLines={1}
-                                                    >
-                                                        {departmentName}
-                                                    </Text>
-                                                ) : null}
-                                                <Text
-                                                    style={styles.cardValueSecondary}
-                                                    numberOfLines={2}
-                                                >
-                                                    {formatPathForDisplay(
-                                                        departmentParentPath.split('/').filter(Boolean),
-                                                        DEPARTMENT_PATH_DISPLAY_MAX_LENGTH,
-                                                        '/',
-                                                        intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}),
-                                                    )}
-                                                </Text>
-                                            </View>
-                                        ) : (
-                                            <View style={styles.cardValueSingleLineWrap}>
-                                                <Text
-                                                    style={styles.cardValue}
-                                                    numberOfLines={1}
-                                                >
-                                                    {departmentName}
-                                                </Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                    {canChangeDepartment ? (
-                                        <TouchableOpacity
-                                            style={styles.changeDepartmentInline}
-                                            onPress={handleChangeDepartment}
-                                            activeOpacity={0.7}
-                                            testID='contacts.employee_profile.change_department'
-                                        >
-                                            <Text style={styles.changeDepartmentText}>
-                                                {intl.formatMessage({id: 'contacts.change_department', defaultMessage: 'Change department'})}
-                                            </Text>
-                                            <CompassIcon
-                                                name='chevron-right'
-                                                size={18}
-                                                color={theme.linkColor}
-                                            />
-                                        </TouchableOpacity>
-                                    ) : null}
-                                </View>
-                            </View>
-                        ) : null}
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'user.settings.general.firstName', defaultMessage: 'First Name'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editFirstName}
+                                onChangeText={setEditFirstName}
+                                placeholder='-'
+                                testID='employee_profile.edit.firstName'
+                            />
+                        ) : (
+                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
+                                {employee.firstName || '-'}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'user.settings.general.lastName', defaultMessage: 'Last Name'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editLastName}
+                                onChangeText={setEditLastName}
+                                placeholder='-'
+                                testID='employee_profile.edit.lastName'
+                            />
+                        ) : (
+                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
+                                {employee.lastName || '-'}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'contacts.email', defaultMessage: 'Email'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editEmail}
+                                onChangeText={setEditEmail}
+                                placeholder='-'
+                                keyboardType='email-address'
+                                autoCapitalize='none'
+                                testID='employee_profile.edit.email'
+                            />
+                        ) : (
+                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
+                                {employee.email || '-'}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editPhone}
+                                onChangeText={setEditPhone}
+                                placeholder='-'
+                                keyboardType='phone-pad'
+                                testID='employee_profile.edit.phone'
+                            />
+                        ) : (
+                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
+                                {employee.phone || '-'}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'channel_info.position', defaultMessage: 'Position'})}
+                        </Text>
+                        {fromManage ? (
+                            <TextInput
+                                style={styles.detailInput}
+                                value={editPosition}
+                                onChangeText={setEditPosition}
+                                placeholder='-'
+                                testID='employee_profile.edit.position'
+                            />
+                        ) : (
+                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
+                                {employee.position || '-'}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
+                        </Text>
+                        <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
+                            {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
+                        </Text>
                     </View>
                 </View>
 
-                <View style={styles.buttonSection}>
-                    {canSendMessage && (
+                {fromManage ? (
+                    <View style={styles.buttonSection}>
                         <Button
                             theme={theme}
-                            onPress={handleSendMessage}
+                            onPress={handleSaveProfile}
                             type='solid'
                             size='lg'
-                            disabled={sending}
+                            disabled={saving}
                             buttonContainerStyle={styles.sendButton}
-                            testID='contacts.employee_profile.send_message'
-                            text={intl.formatMessage({id: 'contacts.send_message', defaultMessage: 'Send Message'})}
+                            testID='contacts.employee_profile.save'
+                            text={intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: 'Save'})}
                         />
-                    )}
-                    {isSupplierCustomer && (
-                        <Button
-                            theme={theme}
-                            onPress={handleDeleteRelation}
-                            size='lg'
-                            isDestructive={true}
-                            disabled={deleting}
-                            buttonContainerStyle={styles.deleteButton}
-                            testID='contacts.employee_profile.delete_relation'
-                            text={intl.formatMessage({id: 'supplier_customer.delete_relation', defaultMessage: 'Remove {relation}'}, {relation: relationType === 'supplier' ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}) : intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'})})}
-                        />
-                    )}
-                    {!isSupplierCustomer && canDelete && (
-                        <Button
-                            theme={theme}
-                            onPress={handleDeleteMember}
-                            size='lg'
-                            isDestructive={true}
-                            disabled={deleting}
-                            buttonContainerStyle={styles.deleteButton}
-                            testID='contacts.employee_profile.delete'
-                            text={intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete'})}
-                        />
-                    )}
-                </View>
+                        {canDelete && (
+                            <Button
+                                theme={theme}
+                                onPress={handleDeleteMember}
+                                size='lg'
+                                isDestructive={true}
+                                disabled={deleting}
+                                buttonContainerStyle={styles.deleteButton}
+                                testID='contacts.employee_profile.delete'
+                                text={intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete Member'})}
+                            />
+                        )}
+                    </View>
+                ) : (
+                    <View style={styles.buttonSection}>
+                        {canSendMessage && (
+                            <Button
+                                theme={theme}
+                                onPress={handleSendMessage}
+                                type='solid'
+                                size='lg'
+                                disabled={sending}
+                                buttonContainerStyle={styles.sendButton}
+                                testID='contacts.employee_profile.send_message'
+                                text={intl.formatMessage({id: 'contacts.send_message', defaultMessage: 'Send Message'})}
+                            />
+                        )}
+                    </View>
+                )}
             </ScrollView>
             <CustomInputModal
                 visible={remarkEditInput.visible}

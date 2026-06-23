@@ -20,7 +20,6 @@ import {typography} from '@utils/typography';
 
 import CategoryTabs, {type FindChannelsCategory} from './category_tabs';
 import FilteredList from './filtered_list';
-import QuickOptions from './quick_options';
 import UnfilteredList from './unfiltered_list';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -166,6 +165,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                         inputStyle={styles.inputStyle}
                         keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
                         onChangeText={onChangeText}
+                        placeholder={intl.formatMessage({id: 'find_channels.search_placeholder', defaultMessage: '搜索群聊、联系人'})}
                         placeholderTextColor={color}
                         searchIconColor={color}
                         selectionColor={theme.buttonBg}
@@ -175,7 +175,6 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                         testID='find_channels.search_bar'
                     />
                 </View>
-                {term === '' && <QuickOptions close={close}/>}
                 <CategoryTabs
                     activeCategory={category}
                     onCategoryChange={setCategory}

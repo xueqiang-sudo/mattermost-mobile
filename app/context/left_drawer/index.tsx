@@ -5,7 +5,10 @@ import React, {createContext, useCallback, useContext, useState} from 'react';
 
 type LeftDrawerContextValue = {
     isOpen: boolean;
-    openDrawer: () => void;
+
+    /** 汉堡图标底部在屏幕上的 Y 坐标，抽屉面板从此处开始显示 */
+    hamburgerY: number;
+    openDrawer: (y?: number) => void;
     closeDrawer: () => void;
 };
 
@@ -13,8 +16,12 @@ const LeftDrawerContext = createContext<LeftDrawerContextValue | undefined>(unde
 
 export function LeftDrawerProvider({children}: {children: React.ReactNode}) {
     const [isOpen, setIsOpen] = useState(false);
+    const [hamburgerY, setHamburgerY] = useState(0);
 
-    const openDrawer = useCallback(() => {
+    const openDrawer = useCallback((y?: number) => {
+        if (y !== undefined) {
+            setHamburgerY(y);
+        }
         setIsOpen(true);
     }, []);
 
@@ -24,6 +31,7 @@ export function LeftDrawerProvider({children}: {children: React.ReactNode}) {
 
     const value: LeftDrawerContextValue = {
         isOpen,
+        hamburgerY,
         openDrawer,
         closeDrawer,
     };

@@ -76,7 +76,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
     },
     headerTitle: {
-        ...typography('Heading', 600, 'SemiBold'),
+        ...typography('Heading', 300, 'SemiBold'),
         color: theme.sidebarText,
         textAlign: 'center',
     },
@@ -215,7 +215,7 @@ const ContactsManage = ({
     currentDeptIdRef.current = currentDepartmentId;
 
     const effectiveCloseButtonId = closeButtonId ?? CLOSE_BUTTON_ID;
-    const subtitle = currentDepartmentId == null ? (enterpriseDisplayName ?? companyName) : currentDepartmentName;
+    const subtitle = currentDepartmentId == null ? undefined : currentDepartmentName;
 
     const handleClose = useCallback(() => {
         dismissModals(1);

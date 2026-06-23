@@ -8,7 +8,7 @@ import {Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 import Badge from '@components/badge';
 import ChannelIcon from '@components/channel_icon';
 import CompassIcon from '@components/compass_icon';
-import FormattedConversationTime from '@components/formatted_conversation_time';
+
 import {General} from '@constants';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -36,6 +36,7 @@ type Props = {
     currentTimezone?: string | null;
     hasDraft: boolean;
     isActive: boolean;
+    isFavorite?: boolean;
     isMuted: boolean;
     membersCount: number;
     isUnread: boolean;
@@ -269,6 +270,7 @@ const ChannelItem = ({
     currentTimezone,
     hasDraft,
     isActive,
+    isFavorite = false,
     isMuted,
     membersCount,
     isUnread,
@@ -309,12 +311,7 @@ const ChannelItem = ({
 
     let displayName = 'displayName' in channel ? channel.displayName : channel.display_name;
     if (channel.name === General.DEFAULT_CHANNEL) {
-        /** 列表统一「企业总群」；会话内顶栏仅 town-square 显示企业名（getChannelTitleDisplayName） */
-        const townSquareLabel = formatMessage({
-            id: 'channel_list.town_square.display_name',
-            defaultMessage: 'Enterprise main channel',
-        });
-        displayName = townSquareLabel;
+        displayName = teamDisplayName || displayName;
     } else if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     }
@@ -348,18 +345,24 @@ const ChannelItem = ({
         }
     }, [channel, onDelete]);
 
+    // 频道（公开/私有）和置顶聊天在首页使用深色背景(sidebarBg)，
+    // 文字需切换为浅色(sidebarText)以保证可读性，否则深色文字在深色背景上不可见
+    const isRegularChannel = channel.type !== General.DM_CHANNEL && channel.type !== General.GM_CHANNEL;
+    const hasDarkBackground = isFavorite || isRegularChannel;
+    const homeTextColor = hasDarkBackground ? theme.sidebarText : theme.centerChannelColor;
     const textStyles = useMemo(() => [
         isOnHome ?
-            (isBolded && !isMuted ? {...textStyle.bold, color: theme.centerChannelColor} : {...textStyle.regular, color: theme.centerChannelColor}) :
+            (isBolded && !isMuted ? {...textStyle.bold, color: homeTextColor} : {...textStyle.regular, color: homeTextColor}) :
             (isBolded && !isMuted ? textStyle.bold : textStyle.regular),
         isOnHome ? null : styles.text,
         isOnHome ? null : isBolded && styles.highlight,
         isOnHome ? null : showActive && styles.textActive,
         isOnCenterBg ? styles.textOnCenterBg : null,
         isMuted && !isOnHome && styles.muted,
-        isMuted && isOnHome && {color: changeOpacity(theme.centerChannelColor, 0.32)},
+        // 置顶频道的已静音文字也使用浅色(sidebarText)以保持与深色背景的一致性
+        isMuted && isOnHome && {color: changeOpacity(homeTextColor, 0.32)},
         isMuted && isOnCenterBg && styles.mutedOnCenterBg,
-    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, theme]);
+    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, isFavorite, hasDarkBackground, homeTextColor, theme]);
 
     const homePadding = useMemo(() => ({
         paddingLeft: WECHAT_HOME_PADDING_H,
@@ -373,13 +376,15 @@ const ChannelItem = ({
             styles.container,
             listSurface,
             isOnHome ? homePadding : null,
+            // 频道和置顶聊天统一使用深色背景(sidebarBg)，与底部导航栏背景色一致
+            isOnHome && hasDarkBackground && {backgroundColor: theme.sidebarBg},
             showActive && styles.activeItem,
             showActive && isOnHome && {
                 paddingLeft: WECHAT_HOME_PADDING_H - styles.activeItem.borderLeftWidth,
             },
             {minHeight: height},
         ];
-    }, [height, showActive, styles, isOnHome, isOnCenterBg, listRowIndex, theme, homePadding]);
+    }, [height, showActive, styles, isOnHome, isFavorite, hasDarkBackground, isOnCenterBg, listRowIndex, theme, homePadding]);
 
     const showIconBadge = isOnHome && (mentionsCount > 0 || (isUnread && !isMuted));
 
@@ -522,7 +527,8 @@ const ChannelItem = ({
                     style={[
                         containerStyle,
                         isCenterListCard && pressed && styles.centerListRowPressed,
-                        isOnHome && pressed && styles.homeRowPressed,
+                        // 频道和置顶聊天保持深色背景不变，按下态(homeRowPressed)不应覆盖
+                        isOnHome && pressed && !hasDarkBackground && styles.homeRowPressed,
                     ]}
                     testID={channelItemTestId}
                 >
@@ -568,7 +574,8 @@ const ChannelItem = ({
                                 type='Small'
                                 backgroundColor={theme.errorTextColor}
                                 color={theme.buttonColor}
-                                borderColor={isOnHome ? theme.centerChannelBg : (isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg)}
+                                // 频道和置顶聊天：徽章边框使用 sidebarBg 融入深色背景，避免白色边框突兀
+                                borderColor={isOnHome ? (hasDarkBackground ? theme.sidebarBg : theme.centerChannelBg) : (isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg)}
                                 style={[
                                     styles.badge,
                                     isMuted && styles.mutedBadge,
@@ -581,7 +588,7 @@ const ChannelItem = ({
                     </View>
                     {isOnHome ? (
                         <View style={{flex: 1, minWidth: 0, justifyContent: 'center'}}>
-                            <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <View style={{flexDirection: 'row', alignItems: 'center'}}>
                                 <ChannelBody
                                     displayName={displayName}
                                     isMuted={isMuted}
@@ -590,28 +597,19 @@ const ChannelItem = ({
                                     testId={channelItemTestId}
                                     textStyles={textStyles}
                                     channelName={channelName}
-                                    channelType={channel.type}
-                                    channelNameKey={channel.name}
-                                    isOnHome={true}
-                                    showChannelTypeTag={showChannelTypeTag}
-                                    isOnCenterBg={isOnCenterBg}
                                 />
-                                {lastPostAt > 0 ? (
-                                    <FormattedConversationTime
-                                        timestamp={lastPostAt}
-                                        timeZone={currentTimezone ?? undefined}
-                                        isMilitaryTime={isMilitaryTime}
-                                        style={[styles.timestampHome, isOnCenterBg && styles.timestampOnCenterBg]}
-                                    />
-                                ) : (
-                                    <View style={{minWidth: 24}}/>
-                                )}
                             </View>
                             {Boolean(subtitle) && (
                                 <Text
                                     numberOfLines={1}
                                     ellipsizeMode='tail'
-                                    style={[styles.subtitleHome, isMuted && {color: changeOpacity(theme.centerChannelColor, 0.32)}, isOnCenterBg && styles.subtitleOnCenterBg]}
+                                    style={[
+                                        styles.subtitleHome,
+                                        // 频道和置顶聊天的消息预览使用浅色(sidebarText)配合深色背景
+                                        hasDarkBackground && {color: changeOpacity(theme.sidebarText, WECHAT_HOME_SECONDARY_TEXT_OPACITY)},
+                                        isMuted && {color: changeOpacity(hasDarkBackground ? theme.sidebarText : theme.centerChannelColor, 0.32)},
+                                        isOnCenterBg && styles.subtitleOnCenterBg,
+                                    ]}
                                 >
                                     {subtitle}
                                 </Text>
@@ -627,11 +625,6 @@ const ChannelItem = ({
                                 testId={channelItemTestId}
                                 textStyles={textStyles}
                                 channelName={channelName}
-                                channelType={channel.type}
-                                channelNameKey={channel.name}
-                                isOnHome={isOnHome}
-                                showChannelTypeTag={showChannelTypeTag}
-                                isOnCenterBg={isOnCenterBg}
                             />
                             <View style={styles.filler}/>
                             <Badge

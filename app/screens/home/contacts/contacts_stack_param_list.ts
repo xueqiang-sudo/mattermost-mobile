@@ -3,11 +3,29 @@
 
 import {Screens} from '@constants';
 
+import type {MMEmployeeContactType} from '@client/rest/team_department';
+
 /** 通讯录 Stack 参数表；独立文件避免 contacts ↔ contacts_stack 循环引用 */
 export type ContactsStackParamList = {
     [Screens.CONTACTS]: undefined;
+    [Screens.MY_SUPPLIERS]: undefined;
+    [Screens.MY_CUSTOMERS]: undefined;
+    [Screens.SUPPLIER_CUSTOMER_FORM]: {
+        kind: MMEmployeeContactType;
+        ownerId: string;
+        existingContactId?: string;
+        initialContactName?: string;
+        initialDescription?: string;
+        initialRemark?: string;
+        initialContactEmail?: string;
+        initialContactPhone?: string;
+        initialContactPosition?: string;
+        initialContactUsername?: string;
+        mattermostUserIdForAvatar?: string;
+        readOnly?: boolean;
+    };
     [Screens.CONTACTS_DEPARTMENT_DETAIL]: {
-        departmentId: number;
+        departmentId: number | null;
         departmentName: string;
         breadcrumb: string[];
         companyId: string;

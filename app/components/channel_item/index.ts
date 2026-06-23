@@ -10,11 +10,12 @@ import {observeChannelsWithCalls} from '@calls/state';
 import {General, Preferences} from '@constants';
 import {withServerUrl} from '@context/server';
 import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
+import {observeIsChannelFavorited} from '@queries/servers/categories';
 import {observeIsMutedSetting, observeMyChannel, queryChannelMembers, observeChannelInfo} from '@queries/servers/channel';
 import {queryDraft} from '@queries/servers/drafts';
 import {observeLastPostInChannel} from '@queries/servers/post';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
-import {observeCurrentChannelId, observeCurrentUserId} from '@queries/servers/system';
+import {observeCurrentChannelId, observeCurrentTeamId, observeCurrentUserId} from '@queries/servers/system';
 import {observeTeam} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
 import {getTimezone} from '@utils/user';
@@ -180,12 +181,23 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
             distinctUntilChanged(),
         );
 
+    // 修复 DM/GM 频道置顶(isFavorite)始终为 false 的问题：
+    // DM/GM 频道的 teamId 为空字符串，但收藏数据实际存储在当前团队 ID 下，
+    // 需要 fallback 到 currentTeamId 才能正确查询收藏状态
+    // （参考 favorite_box/index.ts 和 channel_info/index.ts 的处理方式）
+    const isFavoriteTeamId$ = teamId ? of$(teamId) : observeCurrentTeamId(database);
+    const isFavorite = isFavoriteTeamId$.pipe(
+        switchMap((tId) => tId ? observeIsChannelFavorited(database, tId, channel.id) : of$(false)),
+        distinctUntilChanged(),
+    );
+
     return {
         channel: 'observe' in channel ? channel.observe() : of$(channel),
         currentUserId,
         currentTimezone,
         hasDraft,
         isActive,
+        isFavorite,
         isMuted,
         membersCount,
         isUnread,
