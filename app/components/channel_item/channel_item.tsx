@@ -345,18 +345,22 @@ const ChannelItem = ({
         }
     }, [channel, onDelete]);
 
+    // 置顶频道在首页使用深色背景(sidebarBg)，文字需切换为浅色(sidebarText)以保证可读性，
+    // 否则深色文字(centerChannelColor)在深色背景上几乎不可见
+    const homeTextColor = isFavorite ? theme.sidebarText : theme.centerChannelColor;
     const textStyles = useMemo(() => [
         isOnHome ?
-            (isBolded && !isMuted ? {...textStyle.bold, color: theme.centerChannelColor} : {...textStyle.regular, color: theme.centerChannelColor}) :
+            (isBolded && !isMuted ? {...textStyle.bold, color: homeTextColor} : {...textStyle.regular, color: homeTextColor}) :
             (isBolded && !isMuted ? textStyle.bold : textStyle.regular),
         isOnHome ? null : styles.text,
         isOnHome ? null : isBolded && styles.highlight,
         isOnHome ? null : showActive && styles.textActive,
         isOnCenterBg ? styles.textOnCenterBg : null,
         isMuted && !isOnHome && styles.muted,
-        isMuted && isOnHome && {color: changeOpacity(theme.centerChannelColor, 0.32)},
+        // 置顶频道的已静音文字也使用浅色(sidebarText)以保持与深色背景的一致性
+        isMuted && isOnHome && {color: changeOpacity(homeTextColor, 0.32)},
         isMuted && isOnCenterBg && styles.mutedOnCenterBg,
-    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, theme]);
+    ], [isBolded, styles, isMuted, showActive, isOnCenterBg, isOnHome, isFavorite, homeTextColor, theme]);
 
     const homePadding = useMemo(() => ({
         paddingLeft: WECHAT_HOME_PADDING_H,
@@ -520,7 +524,8 @@ const ChannelItem = ({
                     style={[
                         containerStyle,
                         isCenterListCard && pressed && styles.centerListRowPressed,
-                        isOnHome && pressed && styles.homeRowPressed,
+                        // 置顶频道保持深色背景不变，按下态(homeRowPressed)不应覆盖置顶背景
+                        isOnHome && pressed && !isFavorite && styles.homeRowPressed,
                     ]}
                     testID={channelItemTestId}
                 >
@@ -566,7 +571,8 @@ const ChannelItem = ({
                                 type='Small'
                                 backgroundColor={theme.errorTextColor}
                                 color={theme.buttonColor}
-                                borderColor={isOnHome ? theme.centerChannelBg : (isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg)}
+                                // 置顶频道：徽章边框使用 sidebarBg 融入深色背景，避免白色(centerChannelBg)边框突兀
+                                borderColor={isOnHome ? (isFavorite ? theme.sidebarBg : theme.centerChannelBg) : (isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg)}
                                 style={[
                                     styles.badge,
                                     isMuted && styles.mutedBadge,
@@ -594,7 +600,13 @@ const ChannelItem = ({
                                 <Text
                                     numberOfLines={1}
                                     ellipsizeMode='tail'
-                                    style={[styles.subtitleHome, isMuted && {color: changeOpacity(theme.centerChannelColor, 0.32)}, isOnCenterBg && styles.subtitleOnCenterBg]}
+                                    style={[
+                                        styles.subtitleHome,
+                                        // 置顶频道的消息预览使用浅色(sidebarText)配合深色背景
+                                        isFavorite && {color: changeOpacity(theme.sidebarText, WECHAT_HOME_SECONDARY_TEXT_OPACITY)},
+                                        isMuted && {color: changeOpacity(isFavorite ? theme.sidebarText : theme.centerChannelColor, 0.32)},
+                                        isOnCenterBg && styles.subtitleOnCenterBg,
+                                    ]}
                                 >
                                     {subtitle}
                                 </Text>

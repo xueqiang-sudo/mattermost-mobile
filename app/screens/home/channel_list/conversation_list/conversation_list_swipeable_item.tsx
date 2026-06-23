@@ -79,8 +79,10 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 4,
         ...typography('Body', 75, 'SemiBold'),
     },
+    // 设为透明：置顶频道的深色背景(sidebarBg)需要穿透到可见层，
+    // 非置顶条目由 FlatList 自身的 centerChannelBg 背景提供底色
     channelItemWrapper: {
-        backgroundColor: theme.centerChannelBg,
+        backgroundColor: 'transparent',
     },
 }));
 
