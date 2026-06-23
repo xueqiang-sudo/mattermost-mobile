@@ -33,6 +33,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
         flex: 1,
     },
+    navBar: {
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.sidebarBg,
+    },
+    navTitle: {
+        color: theme.sidebarHeaderTextColor,
+        ...typography('Heading', 200, 'SemiBold'),
+    },
     scrollContent: {
         flexGrow: 1,
     },

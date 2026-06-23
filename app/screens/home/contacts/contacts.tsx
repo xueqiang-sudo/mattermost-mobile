@@ -11,7 +11,6 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchTeamById} from '@actions/remote/team';
-import {ContactsBarEnterpriseTitle} from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -113,7 +112,6 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
     const currentUserId = useMemo(() => currentUser?.id, [currentUser]);
     const companyName = useMemo(() => currentTeam?.displayName?.trim(), [currentTeam]);
 
-    const [contactsHeaderWidth, setContactsHeaderWidth] = useState(0);
     const [ownerId, setOwnerId] = useState<string | undefined>();
     const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | undefined>(currentUserId);
 
@@ -211,16 +209,14 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                 <Animated.View style={[styles.flex, animated]}>
                     <View style={styles.flex}>
                         <View
-                            style={[styles.header, {position: 'relative', minHeight: 44}]}
-                            onLayout={(e) => setContactsHeaderWidth(e.nativeEvent.layout.width)}
+                            style={[styles.header, {position: 'relative', minHeight: 48, justifyContent: 'center'}]}
                         >
-                            <ContactsBarEnterpriseTitle
-                                text={(companyName?.trim()) || intl.formatMessage({id: 'contacts.title', defaultMessage: 'Contacts'})}
-                                textStyle={styles.headerTitle}
+                            <Text
+                                style={styles.headerTitle}
                                 testID='contacts.header.title'
-                                barWidth={contactsHeaderWidth}
-                                actionsBlockWidth={0}
-                            />
+                            >
+                                {intl.formatMessage({id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'})}
+                            </Text>
                         </View>
                         <ScrollView
                             style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
