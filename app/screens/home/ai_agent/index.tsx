@@ -24,6 +24,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
         flex: 1,
     },
+    navBar: {
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.sidebarBg,
+    },
+    navTitle: {
+        color: theme.sidebarHeaderTextColor,
+        ...typography('Heading', 200, 'SemiBold'),
+    },
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
@@ -163,6 +173,13 @@ const AppsScreen = () => {
             edges={edges}
             style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
         >
+            {/* 导航栏：标题"应用"居中显示，支持三语 */}
+            <View style={styles.navBar}>
+                <Text style={styles.navTitle}>
+                    {intl.formatMessage({id: 'tab_bar.apps.label', defaultMessage: 'Apps'})}
+                </Text>
+            </View>
+
             <View style={styles.container}>
                 {/* 入库按钮 */}
                 <Pressable
@@ -173,7 +190,7 @@ const AppsScreen = () => {
                         pressed && {opacity: 0.85},
                     ]}
                 >
-                    <CompassIcon name='arrow-down-box' size={24} color='#FFFFFF'/>
+                    <CompassIcon name='download-outline' size={24} color='#FFFFFF'/>
                     <Text style={styles.buttonText}>
                         {intl.formatMessage({id: 'apps.stock_in', defaultMessage: 'Stock In'})}
                     </Text>
@@ -188,7 +205,7 @@ const AppsScreen = () => {
                         pressed && {opacity: 0.85},
                     ]}
                 >
-                    <CompassIcon name='arrow-up-box' size={24} color='#FFFFFF'/>
+                    <CompassIcon name='export-variant' size={24} color='#FFFFFF'/>
                     <Text style={styles.buttonText}>
                         {intl.formatMessage({id: 'apps.stock_out', defaultMessage: 'Stock Out'})}
                     </Text>
