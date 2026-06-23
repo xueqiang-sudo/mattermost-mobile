@@ -18,7 +18,7 @@ const Me = ({isFocused, theme}: Props) => {
         <View>
             <CompassIcon
                 size={BOTTOM_TAB_ICON_SIZE}
-                name='account-circle-outline'
+                name='account-outline'
                 color={isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY)}
             />
         </View>

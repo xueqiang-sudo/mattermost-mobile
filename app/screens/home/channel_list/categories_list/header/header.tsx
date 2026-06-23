@@ -178,6 +178,7 @@ const ChannelListHeader = ({
     const [dropdownAnchorRight, setDropdownAnchorRight] = useState(0);
     const [dropdownAnchorTop, setDropdownAnchorTop] = useState(0);
     const plusButtonRef = useRef<View>(null);
+    const menuButtonRef = useRef<View>(null);
 
     // --- 连接状态 ---
     const netInfo = useNetInfo();
@@ -339,18 +340,25 @@ const ChannelListHeader = ({
     if (displayName) {
         header = (
             <View style={styles.outsideBox}>
-                <TouchableWithFeedback
-                    onPress={openDrawer}
-                    style={styles.menuButton}
-                    testID='channel_list_header.menu.button'
-                    type='opacity'
-                >
-                    <OpenDrawerIcon
-                        width={22}
-                        height={22}
-                        color={theme.centerChannelColor}
-                    />
-                </TouchableWithFeedback>
+                <View ref={menuButtonRef} collapsable={false}>
+                    <TouchableWithFeedback
+                        onPress={() => {
+                            // 测量汉堡图标位置，让抽屉面板从图标下方开始显示
+                            menuButtonRef.current?.measureInWindow((_x, y, _w, h) => {
+                                openDrawer(y + h + 4);
+                            });
+                        }}
+                        style={styles.menuButton}
+                        testID='channel_list_header.menu.button'
+                        type='opacity'
+                    >
+                        <OpenDrawerIcon
+                            width={22}
+                            height={22}
+                            color={theme.centerChannelColor}
+                        />
+                    </TouchableWithFeedback>
+                </View>
                 <View style={{flex: 1}}/>
                 {Boolean(statusText) && (
                     <Text

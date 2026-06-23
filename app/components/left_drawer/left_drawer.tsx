@@ -20,7 +20,7 @@ const SWIPE_THRESHOLD = 30;
 const SWIPE_VELOCITY_THRESHOLD = 150;
 
 export default function LeftDrawer() {
-    const {isOpen, closeDrawer} = useLeftDrawer();
+    const {isOpen, closeDrawer, hamburgerY} = useLeftDrawer();
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const translateX = useSharedValue(-DRAWER_WIDTH);
@@ -83,7 +83,8 @@ export default function LeftDrawer() {
             <Animated.View
                 style={[
                     styles.panel,
-                    {width: DRAWER_WIDTH, paddingTop: insets.top},
+                    // 抽屉面板从汉堡图标下方开始，而非从屏幕顶部开始
+                    {width: DRAWER_WIDTH, top: hamburgerY || insets.top},
                     panelStyle,
                 ]}
                 pointerEvents={isOpen ? 'auto' : 'none'}
