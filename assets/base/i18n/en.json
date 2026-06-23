@@ -2247,5 +2247,14 @@
   "clear_history.title": "Clear Chat History",
   "clear_history.message": "Are you sure you want to clear the chat history? Messages will no longer be visible to you, but other members can still see them.",
   "clear_history.confirm": "Clear",
-  "more_direct_channels.title": "Direct Messages"
+  "more_direct_channels.title": "Direct Messages",
+  "conversation_list.swipe.mark_unread": "Mark as Unread",
+  "conversation_list.swipe.hide": "Hide",
+  "conversation_list.swipe.delete": "Delete",
+  "conversation_list.swipe.clear_history_title": "Clear history and hide chat",
+  "conversation_list.swipe.clear_history_message": "Chat history will be cleared and this chat will be hidden. Messages will no longer be visible to you, but other members can still see them.",
+  "conversation_list.swipe.clear_history_confirm": "Clear and Hide",
+  "conversation_list.swipe.hide_chat_title": "Hide this chat",
+  "conversation_list.swipe.hide_chat_message": "This chat will be hidden from your list. It will reappear when there are new messages.",
+  "conversation_list.swipe.hide_chat_confirm": "Hide"
 }

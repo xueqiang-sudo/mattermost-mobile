@@ -2245,5 +2245,14 @@
   "clear_history.title": "清空聊天记录",
   "clear_history.message": "确定要清空聊天记录吗？消息将不再对你可见，但其他成员仍可看到。",
   "clear_history.confirm": "清空",
-  "more_direct_channels.title": "发起群聊"
+  "more_direct_channels.title": "发起群聊",
+  "conversation_list.swipe.mark_unread": "标为未读",
+  "conversation_list.swipe.hide": "不显示",
+  "conversation_list.swipe.delete": "删除",
+  "conversation_list.swipe.clear_history_title": "清空记录并隐藏聊天",
+  "conversation_list.swipe.clear_history_message": "聊天记录将被清空，该聊天将被隐藏。消息将不再对您显示，但其他成员仍然可以看到。",
+  "conversation_list.swipe.clear_history_confirm": "清空并隐藏",
+  "conversation_list.swipe.hide_chat_title": "不显示该聊天",
+  "conversation_list.swipe.hide_chat_message": "该聊天将从列表中隐藏。有新消息时将重新显示。",
+  "conversation_list.swipe.hide_chat_confirm": "不显示"
 }

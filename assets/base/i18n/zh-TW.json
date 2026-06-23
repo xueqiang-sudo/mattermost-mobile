@@ -2225,5 +2225,14 @@
   "clear_history.title": "清除聊天記錄",
   "clear_history.message": "確定要清除聊天記錄嗎？訊息將不再對你可見，但其他成員仍可看到。",
   "clear_history.confirm": "清除",
-  "more_direct_channels.title": "發起群組"
+  "more_direct_channels.title": "發起群組",
+  "conversation_list.swipe.mark_unread": "標爲未讀",
+  "conversation_list.swipe.hide": "不顯示",
+  "conversation_list.swipe.delete": "刪除",
+  "conversation_list.swipe.clear_history_title": "清空記錄並隱藏聊天",
+  "conversation_list.swipe.clear_history_message": "聊天記錄將被清空，該聊天將被隱藏。消息將不再對您顯示，但其他成員仍然可以看到。",
+  "conversation_list.swipe.clear_history_confirm": "清空並隱藏",
+  "conversation_list.swipe.hide_chat_title": "不顯示該聊天",
+  "conversation_list.swipe.hide_chat_message": "該聊天將從列表中隱藏。有新消息時將重新顯示。",
+  "conversation_list.swipe.hide_chat_confirm": "不顯示"
 }
