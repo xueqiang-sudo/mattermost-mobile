@@ -798,6 +798,9 @@ export const searchUsers = async (serverUrl: string, term: string, teamId: strin
 export const buildProfileImageUrl = (serverUrl: string, userId: string, timestamp = 0) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
+        if (timestamp === 0) {
+            return client.getDefaultProfilePictureUrl(userId);
+        }
         return client.getProfilePictureUrl(userId, timestamp);
     } catch (error) {
         return '';

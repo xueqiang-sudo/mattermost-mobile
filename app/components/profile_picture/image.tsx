@@ -74,11 +74,6 @@ const Image = ({author, forwardRef, iconSize, size, source, url, borderRadius, u
             return undefined;
         }
 
-        // 用户从未上传过头像（lastPictureUpdateAt 为 0），跳过图片加载，降级到首字显示
-        if (lastPictureUpdateAt === 0 && !source) {
-            return undefined;
-        }
-
         const pictureUrl = buildProfileImageUrlFromUser(serverUrl, author);
         return source ?? {uri: buildAbsoluteUrl(serverUrl, pictureUrl)};
 
@@ -89,7 +84,9 @@ const Image = ({author, forwardRef, iconSize, size, source, url, borderRadius, u
     }, [author, serverUrl, source, lastPictureUpdateAt]);
     const id = useMemo(() => {
         if (author) {
-            return `user-${author.id}-${lastPictureUpdateAt}`;
+            return lastPictureUpdateAt === 0
+                ? `user-${author.id}-default`
+                : `user-${author.id}-${lastPictureUpdateAt}`;
         }
 
         return undefined;

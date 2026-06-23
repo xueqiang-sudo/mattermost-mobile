@@ -46,7 +46,7 @@ const ContactAvatar = ({employee, size = 40}: Props) => {
     }, [employee]);
 
     const imgSource = useMemo(() => {
-        if (!employee || lastPictureUpdate === 0) {
+        if (!employee) {
             return undefined;
         }
         const pictureUrl = buildProfileImageUrlFromUser(serverUrl, employee);
