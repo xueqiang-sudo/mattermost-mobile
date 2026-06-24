@@ -772,6 +772,35 @@ const ContactsDepartmentDetail = ({
                     testID='contacts.department_detail.manage.more.modify_name'
                 />
                 <SlideUpPanelItem
+                    leftIcon='account-multiple-outline'
+                    text={intl.formatMessage({id: 'contacts.batch_move_members', defaultMessage: 'Batch move members'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        let sourceId: number | null;
+                        let sourceName: string;
+                        if (departmentId == null) {
+                            sourceId = null;
+                            sourceName = intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'});
+                        } else {
+                            sourceId = departmentId;
+                            sourceName = departmentName ?? '';
+                        }
+                        showModalWithBackButton(
+                            Screens.CONTACTS_BATCH_MOVE_MEMBERS,
+                            intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
+                            'close-contacts-batch-move',
+                            {
+                                companyId,
+                                sourceDepartmentId: sourceId,
+                                sourceDepartmentName: sourceName,
+                                onSuccess: fetchData,
+                            },
+                            {useBackIcon: true, topBar: {visible: false}},
+                        );
+                    }}
+                    testID='contacts.department_detail.manage.more.batch_move'
+                />
+                <SlideUpPanelItem
                     leftIcon='crown-outline'
                     text={managerMenuText}
                     onPress={openManagerModal}
@@ -833,7 +862,7 @@ const ContactsDepartmentDetail = ({
                 />
             </>
         );
-        const itemCount = 3 + (departmentId != null && memberCount === 0 ? 1 : 0);
+        const itemCount = 4 + (departmentId != null && memberCount === 0 ? 1 : 0);
         bottomSheet({
             closeButtonId: 'close-contacts-manage-more',
             renderContent,
