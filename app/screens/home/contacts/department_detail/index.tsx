@@ -557,7 +557,23 @@ const ContactsDepartmentDetail = ({
 
     const handleToggleManage = usePreventDoubleTap(useCallback(() => {
         setManageMode((prev) => !prev);
-    }, []));
+        const title = intl.formatMessage({id: 'contacts.manage_contacts', defaultMessage: 'Manage Contacts'});
+        const closeId = `close-contacts-manage-${companyId}-${departmentId ?? 'all'}`;
+        showModalWithBackButton(
+            Screens.CONTACTS_MANAGE,
+            title,
+            closeId,
+            {
+                companyId,
+                companyName,
+                departmentId: departmentId ?? undefined,
+                departmentName,
+                breadcrumb: baseBreadcrumb,
+                closeButtonId: closeId,
+            },
+            {useBackIcon: true},
+        );
+    }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName, intl]));
 
     useNavButtonPressed(DEPT_SEARCH_BUTTON_ID, effectiveCloseButtonId, handleSearch, [handleSearch]);
     useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleToggleManage, [handleToggleManage]);
