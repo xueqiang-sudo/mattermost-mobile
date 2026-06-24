@@ -51,6 +51,10 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
     const isTeamAdmin = combineLatest([teamId, userId]).pipe(
         switchMap(([tId, uId]) => observeUserIsTeamAdmin(database, uId, tId)),
     );
+    const isChannelCreator = combineLatest([channel, userId]).pipe(
+        switchMap(([c, uId]) => of$(Boolean(c?.creatorId && c.creatorId === uId))),
+        distinctUntilChanged(),
+    );
 
     const callsPluginEnabled = observeCallsConfig(serverUrl).pipe(
         switchMap((config) => of$(config.pluginEnabled)),
@@ -249,6 +253,8 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         displayName,
         teamInviteId,
         teamDisplayName,
+        isTeamAdmin,
+        isChannelCreator,
     };
 });
 

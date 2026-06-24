@@ -157,6 +157,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
         borderRadius: 4,
         marginHorizontal: 8,
+        marginTop: 12,
         marginBottom: 8,
         paddingHorizontal: 12,
         paddingVertical: 8,
@@ -174,7 +175,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        paddingHorizontal: 4,
     },
     moreCount: {
         alignItems: 'center',

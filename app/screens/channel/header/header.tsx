@@ -137,26 +137,10 @@ const ChannelHeader = ({
     }, [componentId]);
 
     const onTitlePress = usePreventDoubleTap(useCallback((() => {
-        let title;
-        switch (channelType) {
-            case General.DM_CHANNEL:
-                title = intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'});
-                break;
-            case General.GM_CHANNEL:
-                title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
-                break;
-            case General.PRIVATE_CHANNEL:
-                title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
-                break;
-            case General.OPEN_CHANNEL:
-                title = channelName === General.DEFAULT_CHANNEL
-                    ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
-                    : intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
-                break;
-            default:
-                title = intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
-                break;
-        }
+        const isChannel = channelType === General.OPEN_CHANNEL || channelType === General.PRIVATE_CHANNEL;
+        const title = isChannel
+            ? intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'})
+            : intl.formatMessage({id: 'screens.group_info', defaultMessage: 'Group info'});
 
         const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
         const closeButtonId = 'close-channel-info';

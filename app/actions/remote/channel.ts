@@ -1032,14 +1032,7 @@ export async function createGroupChannel(serverUrl: string, userIds: string[]) {
         }
 
         const created = await client.createGroupChannel(userIds);
-
-        // Check the channel previous existency: if the channel already have
-        // posts is because it existed before.
-        if (created.total_msg_count > 0) {
-            openChannelIfNeeded(serverUrl, created.id);
-            EphemeralStore.creatingChannel = false;
-            return {data: created};
-        }
+        const isExistingGM = created.total_msg_count > 0;
 
         const displayNamePreferences = await queryDisplayNamePreferences(database, Preferences.NAME_NAME_FORMAT).fetch();
         const license = await getLicense(database);
@@ -1090,6 +1083,12 @@ export async function createGroupChannel(serverUrl: string, userIds: string[]) {
         }
         EphemeralStore.creatingDMorGMTeammates = [];
         fetchRolesIfNeeded(serverUrl, member.roles.split(' '));
+
+        // For existing GM (had previous messages), ensure channel is opened locally
+        if (isExistingGM) {
+            openChannelIfNeeded(serverUrl, created.id);
+        }
+
         return {data: created};
     } catch (error) {
         logDebug('error on createGroupChannel', getFullErrorMessage(error));

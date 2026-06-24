@@ -14,7 +14,6 @@ import {General, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {observeChannel} from '@queries/servers/channel';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
-import {isDefaultChannel, usesDiscussionGroupChannelCopy} from '@utils/channel';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type {StyleProp, ViewStyle} from 'react-native';
@@ -28,17 +27,18 @@ type Props = {
 
 type InnerProps = Props & {
     channelType?: ChannelType;
-    isTeamDefaultOpenChannel?: boolean;
 }
 
-const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenChannel = false, showAsLabel = false, testID}: InnerProps) => {
+const InfoBoxBody = ({channelId, channelType, containerStyle, showAsLabel = false, testID}: InnerProps) => {
     const intl = useIntl();
     const theme = useTheme();
-    const discussionUx = usesDiscussionGroupChannelCopy(channelType);
+    const isChannel = channelType === General.OPEN_CHANNEL || channelType === General.PRIVATE_CHANNEL;
 
     const onViewInfo = useCallback(async () => {
         await dismissBottomSheet();
-        const title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
+        const title = isChannel
+            ? intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'})
+            : intl.formatMessage({id: 'screens.group_info', defaultMessage: 'Group info'});
         const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
         const closeButtonId = 'close-channel-info';
 
@@ -52,21 +52,11 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenC
             },
         };
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
-    }, [channelId, intl, theme]);
+    }, [channelId, intl, isChannel, theme]);
 
-    const slideUpLabel = discussionUx
-        ? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'})
-        : channelType === General.DM_CHANNEL
-            ? intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'})
-            : channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel
-                ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
-                : channelType === General.PRIVATE_CHANNEL
-                    ? intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'})
-                    : channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel
-                        ? intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'})
-                        : channelType === General.OPEN_CHANNEL
-                            ? intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'})
-                            : intl.formatMessage({id: 'channel_header.info', defaultMessage: 'View info'});
+    const slideUpLabel = isChannel
+        ? intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'})
+        : intl.formatMessage({id: 'screens.group_info', defaultMessage: 'Group info'});
 
     if (showAsLabel) {
         return (
@@ -97,10 +87,7 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     const channelType = channel.pipe(
         switchMap((c) => of$(c?.type as ChannelType | undefined)),
     );
-    const isTeamDefaultOpenChannel = channel.pipe(
-        switchMap((c) => of$(Boolean(c?.type === General.OPEN_CHANNEL && isDefaultChannel(c)))),
-    );
-    return {channelType, isTeamDefaultOpenChannel};
+    return {channelType};
 });
 
 export default withDatabase(enhanced(InfoBoxBody));

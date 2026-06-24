@@ -28,6 +28,7 @@ type Props = {
     componentId: AvailableScreens;
     currentUserId: string;
     displayName?: string;
+    isChannelCreator: boolean;
     isFavorite: boolean;
     isMuted: boolean;
     memberIds: string[];
@@ -90,6 +91,7 @@ const ChannelInfoGM = ({
     componentId,
     currentUserId,
     displayName,
+    isChannelCreator,
     isFavorite,
     isMuted,
     memberIds,
@@ -134,10 +136,10 @@ const ChannelInfoGM = ({
         const title = intl.formatMessage({id: 'gm_settings.edit_group_name_title', defaultMessage: 'Edit Group Name'});
         goToScreen(Screens.EDIT_GROUP_NAME, title, {
             channelId,
-            initialDisplayName: displayName || '',
+            initialDisplayName: '',
             memberIds,
         });
-    }, [channelId, displayName, memberIds, intl]);
+    }, [channelId, memberIds, intl]);
 
     const handleEditNickname = useCallback(() => {
         const title = intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'});
@@ -218,7 +220,7 @@ const ChannelInfoGM = ({
                             currentUserId={currentUserId}
                             myNickname={myNickname}
                             showAddButton={true}
-                            showRemoveButton={true}
+                            showRemoveButton={isChannelCreator}
                             showSearch={true}
                             onAddPress={handleAddPeople}
                             onRemovePress={handleRemovePeople}
@@ -233,17 +235,17 @@ const ChannelInfoGM = ({
                         testID='channel_info_gm.group_id'
                     />
 
-                    {/* Group Name — tap to open edit screen */}
+                    {/* Group Chat Name — tap to open edit screen */}
                     <TouchableOpacity
                         onPress={handleEditGroupName}
                         style={styles.nicknameRow}
                         testID='channel_info_gm.group_name'
                     >
                         <Text style={styles.navRowLabel}>
-                            {intl.formatMessage({id: 'channel_info_rhs.gm.group_name', defaultMessage: 'Group Name'})}
+                            {intl.formatMessage({id: 'channel_info_rhs.gm.group_chat_name', defaultMessage: 'Group Chat Name'})}
                         </Text>
                         <Text style={styles.navRowValue} numberOfLines={1}>
-                            {displayName || ''}
+                            {displayName || intl.formatMessage({id: 'channel_info_rhs.gm.group_chat_name_hint', defaultMessage: 'Set now, members will be notified'})}
                         </Text>
                         <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
                     </TouchableOpacity>
@@ -258,7 +260,7 @@ const ChannelInfoGM = ({
                             {intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'})}
                         </Text>
                         <Text style={styles.navRowValue} numberOfLines={1}>
-                            {myNickname || ''}
+                            {myNickname || intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname_hint', defaultMessage: 'Not set'})}
                         </Text>
                         <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
                     </TouchableOpacity>

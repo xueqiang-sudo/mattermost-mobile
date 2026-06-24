@@ -67,6 +67,8 @@ type Props = {
     displayName?: string;
     teamInviteId?: string;
     teamDisplayName?: string;
+    isTeamAdmin: boolean;
+    isChannelCreator: boolean;
 }
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
@@ -119,6 +121,8 @@ const ChannelInfo = ({
     displayName,
     teamInviteId,
     teamDisplayName,
+    isTeamAdmin,
+    isChannelCreator,
 }: Props) => {
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -165,6 +169,7 @@ const ChannelInfo = ({
                 componentId={componentId}
                 currentUserId={currentUserId}
                 displayName={displayName}
+                isChannelCreator={isChannelCreator}
                 isFavorite={isFavorite}
                 isMuted={isMuted}
                 memberIds={memberIds}
@@ -182,6 +187,7 @@ const ChannelInfo = ({
                 displayName={displayName}
                 isFavorite={isFavorite}
                 isMuted={isMuted}
+                isTeamAdmin={isTeamAdmin}
                 memberIds={memberIds}
                 teamInviteId={teamInviteId}
                 teamDisplayName={teamDisplayName}

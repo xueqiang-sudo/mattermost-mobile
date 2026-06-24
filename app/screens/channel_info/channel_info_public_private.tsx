@@ -29,6 +29,7 @@ type Props = {
     displayName?: string;
     isFavorite: boolean;
     isMuted: boolean;
+    isTeamAdmin: boolean;
     memberIds: string[];
     teamInviteId?: string;
     teamDisplayName?: string;
@@ -70,6 +71,7 @@ const ChannelInfoPublicPrivate = ({
     componentId,
     isFavorite,
     isMuted,
+    isTeamAdmin,
     memberIds,
     teamInviteId,
     teamDisplayName,
@@ -97,6 +99,11 @@ const ChannelInfoPublicPrivate = ({
             intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
         );
     }, [intl]);
+
+    const handleRemovePeople = useCallback(() => {
+        const title = intl.formatMessage({id: 'channel_info.remove_members', defaultMessage: 'Remove Members'});
+        goToScreen(Screens.REMOVE_MEMBERS, title, {channelId});
+    }, [channelId, intl]);
 
     const handleSearchHistory = useCallback(async () => {
         const title = intl.formatMessage({id: 'gm_settings.search_chat_history', defaultMessage: 'Search Chat History'});
@@ -173,10 +180,11 @@ const ChannelInfoPublicPrivate = ({
                         <MemberGrid
                             memberIds={memberIds}
                             showAddButton={true}
-                            showRemoveButton={false}
+                            showRemoveButton={isTeamAdmin}
                             showSearch={true}
                             maxVisible={MAX_VISIBLE_MEMBERS}
                             onAddPress={handleInvitePeople}
+                            onRemovePress={handleRemovePeople}
                             testID='channel_info_public_private.member_grid'
                         />
                     </View>
