@@ -4,17 +4,27 @@
 
 import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {Navigation} from 'react-native-navigation';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {fetchContactDirectoryContent, fetchDepartmentDetail, fetchEmployeeCountOfDepartment} from '@actions/remote/contact_new';
+import {
+    createSubDepartment,
+    deleteContactDepartmentForce,
+    fetchContactDepartment,
+    fetchContactDirectoryContent,
+    fetchDepartmentDetail,
+    fetchEmployeeCountOfDepartment,
+    updateContactDepartment,
+} from '@actions/remote/contact_new';
 import {fetchTeamById, getTeamMembersByIds} from '@actions/remote/team';
 import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
+import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import TeamManagerModal from '@components/team_manager_modal';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -23,7 +33,8 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
-import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModalWithBackButton} from '@screens/navigation';
+import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
+import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, showModal, showModalWithBackButton} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
 import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
@@ -38,6 +49,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 const CLOSE_BUTTON_ID = 'close-contacts-department-detail';
 const DEPT_SEARCH_BUTTON_ID = 'contacts-department-detail-search';
 const DEPT_MANAGE_BUTTON_ID = 'contacts-department-detail-manage';
+const DEPT_EXIT_MANAGE_BUTTON_ID = 'contacts-department-detail-exit-manage';
 
 type Props = {
     componentId: AvailableScreens;
@@ -274,6 +286,31 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
         paddingVertical: 24,
     },
+    bottomBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        paddingBottom: 16,
+        backgroundColor: theme.centerChannelBg,
+        borderTopWidth: 1,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
+        gap: 8,
+    },
+    bottomButton: {
+        flex: 2,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.linkColor, 0.15),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    bottomButtonText: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.linkColor,
+    },
 }));
 
 const ContactsDepartmentDetail = ({
@@ -316,6 +353,14 @@ const ContactsDepartmentDetail = ({
     const resolvedOwnerId = ownerId ?? localOwnerId;
     const resolvedCurrentUserId = currentUserId ?? localCurrentUserId;
     const resolvedManagerIds = managerIds ?? localManagerIds;
+    const isCurrentUserOwner = Boolean(resolvedOwnerId && resolvedCurrentUserId && resolvedOwnerId === resolvedCurrentUserId);
+
+    /** 管理模式底部栏所需的输入弹窗与管理员弹窗状态 */
+    const subDeptInput = useCustomInputModal();
+    const modifyDeptNameInput = useCustomInputModal();
+    const modifyEnterpriseNameInput = useCustomInputModal();
+    const [managerVisible, setManagerVisible] = useState(false);
+    const [enterpriseDisplayName, setEnterpriseDisplayName] = useState<string | undefined>(companyName);
 
     const baseBreadcrumb = React.useMemo(
         () => (breadcrumb.length > 0 ? breadcrumb : [
@@ -555,52 +600,297 @@ const ContactsDepartmentDetail = ({
         );
     }, [baseBreadcrumb, companyId, departmentId, departmentName, companyName, intl, manageMode]));
 
-    const handleToggleManage = usePreventDoubleTap(useCallback(() => {
-        setManageMode((prev) => !prev);
-        const title = intl.formatMessage({id: 'contacts.manage_contacts', defaultMessage: 'Manage Contacts'});
-        const closeId = `close-contacts-manage-${companyId}-${departmentId ?? 'all'}`;
-        showModalWithBackButton(
-            Screens.CONTACTS_MANAGE,
-            title,
-            closeId,
-            {
-                companyId,
-                companyName,
-                departmentId: departmentId ?? undefined,
-                departmentName,
-                breadcrumb: baseBreadcrumb,
-                closeButtonId: closeId,
-            },
-            {useBackIcon: true},
+    const handleEnterManage = usePreventDoubleTap(useCallback(() => {
+        setManageMode(true);
+    }, []));
+
+    const handleExitManage = usePreventDoubleTap(useCallback(() => {
+        setManageMode(false);
+    }, []));
+
+    const openManagerModal = usePreventDoubleTap(useCallback(async () => {
+        await dismissBottomSheet();
+        setManagerVisible(true);
+    }, []));
+
+    const handleAddMember = usePreventDoubleTap(useCallback(() => {
+        const targetDepartmentId: number | null = departmentId ?? null;
+        const renderContent = () => (
+            <>
+                <SlideUpPanelItem
+                    leftIcon='camera-outline'
+                    text={intl.formatMessage({id: 'contacts.add_member_scan_qr', defaultMessage: 'Scan QR code'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        showQrScannerModal(intl, {
+                            scanContext: QR_SCAN_CONTEXT_JOIN_ENTERPRISE,
+                            extra: {
+                                contactTargetDepartmentId: targetDepartmentId,
+                            },
+                        });
+                    }}
+                    testID='contacts.department_detail.manage.add_member.scan_qr'
+                />
+                <SlideUpPanelItem
+                    leftIcon='account-plus-outline'
+                    text={intl.formatMessage({id: 'contacts.add_member_invite', defaultMessage: 'Invite to join'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        showModal(
+                            Screens.INVITE,
+                            intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
+                            {
+                                contactTargetDepartmentId: targetDepartmentId,
+                            },
+                        );
+                    }}
+                    testID='contacts.department_detail.manage.add_member.invite'
+                />
+            </>
         );
-    }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName, intl]));
+        bottomSheet({
+            closeButtonId: 'close-contacts-manage-add-member',
+            renderContent,
+            snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT)],
+            theme,
+            title: intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'}),
+        });
+    }, [departmentId, intl, theme]));
+
+    const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
+        const name = await subDeptInput.showModal({
+            title: intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'}),
+            placeholder: intl.formatMessage({id: 'contacts.sub_department_name_placeholder', defaultMessage: 'Enter department name'}),
+            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+        });
+        if (!name) {
+            return;
+        }
+        const res = await createSubDepartment(serverUrl, companyId, name, departmentId ?? undefined);
+        if (res.error) {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'}),
+                intl.formatMessage({id: 'contacts.add_sub_department_failed', defaultMessage: 'Failed to create sub-department. Please try again.'}),
+            );
+        } else {
+            fetchData();
+        }
+    }, [companyId, departmentId, intl, fetchData, serverUrl, subDeptInput]));
+
+    const handleModifyDepartmentName = useCallback(async () => {
+        if (departmentId == null || departmentName == null) {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                intl.formatMessage({id: 'contacts.enter_sub_department_first', defaultMessage: 'Please enter a sub-department first'}),
+            );
+            return;
+        }
+        const name = await modifyDeptNameInput.showModal({
+            title: intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'}),
+            placeholder: intl.formatMessage({id: 'contacts.department_name_placeholder', defaultMessage: 'Department name'}),
+            defaultValue: departmentName,
+            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+        });
+        if (!name) {
+            return;
+        }
+        const deptRes = await fetchContactDepartment(serverUrl, companyId, departmentId);
+        if (deptRes.error || !deptRes.data) {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                intl.formatMessage({id: 'contacts.update_department_failed', defaultMessage: 'Failed to update department. Please try again.'}),
+            );
+            return;
+        }
+        const res = await updateContactDepartment(
+            serverUrl,
+            companyId,
+            departmentId,
+            name,
+            deptRes.data.parent_id,
+        );
+        if (res.error) {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                intl.formatMessage({id: 'contacts.update_department_failed', defaultMessage: 'Failed to update department. Please try again.'}),
+            );
+        } else {
+            fetchData();
+        }
+    }, [companyId, departmentId, departmentName, intl, modifyDeptNameInput, fetchData, serverUrl]);
+
+    const handleModifyEnterpriseName = useCallback(async () => {
+        if (departmentId != null) {
+            return;
+        }
+        const currentName = enterpriseDisplayName ?? companyName ?? '';
+        const name = await modifyEnterpriseNameInput.showModal({
+            title: intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}),
+            placeholder: intl.formatMessage({id: 'contacts.enterprise_name_placeholder', defaultMessage: 'Enterprise name'}),
+            defaultValue: currentName,
+            confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
+            cancelContent: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+        });
+        if (!name) {
+            return;
+        }
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            await client.patchTeam({id: companyId, display_name: name.trim()});
+            setEnterpriseDisplayName(name.trim());
+            fetchData();
+        } catch {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                intl.formatMessage({id: 'contacts.update_enterprise_failed', defaultMessage: 'Failed to update enterprise. Please try again.'}),
+            );
+        }
+    }, [companyId, intl, modifyEnterpriseNameInput, fetchData, enterpriseDisplayName, companyName, departmentId, serverUrl]);
+
+    const handleMore = usePreventDoubleTap(useCallback(() => {
+        const managerMenuText = isCurrentUserOwner ?
+            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: 'Manager management'}) :
+            intl.formatMessage({id: 'contacts.manager_list', defaultMessage: 'Manager list'});
+
+        const renderContent = () => (
+            <>
+                <SlideUpPanelItem
+                    leftIcon='pencil-outline'
+                    text={departmentId == null ?
+                        intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}) :
+                        intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        if (departmentId == null) {
+                            handleModifyEnterpriseName();
+                        } else {
+                            handleModifyDepartmentName();
+                        }
+                    }}
+                    testID='contacts.department_detail.manage.more.modify_name'
+                />
+                <SlideUpPanelItem
+                    leftIcon='crown-outline'
+                    text={managerMenuText}
+                    onPress={openManagerModal}
+                    testID='contacts.department_detail.manage.more.manager_management'
+                />
+                {departmentId != null && memberCount === 0 && (
+                    <SlideUpPanelItem
+                        leftIcon='trash-can-outline'
+                        text={intl.formatMessage({id: 'contacts.delete_department', defaultMessage: 'Delete department'})}
+                        onPress={async () => {
+                            await dismissBottomSheet();
+                            const deptId = departmentId;
+                            const deptName = departmentName ?? '';
+                            const ok = await new Promise<boolean>((resolve) => {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'contacts.delete_department', defaultMessage: 'Delete department'}),
+                                    intl.formatMessage(
+                                        {id: 'contacts.delete_department_confirm', defaultMessage: 'Delete department "{name}"? This cannot be undone.'},
+                                        {name: deptName},
+                                    ),
+                                    [
+                                        {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), onPress: () => resolve(false)},
+                                        {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
+                                    ],
+                                );
+                            });
+                            if (!ok || deptId == null) {
+                                return;
+                            }
+                            const countRes = await fetchEmployeeCountOfDepartment(serverUrl, companyId, deptId);
+                            if (countRes.error || (countRes.data ?? 0) > 0) {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                                    intl.formatMessage({id: 'contacts.delete_department_has_members', defaultMessage: 'This department has members and cannot be deleted.'}),
+                                );
+                                return;
+                            }
+                            const delRes = await deleteContactDepartmentForce(serverUrl, companyId, deptId);
+                            if (delRes.error) {
+                                Alert.alert(
+                                    intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+                                    intl.formatMessage({id: 'contacts.delete_department_failed', defaultMessage: 'Failed to delete department. Please try again.'}),
+                                );
+                                return;
+                            }
+                            setManageMode(false);
+                            handleClose();
+                        }}
+                        testID='contacts.department_detail.manage.more.delete_department'
+                    />
+                )}
+                <SlideUpPanelItem
+                    leftIcon='close'
+                    text={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                    }}
+                    testID='contacts.department_detail.manage.more.cancel'
+                />
+            </>
+        );
+        const itemCount = 3 + (departmentId != null && memberCount === 0 ? 1 : 0);
+        bottomSheet({
+            closeButtonId: 'close-contacts-manage-more',
+            renderContent,
+            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
+            theme,
+            title: intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
+        });
+    }, [companyId, departmentId, departmentName, intl, isCurrentUserOwner, memberCount, fetchData, serverUrl, theme, handleClose, handleModifyDepartmentName, handleModifyEnterpriseName, openManagerModal]));
 
     useNavButtonPressed(DEPT_SEARCH_BUTTON_ID, effectiveCloseButtonId, handleSearch, [handleSearch]);
-    useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleToggleManage, [handleToggleManage]);
+    useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleEnterManage, [handleEnterManage]);
+    useNavButtonPressed(DEPT_EXIT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleExitManage, [handleExitManage]);
 
     useEffect(() => {
         if (onBack || fromEmployeeProfile) {
             return;
         }
         const searchIcon = CompassIcon.getImageSourceSync('magnify', 24, theme.sidebarHeaderTextColor);
-        const manageIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
-        mergeNavigationOptions(effectiveCloseButtonId, {
-            topBar: {
-                rightButtons: [
-                    {
-                        id: DEPT_MANAGE_BUTTON_ID,
-                        icon: manageIcon,
-                        testID: 'contacts.department_detail.manage.button',
-                    },
-                    {
-                        id: DEPT_SEARCH_BUTTON_ID,
-                        icon: searchIcon,
-                        testID: 'contacts.department_detail.search.button',
-                    },
-                ],
-            },
-        });
-    }, [effectiveCloseButtonId, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor]);
+
+        if (manageMode) {
+            const closeIcon = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+            mergeNavigationOptions(effectiveCloseButtonId, {
+                topBar: {
+                    rightButtons: [
+                        {
+                            id: DEPT_EXIT_MANAGE_BUTTON_ID,
+                            icon: closeIcon,
+                            testID: 'contacts.department_detail.exit_manage.button',
+                        },
+                        {
+                            id: DEPT_SEARCH_BUTTON_ID,
+                            icon: searchIcon,
+                            testID: 'contacts.department_detail.search.button',
+                        },
+                    ],
+                },
+            });
+        } else {
+            const manageIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
+            mergeNavigationOptions(effectiveCloseButtonId, {
+                topBar: {
+                    rightButtons: [
+                        {
+                            id: DEPT_MANAGE_BUTTON_ID,
+                            icon: manageIcon,
+                            testID: 'contacts.department_detail.manage.button',
+                        },
+                        {
+                            id: DEPT_SEARCH_BUTTON_ID,
+                            icon: searchIcon,
+                            testID: 'contacts.department_detail.search.button',
+                        },
+                    ],
+                },
+            });
+        }
+    }, [effectiveCloseButtonId, manageMode, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor]);
 
     const fetchData = useCallback(async () => {
         if (!mounted.current) {
@@ -894,17 +1184,31 @@ const ContactsDepartmentDetail = ({
                                 color={theme.sidebarHeaderTextColor}
                             />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={handleToggleManage}
-                            style={styles.stackHeaderBack}
-                            testID='contacts.department_detail.manage.button'
-                        >
-                            <CompassIcon
-                                name='format-list-bulleted'
-                                size={24}
-                                color={theme.sidebarHeaderTextColor}
-                            />
-                        </TouchableOpacity>
+                        {manageMode ? (
+                            <TouchableOpacity
+                                onPress={handleExitManage}
+                                style={styles.stackHeaderBack}
+                                testID='contacts.department_detail.exit_manage.button'
+                            >
+                                <CompassIcon
+                                    name='close'
+                                    size={24}
+                                    color={theme.sidebarHeaderTextColor}
+                                />
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                onPress={handleEnterManage}
+                                style={styles.stackHeaderBack}
+                                testID='contacts.department_detail.manage.button'
+                            >
+                                <CompassIcon
+                                    name='format-list-bulleted'
+                                    size={24}
+                                    color={theme.sidebarHeaderTextColor}
+                                />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             ) : null}
@@ -971,6 +1275,83 @@ const ContactsDepartmentDetail = ({
             >
                 {renderContent()}
             </ScrollView>
+            {manageMode && (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={styles.bottomButton}
+                        onPress={handleAddMember}
+                        activeOpacity={0.7}
+                        testID='contacts.department_detail.manage.add_member'
+                    >
+                        <Text style={styles.bottomButtonText}>
+                            {intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'})}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.bottomButton, {flex: 3}]}
+                        onPress={handleAddSubDepartment}
+                        activeOpacity={0.7}
+                        testID='contacts.department_detail.manage.add_sub_department'
+                    >
+                        <Text style={styles.bottomButtonText}>
+                            {intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'})}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.bottomButton, {flex: 1}]}
+                        onPress={handleMore}
+                        activeOpacity={0.7}
+                        testID='contacts.department_detail.manage.more'
+                    >
+                        <Text style={styles.bottomButtonText}>
+                            {intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More'})}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+            <CustomInputModal
+                key={subDeptInput.visible ? 'subdept-open' : 'subdept-closed'}
+                visible={subDeptInput.visible}
+                title={subDeptInput.options.title}
+                placeholder={subDeptInput.options.placeholder}
+                defaultValue={subDeptInput.options.defaultValue}
+                confirmContent={subDeptInput.options.confirmContent}
+                showCancelButton={subDeptInput.options.showCancelButton}
+                cancelContent={subDeptInput.options.cancelContent}
+                onConfirm={subDeptInput.handleConfirm}
+                onCancel={subDeptInput.handleCancel}
+            />
+            <CustomInputModal
+                key={modifyDeptNameInput.visible ? 'modify-dept-open' : 'modify-dept-closed'}
+                visible={modifyDeptNameInput.visible}
+                title={modifyDeptNameInput.options.title}
+                placeholder={modifyDeptNameInput.options.placeholder}
+                defaultValue={modifyDeptNameInput.options.defaultValue}
+                confirmContent={modifyDeptNameInput.options.confirmContent}
+                showCancelButton={modifyDeptNameInput.options.showCancelButton}
+                cancelContent={modifyDeptNameInput.options.cancelContent}
+                onConfirm={modifyDeptNameInput.handleConfirm}
+                onCancel={modifyDeptNameInput.handleCancel}
+            />
+            <CustomInputModal
+                key={modifyEnterpriseNameInput.visible ? 'modify-enterprise-open' : 'modify-enterprise-closed'}
+                visible={modifyEnterpriseNameInput.visible}
+                title={modifyEnterpriseNameInput.options.title}
+                placeholder={modifyEnterpriseNameInput.options.placeholder}
+                defaultValue={modifyEnterpriseNameInput.options.defaultValue}
+                confirmContent={modifyEnterpriseNameInput.options.confirmContent}
+                showCancelButton={modifyEnterpriseNameInput.options.showCancelButton}
+                cancelContent={modifyEnterpriseNameInput.options.cancelContent}
+                onConfirm={modifyEnterpriseNameInput.handleConfirm}
+                onCancel={modifyEnterpriseNameInput.handleCancel}
+            />
+            <TeamManagerModal
+                visible={managerVisible}
+                companyId={companyId}
+                onClose={() => setManagerVisible(false)}
+                onChanged={fetchData}
+                testIDPrefix='contacts.department_detail.manager_modal'
+            />
         </SafeAreaView>
     );
 };
