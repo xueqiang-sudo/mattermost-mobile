@@ -51,6 +51,9 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
         currentUserId: currentUser.pipe(
             switchMap((u) => of$(u?.id)),
         ),
+        currentUserName: currentUser.pipe(
+            switchMap((u) => of$(u?.nickname || u?.username || '')),
+        ),
         canInviteGuests,
         allowGuestMagicLink: observeConfigBooleanValue(database, 'EnableGuestMagicLink'),
     };

@@ -92,6 +92,7 @@ type Props = {
     canInviteGuests: boolean;
     allowGuestMagicLink: boolean;
     currentUserId?: string;
+    currentUserName?: string;
     contactTargetDepartmentId?: number | null;
 }
 
@@ -266,6 +267,7 @@ export default function Invite({
     teamInviteId,
     isAdmin,
     currentUserId,
+    currentUserName,
     contactTargetDepartmentId,
 }: Props) {
     const intl = useIntl();
@@ -473,7 +475,10 @@ export default function Invite({
             {id: 'invite_people_to_team.title', defaultMessage: 'Join the {team} enterprise'},
             {team: teamDisplayName},
         );
-        const message = formatMessage({id: 'invite_people_to_team.message', defaultMessage: "Here's a link to collaborate and communicate with us on Mattermost."});
+        const message = formatMessage(
+            {id: 'invite.share_invite_message', defaultMessage: '{name} invites you to join {team} for communication and collaboration'},
+            {name: currentUserName || '', team: teamDisplayName},
+        );
 
         await closeModal();
         try {
@@ -485,7 +490,7 @@ export default function Invite({
         } catch {
             // User cancelled share
         }
-    }, [serverUrl, resolvedInviteId, teamDisplayName, formatMessage]);
+    }, [serverUrl, resolvedInviteId, teamDisplayName, currentUserName, formatMessage]);
 
     // 底部按钮始终显示"添加成员"
     const doneLabel = formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});

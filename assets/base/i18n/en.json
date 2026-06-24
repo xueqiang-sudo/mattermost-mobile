@@ -618,6 +618,7 @@
   "invite.set_custom_message": "Set a custom message",
   "invite.shareLink": "Share link",
   "invite.share_invite_link": "Share invite link",
+  "invite.share_invite_message": "{name} invites you to join {team} for communication and collaboration",
   "invite.summary.back": "Go back",
   "invite.summary.done": "Done",
   "invite.summary.email_invite": "An invitation email has been sent",
