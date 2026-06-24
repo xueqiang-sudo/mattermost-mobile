@@ -1775,7 +1775,7 @@
   "screens.channel_edit.enterprise_main": "Edit enterprise main group",
   "screens.channel_edit_header": "Edit group chat header",
   "screens.channel_edit_conversation_note": "Edit conversation note",
-  "screens.channel_info": "Group chat info",
+  "screens.channel_info": "Channel info",
   "screens.channel_info.dm": "Direct message info",
   "screens.channel_info.gm": "Discussion group info",
   "screens.channel_info.private_group_chat": "Group chat info",
