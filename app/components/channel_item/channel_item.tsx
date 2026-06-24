@@ -16,7 +16,7 @@ import {isDMorGM} from '@utils/channel';
 import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {getHomeLastPostPreviewText} from '@utils/home_last_post_preview';
 import {formatMessagePreview} from '@utils/message_preview';
-import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
+import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_INSET, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getUserIdFromChannelName} from '@utils/user';
 import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
@@ -238,6 +238,16 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         opacity: 0.85,
     },
 
+    /** 首页列表项底部悬浮分割线 */
+    homeDivider: {
+        position: 'absolute' as const,
+        bottom: 0,
+        left: WECHAT_HOME_DIVIDER_INSET,
+        right: 0,
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: theme.dividerColor,
+    },
+
     // 已归档频道的操作按钮样式
     archivedActions: {
         flexDirection: 'row',
@@ -376,8 +386,10 @@ const ChannelItem = ({
             styles.container,
             listSurface,
             isOnHome ? homePadding : null,
-            // 频道和置顶聊天统一使用深色背景(sidebarBg)，与底部导航栏背景色一致
-            isOnHome && hasDarkBackground && {backgroundColor: theme.sidebarBg},
+            // 置顶聊天：浅色主题使用 sidebarBg (#ececec)，深色主题使用 sidebarTeamBarBg (#232323)
+            isOnHome && isFavorite && {backgroundColor: getKeyboardAppearanceFromTheme(theme) === 'light' ? theme.sidebarBg : theme.sidebarTeamBarBg},
+            // 未置顶聊天：使用 centerChannelBg（浅色主题为纯白色）
+            isOnHome && !isFavorite && {backgroundColor: theme.centerChannelBg},
             showActive && styles.activeItem,
             showActive && isOnHome && {
                 paddingLeft: WECHAT_HOME_PADDING_H - styles.activeItem.borderLeftWidth,
@@ -503,6 +515,7 @@ const ChannelItem = ({
                                 )}
                             </View>
                         )}
+                        {isOnHome && <View style={styles.homeDivider}/>}
                     </View>
                 )}
             </Pressable>
@@ -575,7 +588,7 @@ const ChannelItem = ({
                                 backgroundColor={theme.errorTextColor}
                                 color={theme.buttonColor}
                                 // 频道和置顶聊天：徽章边框使用 sidebarBg 融入深色背景，避免白色边框突兀
-                                borderColor={isOnHome ? (hasDarkBackground ? theme.sidebarBg : theme.centerChannelBg) : (isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg)}
+                                borderColor={isOnHome ? (hasDarkBackground ? theme.sidebarTeamBarBg : theme.centerChannelBg) : (isOnCenterBg ? theme.centerChannelBg : theme.sidebarBg)}
                                 style={[
                                     styles.badge,
                                     isMuted && styles.mutedBadge,
@@ -641,6 +654,7 @@ const ChannelItem = ({
                             )}
                         </>
                     )}
+                    {isOnHome && <View style={styles.homeDivider}/>}
                 </View>
             )}
         </Pressable>

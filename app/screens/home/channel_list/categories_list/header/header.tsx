@@ -4,8 +4,9 @@
 import {useNetInfo} from '@react-native-community/netinfo';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Dimensions, type Insets, StyleSheet, Text, View} from 'react-native';
+import {type Insets, StyleSheet, Text, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {logout} from '@actions/remote/session';
 import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
@@ -15,6 +16,7 @@ import {Screens} from '@constants';
 import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 
 import {useLeftDrawer} from '@context/left_drawer';
+import {type PlusMenuEntry, usePlusMenu} from '@context/plus_menu';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import WebsocketManager from '@managers/websocket_manager';
@@ -23,10 +25,8 @@ import {findChannels, showModal} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import {alertServerLogout} from '@utils/server';
-import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_DROPDOWN_GAP, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
-
-import DropdownMenu, {type MenuEntry} from './dropdown_menu';
 
 
 import type UserModel from '@typings/database/models/servers/user';
@@ -56,7 +56,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     headerDivider: {
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, WECHAT_HOME_DIVIDER_OPACITY),
+        borderBottomColor: theme.dividerColor,
     },
     headingStyles: {
         color: theme.centerChannelColor,
@@ -89,6 +89,9 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         height: PLUS_BUTTON_SIZE,
         width: PLUS_BUTTON_SIZE,
         borderRadius: PLUS_BUTTON_SIZE / 2,
+    },
+    plusButtonTouchable: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -168,7 +171,9 @@ const ChannelListHeader = ({
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const insets = useSafeAreaInsets();
     const {openDrawer} = useLeftDrawer();
+    const {openPlusMenu} = usePlusMenu();
     const serverDisplayName = useServerDisplayName();
     const marginLeft = useSharedValue(iconPad ? 50 : 0);
     const styles = getStyles(theme);
@@ -176,9 +181,6 @@ const ChannelListHeader = ({
         marginLeft: withTiming(marginLeft.value, {duration: 350}),
     }), []);
     const serverUrl = useServerUrl();
-    const [dropdownVisible, setDropdownVisible] = useState(false);
-    const [dropdownAnchorRight, setDropdownAnchorRight] = useState(0);
-    const [dropdownAnchorTop, setDropdownAnchorTop] = useState(0);
     const plusButtonRef = useRef<View>(null);
     const menuButtonRef = useRef<View>(null);
 
@@ -292,7 +294,7 @@ const ChannelListHeader = ({
         );
     }, [intl]);
 
-    const menuItems: MenuEntry[] = [
+    const menuItems: PlusMenuEntry[] = [
         {
             icon: 'account-multiple-outline',
             labelId: 'plus_menu.open_group_chat.title',
@@ -332,17 +334,19 @@ const ChannelListHeader = ({
     });
 
     const onPress = usePreventDoubleTap(useCallback(() => {
-        if (plusButtonRef.current) {
-            plusButtonRef.current.measureInWindow((x, y, width, height) => {
-                const screenWidth = Dimensions.get('window').width;
-                setDropdownAnchorRight(screenWidth - x - width);
-                setDropdownAnchorTop(y + height + 8);
-                setDropdownVisible(true);
-            });
-        } else {
-            setDropdownVisible((prev) => !prev);
+        const node = plusButtonRef.current;
+        if (!node) {
+            return;
         }
-    }, []));
+        node.measureInWindow((x, y, width, height) => {
+            openPlusMenu({
+                anchorLeft: x,
+                anchorWidth: width,
+                anchorTop: y + height + WECHAT_HOME_DROPDOWN_GAP,
+                items: menuItems,
+            });
+        });
+    }, [menuItems, openPlusMenu]));
 
     const onSearchPress = usePreventDoubleTap(useCallback(() => {
         findChannels(
@@ -403,11 +407,15 @@ const ChannelListHeader = ({
                             name='magnify'
                         />
                     </TouchableWithFeedback>
-                    <View ref={plusButtonRef} collapsable={false}>
+                    <View
+                        ref={plusButtonRef}
+                        collapsable={false}
+                        style={styles.plusButton}
+                    >
                         <TouchableWithFeedback
                             hitSlop={hitSlop}
                             onPress={onPress}
-                            style={styles.plusButton}
+                            style={styles.plusButtonTouchable}
                             testID='channel_list_header.plus.button'
                             type='opacity'
                         >
@@ -450,23 +458,14 @@ const ChannelListHeader = ({
     }
 
     return (
-        <>
-            <Animated.View style={animatedStyle}>
-                <View style={styles.headerContainer}>
-                    <View style={styles.headerContent}>
-                        {header}
-                    </View>
-                    <View style={styles.headerDivider}/>
+        <Animated.View style={animatedStyle}>
+            <View style={[styles.headerContainer, {paddingTop: insets.top}]}>
+                <View style={styles.headerContent}>
+                    {header}
                 </View>
-            </Animated.View>
-            <DropdownMenu
-                visible={dropdownVisible}
-                anchorRight={dropdownAnchorRight}
-                anchorTop={dropdownAnchorTop}
-                items={menuItems}
-                onClose={() => setDropdownVisible(false)}
-            />
-        </>
+                <View style={styles.headerDivider}/>
+            </View>
+        </Animated.View>
     );
 };
 

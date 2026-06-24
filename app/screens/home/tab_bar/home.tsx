@@ -175,7 +175,7 @@ const Home = ({isFocused, theme}: Props) => {
             />
             <Badge
                 backgroundColor={theme.errorTextColor}
-                borderColor={theme.sidebarBg}
+                borderColor={theme.sidebarTeamBarBg}
                 color={theme.buttonColor}
                 style={unreadStyle}
                 visible={!isFocused && Boolean(unreadStyle)}

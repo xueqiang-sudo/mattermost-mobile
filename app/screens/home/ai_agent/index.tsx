@@ -10,7 +10,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Platform, Pressable, Text, View} from 'react-native';
-import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
@@ -18,7 +18,7 @@ import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
+const edges: Edge[] = ['bottom', 'left', 'right'];
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
@@ -117,6 +117,7 @@ type ScanType = 'stock_in' | 'stock_out' | null;
 const AppsScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
     const styles = getStyleSheet(theme);
     const [scanType, setScanType] = useState<ScanType>(null);
     const [scanResult, setScanResult] = useState<string>('');
@@ -174,7 +175,7 @@ const AppsScreen = () => {
             style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
         >
             {/* 导航栏：标题"应用"居中显示，支持三语 */}
-            <View style={styles.navBar}>
+            <View style={[styles.navBar, {paddingTop: insets.top}]}>
                 <Text style={styles.navTitle}>
                     {intl.formatMessage({id: 'tab_bar.apps.label', defaultMessage: 'Apps'})}
                 </Text>

@@ -44,8 +44,8 @@ type ChannelProps = {
     showIncomingCalls: boolean;
 };
 
-/** 与我的主页 / 通讯录 Tab 一致：四边安全区 + sidebarBg 顶栏色 */
-const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
+/** 顶栏延伸至状态栏，顶部 inset 由 Header 自行 padding；底/左右仍走 SafeAreaView */
+const edges: Edge[] = ['bottom', 'left', 'right'];
 
 const styles = StyleSheet.create({
     content: {

@@ -12,11 +12,13 @@ import tinyColor from 'tinycolor2';
 
 import {autoUpdateTimezone} from '@actions/remote/user';
 import LeftDrawer from '@components/left_drawer';
+import PlusMenuOverlay from '@components/plus_menu_overlay';
 import ServerVersion from '@components/server_version';
 import TeamMembershipNotice from '@components/team_membership_notice';
 import {Events, Launch, Screens} from '@constants';
 import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 import {LeftDrawerProvider} from '@context/left_drawer';
+import {PlusMenuProvider} from '@context/plus_menu';
 import {useTheme} from '@context/theme';
 import {useAppState} from '@hooks/device';
 import SecurityManager from '@managers/security_manager';
@@ -155,9 +157,11 @@ export function HomeScreen(props: HomeProps) {
             <StatusBar
                 backgroundColor={theme.sidebarBg}
                 barStyle={tinyColor(theme.sidebarBg).isDark() ? 'light-content' : 'dark-content'}
+                translucent={Platform.OS === 'android'}
             />
             <LeftDrawerProvider>
-                <NavigationContainer
+                <PlusMenuProvider>
+                    <NavigationContainer
                     theme={{
                         ...DefaultTheme,
                         dark: false,
@@ -210,8 +214,10 @@ export function HomeScreen(props: HomeProps) {
                     </Tab.Navigator>
                 </NavigationContainer>
                 <LeftDrawer/>
+                <PlusMenuOverlay/>
                 <ServerVersion/>
                 <TeamMembershipNotice/>
+                </PlusMenuProvider>
             </LeftDrawerProvider>
         </View>
     );

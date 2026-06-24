@@ -27,6 +27,7 @@ type Theme = {
     mentionColor: string;
     centerChannelBg: string;
     centerChannelColor: string;
+    dividerColor: string;
     newMessageSeparator: string;
     linkColor: string;
     buttonBg: string;

@@ -231,7 +231,7 @@ export function getChatListBackdropColor(theme: Theme): string {
     if (base.isLight()) {
         return blendColors(theme.centerChannelBg, WECHAT_BACKDROP_LIGHT, 0.85, true);
     }
-    return base.lighten(5).toHexString();
+    return base.toHexString();
 }
 
 export type ChatBubbleSurfaceRole = 'own' | 'others';
@@ -340,6 +340,7 @@ export {
     WECHAT_HOME_AVATAR_SIZE,
     WECHAT_HOME_DIVIDER_INSET,
     WECHAT_HOME_DIVIDER_OPACITY,
+    WECHAT_HOME_DROPDOWN_GAP,
     WECHAT_HOME_PADDING_H,
     WECHAT_HOME_SECONDARY_TEXT_OPACITY,
 } from './wechat_home';

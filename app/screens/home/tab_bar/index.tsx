@@ -25,7 +25,7 @@ import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        backgroundColor: theme.sidebarBg,
+        backgroundColor: theme.sidebarTeamBarBg,
         alignContent: 'center',
         flexDirection: 'row',
         height: ViewConstants.BOTTOM_TAB_HEIGHT,
@@ -41,7 +41,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 2,
     },
     separator: {
-        borderTopColor: changeOpacity(theme.centerChannelColor, WECHAT_HOME_DIVIDER_OPACITY),
+        borderTopColor: theme.dividerColor,
         borderTopWidth: 0.5,
     },
 }));

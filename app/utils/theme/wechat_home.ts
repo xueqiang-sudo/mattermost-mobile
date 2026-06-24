@@ -18,3 +18,6 @@ export const WECHAT_HOME_SECONDARY_TEXT_OPACITY = 0.56;
 
 /** Subtle divider opacity for home list inset lines and chrome borders. */
 export const WECHAT_HOME_DIVIDER_OPACITY = 0.12;
+
+/** Vertical gap between + button and dropdown menu. */
+export const WECHAT_HOME_DROPDOWN_GAP = 8;

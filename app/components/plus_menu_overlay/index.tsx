@@ -3,46 +3,30 @@
 
 import React from 'react';
 import {useIntl} from 'react-intl';
-import {Modal, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
+import {type PlusMenuEntry, type PlusMenuItem, usePlusMenu} from '@context/plus_menu';
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-export type MenuItem = {
-    icon: string;
-    labelId: string;
-    defaultLabel: string;
-    onPress: () => void;
-    testID: string;
-};
-
-export type MenuSeparator = {
-    type: 'separator';
-};
-
-export type MenuEntry = MenuItem | MenuSeparator;
-
-type Props = {
-    visible: boolean;
-    anchorRight: number;
-    anchorTop: number;
-    items: MenuEntry[];
-    onClose: () => void;
-}
-
 const ITEM_HEIGHT = 44;
 const SEPARATOR_HEIGHT = 1;
 const MENU_PADDING = 8;
+const OVERLAY_Z_INDEX = 2000;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
-    overlay: {
-        flex: 1,
+    backdrop: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: OVERLAY_Z_INDEX,
+    },
+    anchor: {
+        position: 'absolute',
+        alignItems: 'flex-end',
+        zIndex: OVERLAY_Z_INDEX + 1,
     },
     menu: {
-        position: 'absolute',
         backgroundColor: theme.centerChannelBg,
         borderRadius: 8,
         paddingVertical: MENU_PADDING,
@@ -78,53 +62,45 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const DropdownMenu = ({visible, anchorRight, anchorTop, items, onClose}: Props) => {
+export default function PlusMenuOverlay() {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
-    const insets = useSafeAreaInsets();
+    const {visible, anchorLeft, anchorWidth, anchorTop, items, closePlusMenu} = usePlusMenu();
 
     if (!visible) {
         return null;
     }
 
-    // Android 上 statusBarTranslucent Modal 的坐标系包含状态栏，
-    // 但 measureInWindow 返回的 Y 不包含状态栏高度，需补偿 insets.top
-    const topOffset = Platform.OS === 'android' ? insets.top : 0;
-
-    const menuStyle = [
-        styles.menu,
-        {
-            right: anchorRight,
-            top: anchorTop + topOffset,
-        },
-    ];
-
     return (
-        <Modal
-            visible={visible}
-            transparent={true}
-            animationType='fade'
-            onRequestClose={onClose}
-            statusBarTranslucent={true}
-        >
-            <TouchableOpacity
-                style={styles.overlay}
-                activeOpacity={1}
-                onPress={onClose}
+        <>
+            <Pressable
+                style={styles.backdrop}
+                onPress={closePlusMenu}
+            />
+            <View
+                pointerEvents='box-none'
+                style={[
+                    styles.anchor,
+                    {
+                        left: anchorLeft,
+                        width: anchorWidth,
+                        top: anchorTop,
+                    },
+                ]}
             >
-                <View style={menuStyle}>
+                <View style={styles.menu}>
                     {items.map((entry, index) => {
                         if ('type' in entry && entry.type === 'separator') {
                             return <View key={`sep-${index}`} style={styles.separator}/>;
                         }
-                        const item = entry as MenuItem;
+                        const item = entry as PlusMenuItem;
                         return (
-                            <TouchableOpacity
+                            <Pressable
                                 key={item.testID}
                                 style={styles.item}
                                 onPress={() => {
-                                    onClose();
+                                    closePlusMenu();
                                     item.onPress();
                                 }}
                                 testID={item.testID}
@@ -137,13 +113,11 @@ const DropdownMenu = ({visible, anchorRight, anchorTop, items, onClose}: Props) 
                                 <Text style={styles.itemLabel}>
                                     {intl.formatMessage({id: item.labelId, defaultMessage: item.defaultLabel})}
                                 </Text>
-                            </TouchableOpacity>
+                            </Pressable>
                         );
                     })}
                 </View>
-            </TouchableOpacity>
-        </Modal>
+            </View>
+        </>
     );
-};
-
-export default DropdownMenu;
+}

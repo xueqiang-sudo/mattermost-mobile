@@ -8,7 +8,7 @@ import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {fetchTeamById} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
@@ -28,8 +28,8 @@ import type {MMDepartment} from '@client/rest/team_department';
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
 
-/** 通讯录在 Stack 内：不再用手动 topInset 条带（易与系统/导航层重复叠加成「双倍留白」），只由 SafeAreaView 统一处理四边 */
-const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
+/** 顶栏延伸至状态栏，顶部 inset 由 Header 自行 padding */
+const edges: Edge[] = ['bottom', 'left', 'right'];
 
 type Props = {
     currentUser?: UserModel;
@@ -100,6 +100,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeComponentId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const insets = useSafeAreaInsets();
     const serverUrl = useServerUrl();
     const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, keyof ContactsStackParamList>>();
     const isFocused = useIsFocused();
@@ -209,7 +210,7 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                 <Animated.View style={[styles.flex, animated]}>
                     <View style={styles.flex}>
                         <View
-                            style={[styles.header, {position: 'relative', minHeight: 48, justifyContent: 'center'}]}
+                            style={[styles.header, {position: 'relative', minHeight: 48, justifyContent: 'center', paddingTop: insets.top}]}
                         >
                             <Text
                                 style={styles.headerTitle}

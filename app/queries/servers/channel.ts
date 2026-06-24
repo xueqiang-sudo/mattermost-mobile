@@ -772,51 +772,18 @@ export function channelBelongsToTeamScopedConversations(
 
 /**
  * 对话列表排序规则：
- * 1. 默认频道（Town Square）始终排第一
- * 2. 非 DM/GM 频道（公开/私有频道）排在前面，按最近活动时间排序
- * 3. 置顶(Favorite)聊天排在频道后面，有新消息的置顶聊天排在置顶列表最前面
- * 4. 普通聊天（非置顶）排在置顶聊天后面，按最近活动时间排序
+ * 1. 置顶(Favorite)聊天始终排最前面，按最近活动时间排序
+ * 2. 非置顶的聊天（频道/DM/GM）按最近活动时间排序
  */
 function sortRecentConversationEntries(
     entries: Array<{channel: ChannelModel; myChannel: MyChannelModel}>,
     favoriteIds?: Set<string>,
 ): ChannelModel[] {
     return [...entries].sort((a, b) => {
-        // 第 1 优先级：默认频道（Town Square）始终排第一
-        const aIsDefault = a.channel.name === General.DEFAULT_CHANNEL;
-        const bIsDefault = b.channel.name === General.DEFAULT_CHANNEL;
-        if (aIsDefault && !bIsDefault) {
-            return -1;
-        }
-        if (!aIsDefault && bIsDefault) {
-            return 1;
-        }
-
         const aIsFavorite = favoriteIds?.has(a.channel.id) ?? false;
         const bIsFavorite = favoriteIds?.has(b.channel.id) ?? false;
 
-        // 判断是否为非 DM/GM 频道（公开/私有频道）
-        const aIsChannel = a.channel.type !== General.DM_CHANNEL && a.channel.type !== General.GM_CHANNEL;
-        const bIsChannel = b.channel.type !== General.DM_CHANNEL && b.channel.type !== General.GM_CHANNEL;
-
-        // 第 2 优先级：非 DM/GM 频道排在 DM/GM 前面
-        if (aIsChannel && !bIsChannel) {
-            return -1;
-        }
-        if (!aIsChannel && bIsChannel) {
-            return 1;
-        }
-
-        // 同为非 DM/GM 频道时，按最近活动时间排序
-        if (aIsChannel && bIsChannel) {
-            const sortTimeA = Math.max(a.myChannel.lastPostAt || 0, a.channel.createAt || 0);
-            const sortTimeB = Math.max(b.myChannel.lastPostAt || 0, b.channel.createAt || 0);
-            return sortTimeB - sortTimeA;
-        }
-
-        // 以下为 DM/GM 聊天之间的排序
-
-        // 第 3 优先级：置顶聊天排在非置顶前面
+        // 第 1 优先级：置顶聊天排在非置顶前面
         if (aIsFavorite && !bIsFavorite) {
             return -1;
         }
@@ -824,23 +791,14 @@ function sortRecentConversationEntries(
             return 1;
         }
 
-        // 第 4 优先级：同为置顶聊天时，有新消息的排在前面
+        // 同为置顶聊天时，按最近活动时间排序（最新的在最上面）
         if (aIsFavorite && bIsFavorite) {
-            const isUnreadA = a.myChannel.isUnread || a.myChannel.mentionsCount > 0;
-            const isUnreadB = b.myChannel.isUnread || b.myChannel.mentionsCount > 0;
-            if (isUnreadA && !isUnreadB) {
-                return -1;
-            }
-            if (!isUnreadA && isUnreadB) {
-                return 1;
-            }
-            // 同为置顶且未读状态相同时，按最近活动时间排序
             const sortTimeA = Math.max(a.myChannel.lastPostAt || 0, a.myChannel.lastViewedAt || 0, a.channel.createAt || 0);
             const sortTimeB = Math.max(b.myChannel.lastPostAt || 0, b.myChannel.lastViewedAt || 0, b.channel.createAt || 0);
             return sortTimeB - sortTimeA;
         }
 
-        // 第 5 优先级：普通聊天按最近活动时间排序
+        // 非置顶聊天按最近活动时间排序
         const sortTimeA = Math.max(a.myChannel.lastPostAt || 0, a.myChannel.lastViewedAt || 0, a.channel.createAt || 0);
         const sortTimeB = Math.max(b.myChannel.lastPostAt || 0, b.myChannel.lastViewedAt || 0, b.channel.createAt || 0);
         return sortTimeB - sortTimeA;

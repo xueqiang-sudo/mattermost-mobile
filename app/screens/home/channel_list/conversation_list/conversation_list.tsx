@@ -11,7 +11,7 @@ import {CHANNEL, DRAFT, THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {isDMorGM} from '@utils/channel';
-import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_INSET, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
+import {changeOpacity, getChatListBackdropColor, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_INSET, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 
 import ConversationListSwipeableItem from './conversation_list_swipeable_item';
 
@@ -45,12 +45,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         textAlign: 'center',
     },
     list: {
-        backgroundColor: theme.centerChannelBg,
+        backgroundColor: getChatListBackdropColor(theme),
     },
     divider: {
         marginLeft: WECHAT_HOME_DIVIDER_INSET,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, WECHAT_HOME_DIVIDER_OPACITY),
+        borderBottomColor: theme.dividerColor,
     },
 }));
 
@@ -116,10 +116,6 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
         [isChannelScreenActive, onChannelSwitch],
     );
 
-    const renderSeparator = useCallback(() => (
-        <View style={styles.divider}/>
-    ), [styles.divider]);
-
     if (!hasChannels || sortedChannels.length === 0) {
         return <EmptyState/>;
     }
@@ -131,7 +127,6 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
             style={styles.list}
             data={sortedChannels}
             renderItem={renderItem}
-            ItemSeparatorComponent={renderSeparator}
             keyExtractor={extractKey}
         />
     );
