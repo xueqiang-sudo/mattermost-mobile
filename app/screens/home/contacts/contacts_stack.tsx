@@ -54,6 +54,7 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
             managerIds={params.managerIds}
             ownerId={params.ownerId}
             currentUserId={params.currentUserId ?? currentUserId}
+            initialManageMode={params.initialManageMode}
             onBack={goBack}
             onNavigateToDepartment={(nextParams) => {
                 navigation.push(Screens.CONTACTS_DEPARTMENT_DETAIL, {
@@ -61,6 +62,7 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
                     managerIds: nextParams.managerIds ?? params.managerIds,
                     ownerId: nextParams.ownerId ?? params.ownerId,
                     currentUserId: nextParams.currentUserId ?? params.currentUserId ?? currentUserId,
+                    initialManageMode: nextParams.initialManageMode,
                 });
             }}
             onSearchPress={() => {

@@ -78,6 +78,9 @@ type Props = {
         managerIds?: string[];
         ownerId?: string;
         currentUserId?: string;
+
+        /** 管理模式传递 */
+        initialManageMode?: boolean;
     }) => void;
     onBreadcrumbPress?: (toDismiss: number) => void;
 
@@ -98,6 +101,9 @@ type Props = {
 
     /** 当前登录用户 ID */
     currentUserId?: string;
+
+    /** 从父部门页传递：进入子部门时是否保持管理模式（铅笔图标 + 底部栏） */
+    initialManageMode?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -331,6 +337,7 @@ const ContactsDepartmentDetail = ({
     managerIds,
     ownerId,
     currentUserId,
+    initialManageMode = false,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -343,7 +350,7 @@ const ContactsDepartmentDetail = ({
     const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
-    const [manageMode, setManageMode] = useState(false);
+    const [manageMode, setManageMode] = useState(initialManageMode);
 
     /** 标签数据：优先使用 props 传入，否则组件内部加载 */
     const [localOwnerId, setLocalOwnerId] = useState<string | undefined>();
@@ -438,6 +445,7 @@ const ContactsDepartmentDetail = ({
                 managerIds: resolvedManagerIds,
                 ownerId: resolvedOwnerId,
                 currentUserId: resolvedCurrentUserId,
+                initialManageMode: manageMode,
             });
             return;
         }
@@ -456,6 +464,7 @@ const ContactsDepartmentDetail = ({
                     managerIds: resolvedManagerIds,
                     ownerId: resolvedOwnerId,
                     currentUserId: resolvedCurrentUserId,
+                    initialManageMode: manageMode,
                 },
             );
         } else {
@@ -473,11 +482,12 @@ const ContactsDepartmentDetail = ({
                     managerIds: resolvedManagerIds,
                     ownerId: resolvedOwnerId,
                     currentUserId: resolvedCurrentUserId,
+                    initialManageMode: manageMode,
                 },
                 {useBackIcon: true},
             );
         }
-    }, [baseBreadcrumb, companyId, companyName, intl, isStackScreen, onNavigateToDepartment, resolvedManagerIds, resolvedOwnerId, resolvedCurrentUserId]));
+    }, [baseBreadcrumb, companyId, companyName, intl, isStackScreen, manageMode, onNavigateToDepartment, resolvedManagerIds, resolvedOwnerId, resolvedCurrentUserId]));
 
     const depth = baseBreadcrumb.length - 1;
 

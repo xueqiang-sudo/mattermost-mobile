@@ -39,6 +39,9 @@ export type ContactsStackParamList = {
 
         /** 当前登录用户 ID */
         currentUserId?: string;
+
+        /** 从父部门页传递：进入子部门时是否保持管理模式 */
+        initialManageMode?: boolean;
     };
     [Screens.CONTACTS_SEARCH]: {
         companyId: string;
