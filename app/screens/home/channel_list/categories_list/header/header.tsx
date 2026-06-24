@@ -316,7 +316,7 @@ const ChannelListHeader = ({
         menuItems.push({
             icon: 'account-plus-outline',
             labelId: 'plus_menu.invite_people_to_team.title',
-            defaultLabel: 'Invite new members to the enterprise',
+            defaultLabel: 'Invite members',
             onPress: invitePeopleToTeam,
             testID: 'plus_menu_item.invite_people_to_team',
         });

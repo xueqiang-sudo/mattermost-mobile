@@ -670,15 +670,14 @@ export default function Invite({
                 }
             />
 
-            {/* Bottom bar: Share Link + Done */}
+            {/* Bottom bar: Share invite link + Add member */}
             <View style={style.bottomBar}>
                 <TouchableOpacity
-                    style={style.shareLinkButton}
+                    style={style.doneButton}
                     onPress={handleShareLink}
                 >
-                    <CompassIcon name='export-variant' size={20} style={{color: theme.buttonBg}}/>
-                    <Text style={style.shareLinkText}>
-                        {formatMessage({id: 'invite.shareLink', defaultMessage: 'Share link'})}
+                    <Text style={style.doneButtonText}>
+                        {formatMessage({id: 'invite.share_invite_link', defaultMessage: 'Share invite link'})}
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
