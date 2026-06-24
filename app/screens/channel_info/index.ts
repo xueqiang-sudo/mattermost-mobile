@@ -208,6 +208,14 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         switchMap(([c, t]) => of$(getChannelTitleDisplayName(c, t?.displayName))),
         distinctUntilChanged(),
     );
+    const teamInviteId = currentTeam.pipe(
+        switchMap((t) => of$(t?.inviteId || '')),
+        distinctUntilChanged(),
+    );
+    const teamDisplayName = currentTeam.pipe(
+        switchMap((t) => of$(t?.displayName || '')),
+        distinctUntilChanged(),
+    );
 
     // For GM: get myNickname from channel settings
     const myNickname = channelSettings.pipe(
@@ -239,6 +247,8 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         currentUserId,
         myNickname,
         displayName,
+        teamInviteId,
+        teamDisplayName,
     };
 });
 

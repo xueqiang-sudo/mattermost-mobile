@@ -30,6 +30,8 @@ type Props = {
     isFavorite: boolean;
     isMuted: boolean;
     memberIds: string[];
+    teamInviteId?: string;
+    teamDisplayName?: string;
     type?: ChannelType;
 }
 
@@ -69,6 +71,8 @@ const ChannelInfoPublicPrivate = ({
     isFavorite,
     isMuted,
     memberIds,
+    teamInviteId,
+    teamDisplayName,
 }: Props) => {
     const intl = useIntl();
     const theme = useTheme();
@@ -146,12 +150,23 @@ const ChannelInfoPublicPrivate = ({
                     alwaysBounceVertical={false}
                     contentContainerStyle={styles.content}
                 >
-                    {/* Channel ID */}
-                    <IdField
-                        id={channelId}
-                        label={intl.formatMessage({id: 'channel_settings.channel_id', defaultMessage: 'Channel ID'})}
-                        testID='channel_info_public_private.channel_id'
-                    />
+                    {/* 企业名称 */}
+                    {teamDisplayName ? (
+                        <IdField
+                            id={teamDisplayName}
+                            label={intl.formatMessage({id: 'channel_settings.enterprise_name', defaultMessage: 'Enterprise Name'})}
+                            testID='channel_info_public_private.enterprise_name'
+                        />
+                    ) : null}
+
+                    {/* Invite ID */}
+                    {teamInviteId ? (
+                        <IdField
+                            id={teamInviteId}
+                            label={intl.formatMessage({id: 'channel_settings.invite_id', defaultMessage: 'Invite ID'})}
+                            testID='channel_info_public_private.invite_id'
+                        />
+                    ) : null}
 
                     {/* Member grid with search (no add/remove buttons) */}
                     <View style={styles.section}>

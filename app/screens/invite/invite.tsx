@@ -16,6 +16,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
+import NetworkManager from '@managers/network_manager';
 import SecurityManager from '@managers/security_manager';
 import {dismissModal, setButtons} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -290,6 +291,25 @@ export default function Invite({
     const [sendError, setSendError] = useState('');
     const [sending, setSending] = useState(false);
 
+    // invite_id：优先使用 enhancer 传入的 teamInviteId，为空时从 API 获取
+    const [resolvedInviteId, setResolvedInviteId] = useState(teamInviteId);
+    useEffect(() => {
+        if (teamInviteId) {
+            setResolvedInviteId(teamInviteId);
+            return;
+        }
+        if (!serverUrl || !teamId) {
+            return;
+        }
+        NetworkManager.getClient(serverUrl).getTeam(teamId).then((team) => {
+            if (team?.invite_id) {
+                setResolvedInviteId(team.invite_id);
+            }
+        }).catch(() => {
+            // ignore
+        });
+    }, [teamInviteId, serverUrl, teamId]);
+
     // 初始候选人列表为空，仅通过搜索框查找外部候选人
 
     // Search external candidates (exact match only)
@@ -448,7 +468,7 @@ export default function Invite({
 
     // Share link
     const handleShareLink = useCallback(async () => {
-        const url = `${serverUrl}/signup_user_complete/?id=${teamInviteId}`;
+        const url = `${serverUrl}/signup_user_complete/?id=${resolvedInviteId}`;
         const title = formatMessage(
             {id: 'invite_people_to_team.title', defaultMessage: 'Join the {team} enterprise'},
             {team: teamDisplayName},
@@ -465,7 +485,7 @@ export default function Invite({
         } catch {
             // User cancelled share
         }
-    }, [serverUrl, teamInviteId, teamDisplayName, formatMessage]);
+    }, [serverUrl, resolvedInviteId, teamDisplayName, formatMessage]);
 
     // 底部按钮始终显示"添加成员"
     const doneLabel = formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});

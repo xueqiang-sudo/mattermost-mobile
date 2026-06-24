@@ -13,6 +13,7 @@ import SlideUpPanelItem from '@components/slide_up_panel_item';
 import {General, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {observeChannel} from '@queries/servers/channel';
+import {observeCurrentTeam} from '@queries/servers/team';
 import {dismissBottomSheet, showModal} from '@screens/navigation';
 import {isDefaultChannel, usesDiscussionGroupChannelCopy} from '@utils/channel';
 
@@ -29,29 +30,19 @@ type Props = {
 type InnerProps = Props & {
     channelType?: ChannelType;
     isTeamDefaultOpenChannel?: boolean;
+    teamDisplayName?: string;
 }
 
-const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenChannel = false, showAsLabel = false, testID}: InnerProps) => {
+const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenChannel = false, showAsLabel = false, teamDisplayName, testID}: InnerProps) => {
     const intl = useIntl();
     const theme = useTheme();
     const discussionUx = usesDiscussionGroupChannelCopy(channelType);
 
     const onViewInfo = useCallback(async () => {
         await dismissBottomSheet();
-        let title: string;
-        if (discussionUx) {
-            title = intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'});
-        } else if (channelType === General.DM_CHANNEL) {
-            title = intl.formatMessage({id: 'screens.channel_info.dm', defaultMessage: 'Direct message info'});
-        } else if (channelType === General.OPEN_CHANNEL && isTeamDefaultOpenChannel) {
-            title = intl.formatMessage({id: 'screens.channel_info.enterprise_main', defaultMessage: 'Enterprise main group info'});
-        } else if (channelType === General.PRIVATE_CHANNEL) {
-            title = intl.formatMessage({id: 'screens.channel_info.private_group_chat', defaultMessage: 'Group chat info'});
-        } else if (channelType === General.OPEN_CHANNEL) {
-            title = intl.formatMessage({id: 'screens.channel_info.public_group_chat', defaultMessage: 'Public group chat info'});
-        } else {
-            title = intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
-        }
+        // 导航栏标题优先使用企业名称
+        const title = teamDisplayName ||
+            intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'});
         const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
         const closeButtonId = 'close-channel-info';
 
@@ -65,7 +56,7 @@ const InfoBoxBody = ({channelId, channelType, containerStyle, isTeamDefaultOpenC
             },
         };
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
-    }, [channelId, channelType, intl, isTeamDefaultOpenChannel, theme]);
+    }, [channelId, intl, teamDisplayName, theme]);
 
     const slideUpLabel = discussionUx
         ? intl.formatMessage({id: 'screens.channel_info.gm', defaultMessage: 'Discussion group info'})
@@ -113,7 +104,10 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
     const isTeamDefaultOpenChannel = channel.pipe(
         switchMap((c) => of$(Boolean(c?.type === General.OPEN_CHANNEL && isDefaultChannel(c)))),
     );
-    return {channelType, isTeamDefaultOpenChannel};
+    const teamDisplayName = observeCurrentTeam(database).pipe(
+        switchMap((t) => of$(t?.displayName || '')),
+    );
+    return {channelType, isTeamDefaultOpenChannel, teamDisplayName};
 });
 
 export default withDatabase(enhanced(InfoBoxBody));
