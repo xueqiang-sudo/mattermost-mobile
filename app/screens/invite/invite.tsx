@@ -3,10 +3,10 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl, type IntlShape} from 'react-intl';
-import {FlatList, Keyboard, Share, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Alert, FlatList, Keyboard, Share, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {getEmployeeCandidates, searchExternalCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
+import {searchExternalCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {addUserToDefaultDepartment, addUserToDepartment} from '@actions/remote/contact_new';
 import {getTeamMembersByIds} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
@@ -290,24 +290,7 @@ export default function Invite({
     const [sendError, setSendError] = useState('');
     const [sending, setSending] = useState(false);
 
-    // Fetch all candidates on mount (enterprise + suppliers + customers)
-    useEffect(() => {
-        getEmployeeCandidates(serverUrl, teamId, currentUserId ?? '').then((drafts) => {
-            const profiles = mapDraftsToProfiles(drafts);
-            const enterprise = profiles.filter((p) => p.mmCandidateTags?.includes('enterprise'));
-            const suppliers = profiles.filter((p) => p.mmCandidateTags?.includes('supplier'));
-            const customers = profiles.filter((p) => p.mmCandidateTags?.includes('customer'));
-
-            // Enterprise members are auto-selected and locked (already joined)
-            const enterpriseIds = new Set(enterprise.map((p) => p.id));
-            setAlreadyJoinedIds(enterpriseIds);
-            setSelectedIds(enterpriseIds);
-            const enterpriseProfileMap = new Map(enterprise.map((p) => [p.id, p]));
-            setSelectedProfiles(enterpriseProfileMap);
-
-            setCandidates({suppliers, customers, enterprise, searchResults: []});
-        });
-    }, [serverUrl, teamId, currentUserId]);
+    // 初始候选人列表为空，仅通过搜索框查找外部候选人
 
     // Search external candidates (exact match only)
     useEffect(() => {
@@ -449,11 +432,17 @@ export default function Invite({
         if (error) {
             setSendError(formatMessage({id: 'invite.send_error', defaultMessage: 'Something went wrong while trying to send invitations.'}));
             setResult(DEFAULT_RESULT);
+            setStage(Stage.RESULT);
         } else {
             setResult({sent, notSent});
             await addSentUsersToDepartment(sent);
+            setStage(Stage.SELECTION);
+            setSelectedIds(new Set());
+            setSelectedProfiles(new Map());
+            Alert.alert(
+                formatMessage({id: 'invite.add_success', defaultMessage: 'Added successfully'}),
+            );
         }
-        setStage(Stage.RESULT);
         setSending(false);
     }, [selectedIds, sending, selectedProfiles, serverUrl, teamId, isAdmin, teamDisplayName, formatMessage, addSentUsersToDepartment]);
 
@@ -478,14 +467,8 @@ export default function Invite({
         }
     }, [serverUrl, teamInviteId, teamDisplayName, formatMessage]);
 
-    // Done button label
-    const doneLabel = useMemo(() => {
-        const count = selectedIds.size;
-        if (count > 0) {
-            return formatMessage({id: 'create_direct_message.done_with_count', defaultMessage: 'Done ({count})'}, {count});
-        }
-        return formatMessage({id: 'invite.add_selected', defaultMessage: 'Add to enterprise'});
-    }, [formatMessage, selectedIds.size]);
+    // 底部按钮始终显示"添加成员"
+    const doneLabel = formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});
 
     // Handle back from summary
     const handleBackToSelection = useCallback(() => {
@@ -618,7 +601,7 @@ export default function Invite({
                         style={style.searchInput}
                         value={searchTerm}
                         onChangeText={setSearchTerm}
-                        placeholder={formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search...'})}
+                        placeholder={formatMessage({id: 'invite.search_placeholder_phone_name_email', defaultMessage: '@手机号、昵称、email'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                         autoCapitalize='none'
                     />
@@ -658,21 +641,6 @@ export default function Invite({
                 renderItem={() => null}
                 ListHeaderComponent={
                     <>
-                        {renderSection(
-                            formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
-                            'enterprise',
-                            filteredCandidates.enterprise,
-                        )}
-                        {renderSection(
-                            formatMessage({id: 'channel_add_members.suppliers', defaultMessage: 'My Suppliers'}),
-                            'suppliers',
-                            filteredCandidates.suppliers,
-                        )}
-                        {renderSection(
-                            formatMessage({id: 'channel_add_members.customers', defaultMessage: 'My Customers'}),
-                            'customers',
-                            filteredCandidates.customers,
-                        )}
                         {filteredCandidates.searchResults.length > 0 && renderSection(
                             formatMessage({id: 'channel_add_members.search_results', defaultMessage: 'Search Results'}),
                             'searchResults',

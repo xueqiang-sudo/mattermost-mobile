@@ -35,6 +35,7 @@ const PLUS_BUTTON_SIZE = 32;
 
 type Props = {
     canCreateChannels: boolean;
+    canInvitePeople: boolean;
     currentUser?: UserModel;
     displayName?: string;
     iconPad?: boolean;
@@ -157,6 +158,7 @@ const hitSlop: Insets = {top: 10, bottom: 30, left: 20, right: 20};
 
 const ChannelListHeader = ({
     canCreateChannels,
+    canInvitePeople,
     currentUser,
     displayName,
     iconPad,
@@ -283,6 +285,13 @@ const ChannelListHeader = ({
         showQrScannerModal(intl);
     }, [intl]);
 
+    const invitePeopleToTeam = useCallback(() => {
+        showModal(
+            Screens.INVITE,
+            intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
+        );
+    }, [intl]);
+
     const menuItems: MenuEntry[] = [
         {
             icon: 'account-multiple-outline',
@@ -300,6 +309,16 @@ const ChannelListHeader = ({
             defaultLabel: 'Create New Channel',
             onPress: createNewChannel,
             testID: 'plus_menu_item.create_new_channel',
+        });
+    }
+
+    if (canInvitePeople) {
+        menuItems.push({
+            icon: 'account-plus-outline',
+            labelId: 'plus_menu.invite_people_to_team.title',
+            defaultLabel: 'Invite new members to the enterprise',
+            onPress: invitePeopleToTeam,
+            testID: 'plus_menu_item.invite_people_to_team',
         });
     }
 
