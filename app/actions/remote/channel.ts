@@ -1038,7 +1038,7 @@ export async function createGroupChannel(serverUrl: string, userIds: string[]) {
         const license = await getLicense(database);
         const config = await getConfig(database);
         const teammateDisplayNameSetting = getTeammateNameDisplaySetting(displayNamePreferences || [], config.LockTeammateNameDisplay, config.TeammateNameDisplay, license);
-        const {directChannels, users} = await fetchMissingDirectChannelsInfo(serverUrl, [created], currentUser.locale, teammateDisplayNameSetting, currentUser.id, true);
+        const {users} = await fetchMissingDirectChannelsInfo(serverUrl, [created], currentUser.locale, teammateDisplayNameSetting, currentUser.id, true);
 
         const member = {
             channel_id: created.id,
@@ -1057,29 +1057,34 @@ export async function createGroupChannel(serverUrl: string, userIds: string[]) {
             return {...member, user_id: id};
         });
 
-        if (directChannels?.length) {
-            const channelPromises = await prepareMyChannelsForTeam(operator, '', directChannels, members);
-            if (channelPromises.length) {
-                const channelModels = await Promise.all(channelPromises);
-                const models: Model[] = channelModels.flat();
-                const userModels = await operator.handleUsers({users, prepareRecordsOnly: true});
-                const categoryModels = await addChannelToDefaultCategory(serverUrl, created, true);
-                if (categoryModels.models?.length) {
-                    models.push(...categoryModels.models);
-                }
+        const models: Model[] = [];
+        const channelPromises = await prepareMyChannelsForTeam(operator, '', [created], members);
+        if (channelPromises.length) {
+            const channelModels = await Promise.all(channelPromises);
+            models.push(...channelModels.flat());
+        }
 
-                const preferences = [
-                    {user_id: currentUser.id, category: Preferences.CATEGORIES.GROUP_CHANNEL_SHOW, name: created.id, value: 'true'},
-                    {user_id: currentUser.id, category: Preferences.CATEGORIES.CHANNEL_OPEN_TIME, name: created.id, value: new Date().getTime().toString()},
-                ];
-                const preferenceModels = await savePreference(serverUrl, preferences, true);
-                if (preferenceModels.preferences?.length) {
-                    models.push(...preferenceModels.preferences);
-                }
+        const categoryModels = await addChannelToDefaultCategory(serverUrl, created, true);
+        if (categoryModels.models?.length) {
+            models.push(...categoryModels.models);
+        }
 
-                models.push(...userModels);
-                operator.batchRecords(models, 'createGroupChannel');
-            }
+        const preferences = [
+            {user_id: currentUser.id, category: Preferences.CATEGORIES.GROUP_CHANNEL_SHOW, name: created.id, value: 'true'},
+            {user_id: currentUser.id, category: Preferences.CATEGORIES.CHANNEL_OPEN_TIME, name: created.id, value: new Date().getTime().toString()},
+        ];
+        const preferenceModels = await savePreference(serverUrl, preferences, true);
+        if (preferenceModels.preferences?.length) {
+            models.push(...preferenceModels.preferences);
+        }
+
+        if (users?.length) {
+            const userModels = await operator.handleUsers({users, prepareRecordsOnly: true});
+            models.push(...userModels);
+        }
+
+        if (models.length) {
+            await operator.batchRecords(models, 'createGroupChannel');
         }
         EphemeralStore.creatingDMorGMTeammates = [];
         fetchRolesIfNeeded(serverUrl, member.roles.split(' '));

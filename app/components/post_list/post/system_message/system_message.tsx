@@ -219,7 +219,7 @@ function pickHeaderCopy(channelType: ChannelType | undefined) {
     return headerMessages;
 }
 
-const renderHeaderChangeMessage = ({post, author, channelType, location, styles, intl, theme}: RenderersProps) => {
+const renderHeaderChangeMessage = ({post, author, channelType, compact, location, styles, intl, theme}: RenderersProps) => {
     if (!author?.username) {
         return null;
     }
