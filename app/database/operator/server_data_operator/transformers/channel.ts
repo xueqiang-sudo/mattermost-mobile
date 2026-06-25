@@ -83,15 +83,7 @@ export const transformMyChannelSettingsRecord = ({action, database, value}: Tran
 
     const fieldsMapper = (myChannelSetting: MyChannelSettingsModel) => {
         myChannelSetting._raw.id = isCreateAction ? (raw.channel_id || myChannelSetting.id) : record!.id;
-        if (isCreateAction) {
-            myChannelSetting.notifyProps = raw.notify_props;
-        } else {
-            // 合并而非替换：防止 WS 事件的 notify_props 缺少本地已有字段（如 cleared_at）
-            // 导致帖子列表的 cleared_at 过滤条件被意外覆盖
-            const existing = record!.notifyProps;
-            const incoming = raw.notify_props;
-            myChannelSetting.notifyProps = incoming ? {...existing, ...incoming} : existing;
-        }
+        myChannelSetting.notifyProps = raw.notify_props;
     };
 
     return prepareBaseRecord({

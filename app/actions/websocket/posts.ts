@@ -3,7 +3,7 @@
 
 import streamingStore from '@agents/store/streaming_store';
 import {isAgentPost} from '@agents/utils';
-import {DeviceEventEmitter} from 'react-native';
+import {Alert, DeviceEventEmitter} from 'react-native';
 
 import {storeMyChannelsForTeam, markChannelAsUnread, markChannelAsViewed, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, markPostAsDeleted, removePostAcknowledgement} from '@actions/local/post';
@@ -23,7 +23,7 @@ import {getIsCRTEnabled} from '@queries/servers/thread';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {hasArrayChanged, isTablet} from '@utils/helpers';
-import {logWarning} from '@utils/log';
+import {logError, logWarning} from '@utils/log';
 import {isFromWebhook, isSystemMessage, shouldIgnorePost} from '@utils/post';
 
 import type {Model} from '@nozbe/watermelondb';
@@ -36,6 +36,16 @@ function preparedMyChannelHack(myChannel: MyChannelModel) {
 }
 
 export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessage) {
+    try {
+        await _handleNewPostEventInner(serverUrl, msg);
+    } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        logError('handleNewPostEvent failed:', error);
+        Alert.alert('❌ handleNewPostEvent 异常', errMsg, [{text: 'OK'}]);
+    }
+}
+
+async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage) {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
         return;
@@ -54,6 +64,7 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
     const existing = await getPostById(database, post.pending_post_id) || await getPostById(database, post.id);
 
     if (existing) {
+        Alert.alert('⚠️ 帖子已存在', `id=${post.id}\npending=${post.pending_post_id}\nchannel=${post.channel_id}`, [{text: 'OK'}]);
         return;
     }
 
@@ -194,6 +205,8 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
 
     models.push(...postModels);
 
+    const diagMsg = `id=${post.id}\nchannel=${post.channel_id}\ncreate_at=${post.create_at}\nactionType=${actionType}\n总models=${models.length}\npostModels=${postModels.length}`;
+    Alert.alert('✅ handleNewPostEvent 正常', diagMsg, [{text: 'OK'}]);
     await operator.batchRecords(models, 'handleNewPostEvent');
 }
 
