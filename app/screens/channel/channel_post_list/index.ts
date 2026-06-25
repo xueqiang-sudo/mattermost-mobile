@@ -48,17 +48,29 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
             }),
             distinctUntilChanged(),
         ),
-        // 帖子查询加入 cleared_at 过滤：如果有 cleared_at 时间戳，
-        // 用它替代 earliest 作为查询下限，过滤掉清空前的历史帖子
+        // 帖子查询：保留 PostsInChannel 的 earliest 下界，去掉 latest 上界。
+        // 改名后 PostsInChannel.latest 可能未及时更新，导致新帖子被排除在 Q.between 之外。
+        // 用 Q.gte(earliest) 替代 Q.between(earliest, latest) 可确保新帖子不被遗漏。
         posts: combineLatest([isCRTEnabledObserver, postsInChannelObserver, clearedAt$]).pipe(
             switchMap(([isCRTEnabled, postsInChannel, clearedAt]) => {
                 if (!postsInChannel.length) {
                     return of$([]);
                 }
 
-                const {earliest, latest} = postsInChannel[0];
+                const {earliest} = postsInChannel[0];
                 const effectiveEarliest = clearedAt > 0 ? Math.max(earliest, clearedAt) : earliest;
-                return queryPostsBetween(database, effectiveEarliest, latest, Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe();
+
+                const clauses: Q.Clause[] = [
+                    Q.where('channel_id', channelId),
+                    Q.where('delete_at', Q.eq(0)),
+                    Q.where('create_at', Q.gte(effectiveEarliest)),
+                ];
+                if (!isCRTEnabled) {
+                    clauses.push(Q.where('root_id', ''));
+                }
+                clauses.push(Q.sortBy('create_at', Q.desc));
+
+                return database.collections.get('Post').query(...clauses).observe();
             }),
         ),
         shouldShowJoinLeaveMessages: queryAdvanceSettingsPreferences(database, Preferences.ADVANCED_FILTER_JOIN_LEAVE).
