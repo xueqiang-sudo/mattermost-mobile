@@ -25,6 +25,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 type Props = {
     channelId: string;
     initialNickname: string;
+    displayNamePlaceholder?: string;
     componentId: AvailableScreens;
     currentUser?: UserModel;
 };
@@ -80,6 +81,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const EditGroupNickname = ({
     channelId,
     initialNickname,
+    displayNamePlaceholder,
     componentId,
     currentUser,
 }: Props) => {
@@ -135,7 +137,7 @@ const EditGroupNickname = ({
                         style={styles.input}
                         value={nickname}
                         onChangeText={setNickname}
-                        placeholder={intl.formatMessage({
+                        placeholder={displayNamePlaceholder || intl.formatMessage({
                             id: 'gm_settings.nickname_placeholder',
                             defaultMessage: 'Your real name will be used if empty',
                         })}

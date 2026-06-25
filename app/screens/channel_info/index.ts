@@ -254,6 +254,7 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         dmUser,
         currentUserId,
         myNickname,
+        currentUser,
         displayName,
         displayNameCustomized,
         teamInviteId,

@@ -18,14 +18,17 @@ import SecurityManager from '@managers/security_manager';
 import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {displayUsername} from '@utils/user';
 import {DangerSection, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
 
+import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 type Props = {
     channelId: string;
     closeButtonId: string;
     componentId: AvailableScreens;
+    currentUser?: UserModel;
     currentUserId: string;
     displayName?: string;
     displayNameCustomized?: boolean;
@@ -90,6 +93,7 @@ const ChannelInfoGM = ({
     channelId,
     closeButtonId,
     componentId,
+    currentUser,
     currentUserId,
     displayName,
     displayNameCustomized,
@@ -148,8 +152,9 @@ const ChannelInfoGM = ({
         goToScreen(Screens.EDIT_GROUP_NICKNAME, title, {
             channelId,
             initialNickname: myNickname || '',
+            displayNamePlaceholder: displayUsername(currentUser),
         });
-    }, [channelId, myNickname, intl]);
+    }, [channelId, myNickname, currentUser, intl]);
 
     const handleClearHistory = useCallback(() => {
         Alert.alert(
@@ -262,7 +267,7 @@ const ChannelInfoGM = ({
                             {intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'})}
                         </Text>
                         <Text style={styles.navRowValue} numberOfLines={1}>
-                            {myNickname || intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname_hint', defaultMessage: 'Not set'})}
+                            {myNickname || displayUsername(currentUser)}
                         </Text>
                         <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
                     </TouchableOpacity>

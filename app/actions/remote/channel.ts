@@ -271,17 +271,26 @@ export async function patchChannel(serverUrl: string, channelId: string, channel
         }
 
         const channel = await getChannelById(database, channelData.id);
-        if (channel && (channel.displayName !== channelData.display_name || channel.type !== channelData.type)) {
-            channel.prepareUpdate((v) => {
-                // DM display name 由客户端格式化，不覆盖。GM 支持服务端自定义名称（内部群重命名）
-                if (channelData.type !== General.DM_CHANNEL) {
-                    if (channelData.display_name?.trim()) {
-                        v.displayName = channelData.display_name;
+        if (channel) {
+            const displayNameChanged = channel.displayName !== channelData.display_name;
+            const typeChanged = channel.type !== channelData.type;
+            const updateAtChanged = channel.updateAt !== channelData.update_at;
+            const customizedChanged = channel.displayNameCustomized !== Boolean(channelData.display_name_customized);
+
+            if (displayNameChanged || typeChanged || updateAtChanged || customizedChanged) {
+                channel.prepareUpdate((v) => {
+                    // DM display name 由客户端格式化，不覆盖。GM 支持服务端自定义名称（内部群重命名）
+                    if (channelData.type !== General.DM_CHANNEL) {
+                        if (channelData.display_name?.trim()) {
+                            v.displayName = channelData.display_name;
+                        }
                     }
-                }
-                v.type = channelData.type;
-            });
-            models.push(channel);
+                    v.type = channelData.type;
+                    v.updateAt = channelData.update_at;
+                    v.displayNameCustomized = Boolean(channelData.display_name_customized);
+                });
+                models.push(channel);
+            }
         }
         if (models?.length) {
             await operator.batchRecords(models.flat(), 'patchChannel');

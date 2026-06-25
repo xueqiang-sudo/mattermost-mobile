@@ -62,6 +62,7 @@ type Props = {
     memberIds: string[];
     channelMembersCount: number;
     dmUser?: UserModel;
+    currentUser?: UserModel;
     currentUserId: string;
     myNickname?: string;
     displayName?: string;
@@ -117,6 +118,7 @@ const ChannelInfo = ({
     memberIds,
     channelMembersCount,
     dmUser,
+    currentUser,
     currentUserId,
     myNickname,
     displayName,
@@ -169,6 +171,7 @@ const ChannelInfo = ({
                 channelId={channelId}
                 closeButtonId={closeButtonId}
                 componentId={componentId}
+                currentUser={currentUser}
                 currentUserId={currentUserId}
                 displayName={displayName}
                 displayNameCustomized={displayNameCustomized}
