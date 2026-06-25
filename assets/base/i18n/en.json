@@ -603,6 +603,7 @@
   "invite.search.no_results": "No matching people found",
   "invite.search.empty_title": "Search to select people to invite",
   "invite.search.empty_body": "Enter a name, phone number, or username to see candidates.",
+  "invite.search_placeholder_phone_name_email": "@phone, nickname, email",
   "invite.searchPlaceholder": "Search by name, phone, or username",
   "invite.tag.already_joined": "Already added",
   "invite.tag.self": "Me",

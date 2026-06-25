@@ -626,7 +626,7 @@ export default function Invite({
                         style={style.searchInput}
                         value={searchTerm}
                         onChangeText={setSearchTerm}
-                        placeholder={formatMessage({id: 'invite.search_placeholder_phone_name_email', defaultMessage: '@手机号、昵称、email'})}
+                        placeholder={formatMessage({id: 'invite.search_placeholder_phone_name_email', defaultMessage: '@phone, nickname, email'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                         autoCapitalize='none'
                     />

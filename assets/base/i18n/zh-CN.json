@@ -596,6 +596,7 @@
   "invite.search.no_results": "未找到匹配成员",
   "invite.search.empty_title": "搜索并选择要邀请的成员",
   "invite.search.empty_body": "请输入姓名、手机号或用户名后查看候选结果。",
+  "invite.search_placeholder_phone_name_email": "@手机号、昵称、email",
   "invite.searchPlaceholder": "按姓名、手机号或用户名搜索",
   "invite.tag.already_joined": "已加入",
   "invite.tag.self": "我自己",

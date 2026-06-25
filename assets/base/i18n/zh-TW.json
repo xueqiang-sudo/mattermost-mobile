@@ -591,6 +591,7 @@
   "invite.search.no_results": "未找到符合成員",
   "invite.search.empty_title": "搜尋並選取要邀請的成員",
   "invite.search.empty_body": "請輸入姓名、手機號或使用者名稱後查看候選結果。",
+  "invite.search_placeholder_phone_name_email": "@手機號、暱稱、email",
   "invite.searchPlaceholder": "按姓名、手機號或使用者名稱搜尋",
   "invite.tag.already_joined": "已加入",
   "invite.tag.self": "我自己",
