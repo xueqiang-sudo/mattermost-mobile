@@ -56,11 +56,9 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
                     return of$([]);
                 }
 
-                const {earliest} = postsInChannel[0];
+                const {earliest, latest} = postsInChannel[0];
                 const effectiveEarliest = clearedAt > 0 ? Math.max(earliest, clearedAt) : earliest;
-                // 使用 Date.now() 作为上界而非 PostsInChannel.latest，
-                // 确保即使 PostsInChannel.latest 未及时更新，已入库的新帖子也能显示
-                return queryPostsBetween(database, effectiveEarliest, Date.now(), Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe();
+                return queryPostsBetween(database, effectiveEarliest, latest, Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe();
             }),
         ),
         shouldShowJoinLeaveMessages: queryAdvanceSettingsPreferences(database, Preferences.ADVANCED_FILTER_JOIN_LEAVE).
