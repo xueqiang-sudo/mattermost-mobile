@@ -64,7 +64,22 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     const existing = await getPostById(database, post.pending_post_id) || await getPostById(database, post.id);
 
     if (existing) {
-        Alert.alert('⚠️ 帖子已存在', `id=${post.id}\npending=${post.pending_post_id}\nchannel=${post.channel_id}`, [{text: 'OK'}]);
+        // 帖子已通过乐观发送存入 DB，但 PostsInChannel.latest 可能未更新。
+        // 仍然需要调用 handlePosts 来确保 PostsInChannel 范围覆盖此帖子，
+        // 否则帖子列表查询 Q.between(earliest, latest) 可能不包含它。
+        try {
+            const patchModels = await operator.handlePosts({
+                actionType: ActionType.POSTS.RECEIVED_NEW,
+                order: [post.id],
+                posts: [post],
+                prepareRecordsOnly: true,
+            });
+            if (patchModels.length) {
+                await operator.batchRecords(patchModels, 'handleNewPostEvent_existingPost');
+            }
+        } catch (e) {
+            logError('handleNewPostEvent: failed to update PostsInChannel for existing post', e);
+        }
         return;
     }
 
