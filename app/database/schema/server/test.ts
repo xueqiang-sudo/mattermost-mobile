@@ -52,7 +52,7 @@ const {PLAYBOOK_RUN, PLAYBOOK_CHECKLIST, PLAYBOOK_CHECKLIST_ITEM, PLAYBOOK_RUN_A
 describe('*** Test schema for SERVER database ***', () => {
     it('=> The SERVER SCHEMA should strictly match', () => {
         expect(serverSchema).toEqual({
-            version: 15,
+            version: 16,
             unsafeSql: undefined,
             tables: {
                 [CATEGORY]: {
@@ -130,6 +130,7 @@ describe('*** Test schema for SERVER database ***', () => {
                         update_at: {name: 'update_at', type: 'number'},
                         banner_info: {name: 'banner_info', type: 'string', isOptional: true},
                         abac_policy_enforced: {name: 'abac_policy_enforced', type: 'boolean', isOptional: true},
+                        display_name_customized: {name: 'display_name_customized', type: 'boolean', isOptional: true},
                     },
                     columnArray: [
                         {name: 'create_at', type: 'number'},
@@ -144,6 +145,7 @@ describe('*** Test schema for SERVER database ***', () => {
                         {name: 'update_at', type: 'number'},
                         {name: 'banner_info', type: 'string', isOptional: true},
                         {name: 'abac_policy_enforced', type: 'boolean', isOptional: true},
+                        {name: 'display_name_customized', type: 'boolean', isOptional: true},
                     ],
                 },
                 [CHANNEL_BOOKMARK]: {

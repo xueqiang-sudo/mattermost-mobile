@@ -28,6 +28,7 @@ type Props = {
     componentId: AvailableScreens;
     currentUserId: string;
     displayName?: string;
+    displayNameCustomized?: boolean;
     isChannelCreator: boolean;
     isFavorite: boolean;
     isMuted: boolean;
@@ -91,6 +92,7 @@ const ChannelInfoGM = ({
     componentId,
     currentUserId,
     displayName,
+    displayNameCustomized,
     isChannelCreator,
     isFavorite,
     isMuted,
@@ -136,10 +138,10 @@ const ChannelInfoGM = ({
         const title = intl.formatMessage({id: 'gm_settings.edit_group_name_title', defaultMessage: 'Edit Group Name'});
         goToScreen(Screens.EDIT_GROUP_NAME, title, {
             channelId,
-            initialDisplayName: '',
+            initialDisplayName: displayNameCustomized ? (displayName || '') : '',
             memberIds,
         });
-    }, [channelId, memberIds, intl]);
+    }, [channelId, displayName, displayNameCustomized, memberIds, intl]);
 
     const handleEditNickname = useCallback(() => {
         const title = intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'});
@@ -245,7 +247,7 @@ const ChannelInfoGM = ({
                             {intl.formatMessage({id: 'channel_info_rhs.gm.group_chat_name', defaultMessage: 'Group Chat Name'})}
                         </Text>
                         <Text style={styles.navRowValue} numberOfLines={1}>
-                            {displayName || intl.formatMessage({id: 'channel_info_rhs.gm.group_chat_name_hint', defaultMessage: 'Set now, members will be notified'})}
+                            {displayNameCustomized ? displayName : intl.formatMessage({id: 'channel_info_rhs.gm.group_chat_name_hint', defaultMessage: 'Set now, members will be notified'})}
                         </Text>
                         <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
                     </TouchableOpacity>

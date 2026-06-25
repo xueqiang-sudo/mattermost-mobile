@@ -212,6 +212,10 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         switchMap(([c, t]) => of$(getChannelTitleDisplayName(c, t?.displayName))),
         distinctUntilChanged(),
     );
+    const displayNameCustomized = channel.pipe(
+        switchMap((c) => of$(Boolean(c?.displayNameCustomized))),
+        distinctUntilChanged(),
+    );
     const teamInviteId = currentTeam.pipe(
         switchMap((t) => of$(t?.inviteId || '')),
         distinctUntilChanged(),
@@ -251,6 +255,7 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         currentUserId,
         myNickname,
         displayName,
+        displayNameCustomized,
         teamInviteId,
         teamDisplayName,
         isTeamAdmin,

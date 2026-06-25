@@ -1251,6 +1251,18 @@ export const updateChannelNotifyProps = async (serverUrl: string, channelId: str
 
         await client.updateChannelNotifyProps(notifyProps);
 
+        // Update local database after successful API call
+        const channelSettings = await queryMyChannelSettingsByIds(database, [channelId]).fetch();
+        const myChannelSetting = channelSettings?.[0];
+        if (myChannelSetting) {
+            const mergedNotifyProps = {...myChannelSetting.notifyProps, ...props};
+            await database.write(async () => {
+                await myChannelSetting.update((c) => {
+                    c.notifyProps = mergedNotifyProps;
+                });
+            });
+        }
+
         return {
             notifyProps,
         };

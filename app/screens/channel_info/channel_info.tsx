@@ -65,6 +65,7 @@ type Props = {
     currentUserId: string;
     myNickname?: string;
     displayName?: string;
+    displayNameCustomized?: boolean;
     teamInviteId?: string;
     teamDisplayName?: string;
     isTeamAdmin: boolean;
@@ -119,6 +120,7 @@ const ChannelInfo = ({
     currentUserId,
     myNickname,
     displayName,
+    displayNameCustomized,
     teamInviteId,
     teamDisplayName,
     isTeamAdmin,
@@ -169,6 +171,7 @@ const ChannelInfo = ({
                 componentId={componentId}
                 currentUserId={currentUserId}
                 displayName={displayName}
+                displayNameCustomized={displayNameCustomized}
                 isChannelCreator={isChannelCreator}
                 isFavorite={isFavorite}
                 isMuted={isMuted}
