@@ -719,10 +719,15 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
             record.latest = Math.max(record.latest, latest);
         });
 
+        // 合并可能重叠的分段，与 handleReceivedPostsInChannel 保持一致。
+        // 改名等操作可能导致多个分段共存，不合并会使帖子卡在分段间隙中不可见。
+        const models = [targetChunk];
+        models.push(...await this._mergePostInChannelChunks(targetChunk, chunks, prepareRecordsOnly));
+
         if (!prepareRecordsOnly) {
-            this.batchRecords([targetChunk], 'handleReceivedNewPostForChannel');
+            this.batchRecords(models, 'handleReceivedNewPostForChannel');
         }
-        return [targetChunk];
+        return models;
     };
 
     // ========================
