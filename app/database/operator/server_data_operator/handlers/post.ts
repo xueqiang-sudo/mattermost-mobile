@@ -714,13 +714,16 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
             return [];
         }
 
-        // If the chunk was found, Update the chunk and return
+        // Update the chunk — the Math.max inside prepareUpdate runs within the write lock,
+        // protecting against concurrent handlers reading stale latest values.
+        // 改名时服务端会同时发系统消息和用户消息，两个 posted 事件并发处理，
+        // 如果在写锁外做判断（targetChunk.latest >= latest），可能因读到过时值而跳过更新。
         targetChunk.prepareUpdate((record) => {
             record.latest = Math.max(record.latest, latest);
         });
 
         // 合并可能重叠的分段，与 handleReceivedPostsInChannel 保持一致。
-        // 改名等操作可能导致多个分段共存，不合并会使帖子卡在分段间隙中不可见。
+        // 多次 fetch 或并发 posted 事件可能产生多个分段，不合并会使帖子卡在间隙中不可见。
         const models = [targetChunk];
         models.push(...await this._mergePostInChannelChunks(targetChunk, chunks, prepareRecordsOnly));
 
