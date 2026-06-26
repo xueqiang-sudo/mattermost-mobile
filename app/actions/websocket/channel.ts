@@ -110,7 +110,7 @@ export async function handleChannelUpdatedEvent(serverUrl: string, msg: any) {
         if (infoModel.model) {
             models.push(...infoModel.model);
         }
-        operator.batchRecords(models, 'handleChannelUpdatedEvent');
+        await operator.batchRecords(models, 'handleChannelUpdatedEvent');
 
         // This indicates a GM was converted to a group chat (type P)
         if (existingChannelType === General.GM_CHANNEL && updatedChannel.type === General.PRIVATE_CHANNEL) {
@@ -124,8 +124,8 @@ export async function handleChannelUpdatedEvent(serverUrl: string, msg: any) {
                 await setCurrentTeamId(operator, updatedChannel.team_id);
             }
         }
-    } catch {
-        // Do nothing
+    } catch (error) {
+        logDebug('handleChannelUpdatedEvent failed:', error);
     }
 }
 

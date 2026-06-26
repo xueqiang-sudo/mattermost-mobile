@@ -714,6 +714,13 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
             return [];
         }
 
+        // Guard against concurrent handlers that may have already prepared this record.
+        // WatermelonDB throws "Record already has a prepared update pending" if prepareUpdate
+        // is called on a record that is already in a prepared state.
+        if (targetChunk._preparedState) {
+            return [];
+        }
+
         // If the chunk was found, Update the chunk and return
         targetChunk.prepareUpdate((record) => {
             record.latest = Math.max(record.latest, latest);

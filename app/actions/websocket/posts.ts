@@ -3,7 +3,7 @@
 
 import streamingStore from '@agents/store/streaming_store';
 import {isAgentPost} from '@agents/utils';
-import {Alert, DeviceEventEmitter} from 'react-native';
+import {DeviceEventEmitter} from 'react-native';
 
 import {storeMyChannelsForTeam, markChannelAsUnread, markChannelAsViewed, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, markPostAsDeleted, removePostAcknowledgement} from '@actions/local/post';
@@ -39,9 +39,7 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
     try {
         await _handleNewPostEventInner(serverUrl, msg);
     } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error);
         logError('handleNewPostEvent failed:', error);
-        Alert.alert('❌ handleNewPostEvent 异常', errMsg, [{text: 'OK'}]);
     }
 }
 
@@ -220,8 +218,6 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     models.push(...postModels);
 
-    const diagMsg = `id=${post.id}\nchannel=${post.channel_id}\ncreate_at=${post.create_at}\nactionType=${actionType}\n总models=${models.length}\npostModels=${postModels.length}`;
-    Alert.alert('✅ handleNewPostEvent 正常', diagMsg, [{text: 'OK'}]);
     await operator.batchRecords(models, 'handleNewPostEvent');
 }
 
