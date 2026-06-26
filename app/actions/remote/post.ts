@@ -4,7 +4,7 @@
 
 /* eslint-disable max-lines */
 
-import {Alert} from 'react-native';
+import {_diagLog} from '@utils/diag_log';
 
 import {markChannelAsUnread, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, removePost, removePostAcknowledgement, storePostsForChannel} from '@actions/local/post';
@@ -138,7 +138,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     }
 
     await operator.batchRecords(initialPostModels, 'createPost - initial');
-    Alert.alert('🔍 createPost', `optimistic OK\npending=${pendingPostId}\nmodels=${initialPostModels.length}\nts=${timestamp}`);
+    _diagLog('createPost', [`optimistic OK`, `pending=${pendingPostId}`, `models=${initialPostModels.length}`, `ts=${timestamp}`]);
 
     const isCRTEnabled = await getIsCRTEnabled(database);
 
@@ -153,7 +153,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         }
     } catch (error) {
         logDebug('Error sending a post', getFullErrorMessage(error));
-        Alert.alert('🔍 createPost', `HTTP FAILED\n${getFullErrorMessage(error)}`);
+        _diagLog('createPost', [`HTTP FAILED`, getFullErrorMessage(error)]);
         const errorPost = {
             ...newPost,
             id: pendingPostId,
@@ -211,7 +211,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         }
     }
     await operator.batchRecords(models, 'createPost - success');
-    Alert.alert('🔍 createPost', `HTTP OK\nrealId=${created.id}\nts=${created.create_at}\nch=${created.channel_id}\nmodels=${models.length}`);
+    _diagLog('createPost', [`HTTP OK`, `realId=${created.id}`, `ts=${created.create_at}`, `ch=${created.channel_id}`, `models=${models.length}`]);
 
     newPost = created;
 

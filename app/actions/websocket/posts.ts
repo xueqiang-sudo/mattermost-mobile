@@ -3,7 +3,7 @@
 
 import streamingStore from '@agents/store/streaming_store';
 import {isAgentPost} from '@agents/utils';
-import {Alert, DeviceEventEmitter} from 'react-native';
+import {DeviceEventEmitter} from 'react-native';
 
 import {storeMyChannelsForTeam, markChannelAsUnread, markChannelAsViewed, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, markPostAsDeleted, removePostAcknowledgement} from '@actions/local/post';
@@ -40,6 +40,8 @@ function preparedMyChannelHack(myChannel: MyChannelModel) {
     }
 }
 
+import {diagLog as _diagLog} from '@utils/diag_log';
+
 export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessage) {
     try {
         await _handleNewPostEventInner(serverUrl, msg);
@@ -54,7 +56,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
-        Alert.alert('🔍 WS', 'operator not found');
+        _diagLog('WS-ERR', ['operator not found']);
         return;
     }
 
@@ -64,7 +66,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     try {
         post = JSON.parse(msg.data.post);
     } catch {
-        Alert.alert('🔍 WS', 'JSON parse failed');
+        _diagLog('WS-ERR', ['JSON parse failed']);
         return;
     }
     d(`id=${post.id} pending=${post.pending_post_id}`);
@@ -109,7 +111,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
             logError('handleNewPostEvent: failed for existing post', e);
             d(`ERR=${e instanceof Error ? e.message : String(e)}`);
         }
-        Alert.alert('🔍 WS EXISTING', L.join('\n'));
+        _diagLog('WS-EXISTING', L);
         return;
     }
 
@@ -238,7 +240,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
                 model.cancelPrepareUpdate();
             }
         }
-        Alert.alert('🔍 WS NEW', L.join('\n'));
+        _diagLog('WS-NEW', L);
         return;
     }
 
@@ -258,7 +260,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     await operator.batchRecords(models, 'handleNewPostEvent');
     d('batchOK');
-    Alert.alert('🔍 WS NEW', L.join('\n'));
+    _diagLog('WS-NEW', L);
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {
