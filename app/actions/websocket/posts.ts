@@ -3,7 +3,7 @@
 
 import streamingStore from '@agents/store/streaming_store';
 import {isAgentPost} from '@agents/utils';
-import {DeviceEventEmitter} from 'react-native';
+import {Alert, DeviceEventEmitter} from 'react-native';
 
 import {storeMyChannelsForTeam, markChannelAsUnread, markChannelAsViewed, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, markPostAsDeleted, removePostAcknowledgement} from '@actions/local/post';
@@ -14,6 +14,7 @@ import {openChannelIfNeeded} from '@actions/remote/preference';
 import {fetchThread} from '@actions/remote/thread';
 import {fetchMissingProfilesByIds} from '@actions/remote/user';
 import {ActionType, Events, Screens} from '@constants';
+import {MM_TABLES} from '@constants/database';
 import {PostTypes} from '@constants/post';
 import DatabaseManager from '@database/manager';
 import {getChannelById, getMyChannel} from '@queries/servers/channel';
@@ -27,7 +28,11 @@ import {logError, logWarning} from '@utils/log';
 import {isFromWebhook, isSystemMessage, shouldIgnorePost} from '@utils/post';
 
 import type {Model} from '@nozbe/watermelondb';
+import {Q} from '@nozbe/watermelondb';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
+import type PostsInChannelModel from '@typings/database/models/servers/posts_in_channel';
+
+const {POSTS_IN_CHANNEL} = MM_TABLES.SERVER;
 
 function preparedMyChannelHack(myChannel: MyChannelModel) {
     if (!myChannel._preparedState) {
@@ -44,8 +49,12 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
 }
 
 async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage) {
+    const L: string[] = [];
+    const d = (s: string) => L.push(s);
+
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
+        Alert.alert('🔍 WS', 'operator not found');
         return;
     }
 
@@ -55,16 +64,18 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     try {
         post = JSON.parse(msg.data.post);
     } catch {
+        Alert.alert('🔍 WS', 'JSON parse failed');
         return;
     }
+    d(`id=${post.id} pending=${post.pending_post_id}`);
+    d(`ch=${post.channel_id} type=${post.type} ts=${post.create_at}`);
+
     const currentUserId = await getCurrentUserId(database);
 
     const existing = await getPostById(database, post.pending_post_id) || await getPostById(database, post.id);
+    d(`existing=${!!existing} path=${existing ? 'EXISTING' : 'NEW'}`);
 
     if (existing) {
-        // 帖子已通过乐观发送存入 DB，但 PostsInChannel.latest 可能未更新。
-        // 仍然需要调用 handlePosts 来确保 PostsInChannel 范围覆盖此帖子，
-        // 否则帖子列表查询 Q.between(earliest, latest) 可能不包含它。
         try {
             const patchModels = await operator.handlePosts({
                 actionType: ActionType.POSTS.RECEIVED_NEW,
@@ -72,12 +83,53 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
                 posts: [post],
                 prepareRecordsOnly: true,
             });
-            if (patchModels.length) {
-                await operator.batchRecords(patchModels, 'handleNewPostEvent_existingPost');
-            }
+            d(`patchModels=${patchModels.length}`);
+
+            const nonPICModels = patchModels.filter((m: Model) => {
+                const isPIC = (m as any).earliest !== undefined && (m as any).latest !== undefined;
+                if (isPIC && m._preparedState === 'update') {
+                    m.cancelPrepareUpdate();
+                }
+                return !isPIC;
+            });
+            d(`nonPIC=${nonPICModels.length}`);
+
+            await database.write(async () => {
+                const chunks = (await database.get(POSTS_IN_CHANNEL).query(
+                    Q.where('channel_id', post.channel_id),
+                    Q.sortBy('latest', Q.desc),
+                ).fetch()) as PostsInChannelModel[];
+                d(`chunks=${chunks.length} latest=${chunks[0]?.latest}`);
+
+                if (chunks.length > 0) {
+                    const chunk = chunks[0];
+                    if (chunk.latest < post.create_at) {
+                        if (chunk._preparedState) {
+                            d('cancelStale=true');
+                            chunk.cancelPrepareUpdate();
+                        }
+                        chunk.prepareUpdate((r) => {
+                            r.latest = Math.max(r.latest, post.create_at);
+                        });
+                        nonPICModels.push(chunk);
+                        d(`PIC->${Math.max(chunk.latest, post.create_at)}`);
+                    } else {
+                        d(`PIC_covers=true`);
+                    }
+                } else {
+                    d(`NO_PIC!`);
+                }
+
+                if (nonPICModels.length > 0) {
+                    await operator.batchRecords(nonPICModels, 'handleNewPostEvent_existingPost');
+                    d(`batchOK=${nonPICModels.length}`);
+                }
+            }, 'handleNewPostEvent_existingPost');
         } catch (e) {
-            logError('handleNewPostEvent: failed to update PostsInChannel for existing post', e);
+            logError('handleNewPostEvent: failed for existing post', e);
+            d(`ERR=${e instanceof Error ? e.message : String(e)}`);
         }
+        Alert.alert('🔍 WS EXISTING', L.join('\n'));
         return;
     }
 
@@ -88,6 +140,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     // Ensure the channel membership
     let myChannel = await getMyChannel(database, post.channel_id);
+    d(`myChannel=${!!myChannel}`);
     if (myChannel) {
         const isCrtReply = isCRTEnabled && post.root_id !== '';
 
@@ -145,7 +198,9 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
         models.push(...authorsModels);
     }
 
-    if (!shouldIgnorePost(post)) {
+    const ignored = shouldIgnorePost(post);
+    d(`ignore=${ignored} type=${post.type}`);
+    if (!ignored) {
         let markAsViewed = false;
 
         if (!myChannel.manuallyUnread) {
@@ -197,11 +252,13 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     const outOfOrderWebsocketEvent = EphemeralStore.getLastPostWebsocketEvent(serverUrl, post.id);
     if (outOfOrderWebsocketEvent?.deleted) {
+        d('outOfOrder=DELETED');
         for (const model of models) {
             if (model._preparedState === 'update') {
                 model.cancelPrepareUpdate();
             }
         }
+        Alert.alert('🔍 WS NEW', L.join('\n'));
         return;
     }
 
@@ -217,8 +274,11 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     });
 
     models.push(...postModels);
+    d(`models=${models.length} postModels=${postModels.length}`);
 
     await operator.batchRecords(models, 'handleNewPostEvent');
+    d('batchOK');
+    Alert.alert('🔍 WS NEW', L.join('\n'));
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {

@@ -715,10 +715,8 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
         }
 
         // Guard against concurrent handlers that may have already prepared this record.
-        // WatermelonDB throws "Record already has a prepared update pending" if prepareUpdate
-        // is called on a record that is already in a prepared state.
-        if (targetChunk._preparedState) {
-            return [];
+        if (targetChunk._preparedState === 'update') {
+            targetChunk.cancelPrepareUpdate();
         }
 
         // If the chunk was found, Update the chunk and return

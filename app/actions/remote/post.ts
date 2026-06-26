@@ -4,6 +4,8 @@
 
 /* eslint-disable max-lines */
 
+import {Alert} from 'react-native';
+
 import {markChannelAsUnread, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, removePost, removePostAcknowledgement, storePostsForChannel} from '@actions/local/post';
 import {addRecentReaction} from '@actions/local/reactions';
@@ -136,6 +138,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     }
 
     await operator.batchRecords(initialPostModels, 'createPost - initial');
+    Alert.alert('🔍 createPost', `optimistic OK\npending=${pendingPostId}\nmodels=${initialPostModels.length}\nts=${timestamp}`);
 
     const isCRTEnabled = await getIsCRTEnabled(database);
 
@@ -150,6 +153,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         }
     } catch (error) {
         logDebug('Error sending a post', getFullErrorMessage(error));
+        Alert.alert('🔍 createPost', `HTTP FAILED\n${getFullErrorMessage(error)}`);
         const errorPost = {
             ...newPost,
             id: pendingPostId,
@@ -207,6 +211,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         }
     }
     await operator.batchRecords(models, 'createPost - success');
+    Alert.alert('🔍 createPost', `HTTP OK\nrealId=${created.id}\nts=${created.create_at}\nch=${created.channel_id}\nmodels=${models.length}`);
 
     newPost = created;
 
