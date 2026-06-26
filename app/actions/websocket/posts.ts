@@ -77,54 +77,34 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     if (existing) {
         try {
-            const patchModels = await operator.handlePosts({
-                actionType: ActionType.POSTS.RECEIVED_NEW,
-                order: [post.id],
-                posts: [post],
-                prepareRecordsOnly: true,
-            });
-            d(`patchModels=${patchModels.length}`);
+            // Post already in DB (from optimistic send + HTTP response).
+            // Just ensure PostsInChannel.latest covers this post.
+            const chunks = (await database.get(POSTS_IN_CHANNEL).query(
+                Q.where('channel_id', post.channel_id),
+                Q.sortBy('latest', Q.desc),
+            ).fetch()) as PostsInChannelModel[];
+            d(`chunks=${chunks.length} latest=${chunks[0]?.latest}`);
 
-            const nonPICModels = patchModels.filter((m: Model) => {
-                const isPIC = (m as any).earliest !== undefined && (m as any).latest !== undefined;
-                if (isPIC && m._preparedState === 'update') {
-                    m.cancelPrepareUpdate();
-                }
-                return !isPIC;
-            });
-            d(`nonPIC=${nonPICModels.length}`);
-
-            await database.write(async () => {
-                const chunks = (await database.get(POSTS_IN_CHANNEL).query(
-                    Q.where('channel_id', post.channel_id),
-                    Q.sortBy('latest', Q.desc),
-                ).fetch()) as PostsInChannelModel[];
-                d(`chunks=${chunks.length} latest=${chunks[0]?.latest}`);
-
-                if (chunks.length > 0) {
-                    const chunk = chunks[0];
-                    if (chunk.latest < post.create_at) {
-                        if (chunk._preparedState) {
-                            d('cancelStale=true');
-                            chunk.cancelPrepareUpdate();
-                        }
-                        chunk.prepareUpdate((r) => {
-                            r.latest = Math.max(r.latest, post.create_at);
-                        });
-                        nonPICModels.push(chunk);
-                        d(`PIC->${Math.max(chunk.latest, post.create_at)}`);
-                    } else {
-                        d(`PIC_covers=true`);
+            if (chunks.length > 0) {
+                const chunk = chunks[0];
+                if (chunk.latest < post.create_at) {
+                    if (chunk._preparedState === 'update') {
+                        d('cancelStale=true');
+                        chunk.cancelPrepareUpdate();
                     }
+                    chunk.prepareUpdate((r) => {
+                        r.latest = Math.max(r.latest, post.create_at);
+                    });
+                    d(`PIC->${Math.max(chunk.latest, post.create_at)}`);
+                    // batchRecords internally calls database.write() — do NOT nest
+                    await operator.batchRecords([chunk], 'handleNewPostEvent_existingPost_PIC');
+                    d('batchOK');
                 } else {
-                    d(`NO_PIC!`);
+                    d(`PIC_covers=true`);
                 }
-
-                if (nonPICModels.length > 0) {
-                    await operator.batchRecords(nonPICModels, 'handleNewPostEvent_existingPost');
-                    d(`batchOK=${nonPICModels.length}`);
-                }
-            }, 'handleNewPostEvent_existingPost');
+            } else {
+                d(`NO_PIC!`);
+            }
         } catch (e) {
             logError('handleNewPostEvent: failed for existing post', e);
             d(`ERR=${e instanceof Error ? e.message : String(e)}`);
