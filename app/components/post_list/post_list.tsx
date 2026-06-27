@@ -21,8 +21,6 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {getDateForDateLine, getTimeForTimeLine, preparePostList} from '@utils/post_list';
 import {changeOpacity, getChatListBackdropColor} from '@utils/theme';
-import {diagLog} from '@utils/diag_log';
-
 import {INITIAL_BATCH_TO_RENDER, SCROLL_POSITION_CONFIG, VIEWABILITY_CONFIG} from './config';
 import MoreMessages from './more_messages';
 import ScrollToEndView from './scroll_to_end_view';
@@ -151,13 +149,9 @@ const PostList = ({
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
-        diagLog('PostList-render', [`input=${posts.length}`, `ch=${channelId}`, `loc=${location}`, `lastViewedAt=${lastViewedAt}`, `crt=${isCRTEnabled}`]);
-        const result = preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
-        // 反转数组：原为降序（最新在前），反转后升序（最旧在前），
-        // 配合 inverted={false} 实现自上而下显示（最旧在顶部，最新在底部）
-        const final = [...result].reverse();
-        diagLog('PostList-render', [`preparePostList=${result.length}`, `final=${final.length}`, `types=${final.map((i: any) => i.type).join(',')}`]);
-        return final;
+        // preparePostList 内部已按从旧到新顺序构建（selectOrderedPosts 从降序数组尾部迭代），
+        // 直接配合 inverted={false} 使用：最旧在顶部，最新在底部
+        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
     }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
 
     const orderedPostsRef = useRef(orderedPosts);
