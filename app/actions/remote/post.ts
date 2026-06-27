@@ -4,7 +4,7 @@
 
 /* eslint-disable max-lines */
 
-import {_diagLog} from '@utils/diag_log';
+import {diagLog as _diagLog} from '@utils/diag_log';
 
 import {markChannelAsUnread, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, removePost, removePostAcknowledgement, storePostsForChannel} from '@actions/local/post';
