@@ -119,8 +119,8 @@ const PostList = ({
     unreadCount = 0,
     isManualUnread = false,
 }: Props) => {
-    // 反转后数组尾部是最新帖子，用于检测新消息到达
-    const newestPostId = posts[posts.length - 1]?.id;
+    // posts 为降序（Q.desc），首元素即最新帖子，用于检测新消息到达
+    const newestPostId = posts[0]?.id;
 
     const listRef = useRef<FlatList<string | PostModel>>(null);
     const onScrollEndIndexListener = useRef<onScrollEndIndexListenerEvent>();
@@ -197,6 +197,18 @@ const PostList = ({
             scrollBottomListener.remove();
         };
     }, [location, scrollToEnd]);
+
+    // Fix: when the newest post changes (new message arrives), force scroll-to-end.
+    // In a non-inverted list with maintainVisibleContentPosition, the scroll may stay
+    // pinned to old content, hiding new posts at the bottom.
+    useEffect(() => {
+        if (newestPostId) {
+            const timer = setTimeout(() => {
+                scrollToEnd(true);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [newestPostId, scrollToEnd]);
 
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener(
