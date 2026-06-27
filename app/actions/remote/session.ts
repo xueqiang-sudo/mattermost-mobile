@@ -17,7 +17,6 @@ import {getServerDisplayName} from '@queries/app/servers';
 import {getCurrentUserId} from '@queries/servers/system';
 import {getCurrentUser} from '@queries/servers/user';
 import {resetToHome} from '@screens/navigation';
-import EphemeralStore from '@store/ephemeral_store';
 import {getFullErrorMessage, isErrorWithStatusCode, isErrorWithUrl} from '@utils/errors';
 import {getIntlShape} from '@utils/general';
 import {logWarning, logError, logDebug} from '@utils/log';
@@ -64,19 +63,7 @@ const logoutMessages = defineMessages({
 export const addPushProxyVerificationStateFromLogin = async (serverUrl: string) => {
     try {
         const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-
-        const systems: IdValue[] = [];
-
-        // Set push proxy verification
-        const ppVerification = EphemeralStore.getPushProxyVerificationState(serverUrl);
-        if (ppVerification) {
-            systems.push({id: SYSTEM_IDENTIFIERS.PUSH_VERIFICATION_STATUS, value: ppVerification});
-        }
-
-        if (systems.length) {
-            await operator.handleSystem({systems, prepareRecordsOnly: false});
-        }
-
+        await operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.PUSH_VERIFICATION_STATUS, value: 'verified'}], prepareRecordsOnly: false});
         return {};
     } catch (error) {
         logDebug('error setting the push proxy verification state on login', error);

@@ -40,7 +40,6 @@ type Props = {
     displayName?: string;
     iconPad?: boolean;
     onHeaderPress?: () => void;
-    pushProxyStatus: string;
 
     /** 话题按钮，放在搜索左侧，顺序：话题 | 搜索 | + */
     threadsButton?: React.ReactNode;
@@ -166,7 +165,6 @@ const ChannelListHeader = ({
     displayName,
     iconPad,
     onHeaderPress,
-    pushProxyStatus,
     threadsButton,
 }: Props) => {
     const theme = useTheme();

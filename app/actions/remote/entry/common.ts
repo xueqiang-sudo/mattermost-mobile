@@ -11,7 +11,7 @@ import {fetchMyTeams, handleKickFromTeam, type MyTeamsRequest} from '@actions/re
 import {fetchMe, type MyUserRequest} from '@actions/remote/user';
 import {General, Preferences, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
-import {PUSH_PROXY_RESPONSE_NOT_AVAILABLE, PUSH_PROXY_RESPONSE_UNKNOWN, PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_UNKNOWN, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
+import {PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import DatabaseManager from '@database/manager';
 import {getPreferenceValue} from '@helpers/api/preference';
 import {selectDefaultTeam} from '@helpers/api/team';
@@ -21,7 +21,7 @@ import {getDeviceToken} from '@queries/app/global';
 import {getChannelById} from '@queries/servers/channel';
 import {prepareEntryModels, truncateCrtRelatedTables} from '@queries/servers/entry';
 import {getHasCRTChanged} from '@queries/servers/preference';
-import {getCurrentChannelId, getCurrentTeamId, getIsDataRetentionEnabled, getPushVerificationStatus, getLastFullSync, setCurrentTeamAndChannelId, getConfigValue} from '@queries/servers/system';
+import {getCurrentChannelId, getCurrentTeamId, getIsDataRetentionEnabled, getLastFullSync, setCurrentTeamAndChannelId, getConfigValue} from '@queries/servers/system';
 import {getTeamChannelHistory} from '@queries/servers/team';
 import NavigationStore from '@store/navigation_store';
 import {isDefaultChannel, isDMorGM, sortChannelsByDisplayName} from '@utils/channel';
@@ -252,38 +252,11 @@ export const setExtraSessionProps = async (serverUrl: string, groupLabel?: Reque
 };
 
 export async function verifyPushProxy(serverUrl: string, groupLabel?: RequestGroupLabel) {
-    const deviceId = await getDeviceToken();
-    if (!deviceId) {
-        return;
-    }
-
     try {
-        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-
-        const ppVerification = await getPushVerificationStatus(database);
-        if (
-            ppVerification !== PUSH_PROXY_STATUS_UNKNOWN &&
-            ppVerification !== ''
-        ) {
-            return;
-        }
-
-        const client = NetworkManager.getClient(serverUrl);
-        const response = await client.ping(deviceId, undefined, groupLabel);
-        const canReceiveNotifications = response?.data?.CanReceiveNotifications;
-        switch (canReceiveNotifications) {
-            case PUSH_PROXY_RESPONSE_NOT_AVAILABLE:
-                operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.PUSH_VERIFICATION_STATUS, value: PUSH_PROXY_STATUS_NOT_AVAILABLE}], prepareRecordsOnly: false});
-                return;
-            case PUSH_PROXY_RESPONSE_UNKNOWN:
-                return;
-            default:
-                operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.PUSH_VERIFICATION_STATUS, value: PUSH_PROXY_STATUS_VERIFIED}], prepareRecordsOnly: false});
-        }
+        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        operator.handleSystem({systems: [{id: SYSTEM_IDENTIFIERS.PUSH_VERIFICATION_STATUS, value: PUSH_PROXY_STATUS_VERIFIED}], prepareRecordsOnly: false});
     } catch (error) {
         logDebug('error on verifyPushProxy', getFullErrorMessage(error));
-
-        // Do nothing
     }
 }
 

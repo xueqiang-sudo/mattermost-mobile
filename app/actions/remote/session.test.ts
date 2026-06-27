@@ -123,14 +123,7 @@ describe('sessions', () => {
         expect(result.error).toBeDefined();
     });
 
-    it('addPushProxyVerificationStateFromLogin - no verification', async () => {
-        mockGetPushProxyVerificationState.mockImplementationOnce(() => '');
-        const result = await addPushProxyVerificationStateFromLogin(serverUrl);
-        expect(result).toBeDefined();
-        expect(result.error).toBeUndefined();
-    });
-
-    it('addPushProxyVerificationStateFromLogin - base case', async () => {
+    it('addPushProxyVerificationStateFromLogin - always sets verified status (using JPush)', async () => {
         const result = await addPushProxyVerificationStateFromLogin(serverUrl);
         expect(result).toBeDefined();
         expect(result.error).toBeUndefined();

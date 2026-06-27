@@ -242,31 +242,7 @@ describe('actions/remote/entry/common', () => {
     });
 
     describe('verifyPushProxy', () => {
-        it('should verify push proxy status successfully', async () => {
-            jest.mocked(getDeviceToken).mockResolvedValueOnce('deviceToken');
-
-            await verifyPushProxy(serverUrl);
-
-            expect(mockClient.ping).toHaveBeenCalled();
-        });
-
-        it('should handle error gracefully', async () => {
-            jest.mocked(getDeviceToken).mockResolvedValueOnce('deviceToken');
-            mockClient.ping.mockRejectedValueOnce(new Error('Network error'));
-
-            await verifyPushProxy(serverUrl);
-
-            expect(mockOperator.handleSystem).not.toHaveBeenCalled();
-        });
-
-        it('should handle verified push proxy response', async () => {
-            jest.mocked(getDeviceToken).mockResolvedValueOnce('deviceToken');
-            mockClient.ping.mockResolvedValueOnce({
-                data: {
-                    CanReceiveNotifications: true,
-                },
-            });
-
+        it('should always set verified status (using JPush, no server verification needed)', async () => {
             await verifyPushProxy(serverUrl);
 
             expect(mockOperator.handleSystem).toHaveBeenCalledWith({
@@ -278,53 +254,14 @@ describe('actions/remote/entry/common', () => {
             });
         });
 
-        it('should handle missing device token', async () => {
-            jest.mocked(getDeviceToken).mockResolvedValueOnce('');
-
-            await verifyPushProxy(serverUrl);
-
-            expect(mockClient.ping).not.toHaveBeenCalled();
-        });
-
-        it('should handle push proxy not available response', async () => {
-            jest.mocked(getDeviceToken).mockResolvedValueOnce('deviceToken');
-            mockClient.ping.mockResolvedValueOnce({
-                data: {
-                    CanReceiveNotifications: 'false',
-                },
+        it('should handle error gracefully', async () => {
+            DatabaseManager.getServerDatabaseAndOperator = jest.fn().mockImplementation(() => {
+                throw new Error('Database error');
             });
 
             await verifyPushProxy(serverUrl);
 
-            expect(mockOperator.handleSystem).toHaveBeenCalledWith({
-                systems: [{
-                    id: SYSTEM_IDENTIFIERS.PUSH_VERIFICATION_STATUS,
-                    value: 'not_available',
-                }],
-                prepareRecordsOnly: false,
-            });
-        });
-
-        it('should handle push proxy unknown response', async () => {
-            jest.mocked(getDeviceToken).mockResolvedValueOnce('deviceToken');
-            mockClient.ping.mockResolvedValueOnce({
-                data: {
-                    CanReceiveNotifications: 'unknown',
-                },
-            });
-
-            await verifyPushProxy(serverUrl);
-
-            expect(mockOperator.handleSystem).not.toHaveBeenCalled();
-        });
-
-        it('should handle network error', async () => {
-            jest.mocked(getDeviceToken).mockResolvedValueOnce('deviceToken');
-            mockClient.ping.mockRejectedValueOnce(new Error('Network error'));
-
-            await verifyPushProxy(serverUrl);
-
-            expect(mockOperator.handleSystem).not.toHaveBeenCalled();
+            expect(logDebug).toHaveBeenCalled();
         });
     });
 

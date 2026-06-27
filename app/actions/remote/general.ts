@@ -4,11 +4,11 @@
 import {defineMessage} from 'react-intl';
 
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
-import {PUSH_PROXY_RESPONSE_VERIFIED, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
+import {PUSH_PROXY_RESPONSE_VERIFIED} from '@constants/push_proxy';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {getDeviceToken} from '@queries/app/global';
-import {getExpandedLinks, getPushVerificationStatus} from '@queries/servers/system';
+import {getExpandedLinks} from '@queries/servers/system';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
 
@@ -22,15 +22,6 @@ async function getDeviceIdForPing(serverUrl: string, checkDeviceId: boolean) {
     if (!checkDeviceId) {
         return undefined;
     }
-
-    const serverDatabase = DatabaseManager.serverDatabases?.[serverUrl]?.database;
-    if (serverDatabase) {
-        const status = await getPushVerificationStatus(serverDatabase);
-        if (status === PUSH_PROXY_STATUS_VERIFIED) {
-            return undefined;
-        }
-    }
-
     return getDeviceToken();
 }
 
@@ -96,14 +87,7 @@ export const doPing = async (serverUrl: string, verifyPushProxy: boolean, timeou
     }
 
     if (verifyPushProxy) {
-        let canReceiveNotifications = response?.data?.CanReceiveNotifications;
-
-        // Already verified or old server
-        if (deviceId === undefined || canReceiveNotifications === null) {
-            canReceiveNotifications = PUSH_PROXY_RESPONSE_VERIFIED;
-        }
-
-        return {canReceiveNotifications};
+        return {canReceiveNotifications: PUSH_PROXY_RESPONSE_VERIFIED};
     }
 
     return {};
