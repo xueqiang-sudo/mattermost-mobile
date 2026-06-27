@@ -71,6 +71,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     }
     d(`id=${post.id} pending=${post.pending_post_id}`);
     d(`ch=${post.channel_id} type=${post.type} ts=${post.create_at}`);
+    d(`root_id="${post.root_id}" update_at=${post.update_at}`);
 
     const currentUserId = await getCurrentUserId(database);
 

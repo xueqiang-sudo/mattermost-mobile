@@ -37,6 +37,7 @@ import {forceLogoutIfNecessary} from './session';
 
 import type {Client} from '@client/rest';
 import type Model from '@nozbe/watermelondb/Model';
+import {Q} from '@nozbe/watermelondb';
 import type PostModel from '@typings/database/models/servers/post';
 
 type PostsRequest = {
@@ -145,6 +146,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     let created;
     try {
         created = await client.createPost({...newPost, create_at: 0});
+        _diagLog('createPost', [`HTTP_RAW`, `id=${created.id}`, `root_id="${created.root_id}"`, `pending="${created.pending_post_id}"`, `create_at=${created.create_at}`, `type="${created.type}"`]);
         if (!created.metadata && newPost.metadata) {
             created = {
                 ...created,
@@ -210,8 +212,35 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
             models.push(...threadModels);
         }
     }
+    // Diagnostic: log model types before batch
+    const modelTypes = models.map((m: any) => {
+        const table = m.constructor?.name || m._name || '?';
+        const state = m._preparedState || '?';
+        const recId = m._raw?.id || m.id || '?';
+        return `${table}:${state}:${String(recId).substring(0, 12)}`;
+    });
+    _diagLog('createPost', [`preBatch`, `models=${models.length}`, `types=${modelTypes.join(', ')}`]);
+    _diagLog('createPost', [`serverPost`, `root_id=${created.root_id}`, `type=${created.type}`, `pending=${created.pending_post_id}`]);
+
     await operator.batchRecords(models, 'createPost - success');
-    _diagLog('createPost', [`HTTP OK`, `realId=${created.id}`, `ts=${created.create_at}`, `ch=${created.channel_id}`, `models=${models.length}`]);
+
+    // Diagnostic: verify post is actually in DB after batch
+    const verifyPost = await getPostById(database, created.id);
+    const verifyPending = await getPostById(database, pendingPostId);
+    const picChunks = await database.get('PostsInChannel').query(
+        Q.where('channel_id', created.channel_id),
+        Q.sortBy('latest', Q.desc),
+    ).fetch() as any[];
+    _diagLog('createPost', [
+        `HTTP OK`,
+        `realId=${created.id}`,
+        `ts=${created.create_at}`,
+        `ch=${created.channel_id}`,
+        `models=${models.length}`,
+        `inDB=${!!verifyPost}`,
+        `pendingGone=${!verifyPending}`,
+        `PIC=${picChunks.map((c: any) => `${c.earliest}-${c.latest}`).join('|')}`,
+    ]);
 
     newPost = created;
 
