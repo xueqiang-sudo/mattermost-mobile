@@ -8,7 +8,8 @@ import {addChannelToDefaultCategory, handleConvertedGMCategories, storeCategorie
 import {markChannelAsViewed, removeCurrentUserFromChannel, setChannelDeleteAt, storeAllMyChannels, storeMyChannelsForTeam, switchToChannel} from '@actions/local/channel';
 import {switchToGlobalDrafts} from '@actions/local/draft';
 import {loadCallForChannel} from '@calls/actions/calls';
-import {DeepLink, Events, General, Preferences, Screens} from '@constants';
+import {ActionType, DeepLink, Events, General, Post, Preferences, Screens} from '@constants';
+import {PostTypes} from '@constants/post';
 import DatabaseManager from '@database/manager';
 import {privateChannelJoinPrompt} from '@helpers/api/channel';
 import {getTeammateNameDisplaySetting} from '@helpers/api/preference';
@@ -258,6 +259,10 @@ export async function patchChannel(serverUrl: string, channelId: string, channel
         const client = NetworkManager.getClient(serverUrl);
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
+        // 在 API 调用前记录旧的显示名，用于生成改名通知系统帖
+        const existingChannel = await getChannelById(database, channelId);
+        const oldDisplayName = existingChannel?.displayName || '';
+
         const channelData = await client.patchChannel(channelId, channelPatch);
         const models = [];
 
@@ -297,6 +302,45 @@ export async function patchChannel(serverUrl: string, channelId: string, channel
         if (models?.length) {
             await operator.batchRecords(models.flat(), 'patchChannel');
         }
+
+        // GM 改名后在本地插入改名通知系统帖（服务端不会为 GM 频道自动创建 system_displayname_change 帖子）
+        const newDisplayName = channelData.display_name?.trim() || '';
+        const isGmRename = channelData.type === General.GM_CHANNEL && newDisplayName && oldDisplayName && oldDisplayName !== newDisplayName;
+        if (isGmRename) {
+            try {
+                const currentUserId = await getCurrentUserId(database);
+                const timestamp = Date.now();
+                const systemPost = {
+                    id: `${currentUserId}:sys_rename:${timestamp}`,
+                    user_id: currentUserId,
+                    channel_id: channelId,
+                    root_id: '',
+                    message: '',
+                    type: PostTypes.DISPLAYNAME_CHANGE,
+                    create_at: timestamp,
+                    update_at: timestamp,
+                    delete_at: 0,
+                    pending_post_id: '',
+                    props: {
+                        old_displayname: oldDisplayName,
+                        new_displayname: newDisplayName,
+                    },
+                } as Post;
+
+                const postModels = await operator.handlePosts({
+                    actionType: ActionType.POSTS.RECEIVED_NEW,
+                    order: [systemPost.id],
+                    posts: [systemPost],
+                    prepareRecordsOnly: true,
+                });
+                if (postModels.length) {
+                    await operator.batchRecords(postModels, 'patchChannel - rename notification');
+                }
+            } catch (e) {
+                logDebug('patchChannel: failed to create rename notification post', e);
+            }
+        }
+
         return {channel: channelData};
     } catch (error) {
         logDebug('error on patchChannel', getFullErrorMessage(error));
