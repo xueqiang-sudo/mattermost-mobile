@@ -149,9 +149,10 @@ const PostList = ({
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
-        // preparePostList 内部已按从旧到新顺序构建（selectOrderedPosts 从降序数组尾部迭代），
-        // 直接配合 inverted={false} 使用：最旧在顶部，最新在底部
-        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
+        // selectOrderedPosts 从降序数组尾部迭代，构建升序输出 [旧, ..., 新]。
+        // 反转为降序供 inverted={false} 的 FlatList 渲染：配合 flexGrow:1 使新帖在底部可见。
+        const result = preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
+        return [...result].reverse();
     }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
 
     const orderedPostsRef = useRef(orderedPosts);
