@@ -263,6 +263,9 @@ export async function patchChannel(serverUrl: string, channelId: string, channel
 
         const channelInfo = (await getChannelInfo(database, channelData.id));
         if (channelInfo && (channelInfo.purpose !== channelData.purpose || channelInfo.header !== channelData.header)) {
+            if (channelInfo._preparedState === 'update') {
+                channelInfo.cancelPrepareUpdate();
+            }
             channelInfo.prepareUpdate((v) => {
                 v.purpose = channelData.purpose;
                 v.header = channelData.header;
@@ -272,6 +275,9 @@ export async function patchChannel(serverUrl: string, channelId: string, channel
 
         const channel = await getChannelById(database, channelData.id);
         if (channel && (channel.displayName !== channelData.display_name || channel.type !== channelData.type || channel.updateAt !== channelData.update_at)) {
+            if (channel._preparedState === 'update') {
+                channel.cancelPrepareUpdate();
+            }
             channel.prepareUpdate((v) => {
                 // DM display name 由客户端格式化，不覆盖。GM 支持服务端自定义名称（内部群重命名）
                 if (channelData.type !== General.DM_CHANNEL) {
@@ -281,6 +287,10 @@ export async function patchChannel(serverUrl: string, channelId: string, channel
                 }
                 v.type = channelData.type;
                 v.updateAt = channelData.update_at;
+                // GM 改名后标记 displayNameCustomized，让设置页显示自定义名称
+                if (channelData.type === General.GM_CHANNEL && channelData.display_name?.trim()) {
+                    v.displayNameCustomized = true;
+                }
             });
             models.push(channel);
         }
