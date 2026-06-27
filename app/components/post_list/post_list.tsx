@@ -1,10 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {FlatList} from '@stream-io/flat-list-mvcp';
 import React, {type ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
+import {FlatList as RNFlatList, DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
 import Animated, {type AnimatedStyle} from 'react-native-reanimated';
+
+const FlatList = Animated.createAnimatedComponent(RNFlatList);
 
 import {removePost} from '@actions/local/post';
 import {fetchPosts} from '@actions/remote/post';
@@ -20,6 +21,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {getDateForDateLine, getTimeForTimeLine, preparePostList} from '@utils/post_list';
 import {changeOpacity, getChatListBackdropColor} from '@utils/theme';
+import {diagLog} from '@utils/diag_log';
 
 import {INITIAL_BATCH_TO_RENDER, SCROLL_POSITION_CONFIG, VIEWABILITY_CONFIG} from './config';
 import MoreMessages from './more_messages';
@@ -118,10 +120,10 @@ const PostList = ({
     unreadCount = 0,
     isManualUnread = false,
 }: Props) => {
-    // 反转后数组尾部是最新帖子，用于检测新消息到达
-    const newestPostId = posts[posts.length - 1]?.id;
+    // posts 为降序（Q.desc），首元素即最新帖子，用于检测新消息到达
+    const newestPostId = posts[0]?.id;
 
-    const listRef = useRef<FlatList<string | PostModel>>(null);
+    const listRef = useRef<RNFlatList<string | PostModel>>(null);
     const onScrollEndIndexListener = useRef<onScrollEndIndexListenerEvent>();
     const onViewableItemsChangedListener = useRef<ViewableItemsChangedListenerEvent>();
     const scrolledToHighlighted = useRef(false);
@@ -141,18 +143,21 @@ const PostList = ({
             return undefined;
         }
         const base = {backgroundColor: getChatListBackdropColor(theme)};
-        /** 频道正序列表：不使用 flexGrow 避免消息少时顶部出现大片空白 */
+        /** 频道正序列表：使用 flexGrow 确保内容撑满视口，scrollToEnd 才能生效 */
         if (location === Screens.CHANNEL) {
-            return base;
+            return {...base, flexGrow: 1};
         }
         return {...base, flexGrow: 1};
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
+        diagLog('PostList-render', [`input=${posts.length}`, `ch=${channelId}`, `loc=${location}`, `lastViewedAt=${lastViewedAt}`, `crt=${isCRTEnabled}`]);
         const result = preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
         // 反转数组：原为降序（最新在前），反转后升序（最旧在前），
         // 配合 inverted={false} 实现自上而下显示（最旧在顶部，最新在底部）
-        return [...result].reverse();
+        const final = [...result].reverse();
+        diagLog('PostList-render', [`preparePostList=${result.length}`, `final=${final.length}`, `types=${final.map((i: any) => i.type).join(',')}`]);
+        return final;
     }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
 
     const orderedPostsRef = useRef(orderedPosts);
@@ -193,6 +198,18 @@ const PostList = ({
             scrollBottomListener.remove();
         };
     }, [location, scrollToEnd]);
+
+    // Fix: when the newest post changes (new message arrives), force scroll-to-end.
+    // In a non-inverted list with maintainVisibleContentPosition, the scroll may stay
+    // pinned to old content, hiding new posts at the bottom.
+    useEffect(() => {
+        if (newestPostId) {
+            const timer = setTimeout(() => {
+                scrollToEnd(true);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [newestPostId, scrollToEnd]);
 
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener(
@@ -450,7 +467,7 @@ const PostList = ({
                 initialNumToRender={INITIAL_BATCH_TO_RENDER + 5}
                 ListHeaderComponent={header}
                 ListFooterComponent={footer}
-                maintainVisibleContentPosition={SCROLL_POSITION_CONFIG}
+                maintainVisibleContentPosition={undefined}
                 maxToRenderPerBatch={10}
                 nativeID={nativeID}
                 onEndReached={onEndReached}
@@ -459,7 +476,7 @@ const PostList = ({
                 onScrollToIndexFailed={onScrollToIndexFailed}
                 onViewableItemsChanged={onViewableItemsChanged}
                 ref={listRef}
-                removeClippedSubviews={true}
+                removeClippedSubviews={false}
                 renderItem={renderItem}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
                 style={styles.flex}

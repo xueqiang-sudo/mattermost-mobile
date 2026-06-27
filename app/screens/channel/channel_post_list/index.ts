@@ -5,7 +5,9 @@ import {Q} from '@nozbe/watermelondb';
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 import {combineLatest, of as of$} from 'rxjs';
-import {switchMap, distinctUntilChanged} from 'rxjs/operators';
+import {switchMap, distinctUntilChanged, tap} from 'rxjs/operators';
+
+import {diagLog} from '@utils/diag_log';
 
 import {Preferences} from '@constants';
 import {getAdvanceSettingPreferenceAsBool} from '@helpers/api/preference';
@@ -49,14 +51,36 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
             distinctUntilChanged(),
         ),
         posts: combineLatest([isCRTEnabledObserver, postsInChannelObserver, clearedAt$]).pipe(
+            tap(([isCRTEnabled, postsInChannel, clearedAt]) => {
+                const pic = postsInChannel[0];
+                diagLog('PostList-observer', [
+                    `ch=${channelId}`,
+                    `crt=${isCRTEnabled}`,
+                    `clearedAt=${clearedAt}`,
+                    `PIC_count=${postsInChannel.length}`,
+                    `earliest=${pic?.earliest}`,
+                    `latest=${pic?.latest}`,
+                ]);
+            }),
             switchMap(([isCRTEnabled, postsInChannel, clearedAt]) => {
                 if (!postsInChannel.length) {
+                    diagLog('PostList-observer', ['NO_PIC -> empty']);
                     return of$([]);
                 }
 
                 const {earliest, latest} = postsInChannel[0];
                 const effectiveEarliest = clearedAt > 0 ? Math.max(earliest, clearedAt) : earliest;
-                return queryPostsBetween(database, effectiveEarliest, latest, Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe();
+                return queryPostsBetween(database, effectiveEarliest, latest, Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe().pipe(
+                    tap((posts) => {
+                        diagLog('PostList-query', [
+                            `ch=${channelId}`,
+                            `range=${effectiveEarliest}-${latest}`,
+                            `crt=${isCRTEnabled}`,
+                            `count=${posts.length}`,
+                            `ids=${posts.map((p: any) => `${String(p.id).substring(0, 8)}@${p.createAt}`).join(',')}`,
+                        ]);
+                    }),
+                );
             }),
         ),
         shouldShowJoinLeaveMessages: queryAdvanceSettingsPreferences(database, Preferences.ADVANCED_FILTER_JOIN_LEAVE).

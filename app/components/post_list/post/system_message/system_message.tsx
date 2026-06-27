@@ -369,21 +369,21 @@ const renderPurposeChangeMessage = ({post, author, channelType, location, styles
 const displaynameMessages = defineMessages({
     updatedFrom: {
         id: 'mobile.system_message.update_channel_displayname_message_and_forget.updated_from',
-        defaultMessage: '{username} updated the channel display name from: {oldDisplayName} to: {newDisplayName}',
+        defaultMessage: '{username} updated the channel name from {oldDisplayName} to {newDisplayName}',
     },
 });
 
 const displaynameMessagesDiscussion = defineMessages({
     updatedFrom: {
         id: 'mobile.system_message.update_channel_displayname_message_and_forget.updated_from.discussion',
-        defaultMessage: '{username} updated the discussion group display name from: {oldDisplayName} to: {newDisplayName}',
+        defaultMessage: '{username} updated the group name from {oldDisplayName} to {newDisplayName}',
     },
 });
 
 const displaynameMessagesDm = defineMessages({
     updatedFrom: {
         id: 'mobile.system_message.update_channel_displayname_message_and_forget.updated_from.dm',
-        defaultMessage: '{username} updated the private chat display name from: {oldDisplayName} to: {newDisplayName}',
+        defaultMessage: '{username} updated the private chat name from {oldDisplayName} to {newDisplayName}',
     },
 });
 
