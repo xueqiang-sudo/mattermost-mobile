@@ -40,8 +40,6 @@ function preparedMyChannelHack(myChannel: MyChannelModel) {
     }
 }
 
-import {diagLog as _diagLog} from '@utils/diag_log';
-
 export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessage) {
     try {
         await _handleNewPostEventInner(serverUrl, msg);
@@ -51,12 +49,8 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
 }
 
 async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage) {
-    const L: string[] = [];
-    const d = (s: string) => L.push(s);
-
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
-        _diagLog('WS-ERR', ['operator not found']);
         return;
     }
 
@@ -66,17 +60,12 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     try {
         post = JSON.parse(msg.data.post);
     } catch {
-        _diagLog('WS-ERR', ['JSON parse failed']);
         return;
     }
-    d(`id=${post.id} pending=${post.pending_post_id}`);
-    d(`ch=${post.channel_id} type=${post.type} ts=${post.create_at}`);
-    d(`root_id="${post.root_id}" update_at=${post.update_at}`);
 
     const currentUserId = await getCurrentUserId(database);
 
     const existing = await getPostById(database, post.pending_post_id) || await getPostById(database, post.id);
-    d(`existing=${!!existing} path=${existing ? 'EXISTING' : 'NEW'}`);
 
     if (existing) {
         try {
@@ -86,33 +75,23 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
                 Q.where('channel_id', post.channel_id),
                 Q.sortBy('latest', Q.desc),
             ).fetch()) as PostsInChannelModel[];
-            d(`chunks=${chunks.length} latest=${chunks[0]?.latest}`);
 
             if (chunks.length > 0) {
                 const chunk = chunks[0];
                 if (chunk.latest < post.create_at) {
                     if (chunk._preparedState === 'update') {
-                        d('cancelStale=true');
                         chunk.cancelPrepareUpdate();
                     }
                     chunk.prepareUpdate((r) => {
                         r.latest = Math.max(r.latest, post.create_at);
                     });
-                    d(`PIC->${Math.max(chunk.latest, post.create_at)}`);
                     // batchRecords internally calls database.write() — do NOT nest
                     await operator.batchRecords([chunk], 'handleNewPostEvent_existingPost_PIC');
-                    d('batchOK');
-                } else {
-                    d(`PIC_covers=true`);
                 }
-            } else {
-                d(`NO_PIC!`);
             }
         } catch (e) {
             logError('handleNewPostEvent: failed for existing post', e);
-            d(`ERR=${e instanceof Error ? e.message : String(e)}`);
         }
-        _diagLog('WS-EXISTING', L);
         return;
     }
 
@@ -123,7 +102,6 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     // Ensure the channel membership
     let myChannel = await getMyChannel(database, post.channel_id);
-    d(`myChannel=${!!myChannel}`);
     if (myChannel) {
         const isCrtReply = isCRTEnabled && post.root_id !== '';
 
@@ -182,7 +160,6 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     }
 
     const ignored = shouldIgnorePost(post);
-    d(`ignore=${ignored} type=${post.type}`);
     if (!ignored) {
         let markAsViewed = false;
 
@@ -235,13 +212,11 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
     const outOfOrderWebsocketEvent = EphemeralStore.getLastPostWebsocketEvent(serverUrl, post.id);
     if (outOfOrderWebsocketEvent?.deleted) {
-        d('outOfOrder=DELETED');
         for (const model of models) {
             if (model._preparedState === 'update') {
                 model.cancelPrepareUpdate();
             }
         }
-        _diagLog('WS-NEW', L);
         return;
     }
 
@@ -257,11 +232,8 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     });
 
     models.push(...postModels);
-    d(`models=${models.length} postModels=${postModels.length}`);
 
     await operator.batchRecords(models, 'handleNewPostEvent');
-    d('batchOK');
-    _diagLog('WS-NEW', L);
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {

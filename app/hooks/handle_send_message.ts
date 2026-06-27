@@ -22,8 +22,6 @@ import {getErrorMessage} from '@utils/errors';
 import {scheduledPostFromPost} from '@utils/post';
 import {canPostDraftInChannelOrThread} from '@utils/scheduled_post';
 import {showSnackBar} from '@utils/snack_bar';
-import {diagLog} from '@utils/diag_log';
-
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 import { logDebug, logError } from '@utils/log';
 
@@ -114,17 +112,7 @@ export const useHandleSendMessage = ({
     }, [serverUrl, rootId, clearDraft]);
 
     const doSubmitMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
-        const SL: string[] = [];
-        SL.push(`ch=${channelId}`);
-        SL.push(`value="${value.substring(0, 30)}"`);
-        SL.push(`files=${files.length}`);
-        SL.push(`isFromDraftView=${isFromDraftView}`);
-        SL.push(`canPost=${canPost}`);
-        SL.push(`archived=${channelIsArchived} ro=${channelIsReadOnly} deact=${deactivatedChannel}`);
-
         if (files.some((f) => isDraftVideoLocalProcessingFile(f))) {
-            SL.push('BLOCKED: video processing');
-            diagLog('send', SL);
             setSendingMessage(false);
             return;
         }
@@ -156,8 +144,6 @@ export const useHandleSendMessage = ({
 
         let response: CreateResponse;
         if (schedulingInfo) {
-            SL.push('path=scheduled');
-            diagLog('send', SL);
             response = await createScheduledPost(serverUrl, scheduledPostFromPost(post, schedulingInfo, postPriority, postFiles));
             if (response.error) {
                 showSnackBar({
@@ -169,7 +155,6 @@ export const useHandleSendMessage = ({
                 clearDraft();
             }
         } else if (isFromDraftView) {
-            SL.push('path=draftView');
             const shouldClearDraft = await canPostDraftInChannelOrThread({
                 serverUrl,
                 rootId,
@@ -179,17 +164,12 @@ export const useHandleSendMessage = ({
                 channelIsReadOnly,
                 deactivatedChannel,
             });
-            SL.push(`shouldClearDraft=${shouldClearDraft}`);
 
             if (!shouldClearDraft) {
-                SL.push('BLOCKED: shouldClearDraft=false');
-                diagLog('send', SL);
                 setSendingMessage(false);
                 return;
             }
 
-            SL.push('calling createPost (draftView)');
-            diagLog('send', SL);
             const draftViewPostPromise = createPost(serverUrl, post, postFiles);
             clearDraft();
             await draftViewPostPromise;
@@ -198,8 +178,6 @@ export const useHandleSendMessage = ({
             setSendingMessage(false);
             return;
         } else {
-            SL.push('path=normal -> createPost');
-            diagLog('send', SL);
             // Optimistic clear: same UX as before; await keeps sendingMessage true until request settles
             const postPromise = createPost(serverUrl, post, postFiles);
             clearDraft();
@@ -240,14 +218,11 @@ export const useHandleSendMessage = ({
     }, [enableConfirmNotificationsToChannel, useChannelMentions, value, membersCount, showSendToAllOrChannelOrHereAlert, doSubmitMessage]);
 
     const handleSendMessage = useCallback(async (schedulingInfo?: SchedulingInfo) => {
-        diagLog('handleSend', [`canSend=${canSend}`, `sendingMsg=${sendingMessage}`, `valueLen=${value?.length}`, `files=${files.length}`]);
         if (!canSend) {
-            diagLog('handleSend', ['BLOCKED: canSend=false']);
             return Promise.resolve();
         }
 
         if (files.some((f) => isDraftVideoLocalProcessingFile(f))) {
-            diagLog('handleSend', ['BLOCKED: video processing']);
             return Promise.resolve();
         }
 
