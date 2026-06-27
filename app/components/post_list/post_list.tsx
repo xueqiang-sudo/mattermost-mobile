@@ -1,10 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {FlatList} from '@stream-io/flat-list-mvcp';
 import React, {type ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
+import {FlatList as RNFlatList, DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
 import Animated, {type AnimatedStyle} from 'react-native-reanimated';
+
+const FlatList = Animated.createAnimatedComponent(RNFlatList);
 
 import {removePost} from '@actions/local/post';
 import {fetchPosts} from '@actions/remote/post';
@@ -122,7 +123,7 @@ const PostList = ({
     // posts 为降序（Q.desc），首元素即最新帖子，用于检测新消息到达
     const newestPostId = posts[0]?.id;
 
-    const listRef = useRef<FlatList<string | PostModel>>(null);
+    const listRef = useRef<RNFlatList<string | PostModel>>(null);
     const onScrollEndIndexListener = useRef<onScrollEndIndexListenerEvent>();
     const onViewableItemsChangedListener = useRef<ViewableItemsChangedListenerEvent>();
     const scrolledToHighlighted = useRef(false);
@@ -142,9 +143,9 @@ const PostList = ({
             return undefined;
         }
         const base = {backgroundColor: getChatListBackdropColor(theme)};
-        /** 频道正序列表：不使用 flexGrow 避免消息少时顶部出现大片空白 */
+        /** 频道正序列表：使用 flexGrow 确保内容撑满视口，scrollToEnd 才能生效 */
         if (location === Screens.CHANNEL) {
-            return base;
+            return {...base, flexGrow: 1};
         }
         return {...base, flexGrow: 1};
     }, [location, theme]);
@@ -475,7 +476,7 @@ const PostList = ({
                 onScrollToIndexFailed={onScrollToIndexFailed}
                 onViewableItemsChanged={onViewableItemsChanged}
                 ref={listRef}
-                removeClippedSubviews={true}
+                removeClippedSubviews={false}
                 renderItem={renderItem}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
                 style={styles.flex}
