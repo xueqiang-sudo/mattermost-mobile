@@ -325,7 +325,11 @@ export function openToS() {
 }
 
 export function showLaunchAgreement() {
-    return showOverlay(Screens.LAUNCH_AGREEMENT, {}, {overlay: {interceptTouchOutside: true}});
+    return showModal(Screens.LAUNCH_AGREEMENT, '', {}, {
+        topBar: {
+            visible: false,
+        },
+    });
 }
 
 export function resetToHome(passProps: LaunchProps = {launchType: Launch.Normal}) {

@@ -16,7 +16,7 @@ import Button from '@components/button';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {LAUNCH_AGREEMENT_EVENTS} from '@screens/launch_agreement/events';
-import {dismissOverlay, showModalWithBackButton} from '@screens/navigation';
+import {dismissModal, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -104,13 +104,13 @@ const LaunchAgreement = ({componentId}: Props) => {
     }, [intl]);
 
     const handleDisagree = useCallback(() => {
-        dismissOverlay(componentId);
+        dismissModal({componentId});
         DeviceEventEmitter.emit(LAUNCH_AGREEMENT_EVENTS.DECLINED);
         BackHandler.exitApp();
     }, [componentId]);
 
     const handleAgree = useCallback(() => {
-        dismissOverlay(componentId);
+        dismissModal({componentId});
         DeviceEventEmitter.emit(LAUNCH_AGREEMENT_EVENTS.ACCEPTED);
     }, [componentId]);
 
