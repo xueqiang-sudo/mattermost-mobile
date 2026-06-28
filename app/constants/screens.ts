@@ -125,6 +125,7 @@ export const STARTUP_LOADING = 'StartupLoading';
 export const TABLE = 'Table';
 export const TEAM_SELECTOR_LIST = 'TeamSelectorList';
 export const TERMS_OF_SERVICE = 'TermsOfService';
+export const LAUNCH_AGREEMENT = 'LaunchAgreement';
 
 /** Channel list threads tab id for Events.ACTIVE_SCREEN (not a standalone RNN screen in this fork). */
 export const THREAD = 'Thread';
@@ -248,6 +249,7 @@ export default {
     TABLE,
     TEAM_SELECTOR_LIST,
     TERMS_OF_SERVICE,
+    LAUNCH_AGREEMENT,
     THREAD,
     USER_PROFILE,
     ...PLAYBOOKS_SCREENS,

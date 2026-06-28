@@ -324,6 +324,10 @@ export function openToS() {
     return showOverlay(Screens.TERMS_OF_SERVICE, {}, {overlay: {interceptTouchOutside: true}});
 }
 
+export function showLaunchAgreement() {
+    return showOverlay(Screens.LAUNCH_AGREEMENT, {}, {overlay: {interceptTouchOutside: true}});
+}
+
 export function resetToHome(passProps: LaunchProps = {launchType: Launch.Normal}) {
     const theme = getThemeFromState();
     const edgeToEdge = edgeToEdgeHack(Screens.HOME, theme);
