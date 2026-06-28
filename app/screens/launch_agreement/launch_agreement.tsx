@@ -103,14 +103,14 @@ const LaunchAgreement = ({componentId}: Props) => {
         showModalWithBackButton(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
     }, [intl]);
 
-    const handleDisagree = useCallback(() => {
-        dismissModal({componentId});
+    const handleDisagree = useCallback(async () => {
+        await dismissModal({componentId});
         DeviceEventEmitter.emit(LAUNCH_AGREEMENT_EVENTS.DECLINED);
         BackHandler.exitApp();
     }, [componentId]);
 
-    const handleAgree = useCallback(() => {
-        dismissModal({componentId});
+    const handleAgree = useCallback(async () => {
+        await dismissModal({componentId});
         DeviceEventEmitter.emit(LAUNCH_AGREEMENT_EVENTS.ACCEPTED);
     }, [componentId]);
 
