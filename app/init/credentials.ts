@@ -18,7 +18,11 @@ export const getAllServerCredentials = async (): Promise<ServerCredential[]> => 
         serverUrls = await KeyChain.getAllGenericPasswordServices();
     }
 
-    for await (const serverUrl of serverUrls) {
+    // Android 上 getAllGenericPasswordServices() 会返回所有 generic password 服务，
+    // 包括非服务器 URL 的条目（如 launch_agreement_accepted），需要过滤掉
+    const validServerUrls = serverUrls.filter((url) => url.startsWith('http://') || url.startsWith('https://'));
+
+    for await (const serverUrl of validServerUrls) {
         const serverCredential = await getServerCredentials(serverUrl);
 
         if (serverCredential) {
@@ -39,7 +43,8 @@ export const getActiveServerUrl = async () => {
             serverUrls = await KeyChain.getAllGenericPasswordServices();
         }
 
-        serverUrl = serverUrls[0];
+        const validUrls = serverUrls.filter((url) => url.startsWith('http://') || url.startsWith('https://'));
+        serverUrl = validUrls[0];
     }
     return serverUrl || undefined;
 };
