@@ -678,6 +678,8 @@
   "last_users_message.left_channel.discussion.type": "**left the discussion group**.",
   "last_users_message.removed_from_channel.discussion.type": "were **removed from the discussion group**.",
   "last_users_message.removed_from_team.type": "were **removed from the enterprise**.",
+  "launch_agreement.terms_title": "User Agreement",
+  "launch_agreement.privacy_title": "Privacy Policy",
   "load_categories_error.message": "There was a problem loading content for this server.",
   "load_categories_error.title": "Couldn't load categories for {serverName}",
   "load_channels_error.message": "There was a problem loading content for this enterprise.",

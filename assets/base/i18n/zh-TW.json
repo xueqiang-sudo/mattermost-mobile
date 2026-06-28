@@ -665,6 +665,8 @@
   "last_users_message.left_channel.discussion.type": "**離開了討論組**。",
   "last_users_message.removed_from_channel.discussion.type": "被**移出了此討論組**。",
   "last_users_message.removed_from_team.type": "被**移出了此企業**。",
+  "launch_agreement.terms_title": "用戶協議",
+  "launch_agreement.privacy_title": "隱私政策",
   "load_categories_error.message": "在這個服務上有內容載入錯誤。",
   "load_categories_error.title": "不能在{serverName}載入類型",
   "load_channels_error.message": "在這個服務上有內容載入錯誤。",

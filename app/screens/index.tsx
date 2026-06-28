@@ -366,6 +366,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.LAUNCH_AGREEMENT:
             screen = require('@screens/launch_agreement').default;
             break;
+        case Screens.WEB_VIEW:
+            screen = withIntl(require('@screens/web_view').default);
+            break;
         case Screens.USER_PROFILE:
             screen = withServerDatabase(require('@screens/user_profile').default);
             break;

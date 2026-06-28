@@ -2,10 +2,10 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo} from 'react';
+import {useIntl} from 'react-intl';
 import {
     BackHandler,
     DeviceEventEmitter,
-    Linking,
     ScrollView,
     Text,
     View,
@@ -13,9 +13,10 @@ import {
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import Button from '@components/button';
+import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {LAUNCH_AGREEMENT_EVENTS} from '@screens/launch_agreement/events';
-import {dismissOverlay} from '@screens/navigation';
+import {dismissOverlay, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -94,10 +95,13 @@ const LaunchAgreement = ({componentId}: Props) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const insets = useSafeAreaInsets();
+    const intl = useIntl();
 
-    const openUrl = useCallback((url: string) => {
-        Linking.openURL(url);
-    }, []);
+    const openWebView = useCallback((url: string, titleKey: string, defaultTitle: string) => {
+        const title = intl.formatMessage({id: titleKey, defaultMessage: defaultTitle});
+        const closeId = `close-webview-${titleKey}`;
+        showModalWithBackButton(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
+    }, [intl]);
 
     const handleDisagree = useCallback(() => {
         dismissOverlay(componentId);
@@ -132,28 +136,28 @@ const LaunchAgreement = ({componentId}: Props) => {
                             {'欢迎您使用允知智构！ 我们非常重视您的个人信息和隐私保护。特别提示您阅读并充分理解'}
                             <Text
                                 style={styles.linkText}
-                                onPress={() => openUrl(TERMS_URL)}
+                                onPress={() => openWebView(TERMS_URL, 'launch_agreement.terms_title', 'User Agreement')}
                             >
                                 {'《用户协议》'}
                             </Text>
                             {'&'}
                             <Text
                                 style={styles.linkText}
-                                onPress={() => openUrl(PRIVACY_URL)}
+                                onPress={() => openWebView(PRIVACY_URL, 'launch_agreement.privacy_title', 'Privacy Policy')}
                             >
                                 {'《隐私政策》'}
                             </Text>
                             {'各条款。如您同意'}
                             <Text
                                 style={styles.linkText}
-                                onPress={() => openUrl(TERMS_URL)}
+                                onPress={() => openWebView(TERMS_URL, 'launch_agreement.terms_title', 'User Agreement')}
                             >
                                 {'《用户协议》'}
                             </Text>
                             {'及'}
                             <Text
                                 style={styles.linkText}
-                                onPress={() => openUrl(PRIVACY_URL)}
+                                onPress={() => openWebView(PRIVACY_URL, 'launch_agreement.privacy_title', 'Privacy Policy')}
                             >
                                 {'《隐私政策》'}
                             </Text>

@@ -671,6 +671,8 @@
   "last_users_message.left_channel.discussion.type": "**离开了群聊**。",
   "last_users_message.removed_from_channel.discussion.type": "被**移出了此群聊**。",
   "last_users_message.removed_from_team.type": "被**移出了此企业**。",
+  "launch_agreement.terms_title": "用户协议",
+  "launch_agreement.privacy_title": "隐私政策",
   "load_categories_error.message": "在这个服务上有内容载入错误。",
   "load_categories_error.title": "不能在{serverName}载入类型",
   "load_channels_error.message": "在这个服务上有内容载入错误。",
