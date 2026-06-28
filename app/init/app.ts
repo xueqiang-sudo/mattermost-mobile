@@ -2,14 +2,12 @@
 // See LICENSE.txt for license information.
 
 import VoiceRecorder from '@mattermost/voice-recorder';
-import {DeviceEventEmitter} from 'react-native';
 
 import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';
 import DatabaseManager from '@database/manager';
 import {getAllServerCredentials} from '@init/credentials';
 import JPushManager from '@init/jpush';
-import {initialLaunch} from '@init/launch';
 import ManagedApp from '@init/managed_app';
 import {requestPermissionIfNeeded} from '@init/push_notifications';
 import GlobalEventHandler from '@managers/global_event_handler';
@@ -17,7 +15,6 @@ import NetworkManager from '@managers/network_manager';
 import SecurityManager from '@managers/security_manager';
 import SessionManager from '@managers/session_manager';
 import WebsocketManager from '@managers/websocket_manager';
-import {LAUNCH_AGREEMENT_EVENTS} from '@screens/launch_agreement/events';
 import {registerScreens} from '@screens/index';
 import {registerNavigationListeners, resetToStartupLoading, showLaunchAgreement} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
@@ -106,12 +103,9 @@ export async function start() {
 
     await WebsocketManager.init(serverCredentials);
 
-    // 显示启动协议弹窗，等待用户同意后再进入正常流程
-    showLaunchAgreement();
-    DeviceEventEmitter.once(LAUNCH_AGREEMENT_EVENTS.ACCEPTED, () => {
-        initialLaunch();
-    });
+    // 显示启动协议弹窗，用户同意后由 LaunchAgreement 组件直接调用 initialLaunch()
     // 用户不同意时，LaunchAgreement 组件会调用 BackHandler.exitApp() 退出应用
+    showLaunchAgreement();
 
     // Show debug panel overlay after RNN has rendered the initial screen.
     // The 1500ms delay gives RNN time to complete its first layout before we push an overlay.

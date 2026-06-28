@@ -5,7 +5,6 @@ import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {
     BackHandler,
-    DeviceEventEmitter,
     ScrollView,
     Text,
     View,
@@ -15,7 +14,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Button from '@components/button';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
-import {LAUNCH_AGREEMENT_EVENTS} from '@screens/launch_agreement/events';
+import {initialLaunch} from '@init/launch';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -105,13 +104,12 @@ const LaunchAgreement = ({componentId}: Props) => {
 
     const handleDisagree = useCallback(async () => {
         await dismissModal({componentId});
-        DeviceEventEmitter.emit(LAUNCH_AGREEMENT_EVENTS.DECLINED);
         BackHandler.exitApp();
     }, [componentId]);
 
     const handleAgree = useCallback(async () => {
         await dismissModal({componentId});
-        DeviceEventEmitter.emit(LAUNCH_AGREEMENT_EVENTS.ACCEPTED);
+        initialLaunch();
     }, [componentId]);
 
     const containerStyle = useMemo(() => {
