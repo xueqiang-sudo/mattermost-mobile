@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useRef} from 'react';
+import {useIntl} from 'react-intl';
 import {View} from 'react-native';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Navigation} from 'react-native-navigation';
@@ -14,7 +15,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useScreenTransitionAnimation} from '@hooks/screen_transition_animation';
 import Background from '@screens/background';
-import {dismissModal, popTopScreen} from '@screens/navigation';
+import {dismissModal, goToScreen, popTopScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {logInfo} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -73,6 +74,7 @@ const LoginOptions = ({
     serverUrl: defaultServerUrl,
 }: LoginOptionsProps) => {
     const styles = getStyles(theme);
+    const intl = useIntl();
     const keyboardAwareRef = useRef<KeyboardAwareScrollView>(null);
 
     useEffect(() => {
@@ -111,11 +113,14 @@ const LoginOptions = ({
         const navigationEvents = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
             if (closeButtonId && buttonId === closeButtonId) {
                 dismissModal({componentId});
+            } else if (buttonId === 'login-about') {
+                const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About'});
+                goToScreen(Screens.LOGIN_ABOUT, title);
             }
         });
 
         return () => navigationEvents.remove();
-    }, [closeButtonId, componentId]);
+    }, [closeButtonId, componentId, intl]);
 
     const animatedStyles = useScreenTransitionAnimation(componentId);
 

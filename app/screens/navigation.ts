@@ -412,8 +412,13 @@ export function resetToLogin(passProps: LaunchProps) {
                     background: {
                         color: theme.sidebarBg,
                     },
-                    visible: false,
-                    height: 0,
+                    visible: true,
+                    rightButtons: [{
+                        id: 'login-about',
+                        testID: 'login.about.button',
+                        color: theme.sidebarHeaderTextColor,
+                        icon: CompassIcon.getImageSourceSync('information-outline', 24, theme.sidebarHeaderTextColor),
+                    }],
                 },
             },
         },
