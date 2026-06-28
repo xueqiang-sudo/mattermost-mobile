@@ -1,11 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {FlatList} from '@stream-io/flat-list-mvcp';
 import React, {type ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {FlatList as RNFlatList, DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
+import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
 import Animated, {type AnimatedStyle} from 'react-native-reanimated';
-
-const FlatList = Animated.createAnimatedComponent(RNFlatList);
 
 import {removePost} from '@actions/local/post';
 import {fetchPosts} from '@actions/remote/post';
@@ -21,6 +20,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {getDateForDateLine, getTimeForTimeLine, preparePostList} from '@utils/post_list';
 import {changeOpacity, getChatListBackdropColor} from '@utils/theme';
+
 import {INITIAL_BATCH_TO_RENDER, SCROLL_POSITION_CONFIG, VIEWABILITY_CONFIG} from './config';
 import MoreMessages from './more_messages';
 import ScrollToEndView from './scroll_to_end_view';
@@ -41,7 +41,7 @@ type Props = {
     highlightedId?: PostModel['id'];
     highlightPinnedOrSaved?: boolean;
     isCRTEnabled?: boolean;
-    isMilitaryTime: boolean;
+    isMilitaryTime?: boolean;
     isPostAcknowledgementEnabled?: boolean;
     lastViewedAt: number;
     location: AvailableScreens;
@@ -118,10 +118,9 @@ const PostList = ({
     unreadCount = 0,
     isManualUnread = false,
 }: Props) => {
-    // posts 为降序（Q.desc），首元素即最新帖子，用于检测新消息到达
-    const newestPostId = posts[0]?.id;
+    const firstIdInPosts = posts[0]?.id;
 
-    const listRef = useRef<RNFlatList<string | PostModel>>(null);
+    const listRef = useRef<FlatList<string | PostModel>>(null);
     const onScrollEndIndexListener = useRef<onScrollEndIndexListenerEvent>();
     const onViewableItemsChangedListener = useRef<ViewableItemsChangedListenerEvent>();
     const scrolledToHighlighted = useRef(false);
@@ -129,10 +128,7 @@ const PostList = ({
     const effectiveHighlightedId = jumpHighlightPostId || highlightedId;
     const [refreshing, setRefreshing] = useState(false);
     const [showScrollToEndBtn, setShowScrollToEndBtn] = useState(false);
-    const [lastPostId, setLastPostId] = useState<string | undefined>(newestPostId);
-    // 跟踪内容尺寸和视口尺寸，用于判断是否在列表底部
-    const contentSizeRef = useRef(0);
-    const layoutSizeRef = useRef(0);
+    const [lastPostId, setLastPostId] = useState<string | undefined>(firstIdInPosts);
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const listContentStyle = useMemo(() => {
@@ -141,19 +137,17 @@ const PostList = ({
             return undefined;
         }
         const base = {backgroundColor: getChatListBackdropColor(theme)};
-        /** 频道正序列表：使用 flexGrow 确保内容撑满视口，scrollToEnd 才能生效 */
+        /** 频道倒序列表：flexGrow 在消息少时会在视觉顶部与断网条之间撑出多余空隙 */
         if (location === Screens.CHANNEL) {
-            return {...base, flexGrow: 1};
+            return base;
         }
         return {...base, flexGrow: 1};
     }, [location, theme]);
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
-        // selectOrderedPosts 从降序数组尾部迭代，构建升序输出 [旧, ..., 新]。
-        // 反转为降序供 inverted={false} 的 FlatList 渲染：配合 flexGrow:1 使新帖在底部可见。
-        const result = preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds);
-        return [...result].reverse();
-    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds]);
+        const useWeChatMode = location === Screens.CHANNEL || location === Screens.PERMALINK;
+        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds, useWeChatMode);
+    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds, location]);
 
     const orderedPostsRef = useRef(orderedPosts);
     orderedPostsRef.current = orderedPosts;
@@ -162,11 +156,10 @@ const PostList = ({
         return orderedPosts.findIndex((i) => i.type === 'start-of-new-messages');
     }, [orderedPosts]);
 
-    const isNewMessage = lastPostId ? newestPostId !== lastPostId : false;
+    const isNewMessage = lastPostId ? firstIdInPosts !== lastPostId : false;
 
-    // 非反转列表：scrollToEnd 滚动到内容最底部（最新帖子所在位置）
     const scrollToEnd = useCallback((animated = true) => {
-        listRef.current?.scrollToEnd({animated});
+        listRef.current?.scrollToOffset({offset: 0, animated});
     }, []);
 
     useEffect(() => {
@@ -193,18 +186,6 @@ const PostList = ({
             scrollBottomListener.remove();
         };
     }, [location, scrollToEnd]);
-
-    // Fix: when the newest post changes (new message arrives), force scroll-to-end.
-    // In a non-inverted list with maintainVisibleContentPosition, the scroll may stay
-    // pinned to old content, hiding new posts at the bottom.
-    useEffect(() => {
-        if (newestPostId) {
-            const timer = setTimeout(() => {
-                scrollToEnd(true);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [newestPostId, scrollToEnd]);
 
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener(
@@ -256,30 +237,22 @@ const PostList = ({
             animated,
             index,
             viewOffset: applyOffset ? Platform.select({ios: -45, default: 0}) : 0,
-            viewPosition: 0, // 0 = 项显示在视口顶部（非反转列表的标准行为）
+            viewPosition: 1, // 0 is at bottom
         });
     }, []);
 
     const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const {contentOffset, contentSize, layoutMeasurement} = event.nativeEvent;
-        const y = contentOffset.y;
-        contentSizeRef.current = contentSize.height;
-        layoutSizeRef.current = layoutMeasurement.height;
+        const {y} = event.nativeEvent.contentOffset;
+        const isThresholdReached = y > CONTENT_OFFSET_THRESHOLD;
 
-        // 非反转列表：距底部的距离 = 内容高度 - 视口高度 - 当前偏移
-        const distanceFromBottom = contentSize.height - layoutMeasurement.height - y;
-        const isNearBottom = distanceFromBottom < CONTENT_OFFSET_THRESHOLD;
-
-        // 不在底部时显示"回到底部"按钮
-        if (!isNearBottom !== showScrollToEndBtn) {
-            setShowScrollToEndBtn(!isNearBottom);
+        if (isThresholdReached !== showScrollToEndBtn) {
+            setShowScrollToEndBtn(isThresholdReached);
         }
 
-        // 到达底部时更新已见最新帖子 ID
-        if (isNearBottom && lastPostId !== newestPostId) {
-            setLastPostId(newestPostId);
+        if (!y && lastPostId !== firstIdInPosts) {
+            setLastPostId(firstIdInPosts);
         }
-    }, [lastPostId, newestPostId, showScrollToEndBtn]);
+    }, [firstIdInPosts, lastPostId, showScrollToEndBtn]);
 
     const onScrollToIndexFailed = useCallback((info: ScrollIndexFailed) => {
         const index = Math.min(info.highestMeasuredFrameIndex, info.index);
@@ -371,7 +344,7 @@ const PostList = ({
                         key={item.value}
                         createAt={getTimeForTimeLine(item.value)}
                         timezone={currentTimezone}
-                        isMilitaryTime={isMilitaryTime}
+                        isMilitaryTime={isMilitaryTime ?? true}
                     />
                 );
             case 'thread-overview':
@@ -462,7 +435,7 @@ const PostList = ({
                 initialNumToRender={INITIAL_BATCH_TO_RENDER + 5}
                 ListHeaderComponent={header}
                 ListFooterComponent={footer}
-                maintainVisibleContentPosition={undefined}
+                maintainVisibleContentPosition={SCROLL_POSITION_CONFIG}
                 maxToRenderPerBatch={10}
                 nativeID={nativeID}
                 onEndReached={onEndReached}
@@ -471,13 +444,13 @@ const PostList = ({
                 onScrollToIndexFailed={onScrollToIndexFailed}
                 onViewableItemsChanged={onViewableItemsChanged}
                 ref={listRef}
-                removeClippedSubviews={false}
+                removeClippedSubviews={true}
                 renderItem={renderItem}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
                 style={styles.flex}
                 viewabilityConfig={VIEWABILITY_CONFIG}
                 testID={`${testID}.flat_list`}
-                inverted={false}
+                inverted={true}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
             />

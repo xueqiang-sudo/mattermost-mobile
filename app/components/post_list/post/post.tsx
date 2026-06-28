@@ -503,7 +503,8 @@ const Post = ({
     /**
      * 系统消息居中：无头像、无系统名
      */
-    const useCenteredNoAvatarLayout = showSystemCentered;
+    // const useCenteredNoAvatarLayout = showSystemCentered;
+    const useCenteredNoAvatarLayout = !invalidTipWeChatOwnRow && (showSystemCentered || (showInvalidTip && !weChatStyle));
 
     /**
      * 微信仅头像行：无昵称/时间头，气泡顶与头像顶对齐，箭头对准头像垂直中心
@@ -514,7 +515,7 @@ const Post = ({
 
     const rightColumnStyle: StyleProp<ViewStyle> = [
         showOwnLayout ? styles.rightColumnOwnSizing : (
-            weChatStyle ? styles.rightColumnOthersWeChat : styles.rightColumn
+            weChatStyle && !useCenteredNoAvatarLayout ? styles.rightColumnOthersWeChat : styles.rightColumn
         ),
         (Boolean(post.rootId) && isLastReply && styles.rightColumnPadding),
         showOwnLayout && styles.rightColumnOwn,

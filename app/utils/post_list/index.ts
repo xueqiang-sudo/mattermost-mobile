@@ -291,8 +291,9 @@ export function selectOrderedPosts(
         }
     }
 
-    // 循环已按从旧到新顺序构建，直接返回（由调用方决定是否反转）
-    return out;
+    // Flip it back to newest to oldest
+    return out.reverse();
+
 }
 
 type ActivityData = {
