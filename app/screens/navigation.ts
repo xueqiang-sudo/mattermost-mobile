@@ -324,6 +324,14 @@ export function openToS() {
     return showOverlay(Screens.TERMS_OF_SERVICE, {}, {overlay: {interceptTouchOutside: true}});
 }
 
+export function showLaunchAgreement() {
+    return showModal(Screens.LAUNCH_AGREEMENT, '', {}, {
+        topBar: {
+            visible: false,
+        },
+    });
+}
+
 export function resetToHome(passProps: LaunchProps = {launchType: Launch.Normal}) {
     const theme = getThemeFromState();
     const edgeToEdge = edgeToEdgeHack(Screens.HOME, theme);
@@ -404,8 +412,13 @@ export function resetToLogin(passProps: LaunchProps) {
                     background: {
                         color: theme.sidebarBg,
                     },
-                    visible: false,
-                    height: 0,
+                    visible: true,
+                    rightButtons: [{
+                        id: 'login-about',
+                        testID: 'login.about.button',
+                        color: theme.sidebarHeaderTextColor,
+                        icon: CompassIcon.getImageSourceSync('information-outline', 24, theme.sidebarHeaderTextColor),
+                    }],
                 },
             },
         },

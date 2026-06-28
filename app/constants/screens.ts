@@ -81,6 +81,7 @@ export const IN_APP_NOTIFICATION = 'InAppNotification';
 export const JOIN_TEAM = 'JoinTeam';
 export const LATEX = 'Latex';
 export const LOGIN = 'Login';
+export const LOGIN_ABOUT = 'LoginAbout';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
 export const MFA = 'MFA';
 /** 我的主页 Stack 内根屏路由名（供应商/客户已迁移至通讯录 Stack） */
@@ -125,6 +126,8 @@ export const STARTUP_LOADING = 'StartupLoading';
 export const TABLE = 'Table';
 export const TEAM_SELECTOR_LIST = 'TeamSelectorList';
 export const TERMS_OF_SERVICE = 'TermsOfService';
+export const LAUNCH_AGREEMENT = 'LaunchAgreement';
+export const WEB_VIEW = 'WebView';
 
 /** Channel list threads tab id for Events.ACTIVE_SCREEN (not a standalone RNN screen in this fork). */
 export const THREAD = 'Thread';
@@ -205,6 +208,7 @@ export default {
     JOIN_TEAM,
     LATEX,
     LOGIN,
+    LOGIN_ABOUT,
     MANAGE_CHANNEL_MEMBERS,
     MFA,
     MY_HOMEPAGE,
@@ -248,6 +252,8 @@ export default {
     TABLE,
     TEAM_SELECTOR_LIST,
     TERMS_OF_SERVICE,
+    LAUNCH_AGREEMENT,
+    WEB_VIEW,
     THREAD,
     USER_PROFILE,
     ...PLAYBOOKS_SCREENS,

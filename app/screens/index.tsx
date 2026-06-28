@@ -245,6 +245,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.LOGIN:
             screen = withIntl(require('@screens/login').default);
             break;
+        case Screens.LOGIN_ABOUT:
+            screen = withIntl(require('@screens/login_about').default);
+            break;
         case Screens.MANAGE_CHANNEL_MEMBERS:
             screen = withServerDatabase(require('@screens/manage_channel_members').default);
             break;
@@ -362,6 +365,12 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.TERMS_OF_SERVICE:
             screen = withServerDatabase(require('@screens/terms_of_service').default);
+            break;
+        case Screens.LAUNCH_AGREEMENT:
+            screen = withIntl(require('@screens/launch_agreement').default);
+            break;
+        case Screens.WEB_VIEW:
+            screen = withIntl(require('@screens/web_view').default);
             break;
         case Screens.USER_PROFILE:
             screen = withServerDatabase(require('@screens/user_profile').default);

@@ -6,9 +6,9 @@ import VoiceRecorder from '@mattermost/voice-recorder';
 import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';
 import DatabaseManager from '@database/manager';
+import {hasAcceptedAgreement} from '@init/agreement';
 import {getAllServerCredentials} from '@init/credentials';
 import JPushManager from '@init/jpush';
-import {initialLaunch} from '@init/launch';
 import ManagedApp from '@init/managed_app';
 import {requestPermissionIfNeeded} from '@init/push_notifications';
 import GlobalEventHandler from '@managers/global_event_handler';
@@ -16,8 +16,9 @@ import NetworkManager from '@managers/network_manager';
 import SecurityManager from '@managers/security_manager';
 import SessionManager from '@managers/session_manager';
 import WebsocketManager from '@managers/websocket_manager';
+import {initialLaunch} from '@init/launch';
 import {registerScreens} from '@screens/index';
-import {registerNavigationListeners, resetToStartupLoading} from '@screens/navigation';
+import {registerNavigationListeners, resetToStartupLoading, showLaunchAgreement} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {clearCachedUpdateApk} from '@utils/file/apk_download';
@@ -104,7 +105,16 @@ export async function start() {
 
     await WebsocketManager.init(serverCredentials);
 
-    initialLaunch();
+    // 检查是否已同意过隐私条款
+    const agreed = await hasAcceptedAgreement();
+    if (agreed) {
+        // 已同意过，直接进入正常启动流程
+        initialLaunch();
+    } else {
+        // 未同意过，显示协议弹窗，用户同意后由 LaunchAgreement 组件直接调用 initialLaunch()
+        // 用户不同意时，LaunchAgreement 组件会调用 BackHandler.exitApp() 退出应用
+        showLaunchAgreement();
+    }
 
     // Show debug panel overlay after RNN has rendered the initial screen.
     // The 1500ms delay gives RNN time to complete its first layout before we push an overlay.
