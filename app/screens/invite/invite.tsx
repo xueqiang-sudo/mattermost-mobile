@@ -77,10 +77,6 @@ function AvatarNoInitials({author, size}: {author: CandidateProfile; size: numbe
     );
 }
 
-const closeModal = async () => {
-    Keyboard.dismiss();
-    await dismissModal();
-};
 
 type Props = {
     componentId: AvailableScreens;
@@ -276,6 +272,11 @@ export default function Invite({
     const style = getStyleSheet(theme);
     const serverUrl = useServerUrl();
 
+    const closeModal = useCallback(async () => {
+        Keyboard.dismiss();
+        await dismissModal({componentId});
+    }, [componentId]);
+
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [selectedProfiles, setSelectedProfiles] = useState<Map<string, CandidateProfile>>(new Map());
     const [searchTerm, setSearchTerm] = useState('');
@@ -377,7 +378,7 @@ export default function Invite({
         });
     }, [componentId, theme.sidebarHeaderTextColor]);
 
-    useNavButtonPressed(CLOSE_BUTTON_ID, componentId, closeModal, []);
+    useNavButtonPressed(CLOSE_BUTTON_ID, componentId, closeModal, [closeModal]);
     useAndroidHardwareBackHandler(componentId, closeModal);
 
     // Toggle select
@@ -490,7 +491,7 @@ export default function Invite({
         } catch {
             // User cancelled share
         }
-    }, [serverUrl, resolvedInviteId, teamDisplayName, currentUserName, formatMessage]);
+    }, [serverUrl, resolvedInviteId, teamDisplayName, currentUserName, formatMessage, closeModal]);
 
     // 底部按钮始终显示"添加成员"
     const doneLabel = formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});

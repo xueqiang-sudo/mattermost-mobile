@@ -8,7 +8,7 @@ import {distinctUntilChanged, switchMap} from 'rxjs/operators';
 import {Permissions} from '@constants';
 import {observePermissionForTeam} from '@queries/servers/role';
 import {observeConfigBooleanValue} from '@queries/servers/system';
-import {observeCurrentTeam} from '@queries/servers/team';
+import {observeCurrentTeam, queryMyTeams} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
 
 import ChannelListHeader from './header';
@@ -17,6 +17,7 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 
 const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     const team = observeCurrentTeam(database);
+    const teamsCount = queryMyTeams(database).observeCount(false);
 
     const currentUser = observeCurrentUser(database);
 
@@ -46,8 +47,12 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
             distinctUntilChanged(),
         ),
         currentUser,
-        displayName: team.pipe(
-            switchMap((t) => of$(t?.displayName)),
+        hasCurrentTeam: team.pipe(
+            switchMap((t) => of$(Boolean(t?.id))),
+            distinctUntilChanged(),
+        ),
+        hasTeams: teamsCount.pipe(
+            switchMap((v) => of$(v > 0)),
             distinctUntilChanged(),
         ),
     };

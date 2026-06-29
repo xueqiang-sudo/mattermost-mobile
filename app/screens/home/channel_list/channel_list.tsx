@@ -3,7 +3,7 @@
 
 // import {useManagedConfig} from '@mattermost/react-native-emm';
 import {useFocusEffect, useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
-import React, {useCallback, useEffect} from 'react';
+import React, {useCallback, useEffect, useRef} from 'react';
 import {useIntl} from 'react-intl';
 import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
@@ -17,6 +17,7 @@ import {Navigation as NavigationConstants, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
+import {useTeamsLoading} from '@hooks/teams_loading';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {resetToTeams, openToS} from '@screens/navigation';
@@ -68,6 +69,9 @@ let backPressTimeout: NodeJS.Timeout|undefined;
 // servers.
 let hasRendered = false;
 
+/** 等待团队数据稳定后再跳转，避免同步窗口内瞬时 hasTeams=false 误跳 */
+const RESET_TO_TEAMS_DELAY_MS = 500;
+
 const ChannelListScreen = (props: ChannelProps) => {
     const theme = useTheme();
 
@@ -79,7 +83,13 @@ const ChannelListScreen = (props: ChannelProps) => {
     const isFocused = useIsFocused();
     const navigation = useNavigation();
     const serverUrl = useServerUrl();
+    const teamsLoading = useTeamsLoading(serverUrl);
+    const hasTeamsRef = useRef(props.hasTeams);
+    const teamsLoadingRef = useRef(teamsLoading);
     const params = route.params as {direction: string};
+
+    hasTeamsRef.current = props.hasTeams;
+    teamsLoadingRef.current = teamsLoading;
 
     const handleBackPress = useCallback(() => {
         const isHomeScreen = NavigationStore.getVisibleScreen() === Screens.HOME;
@@ -128,10 +138,18 @@ const ChannelListScreen = (props: ChannelProps) => {
     }, [isFocused, params]);
 
     useEffect(() => {
-        if (!props.hasTeams) {
-            resetToTeams();
+        if (props.hasTeams || teamsLoading) {
+            return undefined;
         }
-    }, [props.hasTeams]);
+
+        const timer = setTimeout(() => {
+            if (!hasTeamsRef.current && !teamsLoadingRef.current) {
+                resetToTeams();
+            }
+        }, RESET_TO_TEAMS_DELAY_MS);
+
+        return () => clearTimeout(timer);
+    }, [props.hasTeams, teamsLoading]);
 
     useEffect(() => {
         const back = BackHandler.addEventListener('hardwareBackPress', handleBackPress);

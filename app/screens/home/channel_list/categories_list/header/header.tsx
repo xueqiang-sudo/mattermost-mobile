@@ -37,7 +37,8 @@ type Props = {
     canCreateChannels: boolean;
     canInvitePeople: boolean;
     currentUser?: UserModel;
-    displayName?: string;
+    hasCurrentTeam: boolean;
+    hasTeams: boolean;
     iconPad?: boolean;
     onHeaderPress?: () => void;
 
@@ -162,7 +163,8 @@ const ChannelListHeader = ({
     canCreateChannels,
     canInvitePeople,
     currentUser,
-    displayName,
+    hasCurrentTeam,
+    hasTeams,
     iconPad,
     onHeaderPress,
     threadsButton,
@@ -357,8 +359,10 @@ const ChannelListHeader = ({
         alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
     }, [intl, serverDisplayName, serverUrl]);
 
+    const hasTeamContext = hasCurrentTeam || hasTeams;
+
     let header;
-    if (displayName) {
+    if (hasTeamContext) {
         header = (
             <View style={styles.outsideBox}>
                 <View ref={menuButtonRef} collapsable={false}>
