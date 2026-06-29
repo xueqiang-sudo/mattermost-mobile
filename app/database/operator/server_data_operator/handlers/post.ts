@@ -710,7 +710,12 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
         }
 
         const targetChunk = chunks[0];
-        if (targetChunk.latest >= latest) {
+
+        // Check if the new post is already contained by the existing chunk
+        if (
+            targetChunk.earliest <= earliest &&
+            targetChunk.latest >= latest
+        ) {
             return [];
         }
 
@@ -719,8 +724,9 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
             targetChunk.cancelPrepareUpdate();
         }
 
-        // If the chunk was found, Update the chunk and return
+        // If the chunk was found, update both bounds (server create_at may be earlier than optimistic client timestamp)
         targetChunk.prepareUpdate((record) => {
+            record.earliest = Math.min(record.earliest, earliest);
             record.latest = Math.max(record.latest, latest);
         });
 

@@ -10,6 +10,7 @@ import DatabaseManager from '@database/manager';
 import {buildDraftKey} from '@database/operator/server_data_operator/comparators';
 import {transformDraftRecord, transformPostsInChannelRecord} from '@database/operator/server_data_operator/transformers/post';
 import {createPostsChain} from '@database/operator/utils/post';
+import {queryPostsBetween, queryPostsInChannel} from '@queries/servers/post';
 import * as ScheduledPostQueries from '@queries/servers/scheduled_post';
 import {logWarning} from '@utils/log';
 
@@ -812,6 +813,67 @@ describe('*** Operator: Post Handlers tests ***', () => {
                 shouldUpdate: expect.any(Function),
             }),
         );
+    });
+
+    it('=> HandlePosts RECEIVED_NEW: should shrink PostsInChannel earliest when server create_at is earlier than optimistic', async () => {
+        const channelId = 'new_gm_channel_id';
+        const pendingPostId = 'user_id:1000';
+        const confirmedPostId = 'confirmed_post_id';
+        const clientTimestamp = 1000;
+        const serverTimestamp = 900;
+
+        const optimisticPost: Post = {
+            id: pendingPostId,
+            create_at: clientTimestamp,
+            update_at: clientTimestamp,
+            edit_at: 0,
+            delete_at: 0,
+            is_pinned: false,
+            is_following: false,
+            user_id: 'user_id',
+            channel_id: channelId,
+            root_id: '',
+            original_id: '',
+            message: 'first message',
+            type: '',
+            props: {},
+            hashtags: '',
+            pending_post_id: pendingPostId,
+            reply_count: 0,
+            last_reply_at: 0,
+            participants: null,
+            metadata: {},
+        };
+
+        await operator.handlePosts({
+            actionType: ActionType.POSTS.RECEIVED_NEW,
+            order: [optimisticPost.id],
+            posts: [optimisticPost],
+            prepareRecordsOnly: false,
+        });
+
+        const confirmedPost: Post = {
+            ...optimisticPost,
+            id: confirmedPostId,
+            create_at: serverTimestamp,
+            update_at: serverTimestamp,
+            pending_post_id: pendingPostId,
+        };
+
+        await operator.handlePosts({
+            actionType: ActionType.POSTS.RECEIVED_NEW,
+            order: [confirmedPost.id],
+            posts: [confirmedPost],
+            prepareRecordsOnly: false,
+        });
+
+        const chunks = await queryPostsInChannel(database, channelId).fetch();
+        expect(chunks.length).toBeGreaterThan(0);
+        expect(chunks[0].earliest).toBeLessThanOrEqual(serverTimestamp);
+        expect(chunks[0].latest).toBeGreaterThanOrEqual(serverTimestamp);
+
+        const postsInRange = await queryPostsBetween(database, chunks[0].earliest, chunks[0].latest, Q.desc, '', channelId, undefined).fetch();
+        expect(postsInRange.some((p) => p.id === confirmedPostId)).toBe(true);
     });
 });
 

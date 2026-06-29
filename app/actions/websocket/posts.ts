@@ -78,11 +78,13 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 
             if (chunks.length > 0) {
                 const chunk = chunks[0];
-                if (chunk.latest < post.create_at) {
+                const postCovered = chunk.earliest <= post.create_at && chunk.latest >= post.create_at;
+                if (!postCovered) {
                     if (chunk._preparedState === 'update') {
                         chunk.cancelPrepareUpdate();
                     }
                     chunk.prepareUpdate((r) => {
+                        r.earliest = Math.min(r.earliest, post.create_at);
                         r.latest = Math.max(r.latest, post.create_at);
                     });
                     // batchRecords internally calls database.write() — do NOT nest
