@@ -1,0 +1,1 @@
+base64 -i mac_dedalix_app.p12 -o mac_dedalix_app_p12_base64
