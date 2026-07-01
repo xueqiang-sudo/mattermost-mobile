@@ -26,7 +26,6 @@ P8_DEST="$HOME/.private_keys/AuthKey_DM595WS6X6.p8"
 MATCH_PASSWORD="srcc-fwsz-xobt-nzxj"
 API_KEY_ID="DM595WS6X6"
 API_ISSUER_ID="e7706107-38b3-4a7b-96c8-b108fddfdeed"
-BUILD_LOG="$FASTLANE_DIR/build-$(date +%m%d%H%M).log"
 
 # --- 颜色输出 ---
 RED='\033[0;31m'
@@ -78,7 +77,7 @@ build_ipa() {
         export SKIP_SETUP=1
     fi
 
-    ./scripts/build.sh ipa 2>&1 | tee "$BUILD_LOG"
+    ./scripts/build.sh ipa
 
     # 查找生成的 IPA 文件
     local ipa_file=$(ls -t "$PROJECT_ROOT"/$IPA_PATTERN 2>/dev/null | head -1)
