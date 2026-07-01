@@ -773,7 +773,7 @@ platform :ios do
       target = 'Optibot'
       if id.include? 'NotificationService'
         target = 'NotificationService'
-      elsif id.include? 'OptibotShare'
+      elsif id.include?('MattermostShare') || id.include?('OptibotShare')
         target = 'OptibotShare'
       end
 

@@ -1,7 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useIsFocused} from '@react-navigation/native';
 import React, {useCallback, useMemo} from 'react';
+import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -110,6 +112,7 @@ const MeScreen = ({currentUser}: Props) => {
     const serverDisplayName = useServerDisplayName();
     const locale = useUserLocale();
     const insets = useSafeAreaInsets();
+    const isFocused = useIsFocused();
     const styles = getStyleSheet(theme);
 
     const fullName = useMemo(() => {
@@ -164,165 +167,167 @@ const MeScreen = ({currentUser}: Props) => {
     }, [intl, serverDisplayName, serverUrl]));
 
     return (
-        <SafeAreaView
-            edges={edges}
-            style={[styles.flex, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.04)}]}
-            testID='me.screen'
-        >
-            {/* 导航栏：延伸到状态栏区域，标题"我"居中显示，支持三语 */}
-            <View style={[styles.navBar, {paddingTop: insets.top, backgroundColor: theme.sidebarBg}]}>
-                <Text style={styles.navTitle}>
-                    {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: 'Me'})}
-                </Text>
-            </View>
-            <ScrollView
-                style={styles.flex}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
+        <Freeze freeze={!isFocused}>
+            <SafeAreaView
+                edges={edges}
+                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                testID='me.screen'
             >
-                <View style={[styles.profileSection, {backgroundColor: theme.centerChannelBg}]}>
-                    {currentUser && (
-                        <ProfilePicture
-                            author={currentUser}
-                            size={32}
-                            showStatus={false}
-                            borderRadius={4}
-                        />
-                    )}
-                    <View style={styles.profileInfo}>
-                        <Text
-                            numberOfLines={1}
-                            style={styles.nickname}
-                            testID='me.nickname'
-                        >
-                            {displayName}
-                        </Text>
-                    </View>
-                    <TouchableOpacity
-                        onPress={openExternalCard}
-                        activeOpacity={0.7}
-                        testID='me.external_card'
-                    >
-                        <View style={styles.externalCardIconCircle}>
-                            <QrcodeSvg
-                                width={22}
-                                height={22}
-                                color={theme.centerChannelColor}
+                {/* 导航栏：延伸到状态栏区域，标题"我"居中显示，支持三语 */}
+                <View style={[styles.navBar, {paddingTop: insets.top, backgroundColor: theme.sidebarBg}]}>
+                    <Text style={styles.navTitle}>
+                        {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: 'Me'})}
+                    </Text>
+                </View>
+                <ScrollView
+                    style={styles.flex}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={[styles.profileSection, {backgroundColor: theme.centerChannelBg}]}>
+                        {currentUser && (
+                            <ProfilePicture
+                                author={currentUser}
+                                size={32}
+                                showStatus={false}
+                                borderRadius={4}
                             />
+                        )}
+                        <View style={styles.profileInfo}>
+                            <Text
+                                numberOfLines={1}
+                                style={styles.nickname}
+                                testID='me.nickname'
+                            >
+                                {displayName}
+                            </Text>
                         </View>
-                    </TouchableOpacity>
-                </View>
+                        <TouchableOpacity
+                            onPress={openExternalCard}
+                            activeOpacity={0.7}
+                            testID='me.external_card'
+                        >
+                            <View style={styles.externalCardIconCircle}>
+                                <QrcodeSvg
+                                    width={22}
+                                    height={22}
+                                    color={theme.centerChannelColor}
+                                />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
 
-                <View style={styles.section}>
-                    <TouchableOpacity
-                        style={styles.menuItem}
-                        onPress={openEditProfile}
-                        activeOpacity={0.7}
-                        testID='me.edit_profile'
-                    >
-                        <CompassIcon
-                            name='account-outline'
-                            size={24}
-                            color={theme.centerChannelColor}
-                            style={styles.menuIcon}
-                        />
-                        <Text style={styles.menuLabel}>
-                            {intl.formatMessage({id: 'me.my_profile', defaultMessage: 'My Profile'})}
-                        </Text>
-                        <CompassIcon
-                            name='chevron-right'
-                            size={20}
-                            style={styles.menuChevron}
-                        />
-                    </TouchableOpacity>
-                    <View style={styles.divider}/>
-                    <TouchableOpacity
-                        style={styles.menuItem}
-                        onPress={openSettings}
-                        activeOpacity={0.7}
-                        testID='me.settings'
-                    >
-                        <CompassIcon
-                            name='settings-outline'
-                            size={24}
-                            color={theme.centerChannelColor}
-                            style={styles.menuIcon}
-                        />
-                        <Text style={styles.menuLabel}>
-                            {intl.formatMessage({id: 'account.settings', defaultMessage: 'Settings'})}
-                        </Text>
-                        <CompassIcon
-                            name='chevron-right'
-                            size={20}
-                            style={styles.menuChevron}
-                        />
-                    </TouchableOpacity>
-                    <View style={styles.divider}/>
-                    <TouchableOpacity
-                        style={styles.menuItem}
-                        onPress={openMyEnterprise}
-                        activeOpacity={0.7}
-                        testID='me.my_enterprise'
-                    >
-                        <CompassIcon
-                            name='sitemap'
-                            size={24}
-                            color={theme.centerChannelColor}
-                            style={styles.menuIcon}
-                        />
-                        <Text style={styles.menuLabel}>
-                            {intl.formatMessage({id: 'me.my_enterprise', defaultMessage: 'My Enterprise'})}
-                        </Text>
-                        <CompassIcon
-                            name='chevron-right'
-                            size={20}
-                            style={styles.menuChevron}
-                        />
-                    </TouchableOpacity>
-                    <View style={styles.divider}/>
-                    <TouchableOpacity
-                        style={styles.menuItem}
-                        onPress={openAbout}
-                        activeOpacity={0.7}
-                        testID='me.about'
-                    >
-                        <CompassIcon
-                            name='information-outline'
-                            size={24}
-                            color={theme.centerChannelColor}
-                            style={styles.menuIcon}
-                        />
-                        <Text style={styles.menuLabel}>
-                            {intl.formatMessage({id: 'settings.about', defaultMessage: 'About'})}
-                        </Text>
-                        <CompassIcon
-                            name='chevron-right'
-                            size={20}
-                            style={styles.menuChevron}
-                        />
-                    </TouchableOpacity>
-                </View>
+                    <View style={styles.section}>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={openEditProfile}
+                            activeOpacity={0.7}
+                            testID='me.edit_profile'
+                        >
+                            <CompassIcon
+                                name='account-outline'
+                                size={24}
+                                color={theme.centerChannelColor}
+                                style={styles.menuIcon}
+                            />
+                            <Text style={styles.menuLabel}>
+                                {intl.formatMessage({id: 'me.my_profile', defaultMessage: 'My Profile'})}
+                            </Text>
+                            <CompassIcon
+                                name='chevron-right'
+                                size={20}
+                                style={styles.menuChevron}
+                            />
+                        </TouchableOpacity>
+                        <View style={styles.divider}/>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={openSettings}
+                            activeOpacity={0.7}
+                            testID='me.settings'
+                        >
+                            <CompassIcon
+                                name='settings-outline'
+                                size={24}
+                                color={theme.centerChannelColor}
+                                style={styles.menuIcon}
+                            />
+                            <Text style={styles.menuLabel}>
+                                {intl.formatMessage({id: 'account.settings', defaultMessage: 'Settings'})}
+                            </Text>
+                            <CompassIcon
+                                name='chevron-right'
+                                size={20}
+                                style={styles.menuChevron}
+                            />
+                        </TouchableOpacity>
+                        <View style={styles.divider}/>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={openMyEnterprise}
+                            activeOpacity={0.7}
+                            testID='me.my_enterprise'
+                        >
+                            <CompassIcon
+                                name='sitemap'
+                                size={24}
+                                color={theme.centerChannelColor}
+                                style={styles.menuIcon}
+                            />
+                            <Text style={styles.menuLabel}>
+                                {intl.formatMessage({id: 'me.my_enterprise', defaultMessage: 'My Enterprise'})}
+                            </Text>
+                            <CompassIcon
+                                name='chevron-right'
+                                size={20}
+                                style={styles.menuChevron}
+                            />
+                        </TouchableOpacity>
+                        <View style={styles.divider}/>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={openAbout}
+                            activeOpacity={0.7}
+                            testID='me.about'
+                        >
+                            <CompassIcon
+                                name='information-outline'
+                                size={24}
+                                color={theme.centerChannelColor}
+                                style={styles.menuIcon}
+                            />
+                            <Text style={styles.menuLabel}>
+                                {intl.formatMessage({id: 'settings.about', defaultMessage: 'About'})}
+                            </Text>
+                            <CompassIcon
+                                name='chevron-right'
+                                size={20}
+                                style={styles.menuChevron}
+                            />
+                        </TouchableOpacity>
+                    </View>
 
-                <View style={styles.section}>
-                    <TouchableOpacity
-                        style={styles.menuItem}
-                        onPress={handleLogout}
-                        activeOpacity={0.7}
-                        testID='me.logout'
-                    >
-                        <CompassIcon
-                            name='exit-to-app'
-                            size={24}
-                            color={theme.dndIndicator}
-                            style={styles.menuIcon}
-                        />
-                        <Text style={[styles.menuLabel, styles.logoutLabel]}>
-                            {intl.formatMessage({id: 'account.logout', defaultMessage: 'Log out'})}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+                    <View style={styles.section}>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={handleLogout}
+                            activeOpacity={0.7}
+                            testID='me.logout'
+                        >
+                            <CompassIcon
+                                name='exit-to-app'
+                                size={24}
+                                color={theme.dndIndicator}
+                                style={styles.menuIcon}
+                            />
+                            <Text style={[styles.menuLabel, styles.logoutLabel]}>
+                                {intl.formatMessage({id: 'account.logout', defaultMessage: 'Log out'})}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        </Freeze>
     );
 };
 
