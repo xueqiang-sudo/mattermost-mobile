@@ -13,7 +13,9 @@ import {Platform, Pressable, Text, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import NetworkManager from '@managers/network_manager';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -65,6 +67,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     stockOutButton: {
         backgroundColor: '#F5A623',
     },
+    disabledButton: {
+        backgroundColor: changeOpacity('#999999', 0.5),
+    },
     sendButton: {
         backgroundColor: theme.buttonBg,
         marginTop: 16,
@@ -114,14 +119,42 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 
 type ScanType = 'stock_in' | 'stock_out' | null;
 
+type FrappePermissions = {
+    has_stock_in: boolean;
+    has_stock_out: boolean;
+    frappe_roles?: string[];
+    error?: string;
+};
+
 const AppsScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const styles = getStyleSheet(theme);
+    const serverUrl = useServerUrl();
     const [scanType, setScanType] = useState<ScanType>(null);
     const [scanResult, setScanResult] = useState<string>('');
     const [showSuccess, setShowSuccess] = useState(false);
+    const [permissions, setPermissions] = useState<FrappePermissions>({has_stock_in: true, has_stock_out: true});
+
+    // Fetch Frappe ERP permissions on mount
+    useEffect(() => {
+        const fetchPermissions = async () => {
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const result = await client.doFetch(
+                    `${serverUrl}/plugins/com.mattermost.frappe-sync/api/permissions`,
+                    {method: 'GET'},
+                );
+                if (result && typeof result.has_stock_in === 'boolean') {
+                    setPermissions(result as FrappePermissions);
+                }
+            } catch {
+                // If permission check fails, keep buttons enabled (graceful degradation)
+            }
+        };
+        fetchPermissions();
+    }, [serverUrl]);
 
     // 3 秒后自动清除成功提示和扫描结果
     useEffect(() => {
@@ -184,11 +217,11 @@ const AppsScreen = () => {
             <View style={styles.container}>
                 {/* 入库按钮 */}
                 <Pressable
-                    onPress={handleStockIn}
+                    onPress={permissions.has_stock_in ? handleStockIn : undefined}
                     style={({pressed}) => [
                         styles.actionButton,
-                        styles.stockInButton,
-                        pressed && {opacity: 0.85},
+                        permissions.has_stock_in ? styles.stockInButton : styles.disabledButton,
+                        pressed && permissions.has_stock_in && {opacity: 0.85},
                     ]}
                 >
                     <CompassIcon name='download-outline' size={24} color='#FFFFFF'/>
@@ -199,11 +232,11 @@ const AppsScreen = () => {
 
                 {/* 出库按钮 */}
                 <Pressable
-                    onPress={handleStockOut}
+                    onPress={permissions.has_stock_out ? handleStockOut : undefined}
                     style={({pressed}) => [
                         styles.actionButton,
-                        styles.stockOutButton,
-                        pressed && {opacity: 0.85},
+                        permissions.has_stock_out ? styles.stockOutButton : styles.disabledButton,
+                        pressed && permissions.has_stock_out && {opacity: 0.85},
                     ]}
                 >
                     <CompassIcon name='export-variant' size={24} color='#FFFFFF'/>
