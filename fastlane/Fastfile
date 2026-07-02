@@ -764,10 +764,10 @@ platform :ios do
     end
     UI.message("=== ENV 结束 ===")
 
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: './ios/Optibot.xcodeproj'
-    )
+    # update_code_signing_settings(
+    #   use_automatic_signing: false,
+    #   path: './ios/Optibot.xcodeproj'
+    # )
 
     ENV['MATCH_APP_IDENTIFIER'].split(',').each do |id|
       target = 'Optibot'
