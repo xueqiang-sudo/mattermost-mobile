@@ -63,6 +63,9 @@ type Props = {
 
     /** 供应商/客户关系类型 */
     relationType?: string;
+
+    /** 供应商/客户关系来源 (manual | erp) */
+    relationSource?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -287,6 +290,7 @@ const ContactsEmployeeProfile = ({
     description,
     remark,
     relationType,
+    relationSource,
 }: Props) => {
     const theme = useTheme();
     const intl = useIntl();
@@ -390,7 +394,8 @@ const ContactsEmployeeProfile = ({
     useNavButtonPressed(closeButtonId ?? CLOSE_BUTTON_ID, componentId, handleClose, [handleClose]);
     useAndroidHardwareBackHandler(componentId, handleClose);
 
-    const canEditRelationFields = Boolean(relationType && currentUserId);
+    const isErpRelation = relationSource === 'erp';
+    const canEditRelationFields = Boolean(relationType && currentUserId && !isErpRelation);
 
     const updateRelationFields = useCallback(async (nextRemark: string, nextDescription: string) => {
         if (!relationType || !currentUserId) {
@@ -549,7 +554,7 @@ const ContactsEmployeeProfile = ({
     }, [departmentName, departmentParentPath, intl]);
 
     const canDeleteEnterpriseMember = fromManage && Boolean(companyIdProp) && !isSelf && !isCompanyOwner;
-    const canDelete = canDeleteEnterpriseMember || isSupplierCustomer;
+    const canDelete = (canDeleteEnterpriseMember || isSupplierCustomer) && !isErpRelation;
 
     const handleDeleteRelation = usePreventDoubleTap(useCallback(async () => {
         if (!isSupplierCustomer || deleting) {

@@ -104,6 +104,7 @@ export type MMEmployeeContact = {
     contact_type: MMEmployeeContactType;
     description: string;
     remark: string;
+    source?: 'manual' | 'erp';
     create_at: number;
     update_at: number;
 };

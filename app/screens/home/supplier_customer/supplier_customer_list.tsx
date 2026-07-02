@@ -204,36 +204,40 @@ const SupplierCustomerListRow = memo(({
                     ) : null}
                 </View>
                 <View style={styles.listItemActions}>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={(e: GestureResponderEvent) => {
-                            e.stopPropagation();
-                            onEditId(contactId);
-                        }}
-                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                        testID={`supplier_customer.list.row.${contactId}.edit`}
-                    >
-                        <CompassIcon
-                            name='pencil-outline'
-                            size={20}
-                            color={theme.linkColor}
-                        />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={(e: GestureResponderEvent) => {
-                            e.stopPropagation();
-                            onDeleteId(contactId);
-                        }}
-                        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                        testID={`supplier_customer.list.row.${contactId}.delete`}
-                    >
-                        <CompassIcon
-                            name='trash-can-outline'
-                            size={20}
-                            color={theme.errorTextColor}
-                        />
-                    </TouchableOpacity>
+                    {item.source === 'erp' ? null : (
+                        <>
+                            <TouchableOpacity
+                                style={styles.actionButton}
+                                onPress={(e: GestureResponderEvent) => {
+                                    e.stopPropagation();
+                                    onEditId(contactId);
+                                }}
+                                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                testID={`supplier_customer.list.row.${contactId}.edit`}
+                            >
+                                <CompassIcon
+                                    name='pencil-outline'
+                                    size={20}
+                                    color={theme.linkColor}
+                                />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.actionButton}
+                                onPress={(e: GestureResponderEvent) => {
+                                    e.stopPropagation();
+                                    onDeleteId(contactId);
+                                }}
+                                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                                testID={`supplier_customer.list.row.${contactId}.delete`}
+                            >
+                                <CompassIcon
+                                    name='trash-can-outline'
+                                    size={20}
+                                    color={theme.errorTextColor}
+                                />
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             </TouchableOpacity>
             {isLast ? null : <View style={styles.divider}/>}
@@ -342,6 +346,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
             initialContactPhone?: string;
             initialContactPosition?: string;
             initialContactUsername?: string;
+            initialSource?: 'manual' | 'erp';
             readOnly?: boolean;
         }) => {
             if (!ownerId) {
@@ -358,6 +363,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 initialContactPhone: opts.initialContactPhone,
                 initialContactPosition: opts.initialContactPosition,
                 initialContactUsername: opts.initialContactUsername,
+                initialSource: opts.initialSource,
                 readOnly: opts.readOnly,
             });
         },
@@ -382,6 +388,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 initialContactPhone: row?.contact.phone,
                 initialContactPosition: row?.contact.position,
                 initialContactUsername: row?.contact.username,
+                initialSource: row?.source,
             });
         },
         [items, openForm],
@@ -437,6 +444,7 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                     initialContactPhone: contact.contact.phone,
                     initialContactPosition: contact.contact.position,
                     initialContactUsername: contact.contact.username,
+                    initialSource: contact.source,
                     readOnly: true,
                 });
             },
@@ -482,18 +490,20 @@ const SupplierCustomerListScreen = ({kind, currentUser}: Props) => {
                 />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>{titleMessage}</Text>
-            <TouchableOpacity
-                style={styles.headerAdd}
-                onPress={handleAdd}
-                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                testID='supplier_customer.list.add'
-            >
-                <CompassIcon
-                    name='plus'
-                    size={24}
-                    color={theme.sidebarText}
-                />
-            </TouchableOpacity>
+            {!items.some((c) => c.source === 'erp') ? (
+                <TouchableOpacity
+                    style={styles.headerAdd}
+                    onPress={handleAdd}
+                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                    testID='supplier_customer.list.add'
+                >
+                    <CompassIcon
+                        name='plus'
+                        size={24}
+                        color={theme.sidebarText}
+                    />
+                </TouchableOpacity>
+            ) : <View style={styles.headerAdd}/>}
         </View>
     );
 

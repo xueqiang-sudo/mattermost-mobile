@@ -427,6 +427,7 @@ export type SupplierCustomerFormProps = {
     initialContactPhone?: string;
     initialContactPosition?: string;
     initialContactUsername?: string;
+    initialSource?: 'manual' | 'erp';
     mattermostUserIdForAvatar?: string;
     onBack?: () => void;
     componentId?: AvailableScreens;
@@ -451,13 +452,16 @@ const SupplierCustomerFormScreen = ({
     componentId,
     onRelationDescriptionSaved,
     onRemarkSaved,
-    readOnly,
+    readOnly: readOnlyProp,
+    initialSource,
 }: SupplierCustomerFormProps) => {
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const intl = useIntl();
     const styles = getStyleSheet(theme);
 
+    // Force read-only for ERP-synced contacts
+    const readOnly = readOnlyProp || initialSource === 'erp';
     const isEdit = Boolean(existingContactId);
     const isSupplierKind = kind === MMEmployeeContactTypes.Supplier;
 
