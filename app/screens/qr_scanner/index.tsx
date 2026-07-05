@@ -18,6 +18,7 @@ import Loading from '@components/loading';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {recoverBarcodeEncoding} from '@utils/barcode_encoding';
 import {logInfo} from '@utils/log';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {tryOpenURL} from '@utils/url';
@@ -441,11 +442,17 @@ const QRScanner = ({componentId, onScanResult, scanContext}: Props) => {
     const handleCodeScanned = useCallback((codes: Code[]) => {
         if (codes.length > 0 && scanningEnabled) {
             const code = codes[0];
-            const value = code.value || '';
+            const rawValue = code.value || '';
+
+            // 尝试修复中文编码问题（GBK/GB2312 被当作 UTF-8 解码导致的乱码）
+            const value = recoverBarcodeEncoding(rawValue);
 
             // 防抖处理：避免重复扫描同一个码
             if (value && value !== lastScannedCode) {
                 logInfo('[QRScanner.handleCodeScanned] 检测到新码，上次:', lastScannedCode);
+                if (value !== rawValue) {
+                    logInfo('[QRScanner.handleCodeScanned] 编码已修复，原始:', rawValue, '修复后:', value);
+                }
                 setLastScannedCode(value);
                 setScanningEnabled(false); // 暂停扫描处理，但相机保持运行
 
@@ -586,12 +593,19 @@ const QRScanner = ({componentId, onScanResult, scanContext}: Props) => {
 
             if (codes && codes.length > 0) {
                 const code = codes[0];
-                const value = code.value || '';
+                const rawValue = code.value || '';
+
+                // 尝试修复中文编码问题（GBK/GB2312 被当作 UTF-8 解码导致的乱码）
+                // 注意：原生层的图片扫描也已做编码修复，这里是双重保险
+                const value = recoverBarcodeEncoding(rawValue);
 
                 logInfo('[QRScanner.processScannedImage] ' + '='.repeat(50));
                 logInfo('[QRScanner.processScannedImage] 从图片扫描成功！');
                 logInfo('[QRScanner.processScannedImage] 码类型:', code.type);
                 logInfo('[QRScanner.processScannedImage] 码内容:', value);
+                if (value !== rawValue) {
+                    logInfo('[QRScanner.processScannedImage] 编码已修复，原始:', rawValue);
+                }
                 logInfo('[QRScanner.processScannedImage] ' + '='.repeat(50));
 
                 // 处理扫描结果（使用统一的处理函数）

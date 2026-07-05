@@ -44,13 +44,17 @@ class QRCodeScannerModule: NSObject {
                 resolve(NSNull())
                 return
             }
-            
+
             var codes: [[String: Any]] = []
             for observation in results {
+                // payloadStringValue 由 Vision 框架解码，默认使用 UTF-8。
+                // 对于使用 GBK/GB2312 编码的中国仓储条码，解码结果可能包含乱码。
+                // 由于 iOS Vision 不提供 rawBytes 访问，乱码恢复由 JS 层处理。
                 if let payload = observation.payloadStringValue {
                     var codeDict: [String: Any] = [
                         "value": payload,
-                        "type": self.getBarcodeTypeName(observation.symbology)
+                        "type": self.getBarcodeTypeName(observation.symbology),
+                        "mayNeedEncodingRecovery": self.mayNeedEncodingRecovery(payload)
                     ]
                     
                     // 添加边界框信息
@@ -147,6 +151,11 @@ class QRCodeScannerModule: NSObject {
         }
     }
     
+    /// 检测字符串是否可能需要编码恢复（包含 Unicode 替换字符 U+FFFD）
+    private func mayNeedEncodingRecovery(_ str: String) -> Bool {
+        return str.contains("")
+    }
+
     @objc
     static func requiresMainQueueSetup() -> Bool {
         return false
