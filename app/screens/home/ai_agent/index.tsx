@@ -17,8 +17,6 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
-import {parseWarehouseBarcode, formatBarcodeFields, makeControlCharsVisible, type BarcodeField} from '@utils/barcode_parser';
-import {logInfo} from '@utils/log';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -96,25 +94,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         ...typography('Body', 200, 'Regular'),
     },
-    fieldRow: {
-        flexDirection: 'row',
-        paddingVertical: 4,
-    },
-    fieldLabel: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        width: 60,
-        ...typography('Body', 100, 'Regular'),
-    },
-    fieldValue: {
-        color: theme.centerChannelColor,
-        flex: 1,
-        ...typography('Body', 100, 'SemiBold'),
-    },
-    fieldDivider: {
-        height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        marginVertical: 6,
-    },
     successContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -155,7 +134,6 @@ const AppsScreen = () => {
     const serverUrl = useServerUrl();
     const [scanType, setScanType] = useState<ScanType>(null);
     const [scanResult, setScanResult] = useState<string>('');
-    const [parsedFields, setParsedFields] = useState<BarcodeField[]>([]);
     const [showSuccess, setShowSuccess] = useState(false);
     const [permissions, setPermissions] = useState<FrappePermissions>({has_stock_in: true, has_stock_out: true});
 
@@ -184,7 +162,6 @@ const AppsScreen = () => {
             const timer = setTimeout(() => {
                 setShowSuccess(false);
                 setScanResult('');
-                setParsedFields([]);
                 setScanType(null);
             }, 3000);
             return () => clearTimeout(timer);
@@ -196,24 +173,11 @@ const AppsScreen = () => {
     const openScanner = useCallback((type: ScanType) => {
         setScanType(type);
         setScanResult('');
-        setParsedFields([]);
         setShowSuccess(false);
 
         showQrScannerModal(intl, {
             onScanResultCallback: (value: string) => {
-                // 调试日志：显示含控制字符的原始数据
-                logInfo('[Apps] 扫码原始数据:', makeControlCharsVisible(value));
-
                 setScanResult(value);
-
-                // 解析条码为结构化字段
-                const fields = parseWarehouseBarcode(value);
-                setParsedFields(fields);
-
-                if (fields.length > 0) {
-                    logInfo('[Apps] 解析结果:', formatBarcodeFields(fields));
-                }
-
                 return true; // 返回 true 让扫描器自动关闭
             },
         });
@@ -289,23 +253,7 @@ const AppsScreen = () => {
                             <Text style={styles.resultLabel}>
                                 {intl.formatMessage({id: 'apps.scan_result', defaultMessage: 'Scan Result'})}
                             </Text>
-
-                            {/* 结构化字段显示 */}
-                            {parsedFields.length > 0 ? (
-                                parsedFields.map((field, index) => (
-                                    <React.Fragment key={field.key}>
-                                        <View style={styles.fieldRow}>
-                                            <Text style={styles.fieldLabel}>{field.label}</Text>
-                                            <Text style={styles.fieldValue}>{field.value}</Text>
-                                        </View>
-                                        {index < parsedFields.length - 1 && (
-                                            <View style={styles.fieldDivider}/>
-                                        )}
-                                    </React.Fragment>
-                                ))
-                            ) : (
-                                <Text style={styles.resultValue}>{scanResult}</Text>
-                            )}
+                            <Text style={styles.resultValue}>{scanResult}</Text>
                         </View>
 
                         {/* 发送按钮 */}
