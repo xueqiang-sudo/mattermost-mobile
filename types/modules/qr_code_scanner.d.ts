@@ -18,10 +18,7 @@ declare module 'react-native' {
                     width?: number;
                     height?: number;
                 };
-                /** iOS Vision 框架返回：条码内容可能需要编码恢复（含乱码字符） */
-                mayNeedEncodingRecovery?: boolean;
             }> | null>;
-            getAmbientLightLevel?: () => Promise<number | null>;
         };
     }
 }

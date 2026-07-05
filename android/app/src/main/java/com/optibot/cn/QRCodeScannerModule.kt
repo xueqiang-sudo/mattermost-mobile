@@ -14,7 +14,6 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import java.io.FileInputStream
-import java.nio.charset.Charset
 import com.facebook.react.bridge.*
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -42,7 +41,7 @@ class QRCodeScannerModule(reactContext: ReactApplicationContext) :
                     val results = Arguments.createArray()
                     for (barcode in barcodes) {
                         val result = Arguments.createMap()
-                        result.putString("value", decodeBarcodeValue(barcode))
+                        result.putString("value", barcode.rawValue ?: barcode.displayValue)
                         result.putString("type", getBarcodeTypeName(barcode.format))
                         result.putInt("format", barcode.format)
                         
@@ -192,53 +191,6 @@ class QRCodeScannerModule(reactContext: ReactApplicationContext) :
         }
 
         mainHandler.postDelayed(timeoutRunnable, 600)
-    }
-
-    /**
-     * 解码条码值，支持 GBK/GB2312 中文编码。
-     *
-     * ML Kit 默认以 UTF-8 解析条码字节数据，但中国仓储系统的条码
-     * 常使用 GBK/GB2312 编码存储中文。此方法优先使用 ML Kit 的解码结果，
-     * 如果结果包含乱码则尝试用 GBK/GB2312 重新解码原始字节。
-     */
-    private fun decodeBarcodeValue(barcode: Barcode): String {
-        val rawValue = barcode.rawValue ?: barcode.displayValue ?: return ""
-
-        // 快速检查：如果解码结果没有乱码，直接使用
-        if (!rawValue.contains("")) {
-            return rawValue
-        }
-
-        // 解码结果包含替换字符，尝试用原始字节 + 其他编码重新解码
-        val rawBytes = barcode.rawBytes ?: return rawValue
-
-        val encodings = listOf(
-            Charset.forName("GBK"),
-            Charset.forName("GB2312"),
-            Charset.forName("GB18030"),
-            Charsets.UTF_8,
-        )
-
-        for (charset in encodings) {
-            try {
-                val decoded = String(rawBytes, charset)
-                if (isValidChineseText(decoded)) {
-                    return decoded
-                }
-            } catch (_: Exception) {
-                // 该编码无法解析此字节序列，继续尝试下一个
-            }
-        }
-
-        // 所有编码尝试失败，返回原始解码结果
-        return rawValue
-    }
-
-    /**
-     * 判断字符串是否包含有效的中文字符（CJK 统一汉字）
-     */
-    private fun isValidChineseText(text: String): Boolean {
-        return text.any { it in '一'..'鿿' } && !text.contains("")
     }
 
     private fun getBarcodeTypeName(format: Int): String {
