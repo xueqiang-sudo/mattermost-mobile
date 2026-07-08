@@ -1,0 +1,131 @@
+---
+name: Build on Push
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  NODE_VERSION: 22.14.0
+  TERM: xterm
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Apply patches
+        run: npx patch-package
+
+      - name: Generate assets
+        run: node scripts/generate-assets.js
+
+      - name: Import Compass Icons font
+        run: |
+          cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf assets/fonts/
+          cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf android/app/src/main/assets/fonts/
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Jetify Android libraries
+        run: ./node_modules/.bin/jetify
+
+      - name: Setup Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: fastlane
+
+      - name: Build Android APK
+        env:
+          CI: "true"
+          NODE_ENV: production
+          BABEL_ENV: production
+          NODE_OPTIONS: "--max_old_space_size=12000"
+        run: bundle exec fastlane android build --env android.release
+        working-directory: fastlane
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-${{ github.run_id }}
+          path: "*.apk"
+
+  build-ios:
+    name: Build iOS (unsigned)
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16.2"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Apply patches
+        run: npx patch-package
+
+      - name: Generate assets
+        run: node scripts/generate-assets.js
+
+      - name: Import Compass Icons font
+        run: |
+          cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf assets/fonts/
+          cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf android/app/src/main/assets/fonts/
+
+      - name: Setup Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: fastlane
+
+      - name: Install CocoaPods
+        run: cd ios && RCT_NEW_ARCH_ENABLED=0 pod install --verbose
+
+      - name: Build iOS unsigned IPA
+        env:
+          CI: "true"
+          NODE_ENV: production
+          BABEL_ENV: production
+          NODE_OPTIONS: "--max_old_space_size=12000"
+          SYNC_PROVISIONING_PROFILES: "false"
+        run: bundle exec fastlane ios unsigned --env ios.release
+        working-directory: fastlane
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ github.run_id }}
+          path: "*.ipa"
