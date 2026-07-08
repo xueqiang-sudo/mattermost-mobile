@@ -49,12 +49,14 @@ jobs:
       - name: Jetify Android libraries
         run: ./node_modules/.bin/jetify
 
-      - name: Setup Ruby & Fastlane
+      - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
-          bundler-cache: true
-          working-directory: fastlane
+
+      - name: Install Fastlane
+        run: bundle install
+        working-directory: fastlane
 
       - name: Build Android APK
         env:
@@ -104,15 +106,21 @@ jobs:
           cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf assets/fonts/
           cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf android/app/src/main/assets/fonts/
 
-      - name: Setup Ruby & Fastlane
+      # Root Gemfile has cocoapods; bundler-cache auto-runs bundle install at root
+      - name: Setup Ruby & CocoaPods
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
           bundler-cache: true
-          working-directory: fastlane
 
-      - name: Install CocoaPods
-        run: cd ios && RCT_NEW_ARCH_ENABLED=0 pod install --verbose
+      - name: Install Fastlane
+        run: bundle install
+        working-directory: fastlane
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          RCT_NEW_ARCH_ENABLED=0 bundle exec pod install --verbose
 
       - name: Build iOS unsigned IPA
         env:
