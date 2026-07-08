@@ -74,7 +74,7 @@ jobs:
           path: "*.apk"
 
   build-ios:
-    name: Build iOS (unsigned)
+    name: Build iOS
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -106,6 +106,19 @@ jobs:
           cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf assets/fonts/
           cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf android/app/src/main/assets/fonts/
 
+      - name: Install signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+          keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+      - name: Install provisioning profiles
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
+          echo "${{ secrets.SHARE_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/share.mobileprovision
+
       # Root Gemfile has cocoapods; bundler-cache auto-runs bundle install at root
       - name: Setup Ruby & CocoaPods
         uses: ruby/setup-ruby@v1
@@ -122,14 +135,27 @@ jobs:
           cd ios
           RCT_NEW_ARCH_ENABLED=0 bundle exec pod install --verbose
 
-      - name: Build iOS unsigned IPA
+      # NOTE: Do NOT use --env ios.release here.
+      # Fastlane's dotenv uses override:true which would clobber CI env vars
+      # (e.g. SYNC_PROVISIONING_PROFILES=true from .env.ios.release triggers match).
+      # All needed params are provided inline below; .env.default is loaded automatically.
+      - name: Build iOS signed IPA
         env:
           CI: "true"
           NODE_ENV: production
           BABEL_ENV: production
           NODE_OPTIONS: "--max_old_space_size=12000"
-          SYNC_PROVISIONING_PROFILES: "false"
-        run: bundle exec fastlane ios unsigned --env ios.release
+          APP_NAME: Dedalix
+          REPLACE_ASSETS: "true"
+          BUILD_FOR_RELEASE: "true"
+          APP_SCHEME: optibot
+          MAIN_APP_IDENTIFIER: com.optibot.cn
+          EXTENSION_APP_IDENTIFIER: com.optibot.cn.MattermostShare
+          IOS_APP_GROUP: group.com.optibot.cn
+          IOS_ICLOUD_CONTAINER: iCloud.com.optibot.cn
+          IOS_BUILD_EXPORT_METHOD: app-store
+          FASTLANE_TEAM_ID: DAR9DHG22M
+        run: bundle exec fastlane ios build
         working-directory: fastlane
 
       - name: Upload IPA artifact

@@ -821,12 +821,20 @@ platform :ios do
           xcargs: xcargs
       )
     else
-      # 当 SYNC_PROVISIONING_PROFILES 为 false 时，跳过签名，构建未签名 ipa
-      root_dir = Dir[File.expand_path('..')].first
-      ios_build_dir = "#{root_dir}/ios/Build/Products"
-      sh "cd #{root_dir}/ios && xcodebuild -workspace Optibot.xcworkspace -scheme Optibot -configuration #{config_mode} -parallelizeTargets CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO SYMROOT='#{ios_build_dir}' #{xcargs}"
-      sh "cd #{ios_build_dir}/Release-iphoneos && mkdir -p Payload && cp -r Optibot.app Payload/ && zip -r #{output_base_name}-unsigned.ipa Payload && rm -rf Payload"
-      sh "mv #{ios_build_dir}/Release-iphoneos/#{output_base_name}-unsigned.ipa #{root_dir}"
+      # 证书和描述文件已由 CI 预装，直接用 gym 签名打包
+      gym(
+          clean: true,
+          scheme: 'Optibot',
+          configuration: config_mode,
+          workspace: './ios/Optibot.xcworkspace',
+          export_method: method,
+          output_name: "#{output_base_name}.ipa",
+          export_options: {
+              signingStyle: 'manual',
+              teamID: ENV['FASTLANE_TEAM_ID'] || 'DAR9DHG22M'
+          },
+          xcargs: xcargs
+      )
     end
   end
 
