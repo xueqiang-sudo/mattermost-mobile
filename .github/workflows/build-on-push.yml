@@ -115,9 +115,22 @@ jobs:
 
       - name: Install provisioning profiles
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
-          echo "${{ secrets.SHARE_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/share.mobileprovision
+          PP_DIR=~/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$PP_DIR"
+
+          # Decode and install main app profile (Xcode requires UUID-based filenames)
+          echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > /tmp/app.mobileprovision
+          UUID=$(security cms -D -i /tmp/app.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
+          cp /tmp/app.mobileprovision "$PP_DIR/$UUID.mobileprovision"
+          echo "Installed app profile: $UUID"
+
+          # Decode and install share extension profile
+          echo "${{ secrets.SHARE_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > /tmp/share.mobileprovision
+          UUID=$(security cms -D -i /tmp/share.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
+          cp /tmp/share.mobileprovision "$PP_DIR/$UUID.mobileprovision"
+          echo "Installed share profile: $UUID"
+
+          rm -f /tmp/app.mobileprovision /tmp/share.mobileprovision
 
       # Root Gemfile has cocoapods; bundler-cache auto-runs bundle install at root
       - name: Setup Ruby & CocoaPods
