@@ -79,6 +79,15 @@ jobs:
           aws-region: us-east-1
           role-to-assume: ${{ secrets.MM_MOBILE_RELEASE_AWS_ROLE_TO_ASSUME }}
 
+      - name: ci/debug-signing-info
+        run: |
+          echo "=== Keychains ==="
+          security list-keychains -d user
+          echo "=== Identities ==="
+          security find-identity -v -p codesigning
+          echo "=== Provisioning Profiles ==="
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || echo "No profiles dir"
+
       - name: ci/build-and-deploy-ios-release
         env:
           MATTERMOST_WEBHOOK_URL: "${{ secrets.MM_MOBILE_RELEASE_MATTERMOST_WEBHOOK_URL }}"
@@ -98,6 +107,13 @@ jobs:
           bundle exec fastlane ios deploy file:"${{ github.workspace }}/*.ipa" --env ios.release
           echo "::endgroup::"
         working-directory: ./fastlane
+
+      - name: ci/upload-build-log
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gym-build-log
+          path: ~/Library/Logs/gym/React-Optibot.log
 
       - name: ci/upload-ios-release-to-s3-bucket
         env:
