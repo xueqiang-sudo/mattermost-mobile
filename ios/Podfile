@@ -99,6 +99,7 @@ post_install do |installer|
         bc.build_settings['OTHER_LDFLAGS']        = ['$(inherited)', '-ObjC']
         bc.build_settings['STRIP_SWIFT_SYMBOLS']  = 'NO'
         bc.build_settings['ENABLE_BITCODE']       = 'NO'
+        bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
       end
 
     end
