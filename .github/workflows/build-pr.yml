@@ -81,6 +81,8 @@ jobs:
           IOS_API_ISSUER_ID: "${{ secrets.IOS_API_ISSUER_ID }}"
           IOS_API_KEY: "${{ secrets.IOS_API_KEY }}"
           IOS_API_KEY_ID: "${{ secrets.IOS_API_KEY_ID }}"
+          PROVISIONING_PROFILE_MAIN_PATH: /tmp/main.mobileprovision
+          PROVISIONING_PROFILE_SHARE_PATH: /tmp/share.mobileprovision
           MATTERMOST_WEBHOOK_URL: "${{ secrets.MM_MOBILE_PR_MATTERMOST_WEBHOOK_URL }}"
         run: bundle exec fastlane ios build --env ios.pr
         working-directory: ./fastlane
