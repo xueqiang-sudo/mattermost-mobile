@@ -78,29 +78,6 @@ after_all do |lane|
   end
 end
 
-desc '使用 API Key 运行 Match 生成证书'
-lane :match_with_api_key do
-  api_key = app_store_connect_api_key(
-    key_id: ENV['APP_STORE_CONNECT_API_KEY_KEY_ID'] || 'DM595WS6X6',
-    issuer_id: ENV['APP_STORE_CONNECT_API_KEY_ISSUER_ID'] || 'e7706107-38b3-4a7b-96c8-b108fddfdeed',
-    key_filepath: ENV['APP_STORE_CONNECT_API_KEY_KEY_FILEPATH'] || File.expand_path('../ios/AuthKey_DM595WS6X6.p8', __dir__),
-    duration: 1200,
-    in_house: false
-  )
-
-  match(
-    type: 'appstore',
-    api_key: api_key,
-    app_identifier: ['com.optibot.cn', 'com.optibot.cn.OptibotShare'],
-    team_id: 'DAR9DHG22M',
-    git_url: 'ssh://git@118.195.136.154:2522/mattermost-codes/build-helpers/ios-certificates.git',
-    readonly: false,
-    shallow_clone: true,
-    skip_docs: true,
-    force: false
-  )
-end
-
 desc 'Increment version number for both Android and iOS'
 lane :set_app_version do
   version_number = ENV['VERSION_NUMBER']
@@ -414,17 +391,6 @@ platform :ios do
     end
   end
 
-  desc 'Get iOS match profiles'
-  lane :certs do
-    if !ENV['IOS_API_KEY_ID'].nil? && !ENV['IOS_API_KEY_ID'].empty?
-      api_key = get_apple_api_key()
-      match(
-          api_key: api_key,
-          type: ENV['MATCH_TYPE'] || 'adhoc',
-      )
-    end
-  end
-
   desc 'Build iOS app'
   lane :build do
     unless configured
@@ -672,18 +638,6 @@ platform :ios do
       )
     end
 
-    # Sync the provisioning profiles using match
-    if ENV['SYNC_PROVISIONING_PROFILES'] == 'true'
-      if !ENV['IOS_API_KEY_ID'].nil? && !ENV['IOS_API_KEY_ID'].empty?
-        api_key = get_apple_api_key()
-        match(
-            api_key: api_key,
-            type: ENV['MATCH_TYPE'] || 'adhoc'
-        )
-      elsif !ENV['MATCH_PASSWORD'].nil? && !ENV['MATCH_PASSWORD'].empty?
-        match(type: ENV['MATCH_TYPE'] || 'adhoc')
-      end
-    end
   end
 
   lane :replace_assets do
@@ -757,35 +711,27 @@ platform :ios do
   end
 
   def setup_code_signing
-    # 打印所有环境变量用于调试
-    UI.message("=== 完整 ENV 环境变量 ===")
-    ENV.each do |key, value|
-      UI.message("#{key}=#{value}")
-    end
-    UI.message("=== ENV 结束 ===")
+    config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
 
-    # update_code_signing_settings(
-    #   use_automatic_signing: false,
-    #   path: './ios/Optibot.xcodeproj'
-    # )
-
-    ENV['MATCH_APP_IDENTIFIER'].split(',').each do |id|
-      target = 'Optibot'
-      if id.include? 'NotificationService'
-        target = 'NotificationService'
-      elsif id.include?('MattermostShare') || id.include?('OptibotShare')
-        target = 'OptibotShare'
-      end
-
-      profile = "sigh_#{id}_#{ENV['MATCH_TYPE']}"
-      config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
-
+    # Main App - Optibot
+    if ENV['PROVISIONING_PROFILE_MAIN_PATH'] && !ENV['PROVISIONING_PROFILE_MAIN_PATH'].empty?
       update_project_provisioning(
-          xcodeproj: './ios/Optibot.xcodeproj',
-          profile: ENV["#{profile}_profile-path"], # optional if you use sigh
-          target_filter: ".*#{target}$", # matches name or type of a target
-          build_configuration: config_mode,
-          code_signing_identity: 'iPhone Distribution' # optionally specify the codesigning identity
+        xcodeproj: './ios/Optibot.xcodeproj',
+        profile: ENV['PROVISIONING_PROFILE_MAIN_PATH'],
+        target_filter: ".*Optibot$",
+        build_configuration: config_mode,
+        code_signing_identity: 'iPhone Distribution'
+      )
+    end
+
+    # Share Extension - OptibotShare
+    if ENV['PROVISIONING_PROFILE_SHARE_PATH'] && !ENV['PROVISIONING_PROFILE_SHARE_PATH'].empty?
+      update_project_provisioning(
+        xcodeproj: './ios/Optibot.xcodeproj',
+        profile: ENV['PROVISIONING_PROFILE_SHARE_PATH'],
+        target_filter: ".*OptibotShare$",
+        build_configuration: config_mode,
+        code_signing_identity: 'iPhone Distribution'
       )
     end
   end
@@ -803,39 +749,24 @@ platform :ios do
     # Need to add xcargs to only notification and share extensions
     xcargs = ENV['SENTRY_ENABLED'] == 'true' ? "SENTRY_DSN_IOS='#{ENV['SENTRY_DSN_IOS']}' SENTRY_ENABLED='#{ENV['SENTRY_ENABLED']}'" : ''
 
-    if ENV['SYNC_PROVISIONING_PROFILES'] == 'true'
-      setup_code_signing
-      gym(
-          clean: true,
-          scheme: 'Optibot',
-          configuration: config_mode,
-          workspace: './ios/Optibot.xcworkspace',
-          export_method: method,
-          skip_profile_detection: true,
-          output_name: "#{output_base_name}.ipa",
-          export_xcargs: "-allowProvisioningUpdates",
-          export_options: {
-              signingStyle: 'manual',
-              iCloudContainerEnvironment: 'Production'
-          },
-          xcargs: xcargs
-      )
-    else
-      # 证书和描述文件已由 CI 预装，直接用 gym 签名打包
-      gym(
-          clean: true,
-          scheme: 'Optibot',
-          configuration: config_mode,
-          workspace: './ios/Optibot.xcworkspace',
-          export_method: method,
-          output_name: "#{output_base_name}.ipa",
-          export_options: {
-              signingStyle: 'manual',
-              teamID: ENV['FASTLANE_TEAM_ID'] || 'DAR9DHG22M'
-          },
-          xcargs: xcargs
-      )
-    end
+    # CI 已安装证书和 Profile，设置签名配置后编译
+    setup_code_signing
+
+    gym(
+        clean: true,
+        scheme: 'Optibot',
+        configuration: config_mode,
+        workspace: './ios/Optibot.xcworkspace',
+        export_method: method,
+        skip_profile_detection: true,
+        output_name: "#{output_base_name}.ipa",
+        export_xcargs: "-allowProvisioningUpdates",
+        export_options: {
+            signingStyle: 'manual',
+            iCloudContainerEnvironment: 'Production'
+        },
+        xcargs: xcargs
+    )
   end
 
   def build_ios_unsigned_or_simulator(more_xc_args:, rel_build_dir:, output_file:)

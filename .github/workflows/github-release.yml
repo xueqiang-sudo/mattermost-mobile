@@ -34,11 +34,6 @@ jobs:
       - name: ci/checkout-repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: ci/setup-ssh-key
-        uses: ./.github/actions/setup-ssh-key
-        with:
-          ssh-private-key: ${{ secrets.MM_MOBILE_PRIVATE_DEPLOY_KEY }}
-
       - name: ci/prepare-ios-build
         uses: ./.github/actions/prepare-ios-build
         with:
