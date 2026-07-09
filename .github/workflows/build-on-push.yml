@@ -89,11 +89,15 @@ jobs:
         run: |
           sudo xcode-select -s /Applications/Xcode_26.3.app
           echo "DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer" >> $GITHUB_ENV
+          echo "/Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin" >> $GITHUB_PATH
+          export DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer
+          export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$PATH"
           echo "=== Xcode Diagnostics ==="
           xcode-select -p
           xcodebuild -version
+          which swift
           swift --version
-          ls /Applications | grep -i Xcode || true
+          xcrun --sdk iphoneos swift --version || true
           echo "=== Cleaning caches ==="
           rm -rf ~/Library/Developer/Xcode/DerivedData
           rm -rf ~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex
@@ -185,7 +189,15 @@ jobs:
         run: bundle exec fastlane ios build
         working-directory: fastlane
 
+      - name: Upload gym build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gym-build-log-${{ github.run_id }}
+          path: ~/Library/Logs/gym/React-Optibot.log
+
       - name: Upload IPA artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa-${{ github.run_id }}
