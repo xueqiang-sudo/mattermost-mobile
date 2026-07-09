@@ -712,27 +712,58 @@ platform :ios do
 
   def setup_code_signing
     config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
+    profiles_dir = File.expand_path('~/Library/MobileDevice/Provisioning Profiles')
 
-    # Main App - Optibot
-    if ENV['PROVISIONING_PROFILE_MAIN_PATH'] && !ENV['PROVISIONING_PROFILE_MAIN_PATH'].empty?
-      update_project_provisioning(
-        xcodeproj: './ios/Optibot.xcodeproj',
-        profile: ENV['PROVISIONING_PROFILE_MAIN_PATH'],
-        target_filter: ".*Optibot$",
-        build_configuration: config_mode,
-        code_signing_identity: 'iPhone Distribution'
-      )
+    if !Dir.exist?(profiles_dir)
+      UI.user_error!("Provisioning Profiles 目录不存在: #{profiles_dir}，请检查 CI 是否正确安装了 Profile")
     end
 
-    # Share Extension - OptibotShare
-    if ENV['PROVISIONING_PROFILE_SHARE_PATH'] && !ENV['PROVISIONING_PROFILE_SHARE_PATH'].empty?
+    profiles = Dir.glob("#{profiles_dir}/*.mobileprovision")
+    if profiles.empty?
+      UI.user_error!("未找到已安装的 Provisioning Profile，请检查 CI 是否正确安装了 Profile")
+    end
+
+    main_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.optibot.cn'
+    share_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.optibot.cn.MattermostShare'
+
+    main_profile = nil
+    share_profile = nil
+
+    profiles.each do |profile|
+      plist = `security cms -D -i "#{profile}" 2>/dev/null`
+      if plist.include?("<key>application-identifier</key>")
+        if plist.include?(share_bundle_id)
+          share_profile = profile
+        elsif plist.include?(main_bundle_id)
+          main_profile = profile
+        end
+      end
+    end
+
+    if main_profile.nil?
+      UI.user_error!("未找到匹配 #{main_bundle_id} 的 Provisioning Profile")
+    end
+    UI.success("Main App Profile: #{main_profile}")
+
+    update_project_provisioning(
+      xcodeproj: './ios/Optibot.xcodeproj',
+      profile: main_profile,
+      target_filter: ".*Optibot$",
+      build_configuration: config_mode,
+      code_signing_identity: 'iPhone Distribution'
+    )
+
+    if !share_profile.nil?
+      UI.success("Share Extension Profile: #{share_profile}")
       update_project_provisioning(
         xcodeproj: './ios/Optibot.xcodeproj',
-        profile: ENV['PROVISIONING_PROFILE_SHARE_PATH'],
+        profile: share_profile,
         target_filter: ".*OptibotShare$",
         build_configuration: config_mode,
         code_signing_identity: 'iPhone Distribution'
       )
+    else
+      UI.important("未找到匹配 #{share_bundle_id} 的 Provisioning Profile，跳过 Share Extension")
     end
   end
 
