@@ -18,14 +18,19 @@ runs:
       with:
         xcode-version: '26.3'
 
-    - name: Clean DerivedData and ModuleCache
+    - name: Ensure correct Xcode and clean caches
       shell: bash
       run: |
-        echo "Cleaning DerivedData and ModuleCache..."
+        sudo xcode-select -s /Applications/Xcode_26.3.app
+        echo "DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer" >> $GITHUB_ENV
+        echo "=== Xcode Diagnostics ==="
+        xcode-select -p
+        xcodebuild -version
+        swift --version
+        echo "=== Cleaning caches ==="
         rm -rf ~/Library/Developer/Xcode/DerivedData
         rm -rf ~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex
-        echo "Selected Xcode:"
-        xcodebuild -version
+        pod cache clean --all || true
 
     - name: ci/prepare-mobile-build
       uses: ./.github/actions/prepare-mobile-build
