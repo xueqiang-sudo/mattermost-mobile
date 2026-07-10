@@ -170,10 +170,13 @@ jobs:
       - name: Install root Ruby gems (CocoaPods)
         run: |
           bundle config set --local silence_root_warning 1 || true
+          bundle config set force_ruby_platform true || true
           bundle install --jobs=4 --retry=3
 
       - name: Install Fastlane
-        run: bundle update fastlane --conservative || bundle install --jobs=4 --retry=3
+        run: |
+          bundle config set force_ruby_platform true || true
+          bundle update fastlane --conservative || bundle install --jobs=4 --retry=3
         working-directory: fastlane
 
       - name: Collect Ruby native build logs
@@ -208,8 +211,20 @@ jobs:
           IOS_ICLOUD_CONTAINER: iCloud.com.optibot.cn
           IOS_BUILD_EXPORT_METHOD: app-store
           FASTLANE_TEAM_ID: DAR9DHG22M
+          FASTLANE_LOG_LEVEL: debug
+          FASTLANE_DISABLE_COLORS: "1"
         run: bundle exec fastlane ios build
         working-directory: fastlane
+
+      - name: Upload Fastlane logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs-${{ github.run_id }}
+          path: |
+            fastlane/logs
+            ~/Library/Logs/fastlane
+        continue-on-error: true
 
       - name: Upload gym build log
         if: failure()
