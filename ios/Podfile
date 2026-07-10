@@ -107,9 +107,10 @@ post_install do |installer|
 
     # Patch react-native-cameraroll to remove deprecated AssetsLibrary usage.
     # RNCAssetsLibraryRequestHandler imports AssetsLibrary which is obsoleted in iOS 26,
-    # and triggers Xcode 26 to load a broken .swiftinterface (toolchain version mismatch).
+    # and triggers Xcode 26 explicit-module-build to load a broken .swiftinterface.
     # This handler processes legacy assets-library:// URLs which are no longer used on iOS 26.
-    camroll_ios = File.join(installer.sandbox.root, '@react-native-camera-roll/camera-roll/ios')
+    # Note: :path pods live in node_modules, not in installer.sandbox.root (ios/Pods/).
+    camroll_ios = File.join(__dir__, '..', 'node_modules', '@react-native-camera-roll', 'camera-roll', 'ios')
 
     h_file = File.join(camroll_ios, 'RNCAssetsLibraryRequestHandler.h')
     if File.exist?(h_file)
