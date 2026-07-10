@@ -100,23 +100,10 @@ post_install do |installer|
         bc.build_settings['STRIP_SWIFT_SYMBOLS']  = 'NO'
         bc.build_settings['ENABLE_BITCODE']       = 'NO'
         bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
-        # Prevent Xcode 26 from building modules from incompatible .swiftinterface files
         bc.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
-      end
-    end
-
-    # Remove all AssetsLibrary imports from all pods in node_modules.
-    # AssetsLibrary was obsoleted in iOS 26 and its .swiftinterface has a
-    # Swift toolchain version mismatch with Xcode 26.1.1's compiler,
-    # causing explicit-module-build to fail.
-    node_modules = File.join(__dir__, '..', 'node_modules')
-    Dir.glob(File.join(node_modules, '**', 'ios', '**', '*.{h,m,mm}')).each do |f|
-      content = File.read(f)
-      if content.include?('#import <AssetsLibrary/')
-        patched = content.gsub(/#import\s+<AssetsLibrary\/[^>]+>\n?/, '')
-        File.chmod(0644, f)
-        File.write(f, patched)
-        Pod::UI.puts "Patched #{f.sub(node_modules + '/', '')}: removed AssetsLibrary import."
+        # Disable explicit module builds to avoid Xcode 26.1.1 SDK/compiler
+        # Swift version mismatch (6.2.1.4.7 vs 6.2.1.4.8) on system frameworks
+        bc.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
       end
     end
 
@@ -147,6 +134,7 @@ post_install do |installer|
       target.build_configurations.each do |c|
         c.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
         c.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
+        c.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
       end
     end
 
@@ -155,6 +143,7 @@ post_install do |installer|
     if app_target
       app_target.build_configurations.each do |c|
         c.build_settings.delete('APPLICATION_EXTENSION_API_ONLY')
+        c.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
       end
     end
   end
