@@ -803,6 +803,13 @@ platform :ios do
     # Need to add xcargs to only notification and share extensions
     xcargs = ENV['SENTRY_ENABLED'] == 'true' ? "SENTRY_DSN_IOS='#{ENV['SENTRY_DSN_IOS']}' SENTRY_ENABLED='#{ENV['SENTRY_ENABLED']}'" : ''
 
+    # Sync share extension version with main app (App Store requires them to match)
+    set_version_number(
+      xcodeproj: './ios/Optibot.xcodeproj',
+      target: 'OptibotShare',
+      version_number: version_number
+    )
+
     # CI 已安装证书和 Profile，设置签名配置后编译
     setup_code_signing
 
@@ -817,7 +824,11 @@ platform :ios do
         export_xcargs: "-allowProvisioningUpdates",
         export_options: {
             signingStyle: 'manual',
-            iCloudContainerEnvironment: 'Production'
+            iCloudContainerEnvironment: 'Production',
+            provisioningProfiles: {
+                "com.optibot.cn" => ENV["APP_PROVISIONING_NAME"],
+                "com.optibot.cn.MattermostShare" => ENV["SHARE_PROVISIONING_NAME"]
+            }
         },
         xcargs: xcargs
     )

@@ -141,17 +141,23 @@ jobs:
           PP_DIR=~/Library/MobileDevice/Provisioning\ Profiles
           mkdir -p "$PP_DIR"
 
-          # Decode and install main app profile (Xcode requires UUID-based filenames)
+          # Install main app profile and export UUID/Name for Fastlane
           echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > /tmp/app.mobileprovision
-          UUID=$(security cms -D -i /tmp/app.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
-          cp /tmp/app.mobileprovision "$PP_DIR/$UUID.mobileprovision"
-          echo "Installed app profile: $UUID"
+          APP_UUID=$(security cms -D -i /tmp/app.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
+          APP_NAME=$(security cms -D -i /tmp/app.mobileprovision 2>/dev/null | plutil -extract Name raw -)
+          cp /tmp/app.mobileprovision "$PP_DIR/$APP_UUID.mobileprovision"
+          echo "Installed app profile: $APP_UUID ($APP_NAME)"
+          echo "APP_PROVISIONING_UUID=$APP_UUID" >> $GITHUB_ENV
+          echo "APP_PROVISIONING_NAME=$APP_NAME" >> $GITHUB_ENV
 
-          # Decode and install share extension profile
+          # Install share extension profile and export UUID/Name for Fastlane
           echo "${{ secrets.SHARE_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > /tmp/share.mobileprovision
-          UUID=$(security cms -D -i /tmp/share.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
-          cp /tmp/share.mobileprovision "$PP_DIR/$UUID.mobileprovision"
-          echo "Installed share profile: $UUID"
+          SHARE_UUID=$(security cms -D -i /tmp/share.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
+          SHARE_NAME=$(security cms -D -i /tmp/share.mobileprovision 2>/dev/null | plutil -extract Name raw -)
+          cp /tmp/share.mobileprovision "$PP_DIR/$SHARE_UUID.mobileprovision"
+          echo "Installed share profile: $SHARE_UUID ($SHARE_NAME)"
+          echo "SHARE_PROVISIONING_UUID=$SHARE_UUID" >> $GITHUB_ENV
+          echo "SHARE_PROVISIONING_NAME=$SHARE_NAME" >> $GITHUB_ENV
 
           rm -f /tmp/app.mobileprovision /tmp/share.mobileprovision
 
