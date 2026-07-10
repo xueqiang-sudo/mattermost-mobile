@@ -105,39 +105,19 @@ post_install do |installer|
       end
     end
 
-    # Patch react-native-cameraroll to remove deprecated AssetsLibrary usage.
-    # RNCAssetsLibraryRequestHandler imports AssetsLibrary which is obsoleted in iOS 26,
-    # and triggers Xcode 26 explicit-module-build to load a broken .swiftinterface.
-    # This handler processes legacy assets-library:// URLs which are no longer used on iOS 26.
-    # Note: :path pods live in node_modules, not in installer.sandbox.root (ios/Pods/).
-    camroll_ios = File.join(__dir__, '..', 'node_modules', '@react-native-camera-roll', 'camera-roll', 'ios')
-
-    h_file = File.join(camroll_ios, 'RNCAssetsLibraryRequestHandler.h')
-    if File.exist?(h_file)
-      File.chmod(0644, h_file)
-      File.write(h_file, <<~OBJC)
-        #import <Foundation/Foundation.h>
-        #import <React/RCTBridgeModule.h>
-
-        @interface RNCAssetsLibraryRequestHandler : NSObject <RCTBridgeModule>
-        @end
-      OBJC
-      Pod::UI.puts 'Patched RNCAssetsLibraryRequestHandler.h: removed AssetsLibrary for Xcode 26.'
-    end
-
-    m_file = File.join(camroll_ios, 'RNCAssetsLibraryRequestHandler.m')
-    if File.exist?(m_file)
-      File.chmod(0644, m_file)
-      File.write(m_file, <<~OBJC)
-        #import "RNCAssetsLibraryRequestHandler.h"
-
-        @implementation RNCAssetsLibraryRequestHandler
-
-        RCT_EXPORT_MODULE()
-
-        @end
-      OBJC
-      Pod::UI.puts 'Patched RNCAssetsLibraryRequestHandler.m: stubbed out for Xcode 26.'
+    # Remove all AssetsLibrary imports from all pods in node_modules.
+    # AssetsLibrary was obsoleted in iOS 26 and its .swiftinterface has a
+    # Swift toolchain version mismatch with Xcode 26.1.1's compiler,
+    # causing explicit-module-build to fail.
+    node_modules = File.join(__dir__, '..', 'node_modules')
+    Dir.glob(File.join(node_modules, '**', 'ios', '**', '*.{h,m,mm}')).each do |f|
+      content = File.read(f)
+      if content.include?('#import <AssetsLibrary/')
+        patched = content.gsub(/#import\s+<AssetsLibrary\/[^>]+>\n?/, '')
+        File.chmod(0644, f)
+        File.write(f, patched)
+        Pod::UI.puts "Patched #{f.sub(node_modules + '/', '')}: removed AssetsLibrary import."
+      end
     end
 
     # fmt 11.0.2 detection logic unconditionally sets FMT_USE_CONSTEVAL=1 on
