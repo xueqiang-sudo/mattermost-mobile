@@ -89,13 +89,17 @@ jobs:
       - name: Ensure correct Xcode and clean caches
         run: |
           sudo xcode-select -s /Applications/Xcode_26.3.app
+          sudo xcodebuild -license accept || true
           echo "DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer" >> $GITHUB_ENV
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
           echo "/Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin" >> $GITHUB_PATH
           export DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer
+          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
           export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$PATH"
           echo "=== Xcode Diagnostics ==="
           xcode-select -p
           xcodebuild -version
+          echo "SDKROOT=$SDKROOT"
           which swift
           swift --version
           xcrun --sdk iphoneos swift --version || true
@@ -151,16 +155,27 @@ jobs:
 
           rm -f /tmp/app.mobileprovision /tmp/share.mobileprovision
 
-      # Root Gemfile has cocoapods; bundler-cache auto-runs bundle install at root
-      - name: Setup Ruby & CocoaPods
+      - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
-          bundler-cache: true
+          bundler-cache: false
+
+      - name: Install root Ruby gems (CocoaPods)
+        run: |
+          bundle config set --local silence_root_warning 1 || true
+          bundle install --jobs=4 --retry=3
 
       - name: Install Fastlane
-        run: bundle install
+        run: bundle install --jobs=4 --retry=3
         working-directory: fastlane
+
+      - name: Collect Ruby native build logs
+        if: failure()
+        run: |
+          echo "Looking for mkmf logs..."
+          find /Users/runner/hostedtoolcache/Ruby -type f -name mkmf.log -print -exec echo "=== {} ===" \; -exec head -200 {} \; 2>/dev/null || true
+        continue-on-error: true
 
       - name: Install CocoaPods dependencies
         run: |
