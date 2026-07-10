@@ -100,13 +100,8 @@ post_install do |installer|
         bc.build_settings['STRIP_SWIFT_SYMBOLS']  = 'NO'
         bc.build_settings['ENABLE_BITCODE']       = 'NO'
         bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
-      end
-
-      # Avoid Swift .swiftinterface module mismatch for pods using deprecated AssetsLibrary
-      if ['react-native-cameraroll'].include?(t.name)
-        t.build_configurations.each do |bc|
-          bc.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
-        end
+        # Prevent Xcode 26 from building modules from incompatible .swiftinterface files
+        bc.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
       end
     end
 
