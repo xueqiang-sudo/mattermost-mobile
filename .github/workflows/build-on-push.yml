@@ -195,6 +195,20 @@ jobs:
       # Fastlane's dotenv uses override:true which would clobber CI env vars
       # (e.g. SYNC_PROVISIONING_PROFILES=true from .env.ios.release triggers match).
       # All needed params are provided inline below; .env.default is loaded automatically.
+      - name: Verify signing config before build
+        run: |
+          echo "=== Provisioning Profile Names (for export_options) ==="
+          echo "APP_PROVISIONING_NAME: '${APP_PROVISIONING_NAME}'"
+          echo "SHARE_PROVISIONING_NAME: '${SHARE_PROVISIONING_NAME}'"
+          echo "APP_PROVISIONING_UUID: '${APP_PROVISIONING_UUID}'"
+          echo "SHARE_PROVISIONING_UUID: '${SHARE_PROVISIONING_UUID}'"
+          if [ -z "$APP_PROVISIONING_NAME" ] || [ -z "$SHARE_PROVISIONING_NAME" ]; then
+            echo "::error::Provisioning profile names are empty! Export will fail."
+            exit 1
+          fi
+          echo "=== Installed profiles ==="
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
+
       - name: Build iOS signed IPA
         env:
           CI: "true"
@@ -216,22 +230,17 @@ jobs:
         run: bundle exec fastlane ios build
         working-directory: fastlane
 
-      - name: Upload Fastlane logs
+      - name: Upload all build logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: fastlane-logs-${{ github.run_id }}
+          name: all-build-logs-${{ github.run_id }}
           path: |
             fastlane/logs
             ~/Library/Logs/fastlane
+            ~/Library/Logs/gym
+            ~/Library/Logs/scan
         continue-on-error: true
-
-      - name: Upload gym build log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gym-build-log-${{ github.run_id }}
-          path: ~/Library/Logs/gym/React-Optibot.log
 
       - name: Upload IPA artifact
         if: success()
