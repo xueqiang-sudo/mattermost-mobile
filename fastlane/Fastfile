@@ -403,7 +403,7 @@ platform :ios do
     build_ios
 
     # Upload to TestFlight
-    ipa_path = lane_context[SharedValues::GYM_IPA_OUTPUT_PATH]
+    ipa_path = lane_context[SharedValues::IPA_OUTPUT_PATH]
     if ipa_path && File.exist?(ipa_path)
       api_key = get_apple_api_key()
       if !api_key.to_s.empty?
