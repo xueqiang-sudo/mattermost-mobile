@@ -10,6 +10,7 @@ on:
 env:
   NODE_VERSION: 22.14.0
   TERM: xterm
+  # NOTE: Provisioning profile secrets must be generated with `base64 -w 0` on Linux (no line wraps)
 
 jobs:
   build-android:
