@@ -809,6 +809,16 @@ platform :ios do
 
   def build_ios
     version_number = get_version_number(xcodeproj: './ios/Optibot.xcodeproj', target: 'Optibot')
+
+    # Use CI run number as build number to ensure uniqueness
+    build_number = ENV['GITHUB_RUN_NUMBER']
+    if build_number.nil? || build_number.empty?
+      increment_build_number(xcodeproj: './ios/Optibot.xcodeproj')
+    else
+      increment_build_number(build_number: build_number, xcodeproj: './ios/Optibot.xcodeproj')
+    end
+    UI.message("Build number: #{get_build_number(xcodeproj: './ios/Optibot.xcodeproj')}")
+
     if ENV['BETA_BUILD'] == 'true'
       output_base_name = "Dedalix_Beta_#{version_number}"
     else
