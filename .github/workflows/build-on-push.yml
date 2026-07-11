@@ -138,28 +138,59 @@ jobs:
 
       - name: Install provisioning profiles
         run: |
+          set -euo pipefail
+
           PP_DIR=~/Library/MobileDevice/Provisioning\ Profiles
           mkdir -p "$PP_DIR"
 
-          # Install main app profile and export UUID/Name for Fastlane
-          echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > /tmp/app.mobileprovision
-          APP_UUID=$(security cms -D -i /tmp/app.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
-          APP_NAME=$(security cms -D -i /tmp/app.mobileprovision 2>/dev/null | plutil -extract Name raw -)
-          cp /tmp/app.mobileprovision "$PP_DIR/$APP_UUID.mobileprovision"
-          echo "Installed app profile: $APP_UUID ($APP_NAME)"
-          echo "APP_PROVISIONING_UUID=$APP_UUID" >> $GITHUB_ENV
-          echo "APP_PROVISIONING_NAME=$APP_NAME" >> $GITHUB_ENV
+          install_profile() {
+            local secret_value="$1"
+            local label="$2"
+            local env_prefix="$3"
 
-          # Install share extension profile and export UUID/Name for Fastlane
-          echo "${{ secrets.SHARE_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > /tmp/share.mobileprovision
-          SHARE_UUID=$(security cms -D -i /tmp/share.mobileprovision 2>/dev/null | plutil -extract UUID raw -)
-          SHARE_NAME=$(security cms -D -i /tmp/share.mobileprovision 2>/dev/null | plutil -extract Name raw -)
-          cp /tmp/share.mobileprovision "$PP_DIR/$SHARE_UUID.mobileprovision"
-          echo "Installed share profile: $SHARE_UUID ($SHARE_NAME)"
-          echo "SHARE_PROVISIONING_UUID=$SHARE_UUID" >> $GITHUB_ENV
-          echo "SHARE_PROVISIONING_NAME=$SHARE_NAME" >> $GITHUB_ENV
+            if [ -z "$secret_value" ]; then
+              echo "::error::${label} provisioning profile secret is empty"
+              exit 1
+            fi
 
-          rm -f /tmp/app.mobileprovision /tmp/share.mobileprovision
+            local mp="/tmp/${env_prefix}.mobileprovision"
+            local plist="/tmp/${env_prefix}.plist"
+
+            printf '%s' "$secret_value" | base64 --decode > "$mp" || {
+              echo "::error::Failed to base64-decode ${label} provisioning profile"
+              exit 1
+            }
+
+            if [ ! -s "$mp" ]; then
+              echo "::error::${label} mobileprovision file is empty after decode"
+              exit 1
+            fi
+
+            security cms -D -i "$mp" > "$plist" 2>/dev/null || {
+              echo "::error::security cms -D failed for ${label} provisioning profile"
+              exit 1
+            }
+
+            UUID=$(plutil -extract UUID raw -o - "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Print :UUID" "$plist" 2>/dev/null || true)
+            NAME=$(plutil -extract Name raw -o - "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Print :Name" "$plist" 2>/dev/null || true)
+
+            if [ -z "$UUID" ] || [ -z "$NAME" ]; then
+              echo "::error::Failed to extract UUID or Name for ${label} profile (UUID='$UUID', NAME='$NAME')"
+              echo "Plist excerpt for debugging:"
+              grep -A1 -E "<key>(Name|UUID)</key>" "$plist" || true
+              exit 1
+            fi
+
+            cp "$mp" "$PP_DIR/$UUID.mobileprovision"
+            echo "Installed ${label} profile: $UUID ($NAME)"
+            echo "${env_prefix}_UUID=$UUID" >> $GITHUB_ENV
+            echo "${env_prefix}_NAME=$NAME" >> $GITHUB_ENV
+
+            rm -f "$mp" "$plist"
+          }
+
+          install_profile "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" "app" "APP_PROVISIONING"
+          install_profile "${{ secrets.SHARE_PROVISIONING_PROFILE_BASE64 }}" "share" "SHARE_PROVISIONING"
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
