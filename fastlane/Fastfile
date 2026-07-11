@@ -804,10 +804,12 @@ platform :ios do
     xcargs = ENV['SENTRY_ENABLED'] == 'true' ? "SENTRY_DSN_IOS='#{ENV['SENTRY_DSN_IOS']}' SENTRY_ENABLED='#{ENV['SENTRY_ENABLED']}'" : ''
 
     # Sync share extension version with main app (App Store requires them to match)
-    set_version_number(
+    update_info_plist(
       xcodeproj: './ios/Optibot.xcodeproj',
-      target: 'OptibotShare',
-      version_number: version_number
+      plist_path: 'OptibotShare/Info.plist',
+      block: proc do |plist|
+        plist["CFBundleShortVersionString"] = version_number
+      end
     )
 
     # CI 已安装证书和 Profile，设置签名配置后编译
