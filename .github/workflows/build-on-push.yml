@@ -256,6 +256,8 @@ jobs:
           IOS_APP_GROUP: group.com.optibot.cn
           IOS_ICLOUD_CONTAINER: iCloud.com.optibot.cn
           IOS_BUILD_EXPORT_METHOD: app-store
+          IOS_API_KEY_ID: DM595WS6X6
+          IOS_API_ISSUER_ID: e7706107-38b3-4a7b-96c8-b108fddfdeed
           FASTLANE_TEAM_ID: DAR9DHG22M
           FASTLANE_LOG_LEVEL: debug
           FASTLANE_DISABLE_COLORS: "1"

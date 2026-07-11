@@ -401,6 +401,23 @@ platform :ios do
     replace_assets
     link_sentry({:os_type => "ios"})
     build_ios
+
+    # Upload to TestFlight
+    ipa_path = lane_context[SharedValues::GYM_IPA_OUTPUT_PATH]
+    if ipa_path && File.exist?(ipa_path)
+      api_key = get_apple_api_key()
+      if !api_key.to_s.empty?
+        pilot(
+          ipa: ipa_path,
+          api_key: api_key,
+          skip_waiting_for_build_processing: true
+        )
+      else
+        UI.important("Apple API Key not configured, skipping TestFlight upload")
+      end
+    else
+      UI.important("IPA not found, skipping TestFlight upload")
+    end
   end
 
   desc 'Build an unsigned ipa'
