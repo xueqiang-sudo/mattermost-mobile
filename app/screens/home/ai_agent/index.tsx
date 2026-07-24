@@ -20,6 +20,28 @@ import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+// 分隔符：U+20AC（€），使用 String.fromCharCode 避免源文件中出现特殊符号
+const SCAN_SEPARATOR = String.fromCharCode(0x20AC);
+
+const SCAN_FIELDS = [
+    {key: 'barcode', label: '条码'},
+    {key: 'quantity', label: '数量'},
+    {key: 'spec', label: '规格'},
+    {key: 'serial', label: '序号'},
+    {key: 'product', label: '品名'},
+    {key: 'model', label: '型号'},
+    {key: 'color', label: '颜色'},
+    {key: 'grade', label: '等级'},
+];
+
+function parseScanResult(raw: string): Array<{label: string; value: string}> {
+    const parts = raw.split(SCAN_SEPARATOR).filter(Boolean);
+    return parts.map((value, i) => ({
+        label: SCAN_FIELDS[i]?.label ?? `字段${i + 1}`,
+        value,
+    }));
+}
+
 const edges: Edge[] = ['bottom', 'left', 'right'];
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -90,8 +112,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginBottom: 8,
         ...typography('Body', 75, 'Regular'),
     },
-    resultValue: {
+    resultRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+    },
+    resultRowLabel: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        ...typography('Body', 75, 'Regular'),
+        marginRight: 12,
+    },
+    resultRowValue: {
         color: theme.centerChannelColor,
+        flex: 1,
+        textAlign: 'right',
         ...typography('Body', 200, 'Regular'),
     },
     successContainer: {
@@ -253,7 +287,12 @@ const AppsScreen = () => {
                             <Text style={styles.resultLabel}>
                                 {intl.formatMessage({id: 'apps.scan_result', defaultMessage: 'Scan Result'})}
                             </Text>
-                            <Text style={styles.resultValue}>{scanResult}</Text>
+                            {parseScanResult(scanResult).map((field, idx) => (
+                                <View key={`${field.key}-${idx}`} style={styles.resultRow}>
+                                    <Text style={styles.resultRowLabel}>{field.label}</Text>
+                                    <Text style={styles.resultRowValue}>{field.value}</Text>
+                                </View>
+                            ))}
                         </View>
 
                         {/* 发送按钮 */}
