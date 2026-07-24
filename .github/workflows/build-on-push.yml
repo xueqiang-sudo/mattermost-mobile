@@ -15,7 +15,6 @@ env:
 jobs:
   build-android:
     name: Build Android APK
-    if: false  # 暂时禁用，只编译 iOS
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -77,6 +76,7 @@ jobs:
 
   build-ios:
     name: Build iOS
+    if: false  # 暂时禁用，只编译 Android
     runs-on: macos-15
     steps:
       - name: Checkout
