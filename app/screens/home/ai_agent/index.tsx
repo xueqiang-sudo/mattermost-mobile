@@ -262,11 +262,12 @@ const AppsScreen = () => {
     const [entryDetail, setEntryDetail] = useState('');
     const [resultFields, setResultFields] = useState<DisplayField[]>([]);
 
-    // Fetch Frappe ERP permissions on mount
+    // Fetch permissions and warehouses on mount
     useEffect(() => {
+        const client = NetworkManager.getClient(serverUrl);
+
         const fetchPermissions = async () => {
             try {
-                const client = NetworkManager.getClient(serverUrl);
                 const result = await client.doFetch(
                     `${serverUrl}/plugins/com.mattermost.frappe-sync/api/permissions`,
                     {method: 'GET'},
@@ -278,17 +279,9 @@ const AppsScreen = () => {
                 // If permission check fails, keep buttons enabled (graceful degradation)
             }
         };
-        fetchPermissions();
-    }, [serverUrl]);
 
-    // Fetch warehouses when scan result appears
-    useEffect(() => {
-        if (!scanResult) {
-            return;
-        }
         const fetchWarehouses = async () => {
             try {
-                const client = NetworkManager.getClient(serverUrl);
                 const result = await client.doFetch(
                     `${serverUrl}/plugins/com.mattermost.frappe-sync/api/warehouses`,
                     {method: 'GET'},
@@ -296,12 +289,14 @@ const AppsScreen = () => {
                 if (result?.warehouses) {
                     setWarehouses(result.warehouses);
                 }
-            } catch {
-                // Warehouses list stays empty
+            } catch (e: any) {
+                console.warn('Failed to fetch warehouses:', e?.message || e);
             }
         };
+
+        fetchPermissions();
         fetchWarehouses();
-    }, [scanResult, serverUrl]);
+    }, [serverUrl]);
 
     // 5 秒后自动清除成功提示和扫描结果
     useEffect(() => {
