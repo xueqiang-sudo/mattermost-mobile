@@ -1574,6 +1574,7 @@
   "apps.item_not_found": "未找到匹配的產",
   "apps.stock_entry_error": "建立出入庫單失敗",
   "apps.network_error": "網路錯誤，請重試",
+  "apps.dispatch_box_required": "出庫需要指定箱號",
   "tab_bar.home.label": "聊天",
   "me.my_enterprise": "我的企業",
   "me.my_profile": "我的資料",

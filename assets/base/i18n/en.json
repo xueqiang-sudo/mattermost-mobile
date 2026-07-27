@@ -1570,6 +1570,7 @@
   "apps.item_not_found": "Item not found",
   "apps.stock_entry_error": "Stock entry failed",
   "apps.network_error": "Network error, please try again",
+  "apps.dispatch_box_required": "Box number is required for dispatch",
   "tab_bar.home.label": "Chat",
   "me.my_enterprise": "My Enterprise",
   "me.my_profile": "My Profile",

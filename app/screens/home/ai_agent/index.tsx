@@ -3,7 +3,8 @@
 
 /**
  * 应用页面
- * 提供入库/出库功能：点击按钮后打开视频扫描二维码，显示扫描结果，选择仓库，点击发送创建出入库单。
+ * 提供入库/出库功能：点击按钮后打开视频扫描二维码，选择仓库，点击发送创建出入库单。
+ * 扫码数据由服务端插件解析，App 仅展示结果。
  */
 
 import React, {useCallback, useEffect, useState} from 'react';
@@ -19,37 +20,7 @@ import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-// 分隔符：U+20AC（€）和 Tab，自动检测
-const SCAN_SEPARATOR = String.fromCharCode(0x20AC);
-const TAB_SEPARATOR = '\t';
-
-const SCAN_FIELDS = [
-    {key: 'code_sheet_no', label: '箱号'},
-    {key: 'box_no', label: '第几箱'},
-    {key: 'net_weight', label: '净重'},
-    {key: 'item_code', label: '产品编码'},
-    {key: 'product_batchid', label: '批号'},
-    {key: 'fixed_value', label: '固定值'},
-    {key: 'product_name', label: '品种'},
-    {key: 'product_model', label: '品名'},
-    {key: 'product_specification', label: '规格'},
-    {key: 'color', label: '色号'},
-    {key: 'product_grade', label: '等级'},
-];
-
-type ScanField = {key: string; label: string; value: string};
-
-function parseScanResult(raw: string): ScanField[] {
-    const tabParts = raw.split(TAB_SEPARATOR).filter(Boolean);
-    const euroParts = raw.split(SCAN_SEPARATOR).filter(Boolean);
-    const parts = tabParts.length >= euroParts.length ? tabParts : euroParts;
-
-    return parts.map((value, i) => ({
-        key: SCAN_FIELDS[i]?.key ?? `field_${i}`,
-        label: SCAN_FIELDS[i]?.label ?? `字段${i + 1}`,
-        value,
-    }));
-}
+type DisplayField = {key: string; label: string; value: string};
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
 
@@ -110,11 +81,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginLeft: 10,
         ...typography('Body', 200, 'SemiBold'),
     },
-    resultContainer: {
+    rawScanContainer: {
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
         borderRadius: 12,
         padding: 16,
         marginTop: 8,
+    },
+    rawScanLabel: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginBottom: 8,
+        ...typography('Body', 75, 'Regular'),
+    },
+    rawScanText: {
+        color: theme.centerChannelColor,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        ...typography('Body', 75, 'Regular'),
+    },
+    resultContainer: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 12,
     },
     resultLabel: {
         color: changeOpacity(theme.centerChannelColor, 0.56),
@@ -272,6 +259,8 @@ const AppsScreen = () => {
     const [isSending, setIsSending] = useState(false);
     const [sendError, setSendError] = useState('');
     const [entryId, setEntryId] = useState('');
+    const [entryDetail, setEntryDetail] = useState('');
+    const [resultFields, setResultFields] = useState<DisplayField[]>([]);
 
     // Fetch Frappe ERP permissions on mount
     useEffect(() => {
@@ -294,7 +283,9 @@ const AppsScreen = () => {
 
     // Fetch warehouses when scan result appears
     useEffect(() => {
-        if (!scanResult) return;
+        if (!scanResult) {
+            return;
+        }
         const fetchWarehouses = async () => {
             try {
                 const client = NetworkManager.getClient(serverUrl);
@@ -321,6 +312,8 @@ const AppsScreen = () => {
                 setScanType(null);
                 setSelectedWarehouse('');
                 setEntryId('');
+                setEntryDetail('');
+                setResultFields([]);
             }, 5000);
             return () => clearTimeout(timer);
         }
@@ -335,11 +328,13 @@ const AppsScreen = () => {
         setSendError('');
         setSelectedWarehouse('');
         setEntryId('');
+        setEntryDetail('');
+        setResultFields([]);
 
         showQrScannerModal(intl, {
             onScanResultCallback: (value: string) => {
                 setScanResult(value);
-                return true; // 返回 true 让扫描器自动关闭
+                return true;
             },
         });
     }, [intl]);
@@ -361,19 +356,10 @@ const AppsScreen = () => {
         setSendError('');
 
         try {
-            const fields = parseScanResult(scanResult);
-            const getField = (key: string) => fields.find((f) => f.key === key)?.value || '';
-
             const body = {
                 scan_type: scanType,
                 warehouse: selectedWarehouse,
-                product_name: getField('product_name'),
-                product_model: getField('product_model'),
-                product_specification: getField('product_specification'),
-                color: getField('color'),
-                product_grade: getField('product_grade'),
-                net_weight: getField('net_weight'),
-                product_batchid: getField('product_batchid'),
+                raw_scan: scanResult,
             };
 
             const client = NetworkManager.getClient(serverUrl);
@@ -382,8 +368,18 @@ const AppsScreen = () => {
                 {method: 'POST', body},
             );
 
+            // Display parsed fields from server (for both success and error)
+            if (result?.fields) {
+                setResultFields(result.fields);
+            }
+
             if (result?.status === 'success') {
                 setEntryId(result.stock_entry_id || '');
+                if (result.received_count) {
+                    setEntryDetail(`+${result.received_count} ${result.receipt_status || ''}`);
+                } else if (result.dispatch_count) {
+                    setEntryDetail(`-${result.dispatch_count}`);
+                }
                 setShowSuccess(true);
             } else {
                 setSendError(result?.error || intl.formatMessage({id: 'apps.stock_entry_error', defaultMessage: 'Stock entry failed'}));
@@ -401,14 +397,14 @@ const AppsScreen = () => {
             ? intl.formatMessage({id: 'apps.stock_out', defaultMessage: 'Stock Out'})
             : '';
 
-    const canSend = selectedWarehouse !== '' && !isSending;
+    const canSend = selectedWarehouse !== '' && !isSending && scanResult !== '';
 
     return (
         <SafeAreaView
             edges={edges}
             style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
         >
-            {/* 导航栏：标题"应用"居中显示，支持三语 */}
+            {/* 导航栏 */}
             <View style={[styles.navBar, {paddingTop: insets.top}]}>
                 <Text style={styles.navTitle}>
                     {intl.formatMessage({id: 'tab_bar.apps.label', defaultMessage: 'Apps'})}
@@ -446,21 +442,32 @@ const AppsScreen = () => {
                     </Text>
                 </Pressable>
 
-                {/* 扫描结果区域（扫描后显示） */}
+                {/* 扫描结果区域 */}
                 {scanResult ? (
                     <>
                         <Text style={styles.scanTypeLabel}>{scanTypeLabel}</Text>
-                        <View style={styles.resultContainer}>
-                            <Text style={styles.resultLabel}>
+
+                        {/* 原始扫码数据 */}
+                        <View style={styles.rawScanContainer}>
+                            <Text style={styles.rawScanLabel}>
                                 {intl.formatMessage({id: 'apps.scan_result', defaultMessage: 'Scan Result'})}
                             </Text>
-                            {parseScanResult(scanResult).map((field, idx) => (
-                                <View key={`${field.key}-${idx}`} style={styles.resultRow}>
-                                    <Text style={styles.resultRowLabel}>{field.label}</Text>
-                                    <Text style={styles.resultRowValue}>{field.value}</Text>
-                                </View>
-                            ))}
+                            <Text style={styles.rawScanText} numberOfLines={3}>
+                                {scanResult}
+                            </Text>
                         </View>
+
+                        {/* 服务端解析后的字段（发送后显示） */}
+                        {resultFields.length > 0 && (
+                            <View style={styles.resultContainer}>
+                                {resultFields.filter((f) => f.value).map((field, idx) => (
+                                    <View key={`${field.key}-${idx}`} style={styles.resultRow}>
+                                        <Text style={styles.resultRowLabel}>{field.label}</Text>
+                                        <Text style={styles.resultRowValue}>{field.value}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
 
                         {/* 仓库选择 */}
                         <Pressable
@@ -522,7 +529,7 @@ const AppsScreen = () => {
                     </View>
                 )}
                 {showSuccess && entryId ? (
-                    <Text style={styles.successDetail}>{entryId}</Text>
+                    <Text style={styles.successDetail}>{entryId} {entryDetail}</Text>
                 ) : null}
             </ScrollView>
 
