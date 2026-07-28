@@ -264,10 +264,9 @@ const AppsScreen = () => {
 
     // Fetch permissions and warehouses on mount
     useEffect(() => {
-        const client = NetworkManager.getClient(serverUrl);
-
         const fetchPermissions = async () => {
             try {
+                const client = NetworkManager.getClient(serverUrl);
                 const result = await client.doFetch(
                     `${serverUrl}/plugins/com.mattermost.frappe-sync/api/permissions`,
                     {method: 'GET'},
@@ -275,17 +274,19 @@ const AppsScreen = () => {
                 if (result && typeof result.has_stock_in === 'boolean') {
                     setPermissions(result as FrappePermissions);
                 }
-            } catch {
-                // If permission check fails, keep buttons enabled (graceful degradation)
+            } catch (e: any) {
+                console.warn('Failed to fetch permissions:', e?.message || e);
             }
         };
 
         const fetchWarehouses = async () => {
             try {
+                const client = NetworkManager.getClient(serverUrl);
                 const result = await client.doFetch(
                     `${serverUrl}/plugins/com.mattermost.frappe-sync/api/warehouses`,
                     {method: 'GET'},
                 );
+                console.log('Warehouses response:', JSON.stringify(result));
                 if (result?.warehouses) {
                     setWarehouses(result.warehouses);
                 }
