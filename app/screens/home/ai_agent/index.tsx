@@ -268,7 +268,7 @@ const AppsScreen = () => {
             try {
                 const client = NetworkManager.getClient(serverUrl);
                 const result = await client.doFetch(
-                    `${serverUrl}/plugins/com.mattermost.frappe-sync/api/permissions`,
+                    '/plugins/com.mattermost.frappe-sync/api/permissions',
                     {method: 'GET'},
                 );
                 if (result && typeof result.has_stock_in === 'boolean') {
@@ -283,7 +283,7 @@ const AppsScreen = () => {
             try {
                 const client = NetworkManager.getClient(serverUrl);
                 const result = await client.doFetch(
-                    `${serverUrl}/plugins/com.mattermost.frappe-sync/api/warehouses`,
+                    '/plugins/com.mattermost.frappe-sync/api/warehouses',
                     {method: 'GET'},
                 );
                 console.log('Warehouses response:', JSON.stringify(result));
@@ -360,7 +360,7 @@ const AppsScreen = () => {
 
             const client = NetworkManager.getClient(serverUrl);
             const result = await client.doFetch(
-                `${serverUrl}/plugins/com.mattermost.frappe-sync/api/stock-entry`,
+                '/plugins/com.mattermost.frappe-sync/api/stock-entry',
                 {method: 'POST', body},
             );
 
