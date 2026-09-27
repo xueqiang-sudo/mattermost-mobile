@@ -50,6 +50,9 @@ class EphemeralStoreSingleton {
     /** JPush 点击通知后暂存，待 Home 就绪后由 launchToHome 或 openChannelByExtras 消费 */
     private pendingJPushNotification: {serverUrl: string; notification: NotificationWithData} | null = null;
 
+    /** 邀请链接信息，登录后自动加入团队 */
+    private pendingInviteInfo: {inviteId: string; inviteType: string; invitedBy: string} | null = null;
+
     // This is used to track the channels that have their playbooks synced with the server.
     // This is used to avoid fetching the playbooks for the same channel multiple times.
     // It is cleared any time the connection with the server is lost.
@@ -68,6 +71,16 @@ class EphemeralStoreSingleton {
 
     clearPendingJPushNotification = () => {
         this.pendingJPushNotification = null;
+    };
+
+    setPendingInviteInfo = (info: {inviteId: string; inviteType: string; invitedBy: string}) => {
+        this.pendingInviteInfo = info;
+    };
+
+    getPendingInviteInfo = () => this.pendingInviteInfo;
+
+    clearPendingInviteInfo = () => {
+        this.pendingInviteInfo = null;
     };
 
     addLoadingMessagesForChannel = (serverUrl: string, channelId: string) => {

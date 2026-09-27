@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {View} from 'react-native';
+import {Text, TouchableOpacity, View} from 'react-native';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Navigation} from 'react-native-navigation';
 import Animated from 'react-native-reanimated';
@@ -62,6 +62,15 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.6),
         marginBottom: 24,
         ...typography('Body', 200, 'Regular'),
+        textAlign: 'center',
+    },
+    inviteLinkContainer: {
+        marginTop: 16,
+        alignItems: 'center',
+    },
+    inviteLinkText: {
+        color: theme.linkColor,
+        ...typography('Body', 100, 'Regular'),
         textAlign: 'center',
     },
 }));
@@ -127,6 +136,11 @@ const LoginOptions = ({
     useNavButtonPressed(closeButtonId || '', componentId, dismiss, []);
     useAndroidHardwareBackHandler(componentId, pop);
 
+    const handleInviteLink = useCallback(() => {
+        const title = intl.formatMessage({id: 'login.invite_link_title', defaultMessage: 'Join via Invite Link'});
+        goToScreen(Screens.INVITE_LINK, title, {serverUrl: defaultServerUrl});
+    }, [defaultServerUrl, intl]);
+
     const title = (
         <FormattedText
             defaultMessage='Log In to Your Account'
@@ -169,6 +183,17 @@ const LoginOptions = ({
                             theme={theme}
                             serverUrl={defaultServerUrl}
                         />
+                        <View style={styles.inviteLinkContainer}>
+                            <TouchableOpacity
+                                onPress={handleInviteLink}
+                                activeOpacity={0.7}
+                                testID='login.invite_link.button'
+                            >
+                                <Text style={styles.inviteLinkText}>
+                                    {intl.formatMessage({id: 'login.has_invite_link', defaultMessage: 'Have an invite link? Tap here'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </KeyboardAwareScrollView>
             </AnimatedSafeArea>

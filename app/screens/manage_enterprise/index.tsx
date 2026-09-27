@@ -288,45 +288,7 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId, componentId}: Props
         loadCompanies({isRefresh: true});
     });
 
-    const handleCreateEnterprise = usePreventDoubleTap(useCallback(async () => {
-        if (!employeeId || !serverUrl) {
-            Alert.alert(
-                intl.formatMessage({id: 'enterprise.manage.loading_user', defaultMessage: 'Loading user'}),
-                intl.formatMessage({id: 'enterprise.manage.please_wait', defaultMessage: 'Please wait a moment and try again.'}),
-            );
-            return;
-        }
-        showModalWithBackButton(
-            Screens.CREATE_TEAM,
-            intl.formatMessage({id: 'create_team.title', defaultMessage: 'Create Enterprise'}),
-            CLOSE_CREATE_TEAM,
-            {
-                serverUrl,
-                nickname: currentUser?.nickname || '',
-                userId: employeeId,
-            },
-        );
-    }, [employeeId, intl, serverUrl, currentUser?.nickname]));
-
-    const handleJoinEnterprise = usePreventDoubleTap(useCallback(async () => {
-        if (!employeeId || !serverUrl) {
-            Alert.alert(
-                intl.formatMessage({id: 'enterprise.manage.loading_user', defaultMessage: 'Loading user'}),
-                intl.formatMessage({id: 'enterprise.manage.please_wait', defaultMessage: 'Please wait a moment and try again.'}),
-            );
-            return;
-        }
-        showModalWithBackButton(
-            Screens.JOIN_TEAM_QR,
-            intl.formatMessage({id: 'join_team_qr.title', defaultMessage: 'Join Enterprise'}),
-            CLOSE_JOIN_TEAM_QR,
-            {
-                serverUrl,
-                nickname: currentUser?.nickname || '',
-                userId: employeeId,
-            },
-        );
-    }, [employeeId, intl, serverUrl, currentUser?.nickname]));
+    // Create/Join enterprise removed — use invite links instead
 
     const handleCompanyPress = usePreventDoubleTap(useCallback((entry: ManageEnterpriseEntry) => {
         const title = intl.formatMessage({id: 'enterprise.detail.title', defaultMessage: 'Enterprise information'});
@@ -430,39 +392,6 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId, componentId}: Props
             testID='enterprise.manage.screen'
         >
             <View style={styles.topContent}>
-                <View style={styles.actionsRow}>
-                    <TouchableOpacity
-                        style={styles.primaryAction}
-                        onPress={handleCreateEnterprise}
-                        activeOpacity={0.7}
-                        testID='enterprise.manage.create.button'
-                    >
-                        <CompassIcon
-                            name='plus'
-                            size={18}
-                            color={theme.buttonColor}
-                        />
-                        <Text style={styles.primaryActionText}>
-                            {intl.formatMessage({id: 'enterprise.manage.create', defaultMessage: 'Create enterprise'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.secondaryAction}
-                        onPress={handleJoinEnterprise}
-                        activeOpacity={0.7}
-                        testID='enterprise.manage.join.button'
-                    >
-                        <CompassIcon
-                            name='account-multiple-plus-outline'
-                            size={18}
-                            color={theme.buttonBg}
-                        />
-                        <Text style={styles.secondaryActionText}>
-                            {intl.formatMessage({id: 'enterprise.manage.join', defaultMessage: 'Join another enterprise'})}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
                 <Text style={styles.sectionTitle}>
                     {intl.formatMessage({id: 'enterprise.manage.list_title', defaultMessage: 'Your enterprises'})}
                 </Text>

@@ -123,6 +123,24 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CONTACTS_MANAGE:
             screen = withServerDatabase(require('@screens/home/contacts/contacts_manage').default);
             break;
+        case Screens.CONSULTATION_PANEL:
+            screen = withServerDatabase(require('@screens/consultation/consultation_panel').default);
+            break;
+        case Screens.AI_ASSISTANT_PANEL:
+            screen = withServerDatabase(require('@screens/ai_assistant/ai_assistant_panel').default);
+            break;
+        case Screens.ROLE_LIST:
+            screen = withServerDatabase(require('@screens/role_management/role_list').default);
+            break;
+        case Screens.ROLE_DETAIL:
+            screen = withServerDatabase(require('@screens/role_management/role_detail').default);
+            break;
+        case Screens.APPS_BROWSER:
+            screen = withServerDatabase(require('@screens/apps_browser/apps_browser').default);
+            break;
+        case Screens.CUSTOM_CATEGORIES:
+            screen = withServerDatabase(require('@screens/custom_categories/custom_categories').default);
+            break;
         case Screens.SUPPLIER_CUSTOMER_FORM:
             screen = withServerDatabase(require('@screens/home/supplier_customer/supplier_customer_form').default);
             break;
@@ -247,6 +265,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.LOGIN_ABOUT:
             screen = withIntl(require('@screens/login_about').default);
+            break;
+        case Screens.INVITE_LINK:
+            screen = withIntl(require('@screens/invite_link').default);
             break;
         case Screens.MANAGE_CHANNEL_MEMBERS:
             screen = withServerDatabase(require('@screens/manage_channel_members').default);

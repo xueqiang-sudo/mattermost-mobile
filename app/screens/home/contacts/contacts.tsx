@@ -172,12 +172,8 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
         return () => listener.remove();
     }, []);
 
-    const handleMySuppliers = usePreventDoubleTap(useCallback(() => {
-        navigation.navigate(Screens.MY_SUPPLIERS);
-    }, [navigation]));
-
-    const handleMyCustomers = usePreventDoubleTap(useCallback(() => {
-        navigation.navigate(Screens.MY_CUSTOMERS);
+    const handleExternalContacts = usePreventDoubleTap(useCallback(() => {
+        navigation.navigate(Screens.CONTACTS_EXTERNAL);
     }, [navigation]));
 
     const handleEnterpriseContacts = usePreventDoubleTap(useCallback(() => {
@@ -250,42 +246,19 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
                                 <View style={styles.myContactDivider}/>
                                 <TouchableOpacity
                                     style={styles.myContactItem}
-                                    onPress={handleMySuppliers}
+                                    onPress={handleExternalContacts}
                                     activeOpacity={0.7}
-                                    testID='contacts.my_suppliers'
+                                    testID='contacts.external'
                                 >
                                     <View style={[styles.myContactIcon, {backgroundColor: changeOpacity(theme.linkColor, 0.12)}]}>
                                         <CompassIcon
-                                            name='car-outline'
+                                            name='account-multiple-outline'
                                             size={24}
                                             color={theme.linkColor}
                                         />
                                     </View>
                                     <Text style={styles.myContactLabel}>
-                                        {intl.formatMessage({id: 'my_homepage.my_suppliers', defaultMessage: 'My Suppliers'})}
-                                    </Text>
-                                    <CompassIcon
-                                        name='chevron-right'
-                                        size={20}
-                                        style={styles.myContactChevron}
-                                    />
-                                </TouchableOpacity>
-                                <View style={styles.myContactDivider}/>
-                                <TouchableOpacity
-                                    style={styles.myContactItem}
-                                    onPress={handleMyCustomers}
-                                    activeOpacity={0.7}
-                                    testID='contacts.my_customers'
-                                >
-                                    <View style={[styles.myContactIcon, {backgroundColor: changeOpacity(theme.onlineIndicator, 0.12)}]}>
-                                        <CompassIcon
-                                            name='account-outline'
-                                            size={24}
-                                            color={theme.onlineIndicator}
-                                        />
-                                    </View>
-                                    <Text style={styles.myContactLabel}>
-                                        {intl.formatMessage({id: 'my_homepage.my_customers', defaultMessage: 'My Customers'})}
+                                        {intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contacts'})}
                                     </Text>
                                     <CompassIcon
                                         name='chevron-right'

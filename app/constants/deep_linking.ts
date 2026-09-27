@@ -6,6 +6,7 @@ const DeepLinkType = {
     DirectMessage: 'dm',
     GroupMessage: 'gm',
     Invalid: 'invalid',
+    Invite: 'invite',
     Permalink: 'permalink',
     Playbooks: 'playbooks',
     PlaybookRuns: 'playbook_runs',

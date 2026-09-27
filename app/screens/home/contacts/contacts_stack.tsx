@@ -6,15 +6,13 @@ import {createStackNavigator, type StackNavigationProp} from '@react-navigation/
 import React, {createContext, useContext} from 'react';
 import {useIntl} from 'react-intl';
 
-import {MMEmployeeContactTypes} from '@client/rest/team_department';
 import {Screens} from '@constants';
-import SupplierCustomerFormScreen from '@screens/home/supplier_customer/supplier_customer_form';
-import SupplierCustomerListScreen from '@screens/home/supplier_customer/supplier_customer_list';
 
 import ContactsScreen from './contacts';
 import ContactsSearchScreen from './contacts_search';
 import {type ContactsStackParamList} from './contacts_stack_param_list';
 import ContactsDepartmentDetail from './department_detail';
+import ExternalContactsScreen from './external_contacts';
 
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
@@ -114,32 +112,6 @@ function ContactsSearchWrapper({currentUserId}: {currentUserId?: string}) {
     );
 }
 
-function SupplierCustomerFormWrapper() {
-    const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.SUPPLIER_CUSTOMER_FORM>>();
-    const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.SUPPLIER_CUSTOMER_FORM>>();
-    const params = route.params;
-    if (!params) {
-        return null;
-    }
-    return (
-        <SupplierCustomerFormScreen
-            kind={params.kind}
-            ownerId={params.ownerId}
-            existingContactId={params.existingContactId}
-            initialContactName={params.initialContactName}
-            initialDescription={params.initialDescription}
-            initialRemark={params.initialRemark}
-            initialContactEmail={params.initialContactEmail}
-            initialContactPhone={params.initialContactPhone}
-            initialContactPosition={params.initialContactPosition}
-            initialContactUsername={params.initialContactUsername}
-            mattermostUserIdForAvatar={params.mattermostUserIdForAvatar}
-            readOnly={params.readOnly}
-            onBack={() => navigation.goBack()}
-        />
-    );
-}
-
 export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rnnHomeComponentId}: ContactsStackProps) {
     return (
         <ContactsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
@@ -163,24 +135,12 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
                 <Stack.Screen name={Screens.CONTACTS_SEARCH}>
                     {() => <ContactsSearchWrapper currentUserId={currentUser?.id}/>}
                 </Stack.Screen>
-                <Stack.Screen name={Screens.MY_SUPPLIERS}>
+                <Stack.Screen name={Screens.CONTACTS_EXTERNAL}>
                     {() => (
-                        <SupplierCustomerListScreen
-                            kind={MMEmployeeContactTypes.Supplier}
+                        <ExternalContactsScreen
                             currentUser={currentUser}
                         />
                     )}
-                </Stack.Screen>
-                <Stack.Screen name={Screens.MY_CUSTOMERS}>
-                    {() => (
-                        <SupplierCustomerListScreen
-                            kind={MMEmployeeContactTypes.Customer}
-                            currentUser={currentUser}
-                        />
-                    )}
-                </Stack.Screen>
-                <Stack.Screen name={Screens.SUPPLIER_CUSTOMER_FORM}>
-                    {() => <SupplierCustomerFormWrapper/>}
                 </Stack.Screen>
             </Stack.Navigator>
         </ContactsRnnHomeComponentIdContext.Provider>

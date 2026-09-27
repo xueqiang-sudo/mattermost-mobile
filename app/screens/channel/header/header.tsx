@@ -23,6 +23,7 @@ import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 
 import ChannelHeaderBookmarks from './bookmarks';
 
@@ -183,8 +184,96 @@ const ChannelHeader = ({
         goToPlaybookRuns(intl, channelId, displayName);
     }, [playbooksActiveRuns, activeRunId, channelId, displayName, intl, currentUserId, teamId, serverUrl]);
 
+    const openAICustomerService = useCallback(async () => {
+        try {
+            const bots = await getChannelBots(serverUrl, channelId);
+            if (bots.length === 0) {
+                return;
+            }
+            // If only one bot, open DM directly
+            if (bots.length === 1) {
+                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
+                if (channel) {
+                    // Navigate to the bot DM channel
+                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
+                }
+            } else {
+                // Multiple bots - for now, use the first one
+                // TODO: Show ActionSheet to select bot
+                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
+                if (channel) {
+                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }, [channelId, displayName, serverUrl]);
+
+    const openConsultation = useCallback(() => {
+        const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+        const closeButtonId = 'close-consultation-panel';
+        const options = {
+            topBar: {
+                leftButtons: [{
+                    id: closeButtonId,
+                    icon: closeButton,
+                    testID: 'close.consultation_panel.button',
+                }],
+            },
+        };
+        showModal(Screens.CONSULTATION_PANEL, title, {channelId, teamId, closeButtonId}, options);
+    }, [channelId, teamId, intl, theme]);
+
+    const openAIAssistant = useCallback(() => {
+        const title = intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'});
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+        const closeButtonId = 'close-ai-assistant-panel';
+        const options = {
+            topBar: {
+                leftButtons: [{
+                    id: closeButtonId,
+                    icon: closeButton,
+                    testID: 'close.ai_assistant_panel.button',
+                }],
+            },
+        };
+        showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
+    }, [channelId, teamId, intl, theme]);
+
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
+
+        // AI Customer Service button (GM channels only)
+        if (channelType === General.GM_CHANNEL) {
+            buttons.push({
+                iconName: 'robot',
+                onPress: openAICustomerService,
+                buttonType: 'opacity',
+                testID: 'channel_header.ai_customer_service.button',
+            });
+        }
+
+        // Consult Expert button (for channels and GM, not DM)
+        if (channelType !== General.DM_CHANNEL) {
+            buttons.push({
+                iconName: 'account-question',
+                onPress: openConsultation,
+                buttonType: 'opacity',
+                testID: 'channel_header.consultation.button',
+            });
+        }
+
+        // AI Assistant button (for channels and GM, not DM)
+        if (channelType !== General.DM_CHANNEL) {
+            buttons.push({
+                iconName: 'lightbulb-outline',
+                onPress: openAIAssistant,
+                buttonType: 'opacity',
+                testID: 'channel_header.ai_assistant.button',
+            });
+        }
 
         // 手机微信风格：仅保留「…」，Playbook 等收入底部菜单
         if (isTablet && isPlaybooksEnabled && !isDMorGM) {
@@ -204,7 +293,7 @@ const ChannelHeader = ({
         });
 
         return buttons;
-    }, [isTablet, isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, onChannelQuickAction, openPlaybooksRuns]);
+    }, [isTablet, isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, channelType, onChannelQuickAction, openPlaybooksRuns, openAICustomerService, openConsultation, openAIAssistant]);
 
     let title = displayName;
     let titleSuffix: string | undefined;

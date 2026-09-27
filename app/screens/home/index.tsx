@@ -33,7 +33,6 @@ import {notificationError, type NotificationErrorType} from '@utils/notification
 import ChannelList from './channel_list';
 import Contacts from './contacts';
 import TabBar from './tab_bar';
-import AIAgent from './ai_agent';
 import Me from './me';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
@@ -190,12 +189,6 @@ export function HomeScreen(props: HomeProps) {
                             options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
                         >
                             {() => <ChannelList {...props}/>}
-                        </Tab.Screen>
-                        <Tab.Screen
-                            name={Screens.HOME_TAB_AI_AGENT}
-                            options={{tabBarButtonTestID: 'tab_bar.ai_agent.tab', freezeOnBlur: true, lazy: true}}
-                        >
-                            {() => <AIAgent/>}
                         </Tab.Screen>
                         <Tab.Screen
                             name={Screens.HOME_TAB_CONTACTS}

@@ -28,6 +28,7 @@ export const CREATE_OR_EDIT_CHANNEL = 'CreateOrEditChannel';
 export const CREATE_TEAM = 'CreateTeam';
 export const JOIN_TEAM_QR = 'JoinTeamQR';
 export const INVITE_USER_JOIN_TEAM = 'InviteUserJoinTeam';
+export const INVITE_LINK = 'InviteLink';
 export const COMPONENT_LIBRARY = 'ComponentLibrary';
 /** 通讯录 Stack 内根屏路由名（底部 Tab 槽位见 `HOME_TAB_CONTACTS`） */
 export const CONTACTS = 'Contacts';
@@ -38,6 +39,13 @@ export const CONTACTS_EMPLOYEE_PROFILE = 'ContactsEmployeeProfile';
 export const CONTACTS_MANAGE = 'ContactsManage';
 export const CONTACTS_SEARCH = 'ContactsSearch';
 export const CONTACTS_BATCH_MOVE_MEMBERS = 'ContactsBatchMoveMembers';
+export const CONTACTS_EXTERNAL = 'ContactsExternal';
+export const CONSULTATION_PANEL = 'ConsultationPanel';
+export const AI_ASSISTANT_PANEL = 'AIAssistantPanel';
+export const ROLE_LIST = 'RoleList';
+export const ROLE_DETAIL = 'RoleDetail';
+export const APPS_BROWSER = 'AppsBrowser';
+export const CUSTOM_CATEGORIES = 'CustomCategories';
 export const TMP_DEV_TEST = 'TmpDevTest';
 export const DEBUG_PANEL = 'DebugPanel';
 export const CUSTOM_STATUS = 'CustomStatus';
@@ -163,6 +171,13 @@ export default {
     CONTACTS_MANAGE,
     CONTACTS_SEARCH,
     CONTACTS_BATCH_MOVE_MEMBERS,
+    CONTACTS_EXTERNAL,
+    CONSULTATION_PANEL,
+    AI_ASSISTANT_PANEL,
+    ROLE_LIST,
+    ROLE_DETAIL,
+    APPS_BROWSER,
+    CUSTOM_CATEGORIES,
     TMP_DEV_TEST,
     DEBUG_PANEL,
     CREATE_DIRECT_MESSAGE,
@@ -170,6 +185,7 @@ export default {
     CREATE_TEAM,
     JOIN_TEAM_QR,
     INVITE_USER_JOIN_TEAM,
+    INVITE_LINK,
     CUSTOM_STATUS,
     CUSTOM_STATUS_CLEAR_AFTER,
     DRAFT_SCHEDULED_POST_OPTIONS,

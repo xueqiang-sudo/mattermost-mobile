@@ -15,8 +15,9 @@ import FloatingTextInput from '@components/floating_input/floating_text_input_la
 import {useAvoidKeyboard} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {prepareJPushAfterLogin} from '@init/launch';
-import {getAutoClient} from '@managers/network_manager';
+import {getAutoClient, NetworkManager} from '@managers/network_manager';
 import {resetToHome} from '@screens/navigation';
+import EphemeralStore from '@store/ephemeral_store';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -352,7 +353,19 @@ const PhoneLoginForm = ({
                 throw loginResult.error;
             }
 
-            // 登录成功
+            // 登录成功 — 检查是否有待处理的邀请链接
+            const pendingInvite = EphemeralStore.getPendingInviteInfo();
+            if (pendingInvite?.inviteId) {
+                try {
+                    const client = NetworkManager.getClient(serverUrl);
+                    await client.joinTeam(pendingInvite.inviteId);
+                    logInfo('Successfully joined team via invite link', pendingInvite.inviteId);
+                } catch (joinErr) {
+                    logError('Failed to join team via invite link', getFullErrorMessage(joinErr));
+                }
+                EphemeralStore.clearPendingInviteInfo();
+            }
+
             setError(undefined);
             setIsLoading(false);
             await goToHome();

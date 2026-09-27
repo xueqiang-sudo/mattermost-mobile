@@ -57,6 +57,13 @@ const Settings = ({componentId}: SettingsProps) => {
         goToScreen(screen, title);
     }, [intl]));
 
+    const goToRoleManagement = usePreventDoubleTap(useCallback(() => {
+        const screen = Screens.ROLE_LIST;
+        const title = intl.formatMessage({id: 'settings.role_management', defaultMessage: 'Role Management'});
+
+        goToScreen(screen, title);
+    }, [intl]));
+
     return (
         <SettingContainer testID='settings'>
             <SettingItem
@@ -68,6 +75,11 @@ const Settings = ({componentId}: SettingsProps) => {
                 onPress={goToDisplaySettings}
                 optionName='display'
                 testID='settings.display.option'
+            />
+            <SettingItem
+                onPress={goToRoleManagement}
+                optionName='role_management'
+                testID='settings.role_management.option'
             />
         </SettingContainer>
     );
