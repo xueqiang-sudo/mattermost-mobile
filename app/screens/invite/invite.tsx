@@ -9,6 +9,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {searchExternalCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {addUserToDefaultDepartment, addUserToDepartment} from '@actions/remote/contact_new';
 import {getTeamMembersByIds} from '@actions/remote/team';
+import type {BusinessRoleDef} from '@client/rest/team_department';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
 import Loading from '@components/loading';
@@ -22,8 +23,6 @@ import {dismissModal, setButtons} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername, getLastPictureUpdate} from '@utils/user';
-
-import type {BusinessRoleDef} from '@client/rest/team_department';
 
 import {sendMembersInvites} from './actions';
 import Summary from './summary';
@@ -768,12 +767,16 @@ export default function Invite({
                         onPress={() => setShowRoleSelector((prev) => !prev)}
                         activeOpacity={0.7}
                     >
-                        <CompassIcon name='account-badge-outline' size={20} color={theme.buttonBg}/>
+                        <CompassIcon
+                            name='account-badge-outline'
+                            size={20}
+                            color={theme.buttonBg}
+                        />
                         <Text style={style.roleSelectorButtonText}>
                             {formatMessage({id: 'invite.select_roles', defaultMessage: 'Select Roles'})}
                         </Text>
                         <Text style={style.roleSelectorCount}>
-                            ({selectedRoleKeys.size})
+                            {'('}{selectedRoleKeys.size}{')'}
                         </Text>
                         <CompassIcon
                             name={showRoleSelector ? 'chevron-up' : 'chevron-down'}
@@ -794,7 +797,13 @@ export default function Invite({
                                         activeOpacity={0.7}
                                     >
                                         <View style={[style.checkbox, isChecked ? style.checkboxChecked : style.checkboxUnchecked]}>
-                                            {isChecked && <CompassIcon name='check' size={14} style={style.checkIcon}/>}
+                                            {isChecked && (
+                                                <CompassIcon
+                                                    name='check'
+                                                    size={14}
+                                                    style={style.checkIcon}
+                                                />
+                                            )}
                                         </View>
                                         <Text style={style.roleOptionText}>{def.role_name}</Text>
                                     </TouchableOpacity>
