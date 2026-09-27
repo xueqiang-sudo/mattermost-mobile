@@ -6,12 +6,14 @@ import {isAgentPost} from '@agents/utils';
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {type ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, Platform, type GestureResponderEvent, type StyleProp, TouchableOpacity, View, type ViewStyle} from 'react-native';
+import {Alert, DeviceEventEmitter, Platform, Share, type GestureResponderEvent, type StyleProp, TouchableOpacity, View, type ViewStyle} from 'react-native';
 
 import {updateDraftMessage} from '@actions/local/draft';
 import {removePost} from '@actions/local/post';
+import {deleteSavedPost, savePostPreference} from '@actions/remote/preference';
 import {showPermalink} from '@actions/remote/permalink';
 import {deletePost} from '@actions/remote/post';
+import {toggleReaction} from '@actions/remote/reactions';
 import {fetchAndSwitchToThread} from '@actions/remote/thread';
 import CallsCustomMessage from '@calls/components/calls_custom_message';
 import {isCallsCustomMessage} from '@calls/utils';
@@ -24,12 +26,15 @@ import * as Screens from '@constants/screens';
 import {useHideExtraKeyboardIfNeeded} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import NetworkManager from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
-import {dismissOverlay, showModal, showOverlay} from '@screens/navigation';
+import {dismissOverlay, openAsBottomSheet, showModal, showOverlay} from '@screens/navigation';
 import {isBoRPost, isUnrevealedBoRPost} from '@utils/bor';
 import {hasJumboEmojiOnly} from '@utils/emoji/helpers';
 import {fromAutoResponder, isFromWebhook, isInvalidEphemeralTipPost, isPostFailed, isPostPendingOrFailed, isSystemMessage} from '@utils/post';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {showSnackBar} from '@utils/snack_bar';
+import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 
 import Avatar from './avatar';
 import Body from './body';
@@ -358,6 +363,24 @@ const Post = ({
         };
 
         const items: Array<{key: string; label: string; iconName: string; destructive?: boolean; onPress: () => void}> = [];
+
+        // 1. Consult Expert (咨询专家) - webapp: non-system, non-BoR, non-file
+        if (canQuote && !borPost && textMessage) {
+            items.push({
+                key: 'consult_expert',
+                label: intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'}),
+                iconName: 'message-arrow-right-outline',
+                onPress: closeAndRun(() => {
+                    showModal(
+                        Screens.CONSULTATION_PANEL,
+                        intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'}),
+                        {channelId: post.channelId, prefillText: textMessage},
+                    );
+                }),
+            });
+        }
+
+        // 2. Quote (引用) - already exists
         if (canQuote) {
             items.push({
                 key: 'quote',
@@ -370,6 +393,39 @@ const Post = ({
                 }),
             });
         }
+
+        // 3. Add Reaction (添加表情) - webapp: mobile + non-system + non-readonly + has permission
+        if (canQuote && showAddReaction) {
+            items.push({
+                key: 'add_reaction',
+                label: intl.formatMessage({id: 'rhs_root.mobile.add_reaction', defaultMessage: 'Add Reaction'}),
+                iconName: 'emoticon-plus-outline',
+                onPress: closeAndRun(() => {
+                    const handleEmojiPress = (emoji: string) => {
+                        toggleReaction(serverUrl, post.id, emoji);
+                    };
+                    openAsBottomSheet({
+                        closeButtonId: 'close-add-reaction',
+                        screen: Screens.EMOJI_PICKER,
+                        theme,
+                        title: intl.formatMessage({id: 'mobile.post_info.add_reaction', defaultMessage: 'Add Reaction'}),
+                        props: {onEmojiPress: handleEmojiPress},
+                    });
+                }),
+            });
+        }
+
+        // 4. Copy (复制) - already exists
+        if (canCopyText) {
+            items.push({
+                key: 'copy_text',
+                label: intl.formatMessage({id: 'post_info.copy', defaultMessage: 'Copy'}),
+                iconName: 'content-copy',
+                onPress: closeAndRun(() => Clipboard.setString(textMessage)),
+            });
+        }
+
+        // 5. Re-edit (重新编辑) - already exists
         if (canRecallEditPost) {
             items.push({
                 key: 'reedit',
@@ -391,20 +447,30 @@ const Post = ({
                 }),
             });
         }
-        if (canCopyText) {
+
+        // 6. Save/Unsave (收藏/取消收藏) - webapp: non-system
+        if (canQuote) {
+            const saveLabel = isSaved
+                ? intl.formatMessage({id: 'mobile.post_info.unsave', defaultMessage: 'Unsave'})
+                : intl.formatMessage({id: 'mobile.post_info.save', defaultMessage: 'Save'});
             items.push({
-                key: 'copy_text',
-                label: intl.formatMessage({id: 'mobile.post_info.copy_text', defaultMessage: 'Copy Text'}),
-                iconName: 'content-copy',
-                onPress: closeAndRun(() => Clipboard.setString(textMessage)),
+                key: 'save',
+                label: saveLabel,
+                iconName: 'bookmark-outline',
+                onPress: closeAndRun(() => {
+                    const saveAction = isSaved ? deleteSavedPost : savePostPreference;
+                    saveAction(serverUrl, post.id);
+                }),
             });
         }
+
+        // 7. Recall/Withdraw (撤回) - within 2 minutes, own post
         if (canWithdrawPost) {
-            const withdrawText = intl.locale.startsWith('zh') ? '撤回' : 'Withdraw';
+            const withdrawText = intl.locale.startsWith('zh') ? '撤回' : 'Recall';
             items.push({
                 key: 'withdraw',
                 label: withdrawText,
-                iconName: 'trash-can-outline',
+                iconName: 'refresh',
                 destructive: true,
                 onPress: () => {
                     closePopover().finally(() => {
@@ -416,6 +482,33 @@ const Post = ({
                                 style: 'cancel',
                             }, {
                                 text: withdrawText,
+                                style: 'destructive',
+                                onPress: () => deletePost(serverUrl, post),
+                            }],
+                        );
+                    });
+                },
+            });
+        }
+
+        // 8. Delete (删除) - outside 2min window but with delete permission
+        const canDeleteOnly = isOwnPost && !hasBeenDeleted && canDelete && !within2MinFromCreateAt;
+        if (canDeleteOnly) {
+            items.push({
+                key: 'delete',
+                label: intl.formatMessage({id: 'post_info.del', defaultMessage: 'Delete'}),
+                iconName: 'trash-can-outline',
+                destructive: true,
+                onPress: () => {
+                    closePopover().finally(() => {
+                        Alert.alert(
+                            intl.formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
+                            intl.formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
+                            [{
+                                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                                style: 'cancel',
+                            }, {
+                                text: intl.formatMessage({id: 'post_info.del', defaultMessage: 'Delete'}),
                                 style: 'destructive',
                                 onPress: () => deletePost(serverUrl, post),
                             }],
@@ -441,7 +534,7 @@ const Post = ({
         }, {overlay: {interceptTouchOutside: false}}, overlayId);
     }, [
         borPost, canDelete, canEdit, hasBeenDeleted, intl, isEphemeral, isPendingOrFailed,
-        isOwnPost, isSaved, isSystemPost, post, serverUrl,
+        isOwnPost, isSaved, isSystemPost, post, serverUrl, showAddReaction,
     ]);
 
     const [, rerender] = useState(false);
