@@ -45,6 +45,7 @@ export const AI_ASSISTANT_PANEL = 'AIAssistantPanel';
 export const ROLE_LIST = 'RoleList';
 export const ROLE_DETAIL = 'RoleDetail';
 export const APPS_BROWSER = 'AppsBrowser';
+export const APPS_WEBVIEW = 'AppsWebView';
 export const CUSTOM_CATEGORIES = 'CustomCategories';
 export const TMP_DEV_TEST = 'TmpDevTest';
 export const DEBUG_PANEL = 'DebugPanel';
@@ -79,9 +80,11 @@ export const GLOBAL_DRAFTS_AND_SCHEDULED_POSTS = 'GlobalDraftsAndScheduledPosts'
 export const HOME = 'Home';
 /** 首页 `Tab.Navigator` 各槽位路由名（与 `HOME` RNN 根屏、各 Tab 内 Stack 业务屏区分） */
 export const HOME_TAB_CHAT = 'HomeTabChat';
+export const HOME_TAB_APPS = 'HomeTabApps';
 export const HOME_TAB_AI_AGENT = 'HomeTabAIAgent';
 export const HOME_TAB_CONTACTS = 'HomeTabContacts';
 export const HOME_TAB_ME = 'HomeTabMe';
+export const APPS_HOME = 'AppsHome';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -177,6 +180,7 @@ export default {
     ROLE_LIST,
     ROLE_DETAIL,
     APPS_BROWSER,
+    APPS_WEBVIEW,
     CUSTOM_CATEGORIES,
     TMP_DEV_TEST,
     DEBUG_PANEL,
@@ -214,9 +218,11 @@ export default {
     GLOBAL_DRAFTS_AND_SCHEDULED_POSTS,
     HOME,
     HOME_TAB_AI_AGENT,
+    HOME_TAB_APPS,
     HOME_TAB_CHAT,
     HOME_TAB_CONTACTS,
     HOME_TAB_ME,
+    APPS_HOME,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,

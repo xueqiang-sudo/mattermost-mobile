@@ -408,6 +408,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SCHEDULED_POST_OPTIONS:
             screen = withServerDatabase(require('@screens/scheduled_post_options').default);
             break;
+        case Screens.APPS_WEBVIEW:
+            screen = withServerDatabase(require('@screens/home/apps/app_webview').default);
+            break;
         case Screens.TMP_DEV_TEST:
             screen = withIntl(require('@screens/tmp_dev_test').default);
             break;

@@ -34,6 +34,7 @@ import ChannelList from './channel_list';
 import Contacts from './contacts';
 import TabBar from './tab_bar';
 import Me from './me';
+import {AppsStack} from './apps/apps_stack';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 
@@ -189,6 +190,14 @@ export function HomeScreen(props: HomeProps) {
                             options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
                         >
                             {() => <ChannelList {...props}/>}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_APPS}
+                            options={{tabBarButtonTestID: 'tab_bar.apps.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => (
+                                <AppsStack rnnHomeComponentId={props.componentId}/>
+                            )}
                         </Tab.Screen>
                         <Tab.Screen
                             name={Screens.HOME_TAB_CONTACTS}
