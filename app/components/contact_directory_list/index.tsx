@@ -14,7 +14,7 @@ import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/ente
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {MMDepartment} from '@client/rest/team_department';
+import type {MMDepartment, TeamBusinessRole} from '@client/rest/team_department';
 
 export type ContactDirectoryListProps = {
     departments: MMDepartment[];
@@ -22,6 +22,7 @@ export type ContactDirectoryListProps = {
     managerIds?: Set<string>;
     ownerId?: string;
     currentUserId?: string;
+    businessRoles?: TeamBusinessRole[];
     memberCount: number;
     onDepartmentPress: (dept: MMDepartment) => void;
     onEmployeePress: (emp: UserProfile) => void;
@@ -141,6 +142,7 @@ const ContactDirectoryList = ({
     managerIds,
     ownerId,
     currentUserId,
+    businessRoles = [],
     memberCount,
     onDepartmentPress,
     onEmployeePress,
@@ -152,6 +154,18 @@ const ContactDirectoryList = ({
     const theme = useTheme();
     const intl = useIntl();
     const styles = getStyleSheet(theme);
+
+    // Build a map of userId -> roles for quick lookup
+    const rolesByUserId = React.useMemo(() => {
+        const map = new Map<string, TeamBusinessRole[]>();
+        for (const role of businessRoles) {
+            if (!map.has(role.user_id)) {
+                map.set(role.user_id, []);
+            }
+            map.get(role.user_id)!.push(role);
+        }
+        return map;
+    }, [businessRoles]);
 
     if (loading) {
         return (
@@ -278,6 +292,17 @@ const ContactDirectoryList = ({
                                         </View>
                                     );
                                 })}
+                                {/* Business role tags */}
+                                {(rolesByUserId.get(emp.id) || []).map((role) => (
+                                    <View
+                                        key={`${emp.id}-role-${role.role_key}`}
+                                        style={styles.managerTag}
+                                    >
+                                        <Text style={styles.managerTagText}>
+                                            {role.role_name}
+                                        </Text>
+                                    </View>
+                                ))}
                             </View>
                         </View>
                     </TouchableOpacity>

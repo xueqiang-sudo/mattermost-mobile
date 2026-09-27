@@ -5,7 +5,7 @@ import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, StyleSheet, View} from 'react-native';
 
-import {createDirectChannel, switchToChannelById} from '@actions/remote/channel';
+import {makeGroupChannel} from '@actions/remote/channel';
 import Button from '@components/button';
 import OptionBox, {OPTIONS_HEIGHT} from '@components/option_box';
 import {Events, Screens} from '@constants';
@@ -59,10 +59,7 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
 
     const openChannel = useCallback(async () => {
         await dismissBottomSheet(Screens.USER_PROFILE);
-        const {data} = await createDirectChannel(serverUrl, userId);
-        if (data) {
-            switchToChannelById(serverUrl, data.id);
-        }
+        await makeGroupChannel(serverUrl, [userId], true);
     }, [userId, serverUrl]);
 
     if (type === 'all') {

@@ -122,6 +122,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const isFocused = useIsFocused();
     const isFocusedRef = useRef(isFocused);
     isFocusedRef.current = isFocused;
+    const navigation = useNavigation<StackNavigationProp<AppsStackParamList>>();
 
     const [dashboardAccess, setDashboardAccess] = useState<DashboardAccess | null>(null);
     const [loading, setLoading] = useState(true);
@@ -176,6 +177,14 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             if (app.key === 'conversations' && !conversationsEnabled) {
                 return false;
             }
+            // MES: require mes_enabled
+            if (app.key === 'mes' && !dashboardAccess.mes_enabled) {
+                return false;
+            }
+            // Role Management: require configurable (admin access)
+            if (app.key === 'role_management' && !dashboardAccess.configurable) {
+                return false;
+            }
             // Apps with noPermission are always visible
             if (app.noPermission) {
                 return true;
@@ -187,11 +196,19 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
 
     const handleAppPress = useCallback((app: AppDef) => {
         const title = intl.formatMessage({id: app.labelId, defaultMessage: app.defaultLabel});
-        goToScreen(Screens.APPS_WEBVIEW, title, {
-            appKey: app.key,
-            title: app.defaultLabel,
-        });
-    }, [intl]);
+        if (app.key === 'mes') {
+            navigation.navigate(Screens.APPS_MES);
+        } else if (app.key === 'promotion') {
+            navigation.navigate(Screens.APPS_PROMOTION);
+        } else if (app.key === 'role_management') {
+            navigation.navigate(Screens.APPS_ROLE_MANAGEMENT);
+        } else {
+            goToScreen(Screens.APPS_WEBVIEW, title, {
+                appKey: app.key,
+                title: app.defaultLabel,
+            });
+        }
+    }, [intl, navigation]);
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),

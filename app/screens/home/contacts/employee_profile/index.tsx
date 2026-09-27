@@ -4,10 +4,10 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {makeDirectChannel} from '@actions/remote/channel';
+import {makeGroupChannel} from '@actions/remote/channel';
 import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
 import {fetchTeamById, getTeamMembersByIds, removeUserFromTeam} from '@actions/remote/team';
 import Button from '@components/button';
@@ -32,7 +32,7 @@ import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {MMEmployeeContactType} from '@client/rest/team_department';
+import type {MMEmployeeContactType, TeamBusinessRole, BusinessRoleDef} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-employee-profile';
@@ -311,6 +311,13 @@ const ContactsEmployeeProfile = ({
     const [editPosition, setEditPosition] = useState(() => employee.position ?? '');
     const [saving, setSaving] = useState(false);
 
+    // 业务角色状态
+    const [businessRoles, setBusinessRoles] = useState<TeamBusinessRole[]>([]);
+    const [roleDefs, setRoleDefs] = useState<BusinessRoleDef[]>([]);
+    const [showRoleModal, setShowRoleModal] = useState(false);
+    const [selectedRoleKeys, setSelectedRoleKeys] = useState<Set<string>>(new Set());
+    const [savingRoles, setSavingRoles] = useState(false);
+
     const handleSaveProfile = usePreventDoubleTap(useCallback(async () => {
         if (!serverUrl || saving) {
             return;
@@ -386,6 +393,78 @@ const ContactsEmployeeProfile = ({
             cancelled = true;
         };
     }, [companyIdProp, employee.id, serverUrl]);
+
+    // 加载业务角色
+    useEffect(() => {
+        if (!companyIdProp || !serverUrl || !fromManage) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadRoles = async () => {
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const [roles, defs] = await Promise.all([
+                    client.fetchBusinessRoles(companyIdProp),
+                    client.fetchBusinessRoleDefs(companyIdProp),
+                ]);
+                if (!cancelled) {
+                    setBusinessRoles(roles.filter((r) => r.user_id === employee.id));
+                    setRoleDefs(defs);
+                    setSelectedRoleKeys(new Set(roles.filter((r) => r.user_id === employee.id).map((r) => r.role_key)));
+                }
+            } catch (e) {
+                // 静默失败，不阻塞主流程
+            }
+        };
+
+        loadRoles();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [companyIdProp, employee.id, serverUrl, fromManage]);
+
+    // 保存业务角色
+    const handleSaveRoles = usePreventDoubleTap(useCallback(async () => {
+        if (!companyIdProp || !serverUrl) {
+            return;
+        }
+
+        setSavingRoles(true);
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            const currentKeys = new Set(businessRoles.filter((r) => r.user_id === employee.id).map((r) => r.role_key));
+
+            // 找出需要添加的角色
+            const toAdd = Array.from(selectedRoleKeys).filter((key) => !currentKeys.has(key));
+            // 找出需要移除的角色
+            const toRemove = Array.from(currentKeys).filter((key) => !selectedRoleKeys.has(key));
+
+            // 批量操作
+            await Promise.all([
+                ...toAdd.map((roleKey) => client.grantBusinessRole(companyIdProp, employee.id, roleKey)),
+                ...toRemove.map((roleKey) => client.revokeBusinessRole(companyIdProp, employee.id, roleKey)),
+            ]);
+
+            // 刷新角色列表
+            const updatedRoles = await client.fetchBusinessRoles(companyIdProp);
+            setBusinessRoles(updatedRoles.filter((r) => r.user_id === employee.id));
+            setShowRoleModal(false);
+            showSnackBar({
+                barType: SNACK_BAR_TYPE.INFO_COPIED,
+                type: MESSAGE_TYPE.SUCCESS,
+                message: intl.formatMessage({id: 'contacts.role_saved', defaultMessage: '角色保存成功'}),
+            });
+        } catch (e) {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.role_save_failed', defaultMessage: '角色保存失败'}),
+            );
+        } finally {
+            setSavingRoles(false);
+        }
+    }, [companyIdProp, employee.id, serverUrl, businessRoles, selectedRoleKeys, intl]));
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -483,22 +562,21 @@ const ContactsEmployeeProfile = ({
             Alert.alert(
                 '',
                 intl.formatMessage({
-                    id: 'mobile.direct_message.error',
-                    defaultMessage: "We couldn't open a DM with {displayName}.",
-                }, {displayName: getContactListDisplayName(employee)}),
+                    id: 'mobile.open_gm.error',
+                    defaultMessage: "We couldn't open a discussion group with those users. Please check your connection and try again.",
+                }),
             );
             return;
         }
-        const displayName = getContactListDisplayName(employee);
-        const result = await makeDirectChannel(serverUrl, userId, displayName, true);
+        const result = await makeGroupChannel(serverUrl, [userId], true);
         setSending(false);
         if (result.error) {
             Alert.alert(
                 '',
                 intl.formatMessage({
-                    id: 'mobile.direct_message.error',
-                    defaultMessage: "We couldn't open a DM with {displayName}.",
-                }, {displayName}),
+                    id: 'mobile.open_gm.error',
+                    defaultMessage: "We couldn't open a discussion group with those users. Please check your connection and try again.",
+                }),
             );
             return;
         }
@@ -884,6 +962,28 @@ const ContactsEmployeeProfile = ({
                             {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
                         </Text>
                     </View>
+                    {fromManage && (
+                        <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>
+                                {intl.formatMessage({id: 'contacts.business_roles', defaultMessage: '业务角色'})}
+                            </Text>
+                            <TouchableOpacity
+                                style={{flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}
+                                onPress={() => setShowRoleModal(true)}
+                            >
+                                <Text style={styles.detailValue} numberOfLines={2}>
+                                    {businessRoles.length > 0
+                                        ? businessRoles.map((r) => r.role_name).join(', ')
+                                        : intl.formatMessage({id: 'contacts.no_roles', defaultMessage: '未分配角色'})}
+                                </Text>
+                                <CompassIcon
+                                    name='chevron-right'
+                                    size={20}
+                                    color={changeOpacity(theme.centerChannelColor, 0.32)}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
 
                 {fromManage ? (
@@ -950,6 +1050,68 @@ const ContactsEmployeeProfile = ({
                 onConfirm={relationDescriptionEditInput.handleConfirm}
                 onCancel={relationDescriptionEditInput.handleCancel}
             />
+            <Modal
+                visible={showRoleModal}
+                transparent={true}
+                animationType='slide'
+                onRequestClose={() => setShowRoleModal(false)}
+            >
+                <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}}>
+                    <View style={{backgroundColor: theme.centerChannelBg, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '80%'}}>
+                        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1)}}>
+                            <TouchableOpacity onPress={() => setShowRoleModal(false)}>
+                                <Text style={{color: theme.linkColor, ...typography('Body', 100)}}>
+                                    {intl.formatMessage({id: 'mobile.components.select_theme_view.cancel', defaultMessage: 'Cancel'})}
+                                </Text>
+                            </TouchableOpacity>
+                            <Text style={{...typography('Heading', 400, 'SemiBold'), color: theme.centerChannelColor}}>
+                                {intl.formatMessage({id: 'contacts.set_roles', defaultMessage: '设置角色'})}
+                            </Text>
+                            <TouchableOpacity onPress={handleSaveRoles} disabled={savingRoles}>
+                                <Text style={{color: savingRoles ? changeOpacity(theme.linkColor, 0.5) : theme.linkColor, ...typography('Body', 100, 'SemiBold')}}>
+                                    {savingRoles ? intl.formatMessage({id: 'mobile.post.saving', defaultMessage: 'Saving...'}) : intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: 'Save'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView style={{padding: 16}}>
+                            {roleDefs.map((def) => {
+                                const isSelected = selectedRoleKeys.has(def.role_key);
+                                return (
+                                    <TouchableOpacity
+                                        key={def.id}
+                                        style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06)}}
+                                        onPress={() => {
+                                            setSelectedRoleKeys((prev) => {
+                                                const next = new Set(prev);
+                                                if (isSelected) {
+                                                    next.delete(def.role_key);
+                                                } else {
+                                                    next.add(def.role_key);
+                                                }
+                                                return next;
+                                            });
+                                        }}
+                                    >
+                                        <Text style={{...typography('Body', 200), color: theme.centerChannelColor, flex: 1}}>
+                                            {def.role_name}
+                                        </Text>
+                                        <View style={{width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: isSelected ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.32), backgroundColor: isSelected ? theme.buttonBg : 'transparent', alignItems: 'center', justifyContent: 'center'}}>
+                                            {isSelected && (
+                                                <CompassIcon name='check' size={16} color={theme.buttonColor}/>
+                                            )}
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                            {roleDefs.length === 0 && (
+                                <Text style={{...typography('Body', 200), color: changeOpacity(theme.centerChannelColor, 0.56), textAlign: 'center', paddingVertical: 24}}>
+                                    {intl.formatMessage({id: 'contacts.no_roles', defaultMessage: '未分配角色'})}
+                                </Text>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };

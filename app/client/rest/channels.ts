@@ -11,7 +11,8 @@ export interface ClientChannelsMix {
     getAllChannels: (page?: number, perPage?: number, notAssociatedToGroup?: string, excludeDefaultChannels?: boolean, includeTotalCount?: boolean) => Promise<any>;
     createChannel: (channel: Channel) => Promise<Channel>;
     createDirectChannel: (userIds: string[]) => Promise<Channel>;
-    createGroupChannel: (userIds: string[]) => Promise<Channel>;
+    createGroupChannel: (userIds: string[], teamId?: string, groupCategory?: string) => Promise<Channel>;
+    createBotGroupChannel: (userIds: string[], botUserId: string, teamId: string) => Promise<Channel>;
     deleteChannel: (channelId: string, permanent?: boolean) => Promise<any>;
     unarchiveChannel: (channelId: string) => Promise<Channel>;
     updateChannel: (channel: Channel) => Promise<Channel>;
@@ -105,10 +106,30 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         );
     };
 
-    createGroupChannel = async (userIds: string[]) => {
+    createGroupChannel = async (userIds: string[], teamId?: string, groupCategory?: string) => {
+        if (teamId || groupCategory) {
+            const payload: Record<string, unknown> = {user_ids: userIds};
+            if (teamId) {
+                payload.team_id = teamId;
+            }
+            if (groupCategory) {
+                payload.group_category = groupCategory;
+            }
+            return this.doFetch(
+                `${this.getChannelsRoute()}/group`,
+                {method: 'post', body: JSON.stringify(payload)},
+            );
+        }
         return this.doFetch(
             `${this.getChannelsRoute()}/group`,
             {method: 'post', body: userIds},
+        );
+    };
+
+    createBotGroupChannel = async (userIds: string[], botUserId: string, teamId: string) => {
+        return this.doFetch(
+            `${this.getChannelsRoute()}/bot_group`,
+            {method: 'post', body: JSON.stringify({user_ids: userIds, bot_user_id: botUserId, team_id: teamId})},
         );
     };
 

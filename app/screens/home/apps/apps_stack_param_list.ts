@@ -9,4 +9,7 @@ export type AppsStackParamList = {
         appKey: string;
         title: string;
     };
+    [Screens.APPS_MES]: undefined;
+    [Screens.APPS_PROMOTION]: undefined;
+    [Screens.APPS_ROLE_MANAGEMENT]: undefined;
 };

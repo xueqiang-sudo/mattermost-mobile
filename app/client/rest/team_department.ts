@@ -177,6 +177,34 @@ export type MMUpdateContactVersionRequest = {
     version: string;
 };
 
+// ---- Business Role Types ----
+
+export type TeamBusinessRole = {
+    id: number;
+    team_id: string;
+    user_id: string;
+    role_key: string;
+    role_name: string;
+    create_at: number;
+};
+
+export type BusinessRoleDef = {
+    id: number;
+    role_key: string;
+    role_name: string;
+    source: string;
+    create_at: number;
+    update_at: number;
+};
+
+export type DepartmentRole = {
+    id: number;
+    department_id: number;
+    role_key: string;
+    role_name: string;
+    create_at: number;
+};
+
 export interface ClientTeamDepartmentMix {
     getTeamVersion: (teamId: string) => Promise<MMTeamVersion>;
     updateTeamVersion: (teamId: string) => Promise<{message: string; team_id: string; updatef_at: number}>;
@@ -204,6 +232,16 @@ export interface ClientTeamDepartmentMix {
     deleteEmployeeContact: (userId: string, body: MMDeleteEmployeeContactRequest) => Promise<MMStatusOK>;
     getUserContactVersion: (userId: string) => Promise<MMContactVersionInfo>;
     updateUserContactVersion: (userId: string, body: MMUpdateContactVersionRequest) => Promise<MMUpdateContactVersionResponse>;
+
+    // Business Role APIs
+    fetchBusinessRoles: (teamId: string) => Promise<TeamBusinessRole[]>;
+    fetchBusinessRoleDefs: (teamId: string) => Promise<BusinessRoleDef[]>;
+    grantBusinessRole: (teamId: string, userId: string, roleKey: string) => Promise<MMStatusOK>;
+    revokeBusinessRole: (teamId: string, userId: string, roleKey: string) => Promise<MMStatusOK>;
+
+    // Department Role APIs
+    fetchDepartmentRoles: (teamId: string, departmentId: number) => Promise<DepartmentRole[]>;
+    setDepartmentRoles: (teamId: string, departmentId: number, roleKeys: string[]) => Promise<MMStatusOK>;
 }
 
 const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class ClientTeamDepartmentMixin extends superclass {
@@ -643,6 +681,43 @@ const ClientTeamDepartment = <TBase extends Constructor<ClientBase>>(superclass:
             await this.#invalidateUserContactsCache(userId);
             throw e;
         }
+    };
+
+    // ---- Business Role APIs ----
+
+    fetchBusinessRoles = async (teamId: string): Promise<TeamBusinessRole[]> => {
+        return this.#doMyFetch(`${this.getTeamRoute(teamId)}/business-roles`, {method: 'get'}) as Promise<TeamBusinessRole[]>;
+    };
+
+    fetchBusinessRoleDefs = async (teamId: string): Promise<BusinessRoleDef[]> => {
+        return this.#doMyFetch(`${this.getTeamRoute(teamId)}/business-role-defs`, {method: 'get'}) as Promise<BusinessRoleDef[]>;
+    };
+
+    grantBusinessRole = async (teamId: string, userId: string, roleKey: string): Promise<MMStatusOK> => {
+        return this.#doMyFetch(`${this.getTeamRoute(teamId)}/business-roles`, {
+            method: 'post',
+            body: {user_id: userId, role_key: roleKey},
+        }) as Promise<MMStatusOK>;
+    };
+
+    revokeBusinessRole = async (teamId: string, userId: string, roleKey: string): Promise<MMStatusOK> => {
+        return this.#doMyFetch(`${this.getTeamRoute(teamId)}/business-roles`, {
+            method: 'delete',
+            body: {user_id: userId, role_key: roleKey},
+        }) as Promise<MMStatusOK>;
+    };
+
+    // ---- Department Role APIs ----
+
+    fetchDepartmentRoles = async (teamId: string, departmentId: number): Promise<DepartmentRole[]> => {
+        return this.#doMyFetch(`${this.getTeamRoute(teamId)}/departments/${departmentId}/roles`, {method: 'get'}) as Promise<DepartmentRole[]>;
+    };
+
+    setDepartmentRoles = async (teamId: string, departmentId: number, roleKeys: string[]): Promise<MMStatusOK> => {
+        return this.#doMyFetch(`${this.getTeamRoute(teamId)}/departments/${departmentId}/roles`, {
+            method: 'put',
+            body: {role_keys: roleKeys},
+        }) as Promise<MMStatusOK>;
     };
 };
 

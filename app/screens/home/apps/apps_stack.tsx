@@ -8,6 +8,9 @@ import {Screens} from '@constants';
 
 import AppsScreen from './apps';
 import AppWebView from './app_webview';
+import MesScreen from './mes/mes_screen';
+import PromotionScreen from './promotion/promotion_screen';
+import RoleManagementScreen from './role_management/role_management_screen';
 import {type AppsStackParamList} from './apps_stack_param_list';
 
 import type TeamModel from '@typings/database/models/servers/team';
@@ -40,6 +43,9 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                     )}
                 </Stack.Screen>
                 <Stack.Screen name={Screens.APPS_WEBVIEW} component={AppWebView}/>
+                <Stack.Screen name={Screens.APPS_MES} component={MesScreen}/>
+                <Stack.Screen name={Screens.APPS_PROMOTION} component={PromotionScreen}/>
+                <Stack.Screen name={Screens.APPS_ROLE_MANAGEMENT} component={RoleManagementScreen}/>
             </Stack.Navigator>
         </AppsRnnHomeComponentIdContext.Provider>
     );

@@ -23,6 +23,8 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername, getLastPictureUpdate} from '@utils/user';
 
+import type {BusinessRoleDef} from '@client/rest/team_department';
+
 import {sendMembersInvites} from './actions';
 import Summary from './summary';
 
@@ -248,6 +250,42 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
+    roleSelectorButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    roleSelectorButtonText: {
+        color: theme.buttonBg,
+        marginLeft: 8,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    roleSelectorCount: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginLeft: 4,
+        ...typography('Body', 200),
+    },
+    roleSelectorPanel: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+        maxHeight: 200,
+    },
+    roleOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        gap: 12,
+    },
+    roleOptionText: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
 }));
 
 enum Stage {
@@ -293,6 +331,21 @@ export default function Invite({
     const [result, setResult] = useState<Result>(DEFAULT_RESULT);
     const [sendError, setSendError] = useState('');
     const [sending, setSending] = useState(false);
+    const [roleDefs, setRoleDefs] = useState<BusinessRoleDef[]>([]);
+    const [selectedRoleKeys, setSelectedRoleKeys] = useState<Set<string>>(new Set());
+    const [showRoleSelector, setShowRoleSelector] = useState(false);
+
+    // Load business role definitions
+    useEffect(() => {
+        if (!serverUrl || !teamId) {
+            return;
+        }
+        NetworkManager.getClient(serverUrl).fetchBusinessRoleDefs(teamId).then((defs) => {
+            setRoleDefs(defs || []);
+        }).catch(() => {
+            // ignore
+        });
+    }, [serverUrl, teamId]);
 
     // invite_id：优先使用 enhancer 传入的 teamInviteId，为空时从 API 获取
     const [resolvedInviteId, setResolvedInviteId] = useState(teamInviteId);
@@ -425,6 +478,18 @@ export default function Invite({
         });
     }, []);
 
+    const toggleRoleKey = useCallback((roleKey: string) => {
+        setSelectedRoleKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(roleKey)) {
+                next.delete(roleKey);
+            } else {
+                next.add(roleKey);
+            }
+            return next;
+        });
+    }, []);
+
     // Add sent users to department
     const addSentUsersToDepartment = useCallback(async (sent: InviteResult[]) => {
         await Promise.all(sent.map(async (item) => {
@@ -459,6 +524,25 @@ export default function Invite({
         } else {
             setResult({sent, notSent});
             await addSentUsersToDepartment(sent);
+
+            // Grant selected business roles to newly invited users
+            if (selectedRoleKeys.size > 0) {
+                const client = NetworkManager.getClient(serverUrl);
+                const roleKeyArray = Array.from(selectedRoleKeys);
+                await Promise.all(sent.map(async (item) => {
+                    if (!item.userId) {
+                        return;
+                    }
+                    await Promise.all(roleKeyArray.map(async (roleKey) => {
+                        try {
+                            await client.grantBusinessRole(teamId, item.userId!, roleKey);
+                        } catch {
+                            // ignore individual role grant failures
+                        }
+                    }));
+                }));
+            }
+
             setStage(Stage.SELECTION);
             setSelectedIds(new Set());
             setSelectedProfiles(new Map());
@@ -467,7 +551,7 @@ export default function Invite({
             );
         }
         setSending(false);
-    }, [selectedIds, sending, selectedProfiles, serverUrl, teamId, isAdmin, teamDisplayName, formatMessage, addSentUsersToDepartment]);
+    }, [selectedIds, sending, selectedProfiles, serverUrl, teamId, isAdmin, teamDisplayName, formatMessage, addSentUsersToDepartment, selectedRoleKeys]);
 
     // Share link
     const handleShareLink = useCallback(async () => {
@@ -675,6 +759,51 @@ export default function Invite({
                     </>
                 }
             />
+
+            {/* Role selector (only show if role defs available) */}
+            {roleDefs.length > 0 && (
+                <>
+                    <TouchableOpacity
+                        style={style.roleSelectorButton}
+                        onPress={() => setShowRoleSelector((prev) => !prev)}
+                        activeOpacity={0.7}
+                    >
+                        <CompassIcon name='account-badge-outline' size={20} color={theme.buttonBg}/>
+                        <Text style={style.roleSelectorButtonText}>
+                            {formatMessage({id: 'invite.select_roles', defaultMessage: 'Select Roles'})}
+                        </Text>
+                        <Text style={style.roleSelectorCount}>
+                            ({selectedRoleKeys.size})
+                        </Text>
+                        <CompassIcon
+                            name={showRoleSelector ? 'chevron-up' : 'chevron-down'}
+                            size={20}
+                            color={theme.buttonBg}
+                            style={{marginLeft: 'auto'}}
+                        />
+                    </TouchableOpacity>
+                    {showRoleSelector && (
+                        <View style={style.roleSelectorPanel}>
+                            {roleDefs.map((def) => {
+                                const isChecked = selectedRoleKeys.has(def.role_key);
+                                return (
+                                    <TouchableOpacity
+                                        key={def.role_key}
+                                        style={style.roleOptionRow}
+                                        onPress={() => toggleRoleKey(def.role_key)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View style={[style.checkbox, isChecked ? style.checkboxChecked : style.checkboxUnchecked]}>
+                                            {isChecked && <CompassIcon name='check' size={14} style={style.checkIcon}/>}
+                                        </View>
+                                        <Text style={style.roleOptionText}>{def.role_name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    )}
+                </>
+            )}
 
             {/* Bottom bar: Share invite link + Add member */}
             <View style={style.bottomBar}>

@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
@@ -20,6 +20,7 @@ import ContactDirectoryList from '@components/contact_directory_list';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TeamManagerModal from '@components/team_manager_modal';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -31,10 +32,11 @@ import NetworkManager from '@managers/network_manager';
 import {bottomSheet, dismissBottomSheet, dismissModals, showModal, showModalWithBackButton} from '@screens/navigation';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheetSnapPoint} from '@utils/helpers';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {MMDepartment} from '@client/rest/team_department';
+import type {MMDepartment, TeamBusinessRole, BusinessRoleDef, DepartmentRole} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-manage';
@@ -203,6 +205,12 @@ const ContactsManage = ({
     const [managerIds, setManagerIds] = useState<Set<string>>(new Set());
     const [ownerId, setOwnerId] = useState<string | undefined>();
     const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+    const [businessRoles, setBusinessRoles] = useState<TeamBusinessRole[]>([]);
+    const [roleDefs, setRoleDefs] = useState<BusinessRoleDef[]>([]);
+    const [showDeptRoleModal, setShowDeptRoleModal] = useState(false);
+    const [selectedDeptForRoles, setSelectedDeptForRoles] = useState<MMDepartment | null>(null);
+    const [deptRoleKeys, setDeptRoleKeys] = useState<Set<string>>(new Set());
+    const [savingDeptRoles, setSavingDeptRoles] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [enterpriseDisplayName, setEnterpriseDisplayName] = useState<string | undefined>(companyName);
@@ -266,6 +274,68 @@ const ContactsManage = ({
         }
     }, [companyId, serverUrl]);
 
+    const loadBusinessRoles = useCallback(async () => {
+        if (!serverUrl) {
+            return;
+        }
+
+        const client = NetworkManager.getClient(serverUrl);
+        try {
+            const [roles, defs] = await Promise.all([
+                client.fetchBusinessRoles(companyId),
+                client.fetchBusinessRoleDefs(companyId),
+            ]);
+            if (mounted.current) {
+                setBusinessRoles(roles);
+                setRoleDefs(defs);
+            }
+        } catch {
+            // no-op: roles will be empty
+        }
+    }, [companyId, serverUrl]);
+
+    const handleOpenDeptRoleModal = useCallback(async (dept: MMDepartment) => {
+        setSelectedDeptForRoles(dept);
+        setShowDeptRoleModal(true);
+
+        if (!serverUrl) {
+            return;
+        }
+
+        const client = NetworkManager.getClient(serverUrl);
+        try {
+            const deptRoles = await client.fetchDepartmentRoles(companyId, dept.id);
+            setDeptRoleKeys(new Set(deptRoles.map((r) => r.role_key)));
+        } catch {
+            setDeptRoleKeys(new Set());
+        }
+    }, [companyId, serverUrl]);
+
+    const handleSaveDeptRoles = useCallback(async () => {
+        if (!selectedDeptForRoles || !serverUrl) {
+            return;
+        }
+
+        setSavingDeptRoles(true);
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            await client.setDepartmentRoles(companyId, selectedDeptForRoles.id, Array.from(deptRoleKeys));
+            setShowDeptRoleModal(false);
+            setSelectedDeptForRoles(null);
+            showSnackBar({
+                barType: SNACK_BAR_TYPE.INFO_COPIED,
+                type: MESSAGE_TYPE.SUCCESS,
+                message: intl.formatMessage({id: 'contacts.role_saved', defaultMessage: '角色保存成功'}),
+            });
+        } catch (e) {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.role_save_failed', defaultMessage: '角色保存失败'}),
+            );
+        } finally {
+            setSavingDeptRoles(false);
+        }
+    }, [selectedDeptForRoles, serverUrl, companyId, deptRoleKeys, intl]);
+
     useNavButtonPressed(effectiveCloseButtonId, componentId, handleClose, [handleClose]);
     const handleHardwareBack = useCallback(() => {
         if (currentDepartmentId == null && manageStack.length <= 1) {
@@ -285,6 +355,7 @@ const ContactsManage = ({
 
     useOnComponentWillAppear(componentId, refetch);
     useOnComponentWillAppear(componentId, loadOwnerAndSelf);
+    useOnComponentWillAppear(componentId, loadBusinessRoles);
 
     useEffect(() => {
         const top = manageStack[manageStack.length - 1];
@@ -745,6 +816,7 @@ const ContactsManage = ({
                     managerIds={managerIds}
                     ownerId={ownerId}
                     currentUserId={currentUserId}
+                    businessRoles={businessRoles}
                     memberCount={memberCount}
                     onDepartmentPress={handleDepartmentPress}
                     onEmployeePress={handleEmployeePress}
@@ -774,6 +846,23 @@ const ContactsManage = ({
                         {intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'})}
                     </Text>
                 </TouchableOpacity>
+                {currentDepartmentId != null && (
+                    <TouchableOpacity
+                        style={[styles.bottomButton, {flex: 2}]}
+                        onPress={() => {
+                            const currentDept = departments.find((d) => d.id === currentDepartmentId);
+                            if (currentDept) {
+                                handleOpenDeptRoleModal(currentDept);
+                            }
+                        }}
+                        activeOpacity={0.7}
+                        testID='contacts.manage.set_dept_roles'
+                    >
+                        <Text style={styles.bottomButtonText}>
+                            {intl.formatMessage({id: 'contacts.set_department_roles', defaultMessage: '设置角色'})}
+                        </Text>
+                    </TouchableOpacity>
+                )}
                 <TouchableOpacity
                     style={[styles.bottomButton, {flex: 1}]}
                     onPress={handleMore}
@@ -828,6 +917,69 @@ const ContactsManage = ({
                 onChanged={refetch}
                 testIDPrefix='contacts.manager_modal'
             />
+            <Modal
+                visible={showDeptRoleModal}
+                transparent={true}
+                animationType='slide'
+                onRequestClose={() => setShowDeptRoleModal(false)}
+            >
+                <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}}>
+                    <View style={{backgroundColor: theme.centerChannelBg, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '80%'}}>
+                        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1)}}>
+                            <TouchableOpacity onPress={() => setShowDeptRoleModal(false)}>
+                                <Text style={{color: theme.linkColor, ...typography('Body', 100)}}>
+                                    {intl.formatMessage({id: 'mobile.components.select_theme_view.cancel', defaultMessage: 'Cancel'})}
+                                </Text>
+                            </TouchableOpacity>
+                            <Text style={{...typography('Heading', 400, 'SemiBold'), color: theme.centerChannelColor, flex: 1, textAlign: 'center'}}>
+                                {intl.formatMessage({id: 'contacts.set_department_roles', defaultMessage: '设置部门角色'})}
+                                {selectedDeptForRoles ? ` - ${selectedDeptForRoles.name}` : ''}
+                            </Text>
+                            <TouchableOpacity onPress={handleSaveDeptRoles} disabled={savingDeptRoles}>
+                                <Text style={{color: savingDeptRoles ? changeOpacity(theme.linkColor, 0.5) : theme.linkColor, ...typography('Body', 100, 'SemiBold')}}>
+                                    {savingDeptRoles ? intl.formatMessage({id: 'mobile.post.saving', defaultMessage: 'Saving...'}) : intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: 'Save'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView style={{padding: 16}}>
+                            {roleDefs.map((def) => {
+                                const isSelected = deptRoleKeys.has(def.role_key);
+                                return (
+                                    <TouchableOpacity
+                                        key={def.id}
+                                        style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06)}}
+                                        onPress={() => {
+                                            setDeptRoleKeys((prev) => {
+                                                const next = new Set(prev);
+                                                if (isSelected) {
+                                                    next.delete(def.role_key);
+                                                } else {
+                                                    next.add(def.role_key);
+                                                }
+                                                return next;
+                                            });
+                                        }}
+                                    >
+                                        <Text style={{...typography('Body', 200), color: theme.centerChannelColor, flex: 1}}>
+                                            {def.role_name}
+                                        </Text>
+                                        <View style={{width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: isSelected ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.32), backgroundColor: isSelected ? theme.buttonBg : 'transparent', alignItems: 'center', justifyContent: 'center'}}>
+                                            {isSelected && (
+                                                <CompassIcon name='check' size={16} color={theme.buttonColor}/>
+                                            )}
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                            {roleDefs.length === 0 && (
+                                <Text style={{...typography('Body', 200), color: changeOpacity(theme.centerChannelColor, 0.56), textAlign: 'center', paddingVertical: 24}}>
+                                    {intl.formatMessage({id: 'contacts.no_roles', defaultMessage: '未分配角色'})}
+                                </Text>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };

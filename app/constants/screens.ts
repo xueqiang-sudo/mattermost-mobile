@@ -86,6 +86,9 @@ export const HOME_TAB_AI_AGENT = 'HomeTabAIAgent';
 export const HOME_TAB_CONTACTS = 'HomeTabContacts';
 export const HOME_TAB_ME = 'HomeTabMe';
 export const APPS_HOME = 'AppsHome';
+export const APPS_MES = 'AppsMes';
+export const APPS_PROMOTION = 'AppsPromotion';
+export const APPS_ROLE_MANAGEMENT = 'AppsRoleManagement';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -225,6 +228,9 @@ export default {
     HOME_TAB_CONTACTS,
     HOME_TAB_ME,
     APPS_HOME,
+    APPS_MES,
+    APPS_PROMOTION,
+    APPS_ROLE_MANAGEMENT,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,

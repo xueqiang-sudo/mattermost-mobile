@@ -1034,7 +1034,7 @@ export async function fetchArchivedChannels(serverUrl: string, teamId: string, p
     }
 }
 
-export async function createGroupChannel(serverUrl: string, userIds: string[]) {
+export async function createGroupChannel(serverUrl: string, userIds: string[], groupCategory?: string) {
     try {
         EphemeralStore.creatingDMorGMTeammates = userIds;
         const client = NetworkManager.getClient(serverUrl);
@@ -1044,7 +1044,7 @@ export async function createGroupChannel(serverUrl: string, userIds: string[]) {
             return {error: 'Cannot get the current user'};
         }
 
-        const created = await client.createGroupChannel(userIds);
+        const created = await client.createGroupChannel(userIds, undefined, groupCategory);
         const isExistingGM = created.total_msg_count > 0;
 
         const displayNamePreferences = await queryDisplayNamePreferences(database, Preferences.NAME_NAME_FORMAT).fetch();
@@ -1129,11 +1129,11 @@ export async function fetchSharedChannels(serverUrl: string, teamId: string, pag
     }
 }
 
-export async function makeGroupChannel(serverUrl: string, userIds: string[], shouldSwitchToChannel = true) {
+export async function makeGroupChannel(serverUrl: string, userIds: string[], shouldSwitchToChannel = true, groupCategory?: string) {
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentUserId = await getCurrentUserId(database);
-        const result = await createGroupChannel(serverUrl, [currentUserId, ...userIds]);
+        const result = await createGroupChannel(serverUrl, [currentUserId, ...userIds], groupCategory);
         const channel = result.data;
 
         if (channel && shouldSwitchToChannel) {
@@ -1142,6 +1142,23 @@ export async function makeGroupChannel(serverUrl: string, userIds: string[], sho
 
         return result;
     } catch (error) {
+        return {error};
+    }
+}
+
+export async function makeBotGroupChannel(serverUrl: string, botUserId: string, teamId: string) {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentUserId = await getCurrentUserId(database);
+        EphemeralStore.creatingDMorGMTeammates = [botUserId];
+        const created = await client.createBotGroupChannel([currentUserId], botUserId, teamId);
+        switchToChannelById(serverUrl, created.id);
+        EphemeralStore.creatingDMorGMTeammates = [];
+        return {data: created};
+    } catch (error) {
+        logDebug('error on makeBotGroupChannel', getFullErrorMessage(error));
+        EphemeralStore.creatingDMorGMTeammates = [];
         return {error};
     }
 }

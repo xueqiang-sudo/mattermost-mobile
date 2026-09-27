@@ -7,7 +7,7 @@ import {FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View}
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
-import {addMembersToChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {addMembersToChannel, makeBotGroupChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
 import {queryChannelMembers} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
@@ -401,8 +401,17 @@ export default function CreateDirectMessage({
     }, [intl, serverUrl]);
 
     // Create group channel
-    const createGroupChannel = useCallback(async (ids: string[]): Promise<boolean> => {
-        const result = await makeGroupChannel(serverUrl, ids);
+    const createGroupChannel = useCallback(async (ids: string[], groupCategory?: string): Promise<boolean> => {
+        const result = await makeGroupChannel(serverUrl, ids, true, groupCategory);
+        if (result.error) {
+            alertErrorWithFallback(intl, result.error, messages.gm);
+        }
+        return !result.error;
+    }, [intl, serverUrl]);
+
+    // Create bot group channel (Bot GM)
+    const createBotGroupChannel = useCallback(async (botUserId: string, teamId: string): Promise<boolean> => {
+        const result = await makeBotGroupChannel(serverUrl, botUserId, teamId);
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.gm);
         }
@@ -429,10 +438,30 @@ export default function CreateDirectMessage({
             const idsToUse = selectedId ? [selectedId] : Array.from(newSelectedIds);
             if (idsToUse.length === 0) {
                 success = false;
-            } else if (variant === 'group_only' || (variant === 'default' && idsToUse.length > 1)) {
-                success = await createGroupChannel(idsToUse);
-            } else {
+            } else if (variant === 'dm_only') {
+                // dm_only: 始终创建 DM（私聊入口）
                 success = await createDirectChannel(idsToUse[0]);
+            } else {
+                // default / group_only: 始终创建 GM（对齐 webapp 逻辑）
+                const singleProfile = idsToUse.length === 1 ? knownProfiles.get(idsToUse[0]) : undefined;
+                const isSingleBot = singleProfile?.is_bot === true;
+
+                if (isSingleBot) {
+                    // Bot 用户 → Bot GM (POST /channels/bot_group)
+                    success = await createBotGroupChannel(idsToUse[0], currentTeamId);
+                } else {
+                    // 普通用户 → GM，自动检测 internal/external
+                    const hasExternal = idsToUse.some((id) => {
+                        const profile = knownProfiles.get(id);
+                        if (!profile) {
+                            return false;
+                        }
+                        const tags = profile.mmCandidateTags || [];
+                        return !tags.includes('customer') && !tags.includes('supplier') && !tags.includes('enterprise');
+                    });
+                    const autoCategory = hasExternal ? 'external' : 'internal';
+                    success = await createGroupChannel(idsToUse, autoCategory);
+                }
             }
         }
 
@@ -441,7 +470,7 @@ export default function CreateDirectMessage({
         } else {
             setStartingConversation(false);
         }
-    }, [startingConversation, newSelectedIds, isExistingChannel, channelId, serverUrl, createGroupChannel, createDirectChannel, variant]);
+    }, [startingConversation, newSelectedIds, isExistingChannel, channelId, serverUrl, createGroupChannel, createDirectChannel, createBotGroupChannel, variant, knownProfiles, currentTeamId]);
 
     // Toggle select
     const toggleSelect = useCallback((userId: string) => {
