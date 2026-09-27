@@ -25,6 +25,7 @@ export const CODE = 'Code';
 export const CONVERT_GM_TO_CHANNEL = 'ConvertGMToChannel';
 export const CREATE_DIRECT_MESSAGE = 'CreateDirectMessage';
 export const CREATE_OR_EDIT_CHANNEL = 'CreateOrEditChannel';
+export const CREATE_CATEGORY = 'CreateCategory';
 export const CREATE_TEAM = 'CreateTeam';
 export const JOIN_TEAM_QR = 'JoinTeamQR';
 export const INVITE_USER_JOIN_TEAM = 'InviteUserJoinTeam';
@@ -186,6 +187,7 @@ export default {
     DEBUG_PANEL,
     CREATE_DIRECT_MESSAGE,
     CREATE_OR_EDIT_CHANNEL,
+    CREATE_CATEGORY,
     CREATE_TEAM,
     JOIN_TEAM_QR,
     INVITE_USER_JOIN_TEAM,

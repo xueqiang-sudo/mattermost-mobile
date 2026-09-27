@@ -47,6 +47,7 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
             distinctUntilChanged(),
         ),
         currentUser,
+        currentTeam: team,
         hasCurrentTeam: team.pipe(
             switchMap((t) => of$(Boolean(t?.id))),
             distinctUntilChanged(),

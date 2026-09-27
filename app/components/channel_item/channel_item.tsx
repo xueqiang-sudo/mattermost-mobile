@@ -43,6 +43,7 @@ type Props = {
     mentionsCount: number;
     messageCount?: number;
     onPress: (channel: ChannelModel | Channel) => void;
+    onLongPress?: (channel: ChannelModel | Channel) => void;
     teamDisplayName?: string;
     testID?: string;
     hasCall: boolean;
@@ -287,6 +288,7 @@ const ChannelItem = ({
     mentionsCount,
     messageCount = 0,
     onPress,
+    onLongPress,
     teamDisplayName = '',
     testID,
     hasCall,
@@ -342,6 +344,10 @@ const ChannelItem = ({
     const handleOnPress = useCallback(() => {
         onPress(channel);
     }, [channel.id]);
+
+    const handleLongPress = useCallback(() => {
+        onLongPress?.(channel);
+    }, [channel.id, onLongPress]);
 
     const handleRestore = useCallback(() => {
         if (onRestore) {
@@ -432,6 +438,7 @@ const ChannelItem = ({
                     isCenterListCard && Platform.OS === 'android' ?{color: '#00000000', borderless: false} :undefined
                 }
                 onPress={handleOnPress}
+                onLongPress={handleLongPress}
                 style={({pressed}) => (
                     !isCenterListCard && pressed ?{opacity: 0.92} :undefined
                 )}
@@ -531,6 +538,7 @@ const ChannelItem = ({
                 isCenterListCard && Platform.OS === 'android' ?{color: '#00000000', borderless: false} :undefined
             }
             onPress={handleOnPress}
+            onLongPress={handleLongPress}
             style={({pressed}) => (
                 !isCenterListCard && !isOnHome && pressed ? {opacity: 0.92} : undefined
             )}

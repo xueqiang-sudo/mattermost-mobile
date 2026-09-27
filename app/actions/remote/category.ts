@@ -20,6 +20,72 @@ export type CategoriesRequest = {
      error?: unknown;
  }
 
+export const createCategory = async (serverUrl: string, teamId: string, displayName: string) => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const newCategory = await client.createChannelCategory('me', teamId, {
+            display_name: displayName,
+            type: 'custom',
+        } as Partial<Category>);
+
+        // Refresh local categories after creation
+        await fetchCategories(serverUrl, teamId);
+
+        return {category: newCategory};
+    } catch (error) {
+        logDebug('error on createCategory', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
+export const moveChannelToCategory = async (serverUrl: string, channelId: string, targetCategoryId: string) => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+
+        const currentCategory = await getChannelCategory(database, '', channelId);
+        if (!currentCategory) {
+            return {error: 'channel does not belong to a category'};
+        }
+
+        const teamId = currentCategory.teamId;
+        const categories = await queryCategoriesByTeamIds(database, [teamId]).fetch();
+
+        const targetCategory = categories.find((c) => c.id === targetCategoryId);
+        if (!targetCategory) {
+            return {error: 'target category not found'};
+        }
+
+        // Skip if already in target category
+        if (currentCategory.id === targetCategoryId) {
+            return {data: true};
+        }
+
+        const sourceWithChannels = await currentCategory.toCategoryWithChannels();
+        const targetWithChannels = await targetCategory.toCategoryWithChannels();
+
+        // Remove from source
+        const channelIndex = sourceWithChannels.channel_ids.indexOf(channelId);
+        if (channelIndex >= 0) {
+            sourceWithChannels.channel_ids.splice(channelIndex, 1);
+        }
+
+        // Add to target (at the beginning)
+        if (!targetWithChannels.channel_ids.includes(channelId)) {
+            targetWithChannels.channel_ids.unshift(channelId);
+        }
+
+        await client.updateChannelCategories('me', teamId, [sourceWithChannels, targetWithChannels]);
+
+        return {data: true};
+    } catch (error) {
+        logDebug('error on moveChannelToCategory', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
 export const fetchCategories = async (serverUrl: string, teamId: string, prune = false, fetchOnly = false): Promise<CategoriesRequest> => {
     try {
         const client = NetworkManager.getClient(serverUrl);

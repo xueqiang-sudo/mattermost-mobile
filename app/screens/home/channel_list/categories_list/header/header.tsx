@@ -2,18 +2,19 @@
 // See LICENSE.txt for license information.
 
 import {useNetInfo} from '@react-native-community/netinfo';
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {type Insets, StyleSheet, Text, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+
+import Clipboard from '@react-native-clipboard/clipboard';
 
 import {logout} from '@actions/remote/session';
 import OpenDrawerIcon from '@assets/images/svgs/open_drawer.svg';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Screens} from '@constants';
-import {ENABLE_INTERNAL_GROUPS} from '@constants/channel';
 
 import {useLeftDrawer} from '@context/left_drawer';
 import {type PlusMenuEntry, usePlusMenu} from '@context/plus_menu';
@@ -29,6 +30,7 @@ import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_OPACITY, WEC
 import {typography} from '@utils/typography';
 
 
+import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
 
 const PLUS_BUTTON_SIZE = 32;
@@ -37,6 +39,7 @@ type Props = {
     canCreateChannels: boolean;
     canInvitePeople: boolean;
     currentUser?: UserModel;
+    currentTeam?: TeamModel | null;
     hasCurrentTeam: boolean;
     hasTeams: boolean;
     iconPad?: boolean;
@@ -155,6 +158,75 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
         ...typography('Body', 75),
     },
+
+    // --- Invite dialog overlay ---
+    inviteOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: changeOpacity('#000', 0.4),
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999,
+    },
+    inviteDialog: {
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 12,
+        width: '85%',
+        maxWidth: 380,
+        padding: 20,
+    },
+    inviteTitle: {
+        color: theme.centerChannelColor,
+        ...typography('Heading', 300, 'SemiBold'),
+        marginBottom: 16,
+    },
+    inviteLabel: {
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        ...typography('Body', 75),
+        marginBottom: 6,
+    },
+    inviteLinkBox: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 4,
+        padding: 10,
+        marginBottom: 12,
+    },
+    inviteLinkText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 75),
+        fontSize: 13,
+    },
+    inviteHint: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        ...typography('Body', 50),
+        marginBottom: 16,
+        lineHeight: 18,
+    },
+    inviteActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    inviteBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 4,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        gap: 6,
+    },
+    inviteBtnPrimary: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
+    },
+    inviteBtnText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 100),
+    },
+    inviteBtnTextPrimary: {
+        color: theme.buttonColor,
+    },
 }));
 
 const hitSlop: Insets = {top: 10, bottom: 30, left: 20, right: 20};
@@ -163,6 +235,7 @@ const ChannelListHeader = ({
     canCreateChannels,
     canInvitePeople,
     currentUser,
+    currentTeam,
     hasCurrentTeam,
     hasTeams,
     iconPad,
@@ -268,6 +341,29 @@ const ChannelListHeader = ({
         marginLeft.value = iconPad ? 50 : 0;
     }, [iconPad]);
 
+    const isErpTeam = Boolean((currentTeam as any)?.erp_address);
+
+    // --- Invite dialog state ---
+    const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const [showExternalInviteDialog, setShowExternalInviteDialog] = useState(false);
+    const [inviteCopied, setInviteCopied] = useState(false);
+    const [externalInviteCopied, setExternalInviteCopied] = useState(false);
+
+    const inviteLink = useMemo(() => {
+        const inviteId = (currentTeam as any)?.invite_id;
+        if (!inviteId || !serverUrl) {
+            return '';
+        }
+        return `${serverUrl}/signup_user_complete/?id=${inviteId}`;
+    }, [currentTeam, serverUrl]);
+
+    const externalInviteLink = useMemo(() => {
+        if (!currentUser?.id || !serverUrl) {
+            return '';
+        }
+        return `${serverUrl}/invite?invited_by=${currentUser.id}`;
+    }, [currentUser?.id, serverUrl]);
+
     const openGroupChat = useCallback(() => {
         const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
@@ -278,49 +374,79 @@ const ChannelListHeader = ({
         });
     }, [intl, theme]);
 
-    const createNewChannel = useCallback(() => {
-        const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
-        showModal(Screens.CREATE_OR_EDIT_CHANNEL, title);
-    }, [intl]);
+    const openCreateCategory = useCallback(() => {
+        const teamId = (currentTeam as any)?.id || '';
+        if (!teamId) {
+            return;
+        }
+        showModal(
+            Screens.CREATE_CATEGORY,
+            intl.formatMessage({id: 'create_category_modal.createCategory', defaultMessage: 'Create New Category'}),
+            {teamId},
+        );
+    }, [currentTeam, intl]);
+
+    const handleInviteInternal = useCallback(() => {
+        setInviteCopied(false);
+        setShowInviteDialog(true);
+    }, []);
+
+    const handleInviteExternal = useCallback(() => {
+        setExternalInviteCopied(false);
+        setShowExternalInviteDialog(true);
+    }, []);
+
+    const handleCopyInvite = useCallback(() => {
+        Clipboard.setString(inviteLink);
+        setInviteCopied(true);
+        setTimeout(() => setInviteCopied(false), 2000);
+    }, [inviteLink]);
+
+    const handleCopyExternalInvite = useCallback(() => {
+        Clipboard.setString(externalInviteLink);
+        setExternalInviteCopied(true);
+        setTimeout(() => setExternalInviteCopied(false), 2000);
+    }, [externalInviteLink]);
 
     const scanQRCode = useCallback(() => {
         showQrScannerModal(intl);
     }, [intl]);
 
-    const invitePeopleToTeam = useCallback(() => {
-        showModal(
-            Screens.INVITE,
-            intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
-        );
-    }, [intl]);
-
+    // Build menu items matching webapp PC "+" button
     const menuItems: PlusMenuEntry[] = [
         {
-            icon: 'account-multiple-outline',
-            labelId: 'plus_menu.open_group_chat.title',
-            defaultLabel: 'Start group chat',
+            icon: 'message-plus-outline',
+            labelId: 'plus_menu.create_group',
+            defaultLabel: 'Create Group Chat',
             onPress: openGroupChat,
-            testID: 'plus_menu_item.open_group_chat',
+            testID: 'plus_menu_item.create_group_chat',
+        },
+        {type: 'separator'},
+        {
+            icon: 'folder-plus-outline',
+            labelId: 'plus_menu.create_category',
+            defaultLabel: 'Create Category',
+            onPress: openCreateCategory,
+            testID: 'plus_menu_item.create_category',
+        },
+        {type: 'separator'},
+        {
+            icon: 'link-variant',
+            labelId: 'plus_menu.invite_external',
+            defaultLabel: 'Invite External People',
+            onPress: handleInviteExternal,
+            testID: 'plus_menu_item.invite_external',
         },
     ];
 
-    if (canCreateChannels && ENABLE_INTERNAL_GROUPS) {
-        menuItems.push({
-            icon: 'plus',
-            labelId: 'plus_menu.create_new_channel.title',
-            defaultLabel: 'Create New Channel',
-            onPress: createNewChannel,
-            testID: 'plus_menu_item.create_new_channel',
-        });
-    }
-
-    if (canInvitePeople) {
+    if (!isErpTeam) {
+        menuItems.push({type: 'separator'});
         menuItems.push({
             icon: 'account-plus-outline',
-            labelId: 'plus_menu.invite_people_to_team.title',
-            defaultLabel: 'Invite members',
-            onPress: invitePeopleToTeam,
-            testID: 'plus_menu_item.invite_people_to_team',
+            labelId: 'plus_menu.invite_internal',
+            defaultLabel: 'Invite Internal People',
+            onPress: handleInviteInternal,
+            testID: 'plus_menu_item.invite_internal',
         });
     }
 
@@ -459,6 +585,8 @@ const ChannelListHeader = ({
         );
     }
 
+    const companyName = (currentTeam as any)?.display_name?.trim() || '';
+
     return (
         <Animated.View style={animatedStyle}>
             <View style={[styles.headerContainer, {paddingTop: insets.top}]}>
@@ -467,6 +595,127 @@ const ChannelListHeader = ({
                 </View>
                 <View style={styles.headerDivider}/>
             </View>
+
+            {/* Internal invite dialog */}
+            {showInviteDialog && (
+                <TouchableWithFeedback
+                    onPress={() => setShowInviteDialog(false)}
+                    style={styles.inviteOverlay}
+                    type='opacity'
+                >
+                    <TouchableWithFeedback
+                        onPress={(e: any) => e?.stopPropagation?.()}
+                        style={styles.inviteDialog}
+                        type='opacity'
+                    >
+                        <Text style={styles.inviteTitle}>
+                            {intl.formatMessage(
+                                {id: 'sidebar_left.invite_people_title', defaultMessage: 'Invite people to join {companyName}'},
+                                {companyName},
+                            )}
+                        </Text>
+                        <Text style={styles.inviteLabel}>
+                            {intl.formatMessage({id: 'contacts.invite_link_label', defaultMessage: 'Invite link'})}
+                        </Text>
+                        <View style={styles.inviteLinkBox}>
+                            <Text
+                                numberOfLines={3}
+                                style={styles.inviteLinkText}
+                            >
+                                {inviteLink}
+                            </Text>
+                        </View>
+                        <View style={styles.inviteActions}>
+                            <TouchableWithFeedback
+                                onPress={handleCopyInvite}
+                                style={[styles.inviteBtn, styles.inviteBtnPrimary]}
+                                type='opacity'
+                            >
+                                <>
+                                    <CompassIcon name='content-copy' size={14} color={theme.buttonColor}/>
+                                    <Text style={[styles.inviteBtnText, styles.inviteBtnTextPrimary]}>
+                                        {inviteCopied
+                                            ? intl.formatMessage({id: 'contacts.invite_copied', defaultMessage: 'Copied!'})
+                                            : intl.formatMessage({id: 'contacts.invite_copy', defaultMessage: 'Copy'})
+                                        }
+                                    </Text>
+                                </>
+                            </TouchableWithFeedback>
+                            <TouchableWithFeedback
+                                onPress={() => setShowInviteDialog(false)}
+                                style={styles.inviteBtn}
+                                type='opacity'
+                            >
+                                <Text style={styles.inviteBtnText}>
+                                    {intl.formatMessage({id: 'common.close', defaultMessage: 'Close'})}
+                                </Text>
+                            </TouchableWithFeedback>
+                        </View>
+                    </TouchableWithFeedback>
+                </TouchableWithFeedback>
+            )}
+
+            {/* External invite dialog */}
+            {showExternalInviteDialog && (
+                <TouchableWithFeedback
+                    onPress={() => setShowExternalInviteDialog(false)}
+                    style={styles.inviteOverlay}
+                    type='opacity'
+                >
+                    <TouchableWithFeedback
+                        onPress={(e: any) => e?.stopPropagation?.()}
+                        style={styles.inviteDialog}
+                        type='opacity'
+                    >
+                        <Text style={styles.inviteTitle}>
+                            {intl.formatMessage({id: 'plus_menu.invite_external_title', defaultMessage: 'Invite External People'})}
+                        </Text>
+                        <Text style={styles.inviteLabel}>
+                            {intl.formatMessage({id: 'contacts.invite_link_label', defaultMessage: 'Invite link'})}
+                        </Text>
+                        <View style={styles.inviteLinkBox}>
+                            <Text
+                                numberOfLines={3}
+                                style={styles.inviteLinkText}
+                            >
+                                {externalInviteLink}
+                            </Text>
+                        </View>
+                        <Text style={styles.inviteHint}>
+                            {intl.formatMessage({
+                                id: 'plus_menu.invite_external_hint',
+                                defaultMessage: 'Share this link with external contacts. They can register and connect with you after opening the link.',
+                            })}
+                        </Text>
+                        <View style={styles.inviteActions}>
+                            <TouchableWithFeedback
+                                onPress={handleCopyExternalInvite}
+                                style={[styles.inviteBtn, styles.inviteBtnPrimary]}
+                                type='opacity'
+                            >
+                                <>
+                                    <CompassIcon name='content-copy' size={14} color={theme.buttonColor}/>
+                                    <Text style={[styles.inviteBtnText, styles.inviteBtnTextPrimary]}>
+                                        {externalInviteCopied
+                                            ? intl.formatMessage({id: 'contacts.invite_copied', defaultMessage: 'Copied!'})
+                                            : intl.formatMessage({id: 'contacts.invite_copy', defaultMessage: 'Copy'})
+                                        }
+                                    </Text>
+                                </>
+                            </TouchableWithFeedback>
+                            <TouchableWithFeedback
+                                onPress={() => setShowExternalInviteDialog(false)}
+                                style={styles.inviteBtn}
+                                type='opacity'
+                            >
+                                <Text style={styles.inviteBtnText}>
+                                    {intl.formatMessage({id: 'common.close', defaultMessage: 'Close'})}
+                                </Text>
+                            </TouchableWithFeedback>
+                        </View>
+                    </TouchableWithFeedback>
+                </TouchableWithFeedback>
+            )}
         </Animated.View>
     );
 };

@@ -7,6 +7,7 @@ export interface ClientCategoriesMix {
     getCategories: (userId: string, teamId: string, groupLabel?: RequestGroupLabel) => Promise<CategoriesWithOrder>;
     getCategoriesOrder: (userId: string, teamId: string) => Promise<string[]>;
     getCategory: (userId: string, teamId: string, categoryId: string) => Promise<Category>;
+    createChannelCategory: (userId: string, teamId: string, category: Partial<Category>) => Promise<Category>;
     updateChannelCategories: (userId: string, teamId: string, categories: CategoryWithChannels[]) => Promise<CategoriesWithOrder>;
 }
 
@@ -27,6 +28,13 @@ const ClientCategories = <TBase extends Constructor<ClientBase>>(superclass: TBa
         return this.doFetch(
             `${this.getCategoryRoute(userId, teamId, categoryId)}`,
             {method: 'get'},
+        );
+    };
+
+    createChannelCategory = async (userId: string, teamId: string, category: Partial<Category>) => {
+        return this.doFetch(
+            `${this.getCategoriesRoute(userId, teamId)}`,
+            {method: 'post', body: category},
         );
     };
 
