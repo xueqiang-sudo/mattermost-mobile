@@ -161,58 +161,6 @@ const ChannelHeader = ({
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
     }), [channelId, channelName, channelType, intl, theme]));
 
-    const {openChannelOverflowMenu} = useChannelOverflowMenu();
-
-    const onChannelQuickAction = useCallback(() => {
-        // Show overflow menu dropdown with AI features + group info
-        const isGM = channelType === General.GM_CHANNEL;
-        const isDM = channelType === General.DM_CHANNEL;
-
-        const items = [];
-        if (isGM) {
-            items.push({
-                testID: 'channel_header.overflow.ai_customer_service',
-                labelId: 'channel_header.ai_customer_service',
-                defaultLabel: 'AI Customer Service',
-                onPress: openAICustomerService,
-            });
-        }
-        if (!isDM) {
-            items.push({
-                testID: 'channel_header.overflow.consultation',
-                labelId: 'consultation.title',
-                defaultLabel: 'Consult Expert',
-                onPress: openConsultation,
-            });
-            items.push({
-                testID: 'channel_header.overflow.ai_assistant',
-                labelId: 'ai_assistant.title',
-                defaultLabel: 'AI Assistant',
-                onPress: openAIAssistant,
-            });
-        }
-        items.push({
-            testID: 'channel_header.overflow.channel_settings',
-            labelId: 'screens.group_info',
-            defaultLabel: 'Group Info',
-            onPress: onTitlePress,
-        });
-
-        // Position menu below the "..." button (top-right corner)
-        const screenWidth = Dimensions.get('window').width;
-        const HEADER_HEIGHT = 56; // Standard header height
-        const BUTTON_WIDTH = 44; // Standard button width
-        const MENU_WIDTH = 160; // Menu width from styles
-        const GAP = 8; // Gap from edge
-
-        openChannelOverflowMenu({
-            anchorLeft: screenWidth - MENU_WIDTH - GAP,
-            anchorWidth: BUTTON_WIDTH,
-            anchorTop: HEADER_HEIGHT + GAP,
-            items,
-        });
-    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openChannelOverflowMenu]);
-
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead
         if (playbooksActiveRuns === 0) {
@@ -291,6 +239,58 @@ const ChannelHeader = ({
         };
         showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
     }, [channelId, teamId, intl, theme]);
+
+    const {openChannelOverflowMenu} = useChannelOverflowMenu();
+
+    const onChannelQuickAction = useCallback(() => {
+        // Show overflow menu dropdown with AI features + group info
+        const isGM = channelType === General.GM_CHANNEL;
+        const isDM = channelType === General.DM_CHANNEL;
+
+        const items = [];
+        if (isGM) {
+            items.push({
+                testID: 'channel_header.overflow.ai_customer_service',
+                labelId: 'channel_header.ai_customer_service',
+                defaultLabel: 'AI Customer Service',
+                onPress: openAICustomerService,
+            });
+        }
+        if (!isDM) {
+            items.push({
+                testID: 'channel_header.overflow.consultation',
+                labelId: 'consultation.title',
+                defaultLabel: 'Consult Expert',
+                onPress: openConsultation,
+            });
+            items.push({
+                testID: 'channel_header.overflow.ai_assistant',
+                labelId: 'ai_assistant.title',
+                defaultLabel: 'AI Assistant',
+                onPress: openAIAssistant,
+            });
+        }
+        items.push({
+            testID: 'channel_header.overflow.channel_settings',
+            labelId: 'screens.group_info',
+            defaultLabel: 'Group Info',
+            onPress: onTitlePress,
+        });
+
+        // Position menu below the "..." button (top-right corner)
+        const screenWidth = Dimensions.get('window').width;
+        const HEADER_HEIGHT = 56;
+        const BUTTON_WIDTH = 44;
+        const MENU_WIDTH = 160;
+        const GAP = 8;
+
+        openChannelOverflowMenu({
+            anchorLeft: screenWidth - MENU_WIDTH - GAP,
+            anchorWidth: BUTTON_WIDTH,
+            anchorTop: HEADER_HEIGHT + GAP,
+            items,
+        });
+    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openChannelOverflowMenu]);
 
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
