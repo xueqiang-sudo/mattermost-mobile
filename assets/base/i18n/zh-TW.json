@@ -2369,7 +2369,7 @@
   "role_management.delete_confirm": "確定刪除角色「{name}」嗎？",
   "role_management.duplicate_name": "角色名稱已存在",
   "role_management.system_badge": "系統",
-  "role_management.empty": "暫無角色，點擊"新建角色"創建第一個角色。",
+  "role_management.empty": "暫無角色，點擊「新建角色」創建第一個角色。",
   "role_management.select_role": "選擇角色",
   "role_management.save": "儲存",
   "role_management.saved": "儲存成功",
