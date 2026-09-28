@@ -385,17 +385,45 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
     const handleViewDetails = usePreventDoubleTap(
         useCallback(
             (contact: MMEmployeeContactSimple) => {
-                if (!contact.contact) return;
-                showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_PROFILE, {
-                    componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
-                    employee: contact.contact,
-                    remark: contact.remark,
-                    description: contact.description,
-                    relationType: MMEmployeeContactTypes.External,
-                    relationSource: contact.source,
-                    currentUserId: ownerId,
-                    companyId: contact.company_id,
-                });
+                try {
+                    if (!contact.contact) {
+                        Alert.alert('Error', 'Contact data is missing');
+                        return;
+                    }
+                    // Ensure employee object has required fields
+                    const safeEmployee = {
+                        id: contact.contact.id || '',
+                        username: contact.contact.username || '',
+                        nickname: contact.contact.nickname || '',
+                        first_name: contact.contact.first_name || '',
+                        last_name: contact.contact.last_name || '',
+                        email: contact.contact.email || '',
+                        position: contact.contact.position || '',
+                        ...contact.contact,
+                    };
+                    const title = getContactDisplayName(contact);
+                    showModalWithBackButton(
+                        Screens.CONTACTS_EMPLOYEE_PROFILE,
+                        title,
+                        `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`,
+                        {
+                            componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
+                            employee: safeEmployee,
+                            remark: contact.remark || '',
+                            description: contact.description || '',
+                            relationType: MMEmployeeContactTypes.External,
+                            relationSource: contact.source || '',
+                            currentUserId: ownerId || '',
+                            companyId: contact.company_id || '',
+                        },
+                    );
+                } catch (error) {
+                    console.error('Failed to open contact details:', error);
+                    Alert.alert(
+                        'Error',
+                        `Failed to open contact details: ${error instanceof Error ? error.message : String(error)}`,
+                    );
+                }
             },
             [ownerId],
         ),
@@ -405,17 +433,45 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
     const handleEdit = usePreventDoubleTap(
         useCallback(
             (contact: MMEmployeeContactSimple) => {
-                if (!contact.contact) return;
-                showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_PROFILE, {
-                    componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
-                    employee: contact.contact,
-                    remark: contact.remark,
-                    description: contact.description,
-                    relationType: MMEmployeeContactTypes.External,
-                    relationSource: contact.source,
-                    currentUserId: ownerId,
-                    companyId: contact.company_id,
-                });
+                try {
+                    if (!contact.contact) {
+                        Alert.alert('Error', 'Contact data is missing');
+                        return;
+                    }
+                    // Ensure employee object has required fields
+                    const safeEmployee = {
+                        id: contact.contact.id || '',
+                        username: contact.contact.username || '',
+                        nickname: contact.contact.nickname || '',
+                        first_name: contact.contact.first_name || '',
+                        last_name: contact.contact.last_name || '',
+                        email: contact.contact.email || '',
+                        position: contact.contact.position || '',
+                        ...contact.contact,
+                    };
+                    const title = getContactDisplayName(contact);
+                    showModalWithBackButton(
+                        Screens.CONTACTS_EMPLOYEE_PROFILE,
+                        title,
+                        `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`,
+                        {
+                            componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
+                            employee: safeEmployee,
+                            remark: contact.remark || '',
+                            description: contact.description || '',
+                            relationType: MMEmployeeContactTypes.External,
+                            relationSource: contact.source || '',
+                            currentUserId: ownerId || '',
+                            companyId: contact.company_id || '',
+                        },
+                    );
+                } catch (error) {
+                    console.error('Failed to open contact edit:', error);
+                    Alert.alert(
+                        'Error',
+                        `Failed to open contact edit: ${error instanceof Error ? error.message : String(error)}`,
+                    );
+                }
             },
             [ownerId],
         ),

@@ -9,6 +9,7 @@ import {Screens} from '@constants';
 import AppsScreen from './apps';
 import AppWebView from './app_webview';
 import CloudDriveScreen from './cloud_drive/cloud_drive_screen';
+import ConversationsScreen from './conversations/conversations_screen';
 import KnowledgeBaseScreen from './knowledge_base/knowledge_base_screen';
 import MesScreen from './mes/mes_screen';
 import NotebookScreen from './notebook/notebook_screen';
@@ -48,6 +49,7 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 </Stack.Screen>
                 <Stack.Screen name={Screens.APPS_WEBVIEW} component={AppWebView}/>
                 <Stack.Screen name={Screens.APPS_CLOUD_DRIVE} component={CloudDriveScreen}/>
+                <Stack.Screen name={Screens.APPS_CONVERSATIONS} component={ConversationsScreen}/>
                 <Stack.Screen name={Screens.APPS_KNOWLEDGE_BASE} component={KnowledgeBaseScreen}/>
                 <Stack.Screen name={Screens.APPS_MES} component={MesScreen}/>
                 <Stack.Screen name={Screens.APPS_NOTEBOOK} component={NotebookScreen}/>

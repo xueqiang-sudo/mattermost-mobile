@@ -9,7 +9,8 @@ import {Preferences} from '@constants';
 import {getPreferenceValue} from '@helpers/api/preference';
 import {queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {querySidebarPreferences} from '@queries/servers/preference';
-import {observeConfigBooleanValue, observeCurrentTeamId, observeOnlyUnreads} from '@queries/servers/system';
+import {observeConfigBooleanValue, observeCurrentTeamId, observeCurrentUserId, observeOnlyUnreads} from '@queries/servers/system';
+import {observeUserIdsInTeam} from '@queries/servers/user';
 
 import Categories from './categories';
 
@@ -20,7 +21,13 @@ const enhanced = withObservables(
     [],
     ({database}: WithDatabaseArgs) => {
         const currentTeamId = observeCurrentTeamId(database);
+        const currentUserId = observeCurrentUserId(database);
         const categories = currentTeamId.pipe(switchMap((ctid) => queryCategoriesByTeamIds(database, [ctid]).observeWithColumns(['sort_order'])));
+
+        // Team member IDs for channel classification (internal vs external)
+        const teamMemberIds = currentTeamId.pipe(
+            switchMap((tid) => (tid ? observeUserIdsInTeam(database, tid) : of$(new Set<string>()))),
+        );
 
         const unreadsOnTopUserPreference = querySidebarPreferences(database, Preferences.CHANNEL_SIDEBAR_GROUP_UNREADS).
             observeWithColumns(['value']).
@@ -42,6 +49,9 @@ const enhanced = withObservables(
         );
         return {
             categories,
+            currentTeamId,
+            currentUserId,
+            teamMemberIds,
             onlyUnreads: observeOnlyUnreads(database),
             unreadsOnTop,
         };

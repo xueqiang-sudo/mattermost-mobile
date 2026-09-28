@@ -94,6 +94,7 @@ export const APPS_PRICE_LIST = 'AppsPriceList';
 export const APPS_CLOUD_DRIVE = 'AppsCloudDrive';
 export const APPS_KNOWLEDGE_BASE = 'AppsKnowledgeBase';
 export const APPS_NOTEBOOK = 'AppsNotebook';
+export const APPS_CONVERSATIONS = 'AppsConversations';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -241,6 +242,7 @@ export default {
     APPS_CLOUD_DRIVE,
     APPS_KNOWLEDGE_BASE,
     APPS_NOTEBOOK,
+    APPS_CONVERSATIONS,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,

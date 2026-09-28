@@ -497,6 +497,7 @@ const KnowledgeBaseScreen = () => {
 
     const [teamId, setTeamId] = useState('');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [documents, setDocuments] = useState<KBDoc[]>([]);
     const [searchResults, setSearchResults] = useState<KBSearchResult[] | null>(null);
     const [activeCategory, setActiveCategory] = useState('');
@@ -526,11 +527,20 @@ const KnowledgeBaseScreen = () => {
     useEffect(() => {
         const init = async () => {
             try {
+                if (!serverUrl) {
+                    throw new Error('Server URL is not available');
+                }
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                 const tid = await getCurrentTeamId(database);
+                if (!tid) {
+                    throw new Error('Team ID not found');
+                }
                 setTeamId(tid);
-            } catch {
-                // ignore
+                setError(null);
+            } catch (err) {
+                console.error('Failed to initialize knowledge base:', err);
+                setError(err instanceof Error ? err.message : 'Failed to initialize');
+                setLoading(false);
             }
         };
         init();
@@ -538,14 +548,19 @@ const KnowledgeBaseScreen = () => {
 
     // Load documents when teamId or category changes
     const loadDocuments = useCallback(async () => {
-        if (!teamId) return;
+        if (!teamId) {
+            return;
+        }
         setLoading(true);
         setSearchResults(null);
+        setError(null);
         try {
             const resp = await listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100});
-            const docs = resp?.data?.documents || [];
+            const docs = resp?.data?.documents || resp?.docs || resp?.documents || [];
             setDocuments(docs);
-        } catch {
+        } catch (err) {
+            console.error('Failed to load KB docs:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load documents');
             setDocuments([]);
         } finally {
             setLoading(false);
@@ -876,7 +891,20 @@ const KnowledgeBaseScreen = () => {
 
             {/* Document list */}
             <View style={{flex: 1}}>
-                {loading ? (
+                {error ? (
+                    <View style={style.emptyContainer}>
+                        <CompassIcon name='alert-circle-outline' size={48} color={theme.errorTextColor}/>
+                        <Text style={style.emptyText}>{error}</Text>
+                        <TouchableOpacity
+                            style={{marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: theme.buttonBg}}
+                            onPress={loadDocuments}
+                        >
+                            <Text style={{color: theme.buttonColor, ...typography('Body', 100, 'SemiBold')}}>
+                                {intl.formatMessage({id: 'mobile.retry', defaultMessage: 'Retry'})}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : loading ? (
                     <View style={style.emptyContainer}>
                         <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                     </View>

@@ -106,6 +106,10 @@ const messages = defineMessages({
         defaultMessage: 'Manage enterprises',
         id: 'settings.manage_enterprise',
     },
+    role_management: {
+        defaultMessage: 'Role Management',
+        id: 'sidebar.tab.role_management',
+    },
 });
 
 export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
@@ -153,6 +157,12 @@ export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
         defaultMessage: messages.download_logs.defaultMessage,
         i18nId: messages.download_logs.id,
         testID: messages.download_logs.id,
+    },
+    role_management: {
+        defaultMessage: messages.role_management.defaultMessage,
+        i18nId: messages.role_management.id,
+        icon: 'shield-account-outline',
+        testID: messages.role_management.id,
     },
 };
 

@@ -16,4 +16,5 @@ export type AppsStackParamList = {
     [Screens.APPS_CLOUD_DRIVE]: undefined;
     [Screens.APPS_KNOWLEDGE_BASE]: undefined;
     [Screens.APPS_NOTEBOOK]: undefined;
+    [Screens.APPS_CONVERSATIONS]: undefined;
 };

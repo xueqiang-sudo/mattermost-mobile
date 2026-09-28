@@ -18,17 +18,17 @@ import type CategoryModel from '@typings/database/models/servers/category';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        paddingVertical: 6,
-        marginTop: 8,
+        paddingVertical: 8,
+        marginTop: 12,
+        marginBottom: 2,
         paddingLeft: 2,
         marginLeft: 16,
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
     heading: {
         color: changeOpacity(theme.sidebarText, 0.64),
-        textTransform: 'uppercase',
-        ...typography('Heading', 75),
+        ...typography('Body', 200, 'SemiBold'),
     },
     chevron: {
         marginTop: -2,

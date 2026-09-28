@@ -307,32 +307,33 @@ export type WorkbenchPermissions = {
 };
 
 // ---- Role Management API ----
+// Using Mattermost core API (/api/v4/) instead of plugin API
 
 export async function fetchBusinessRoleDefs(serverUrl: string, teamId: string): Promise<BusinessRoleDef[]> {
-    const data = await apiFetch(serverUrl, `${FRAPPE_SYNC_BASE}/api/teams/${teamId}/business-roles`, {method: 'get'});
+    const data = await apiFetch(serverUrl, `/api/v4/teams/${teamId}/business-role-defs`, {method: 'get'});
     return Array.isArray(data) ? data : [];
 }
 
 export async function createBusinessRoleDef(serverUrl: string, teamId: string, roleName: string): Promise<BusinessRoleDef> {
-    return apiFetch(serverUrl, `${FRAPPE_SYNC_BASE}/api/teams/${teamId}/business-roles`, {
+    return apiFetch(serverUrl, `/api/v4/teams/${teamId}/business-role-defs`, {
         method: 'post',
         body: {role_name: roleName},
     });
 }
 
 export async function updateBusinessRoleDef(serverUrl: string, teamId: string, roleKey: string, roleName: string): Promise<BusinessRoleDef> {
-    return apiFetch(serverUrl, `${FRAPPE_SYNC_BASE}/api/teams/${teamId}/business-roles/${roleKey}`, {
+    return apiFetch(serverUrl, `/api/v4/teams/${teamId}/business-role-defs/${encodeURIComponent(roleKey)}`, {
         method: 'put',
         body: {role_name: roleName},
     });
 }
 
 export async function deleteBusinessRoleDef(serverUrl: string, teamId: string, roleKey: string): Promise<void> {
-    await apiFetch(serverUrl, `${FRAPPE_SYNC_BASE}/api/teams/${teamId}/business-roles/${roleKey}`, {method: 'delete'});
+    await apiFetch(serverUrl, `/api/v4/teams/${teamId}/business-role-defs/${encodeURIComponent(roleKey)}`, {method: 'delete'});
 }
 
 export async function getWorkbenchPermissions(serverUrl: string, teamId: string): Promise<WorkbenchPermissions> {
-    return apiFetch(serverUrl, `${FRAPPE_SYNC_BASE}/api/teams/${teamId}/permissions`, {method: 'get'});
+    return apiFetch(serverUrl, `/api/v4/teams/${teamId}/workbench-permissions`, {method: 'get'});
 }
 
 export async function saveRolePermission(
@@ -342,12 +343,12 @@ export async function saveRolePermission(
     tabs: string[],
     flags?: Record<string, boolean>,
 ): Promise<WorkbenchPermissions> {
-    const body: Record<string, unknown> = {tabs};
-    if (flags) {
-        body.flags = flags;
-    }
-    return apiFetch(serverUrl, `${FRAPPE_SYNC_BASE}/api/teams/${teamId}/permissions/${roleKey}`, {
+    return apiFetch(serverUrl, `/api/v4/teams/${teamId}/workbench-permissions`, {
         method: 'put',
-        body,
+        body: {
+            role_key: roleKey,
+            tabs,
+            flags: flags || {},
+        },
     });
 }

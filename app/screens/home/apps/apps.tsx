@@ -172,6 +172,10 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         const allowedTabs = new Set(dashboardAccess.tabs || []);
 
         return APPS.filter((app) => {
+            // Hide price_list and cloud_drive (user request)
+            if (app.key === 'price_list' || app.key === 'cloud_drive') {
+                return false;
+            }
             // Non-ERP teams: hide erpOnly apps
             if (app.erpOnly && !isErpTeam) {
                 return false;
@@ -219,6 +223,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 break;
             case 'notebook':
                 navigation.navigate(Screens.APPS_NOTEBOOK);
+                break;
+            case 'conversations':
+                navigation.navigate(Screens.APPS_CONVERSATIONS);
                 break;
             default:
                 navigation.navigate(Screens.APPS_WEBVIEW, {

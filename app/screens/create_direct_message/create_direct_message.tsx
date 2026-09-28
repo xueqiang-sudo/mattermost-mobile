@@ -8,6 +8,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
 import {addMembersToChannel, makeBotGroupChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {getDashboardAccess} from '@screens/home/apps/api';
 import {queryChannelMembers} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
@@ -246,6 +247,19 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
+    permissionNotice: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: changeOpacity(theme.errorTextColor, 0.1),
+        gap: 8,
+    },
+    permissionNoticeText: {
+        flex: 1,
+        color: theme.errorTextColor,
+        ...typography('Body', 75),
+    },
 }));
 
 export default function CreateDirectMessage({
@@ -274,8 +288,27 @@ export default function CreateDirectMessage({
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['enterprise', 'external']));
     const [startingConversation, setStartingConversation] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
+    const [contactEdit, setContactEdit] = useState(false);
+    const [allowedContactTypes, setAllowedContactTypes] = useState<string[]>([]);
 
     const teamIdForMembersList = currentTeamId || '';
+
+    // Fetch permissions
+    useEffect(() => {
+        getDashboardAccess(serverUrl, teamIdForMembersList).then((access) => {
+            setContactEdit(access.contact_edit !== false);
+            setAllowedContactTypes(access.allowed_contact_types || ['enterprise']);
+        }).catch(() => {
+            // Default: allow enterprise only
+            setContactEdit(false);
+            setAllowedContactTypes(['enterprise']);
+        });
+    }, [serverUrl, teamIdForMembersList]);
+
+    // Check if external contacts should be shown
+    const showExternal = useMemo(() => {
+        return allowedContactTypes.includes('external') && contactEdit;
+    }, [allowedContactTypes, contactEdit]);
 
     // Newly selected = selected minus locked
     const newSelectedIds = useMemo(() => {
@@ -314,7 +347,7 @@ export default function CreateDirectMessage({
                 !p.mmCandidateTags?.includes('enterprise') && !p.mmCandidateTags?.includes('self');
             setCandidates({
                 enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise') && notSelf(p)),
-                external: profiles.filter((p) => notSelf(p) && isExternal(p)),
+                external: showExternal ? profiles.filter((p) => notSelf(p) && isExternal(p)) : [],
             });
             setKnownProfiles((prev) => {
                 const next = new Map(prev);
@@ -322,11 +355,11 @@ export default function CreateDirectMessage({
                 return next;
             });
         });
-    }, [serverUrl, teamIdForMembersList, currentUserId]);
+    }, [serverUrl, teamIdForMembersList, currentUserId, showExternal]);
 
     // Search for external contacts (enterprise is filtered client-side)
     useEffect(() => {
-        if (!searchTerm.trim()) {
+        if (!searchTerm.trim() || !showExternal) {
             return;
         }
         searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, searchTerm).then((drafts) => {
@@ -347,12 +380,19 @@ export default function CreateDirectMessage({
                 });
             }
         });
-    }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId]);
+    }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId, showExternal]);
 
-    // Filter candidates by search term (client-side for all sections)
+    // Filter candidates by search term (client-side for all sections) and permissions
     const filteredCandidates = useMemo(() => {
+        // First filter by permissions
+        const permissionFiltered = {
+            enterprise: candidates.enterprise,
+            external: showExternal ? candidates.external : [],
+        };
+
+        // Then filter by search term
         if (!searchTerm.trim()) {
-            return candidates;
+            return permissionFiltered;
         }
         const term = searchTerm.toLowerCase();
         const filterFn = (p: CandidateProfile) => {
@@ -361,10 +401,10 @@ export default function CreateDirectMessage({
             return name.includes(term) || username.includes(term);
         };
         return {
-            enterprise: candidates.enterprise.filter(filterFn),
-            external: candidates.external.filter(filterFn),
+            enterprise: permissionFiltered.enterprise.filter(filterFn),
+            external: permissionFiltered.external.filter(filterFn),
         };
-    }, [candidates, searchTerm, teammateNameDisplay]);
+    }, [candidates, searchTerm, teammateNameDisplay, showExternal]);
 
     // Close handler that works for both pushed screens (goToScreen) and modals (showModal)
     const handleClose = useCallback(async () => {
@@ -662,6 +702,19 @@ export default function CreateDirectMessage({
                     </View>
                 )}
             </View>
+
+            {/* Permission notice */}
+            {!showExternal && searchTerm.trim() && (
+                <View style={style.permissionNotice}>
+                    <CompassIcon name='information-outline' size={16} color={theme.errorTextColor}/>
+                    <Text style={style.permissionNoticeText}>
+                        {intl.formatMessage({
+                            id: 'create_direct_message.no_external_permission',
+                            defaultMessage: 'You do not have permission to add external contacts',
+                        })}
+                    </Text>
+                </View>
+            )}
 
             {/* Member list */}
             <FlatList

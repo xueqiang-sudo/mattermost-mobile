@@ -8,12 +8,14 @@ import {DeviceEventEmitter, FlatList, StyleSheet, View} from 'react-native';
 import {switchToChannelById} from '@actions/remote/channel';
 import Loading from '@components/loading';
 import {Events} from '@constants';
+import {CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY} from '@constants/categories';
 import {CHANNEL} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import {useTeamSwitch} from '@hooks/team_switch';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 
+import BuiltinChannelGroups from './builtin_channel_groups';
 import CategoryBody from './body';
 import LoadCategoriesError from './error';
 import CategoryHeader from './header';
@@ -22,8 +24,13 @@ import UnreadCategories from './unreads';
 import type CategoryModel from '@typings/database/models/servers/category';
 import type ChannelModel from '@typings/database/models/servers/channel';
 
+const BUILT_IN_TYPES = new Set([CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY]);
+
 type Props = {
     categories: CategoryModel[];
+    currentTeamId: string;
+    currentUserId: string;
+    teamMemberIds: ReadonlySet<string>;
     onlyUnreads: boolean;
     unreadsOnTop: boolean;
 }
@@ -39,10 +46,11 @@ const styles = StyleSheet.create({
     },
 });
 
-const extractKey = (item: CategoryModel | 'UNREADS') => (item === 'UNREADS' ? 'UNREADS' : item.id);
-
 const Categories = ({
     categories,
+    currentTeamId,
+    currentUserId,
+    teamMemberIds,
     onlyUnreads,
     unreadsOnTop,
 }: Props) => {
@@ -54,21 +62,50 @@ const Categories = ({
     const teamId = categories[0]?.teamId;
     const showOnlyUnreadsCategory = onlyUnreads && !unreadsOnTop;
 
-    const categoriesToShow = useMemo(() => {
+    // Split into built-in categories (channels, DMs, favorites) and custom categories
+    const {builtInCategories, customCategories} = useMemo(() => {
+        const builtIn: CategoryModel[] = [];
+        const custom: CategoryModel[] = [];
+        for (const cat of categories) {
+            if (BUILT_IN_TYPES.has(cat.type)) {
+                builtIn.push(cat);
+            } else if (cat.type === 'custom') {
+                custom.push(cat);
+            }
+        }
+        // Sort custom categories by sortOrder
+        custom.sort((a, b) => a.sortOrder - b.sortOrder);
+        return {builtInCategories: builtIn, customCategories: custom};
+    }, [categories]);
+
+    // For the FlatList, combine: builtin groups item + custom categories
+    type ListItem = {type: 'builtin'} | {type: 'custom'; category: CategoryModel} | 'UNREADS';
+
+    const listItems = useMemo<ListItem[]>(() => {
         if (showOnlyUnreadsCategory) {
             return ['UNREADS' as const];
         }
 
-        const orderedCategories = [...categories];
-        orderedCategories.sort((a, b) => a.sortOrder - b.sortOrder);
+        const items: ListItem[] = [];
 
         if (unreadsOnTop) {
-            return ['UNREADS' as const, ...orderedCategories];
+            items.push('UNREADS');
         }
-        return orderedCategories;
-    }, [categories, unreadsOnTop, showOnlyUnreadsCategory]);
 
-    const [initiaLoad, setInitialLoad] = useState(!categoriesToShow.length);
+        // Built-in groups (internal/external) as a single item
+        if (builtInCategories.length > 0) {
+            items.push({type: 'builtin'});
+        }
+
+        // Custom categories
+        for (const cat of customCategories) {
+            items.push({type: 'custom', category: cat});
+        }
+
+        return items;
+    }, [builtInCategories, customCategories, unreadsOnTop, showOnlyUnreadsCategory]);
+
+    const [initiaLoad, setInitialLoad] = useState(!listItems.length);
 
     const onChannelSwitch = useCallback(async (c: Channel | ChannelModel) => {
         DeviceEventEmitter.emit(Events.ACTIVE_SCREEN, CHANNEL);
@@ -79,8 +116,15 @@ const Categories = ({
         switchToChannelById(serverUrl, c.id);
     }, [serverUrl]);
 
-    const renderCategory = useCallback((data: {item: CategoryModel | 'UNREADS'}) => {
-        if (data.item === 'UNREADS') {
+    const extractKey = useCallback((item: ListItem) => {
+        if (item === 'UNREADS') return 'UNREADS';
+        if (item.type === 'builtin') return 'builtin_groups';
+        return item.category.id;
+    }, []);
+
+    const renderCategory = useCallback((data: {item: ListItem}) => {
+        const {item} = data;
+        if (item === 'UNREADS') {
             return (
                 <UnreadCategories
                     currentTeamId={teamId}
@@ -90,18 +134,31 @@ const Categories = ({
                 />
             );
         }
+        if (item.type === 'builtin') {
+            return (
+                <BuiltinChannelGroups
+                    builtInCategories={builtInCategories}
+                    teamMemberIds={teamMemberIds}
+                    currentUserId={currentUserId}
+                    locale={intl.locale}
+                    isTablet={isTablet}
+                    onChannelSwitch={onChannelSwitch}
+                />
+            );
+        }
+        // Custom category
         return (
             <>
-                <CategoryHeader category={data.item}/>
+                <CategoryHeader category={item.category}/>
                 <CategoryBody
-                    category={data.item}
+                    category={item.category}
                     isTablet={isTablet}
                     locale={intl.locale}
                     onChannelSwitch={onChannelSwitch}
                 />
             </>
         );
-    }, [teamId, intl.locale, isTablet, onChannelSwitch, showOnlyUnreadsCategory]);
+    }, [teamId, intl.locale, isTablet, onChannelSwitch, showOnlyUnreadsCategory, builtInCategories, teamMemberIds, currentUserId]);
 
     useEffect(() => {
         const t = setTimeout(() => {
@@ -138,14 +195,14 @@ const Categories = ({
             {!switchingTeam && !initiaLoad && !showOnlyUnreadsCategory && (
                 <FlatList
                     key={teamId || 'no-team'}
-                    data={categoriesToShow}
+                    data={listItems}
                     ref={listRef}
                     renderItem={renderCategory}
                     style={styles.mainList}
                     showsHorizontalScrollIndicator={false}
                     showsVerticalScrollIndicator={false}
                     keyExtractor={extractKey}
-                    initialNumToRender={categoriesToShow.length}
+                    initialNumToRender={listItems.length}
                     extraData={teamId}
 
                     // @ts-expect-error strictMode not included in the types
