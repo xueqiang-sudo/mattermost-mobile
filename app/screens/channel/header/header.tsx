@@ -1,16 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Dimensions, Keyboard, Platform, Text, View} from 'react-native';
+import {Keyboard, Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
 import {General, Screens} from '@constants';
-import {useChannelOverflowMenu} from '@context/channel_overflow_menu';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -87,6 +86,39 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 2,
         height: 13,
     },
+    overflowBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 2000,
+    },
+    overflowAnchor: {
+        position: 'absolute',
+        alignItems: 'flex-end',
+        zIndex: 2001,
+    },
+    overflowMenu: {
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 8,
+        paddingVertical: 8,
+        minWidth: 160,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    overflowItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        height: 44,
+    },
+    overflowItemLabel: {
+        flex: 1,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+    },
 }));
 
 const ChannelHeader = ({
@@ -123,6 +155,13 @@ const ChannelHeader = ({
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
+
+    // Overflow menu state (inline dropdown, no context needed)
+    type OverflowMenuItem = {testID: string; labelId: string; defaultLabel: string; onPress: () => void};
+    const [overflowVisible, setOverflowVisible] = useState(false);
+    const [overflowItems, setOverflowItems] = useState<OverflowMenuItem[]>([]);
+
+    const closeOverflowMenu = useCallback(() => setOverflowVisible(false), []);
 
     const callsConfig = getCallsConfig(serverUrl);
 
@@ -240,14 +279,12 @@ const ChannelHeader = ({
         showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
     }, [channelId, teamId, intl, theme]);
 
-    const {openChannelOverflowMenu} = useChannelOverflowMenu();
-
     const onChannelQuickAction = useCallback(() => {
         // Show overflow menu dropdown with AI features + group info
         const isGM = channelType === General.GM_CHANNEL;
         const isDM = channelType === General.DM_CHANNEL;
 
-        const items = [];
+        const items: OverflowMenuItem[] = [];
         if (isGM) {
             items.push({
                 testID: 'channel_header.overflow.ai_customer_service',
@@ -277,20 +314,9 @@ const ChannelHeader = ({
             onPress: onTitlePress,
         });
 
-        // Position menu below the "..." button (top-right corner)
-        const screenWidth = Dimensions.get('window').width;
-        const HEADER_HEIGHT = 56;
-        const BUTTON_WIDTH = 44;
-        const MENU_WIDTH = 160;
-        const GAP = 8;
-
-        openChannelOverflowMenu({
-            anchorLeft: screenWidth - MENU_WIDTH - GAP,
-            anchorWidth: BUTTON_WIDTH,
-            anchorTop: HEADER_HEIGHT + GAP,
-            items,
-        });
-    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openChannelOverflowMenu]);
+        setOverflowItems(items);
+        setOverflowVisible(true);
+    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress]);
 
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
@@ -431,6 +457,42 @@ const ChannelHeader = ({
                     headerMarkdown={announcementMarkdown}
                 />
             }
+            {overflowVisible && (
+                <>
+                    <Pressable
+                        style={styles.overflowBackdrop}
+                        onPress={closeOverflowMenu}
+                    />
+                    <View
+                        pointerEvents='box-none'
+                        style={[
+                            styles.overflowAnchor,
+                            {
+                                right: 8,
+                                top: 56 + 8,
+                            },
+                        ]}
+                    >
+                        <View style={styles.overflowMenu}>
+                            {overflowItems.map((item) => (
+                                <Pressable
+                                    key={item.testID}
+                                    style={styles.overflowItem}
+                                    onPress={() => {
+                                        closeOverflowMenu();
+                                        item.onPress();
+                                    }}
+                                    testID={item.testID}
+                                >
+                                    <Text style={styles.overflowItemLabel}>
+                                        {intl.formatMessage({id: item.labelId, defaultMessage: item.defaultLabel})}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </View>
+                </>
+            )}
         </>
     );
 };
