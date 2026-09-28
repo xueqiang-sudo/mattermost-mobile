@@ -233,7 +233,17 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
 
     // Channel header (announcement) for GM channels
     const channelHeader = channel.pipe(
-        switchMap((c) => (c ? c.info.observe() : of$(undefined))),
+        switchMap((c) => {
+            if (!c || !c.info) {
+                return of$(undefined);
+            }
+            try {
+                return c.info.observe();
+            } catch (error) {
+                console.error('Error observing channel info:', error);
+                return of$(undefined);
+            }
+        }),
         switchMap((info) => of$(info?.header ?? '')),
         distinctUntilChanged(),
     );

@@ -3,14 +3,14 @@
 
 import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, Platform, Text, View} from 'react-native';
+import {Dimensions, Keyboard, Platform, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
-import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {General, Screens} from '@constants';
+import {useChannelOverflowMenu} from '@context/channel_overflow_menu';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -20,10 +20,9 @@ import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@play
 import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
-import {bottomSheet, dismissBottomSheet, goToScreen, popTopScreen, showModal} from '@screens/navigation';
+import {goToScreen, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
-import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -162,73 +161,57 @@ const ChannelHeader = ({
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
     }), [channelId, channelName, channelType, intl, theme]));
 
+    const {openChannelOverflowMenu} = useChannelOverflowMenu();
+
     const onChannelQuickAction = useCallback(() => {
-        // Show overflow menu bottom sheet with AI features + channel settings
+        // Show overflow menu dropdown with AI features + group info
         const isGM = channelType === General.GM_CHANNEL;
         const isDM = channelType === General.DM_CHANNEL;
 
-        // Count items for snap point calculation
-        let itemCount = 1; // channel settings always shown
-        if (isGM) itemCount++; // AI customer service
-        if (!isDM) itemCount += 2; // consult expert + AI assistant
-
-        const renderContent = () => {
-            return (
-                <View>
-                    {isGM && (
-                        <SlideUpPanelItem
-                            leftIcon='robot'
-                            onPress={() => {
-                                dismissBottomSheet();
-                                openAICustomerService();
-                            }}
-                            testID='channel_header.overflow.ai_customer_service'
-                            text={intl.formatMessage({id: 'channel_header.ai_customer_service', defaultMessage: 'AI Customer Service'})}
-                        />
-                    )}
-                    {!isDM && (
-                        <SlideUpPanelItem
-                            leftIcon='account-question'
-                            onPress={() => {
-                                dismissBottomSheet();
-                                openConsultation();
-                            }}
-                            testID='channel_header.overflow.consultation'
-                            text={intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'})}
-                        />
-                    )}
-                    {!isDM && (
-                        <SlideUpPanelItem
-                            leftIcon='lightbulb-outline'
-                            onPress={() => {
-                                dismissBottomSheet();
-                                openAIAssistant();
-                            }}
-                            testID='channel_header.overflow.ai_assistant'
-                            text={intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'})}
-                        />
-                    )}
-                    <SlideUpPanelItem
-                        leftIcon='cog-outline'
-                        onPress={() => {
-                            dismissBottomSheet();
-                            onTitlePress();
-                        }}
-                        testID='channel_header.overflow.channel_settings'
-                        text={intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel Info'})}
-                    />
-                </View>
-            );
-        };
-
-        bottomSheet({
-            closeButtonId: 'close-channel-overflow',
-            renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
-            title: intl.formatMessage({id: 'channel_header.overflow.title', defaultMessage: 'More'}),
-            theme,
+        const items = [];
+        if (isGM) {
+            items.push({
+                testID: 'channel_header.overflow.ai_customer_service',
+                labelId: 'channel_header.ai_customer_service',
+                defaultLabel: 'AI Customer Service',
+                onPress: openAICustomerService,
+            });
+        }
+        if (!isDM) {
+            items.push({
+                testID: 'channel_header.overflow.consultation',
+                labelId: 'consultation.title',
+                defaultLabel: 'Consult Expert',
+                onPress: openConsultation,
+            });
+            items.push({
+                testID: 'channel_header.overflow.ai_assistant',
+                labelId: 'ai_assistant.title',
+                defaultLabel: 'AI Assistant',
+                onPress: openAIAssistant,
+            });
+        }
+        items.push({
+            testID: 'channel_header.overflow.channel_settings',
+            labelId: 'screens.group_info',
+            defaultLabel: 'Group Info',
+            onPress: onTitlePress,
         });
-    }, [channelType, intl, theme, openAICustomerService, openConsultation, openAIAssistant, onTitlePress]);
+
+        // Position menu below the "..." button (top-right corner)
+        const screenWidth = Dimensions.get('window').width;
+        const HEADER_HEIGHT = 56; // Standard header height
+        const BUTTON_WIDTH = 44; // Standard button width
+        const MENU_WIDTH = 160; // Menu width from styles
+        const GAP = 8; // Gap from edge
+
+        openChannelOverflowMenu({
+            anchorLeft: screenWidth - MENU_WIDTH - GAP,
+            anchorWidth: BUTTON_WIDTH,
+            anchorTop: HEADER_HEIGHT + GAP,
+            items,
+        });
+    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openChannelOverflowMenu]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead

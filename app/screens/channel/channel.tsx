@@ -8,10 +8,12 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
 import FloatingCallContainer from '@calls/components/floating_call_container';
 
+import ChannelOverflowMenuOverlay from '@components/channel_overflow_menu';
 import FreezeScreen from '@components/freeze_screen';
 import PostDraft from '@components/post_draft';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
 import {Screens} from '@constants';
+import {ChannelOverflowMenuProvider} from '@context/channel_overflow_menu';
 import {ExtraKeyboardProvider} from '@context/extra_keyboard';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -117,59 +119,62 @@ const Channel = ({
 
     return (
         <FreezeScreen>
-            <SafeAreaView
-                style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
-                mode='margin'
-                edges={edges}
-                testID='channel.screen'
-                onLayout={onLayout}
-                nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
-            >
-                <ChannelHeader
-                    channelId={channelId}
-                    componentId={componentId}
-                    callsEnabledInChannel={isCallsEnabledInChannel}
-                    groupCallsAllowed={groupCallsAllowed}
-                    isTabletView={isTabletView}
-                    shouldRenderBookmarks={shouldRender}
-                    shouldRenderChannelBanner={includeChannelBanner}
-                />
-                {shouldRender &&
-                <ExtraKeyboardProvider>
-                    <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
-                        <View style={{flex: 1}}>
-                            <ChannelPostList
-                                channelId={channelId}
-                                nativeID={channelId}
-                            />
+            <ChannelOverflowMenuProvider>
+                <SafeAreaView
+                    style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
+                    mode='margin'
+                    edges={edges}
+                    testID='channel.screen'
+                    onLayout={onLayout}
+                    nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
+                >
+                    <ChannelHeader
+                        channelId={channelId}
+                        componentId={componentId}
+                        callsEnabledInChannel={isCallsEnabledInChannel}
+                        groupCallsAllowed={groupCallsAllowed}
+                        isTabletView={isTabletView}
+                        shouldRenderBookmarks={shouldRender}
+                        shouldRenderChannelBanner={includeChannelBanner}
+                    />
+                    {shouldRender &&
+                    <ExtraKeyboardProvider>
+                        <View style={[styles.messageArea, {marginTop, backgroundColor: getChatListBackdropColor(theme)}]}>
+                            <View style={{flex: 1}}>
+                                <ChannelPostList
+                                    channelId={channelId}
+                                    nativeID={channelId}
+                                />
+                            </View>
                         </View>
-                    </View>
-                    <>
-                        {scheduledPostCount > 0 &&
-                            <ScheduledPostIndicator scheduledPostCount={scheduledPostCount}/>
-                        }
-                    </>
-                    <PostDraft
-                        channelId={channelId}
-                        testID='channel.post_draft'
-                        containerHeight={containerHeight}
-                        isChannelScreen={true}
-                        canShowPostPriority={true}
-                        location={Screens.CHANNEL}
-                    />
-                </ExtraKeyboardProvider>
-                }
-                {showFloatingCallContainer && shouldRender &&
-                    <FloatingCallContainer
-                        channelId={channelId}
-                        showJoinCallBanner={showJoinCallBanner}
-                        showIncomingCalls={showIncomingCalls}
-                        isInACall={isInACall}
-                        includeBookmarkBar={includeBookmarkBar}
-                        includeChannelBanner={includeChannelBanner}
-                    />
-                }
-            </SafeAreaView>
+                        <>
+                            {scheduledPostCount > 0 &&
+                                <ScheduledPostIndicator scheduledPostCount={scheduledPostCount}/>
+                            }
+                        </>
+                        <PostDraft
+                            channelId={channelId}
+                            testID='channel.post_draft'
+                            containerHeight={containerHeight}
+                            isChannelScreen={true}
+                            canShowPostPriority={true}
+                            location={Screens.CHANNEL}
+                        />
+                    </ExtraKeyboardProvider>
+                    }
+                    {showFloatingCallContainer && shouldRender &&
+                        <FloatingCallContainer
+                            channelId={channelId}
+                            showJoinCallBanner={showJoinCallBanner}
+                            showIncomingCalls={showIncomingCalls}
+                            isInACall={isInACall}
+                            includeBookmarkBar={includeBookmarkBar}
+                            includeChannelBanner={includeChannelBanner}
+                        />
+                    }
+                </SafeAreaView>
+                <ChannelOverflowMenuOverlay/>
+            </ChannelOverflowMenuProvider>
         </FreezeScreen>
     );
 };
