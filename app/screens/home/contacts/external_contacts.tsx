@@ -246,7 +246,11 @@ const ExternalContactsScreen = ({currentUser}: Props) => {
             const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
             if (!result.error && result.data) {
                 setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
+            } else {
+                setItems([]);
             }
+        } catch {
+            setItems([]);
         } finally {
             if (!silent) {
                 setLoading(false);

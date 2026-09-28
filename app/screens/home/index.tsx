@@ -34,7 +34,7 @@ import ChannelList from './channel_list';
 import Contacts from './contacts';
 import TabBar from './tab_bar';
 import Me from './me';
-import {AppsStack} from './apps/apps_stack';
+import AppsStack from './apps';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 
