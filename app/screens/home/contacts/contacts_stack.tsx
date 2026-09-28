@@ -13,6 +13,7 @@ import ContactsSearchScreen from './contacts_search';
 import {type ContactsStackParamList} from './contacts_stack_param_list';
 import ContactsDepartmentDetail from './department_detail';
 import ExternalContactsScreen from './external_contacts';
+import ContactsExternalAddScreen from './external_contacts_add';
 
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
@@ -143,6 +144,7 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
                         />
                     )}
                 </Stack.Screen>
+                <Stack.Screen name={Screens.CONTACTS_EXTERNAL_ADD} component={ContactsExternalAddScreen}/>
             </Stack.Navigator>
         </ContactsRnnHomeComponentIdContext.Provider>
     );

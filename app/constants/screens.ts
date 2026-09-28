@@ -41,6 +41,7 @@ export const CONTACTS_MANAGE = 'ContactsManage';
 export const CONTACTS_SEARCH = 'ContactsSearch';
 export const CONTACTS_BATCH_MOVE_MEMBERS = 'ContactsBatchMoveMembers';
 export const CONTACTS_EXTERNAL = 'ContactsExternal';
+export const CONTACTS_EXTERNAL_ADD = 'ContactsExternalAdd';
 export const CONSULTATION_PANEL = 'ConsultationPanel';
 export const AI_ASSISTANT_PANEL = 'AIAssistantPanel';
 export const ROLE_LIST = 'RoleList';
@@ -183,6 +184,7 @@ export default {
     CONTACTS_SEARCH,
     CONTACTS_BATCH_MOVE_MEMBERS,
     CONTACTS_EXTERNAL,
+    CONTACTS_EXTERNAL_ADD,
     CONSULTATION_PANEL,
     AI_ASSISTANT_PANEL,
     ROLE_LIST,

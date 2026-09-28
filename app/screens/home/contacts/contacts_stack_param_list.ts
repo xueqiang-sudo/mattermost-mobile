@@ -34,4 +34,9 @@ export type ContactsStackParamList = {
         departmentBreadcrumb?: string[];
         currentUserId?: string;
     };
+    [Screens.CONTACTS_EXTERNAL_ADD]: {
+        ownerId: string;
+        companyId: string;
+        companyName?: string;
+    };
 };

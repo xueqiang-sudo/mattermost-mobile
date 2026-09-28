@@ -10,37 +10,28 @@ import {
     DeviceEventEmitter,
     FlatList,
     type GestureResponderEvent,
-    Keyboard,
-    Modal,
     RefreshControl,
-    ScrollView,
-    StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {makeGroupChannel} from '@actions/remote/channel';
 import {
-    addEmployeeContact,
     fetchEmployeeContacts,
     removeEmployeeContact,
-    searchExactGlobalEmployeeContacts,
-    type EmployeeContactSearchRow,
 } from '@actions/remote/employee_contact_new';
-import {updateEmployeeContact} from '@actions/remote/employee_contact_new';
 import {getDashboardAccess} from '@screens/home/apps/api';
 import {MMEmployeeContactTypes, type MMEmployeeContactSimple} from '@client/rest/team_department';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
-import {Events} from '@constants';
+import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {showModalWithBackButton} from '@screens/navigation';
 import {getSupplierCustomerDisplayName} from '@utils/contact_section';
 import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -136,183 +127,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 24,
         alignItems: 'center',
     },
-
-    // ---- Modal shared styles ----
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContainer: {
-        backgroundColor: theme.centerChannelBg,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        maxHeight: '90%',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 8,
-    },
-    modalTitle: {
-        ...typography('Heading', 300, 'SemiBold'),
-        color: theme.centerChannelColor,
-        flex: 1,
-    },
-    modalClose: {
-        padding: 4,
-    },
-    modalBody: {
-        paddingHorizontal: 16,
-        paddingBottom: 8,
-    },
-    modalFooter: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-        gap: 8,
-    },
-    modalBtn: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        backgroundColor: theme.buttonBg,
-    },
-    modalBtnSecondary: {
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.2),
-    },
-    modalBtnDisabled: {
-        opacity: 0.5,
-    },
-    modalBtnText: {
-        color: theme.buttonColor,
-        ...typography('Body', 100, 'SemiBold'),
-    },
-    modalBtnTextSecondary: {
-        color: theme.centerChannelColor,
-        ...typography('Body', 100),
-    },
-
-    // ---- Detail modal ----
-    detailAvatarSection: {
-        alignItems: 'center',
-        paddingVertical: 16,
-    },
-    detailName: {
-        ...typography('Heading', 300, 'SemiBold'),
-        color: theme.centerChannelColor,
-        marginTop: 8,
-    },
-    detailGrid: {
-        paddingVertical: 8,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        paddingVertical: 6,
-    },
-    detailLabel: {
-        width: 80,
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        ...typography('Body', 100),
-    },
-    detailValue: {
-        flex: 1,
-        color: theme.centerChannelColor,
-        ...typography('Body', 100),
-    },
-    detailSection: {
-        paddingVertical: 8,
-    },
-    detailSectionTitle: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        ...typography('Body', 75, 'SemiBold'),
-        marginBottom: 4,
-    },
-    detailSectionBody: {
-        color: theme.centerChannelColor,
-        ...typography('Body', 100),
-    },
-
-    // ---- Add/Edit form ----
-    formField: {
-        marginBottom: 12,
-    },
-    formLabel: {
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        ...typography('Body', 75),
-        marginBottom: 4,
-    },
-    formInput: {
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
-        borderRadius: 8,
-        color: theme.centerChannelColor,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        ...typography('Body', 100),
-    },
-    formInputReadonly: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-    },
-    formTextArea: {
-        minHeight: 60,
-        textAlignVertical: 'top',
-    },
-    phoneRow: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    phoneInput: {
-        flex: 1,
-    },
-    searchBtn: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        backgroundColor: theme.buttonBg,
-        justifyContent: 'center',
-    },
-    searchBtnText: {
-        color: theme.buttonColor,
-        ...typography('Body', 100, 'SemiBold'),
-    },
-    searchStatus: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 4,
-    },
-    searchError: {
-        ...typography('Body', 75),
-        color: theme.errorTextColor,
-        marginTop: 4,
-    },
-    formError: {
-        ...typography('Body', 75),
-        color: theme.errorTextColor,
-        marginTop: 4,
-    },
 }));
 
 function getContactDisplayName(detail: MMEmployeeContactSimple): string {
     return getSupplierCustomerDisplayName(detail.remark, detail.contact);
-}
-
-function getGenderLabel(g?: string): string {
-    if (!g) return '-';
-    switch (g.toLowerCase()) {
-    case 'male': return 'Male';
-    case 'female': return 'Female';
-    case 'other': return 'Other';
-    default: return g;
-    }
 }
 
 type RowProps = {
@@ -444,7 +262,6 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
     const serverUrl = useServerUrl();
     const isFocused = useIsFocused();
     const navigation = useNavigation<StackNavigationProp<ContactsStackParamList>>();
-    const insets = useSafeAreaInsets();
     const styles = getStyleSheet(theme);
 
     const [items, setItems] = useState<MMEmployeeContactSimple[]>([]);
@@ -457,26 +274,6 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
 
     const titleMessage = intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contacts'});
     const emptyMessage = intl.formatMessage({id: 'contacts.external.empty', defaultMessage: 'No external contacts yet'});
-
-    // ---- Detail modal ----
-    const [detailsTarget, setDetailsTarget] = useState<MMEmployeeContactSimple | null>(null);
-
-    // ---- Edit modal ----
-    const [editTarget, setEditTarget] = useState<MMEmployeeContactSimple | null>(null);
-    const [editRemark, setEditRemark] = useState('');
-    const [editDescription, setEditDescription] = useState('');
-    const [editSaving, setEditSaving] = useState(false);
-
-    // ---- Add modal ----
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [addPhone, setAddPhone] = useState('');
-    const [addSearching, setAddSearching] = useState(false);
-    const [addSearchResult, setAddSearchResult] = useState<EmployeeContactSearchRow | null>(null);
-    const [addSearchError, setAddSearchError] = useState('');
-    const [addRemark, setAddRemark] = useState('');
-    const [addDescription, setAddDescription] = useState('');
-    const [addSaving, setAddSaving] = useState(false);
-    const [addError, setAddError] = useState('');
 
     // ---- Fetch permission ----
     const teamId = currentTeam?.id;
@@ -584,112 +381,56 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
         ),
     );
 
-    // ---- View details ----
+    // ---- View details via ContactsEmployeeProfile ----
     const handleViewDetails = usePreventDoubleTap(
         useCallback(
             (contact: MMEmployeeContactSimple) => {
-                setDetailsTarget(contact);
+                if (!contact.contact) return;
+                showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_PROFILE, {
+                    componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
+                    employee: contact.contact,
+                    remark: contact.remark,
+                    description: contact.description,
+                    relationType: MMEmployeeContactTypes.External,
+                    relationSource: contact.source,
+                    currentUserId: ownerId,
+                    companyId: contact.company_id,
+                });
             },
-            [],
+            [ownerId],
         ),
     );
 
-    // ---- Edit ----
+    // ---- Edit via ContactsEmployeeProfile (same screen, inline editing via CustomInputModal) ----
     const handleEdit = usePreventDoubleTap(
         useCallback(
             (contact: MMEmployeeContactSimple) => {
-                setEditTarget(contact);
-                setEditRemark(contact.remark || '');
-                setEditDescription(contact.description || '');
+                if (!contact.contact) return;
+                showModalWithBackButton(Screens.CONTACTS_EMPLOYEE_PROFILE, {
+                    componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
+                    employee: contact.contact,
+                    remark: contact.remark,
+                    description: contact.description,
+                    relationType: MMEmployeeContactTypes.External,
+                    relationSource: contact.source,
+                    currentUserId: ownerId,
+                    companyId: contact.company_id,
+                });
             },
-            [],
+            [ownerId],
         ),
     );
 
-    const handleEditSave = usePreventDoubleTap(useCallback(async () => {
-        if (!ownerId || !editTarget) return;
-        setEditSaving(true);
-        const result = await updateEmployeeContact(
-            serverUrl, ownerId, editTarget.contact_id, kind,
-            {remark: editRemark.trim(), description: editDescription.trim()},
-        );
-        setEditSaving(false);
-        if (!result.error) {
-            setEditTarget(null);
-            loadData({silent: true});
-        } else {
-            Alert.alert(
-                intl.formatMessage({id: 'contacts.external.edit_error', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'contacts.external.edit_failed', defaultMessage: 'Failed to update contact'}),
-            );
-        }
-    }, [ownerId, editTarget, editRemark, editDescription, serverUrl, kind, loadData, intl]));
-
-    // ---- Send message ----
-    const handleSendMessage = usePreventDoubleTap(useCallback(async (contactId: string) => {
-        setDetailsTarget(null);
-        setEditTarget(null);
-        await makeGroupChannel(serverUrl, [contactId]);
-        navigation.goBack();
-    }, [serverUrl, navigation]));
-
-    // ---- Add: phone search ----
-    const handleAddSearch = usePreventDoubleTap(useCallback(async () => {
-        const phone = addPhone.trim();
-        if (!phone || !ownerId) return;
-        setAddSearching(true);
-        setAddSearchError('');
-        setAddSearchResult(null);
-        try {
-            const result = await searchExactGlobalEmployeeContacts(serverUrl, kind, ownerId, phone);
-            if (result.error) {
-                setAddSearchError(intl.formatMessage({id: 'contacts.external.add.not_found', defaultMessage: 'User not found'}));
-            } else if (result.data && result.data.length > 0) {
-                setAddSearchResult(result.data[0]);
-            } else {
-                setAddSearchError(intl.formatMessage({id: 'contacts.external.add.not_found', defaultMessage: 'User not found'}));
-            }
-        } catch {
-            setAddSearchError(intl.formatMessage({id: 'contacts.external.add.not_found', defaultMessage: 'User not found'}));
-        } finally {
-            setAddSearching(false);
-        }
-    }, [addPhone, ownerId, serverUrl, kind, intl]));
-
-    // ---- Add: save ----
-    const handleAddSave = usePreventDoubleTap(useCallback(async () => {
-        if (!ownerId || !addSearchResult || addSearchResult.alreadyAdded) return;
-        setAddSaving(true);
-        setAddError('');
-        const result = await addEmployeeContact(serverUrl, ownerId, {
-            contact_id: addSearchResult.employee.id,
-            contact_type: kind,
-            remark: addRemark.trim(),
-            description: addDescription.trim(),
-        });
-        setAddSaving(false);
-        if (result.error) {
-            setAddError(intl.formatMessage({id: 'contacts.external.add_failed', defaultMessage: 'Failed to add contact'}));
-        } else {
-            setShowAddModal(false);
-            resetAddForm();
-            loadData({silent: true});
-        }
-    }, [ownerId, addSearchResult, addRemark, addDescription, serverUrl, kind, intl, loadData]));
-
-    const resetAddForm = useCallback(() => {
-        setAddPhone('');
-        setAddSearchResult(null);
-        setAddSearchError('');
-        setAddRemark('');
-        setAddDescription('');
-        setAddError('');
-    }, []);
-
-    const handleAddClose = useCallback(() => {
-        setShowAddModal(false);
-        resetAddForm();
-    }, [resetAddForm]);
+    // ---- Navigate to add screen ----
+    const handleAdd = usePreventDoubleTap(
+        useCallback(() => {
+            if (!ownerId || !teamId) return;
+            navigation.navigate(Screens.CONTACTS_EXTERNAL_ADD, {
+                ownerId,
+                companyId: teamId,
+            });
+        }, [ownerId, teamId, navigation]),
+    );
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
@@ -732,7 +473,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
             {contactEdit ? (
                 <TouchableOpacity
                     style={styles.headerAdd}
-                    onPress={() => setShowAddModal(true)}
+                    onPress={handleAdd}
                     hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                     testID='external_contacts.add'
                 >
@@ -748,458 +489,50 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
         </View>
     );
 
-    // ---- Detail modal render ----
-    const renderDetailModal = () => {
-        if (!detailsTarget) return null;
-        const c = detailsTarget.contact;
-        const name = getContactDisplayName(detailsTarget);
-        const phone = c?.username || c?.phone || '-';
-        const email = c?.email || '-';
-        const position = c?.position || '-';
-        const gender = getGenderLabel(c?.gender);
-
-        return (
-            <Modal
-                visible={true}
-                transparent={true}
-                animationType='slide'
-                onRequestClose={() => setDetailsTarget(null)}
-            >
-                <View style={styles.modalOverlay}>
-                    <SafeAreaView edges={['bottom']} style={styles.modalContainer}>
-                        <View style={[styles.modalHeader, {paddingTop: insets.top + 16}]}>
-                            <Text style={styles.modalTitle}>
-                                {intl.formatMessage({id: 'contacts.external.details', defaultMessage: 'Contact Details'})}
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.modalClose}
-                                onPress={() => setDetailsTarget(null)}
-                            >
-                                <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView style={styles.modalBody}>
-                            <View style={styles.detailAvatarSection}>
-                                <ContactAvatar
-                                    employee={c && getLastPictureUpdate(c) > 0 ? c : undefined}
-                                    size={64}
-                                />
-                                <Text style={styles.detailName}>{name}</Text>
-                            </View>
-                            <View style={styles.detailGrid}>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'contacts.external.company', defaultMessage: 'Company'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{detailsTarget.company || '-'}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'address_book.phone', defaultMessage: 'Phone'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{phone}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'address_book.email', defaultMessage: 'Email'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{email}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'contacts.external.position', defaultMessage: 'Position'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{position}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'contacts.external.gender', defaultMessage: 'Gender'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{gender}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.detailSection}>
-                                <Text style={styles.detailSectionTitle}>
-                                    {intl.formatMessage({id: 'contacts.external.remark', defaultMessage: 'Remark'})}
-                                </Text>
-                                <Text style={styles.detailSectionBody}>
-                                    {detailsTarget.remark || intl.formatMessage({id: 'contacts.external.no_remark', defaultMessage: 'No remark'})}
-                                </Text>
-                            </View>
-                            <View style={styles.detailSection}>
-                                <Text style={styles.detailSectionTitle}>
-                                    {intl.formatMessage({id: 'contacts.external.description', defaultMessage: 'Description'})}
-                                </Text>
-                                <Text style={styles.detailSectionBody}>
-                                    {detailsTarget.description || intl.formatMessage({id: 'contacts.external.no_description', defaultMessage: 'No description'})}
-                                </Text>
-                            </View>
-                        </ScrollView>
-                        <View style={styles.modalFooter}>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalBtnSecondary]}
-                                onPress={() => handleSendMessage(detailsTarget.contact_id)}
-                            >
-                                <Text style={styles.modalBtnTextSecondary}>
-                                    {intl.formatMessage({id: 'contacts.external.send_message', defaultMessage: 'Send Message'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.modalBtn}
-                                onPress={() => setDetailsTarget(null)}
-                            >
-                                <Text style={styles.modalBtnText}>
-                                    {intl.formatMessage({id: 'contacts.external.close', defaultMessage: 'Close'})}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </SafeAreaView>
-                </View>
-            </Modal>
-        );
-    };
-
-    // ---- Edit modal render ----
-    const renderEditModal = () => {
-        if (!editTarget) return null;
-        const c = editTarget.contact;
-        const name = getContactDisplayName(editTarget);
-        const phone = c?.username || c?.phone || '-';
-        const email = c?.email || '-';
-        const position = c?.position || '-';
-        const gender = getGenderLabel(c?.gender);
-
-        return (
-            <Modal
-                visible={true}
-                transparent={true}
-                animationType='slide'
-                onRequestClose={() => !editSaving && setEditTarget(null)}
-            >
-                <View style={styles.modalOverlay}>
-                    <SafeAreaView edges={['bottom']} style={styles.modalContainer}>
-                        <View style={[styles.modalHeader, {paddingTop: insets.top + 16}]}>
-                            <Text style={styles.modalTitle}>
-                                {intl.formatMessage({id: 'contacts.external.edit', defaultMessage: 'Edit Contact'})}
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.modalClose}
-                                onPress={() => !editSaving && setEditTarget(null)}
-                                disabled={editSaving}
-                            >
-                                <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView style={styles.modalBody}>
-                            <View style={styles.detailGrid}>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'address_book.contact_name', defaultMessage: 'Name'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{name}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'address_book.phone', defaultMessage: 'Phone'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{phone}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'address_book.email', defaultMessage: 'Email'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{email}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'contacts.external.position', defaultMessage: 'Position'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{position}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>
-                                        {intl.formatMessage({id: 'contacts.external.gender', defaultMessage: 'Gender'})}
-                                    </Text>
-                                    <Text style={styles.detailValue}>{gender}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.formField}>
-                                <Text style={styles.formLabel}>
-                                    {intl.formatMessage({id: 'contacts.external.add.remark', defaultMessage: 'Remark'})}
-                                </Text>
-                                <TextInput
-                                    style={styles.formInput}
-                                    value={editRemark}
-                                    onChangeText={setEditRemark}
-                                    placeholder={intl.formatMessage({id: 'contacts.external.add.remark_placeholder', defaultMessage: 'Display name'})}
-                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                                    editable={!editSaving}
-                                />
-                            </View>
-                            <View style={styles.formField}>
-                                <Text style={styles.formLabel}>
-                                    {intl.formatMessage({id: 'contacts.external.add.description', defaultMessage: 'Description'})}
-                                </Text>
-                                <TextInput
-                                    style={[styles.formInput, styles.formTextArea]}
-                                    value={editDescription}
-                                    onChangeText={setEditDescription}
-                                    placeholder={intl.formatMessage({id: 'contacts.external.add.description_placeholder', defaultMessage: 'Optional notes'})}
-                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                                    multiline={true}
-                                    numberOfLines={3}
-                                    editable={!editSaving}
-                                />
-                            </View>
-                        </ScrollView>
-                        <View style={styles.modalFooter}>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalBtnSecondary, editSaving && styles.modalBtnDisabled]}
-                                onPress={() => handleSendMessage(editTarget.contact_id)}
-                                disabled={editSaving}
-                            >
-                                <Text style={styles.modalBtnTextSecondary}>
-                                    {intl.formatMessage({id: 'contacts.external.send_message', defaultMessage: 'Send Message'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalBtnSecondary, editSaving && styles.modalBtnDisabled]}
-                                onPress={() => setEditTarget(null)}
-                                disabled={editSaving}
-                            >
-                                <Text style={styles.modalBtnTextSecondary}>
-                                    {intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, editSaving && styles.modalBtnDisabled]}
-                                onPress={handleEditSave}
-                                disabled={editSaving}
-                            >
-                                <Text style={styles.modalBtnText}>
-                                    {editSaving
-                                        ? intl.formatMessage({id: 'contacts.external.add.saving', defaultMessage: 'Saving...'})
-                                        : intl.formatMessage({id: 'contacts.external.add.save', defaultMessage: 'Save'})
-                                    }
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </SafeAreaView>
-                </View>
-            </Modal>
-        );
-    };
-
-    // ---- Add modal render ----
-    const renderAddModal = () => {
-        return (
-            <Modal
-                visible={showAddModal}
-                transparent={true}
-                animationType='slide'
-                onRequestClose={handleAddClose}
-            >
-                <View style={styles.modalOverlay}>
-                    <SafeAreaView edges={['bottom']} style={styles.modalContainer}>
-                        <View style={[styles.modalHeader, {paddingTop: insets.top + 16}]}>
-                            <Text style={styles.modalTitle}>
-                                {intl.formatMessage({id: 'contacts.external.add', defaultMessage: 'Add External Contact'})}
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.modalClose}
-                                onPress={handleAddClose}
-                                disabled={addSaving}
-                            >
-                                <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView style={styles.modalBody} keyboardShouldPersistTaps='handled'>
-                            {/* Phone search */}
-                            <View style={styles.formField}>
-                                <Text style={styles.formLabel}>
-                                    {intl.formatMessage({id: 'contacts.external.add.phone', defaultMessage: 'Phone Number'})}
-                                </Text>
-                                <View style={styles.phoneRow}>
-                                    <TextInput
-                                        style={[styles.formInput, styles.phoneInput]}
-                                        value={addPhone}
-                                        onChangeText={(text) => {
-                                            setAddPhone(text);
-                                            if (addSearchResult || addSearchError) {
-                                                setAddSearchResult(null);
-                                                setAddSearchError('');
-                                            }
-                                        }}
-                                        placeholder={intl.formatMessage({id: 'contacts.external.add.phone_placeholder', defaultMessage: 'Enter phone number to search'})}
-                                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                                        keyboardType='phone-pad'
-                                        returnKeyType='search'
-                                        onSubmitEditing={handleAddSearch}
-                                        editable={!addSaving}
-                                        autoFocus={true}
-                                    />
-                                    <TouchableOpacity
-                                        style={[styles.searchBtn, addSearching && styles.modalBtnDisabled]}
-                                        onPress={handleAddSearch}
-                                        disabled={addSaving || addSearching || !addPhone.trim()}
-                                    >
-                                        <Text style={styles.searchBtnText}>
-                                            {addSearching
-                                                ? intl.formatMessage({id: 'contacts.external.add.searching', defaultMessage: 'Searching...'})
-                                                : intl.formatMessage({id: 'contacts.external.add.search', defaultMessage: 'Search'})
-                                            }
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                                {addSearchError ? (
-                                    <Text style={styles.searchError}>{addSearchError}</Text>
-                                ) : null}
-                            </View>
-
-                            {/* Search result */}
-                            {addSearchResult && addSearchResult.alreadyAdded && (
-                                <Text style={styles.searchError}>
-                                    {intl.formatMessage({id: 'contacts.external.add.duplicate', defaultMessage: 'Contact already exists'})}
-                                </Text>
-                            )}
-
-                            {addSearchResult && !addSearchResult.alreadyAdded && (
-                                <>
-                                    {/* User info (read-only) */}
-                                    <View style={styles.detailGrid}>
-                                        <View style={styles.detailRow}>
-                                            <Text style={styles.detailLabel}>
-                                                {intl.formatMessage({id: 'address_book.contact_name', defaultMessage: 'Name'})}
-                                            </Text>
-                                            <Text style={styles.detailValue}>
-                                                {addSearchResult.employee.nickname || addSearchResult.employee.first_name || addSearchResult.employee.username}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.detailRow}>
-                                            <Text style={styles.detailLabel}>
-                                                {intl.formatMessage({id: 'address_book.email', defaultMessage: 'Email'})}
-                                            </Text>
-                                            <Text style={styles.detailValue}>
-                                                {addSearchResult.employee.email || '-'}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    {/* Editable fields */}
-                                    <View style={styles.formField}>
-                                        <Text style={styles.formLabel}>
-                                            {intl.formatMessage({id: 'contacts.external.add.remark', defaultMessage: 'Remark'})}
-                                        </Text>
-                                        <TextInput
-                                            style={styles.formInput}
-                                            value={addRemark}
-                                            onChangeText={setAddRemark}
-                                            placeholder={intl.formatMessage({id: 'contacts.external.add.remark_placeholder', defaultMessage: 'Display name'})}
-                                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                                            editable={!addSaving}
-                                        />
-                                    </View>
-                                    <View style={styles.formField}>
-                                        <Text style={styles.formLabel}>
-                                            {intl.formatMessage({id: 'contacts.external.add.description', defaultMessage: 'Description'})}
-                                        </Text>
-                                        <TextInput
-                                            style={[styles.formInput, styles.formTextArea]}
-                                            value={addDescription}
-                                            onChangeText={setAddDescription}
-                                            placeholder={intl.formatMessage({id: 'contacts.external.add.description_placeholder', defaultMessage: 'Optional notes'})}
-                                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                                            multiline={true}
-                                            numberOfLines={3}
-                                            editable={!addSaving}
-                                        />
-                                    </View>
-                                </>
-                            )}
-
-                            {addError ? <Text style={styles.formError}>{addError}</Text> : null}
-                        </ScrollView>
-                        <View style={styles.modalFooter}>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalBtnSecondary]}
-                                onPress={handleAddClose}
-                                disabled={addSaving}
-                            >
-                                <Text style={styles.modalBtnTextSecondary}>
-                                    {intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                                </Text>
-                            </TouchableOpacity>
-                            {addSearchResult && !addSearchResult.alreadyAdded && (
-                                <TouchableOpacity
-                                    style={[styles.modalBtn, addSaving && styles.modalBtnDisabled]}
-                                    onPress={handleAddSave}
-                                    disabled={addSaving}
-                                >
-                                    <Text style={styles.modalBtnText}>
-                                        {addSaving
-                                            ? intl.formatMessage({id: 'contacts.external.add.saving', defaultMessage: 'Saving...'})
-                                            : intl.formatMessage({id: 'contacts.external.add.save', defaultMessage: 'Save'})
-                                        }
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </SafeAreaView>
-                </View>
-            </Modal>
-        );
-    };
-
     return (
-        <>
-            <Freeze freeze={!isFocused}>
-                <SafeAreaView
-                    edges={edges}
-                    style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
-                >
-                    <Animated.View style={[styles.flex, animated]}>
-                        {listHeader}
-                        {loading && items.length === 0 ? (
-                            <View style={styles.loadingContainer}>
-                                <Loading
-                                    color={theme.centerChannelColor}
-                                    size='small'
-                                />
-                            </View>
-                        ) : (
-                            <FlatList
-                                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
-                                contentContainerStyle={[
-                                    styles.listContent,
-                                    {paddingBottom: 24},
-                                    items.length === 0 ? {flexGrow: 1} : undefined,
-                                ]}
-                                data={items}
-                                keyExtractor={keyExtractor}
-                                renderItem={renderItem}
-                                refreshControl={
-                                    <RefreshControl
-                                        refreshing={refreshing}
-                                        onRefresh={onRefresh}
-                                        tintColor={theme.centerChannelColor}
-                                    />
-                                }
-                                ListEmptyComponent={
-                                    loading ? null : (
-                                        <Text style={styles.emptyMessage}>{emptyMessage}</Text>
-                                    )
-                                }
-                                testID='external_contacts.flatlist'
+        <Freeze freeze={!isFocused}>
+            <SafeAreaView
+                edges={edges}
+                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+            >
+                <Animated.View style={[styles.flex, animated]}>
+                    {listHeader}
+                    {loading && items.length === 0 ? (
+                        <View style={styles.loadingContainer}>
+                            <Loading
+                                color={theme.centerChannelColor}
+                                size='small'
                             />
-                        )}
-                    </Animated.View>
-                </SafeAreaView>
-            </Freeze>
-
-            {renderDetailModal()}
-            {renderEditModal()}
-            {renderAddModal()}
-        </>
+                        </View>
+                    ) : (
+                        <FlatList
+                            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
+                            contentContainerStyle={[
+                                styles.listContent,
+                                {paddingBottom: 24},
+                                items.length === 0 ? {flexGrow: 1} : undefined,
+                            ]}
+                            data={items}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderItem}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}
+                                    tintColor={theme.centerChannelColor}
+                                />
+                            }
+                            ListEmptyComponent={
+                                loading ? null : (
+                                    <Text style={styles.emptyMessage}>{emptyMessage}</Text>
+                                )
+                            }
+                            testID='external_contacts.flatlist'
+                        />
+                    )}
+                </Animated.View>
+            </SafeAreaView>
+        </Freeze>
     );
 };
 

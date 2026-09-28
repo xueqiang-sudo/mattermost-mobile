@@ -440,7 +440,7 @@ const ChannelHeader = ({
                     isTopItem={!showBookmarkBar}
                 />
             }
-            {(channelType === General.PRIVATE_CHANNEL || channelType === General.DM_CHANNEL) && Boolean(announcementMarkdown.trim()) &&
+            {(channelType === General.PRIVATE_CHANNEL || channelType === General.DM_CHANNEL || channelType === General.GM_CHANNEL) && Boolean(announcementMarkdown.trim()) &&
                 <ChannelAnnouncementBar
                     canEditAnnouncement={canEditAnnouncement}
                     channelId={channelId}

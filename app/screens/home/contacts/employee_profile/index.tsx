@@ -638,7 +638,11 @@ const ContactsEmployeeProfile = ({
         if (!isSupplierCustomer || deleting) {
             return;
         }
-        const relationLabel = relationType === 'supplier'? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}): intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
+        const relationLabel = relationType === 'supplier'
+            ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'})
+            : relationType === 'customer'
+                ? intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'})
+                : intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contact'});
         const confirmName = relationRemark.trim() || getContactListDisplayName(employee);
         const ok = await new Promise<boolean>((resolve) => {
             Alert.alert(
@@ -772,7 +776,9 @@ const ContactsEmployeeProfile = ({
                 const typeLabel =
                     relationType === 'supplier'
                         ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'})
-                        : intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'});
+                        : relationType === 'customer'
+                            ? intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'})
+                            : intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contact'});
                 lines.push({
                     label: intl.formatMessage({id: 'supplier_customer.type', defaultMessage: 'Type'}),
                     value: typeLabel,

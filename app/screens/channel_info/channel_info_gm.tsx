@@ -30,6 +30,7 @@ type Props = {
     componentId: AvailableScreens;
     currentUser?: UserModel;
     currentUserId: string;
+    channelHeader?: string;
     displayName?: string;
     displayNameCustomized?: boolean;
     isChannelCreator: boolean;
@@ -87,6 +88,29 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginRight: 4,
         ...typography('Body', 200),
     },
+    announcementRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    announcementLabel: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
+        width: 80,
+        flexShrink: 0,
+    },
+    announcementValue: {
+        flex: 1,
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        ...typography('Body', 200),
+        marginRight: 4,
+    },
+    announcementValueSet: {
+        color: theme.centerChannelColor,
+    },
 }));
 
 const ChannelInfoGM = ({
@@ -95,6 +119,7 @@ const ChannelInfoGM = ({
     componentId,
     currentUser,
     currentUserId,
+    channelHeader,
     displayName,
     displayNameCustomized,
     isChannelCreator,
@@ -129,6 +154,16 @@ const ChannelInfoGM = ({
         const title = intl.formatMessage({id: 'gm_settings.search_chat_history', defaultMessage: 'Search Chat History'});
         goToScreen(Screens.SEARCH_CHAT_HISTORY, title, {channelId, memberIds});
     }, [channelId, memberIds, intl]);
+
+    const handleEditAnnouncement = useCallback(async () => {
+        const title = intl.formatMessage({id: 'channel_info_rhs.gm.announcement.edit_title', defaultMessage: 'Edit Announcement'});
+        goToScreen(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
+    }, [channelId, intl]);
+
+    const handleManageMembers = useCallback(async () => {
+        const title = intl.formatMessage({id: 'channel_info_rhs.gm.member_management', defaultMessage: 'Member Management'});
+        goToScreen(Screens.MANAGE_CHANNEL_MEMBERS, title, {});
+    }, [intl]);
 
     const handleToggleMute = useCallback(() => {
         toggleMuteChannel(serverUrl, channelId);
@@ -257,6 +292,35 @@ const ChannelInfoGM = ({
                         <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
                     </TouchableOpacity>
 
+                    {/* Group Announcement — tap to edit (owner only) */}
+                    {isChannelCreator ? (
+                        <TouchableOpacity
+                            onPress={handleEditAnnouncement}
+                            style={styles.announcementRow}
+                            testID='channel_info_gm.announcement'
+                        >
+                            <Text style={styles.announcementLabel}>
+                                {intl.formatMessage({id: 'channel_info_rhs.gm.announcement', defaultMessage: 'Group Announcement'})}
+                            </Text>
+                            <Text
+                                style={[styles.announcementValue, channelHeader?.trim() ? styles.announcementValueSet : undefined]}
+                                numberOfLines={1}
+                            >
+                                {channelHeader?.trim() || intl.formatMessage({id: 'channel_info_rhs.gm.announcement.empty_prompt', defaultMessage: 'Members will be notified after publishing'})}
+                            </Text>
+                            <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
+                        </TouchableOpacity>
+                    ) : (channelHeader?.trim() ? (
+                        <View style={styles.announcementRow}>
+                            <Text style={styles.announcementLabel}>
+                                {intl.formatMessage({id: 'channel_info_rhs.gm.announcement', defaultMessage: 'Group Announcement'})}
+                            </Text>
+                            <Text style={[styles.announcementValue, styles.announcementValueSet]}>
+                                {channelHeader}
+                            </Text>
+                        </View>
+                    ) : null)}
+
                     {/* My Nickname in this group — tap to open edit screen */}
                     <TouchableOpacity
                         onPress={handleEditNickname}
@@ -277,6 +341,21 @@ const ChannelInfoGM = ({
                         onPress={handleSearchHistory}
                         testID='channel_info_gm.search_history'
                     />
+
+                    {/* Member management (owner only) */}
+                    {isChannelCreator && (
+                        <TouchableOpacity
+                            onPress={handleManageMembers}
+                            style={styles.nicknameRow}
+                            testID='channel_info_gm.member_management'
+                        >
+                            <Text style={styles.navRowLabel}>
+                                {intl.formatMessage({id: 'channel_info_rhs.gm.member_management', defaultMessage: 'Member Management'})}
+                            </Text>
+                            <View style={{flex: 1}}/>
+                            <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
+                        </TouchableOpacity>
+                    )}
 
                     {/* Toggle section */}
                     <View style={styles.toggleSection}>
