@@ -131,6 +131,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const currentTeamId = useMemo(() => currentTeam?.id, [currentTeam]);
     const isErpTeam = useMemo(() => Boolean(dashboardAccess?.erp_address), [dashboardAccess]);
     const conversationsEnabled = useMemo(() => dashboardAccess?.conversations_enabled === true, [dashboardAccess]);
+    const teamMes = useMemo(() => dashboardAccess?.team_mes_enabled === true, [dashboardAccess]);
+    const isTeamAdmin = useMemo(() => dashboardAccess?.is_admin === true, [dashboardAccess]);
+    const teamSidebarAdmin = useMemo(() => dashboardAccess?.sidebar_admin_enabled === true, [dashboardAccess]);
 
     const styles = getStyleSheet(theme);
 
@@ -177,35 +180,52 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             if (app.key === 'conversations' && !conversationsEnabled) {
                 return false;
             }
-            // MES: require mes_enabled
-            if (app.key === 'mes' && !dashboardAccess.mes_enabled) {
-                return false;
+            // MES: require both API-level mes_enabled AND team-level mes_enabled (matches webapp)
+            if (app.key === 'mes') {
+                return Boolean(dashboardAccess.mes_enabled) && teamMes;
             }
-            // Role Management: require configurable (admin access)
-            if (app.key === 'role_management' && !dashboardAccess.configurable) {
-                return false;
+            // Role Management: require isTeamAdmin AND team sidebar_admin_enabled (matches webapp)
+            if (app.key === 'role_management') {
+                return isTeamAdmin && teamSidebarAdmin;
             }
             // Apps with noPermission are always visible
             if (app.noPermission) {
                 return true;
             }
-            // All other apps require explicit permission
+            // All other apps require explicit permission in tabs list
             return allowedTabs.has(app.key);
         });
-    }, [dashboardAccess, isErpTeam, conversationsEnabled]);
+    }, [dashboardAccess, isErpTeam, conversationsEnabled, teamMes, isTeamAdmin, teamSidebarAdmin]);
 
     const handleAppPress = useCallback((app: AppDef) => {
-        if (app.key === 'mes') {
-            navigation.navigate(Screens.APPS_MES);
-        } else if (app.key === 'promotion') {
-            navigation.navigate(Screens.APPS_PROMOTION);
-        } else if (app.key === 'role_management') {
-            navigation.navigate(Screens.APPS_ROLE_MANAGEMENT);
-        } else {
-            navigation.navigate(Screens.APPS_WEBVIEW, {
-                appKey: app.key,
-                title: app.defaultLabel,
-            });
+        switch (app.key) {
+            case 'mes':
+                navigation.navigate(Screens.APPS_MES);
+                break;
+            case 'promotion':
+                navigation.navigate(Screens.APPS_PROMOTION);
+                break;
+            case 'role_management':
+                navigation.navigate(Screens.APPS_ROLE_MANAGEMENT);
+                break;
+            case 'price_list':
+                navigation.navigate(Screens.APPS_PRICE_LIST);
+                break;
+            case 'cloud_drive':
+                navigation.navigate(Screens.APPS_CLOUD_DRIVE);
+                break;
+            case 'knowledge_base':
+                navigation.navigate(Screens.APPS_KNOWLEDGE_BASE);
+                break;
+            case 'notebook':
+                navigation.navigate(Screens.APPS_NOTEBOOK);
+                break;
+            default:
+                navigation.navigate(Screens.APPS_WEBVIEW, {
+                    appKey: app.key,
+                    title: app.defaultLabel,
+                });
+                break;
         }
     }, [navigation]);
 

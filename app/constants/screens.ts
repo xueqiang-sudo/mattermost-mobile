@@ -89,6 +89,10 @@ export const APPS_HOME = 'AppsHome';
 export const APPS_MES = 'AppsMes';
 export const APPS_PROMOTION = 'AppsPromotion';
 export const APPS_ROLE_MANAGEMENT = 'AppsRoleManagement';
+export const APPS_PRICE_LIST = 'AppsPriceList';
+export const APPS_CLOUD_DRIVE = 'AppsCloudDrive';
+export const APPS_KNOWLEDGE_BASE = 'AppsKnowledgeBase';
+export const APPS_NOTEBOOK = 'AppsNotebook';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -231,6 +235,10 @@ export default {
     APPS_MES,
     APPS_PROMOTION,
     APPS_ROLE_MANAGEMENT,
+    APPS_PRICE_LIST,
+    APPS_CLOUD_DRIVE,
+    APPS_KNOWLEDGE_BASE,
+    APPS_NOTEBOOK,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,

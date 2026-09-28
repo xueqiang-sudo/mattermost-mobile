@@ -11,6 +11,7 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {
     createSubDepartment,
     deleteContactDepartmentForce,
+    ensureTeamDefaultDepartment,
     fetchContactDepartment,
     fetchContactDirectoryContent,
     fetchDepartmentDetail,
@@ -39,6 +40,7 @@ import {getContactListDisplayName} from '@utils/contact_section';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
 import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
 import {bottomSheetSnapPoint} from '@utils/helpers';
+import {logDebug} from '@utils/log';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -945,37 +947,44 @@ const ContactsDepartmentDetail = ({
             return;
         }
 
-        if (departmentId == null) {
-            const res = await fetchContactDirectoryContent(serverUrl, companyId, undefined);
-            if (!mounted.current) {
-                return;
-            }
-            if (!res.error && res.data) {
-                setSubDepartments(res.data.departments);
-                setEmployees(res.data.employees);
-                setMemberCount(res.data.memberCount ?? 0);
-            }
-        } else {
-            const [detailRes, countRes] = await Promise.all([
-                fetchDepartmentDetail(serverUrl, companyId, departmentId),
-                fetchEmployeeCountOfDepartment(serverUrl, companyId, departmentId),
-            ]);
+        try {
+            if (departmentId == null) {
+                // Ensure the default department exists before loading (matches webapp)
+                await ensureTeamDefaultDepartment(serverUrl, companyId);
 
-            if (!mounted.current) {
-                return;
-            }
+                const res = await fetchContactDirectoryContent(serverUrl, companyId, undefined);
+                if (!mounted.current) {
+                    return;
+                }
+                if (!res.error && res.data) {
+                    setSubDepartments(res.data.departments);
+                    setEmployees(res.data.employees);
+                    setMemberCount(res.data.memberCount ?? 0);
+                }
+            } else {
+                const [detailRes, countRes] = await Promise.all([
+                    fetchDepartmentDetail(serverUrl, companyId, departmentId),
+                    fetchEmployeeCountOfDepartment(serverUrl, companyId, departmentId),
+                ]);
 
-            if (!detailRes.error && detailRes.data) {
-                setSubDepartments(detailRes.data.subDepartments);
-                setEmployees(detailRes.data.employees);
-            }
-            if (!countRes.error && countRes.data !== undefined) {
-                setMemberCount(countRes.data);
-            }
-        }
+                if (!mounted.current) {
+                    return;
+                }
 
-        if (mounted.current) {
-            setLoading(false);
+                if (!detailRes.error && detailRes.data) {
+                    setSubDepartments(detailRes.data.subDepartments);
+                    setEmployees(detailRes.data.employees);
+                }
+                if (!countRes.error && countRes.data !== undefined) {
+                    setMemberCount(countRes.data);
+                }
+            }
+        } catch (error) {
+            logDebug('[ContactsDepartmentDetail.fetchData] error', error);
+        } finally {
+            if (mounted.current) {
+                setLoading(false);
+            }
         }
     }, [companyId, departmentId, serverUrl]);
 

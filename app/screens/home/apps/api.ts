@@ -33,6 +33,8 @@ export type DashboardAccess = {
     allowed_contact_types?: string[];
     erp_address?: string;
     conversations_enabled?: boolean;
+    team_mes_enabled?: boolean;
+    sidebar_admin_enabled?: boolean;
 };
 
 export type AppDef = {
@@ -261,6 +263,8 @@ export async function getDashboardAccess(serverUrl: string, teamId?: string): Pr
         if (team) {
             data.erp_address = (team as any).erp_address || '';
             data.conversations_enabled = Boolean((team as any).conversations_enabled);
+            data.team_mes_enabled = Boolean((team as any).mes_enabled);
+            data.sidebar_admin_enabled = Boolean((team as any).sidebar_admin_enabled);
         }
         return data;
     } catch {
@@ -275,6 +279,8 @@ export async function getDashboardAccess(serverUrl: string, teamId?: string): Pr
             mes_enabled: true,
             erp_address: (team as any)?.erp_address || '',
             conversations_enabled: Boolean((team as any)?.conversations_enabled),
+            team_mes_enabled: Boolean((team as any)?.mes_enabled),
+            sidebar_admin_enabled: Boolean((team as any)?.sidebar_admin_enabled),
             contact_edit: false,
             contact_scope: 'own',
             allowed_contact_types: ['internal'],
