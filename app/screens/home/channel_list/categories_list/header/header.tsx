@@ -4,7 +4,7 @@
 import {useNetInfo} from '@react-native-community/netinfo';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {type Insets, StyleSheet, Text, View} from 'react-native';
+import {type Insets, Modal, StyleSheet, Text, View} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -381,7 +381,7 @@ const ChannelListHeader = ({
         }
         showModal(
             Screens.CREATE_CATEGORY,
-            intl.formatMessage({id: 'create_category_modal.createCategory', defaultMessage: 'Create New Category'}),
+            intl.formatMessage({id: 'create_category_modal.title', defaultMessage: 'Create Category'}),
             {teamId},
         );
     }, [currentTeam, intl]);
@@ -597,7 +597,7 @@ const ChannelListHeader = ({
             </View>
 
             {/* Internal invite dialog */}
-            {showInviteDialog && (
+            <Modal visible={showInviteDialog} transparent={true} animationType='fade' onRequestClose={() => setShowInviteDialog(false)}>
                 <TouchableWithFeedback
                     onPress={() => setShowInviteDialog(false)}
                     style={styles.inviteOverlay}
@@ -653,10 +653,10 @@ const ChannelListHeader = ({
                         </View>
                     </TouchableWithFeedback>
                 </TouchableWithFeedback>
-            )}
+            </Modal>
 
             {/* External invite dialog */}
-            {showExternalInviteDialog && (
+            <Modal visible={showExternalInviteDialog} transparent={true} animationType='fade' onRequestClose={() => setShowExternalInviteDialog(false)}>
                 <TouchableWithFeedback
                     onPress={() => setShowExternalInviteDialog(false)}
                     style={styles.inviteOverlay}
@@ -715,7 +715,7 @@ const ChannelListHeader = ({
                         </View>
                     </TouchableWithFeedback>
                 </TouchableWithFeedback>
-            )}
+            </Modal>
         </Animated.View>
     );
 };

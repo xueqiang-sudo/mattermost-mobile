@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -521,6 +522,7 @@ const MesScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [teamId, setTeamId] = useState('');
@@ -866,6 +868,9 @@ const MesScreen = () => {
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             {/* Header */}
             <View style={style.header}>
+                <TouchableOpacity style={style.refreshBtn} onPress={() => navigation.goBack()}>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
                 <Text style={style.headerTitle}>{intl.formatMessage({id: 'mes.title', defaultMessage: 'MES'})}</Text>
                 <TouchableOpacity style={style.refreshBtn} onPress={loadData}>
                     <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>

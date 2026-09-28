@@ -246,14 +246,12 @@ export default function ChannelAddMembers({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [candidates, setCandidates] = useState<{
-        suppliers: CandidateProfile[];
-        customers: CandidateProfile[];
         enterprise: CandidateProfile[];
         external: CandidateProfile[];
-    }>({suppliers: [], customers: [], enterprise: [], external: []});
+    }>({enterprise: [], external: []});
     const [showDropdown, setShowDropdown] = useState(false);
     const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'external']));
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['enterprise', 'external']));
     const [isAdding, setIsAdding] = useState(false);
 
     const teamIdForMembersList = channel?.teamId || currentTeamId || '';
@@ -280,12 +278,12 @@ export default function ChannelAddMembers({
         getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId).then((drafts) => {
             const profiles = mapCandidateDraftsToProfiles(drafts);
             const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
-            setCandidates((prev) => ({
-                ...prev,
-                suppliers: profiles.filter((p) => p.mmCandidateTags?.includes('supplier') && notSelf(p)),
-                customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer') && notSelf(p)),
+            const isExternal = (p: CandidateProfile) =>
+                !p.mmCandidateTags?.includes('enterprise') && !p.mmCandidateTags?.includes('self');
+            setCandidates({
                 enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise') && notSelf(p)),
-            }));
+                external: profiles.filter((p) => notSelf(p) && isExternal(p)),
+            });
             setKnownProfiles((prev) => {
                 const next = new Map(prev);
                 profiles.forEach((p) => next.set(p.id, p));
@@ -294,7 +292,7 @@ export default function ChannelAddMembers({
         });
     }, [serverUrl, teamIdForMembersList, currentUserId]);
 
-    // Search for external contacts only (suppliers/customers/enterprise are filtered client-side)
+    // Search for external contacts (enterprise is filtered client-side)
     useEffect(() => {
         if (!searchTerm.trim()) {
             return;
@@ -303,8 +301,6 @@ export default function ChannelAddMembers({
             const profiles = mapCandidateDraftsToProfiles(drafts);
             const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
             const isExternal = (p: CandidateProfile) =>
-                !p.mmCandidateTags?.includes('customer') &&
-                !p.mmCandidateTags?.includes('supplier') &&
                 !p.mmCandidateTags?.includes('enterprise');
             const newExternals = profiles.filter((p) => notSelf(p) && isExternal(p));
             if (newExternals.length > 0) {
@@ -344,8 +340,6 @@ export default function ChannelAddMembers({
             return name.includes(term) || username.includes(term);
         };
         return {
-            suppliers: candidates.suppliers.filter(filterFn),
-            customers: candidates.customers.filter(filterFn),
             enterprise: candidates.enterprise.filter(filterFn),
             external: candidates.external.filter(filterFn),
         };
@@ -549,16 +543,6 @@ export default function ChannelAddMembers({
                 renderItem={() => null}
                 ListHeaderComponent={
                     <>
-                        {renderSection(
-                            intl.formatMessage({id: 'channel_add_members.suppliers', defaultMessage: 'My Suppliers'}),
-                            'suppliers',
-                            filteredCandidates.suppliers,
-                        )}
-                        {renderSection(
-                            intl.formatMessage({id: 'channel_add_members.customers', defaultMessage: 'My Customers'}),
-                            'customers',
-                            filteredCandidates.customers,
-                        )}
                         {renderSection(
                             intl.formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
                             'enterprise',

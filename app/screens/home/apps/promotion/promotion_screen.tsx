@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation} from '@react-navigation/native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
@@ -171,6 +172,7 @@ const PromotionScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [currentUserId, setCurrentUserId] = useState('');
@@ -333,11 +335,12 @@ const PromotionScreen = () => {
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             {/* Header */}
             <View style={style.header}>
-                {drillStack.length > 0 && (
-                    <TouchableOpacity style={style.backBtn} onPress={handleBack}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    style={style.backBtn}
+                    onPress={drillStack.length > 0 ? handleBack : () => navigation.goBack()}
+                >
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
                 <Text style={style.headerTitle}>
                     {currentViewUser
                         ? `${currentViewUser.userName} ${intl.formatMessage({id: 'promotion.invited_people', defaultMessage: "'s Invitations"})}`

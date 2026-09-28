@@ -191,12 +191,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     bottomBar: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    cancelButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    cancelButtonText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
     },
     doneButton: {
         backgroundColor: theme.buttonBg,
@@ -259,13 +267,11 @@ export default function CreateDirectMessage({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [candidates, setCandidates] = useState<{
-        suppliers: CandidateProfile[];
-        customers: CandidateProfile[];
         enterprise: CandidateProfile[];
         external: CandidateProfile[];
-    }>({suppliers: [], customers: [], enterprise: [], external: []});
+    }>({enterprise: [], external: []});
     const [knownProfiles, setKnownProfiles] = useState<Map<string, CandidateProfile>>(new Map());
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['suppliers', 'customers', 'enterprise', 'external']));
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['enterprise', 'external']));
     const [startingConversation, setStartingConversation] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
 
@@ -304,12 +310,12 @@ export default function CreateDirectMessage({
         getEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId).then((drafts) => {
             const profiles = mapCandidateDraftsToProfiles(drafts);
             const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
-            setCandidates((prev) => ({
-                ...prev,
-                suppliers: profiles.filter((p) => p.mmCandidateTags?.includes('supplier') && notSelf(p)),
-                customers: profiles.filter((p) => p.mmCandidateTags?.includes('customer') && notSelf(p)),
+            const isExternal = (p: CandidateProfile) =>
+                !p.mmCandidateTags?.includes('enterprise') && !p.mmCandidateTags?.includes('self');
+            setCandidates({
                 enterprise: profiles.filter((p) => p.mmCandidateTags?.includes('enterprise') && notSelf(p)),
-            }));
+                external: profiles.filter((p) => notSelf(p) && isExternal(p)),
+            });
             setKnownProfiles((prev) => {
                 const next = new Map(prev);
                 profiles.forEach((p) => next.set(p.id, p));
@@ -318,7 +324,7 @@ export default function CreateDirectMessage({
         });
     }, [serverUrl, teamIdForMembersList, currentUserId]);
 
-    // Search for external contacts only (suppliers/customers/enterprise are filtered client-side)
+    // Search for external contacts (enterprise is filtered client-side)
     useEffect(() => {
         if (!searchTerm.trim()) {
             return;
@@ -327,8 +333,6 @@ export default function CreateDirectMessage({
             const profiles = mapCandidateDraftsToProfiles(drafts);
             const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
             const isExternal = (p: CandidateProfile) =>
-                !p.mmCandidateTags?.includes('customer') &&
-                !p.mmCandidateTags?.includes('supplier') &&
                 !p.mmCandidateTags?.includes('enterprise');
             const newExternals = profiles.filter((p) => notSelf(p) && isExternal(p));
             if (newExternals.length > 0) {
@@ -357,8 +361,6 @@ export default function CreateDirectMessage({
             return name.includes(term) || username.includes(term);
         };
         return {
-            suppliers: candidates.suppliers.filter(filterFn),
-            customers: candidates.customers.filter(filterFn),
             enterprise: candidates.enterprise.filter(filterFn),
             external: candidates.external.filter(filterFn),
         };
@@ -524,7 +526,7 @@ export default function CreateDirectMessage({
         if (isExistingChannel) {
             return intl.formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'});
         }
-        return intl.formatMessage({id: 'mobile.create_direct_message.start', defaultMessage: 'Start Conversation'});
+        return intl.formatMessage({id: 'mobile.create_direct_message.done', defaultMessage: 'Done'});
     }, [intl, newSelectedIds.size, isExistingChannel]);
 
     const renderCheckbox = (userId: string) => {
@@ -669,16 +671,6 @@ export default function CreateDirectMessage({
                 ListHeaderComponent={
                     <>
                         {renderSection(
-                            intl.formatMessage({id: 'channel_add_members.suppliers', defaultMessage: 'My Suppliers'}),
-                            'suppliers',
-                            filteredCandidates.suppliers,
-                        )}
-                        {renderSection(
-                            intl.formatMessage({id: 'channel_add_members.customers', defaultMessage: 'My Customers'}),
-                            'customers',
-                            filteredCandidates.customers,
-                        )}
-                        {renderSection(
                             intl.formatMessage({id: 'channel_add_members.enterprise', defaultMessage: 'Enterprise Members'}),
                             'enterprise',
                             filteredCandidates.enterprise,
@@ -695,6 +687,14 @@ export default function CreateDirectMessage({
             {/* Bottom bar — only for default and group_only variants */}
             {variant !== 'dm_only' && (
                 <View style={style.bottomBar}>
+                    <TouchableOpacity
+                        style={style.cancelButton}
+                        onPress={close}
+                    >
+                        <Text style={style.cancelButtonText}>
+                            {intl.formatMessage({id: 'mobile.create_direct_message.cancel', defaultMessage: 'Cancel'})}
+                        </Text>
+                    </TouchableOpacity>
                     <TouchableOpacity
                         style={[style.doneButton, newSelectedIds.size === 0 && style.doneButtonDisabled]}
                         onPress={handleDone}

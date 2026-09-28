@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -324,6 +325,7 @@ const RoleManagementScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [teamId, setTeamId] = useState('');
@@ -610,6 +612,9 @@ const RoleManagementScreen = () => {
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             {/* Header */}
             <View style={style.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{padding: 4, marginRight: 8}}>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
                 <Text style={style.headerTitle}>
                     {intl.formatMessage({id: 'role_management.title', defaultMessage: '角色管理'})}
                 </Text>

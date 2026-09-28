@@ -17,7 +17,7 @@ import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
-import {goToScreen} from '@screens/navigation';
+
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -129,8 +129,8 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const [homeReappearTick, setHomeReappearTick] = useState(0);
 
     const currentTeamId = useMemo(() => currentTeam?.id, [currentTeam]);
-    const isErpTeam = useMemo(() => Boolean((currentTeam as any)?.erp_address), [currentTeam]);
-    const conversationsEnabled = useMemo(() => (currentTeam as any)?.conversations_enabled === true, [currentTeam]);
+    const isErpTeam = useMemo(() => Boolean(dashboardAccess?.erp_address), [dashboardAccess]);
+    const conversationsEnabled = useMemo(() => dashboardAccess?.conversations_enabled === true, [dashboardAccess]);
 
     const styles = getStyleSheet(theme);
 
@@ -195,7 +195,6 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     }, [dashboardAccess, isErpTeam, conversationsEnabled]);
 
     const handleAppPress = useCallback((app: AppDef) => {
-        const title = intl.formatMessage({id: app.labelId, defaultMessage: app.defaultLabel});
         if (app.key === 'mes') {
             navigation.navigate(Screens.APPS_MES);
         } else if (app.key === 'promotion') {
@@ -203,12 +202,12 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         } else if (app.key === 'role_management') {
             navigation.navigate(Screens.APPS_ROLE_MANAGEMENT);
         } else {
-            goToScreen(Screens.APPS_WEBVIEW, title, {
+            navigation.navigate(Screens.APPS_WEBVIEW, {
                 appKey: app.key,
                 title: app.defaultLabel,
             });
         }
-    }, [intl, navigation]);
+    }, [navigation]);
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),

@@ -100,9 +100,9 @@ export async function searchEmployeeCandidates(
     return candidateDrafts;
 }
 
-/** 获取候选联系人列表
+/** 获取候选联系人列表（对标 webapp）
  * 1. 企业员工(通讯录员工)
- * 2. 获取我的联系人(供应商/客户)
+ * 2. 外部联系人
  */
 export async function getEmployeeCandidates(
     serverUrl: string,
@@ -111,21 +111,19 @@ export async function getEmployeeCandidates(
 ): Promise<CandidateDraft[]> {
     const drafts = new Map<string, CandidateDraft>();
     const draftUids = new Set<string>();
-    const [enterpriseRes, fullEmployeeContactsRes] = await Promise.all([
+    const [enterpriseRes, externalRes] = await Promise.all([
         fetchProfilesInTeam(serverUrl, teamId, undefined, undefined, undefined, undefined, true),
-        fetchAllEmployeeContacts(serverUrl, currentUserId, {granularity: 2}),
+        fetchEmployeeContacts(serverUrl, currentUserId, MMEmployeeContactTypes.External, {page: 0, perPage: 200, granularity: 2}),
     ]);
     for (const user of enterpriseRes.users ?? []) {
         const draft = ensureDraft(draftUids, drafts, user, currentUserId);
         draft.sourceFlags.enterpriseSearch = true;
     }
-    for (const employeeContact of fullEmployeeContactsRes.data?.suppliers ?? []) {
-        const draft = ensureDraft(draftUids, drafts, employeeContact.contact as SimpleUserProfile, currentUserId);
-        draft.sourceFlags.supplier = true;
-    }
-    for (const employeeContact of fullEmployeeContactsRes.data?.customers ?? []) {
-        const draft = ensureDraft(draftUids, drafts, employeeContact.contact as SimpleUserProfile, currentUserId);
-        draft.sourceFlags.customer = true;
+    for (const employeeContact of (externalRes.data ?? []) as MMEmployeeContactSimple[]) {
+        if (employeeContact.contact) {
+            const draft = ensureDraft(draftUids, drafts, employeeContact.contact, currentUserId);
+            draft.sourceFlags.globalSearch = true;
+        }
     }
     const candidateDrafts: CandidateDraft[] = [];
     draftUids.forEach((uid) => {

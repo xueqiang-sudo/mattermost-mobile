@@ -139,6 +139,7 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
                     {() => (
                         <ExternalContactsScreen
                             currentUser={currentUser}
+                            currentTeam={currentTeam}
                         />
                     )}
                 </Stack.Screen>

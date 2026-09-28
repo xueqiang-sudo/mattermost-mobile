@@ -31,6 +31,8 @@ export type DashboardAccess = {
     contact_edit?: boolean;
     contact_scope?: string;
     allowed_contact_types?: string[];
+    erp_address?: string;
+    conversations_enabled?: boolean;
 };
 
 export type AppDef = {
@@ -242,16 +244,27 @@ export async function fetchInvitations(serverUrl: string, userId: string): Promi
 
 /**
  * Fetch the user's dashboard access (visible tabs + admin status).
+ * Also fetches the team object to get erp_address and conversations_enabled,
+ * which are custom server fields not stored in the local WatermelonDB model.
  */
 export async function getDashboardAccess(serverUrl: string, teamId?: string): Promise<DashboardAccess> {
     const client = NetworkManager.getClient(serverUrl);
     const params = teamId ? `?team_id=${teamId}` : '';
     const url = `${FRAPPE_SYNC_BASE}/api/dashboard/access${params}`;
 
+    // Fetch team data in parallel to get erp_address and conversations_enabled
+    const teamPromise = teamId ? client.getTeam(teamId).catch(() => null) : Promise.resolve(null);
+
     try {
         const data = await client.doFetch(url, {method: 'get'});
+        const team = await teamPromise;
+        if (team) {
+            data.erp_address = (team as any).erp_address || '';
+            data.conversations_enabled = Boolean((team as any).conversations_enabled);
+        }
         return data;
     } catch {
+        const team = await teamPromise;
         // Fallback: return all tabs if API fails
         return {
             tabs: ['conversations', 'finance', 'sales', 'hotproducts', 'inventory',
@@ -259,6 +272,9 @@ export async function getDashboardAccess(serverUrl: string, teamId?: string): Pr
                 'knowledge_base', 'notebook'],
             is_admin: false,
             configurable: false,
+            mes_enabled: true,
+            erp_address: (team as any)?.erp_address || '',
+            conversations_enabled: Boolean((team as any)?.conversations_enabled),
             contact_edit: false,
             contact_scope: 'own',
             allowed_contact_types: ['internal'],
