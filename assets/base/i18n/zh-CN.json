@@ -156,6 +156,7 @@
   "channel_files.noFiles.paragraph": "此内部群未包含任何应用的过滤器的文件",
   "channel_files.noFiles.title": "未找到文件",
   "channel_header.directchannel.you": "{displayName} (您)",
+  "channel_header.groupchannel.default_title": "群聊",
   "channel_header.info": "查看信息",
   "channel_header.member_count": "{count, plural, other {# 位成员}}",
   "channel_header.title_with_member_count": "{name}（{count}）",
@@ -2459,5 +2460,9 @@
   "contacts.set_department_roles": "设置部门角色",
   "contacts.no_roles": "未分配角色",
   "contacts.role_saved": "角色保存成功",
-  "contacts.role_save_failed": "角色保存失败"
+  "contacts.role_save_failed": "角色保存失败",
+  "channel_header.ai_customer_service": "AI客服",
+  "channel_header.overflow.title": "更多",
+  "consultation.title": "咨询专家",
+  "ai_assistant.title": "AI助手"
 }

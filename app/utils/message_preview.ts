@@ -15,12 +15,16 @@ function stripBasicMarkdown(text: string): string {
         trim();
 }
 
+/** Strip !{file:ID} markers inserted by the webapp rich text editor */
+const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
+
 /** Format post message for conversation list preview */
 export function formatMessagePreview(message: string | undefined, maxLength = MAX_PREVIEW_LENGTH): string {
     if (!message || typeof message !== 'string') {
         return '';
     }
-    const cleaned = stripBasicMarkdown(message);
+    const withoutFileMarkers = message.replace(FILE_MARKER_RE, '').trim();
+    const cleaned = stripBasicMarkdown(withoutFileMarkers);
     if (cleaned.length <= maxLength) {
         return cleaned;
     }

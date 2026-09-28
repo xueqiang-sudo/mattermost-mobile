@@ -9,6 +9,7 @@ import {getCallsConfig} from '@calls/state';
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
+import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -16,14 +17,15 @@ import {useIsTablet} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
 import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@playbooks/screens/navigation';
+import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
-import {popTopScreen, showModal} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, goToScreen, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 
 import ChannelHeaderBookmarks from './bookmarks';
 
@@ -46,6 +48,7 @@ type ChannelProps = {
     hasBookmarks: boolean;
     componentId?: AvailableScreens;
     displayName: string;
+    displayNameCustomized: boolean;
     isOwnDirectMessage: boolean;
     memberCount?: number;
     teamId: string;
@@ -98,6 +101,7 @@ const ChannelHeader = ({
     currentUserId,
     customStatus,
     displayName,
+    displayNameCustomized,
     hasBookmarks,
     isBookmarksEnabled,
     isCustomStatusEnabled,
@@ -159,9 +163,72 @@ const ChannelHeader = ({
     }), [channelId, channelName, channelType, intl, theme]));
 
     const onChannelQuickAction = useCallback(() => {
-        // 直接打开频道设置页面（与 PC webapp 对齐），不再弹出底部菜单
-        onTitlePress();
-    }, [onTitlePress]);
+        // Show overflow menu bottom sheet with AI features + channel settings
+        const isGM = channelType === General.GM_CHANNEL;
+        const isDM = channelType === General.DM_CHANNEL;
+
+        // Count items for snap point calculation
+        let itemCount = 1; // channel settings always shown
+        if (isGM) itemCount++; // AI customer service
+        if (!isDM) itemCount += 2; // consult expert + AI assistant
+
+        const renderContent = () => {
+            return (
+                <View>
+                    {isGM && (
+                        <SlideUpPanelItem
+                            leftIcon='robot'
+                            onPress={() => {
+                                dismissBottomSheet();
+                                openAICustomerService();
+                            }}
+                            testID='channel_header.overflow.ai_customer_service'
+                            text={intl.formatMessage({id: 'channel_header.ai_customer_service', defaultMessage: 'AI Customer Service'})}
+                        />
+                    )}
+                    {!isDM && (
+                        <SlideUpPanelItem
+                            leftIcon='account-question'
+                            onPress={() => {
+                                dismissBottomSheet();
+                                openConsultation();
+                            }}
+                            testID='channel_header.overflow.consultation'
+                            text={intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'})}
+                        />
+                    )}
+                    {!isDM && (
+                        <SlideUpPanelItem
+                            leftIcon='lightbulb-outline'
+                            onPress={() => {
+                                dismissBottomSheet();
+                                openAIAssistant();
+                            }}
+                            testID='channel_header.overflow.ai_assistant'
+                            text={intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'})}
+                        />
+                    )}
+                    <SlideUpPanelItem
+                        leftIcon='cog-outline'
+                        onPress={() => {
+                            dismissBottomSheet();
+                            onTitlePress();
+                        }}
+                        testID='channel_header.overflow.channel_settings'
+                        text={intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel Info'})}
+                    />
+                </View>
+            );
+        };
+
+        bottomSheet({
+            closeButtonId: 'close-channel-overflow',
+            renderContent,
+            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
+            title: intl.formatMessage({id: 'channel_header.overflow.title', defaultMessage: 'More'}),
+            theme,
+        });
+    }, [channelType, intl, theme, openAICustomerService, openConsultation, openAIAssistant, onTitlePress]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead
@@ -245,37 +312,7 @@ const ChannelHeader = ({
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
 
-        // AI Customer Service button (GM channels only)
-        if (channelType === General.GM_CHANNEL) {
-            buttons.push({
-                iconName: 'robot',
-                onPress: openAICustomerService,
-                buttonType: 'opacity',
-                testID: 'channel_header.ai_customer_service.button',
-            });
-        }
-
-        // Consult Expert button (for channels and GM, not DM)
-        if (channelType !== General.DM_CHANNEL) {
-            buttons.push({
-                iconName: 'account-question',
-                onPress: openConsultation,
-                buttonType: 'opacity',
-                testID: 'channel_header.consultation.button',
-            });
-        }
-
-        // AI Assistant button (for channels and GM, not DM)
-        if (channelType !== General.DM_CHANNEL) {
-            buttons.push({
-                iconName: 'lightbulb-outline',
-                onPress: openAIAssistant,
-                buttonType: 'opacity',
-                testID: 'channel_header.ai_assistant.button',
-            });
-        }
-
-        // 手机微信风格：仅保留「…」，Playbook 等收入底部菜单
+        // 手机微信风格：仅保留「…」，AI功能等收入底部菜单
         if (isTablet && isPlaybooksEnabled && !isDMorGM) {
             buttons.push({
                 iconName: 'product-playbooks',
@@ -293,12 +330,14 @@ const ChannelHeader = ({
         });
 
         return buttons;
-    }, [isTablet, isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, channelType, onChannelQuickAction, openPlaybooksRuns, openAICustomerService, openConsultation, openAIAssistant]);
+    }, [isTablet, isPlaybooksEnabled, playbooksActiveRuns, isDMorGM, onChannelQuickAction, openPlaybooksRuns]);
 
     let title = displayName;
     let titleSuffix: string | undefined;
     if (isOwnDirectMessage) {
         title = intl.formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
+    } else if (channelType === General.GM_CHANNEL && !displayNameCustomized) {
+        title = intl.formatMessage({id: 'channel_header.groupchannel.default_title', defaultMessage: 'Group Chat'});
     }
 
     // 手机微信风格：标题单行含人数，如「频道名 (7)」

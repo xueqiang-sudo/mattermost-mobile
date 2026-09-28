@@ -312,7 +312,11 @@ const Body = ({
         };
     }, [theme, weChatStyleActive]);
 
-    const displayMessage = post.message || post.messageSource;
+    // Strip !{file:ID} markers inserted by the webapp rich text editor.
+    // The <Files> component renders attachments via post.file_ids; the raw
+    // marker text should never appear in the chat bubble.
+    const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
+    const displayMessage = (post.message || post.messageSource).replace(FILE_MARKER_RE, '').trim();
     const quotedPostId = post.props?.quoted_post_id;
     const hasTextMessage = Boolean(displayMessage.length || isEdited);
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;

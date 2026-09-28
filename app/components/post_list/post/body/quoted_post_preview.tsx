@@ -82,7 +82,9 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, post, quoted
 
     const rawUsername = author?.username ?? '';
     const displayAuthor = rawUsername ? (rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`) : '';
-    const source = post.messageSource || post.message || '';
+    // Strip !{file:ID} markers from quoted post preview
+    const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
+    const source = (post.messageSource || post.message || '').replace(FILE_MARKER_RE, '').trim();
     const snippet = useMemo(() => source.trim().replace(/\n/g, ' ').slice(0, 64), [source]);
 
     return (

@@ -27,7 +27,7 @@ import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
 
 import AdditionalTabletView from './additional_tablet_view';
-import ConversationList from './conversation_list';
+import CategoriesList from './categories_list';
 
 import type {LaunchType} from '@typings/launch';
 
@@ -214,9 +214,8 @@ const ChannelListScreen = (props: ChannelProps) => {
                 <Animated.View
                     style={[styles.content, animated]}
                 >
-                    <ConversationList
+                    <CategoriesList
                         iconPad={false}
-                        isCRTEnabled={props.isCRTEnabled}
                         moreThanOneTeam={props.hasMoreThanOneTeam}
                         hasChannels={props.hasChannels}
                     />

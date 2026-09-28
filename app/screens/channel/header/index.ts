@@ -108,6 +108,10 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
         map(([c, t]) => getChannelTitleDisplayName(c, t?.displayName)),
         distinctUntilChanged(),
     );
+    const displayNameCustomized = channel.pipe(
+        switchMap((c) => of$(c?.displayNameCustomized ?? false)),
+        distinctUntilChanged(),
+    );
     const memberCount = channelInfo.pipe(
         combineLatestWith(dmUser),
         switchMap(([ci, dm]) => of$(dm ? undefined : ci?.memberCount)));
@@ -147,6 +151,7 @@ const enhanced = withObservables(['channelId'], ({channelId, database}: OwnProps
         currentUserId,
         customStatus,
         displayName,
+        displayNameCustomized,
         hasBookmarks,
         isBookmarksEnabled,
         isCustomStatusEnabled,

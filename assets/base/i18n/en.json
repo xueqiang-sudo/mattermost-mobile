@@ -156,6 +156,7 @@
   "channel_files.noFiles.paragraph": "This channel doesn't contain any files with the applied filters",
   "channel_files.noFiles.title": "No files Found",
   "channel_header.directchannel.you": "{displayName} (you)",
+  "channel_header.groupchannel.default_title": "Group Chat",
   "channel_header.info": "View info",
   "channel_header.member_count": "{count, plural, one {# member} other {# members}}",
   "channel_header.title_with_member_count": "{name} ({count})",
@@ -2461,5 +2462,9 @@
   "contacts.set_department_roles": "Set Department Roles",
   "contacts.no_roles": "No roles assigned",
   "contacts.role_saved": "Roles saved successfully",
-  "contacts.role_save_failed": "Failed to save roles"
+  "contacts.role_save_failed": "Failed to save roles",
+  "channel_header.ai_customer_service": "AI Customer Service",
+  "channel_header.overflow.title": "More",
+  "consultation.title": "Consult Expert",
+  "ai_assistant.title": "AI Assistant"
 }
