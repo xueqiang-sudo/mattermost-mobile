@@ -350,9 +350,36 @@ export async function fetchConversations(
     teamId: string,
     userId?: string,
 ): Promise<ConversationChannel[]> {
-    const params = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
-    const data = await apiFetch(serverUrl, `/api/v4/teams/${teamId}/conversations${params}`, {method: 'get'});
-    return Array.isArray(data) ? data : [];
+    const client = NetworkManager.getClient(serverUrl);
+
+    // If userId is provided, get channels for that user in the team
+    if (userId) {
+        try {
+            // Use standard Mattermost API to get user's channels in the team
+            const channels = await client.doFetch(
+                `/api/v4/users/${userId}/teams/${teamId}/channels`,
+                {method: 'get'},
+            );
+
+            if (!Array.isArray(channels)) {
+                return [];
+            }
+
+            // Transform to ConversationChannel format
+            return channels.map((ch: any) => ({
+                id: ch.id,
+                display_name: ch.display_name,
+                last_post_at: ch.last_post_at || 0,
+                member_ids: [], // Will be populated if needed
+            }));
+        } catch (err) {
+            console.error('[fetchConversations] Failed to fetch user channels:', err);
+            return [];
+        }
+    }
+
+    // If no userId, return empty array
+    return [];
 }
 
 // ---- Role Permissions ----

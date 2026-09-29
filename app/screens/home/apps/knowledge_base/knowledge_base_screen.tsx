@@ -539,10 +539,9 @@ const KnowledgeBaseScreen = () => {
                 setError(null);
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Failed to initialize';
+                console.error('[KB] Init failed:', message);
                 setError(message);
                 setLoading(false);
-                // Show Alert for debugging on real device
-                Alert.alert('知识库初始化失败', message);
             }
         };
         init();
@@ -576,8 +575,6 @@ const KnowledgeBaseScreen = () => {
             const message = err instanceof Error ? err.message : 'Failed to load documents';
             setError(message);
             setDocuments([]);
-            // Show Alert for debugging on real device
-            Alert.alert('知识库加载失败', message);
         } finally {
             setLoading(false);
         }

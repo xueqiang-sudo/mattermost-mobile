@@ -54,8 +54,18 @@ const BuiltinChannelGroupsRenderer = ({
     // Debug: Show alert with counts (temporary for debugging on real device)
     React.useEffect(() => {
         console.log('[BuiltinChannelGroups] Rendering with Internal:', internalChannelIds.length, 'External:', externalChannelIds.length);
-        // Show alert on device for debugging
-        Alert.alert('群组统计', `内部群: ${internalChannelIds.length}\n外部群: ${externalChannelIds.length}`);
+        // Show detailed alert on device for debugging
+        if (internalChannelIds.length > 0 || externalChannelIds.length > 0) {
+            setTimeout(() => {
+                Alert.alert(
+                    '群组分类结果',
+                    `内部群: ${internalChannelIds.length}\n` +
+                    `外部群: ${externalChannelIds.length}\n\n` +
+                    `内部群ID:\n${internalChannelIds.slice(0, 3).join('\n')}${internalChannelIds.length > 3 ? '\n...' : ''}\n\n` +
+                    `外部群ID:\n${externalChannelIds.slice(0, 3).join('\n')}${externalChannelIds.length > 3 ? '\n...' : ''}`
+                );
+            }, 1000);
+        }
     }, [internalChannelIds.length, externalChannelIds.length]);
 
     return (
@@ -120,17 +130,36 @@ const enhanced = withObservables(
         const builtInChannelIds = allUserChannels.pipe(
             combineLatestWith(customCategoryChannelIds, currentTeamId),
             map(([channels, customIds, teamId]) => {
-                return channels
-                    .filter(ch => {
-                        // Include if:
-                        // 1. It's a DM/GM (team_id might be empty or different)
-                        // 2. OR it belongs to the current team
-                        // AND it's not in a custom category
-                        const isInTeam = ch.type === 'D' || ch.type === 'G' || ch.teamId === teamId;
-                        const notInCustom = !customIds.has(ch.id);
-                        return isInTeam && notInCustom;
-                    })
-                    .map(ch => ch.id);
+                console.log('[BuiltinChannelGroups] Total channels:', channels.length);
+                console.log('[BuiltinChannelGroups] Custom category channels:', customIds.size);
+                console.log('[BuiltinChannelGroups] Current team ID:', teamId);
+
+                const filtered = channels.filter(ch => {
+                    // Include if:
+                    // 1. It's a DM/GM (team_id might be empty or different)
+                    // 2. OR it belongs to the current team
+                    // AND it's not in a custom category
+                    const isInTeam = ch.type === 'D' || ch.type === 'G' || ch.teamId === teamId;
+                    const notInCustom = !customIds.has(ch.id);
+                    return isInTeam && notInCustom;
+                });
+
+                console.log('[BuiltinChannelGroups] Filtered channels:', filtered.length);
+
+                // Show debug alert (only once)
+                if (channels.length > 0) {
+                    setTimeout(() => {
+                        Alert.alert(
+                            '频道过滤统计',
+                            `总频道数: ${channels.length}\n` +
+                            `自定义分类: ${customIds.size}\n` +
+                            `过滤后: ${filtered.length}\n` +
+                            `团队ID: ${teamId || '无'}`
+                        );
+                    }, 500);
+                }
+
+                return filtered.map(ch => ch.id);
             }),
         );
 
@@ -181,6 +210,8 @@ const enhanced = withObservables(
                 }
 
                 console.log('[BuiltinChannelGroups] Result: Internal:', internal.length, 'External:', external.length);
+                console.log('[BuiltinChannelGroups] Internal IDs:', internal);
+                console.log('[BuiltinChannelGroups] External IDs:', external);
 
                 return {internal, external};
             }),
