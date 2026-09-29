@@ -79,12 +79,6 @@ const Categories = ({
         // Sort custom categories by sortOrder
         custom.sort((a, b) => a.sortOrder - b.sortOrder);
 
-        // Debug logging
-        console.log('[Categories] Total:', categories.length, 'Built-in:', builtIn.length, 'Custom:', custom.length);
-        console.log('[Categories] Built-in types:', builtIn.map(c => c.type));
-        console.log('[Categories] Custom names:', custom.map(c => c.displayName));
-        console.log('[Categories] teamMemberIds size:', teamMemberIds.size);
-
         return {builtInCategories: builtIn, customCategories: custom};
     }, [categories, teamMemberIds]);
 

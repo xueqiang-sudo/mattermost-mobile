@@ -3,7 +3,6 @@
 
 import React from 'react';
 import {useIntl} from 'react-intl';
-import {Alert} from 'react-native';
 import {Q} from '@nozbe/watermelondb';
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
@@ -13,7 +12,11 @@ import {MM_TABLES} from '@constants/database';
 import {queryChannelsById} from '@queries/servers/channel';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 
-import ClassifiedGroup from './classified_group';
+// Import from ./classified_group/index explicitly to get the withObservables-wrapped
+// version that accepts channelIds:string[] and resolves them to sortedChannels:ChannelModel[].
+// A bare './classified_group' import resolves to classified_group.tsx (the raw component
+// which expects sortedChannels directly), not classified_group/index.ts (the wrapper).
+import ClassifiedGroup from './classified_group/index';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type CategoryModel from '@typings/database/models/servers/category';
@@ -51,23 +54,6 @@ const BuiltinChannelGroupsRenderer = ({
     const intl = useIntl();
     const internalTitle = intl.formatMessage({id: 'sidebar.classification.internal', defaultMessage: 'Internal'});
     const externalTitle = intl.formatMessage({id: 'sidebar.classification.external', defaultMessage: 'External'});
-
-    // Debug: Show alert with counts (temporary for debugging on real device)
-    React.useEffect(() => {
-        console.log('[BuiltinChannelGroups] Rendering with Internal:', internalChannelIds.length, 'External:', externalChannelIds.length);
-        // Show detailed alert on device for debugging
-        if (internalChannelIds.length > 0 || externalChannelIds.length > 0) {
-            setTimeout(() => {
-                Alert.alert(
-                    '群组分类结果',
-                    `内部群: ${internalChannelIds.length}\n` +
-                    `外部群: ${externalChannelIds.length}\n\n` +
-                    `内部群ID:\n${internalChannelIds.slice(0, 3).join('\n')}${internalChannelIds.length > 3 ? '\n...' : ''}\n\n` +
-                    `外部群ID:\n${externalChannelIds.slice(0, 3).join('\n')}${externalChannelIds.length > 3 ? '\n...' : ''}`
-                );
-            }, 1000);
-        }
-    }, [internalChannelIds.length, externalChannelIds.length]);
 
     return (
         <>
@@ -133,10 +119,6 @@ const enhanced = withObservables(
         const builtInChannelIds = allUserChannels.pipe(
             combineLatestWith(customCategoryChannelIds, currentTeamId),
             map(([channels, customIds, teamId]) => {
-                console.log('[BuiltinChannelGroups] Total channels:', channels.length);
-                console.log('[BuiltinChannelGroups] Custom category channels:', customIds.size);
-                console.log('[BuiltinChannelGroups] Current team ID:', teamId);
-
                 const filtered = channels.filter(ch => {
                     // Include if:
                     // 1. It's a DM/GM (team_id might be empty or different)
@@ -146,21 +128,6 @@ const enhanced = withObservables(
                     const notInCustom = !customIds.has(ch.id);
                     return isInTeam && notInCustom;
                 });
-
-                console.log('[BuiltinChannelGroups] Filtered channels:', filtered.length);
-
-                // Show debug alert (only once)
-                if (channels.length > 0) {
-                    setTimeout(() => {
-                        Alert.alert(
-                            '频道过滤统计',
-                            `总频道数: ${channels.length}\n` +
-                            `自定义分类: ${customIds.size}\n` +
-                            `过滤后: ${filtered.length}\n` +
-                            `团队ID: ${teamId || '无'}`
-                        );
-                    }, 500);
-                }
 
                 return filtered.map(ch => ch.id);
             }),
@@ -200,9 +167,6 @@ const enhanced = withObservables(
                 const internal: string[] = [];
                 const external: string[] = [];
 
-                console.log('[BuiltinChannelGroups] Classifying', chs.length, 'channels');
-                console.log('[BuiltinChannelGroups] Team members:', teamMembers.size);
-
                 for (const channel of chs) {
                     const group = classifyChannel(channel, userId, teamMembers, gmMembers);
                     if (group === 'internal') {
@@ -211,10 +175,6 @@ const enhanced = withObservables(
                         external.push(channel.id);
                     }
                 }
-
-                console.log('[BuiltinChannelGroups] Result: Internal:', internal.length, 'External:', external.length);
-                console.log('[BuiltinChannelGroups] Internal IDs:', internal);
-                console.log('[BuiltinChannelGroups] External IDs:', external);
 
                 return {internal, external};
             }),

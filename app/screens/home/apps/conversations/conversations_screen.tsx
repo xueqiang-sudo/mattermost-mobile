@@ -17,21 +17,22 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
+import Markdown from '@components/markdown';
+import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
-import {getCurrentTeamId} from '@queries/servers/system';
+import {getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import {fetchConversations, type ConversationChannel} from '../api';
 import {
     listConversations,
-    getConversationDetail,
-    type ConversationItem,
-    type ConversationDetail,
-    type ConversationMessage,
+    fetchFactQuery,
+    graduateMemory,
+    type ConversationChannel,
+    type FactQueryResult,
 } from '../workbench_api';
 
 // ---- Types ----
@@ -45,6 +46,58 @@ type Department = {
 };
 
 type ViewMode = 'setup' | 'dashboard';
+
+type RawMessage = {user: string; text: string; time: string};
+
+type DaySummary = {
+    date: string;
+    summary: string;
+    rawMessages: RawMessage[];
+    rawAvailable: boolean;
+    rawTruncated: boolean;
+    hasData: boolean;
+    loading: boolean;
+    error: string | null;
+};
+
+function pad(n: number): string {
+    return String(n).padStart(2, '0');
+}
+
+function localDayKey(d: Date): string {
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function getMonthDays(year: number, month: number): string[] {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return Array.from({length: daysInMonth}, (_, i) =>
+        `${year}-${pad(month + 1)}-${pad(i + 1)}`,
+    );
+}
+
+function getUserDisplayName(u: {first_name?: string; last_name?: string; nickname?: string; username: string}): string {
+    if (u.first_name || u.last_name) {
+        return `${u.first_name || ''} ${u.last_name || ''}`.trim();
+    }
+    return u.nickname || u.username;
+}
+
+function truncateText(text: string, maxLen: number): string {
+    if (text.length <= maxLen) return text;
+    return text.substring(0, maxLen) + '...';
+}
+
+function detectLocale(intl: ReturnType<typeof useIntl>): string {
+    const loc = intl.locale || '';
+    if (loc.startsWith('zh-TW') || loc.startsWith('zh-Hant')) return 'zh-TW';
+    if (loc.startsWith('zh')) return 'zh';
+    return 'en';
+}
+
+const DEFAULT_DAY_SUMMARY: DaySummary = {
+    date: '', summary: '', rawMessages: [], rawAvailable: false,
+    rawTruncated: false, hasData: false, loading: false, error: null,
+};
 
 // ---- Styles ----
 
@@ -350,6 +403,103 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'Regular'),
         color: theme.centerChannelColor,
     },
+    // Month navigation
+    monthNav: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        gap: 16,
+    },
+    monthBtn: {padding: 8},
+    monthLabel: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    // Day pills
+    dayPillRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 4,
+        marginTop: 8,
+    },
+    dayPill: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 36,
+        height: 32,
+        borderRadius: 6,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    dayPillActive: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.15),
+    },
+    dayLabel: {
+        fontSize: 12,
+        color: theme.centerChannelColor,
+    },
+    dayDot: {
+        width: 5,
+        height: 5,
+        borderRadius: 3,
+        marginTop: 2,
+    },
+    dayDotEmpty: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.16),
+    },
+    dayDotFilled: {
+        backgroundColor: theme.buttonBg,
+    },
+    dayDotLoading: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.4),
+    },
+    // Graduate button
+    graduateBtn: {
+        marginTop: 8,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 6,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+        alignSelf: 'flex-start',
+    },
+    graduateText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    graduateMsg: {
+        ...typography('Body', 25, 'Regular'),
+        color: theme.centerChannelColor,
+        marginTop: 4,
+    },
+    // Raw messages
+    rawToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingVertical: 8,
+    },
+    rawToggleText: {
+        ...typography('Body', 75, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+    },
+    rawMessage: {
+        paddingVertical: 6,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    rawTime: {
+        ...typography('Body', 25, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+    },
+    rawUser: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    rawText: {
+        ...typography('Body', 75, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.8),
+        marginTop: 2,
+    },
 }));
 
 // ---- Helpers ----
@@ -399,13 +549,21 @@ const ConversationsScreen = () => {
     const [showMemberModal, setShowMemberModal] = useState(false);
 
     // Dashboard state
-    const [channels, setChannels] = useState<ConversationChannel[]>([]);
-    const [conversations, setConversations] = useState<ConversationItem[]>([]);
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-    const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
+    const [conversations, setConversations] = useState<ConversationChannel[]>([]);
+    const [currentUserId, setCurrentUserId] = useState('');
+    const locale = detectLocale(intl);
+    const [userMap, setUserMap] = useState<Map<string, {id: string; username: string; first_name?: string; last_name?: string; nickname?: string}>>(new Map());
+    const [summaries, setSummaries] = useState<Map<string, Map<string, DaySummary>>>(new Map());
+    const [activeDay, setActiveDay] = useState<Map<string, string>>(new Map());
+    const [expandedRaw, setExpandedRaw] = useState<Set<string>>(new Set());
+    const now = new Date();
+    const [viewYear, setViewYear] = useState(now.getFullYear());
+    const [viewMonth, setViewMonth] = useState(now.getMonth());
+    const [graduatingPath, setGraduatingPath] = useState<string | null>(null);
+    const [graduateMsg, setGraduateMsg] = useState<{path: string; text: string; isError: boolean} | null>(null);
     const [loadingChannels, setLoadingChannels] = useState(false);
-    const [loadingDetail, setLoadingDetail] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const monthDays = useMemo(() => getMonthDays(viewYear, viewMonth), [viewYear, viewMonth]);
 
     // Init: load teamId
     useEffect(() => {
@@ -415,11 +573,15 @@ const ConversationsScreen = () => {
                     throw new Error('Server URL is not available');
                 }
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const tid = await getCurrentTeamId(database);
+                const [tid, uid] = await Promise.all([
+                    getCurrentTeamId(database),
+                    getCurrentUserId(database),
+                ]);
                 if (!tid) {
                     throw new Error('Team ID not found');
                 }
                 setTeamId(tid);
+                setCurrentUserId(uid || '');
             } catch (err) {
                 console.error('Failed to initialize conversations:', err);
                 setError(err instanceof Error ? err.message : 'Failed to initialize');
@@ -469,7 +631,201 @@ const ConversationsScreen = () => {
         loadMembers();
     }, [teamId, selectedDeptId, serverUrl]);
 
-    // Query conversations
+    // ---- Update summary for one channel+date ----
+    const updateSummary = useCallback((channelId: string, date: string, update: Partial<DaySummary>) => {
+        setSummaries((prev) => {
+            const next = new Map(prev);
+            let chMap = next.get(channelId);
+            if (!chMap) {
+                chMap = new Map();
+                next.set(channelId, chMap);
+            } else {
+                chMap = new Map(chMap);
+                next.set(channelId, chMap);
+            }
+            const existing = chMap.get(date) || {...DEFAULT_DAY_SUMMARY, date};
+            chMap.set(date, {...existing, ...update});
+            return next;
+        });
+    }, []);
+
+    // ---- Fetch one day's summary for one channel ----
+    const fetchDaySummary = useCallback(async (channelId: string, date: string) => {
+        updateSummary(channelId, date, {loading: true});
+        try {
+            const data = await fetchFactQuery(serverUrl, teamId, channelId, 'channel_history', {date});
+            const result = data.results?.[0];
+            updateSummary(channelId, date, {
+                summary: result?.memory || '',
+                rawMessages: result?.raw_messages || [],
+                rawAvailable: result?.raw_messages_available || false,
+                rawTruncated: result?.raw_messages_truncated || false,
+                hasData: Boolean(result?.memory || result?.raw_messages_available),
+                loading: false,
+                error: null,
+            });
+        } catch (err: any) {
+            updateSummary(channelId, date, {
+                loading: false,
+                error: err?.message || 'Failed',
+                hasData: false,
+            });
+        }
+    }, [serverUrl, teamId, updateSummary]);
+
+    // ---- Month navigation ----
+    const prevMonth = useCallback(() => {
+        setViewMonth((m) => {
+            if (m === 0) {
+                setViewYear((y) => y - 1);
+                return 11;
+            }
+            return m - 1;
+        });
+    }, []);
+
+    const nextMonth = useCallback(() => {
+        setViewMonth((m) => {
+            if (m === 11) {
+                setViewYear((y) => y + 1);
+                return 0;
+            }
+            return m + 1;
+        });
+    }, []);
+
+    // ---- Switch active day for a card ----
+    const switchDay = useCallback((channelId: string, date: string) => {
+        setActiveDay((prev) => {
+            const next = new Map(prev);
+            next.set(channelId, date);
+            return next;
+        });
+    }, []);
+
+    // ---- Toggle raw messages ----
+    const toggleRaw = useCallback((key: string) => {
+        setExpandedRaw((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+            return next;
+        });
+    }, []);
+
+    // ---- Graduate memory to KB ----
+    const handleGraduate = useCallback(async (memoryPath: string) => {
+        setGraduatingPath(memoryPath);
+        setGraduateMsg(null);
+        try {
+            await graduateMemory(serverUrl, teamId, memoryPath);
+            setGraduateMsg({
+                path: memoryPath,
+                text: intl.formatMessage({id: 'workbench.conversations.graduate_success', defaultMessage: '已归档到知识库'}),
+                isError: false,
+            });
+        } catch (err: any) {
+            setGraduateMsg({
+                path: memoryPath,
+                text: intl.formatMessage(
+                    {id: 'workbench.conversations.graduate_failed', defaultMessage: '归档失败: {error}'},
+                    {error: err?.message || '未知错误'},
+                ),
+                isError: true,
+            });
+        } finally {
+            setGraduatingPath(null);
+            setTimeout(() => setGraduateMsg(null), 3000);
+        }
+    }, [serverUrl, teamId, intl]);
+
+    // ---- Load summaries when month changes ----
+    useEffect(() => {
+        if (view !== 'dashboard' || conversations.length === 0) return;
+        for (const ch of conversations) {
+            for (const day of monthDays) {
+                const chMap = summaries.get(ch.id);
+                if (!chMap?.get(day)) {
+                    fetchDaySummary(ch.id, day);
+                }
+            }
+        }
+    }, [viewYear, viewMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ---- Resolve channel display name ----
+    const resolveChannelName = useCallback((ch: ConversationChannel): string => {
+        if (ch.type === 'G' && ch.display_name) return ch.display_name;
+        const otherIds = (ch.member_ids || []).filter((id) => id !== currentUserId);
+        if (otherIds.length === 1) {
+            const u = userMap.get(otherIds[0]);
+            return u ? getUserDisplayName(u) : ch.display_name || ch.id;
+        }
+        if (ch.display_name) return ch.display_name;
+        return (ch.member_ids || []).map((id) => {
+            const u = userMap.get(id);
+            return u ? getUserDisplayName(u) : id;
+        }).join(', ');
+    }, [currentUserId, userMap]);
+
+    // ---- Member names subtitle ----
+    const memberNames = useCallback((ch: ConversationChannel): string => {
+        return (ch.member_ids || []).map((id) => {
+            const u = userMap.get(id);
+            return u ? getUserDisplayName(u) : '';
+        }).filter(Boolean).join(', ');
+    }, [userMap]);
+
+    // ---- Total raw messages count ----
+    const totalRawMessages = useMemo(() => {
+        let count = 0;
+        for (const chMap of summaries.values()) {
+            for (const ds of chMap.values()) {
+                count += ds.rawMessages.length;
+            }
+        }
+        return count;
+    }, [summaries]);
+
+    // ---- Check if any loading in progress ----
+    const anyLoading = useMemo(() => {
+        for (const chMap of summaries.values()) {
+            for (const ds of chMap.values()) {
+                if (ds.loading) return true;
+            }
+        }
+        return false;
+    }, [summaries]);
+
+    // ---- Day pill label ----
+    const dayPillLabel = useCallback((dateStr: string): string => {
+        const today = localDayKey(new Date());
+        if (dateStr === today) {
+            const labels: Record<string, string> = {zh: '今天', 'zh-TW': '今天', en: 'Today'};
+            return labels[locale] || labels.en;
+        }
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (dateStr === localDayKey(yesterday)) {
+            const labels: Record<string, string> = {zh: '昨天', 'zh-TW': '昨天', en: 'Yest.'};
+            return labels[locale] || labels.en;
+        }
+        const d = new Date(dateStr + 'T00:00:00');
+        return String(d.getDate());
+    }, [locale]);
+
+    // ---- Month label ----
+    const monthLabel = useMemo(() => {
+        if (locale === 'zh' || locale === 'zh-TW') {
+            return `${viewYear}年${viewMonth + 1}月`;
+        }
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${monthNames[viewMonth]} ${viewYear}`;
+    }, [viewYear, viewMonth, locale]);
+
+    // ---- Query conversations ----
     const handleQuery = useCallback(async () => {
         if (!teamId) {
             Alert.alert('Error', 'Team ID is missing');
@@ -480,57 +836,97 @@ const ConversationsScreen = () => {
             return;
         }
 
-        console.log('[Conversations] Querying for teamId:', teamId, 'userId:', selectedMember.id, 'date:', selectedDate);
         setLoadingChannels(true);
         setConversations([]);
+        setSummaries(new Map());
+        setExpandedRaw(new Set());
+        setActiveDay(new Map());
         setError(null);
+
+        const n = new Date();
+        setViewYear(n.getFullYear());
+        setViewMonth(n.getMonth());
+        const days = getMonthDays(n.getFullYear(), n.getMonth());
+        const today = localDayKey(n);
 
         try {
             const userId = selectedMember.id;
-            const items = await listConversations(serverUrl, teamId, userId, selectedDate);
-            console.log('[Conversations] Fetched', items.length, 'conversations');
-            setConversations(items);
-            setView('dashboard');
+
+            // ① Fetch conversation channels
+            const chs = await listConversations(serverUrl, teamId, userId);
+            chs.sort((a, b) => (b.last_post_at || 0) - (a.last_post_at || 0));
+            setConversations(chs);
+
+            // ② Batch fetch user profiles
+            const allUserIds = new Set<string>();
+            for (const ch of chs) {
+                for (const uid of (ch.member_ids || [])) {
+                    allUserIds.add(uid);
+                }
+            }
+            if (allUserIds.size > 0) {
+                try {
+                    const client = NetworkManager.getClient(serverUrl);
+                    const ids = Array.from(allUserIds);
+                    const batchSize = 200;
+                    const allUsers: Array<{id: string; username: string; first_name?: string; last_name?: string; nickname?: string}> = [];
+                    for (let i = 0; i < ids.length; i += batchSize) {
+                        const batch = ids.slice(i, i + batchSize);
+                        const users = await client.getProfilesByIds(batch);
+                        allUsers.push(...users);
+                    }
+                    const map = new Map<string, {id: string; username: string; first_name?: string; last_name?: string; nickname?: string}>();
+                    for (const u of allUsers) {
+                        map.set(u.id, u);
+                    }
+                    setUserMap(map);
+                } catch {
+                    // Non-critical: continue without user names
+                }
+            }
+
+            setLoadingChannels(false);
+
+            // Set default active day to today
+            const defaultActive = new Map<string, string>();
+            for (const ch of chs) {
+                defaultActive.set(ch.id, today);
+            }
+            setActiveDay(defaultActive);
+
+            // ③ Phase 1: fetch today for all channels (fast feedback)
+            for (const ch of chs) {
+                fetchDaySummary(ch.id, today);
+            }
+
+            // ④ Phase 2: fetch other days in background
+            const otherDays = days.filter((d) => d !== today);
+            for (const ch of chs) {
+                for (const day of otherDays) {
+                    fetchDaySummary(ch.id, day);
+                }
+            }
         } catch (err) {
-            console.error('Failed to fetch conversations:', err);
             const message = err instanceof Error ? err.message : 'Failed to load conversations';
             setError(message);
             setConversations([]);
-            // Show Alert for debugging on real device
-            Alert.alert('查询会话失败', message);
-        } finally {
             setLoadingChannels(false);
         }
-    }, [serverUrl, teamId, selectedMember, selectedDate]);
 
-    // Fetch conversation detail
-    const handleSelectConversation = useCallback(async (item: ConversationItem) => {
-        if (!teamId) return;
-
-        setLoadingDetail(true);
-        try {
-            const detail = await getConversationDetail(serverUrl, teamId, item.channel_id, selectedDate);
-            setSelectedConversation(detail);
-        } catch (err) {
-            console.error('Failed to fetch conversation detail:', err);
-            const message = err instanceof Error ? err.message : 'Failed to load conversation detail';
-            Alert.alert('加载详情失败', message);
-        } finally {
-            setLoadingDetail(false);
-        }
-    }, [serverUrl, teamId, selectedDate]);
+        setView('dashboard');
+    }, [serverUrl, teamId, selectedMember, fetchDaySummary]);
 
     const backToSetup = useCallback(() => {
-        setChannels([]);
+        setConversations([]);
+        setSummaries(new Map());
+        setExpandedRaw(new Set());
+        setActiveDay(new Map());
         setError(null);
         setView('setup');
     }, []);
 
     const getMemberDisplayName = useCallback((member: {username: string; first_name?: string; last_name?: string; nickname?: string}): string => {
-        if (member.first_name || member.last_name) {
-            return `${member.first_name || ''} ${member.last_name || ''}`.trim();
-        }
-        return member.nickname || member.username;
+        return getUserDisplayName(member);
     }, []);
 
     // Render setup view
@@ -617,49 +1013,6 @@ const ConversationsScreen = () => {
             );
         }
 
-        // Show conversation detail if selected
-        if (selectedConversation) {
-            return (
-                <View style={style.detailContainer}>
-                    <View style={style.detailHeader}>
-                        <TouchableOpacity onPress={() => setSelectedConversation(null)}>
-                            <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
-                        </TouchableOpacity>
-                        <Text style={style.detailTitle} numberOfLines={1}>
-                            {selectedConversation.channel_name}
-                        </Text>
-                    </View>
-                    <ScrollView style={style.detailContent}>
-                        {/* Summary */}
-                        <View style={style.summaryBox}>
-                            <Text style={style.summaryLabel}>
-                                {intl.formatMessage({id: 'workbench.conversations.summary', defaultMessage: 'Summary'})}
-                            </Text>
-                            <Text style={style.summaryText}>
-                                {selectedConversation.summary || intl.formatMessage({id: 'workbench.conversations.no_summary', defaultMessage: 'No summary available'})}
-                            </Text>
-                        </View>
-
-                        {/* Messages */}
-                        <Text style={style.messagesLabel}>
-                            {intl.formatMessage({id: 'workbench.conversations.messages', defaultMessage: 'Messages'})} ({selectedConversation.messages.length})
-                        </Text>
-                        {selectedConversation.messages.map((msg) => (
-                            <View key={msg.id} style={style.messageItem}>
-                                <View style={style.messageHeader}>
-                                    <Text style={style.messageUsername}>{msg.username}</Text>
-                                    <Text style={style.messageTime}>
-                                        {formatTime(msg.create_at, intl.locale)}
-                                    </Text>
-                                </View>
-                                <Text style={style.messageText}>{msg.message}</Text>
-                            </View>
-                        ))}
-                    </ScrollView>
-                </View>
-            );
-        }
-
         if (conversations.length === 0) {
             return (
                 <View style={style.emptyContainer}>
@@ -673,27 +1026,7 @@ const ConversationsScreen = () => {
 
         return (
             <View style={style.dashboardContainer}>
-                {/* Date picker */}
-                <View style={style.datePicker}>
-                    <Text style={style.dateLabel}>
-                        {intl.formatMessage({id: 'workbench.conversations.date', defaultMessage: 'Date'})}:
-                    </Text>
-                    <TouchableOpacity
-                        style={style.dateBtn}
-                        onPress={() => {
-                            // Simple date input for now
-                            const newDate = prompt('Enter date (YYYY-MM-DD):', selectedDate);
-                            if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-                                setSelectedDate(newDate);
-                                handleQuery();
-                            }
-                        }}
-                    >
-                        <Text style={style.dateText}>{selectedDate}</Text>
-                        <CompassIcon name='calendar' size={16} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                </View>
-
+                {/* Stats bar */}
                 <View style={style.statsBar}>
                     <View style={style.statItem}>
                         <CompassIcon name='forum-outline' size={14} color={changeOpacity(theme.centerChannelColor, 0.64)}/>
@@ -704,31 +1037,174 @@ const ConversationsScreen = () => {
                             )}
                         </Text>
                     </View>
+                    <View style={style.statItem}>
+                        <CompassIcon name='message-outline' size={14} color={changeOpacity(theme.centerChannelColor, 0.64)}/>
+                        <Text style={style.statText}>
+                            {intl.formatMessage(
+                                {id: 'workbench.conversations.stats_messages', defaultMessage: '{count} messages'},
+                                {count: totalRawMessages},
+                            )}
+                        </Text>
+                    </View>
+                    {anyLoading && (
+                        <ActivityIndicator size='small' color={theme.centerChannelColor} style={{marginLeft: 8}}/>
+                    )}
                 </View>
 
+                {/* Month navigation */}
+                <View style={style.monthNav}>
+                    <TouchableOpacity style={style.monthBtn} onPress={prevMonth}>
+                        <CompassIcon name='chevron-left' size={16} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    <Text style={style.monthLabel}>{monthLabel}</Text>
+                    <TouchableOpacity style={style.monthBtn} onPress={nextMonth}>
+                        <CompassIcon name='chevron-right' size={16} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Channel cards */}
                 <FlatList
                     data={conversations}
-                    keyExtractor={(item) => item.channel_id}
-                    renderItem={({item}) => (
-                        <TouchableOpacity
-                            style={style.card}
-                            onPress={() => handleSelectConversation(item)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={style.cardHeader}>
-                                <CompassIcon name='forum-outline' size={16} color={theme.centerChannelColor}/>
-                                <Text style={style.cardTitle} numberOfLines={1}>
-                                    {item.channel_name}
+                    keyExtractor={(item: ConversationChannel) => item.id}
+                    renderItem={({item: ch}: {item: ConversationChannel}) => {
+                        const chName = resolveChannelName(ch);
+                        const chDayMap = summaries.get(ch.id) || new Map();
+                        const currentDay = activeDay.get(ch.id) || localDayKey(new Date());
+                        const activeDs = chDayMap.get(currentDay);
+                        const rawKey = `${ch.id}|${currentDay}`;
+                        const isRawExpanded = expandedRaw.has(rawKey);
+                        const memoryPath = `memory/${teamId}/${currentDay}-${ch.id}.md`;
+
+                        return (
+                            <View key={ch.id} style={style.card}>
+                                {/* Card header */}
+                                <View style={style.cardHeader}>
+                                    <CompassIcon name='forum-outline' size={16} color={theme.centerChannelColor}/>
+                                    <Text style={style.cardTitle} numberOfLines={1}>
+                                        {chName}
+                                    </Text>
+                                    {ch.last_post_at > 0 && (
+                                        <Text style={style.cardTime}>
+                                            {formatTime(ch.last_post_at, intl.locale)}
+                                        </Text>
+                                    )}
+                                </View>
+
+                                {/* Members subtitle */}
+                                <Text style={style.cardMembers} numberOfLines={1}>
+                                    {memberNames(ch)}
                                 </Text>
-                                <Text style={style.cardBadge}>
-                                    {item.message_count} {intl.formatMessage({id: 'workbench.conversations.msgs', defaultMessage: 'msgs'})}
-                                </Text>
+
+                                {/* Day pills */}
+                                <View style={style.dayPillRow}>
+                                    {monthDays.map((day) => {
+                                        const ds = chDayMap.get(day);
+                                        const isActive = day === currentDay;
+                                        const hasData = ds?.hasData || false;
+                                        const isLoading = ds?.loading || false;
+
+                                        let dotStyle = style.dayDotEmpty;
+                                        if (isLoading) {
+                                            dotStyle = style.dayDotLoading;
+                                        } else if (hasData) {
+                                            dotStyle = style.dayDotFilled;
+                                        }
+
+                                        return (
+                                            <TouchableOpacity
+                                                key={day}
+                                                style={[style.dayPill, isActive && style.dayPillActive]}
+                                                onPress={() => switchDay(ch.id, day)}
+                                            >
+                                                <Text style={style.dayLabel}>{dayPillLabel(day)}</Text>
+                                                <View style={[style.dayDot, dotStyle]}/>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+
+                                {/* Summary content for active day */}
+                                <View style={{marginTop: 8}}>
+                                    {activeDs?.loading ? (
+                                        <ActivityIndicator size='small' color={theme.centerChannelColor}/>
+                                    ) : activeDs?.error ? (
+                                        <Text style={{color: theme.errorTextColor, ...typography('Body', 75, 'Regular')}}>
+                                            {activeDs.error}
+                                        </Text>
+                                    ) : activeDs?.summary ? (
+                                        <View>
+                                            <Markdown
+                                                value={truncateText(activeDs.summary, 300)}
+                                                baseTextStyle={style.summaryText}
+                                                location={Screens.APPS_CONVERSATIONS}
+                                                theme={theme}
+                                                disableAtMentions={true}
+                                            />
+                                            {/* Graduate to KB */}
+                                            <TouchableOpacity
+                                                style={style.graduateBtn}
+                                                onPress={() => handleGraduate(memoryPath)}
+                                                disabled={graduatingPath === memoryPath}
+                                            >
+                                                <Text style={style.graduateText}>
+                                                    {graduatingPath === memoryPath
+                                                        ? intl.formatMessage({id: 'workbench.conversations.graduating', defaultMessage: '归档中...'})
+                                                        : intl.formatMessage({id: 'workbench.conversations.graduate_btn', defaultMessage: '📚 归档到知识库'})}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            {graduateMsg && graduateMsg.path === memoryPath && (
+                                                <Text style={[style.graduateMsg, graduateMsg.isError && {color: theme.errorTextColor}]}>
+                                                    {graduateMsg.text}
+                                                </Text>
+                                            )}
+                                        </View>
+                                    ) : (
+                                        <Text style={style.cardSummary}>
+                                            {intl.formatMessage({id: 'workbench.conversations.no_summary', defaultMessage: 'No summary available'})}
+                                        </Text>
+                                    )}
+                                </View>
+
+                                {/* Raw messages toggle */}
+                                {activeDs && activeDs.rawAvailable && activeDs.rawMessages.length > 0 && (
+                                    <TouchableOpacity
+                                        style={style.rawToggle}
+                                        onPress={() => toggleRaw(rawKey)}
+                                    >
+                                        <CompassIcon
+                                            name={isRawExpanded ? 'chevron-down' : 'chevron-right'}
+                                            size={14}
+                                            color={changeOpacity(theme.centerChannelColor, 0.64)}
+                                        />
+                                        <Text style={style.rawToggleText}>
+                                            {intl.formatMessage(
+                                                {id: 'workbench.conversations.raw_messages', defaultMessage: 'Chat messages ({count})'},
+                                                {count: activeDs.rawMessages.length},
+                                            )}
+                                            {activeDs.rawTruncated && (
+                                                ` ${intl.formatMessage({id: 'workbench.conversations.truncated', defaultMessage: '(truncated)'})}`
+                                            )}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Raw messages expanded */}
+                                {isRawExpanded && activeDs && activeDs.rawMessages.length > 0 && (
+                                    <View>
+                                        {activeDs.rawMessages.map((msg: RawMessage, i: number) => (
+                                            <View key={i} style={style.rawMessage}>
+                                                <View style={{flexDirection: 'row', gap: 8}}>
+                                                    <Text style={style.rawTime}>{msg.time}</Text>
+                                                    <Text style={style.rawUser}>{msg.user}</Text>
+                                                </View>
+                                                <Text style={style.rawText}>{msg.text}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
                             </View>
-                            <Text style={style.cardSummary} numberOfLines={2}>
-                                {item.summary || intl.formatMessage({id: 'workbench.conversations.no_summary', defaultMessage: 'No summary available'})}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
+                        );
+                    }}
                     contentContainerStyle={{paddingBottom: 20}}
                 />
             </View>

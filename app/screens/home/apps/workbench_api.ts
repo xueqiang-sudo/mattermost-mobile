@@ -9,6 +9,7 @@
 import NetworkManager from '@managers/network_manager';
 
 const FACT_EXTRACTOR_BASE = '/plugins/com.mattermost.fact-extractor';
+const FRAPPE_SYNC_BASE = '/plugins/com.mattermost.frappe-sync';
 
 async function apiFetch(serverUrl: string, path: string, options: {method: string; body?: any; headers?: Record<string, string>}): Promise<any> {
     const client = NetworkManager.getClient(serverUrl);
@@ -111,6 +112,14 @@ export function getDriveDownloadUrl(serverUrl: string, teamId: string, fileId: s
 
 // ── Conversations ──
 
+export type ConversationChannel = {
+    id: string;
+    display_name: string;
+    type: string;
+    last_post_at: number;
+    member_ids: string[];
+};
+
 export type ConversationItem = {
     channel_id: string;
     channel_name: string;
@@ -142,21 +151,20 @@ export async function listConversations(
     serverUrl: string,
     teamId: string,
     userId: string,
-    date?: string,
-): Promise<ConversationItem[]> {
+    _date?: string,
+): Promise<ConversationChannel[]> {
     const params = new URLSearchParams({
         team_id: teamId,
-        user_id: userId,
     });
-    if (date) {
-        params.set('date', date);
+    if (userId) {
+        params.set('user_id', userId);
     }
     const data = await apiFetch(
         serverUrl,
-        `${FACT_EXTRACTOR_BASE}/api/conversations/list?${params}`,
+        `${FRAPPE_SYNC_BASE}/api/conversations/list?${params}`,
         {method: 'get'},
     );
-    return data?.conversations || [];
+    return data?.channels || [];
 }
 
 export async function getConversationDetail(
@@ -176,6 +184,37 @@ export async function getConversationDetail(
         {method: 'get'},
     );
     return data || {channel_id: channelId, channel_name: '', date, summary: '', messages: []};
+}
+
+export type FactQueryResult = {
+    memory: string;
+    raw_messages: Array<{user: string; text: string; time: string}>;
+    raw_messages_available: boolean;
+    raw_messages_truncated: boolean;
+};
+
+export async function fetchFactQuery(
+    serverUrl: string,
+    teamId: string,
+    channelId: string,
+    mode: string,
+    extra: Record<string, any>,
+): Promise<{results: FactQueryResult[]}> {
+    return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/query`, {
+        method: 'post',
+        body: {team_id: teamId, channel_id: channelId, mode, include_raw: true, ...extra},
+    });
+}
+
+export async function graduateMemory(
+    serverUrl: string,
+    teamId: string,
+    memoryPath: string,
+): Promise<any> {
+    return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/kb/graduate?team_id=${encodeURIComponent(teamId)}`, {
+        method: 'post',
+        body: {memoryPath},
+    });
 }
 
 // ── Knowledge Base ──
@@ -250,6 +289,71 @@ export async function deleteKBDoc(serverUrl: string, teamId: string, docId: stri
 
 export async function askKB(serverUrl: string, teamId: string, query: string) {
     return kbPost(serverUrl, '/api/kb/ask', teamId, {query});
+}
+
+// File upload support
+export const KB_SUPPORTED_EXTENSIONS = '.pdf,.doc,.docx,.txt,.md,.xlsx,.xls,.csv,.pptx,.ppt,.rtf,.json,.yaml,.py,.js,.ts,.java,.go,.rs,.c,.cpp,.h,.hpp,.eml,.msg,.png,.jpg,.jpeg,.epub,.odt';
+
+export const KB_SUPPORTED_LABEL = 'PDF, Word, Excel, CSV, PowerPoint, TXT, Markdown, HTML, RTF, JSON, YAML, 代码文件, EML, MSG, 图片, EPUB, ODT';
+
+export async function uploadKBFile(
+    serverUrl: string,
+    teamId: string,
+    fileUri: string,
+    fileName: string,
+    fileType: string,
+): Promise<{file_uuid: string; filename: string}> {
+    const client = NetworkManager.getClient(serverUrl);
+    const formData = new FormData();
+    formData.append('file', {
+        uri: fileUri,
+        name: fileName,
+        type: fileType,
+    } as any);
+
+    const resp = await client.doFetch(
+        `${FACT_EXTRACTOR_BASE}/api/kb/upload?team_id=${encodeURIComponent(teamId)}`,
+        {method: 'post', body: formData},
+    );
+    if (!resp.ok) {
+        throw new Error(resp.error || 'Upload failed');
+    }
+    if (!resp.file_uuid) {
+        throw new Error('上传成功但未返回文件ID');
+    }
+    return {file_uuid: resp.file_uuid, filename: resp.filename || fileName};
+}
+
+export async function createKBDocFile(
+    serverUrl: string,
+    teamId: string,
+    fileUri: string,
+    fileName: string,
+    fileType: string,
+): Promise<any> {
+    // Step 1: Upload file
+    const {file_uuid} = await uploadKBFile(serverUrl, teamId, fileUri, fileName, fileType);
+
+    // Step 2: Create KB entry
+    return kbPost(serverUrl, '/api/kb/create', teamId, {
+        fileId: file_uuid,
+        fileName,
+        title: fileName,
+    });
+}
+
+export async function updateKBDoc(
+    serverUrl: string,
+    teamId: string,
+    docId: string,
+    updates: {title?: string; content?: string; tags?: string; category?: string},
+): Promise<any> {
+    return kbPost(serverUrl, '/api/kb/update', teamId, {docId, ...updates});
+}
+
+export function getKBDownloadUrl(serverUrl: string, docId: string, teamId: string): string {
+    const params = new URLSearchParams({docId, team_id: teamId});
+    return `${serverUrl}${FACT_EXTRACTOR_BASE}/api/kb/download?${params.toString()}`;
 }
 
 // ── Notebook ──
