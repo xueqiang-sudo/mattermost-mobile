@@ -94,7 +94,10 @@ const ClassifiedGroup = ({
         };
     }, [height]);
 
-    if (sortedChannels.length === 0) {
+    // Filter out undefined values to prevent crashes in keyExtractor
+    const validChannels = sortedChannels.filter((c): c is ChannelModel => c != null);
+
+    if (validChannels.length === 0) {
         return null;
     }
 
@@ -107,7 +110,7 @@ const ClassifiedGroup = ({
             />
             <Animated.View style={animatedStyle}>
                 <FlatList
-                    data={sortedChannels}
+                    data={validChannels}
                     renderItem={renderItem}
                     keyExtractor={extractKey}
                     style={{height}}

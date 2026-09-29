@@ -116,7 +116,10 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
         [isChannelScreenActive, onChannelSwitch],
     );
 
-    if (!hasChannels || sortedChannels.length === 0) {
+    // Filter out undefined values to prevent crashes in keyExtractor
+    const validChannels = sortedChannels.filter((c): c is ChannelModel => c != null);
+
+    if (!hasChannels || validChannels.length === 0) {
         return <EmptyState/>;
     }
 
@@ -125,7 +128,7 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
             key={currentTeamId || 'no-team'}
             extraData={currentTeamId}
             style={styles.list}
-            data={sortedChannels}
+            data={validChannels}
             renderItem={renderItem}
             keyExtractor={extractKey}
         />
