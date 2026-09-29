@@ -111,7 +111,7 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
             if (a.length !== b.length) {
                 return false;
             }
-            return a.every((ch, i) => ch.id === b[i].id);
+            return a.every((ch, i) => ch && b[i] && ch.id === b[i].id);
         }),
     );
 

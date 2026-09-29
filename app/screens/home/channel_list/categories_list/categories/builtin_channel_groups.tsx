@@ -137,8 +137,8 @@ const enhanced = withObservables(
                 if (a.internal.length !== b.internal.length || a.external.length !== b.external.length) {
                     return false;
                 }
-                return a.internal.every((id, i) => id === b.internal[i]) &&
-                       a.external.every((id, i) => id === b.external[i]);
+                return a.internal.every((id, i) => id != null && b.internal[i] != null && id === b.internal[i]) &&
+                       a.external.every((id, i) => id != null && b.external[i] != null && id === b.external[i]);
             }),
         );
 

@@ -28,7 +28,7 @@ export const isUnreadChannel = (myChannel: MyChannelModel, notifyProps?: Partial
 };
 
 export const filterArchivedChannels = (channelsWithMyChannel: ChannelWithMyChannel[], currentChannelId: string) => {
-    return channelsWithMyChannel.filter((cwm) => cwm.channel.deleteAt === 0 || cwm.channel.id === currentChannelId);
+    return channelsWithMyChannel.filter((cwm) => cwm && cwm.channel && (cwm.channel.deleteAt === 0 || cwm.channel.id === currentChannelId));
 };
 
 export const filterAutoclosedDMs = (
@@ -50,7 +50,8 @@ export const filterAutoclosedDMs = (
     const getLastViewedAt = (cwm: ChannelWithMyChannel) => {
         // The server only ever sets the last_viewed_at to the time of the last post in channel, so we may need
         // to use the preferences added for the previous version of autoclosing DMs.
-        const id = cwm.channel.id;
+        const id = cwm?.channel?.id;
+        if (!id) return 0;
         return Math.max(
             cwm.myChannel.lastViewedAt,
             prefMap.get(id) || 0,
@@ -59,6 +60,9 @@ export const filterAutoclosedDMs = (
 
     let unreadCount = 0;
     let visibleChannels = channelsWithMyChannel.filter((cwm) => {
+        if (!cwm || !cwm.channel || !cwm.myChannel) {
+            return false;
+        }
         const {channel, myChannel} = cwm;
         if (myChannel.isUnread) {
             unreadCount++;
@@ -91,10 +95,14 @@ export const filterAutoclosedDMs = (
     });
 
     visibleChannels.sort((cwmA, cwmB) => {
-        const channelA = cwmA.channel;
-        const channelB = cwmB.channel;
-        const myChannelA = cwmA.myChannel;
-        const myChannelB = cwmB.myChannel;
+        const channelA = cwmA?.channel;
+        const channelB = cwmB?.channel;
+        const myChannelA = cwmA?.myChannel;
+        const myChannelB = cwmB?.myChannel;
+
+        if (!channelA || !channelB || !myChannelA || !myChannelB) {
+            return 0;
+        }
 
         // Should always prioritise the current channel
         if (channelA.id === currentChannelId) {
@@ -140,6 +148,9 @@ export const filterManuallyClosedDms = (
     lastUnreadChannelId?: string,
 ) => {
     return channelsWithMyChannel.filter((cwm) => {
+        if (!cwm || !cwm.channel || !cwm.myChannel) {
+            return false;
+        }
         const {channel, myChannel} = cwm;
 
         if (!isDMorGM(channel)) {
@@ -180,23 +191,23 @@ const sortChannelsByName = (notifyPropsPerChannel: Record<string, Partial<Channe
 export const sortChannels = (sorting: CategorySorting, channelsWithMyChannel: ChannelWithMyChannel[], notifyPropsPerChannel: Record<string, Partial<ChannelNotifyProps>>, locale: string) => {
     if (sorting === 'recent') {
         return channelsWithMyChannel.sort((cwmA, cwmB) => {
-            const a = Math.max(cwmA.myChannel.lastPostAt, cwmA.channel.createAt);
-            const b = Math.max(cwmB.myChannel.lastPostAt, cwmB.channel.createAt);
+            const a = Math.max(cwmA?.myChannel?.lastPostAt || 0, cwmA?.channel?.createAt || 0);
+            const b = Math.max(cwmB?.myChannel?.lastPostAt || 0, cwmB?.channel?.createAt || 0);
             return b - a;
-        }).map((cwm) => cwm.channel);
+        }).map((cwm) => cwm?.channel).filter((c): c is ChannelModel => c != null);
     } else if (sorting === 'manual') {
         return channelsWithMyChannel.sort((cwmA, cwmB) => {
-            return cwmA.sortOrder - cwmB.sortOrder;
-        }).map((cwm) => cwm.channel);
+            return (cwmA?.sortOrder || 0) - (cwmB?.sortOrder || 0);
+        }).map((cwm) => cwm?.channel).filter((c): c is ChannelModel => c != null);
     }
 
     const sortByName = sortChannelsByName(notifyPropsPerChannel, locale);
-    return channelsWithMyChannel.sort(sortByName).map((cwm) => cwm.channel);
+    return channelsWithMyChannel.sort(sortByName).map((cwm) => cwm?.channel).filter((c): c is ChannelModel => c != null);
 };
 
 export const getUnreadIds = (cwms: ChannelWithMyChannel[], notifyPropsPerChannel: Record<string, Partial<ChannelNotifyProps>>, lastUnreadId?: string) => {
     return cwms.reduce<Set<string>>((result, cwm) => {
-        if (isUnreadChannel(cwm.myChannel, notifyPropsPerChannel[cwm.channel.id], lastUnreadId)) {
+        if (cwm && cwm.myChannel && cwm.channel && isUnreadChannel(cwm.myChannel, notifyPropsPerChannel[cwm.channel.id], lastUnreadId)) {
             result.add(cwm.channel.id);
         }
 
