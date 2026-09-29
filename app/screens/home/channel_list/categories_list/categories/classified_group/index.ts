@@ -6,7 +6,8 @@ import {Q} from '@nozbe/watermelondb';
 import {of as of$} from 'rxjs';
 import {switchMap, combineLatestWith, distinctUntilChanged} from 'rxjs/operators';
 
-import {MM_TABLES, Preferences} from '@constants';
+import {MM_TABLES} from '@constants/database';
+import {Preferences} from '@constants';
 import {observeNotifyPropsByChannels, queryChannelsById} from '@queries/servers/channel';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {observeCurrentChannelId, observeCurrentUserId, observeLastUnreadChannelId} from '@queries/servers/system';

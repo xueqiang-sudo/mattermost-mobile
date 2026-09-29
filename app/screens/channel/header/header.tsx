@@ -162,6 +162,64 @@ const ChannelHeader = ({
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
     }), [channelId, channelName, channelType, intl, theme]));
 
+    const openAICustomerService = useCallback(async () => {
+        try {
+            const bots = await getChannelBots(serverUrl, channelId);
+            if (bots.length === 0) {
+                return;
+            }
+            // If only one bot, open DM directly
+            if (bots.length === 1) {
+                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
+                if (channel) {
+                    // Navigate to the bot DM channel
+                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
+                }
+            } else {
+                // Multiple bots - for now, use the first one
+                // TODO: Show ActionSheet to select bot
+                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
+                if (channel) {
+                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }, [channelId, displayName, serverUrl]);
+
+    const openConsultation = useCallback(() => {
+        const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+        const closeButtonId = 'close-consultation-panel';
+        const options = {
+            topBar: {
+                leftButtons: [{
+                    id: closeButtonId,
+                    icon: closeButton,
+                    testID: 'close.consultation_panel.button',
+                }],
+            },
+        };
+        showModal(Screens.CONSULTATION_PANEL, title, {channelId, teamId, closeButtonId}, options);
+    }, [channelId, teamId, intl, theme]);
+
+    const openAIAssistant = useCallback(() => {
+        const title = intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'});
+        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+        const closeButtonId = 'close-ai-assistant-panel';
+        const options = {
+            topBar: {
+                leftButtons: [{
+                    id: closeButtonId,
+                    icon: closeButton,
+                    testID: 'close.ai_assistant_panel.button',
+                }],
+            },
+        };
+        showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
+    }, [channelId, teamId, intl, theme]);
+
     const onChannelQuickAction = useCallback(() => {
         // Show overflow menu bottom sheet with AI features + channel settings
         const isGM = channelType === General.GM_CHANNEL;
@@ -250,64 +308,6 @@ const ChannelHeader = ({
         }
         goToPlaybookRuns(intl, channelId, displayName);
     }, [playbooksActiveRuns, activeRunId, channelId, displayName, intl, currentUserId, teamId, serverUrl]);
-
-    const openAICustomerService = useCallback(async () => {
-        try {
-            const bots = await getChannelBots(serverUrl, channelId);
-            if (bots.length === 0) {
-                return;
-            }
-            // If only one bot, open DM directly
-            if (bots.length === 1) {
-                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
-                if (channel) {
-                    // Navigate to the bot DM channel
-                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
-                }
-            } else {
-                // Multiple bots - for now, use the first one
-                // TODO: Show ActionSheet to select bot
-                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
-                if (channel) {
-                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
-                }
-            }
-        } catch {
-            // ignore
-        }
-    }, [channelId, displayName, serverUrl]);
-
-    const openConsultation = useCallback(() => {
-        const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
-        const closeButtonId = 'close-consultation-panel';
-        const options = {
-            topBar: {
-                leftButtons: [{
-                    id: closeButtonId,
-                    icon: closeButton,
-                    testID: 'close.consultation_panel.button',
-                }],
-            },
-        };
-        showModal(Screens.CONSULTATION_PANEL, title, {channelId, teamId, closeButtonId}, options);
-    }, [channelId, teamId, intl, theme]);
-
-    const openAIAssistant = useCallback(() => {
-        const title = intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
-        const closeButtonId = 'close-ai-assistant-panel';
-        const options = {
-            topBar: {
-                leftButtons: [{
-                    id: closeButtonId,
-                    icon: closeButton,
-                    testID: 'close.ai_assistant_panel.button',
-                }],
-            },
-        };
-        showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
-    }, [channelId, teamId, intl, theme]);
 
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
