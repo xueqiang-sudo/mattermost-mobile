@@ -1,14 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, Platform, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Keyboard, Platform, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
+import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -19,9 +20,10 @@ import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@play
 import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
-import {goToScreen, popTopScreen, showModal} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, goToScreen, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -86,39 +88,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 2,
         height: 13,
     },
-    overflowBackdrop: {
-        ...StyleSheet.absoluteFillObject,
-        zIndex: 2000,
-    },
-    overflowAnchor: {
-        position: 'absolute',
-        alignItems: 'flex-end',
-        zIndex: 2001,
-    },
-    overflowMenu: {
-        backgroundColor: theme.centerChannelBg,
-        borderRadius: 8,
-        paddingVertical: 8,
-        minWidth: 160,
-        shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
-    },
-    overflowItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        height: 44,
-    },
-    overflowItemLabel: {
-        flex: 1,
-        color: theme.centerChannelColor,
-        ...typography('Body', 200),
-    },
 }));
 
 const ChannelHeader = ({
@@ -156,13 +125,6 @@ const ChannelHeader = ({
     const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
 
-    // Overflow menu state (inline dropdown, no context needed)
-    type OverflowMenuItem = {testID: string; labelId: string; defaultLabel: string; onPress: () => void};
-    const [overflowVisible, setOverflowVisible] = useState(false);
-    const [overflowItems, setOverflowItems] = useState<OverflowMenuItem[]>([]);
-
-    const closeOverflowMenu = useCallback(() => setOverflowVisible(false), []);
-
     const callsConfig = getCallsConfig(serverUrl);
 
     // NOTE: callsEnabledInChannel will be true/false (not undefined) based on explicit state + the DefaultEnabled system setting
@@ -199,6 +161,74 @@ const ChannelHeader = ({
         };
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
     }), [channelId, channelName, channelType, intl, theme]));
+
+    const onChannelQuickAction = useCallback(() => {
+        // Show overflow menu bottom sheet with AI features + channel settings
+        const isGM = channelType === General.GM_CHANNEL;
+        const isDM = channelType === General.DM_CHANNEL;
+
+        // Count items for snap point calculation
+        let itemCount = 1; // channel settings always shown
+        if (isGM) itemCount++; // AI customer service
+        if (!isDM) itemCount += 2; // consult expert + AI assistant
+
+        const renderContent = () => {
+            return (
+                <View>
+                    {isGM && (
+                        <SlideUpPanelItem
+                            leftIcon='robot'
+                            onPress={() => {
+                                dismissBottomSheet();
+                                openAICustomerService();
+                            }}
+                            testID='channel_header.overflow.ai_customer_service'
+                            text={intl.formatMessage({id: 'channel_header.ai_customer_service', defaultMessage: 'AI Customer Service'})}
+                        />
+                    )}
+                    {!isDM && (
+                        <SlideUpPanelItem
+                            leftIcon='account-question'
+                            onPress={() => {
+                                dismissBottomSheet();
+                                openConsultation();
+                            }}
+                            testID='channel_header.overflow.consultation'
+                            text={intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'})}
+                        />
+                    )}
+                    {!isDM && (
+                        <SlideUpPanelItem
+                            leftIcon='lightbulb-outline'
+                            onPress={() => {
+                                dismissBottomSheet();
+                                openAIAssistant();
+                            }}
+                            testID='channel_header.overflow.ai_assistant'
+                            text={intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'})}
+                        />
+                    )}
+                    <SlideUpPanelItem
+                        leftIcon='cog-outline'
+                        onPress={() => {
+                            dismissBottomSheet();
+                            onTitlePress();
+                        }}
+                        testID='channel_header.overflow.channel_settings'
+                        text={intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel Info'})}
+                    />
+                </View>
+            );
+        };
+
+        bottomSheet({
+            closeButtonId: 'close-channel-overflow',
+            renderContent,
+            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
+            title: intl.formatMessage({id: 'channel_header.overflow.title', defaultMessage: 'More'}),
+            theme,
+        });
+    }, [channelType, intl, theme, openAICustomerService, openConsultation, openAIAssistant, onTitlePress]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead
@@ -278,45 +308,6 @@ const ChannelHeader = ({
         };
         showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
     }, [channelId, teamId, intl, theme]);
-
-    const onChannelQuickAction = useCallback(() => {
-        // Show overflow menu dropdown with AI features + group info
-        const isGM = channelType === General.GM_CHANNEL;
-        const isDM = channelType === General.DM_CHANNEL;
-
-        const items: OverflowMenuItem[] = [];
-        if (isGM) {
-            items.push({
-                testID: 'channel_header.overflow.ai_customer_service',
-                labelId: 'channel_header.ai_customer_service',
-                defaultLabel: 'AI Customer Service',
-                onPress: openAICustomerService,
-            });
-        }
-        if (!isDM) {
-            items.push({
-                testID: 'channel_header.overflow.consultation',
-                labelId: 'consultation.title',
-                defaultLabel: 'Consult Expert',
-                onPress: openConsultation,
-            });
-            items.push({
-                testID: 'channel_header.overflow.ai_assistant',
-                labelId: 'ai_assistant.title',
-                defaultLabel: 'AI Assistant',
-                onPress: openAIAssistant,
-            });
-        }
-        items.push({
-            testID: 'channel_header.overflow.channel_settings',
-            labelId: 'screens.group_info',
-            defaultLabel: 'Group Info',
-            onPress: onTitlePress,
-        });
-
-        setOverflowItems(items);
-        setOverflowVisible(true);
-    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress]);
 
     const rightButtons = useMemo(() => {
         const buttons: HeaderRightButton[] = [];
@@ -457,42 +448,6 @@ const ChannelHeader = ({
                     headerMarkdown={announcementMarkdown}
                 />
             }
-            {overflowVisible && (
-                <>
-                    <Pressable
-                        style={styles.overflowBackdrop}
-                        onPress={closeOverflowMenu}
-                    />
-                    <View
-                        pointerEvents='box-none'
-                        style={[
-                            styles.overflowAnchor,
-                            {
-                                right: 8,
-                                top: 56 + 8,
-                            },
-                        ]}
-                    >
-                        <View style={styles.overflowMenu}>
-                            {overflowItems.map((item) => (
-                                <Pressable
-                                    key={item.testID}
-                                    style={styles.overflowItem}
-                                    onPress={() => {
-                                        closeOverflowMenu();
-                                        item.onPress();
-                                    }}
-                                    testID={item.testID}
-                                >
-                                    <Text style={styles.overflowItemLabel}>
-                                        {intl.formatMessage({id: item.labelId, defaultMessage: item.defaultLabel})}
-                                    </Text>
-                                </Pressable>
-                            ))}
-                        </View>
-                    </View>
-                </>
-            )}
         </>
     );
 };
