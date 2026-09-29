@@ -56,6 +56,7 @@ const BuiltinChannelGroupsRenderer = ({
                 groupId='internal'
                 channelIds={internalChannelIds}
                 locale={locale}
+                isTablet={isTablet}
                 onChannelSwitch={onChannelSwitch}
             />
             <ClassifiedGroup
@@ -63,6 +64,7 @@ const BuiltinChannelGroupsRenderer = ({
                 groupId='external'
                 channelIds={externalChannelIds}
                 locale={locale}
+                isTablet={isTablet}
                 onChannelSwitch={onChannelSwitch}
             />
         </>

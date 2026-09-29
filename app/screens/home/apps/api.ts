@@ -336,6 +336,27 @@ export async function getWorkbenchPermissions(serverUrl: string, teamId: string)
     return apiFetch(serverUrl, `/api/v4/teams/${teamId}/workbench-permissions`, {method: 'get'});
 }
 
+// ---- Conversations API ----
+
+export type ConversationChannel = {
+    id: string;
+    display_name: string;
+    last_post_at: number;
+    member_ids?: string[];
+};
+
+export async function fetchConversations(
+    serverUrl: string,
+    teamId: string,
+    userId?: string,
+): Promise<ConversationChannel[]> {
+    const params = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+    const data = await apiFetch(serverUrl, `/api/v4/teams/${teamId}/conversations${params}`, {method: 'get'});
+    return Array.isArray(data) ? data : [];
+}
+
+// ---- Role Permissions ----
+
 export async function saveRolePermission(
     serverUrl: string,
     teamId: string,
