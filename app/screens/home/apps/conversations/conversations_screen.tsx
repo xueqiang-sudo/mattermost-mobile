@@ -20,6 +20,7 @@ import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
+import NetworkManager from '@managers/network_manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -306,21 +307,44 @@ const ConversationsScreen = () => {
 
     // Load departments
     useEffect(() => {
-        if (!teamId) return;
+        if (!teamId || !serverUrl) return;
         setLoadingDepts(true);
-        // TODO: Replace with actual API call when available
-        // For now, skip department loading and show all members
-        setLoadingDepts(false);
-    }, [teamId]);
+        const loadDepartments = async () => {
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const result = await client.getDepartments(teamId, {page: 0, perPage: 100});
+                setDepartments(result.departments || []);
+            } catch (err) {
+                console.error('Failed to load departments:', err);
+                setDepartments([]);
+            } finally {
+                setLoadingDepts(false);
+            }
+        };
+        loadDepartments();
+    }, [teamId, serverUrl]);
 
     // Load members when department changes
     useEffect(() => {
-        if (!teamId || selectedDeptId === null) return;
+        if (!teamId || selectedDeptId === null || !serverUrl) {
+            setMembers([]);
+            return;
+        }
         setLoadingMembers(true);
-        // TODO: Replace with actual API call when available
-        setMembers([]);
-        setLoadingMembers(false);
-    }, [teamId, selectedDeptId]);
+        const loadMembers = async () => {
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const result = await client.getDepartmentMembers(teamId, selectedDeptId, {page: 0, perPage: 100});
+                setMembers(result.members || []);
+            } catch (err) {
+                console.error('Failed to load department members:', err);
+                setMembers([]);
+            } finally {
+                setLoadingMembers(false);
+            }
+        };
+        loadMembers();
+    }, [teamId, selectedDeptId, serverUrl]);
 
     // Query conversations
     const handleQuery = useCallback(async () => {
@@ -359,16 +383,45 @@ const ConversationsScreen = () => {
 
     // Render setup view
     const renderSetup = () => (
-        <View style={style.setupContainer}>
+        <ScrollView style={style.setupContainer}>
+            {/* Department Selection */}
+            <Text style={style.label}>
+                {intl.formatMessage({id: 'workbench.conversations.select_department', defaultMessage: 'Select Department'})}
+            </Text>
+            <TouchableOpacity
+                style={style.selectBtn}
+                onPress={() => setShowDeptModal(true)}
+                disabled={loadingDepts}
+            >
+                <Text style={style.selectText}>
+                    {loadingDepts
+                        ? intl.formatMessage({id: 'workbench.loading', defaultMessage: 'Loading...'})
+                        : selectedDeptId !== null
+                            ? departments.find(d => d.id === selectedDeptId)?.name || ''
+                            : intl.formatMessage({id: 'workbench.conversations.choose_department', defaultMessage: 'Choose a department...'})
+                    }
+                </Text>
+                <CompassIcon name='chevron-down' size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+            </TouchableOpacity>
+
+            {/* Member Selection */}
             <Text style={style.label}>
                 {intl.formatMessage({id: 'workbench.conversations.select_member', defaultMessage: 'Select Member'})}
             </Text>
             <TouchableOpacity
-                style={style.selectBtn}
-                onPress={() => setShowMemberModal(true)}
+                style={[style.selectBtn, selectedDeptId === null && {opacity: 0.5}]}
+                onPress={() => selectedDeptId !== null && setShowMemberModal(true)}
+                disabled={selectedDeptId === null || loadingMembers}
             >
                 <Text style={style.selectText}>
-                    {selectedMember ? getMemberDisplayName(selectedMember) : intl.formatMessage({id: 'workbench.conversations.choose_member', defaultMessage: 'Choose a member...'})}
+                    {loadingMembers
+                        ? intl.formatMessage({id: 'workbench.loading', defaultMessage: 'Loading...'})
+                        : selectedDeptId === null
+                            ? intl.formatMessage({id: 'workbench.conversations.select_department_first', defaultMessage: 'Select a department first'})
+                            : selectedMember
+                                ? getMemberDisplayName(selectedMember)
+                                : intl.formatMessage({id: 'workbench.conversations.choose_member', defaultMessage: 'Choose a member...'})
+                    }
                 </Text>
                 <CompassIcon name='chevron-down' size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
             </TouchableOpacity>
@@ -382,7 +435,7 @@ const ConversationsScreen = () => {
                     {intl.formatMessage({id: 'workbench.conversations.query', defaultMessage: 'Query Conversations'})}
                 </Text>
             </TouchableOpacity>
-        </View>
+        </ScrollView>
     );
 
     // Render dashboard view
@@ -469,11 +522,12 @@ const ConversationsScreen = () => {
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             <View style={style.header}>
-                {view === 'dashboard' && (
-                    <TouchableOpacity style={style.backBtn} onPress={backToSetup}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    style={style.backBtn}
+                    onPress={view === 'dashboard' ? backToSetup : () => navigation.goBack()}
+                >
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
                 <Text style={style.headerTitle}>
                     {view === 'setup'
                         ? intl.formatMessage({id: 'workbench.conversations.title', defaultMessage: 'Conversations'})
@@ -485,6 +539,41 @@ const ConversationsScreen = () => {
             </View>
 
             {view === 'setup' ? renderSetup() : renderDashboard()}
+
+            {/* Department selector modal */}
+            {showDeptModal && (
+                <View style={style.modalOverlay}>
+                    <View style={style.modalSheet}>
+                        <View style={style.modalHandle}/>
+                        <Text style={style.modalTitle}>
+                            {intl.formatMessage({id: 'workbench.conversations.select_department', defaultMessage: 'Select Department'})}
+                        </Text>
+                        <FlatList
+                            data={departments}
+                            keyExtractor={(item) => String(item.id)}
+                            renderItem={({item}) => (
+                                <TouchableOpacity
+                                    style={style.listRow}
+                                    onPress={() => {
+                                        setSelectedDeptId(item.id);
+                                        setSelectedMember(null);
+                                        setShowDeptModal(false);
+                                    }}
+                                >
+                                    <Text style={style.listRowText}>{item.name}</Text>
+                                </TouchableOpacity>
+                            )}
+                            ListEmptyComponent={
+                                <View style={style.emptyContainer}>
+                                    <Text style={style.emptyText}>
+                                        {intl.formatMessage({id: 'workbench.conversations.no_departments', defaultMessage: 'No departments available'})}
+                                    </Text>
+                                </View>
+                            }
+                        />
+                    </View>
+                </View>
+            )}
 
             {/* Member selector modal */}
             {showMemberModal && (

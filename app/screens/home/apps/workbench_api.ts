@@ -13,7 +13,19 @@ const FACT_EXTRACTOR_BASE = '/plugins/com.mattermost.fact-extractor';
 async function apiFetch(serverUrl: string, path: string, options: {method: string; body?: any; headers?: Record<string, string>}): Promise<any> {
     const client = NetworkManager.getClient(serverUrl);
     const body = options.body ? JSON.stringify(options.body) : undefined;
-    return client.doFetch(path, {method: options.method, ...(body ? {body} : {}), ...(options.headers ? {headers: options.headers} : {})});
+    try {
+        const resp = await client.doFetch(path, {method: options.method, ...(body ? {body} : {}), ...(options.headers ? {headers: options.headers} : {})});
+        return resp;
+    } catch (err: any) {
+        // Extract error message from response if available
+        if (err?.message) {
+            throw new Error(err.message);
+        }
+        if (err?.status) {
+            throw new Error(`HTTP ${err.status}`);
+        }
+        throw new Error('Network request failed');
+    }
 }
 
 // ── Price List ──

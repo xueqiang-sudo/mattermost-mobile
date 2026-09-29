@@ -82,9 +82,10 @@ const Categories = ({
         console.log('[Categories] Total:', categories.length, 'Built-in:', builtIn.length, 'Custom:', custom.length);
         console.log('[Categories] Built-in types:', builtIn.map(c => c.type));
         console.log('[Categories] Custom names:', custom.map(c => c.displayName));
+        console.log('[Categories] teamMemberIds size:', teamMemberIds.size);
 
         return {builtInCategories: builtIn, customCategories: custom};
-    }, [categories]);
+    }, [categories, teamMemberIds]);
 
     // For the FlatList, combine: builtin groups item + custom categories
     type ListItem = {type: 'builtin'} | {type: 'custom'; category: CategoryModel} | 'UNREADS';

@@ -3,6 +3,7 @@
 
 import React from 'react';
 import {useIntl} from 'react-intl';
+import {Alert} from 'react-native';
 import {Q} from '@nozbe/watermelondb';
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
@@ -49,6 +50,13 @@ const BuiltinChannelGroupsRenderer = ({
     const internalTitle = intl.formatMessage({id: 'sidebar.classification.internal', defaultMessage: 'Internal'});
     const externalTitle = intl.formatMessage({id: 'sidebar.classification.external', defaultMessage: 'External'});
 
+    // Debug: Show alert with counts (temporary for debugging on real device)
+    React.useEffect(() => {
+        console.log('[BuiltinChannelGroups] Rendering with Internal:', internalChannelIds.length, 'External:', externalChannelIds.length);
+        // Show alert on device for debugging
+        Alert.alert('群组统计', `内部群: ${internalChannelIds.length}\n外部群: ${externalChannelIds.length}`);
+    }, [internalChannelIds.length, externalChannelIds.length]);
+
     return (
         <>
             <ClassifiedGroup
@@ -74,17 +82,62 @@ const BuiltinChannelGroupsRenderer = ({
 const enhanced = withObservables(
     ['builtInCategories', 'teamMemberIds', 'currentUserId'],
     ({builtInCategories, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
-        // Collect unique channel IDs from all built-in categories
-        const builtInChannelIds = of$(builtInCategories).pipe(
-            switchMap(async (cats) => {
-                const ids = new Set<string>();
-                for (const cat of cats) {
-                    const cc = await cat.categoryChannels.fetch();
-                    for (const c of cc) {
-                        ids.add(c.channelId);
+        // Get current team ID
+        const currentTeamId = of$(builtInCategories).pipe(
+            map(cats => cats[0]?.teamId || ''),
+        );
+
+        // Collect channel IDs from custom categories (to exclude them)
+        const customCategoryChannelIds = currentTeamId.pipe(
+            switchMap(async (teamId) => {
+                const customIds = new Set<string>();
+                if (!teamId) return customIds;
+
+                // Get all custom categories for this team
+                const allCategories = await database.get<CategoryModel>('category')
+                    .query(Q.where('team_id', teamId))
+                    .fetch();
+                for (const cat of allCategories) {
+                    if (cat.type === 'custom') {
+                        const cc = await cat.categoryChannels.fetch();
+                        for (const c of cc) {
+                            customIds.add(c.channelId);
+                        }
                     }
                 }
-                return Array.from(ids);
+                return customIds;
+            }),
+        );
+
+        // Get ALL channels the user is a member of (including GM, DM, public, private)
+        const allUserChannels = database.get<ChannelMembershipModel>(CHANNEL_MEMBERSHIP)
+            .query()
+            .observe()
+            .pipe(
+                switchMap((memberships) => {
+                    const channelIds = memberships.map(m => m.channelId);
+                    if (channelIds.length === 0) {
+                        return of$([] as ChannelModel[]);
+                    }
+                    return queryChannelsById(database, channelIds).observe();
+                }),
+            );
+
+        // Filter: only channels in current team, not in custom categories
+        const builtInChannelIds = allUserChannels.pipe(
+            combineLatestWith(customCategoryChannelIds, currentTeamId),
+            map(([channels, customIds, teamId]) => {
+                return channels
+                    .filter(ch => {
+                        // Include if:
+                        // 1. It's a DM/GM (team_id might be empty or different)
+                        // 2. OR it belongs to the current team
+                        // AND it's not in a custom category
+                        const isInTeam = ch.type === 'D' || ch.type === 'G' || ch.teamId === teamId;
+                        const notInCustom = !customIds.has(ch.id);
+                        return isInTeam && notInCustom;
+                    })
+                    .map(ch => ch.id);
             }),
         );
 

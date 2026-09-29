@@ -538,30 +538,58 @@ const KnowledgeBaseScreen = () => {
                 setTeamId(tid);
                 setError(null);
             } catch (err) {
-                console.error('Failed to initialize knowledge base:', err);
-                setError(err instanceof Error ? err.message : 'Failed to initialize');
+                const message = err instanceof Error ? err.message : 'Failed to initialize';
+                setError(message);
                 setLoading(false);
+                // Show Alert for debugging on real device
+                Alert.alert('知识库初始化失败', message);
             }
         };
         init();
+
+        // Timeout: if still loading after 10 seconds, show error
+        const timeout = setTimeout(() => {
+            if (loading && !teamId) {
+                const message = '初始化超时，请检查网络连接后重试';
+                setError(message);
+                setLoading(false);
+                Alert.alert('知识库超时', message);
+            }
+        }, 10000);
+
+        return () => clearTimeout(timeout);
     }, [serverUrl]);
 
     // Load documents when teamId or category changes
     const loadDocuments = useCallback(async () => {
         if (!teamId) {
+            console.log('[KB] loadDocuments: no teamId, skipping');
             return;
         }
+        console.log('[KB] Loading documents, teamId:', teamId, 'category:', activeCategory);
         setLoading(true);
         setSearchResults(null);
         setError(null);
         try {
-            const resp = await listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100});
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timeout')), 15000)
+            );
+            const resp = await Promise.race([
+                listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100}),
+                timeoutPromise,
+            ]);
+            console.log('[KB] Docs response:', resp);
             const docs = resp?.data?.documents || resp?.docs || resp?.documents || [];
+            console.log('[KB] Loaded', docs.length, 'documents');
             setDocuments(docs);
         } catch (err) {
-            console.error('Failed to load KB docs:', err);
-            setError(err instanceof Error ? err.message : 'Failed to load documents');
+            console.error('[KB] Failed to load docs:', err);
+            const message = err instanceof Error ? err.message : 'Failed to load documents';
+            setError(message);
             setDocuments([]);
+            // Show Alert for debugging on real device
+            Alert.alert('知识库加载失败', message);
         } finally {
             setLoading(false);
         }
