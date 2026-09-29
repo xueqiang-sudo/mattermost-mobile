@@ -117,9 +117,9 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
 
     return {
         sortedChannels,
-        title,
-        groupId,
-        onChannelSwitch,
+        title: of$(title),
+        groupId: of$(groupId),
+        onChannelSwitch: of$(onChannelSwitch),
     };
 });
 

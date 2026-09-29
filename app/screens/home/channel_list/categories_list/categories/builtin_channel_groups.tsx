@@ -145,9 +145,9 @@ const enhanced = withObservables(
         return {
             internalChannelIds: classified.pipe(map((c) => c.internal)),
             externalChannelIds: classified.pipe(map((c) => c.external)),
-            locale,
-            isTablet,
-            onChannelSwitch,
+            locale: of$(locale),
+            isTablet: of$(isTablet),
+            onChannelSwitch: of$(onChannelSwitch),
         };
     },
 );
