@@ -62,19 +62,27 @@ const Categories = ({
     const teamId = categories[0]?.teamId;
     const showOnlyUnreadsCategory = onlyUnreads && !unreadsOnTop;
 
-    // Split into built-in categories (channels, DMs, favorites) and custom categories
+    // Split into built-in categories (all non-custom) and custom categories
+    // This matches the webapp logic: classify channels from ALL non-custom categories
     const {builtInCategories, customCategories} = useMemo(() => {
         const builtIn: CategoryModel[] = [];
         const custom: CategoryModel[] = [];
         for (const cat of categories) {
-            if (BUILT_IN_TYPES.has(cat.type)) {
-                builtIn.push(cat);
-            } else if (cat.type === 'custom') {
+            if (cat.type === 'custom') {
                 custom.push(cat);
+            } else {
+                // All non-custom categories (channels, DMs, favorites, etc.) go to built-in
+                builtIn.push(cat);
             }
         }
         // Sort custom categories by sortOrder
         custom.sort((a, b) => a.sortOrder - b.sortOrder);
+
+        // Debug logging
+        console.log('[Categories] Total:', categories.length, 'Built-in:', builtIn.length, 'Custom:', custom.length);
+        console.log('[Categories] Built-in types:', builtIn.map(c => c.type));
+        console.log('[Categories] Custom names:', custom.map(c => c.displayName));
+
         return {builtInCategories: builtIn, customCategories: custom};
     }, [categories]);
 

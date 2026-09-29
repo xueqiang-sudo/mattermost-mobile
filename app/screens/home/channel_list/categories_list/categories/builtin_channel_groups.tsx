@@ -122,6 +122,9 @@ const enhanced = withObservables(
                 const internal: string[] = [];
                 const external: string[] = [];
 
+                console.log('[BuiltinChannelGroups] Classifying', chs.length, 'channels');
+                console.log('[BuiltinChannelGroups] Team members:', teamMembers.size);
+
                 for (const channel of chs) {
                     const group = classifyChannel(channel, userId, teamMembers, gmMembers);
                     if (group === 'internal') {
@@ -130,6 +133,8 @@ const enhanced = withObservables(
                         external.push(channel.id);
                     }
                 }
+
+                console.log('[BuiltinChannelGroups] Result: Internal:', internal.length, 'External:', external.length);
 
                 return {internal, external};
             }),
