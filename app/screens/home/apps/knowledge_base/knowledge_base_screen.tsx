@@ -546,18 +546,6 @@ const KnowledgeBaseScreen = () => {
             }
         };
         init();
-
-        // Timeout: if still loading after 10 seconds, show error
-        const timeout = setTimeout(() => {
-            if (loading && !teamId) {
-                const message = '初始化超时，请检查网络连接后重试';
-                setError(message);
-                setLoading(false);
-                Alert.alert('知识库超时', message);
-            }
-        }, 10000);
-
-        return () => clearTimeout(timeout);
     }, [serverUrl]);
 
     // Load documents when teamId or category changes

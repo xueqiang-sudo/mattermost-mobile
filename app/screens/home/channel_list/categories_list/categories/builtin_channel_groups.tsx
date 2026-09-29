@@ -24,7 +24,7 @@ const {SERVER: {CHANNEL_MEMBERSHIP}} = MM_TABLES;
 
 type EnhanceProps = {
     builtInCategories: CategoryModel[];
-    customCategoryChannelIds: ReadonlySet<string>;
+    customCategories: CategoryModel[];
     teamMemberIds: ReadonlySet<string>;
     currentUserId: string;
     locale: string;
@@ -81,11 +81,25 @@ const BuiltinChannelGroupsRenderer = ({
 };
 
 const enhanced = withObservables(
-    ['builtInCategories', 'customCategoryChannelIds', 'teamMemberIds', 'currentUserId'],
-    ({builtInCategories, customCategoryChannelIds, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
+    ['builtInCategories', 'customCategories', 'teamMemberIds', 'currentUserId'],
+    ({builtInCategories, customCategories, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
         // Get current team ID
         const currentTeamId = of$(builtInCategories).pipe(
             map(cats => cats[0]?.teamId || ''),
+        );
+
+        // Get channel IDs from custom categories using observables
+        const customCategoryChannelIds = of$(customCategories).pipe(
+            switchMap(async (cats) => {
+                const customIds = new Set<string>();
+                for (const cat of cats) {
+                    const cc = await cat.categoryChannels.fetch();
+                    for (const c of cc) {
+                        customIds.add(c.channelId);
+                    }
+                }
+                return customIds;
+            }),
         );
 
         // Get ALL channels the user is a member of (including GM, DM, public, private)
@@ -104,7 +118,7 @@ const enhanced = withObservables(
 
         // Filter: only channels in current team, not in custom categories
         const builtInChannelIds = allUserChannels.pipe(
-            combineLatestWith(of$(customCategoryChannelIds), currentTeamId),
+            combineLatestWith(customCategoryChannelIds, currentTeamId),
             map(([channels, customIds, teamId]) => {
                 return channels
                     .filter(ch => {

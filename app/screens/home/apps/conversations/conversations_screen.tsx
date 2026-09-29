@@ -348,21 +348,34 @@ const ConversationsScreen = () => {
 
     // Query conversations
     const handleQuery = useCallback(async () => {
-        if (!teamId) return;
+        if (!teamId) {
+            Alert.alert('Error', 'Team ID is missing');
+            return;
+        }
+        if (!selectedMember) {
+            Alert.alert('Error', 'Please select a member first');
+            return;
+        }
+
+        console.log('[Conversations] Querying for teamId:', teamId, 'userId:', selectedMember.id);
         setLoadingChannels(true);
         setChannels([]);
         setError(null);
 
         try {
-            const userId = selectedMember?.id;
+            const userId = selectedMember.id;
             const chs = await fetchConversations(serverUrl, teamId, userId);
+            console.log('[Conversations] Fetched', chs.length, 'conversations');
             chs.sort((a, b) => (b.last_post_at || 0) - (a.last_post_at || 0));
             setChannels(chs);
             setView('dashboard');
         } catch (err) {
             console.error('Failed to fetch conversations:', err);
-            setError(err instanceof Error ? err.message : 'Failed to load conversations');
+            const message = err instanceof Error ? err.message : 'Failed to load conversations';
+            setError(message);
             setChannels([]);
+            // Show Alert for debugging on real device
+            Alert.alert('查询会话失败', message);
         } finally {
             setLoadingChannels(false);
         }
