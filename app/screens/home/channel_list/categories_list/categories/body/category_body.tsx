@@ -114,7 +114,7 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
     }, [ids, unreadIds, unreadsOnTop]);
 
     const directChannels = useMemo(() => {
-        return ids.concat(unreadChannels).filter(isDMorGM);
+        return ids.concat(unreadChannels).filter((c) => c && isDMorGM(c));
     }, [ids.length, unreadChannels.length]);
 
     const showCategoryPicker = useCallback(async (channel: ChannelModel | Channel) => {

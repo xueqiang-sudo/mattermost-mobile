@@ -52,7 +52,7 @@ const ClassifiedGroup = ({
     }, []);
 
     const directChannels = useMemo(() => {
-        return sortedChannels.filter(isDMorGM);
+        return sortedChannels.filter((c) => c && isDMorGM(c));
     }, [sortedChannels]);
 
     useEffect(() => {

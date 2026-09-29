@@ -92,7 +92,7 @@ const ConversationListContent = ({sortedChannels, hasChannels, currentTeamId, on
     }, []);
 
     const directChannels = useMemo(
-        () => sortedChannels.filter(isDMorGM),
+        () => sortedChannels.filter((c) => c && isDMorGM(c)),
         [sortedChannels],
     );
 
