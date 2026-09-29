@@ -19,6 +19,7 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 import type CategoryModel from '@typings/database/models/servers/category';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
+import type MyChannelModel from '@typings/database/models/servers/my_channel';
 
 const {SERVER: {CHANNEL_MEMBERSHIP}} = MM_TABLES;
 
@@ -112,13 +113,15 @@ const enhanced = withObservables(
             }),
         );
 
-        // Get ALL channels the user is a member of (including GM, DM, public, private)
-        const allUserChannels = database.get<ChannelMembershipModel>(CHANNEL_MEMBERSHIP)
+        // Get ALL channels the user is a member of by querying MyChannel table
+        // This ensures we only get channels that have MyChannel records (which ClassifiedGroup needs)
+        const {SERVER: {MY_CHANNEL}} = MM_TABLES;
+        const allUserChannels = database.get<MyChannelModel>(MY_CHANNEL)
             .query()
             .observe()
             .pipe(
-                switchMap((memberships) => {
-                    const channelIds = memberships.map(m => m.channelId);
+                switchMap((myChannels) => {
+                    const channelIds = myChannels.map(m => m.id);
                     if (channelIds.length === 0) {
                         return of$([] as ChannelModel[]);
                     }

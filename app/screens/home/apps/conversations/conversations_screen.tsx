@@ -26,6 +26,13 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import {fetchConversations, type ConversationChannel} from '../api';
+import {
+    listConversations,
+    getConversationDetail,
+    type ConversationItem,
+    type ConversationDetail,
+    type ConversationMessage,
+} from '../workbench_api';
 
 // ---- Types ----
 
@@ -194,6 +201,118 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'SemiBold'),
         color: theme.buttonColor,
     },
+    // Date picker
+    datePicker: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    dateLabel: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        marginRight: 8,
+    },
+    dateBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+        gap: 6,
+    },
+    dateText: {
+        ...typography('Body', 75, 'Regular'),
+        color: theme.centerChannelColor,
+    },
+    // Conversation detail
+    detailContainer: {
+        flex: 1,
+    },
+    detailHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        gap: 12,
+    },
+    detailTitle: {
+        ...typography('Heading', 200, 'SemiBold'),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    detailContent: {
+        flex: 1,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+    },
+    summaryBox: {
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        marginBottom: 16,
+    },
+    summaryLabel: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.48),
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryText: {
+        ...typography('Body', 100, 'Regular'),
+        color: theme.centerChannelColor,
+        lineHeight: 20,
+    },
+    messagesLabel: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        marginBottom: 8,
+    },
+    messageItem: {
+        paddingVertical: 8,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    messageHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    messageUsername: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    messageTime: {
+        ...typography('Body', 25, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.48),
+    },
+    messageText: {
+        ...typography('Body', 100, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.88),
+        lineHeight: 20,
+    },
+    cardSummary: {
+        ...typography('Body', 75, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        lineHeight: 18,
+        marginTop: 6,
+    },
+    cardBadge: {
+        ...typography('Body', 25, 'SemiBold'),
+        color: theme.buttonBg,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+    },
     // Modal overlay for dropdowns
     modalOverlay: {
         flex: 1,
@@ -281,7 +400,11 @@ const ConversationsScreen = () => {
 
     // Dashboard state
     const [channels, setChannels] = useState<ConversationChannel[]>([]);
+    const [conversations, setConversations] = useState<ConversationItem[]>([]);
+    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
     const [loadingChannels, setLoadingChannels] = useState(false);
+    const [loadingDetail, setLoadingDetail] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Init: load teamId
@@ -357,29 +480,45 @@ const ConversationsScreen = () => {
             return;
         }
 
-        console.log('[Conversations] Querying for teamId:', teamId, 'userId:', selectedMember.id);
+        console.log('[Conversations] Querying for teamId:', teamId, 'userId:', selectedMember.id, 'date:', selectedDate);
         setLoadingChannels(true);
-        setChannels([]);
+        setConversations([]);
         setError(null);
 
         try {
             const userId = selectedMember.id;
-            const chs = await fetchConversations(serverUrl, teamId, userId);
-            console.log('[Conversations] Fetched', chs.length, 'conversations');
-            chs.sort((a, b) => (b.last_post_at || 0) - (a.last_post_at || 0));
-            setChannels(chs);
+            const items = await listConversations(serverUrl, teamId, userId, selectedDate);
+            console.log('[Conversations] Fetched', items.length, 'conversations');
+            setConversations(items);
             setView('dashboard');
         } catch (err) {
             console.error('Failed to fetch conversations:', err);
             const message = err instanceof Error ? err.message : 'Failed to load conversations';
             setError(message);
-            setChannels([]);
+            setConversations([]);
             // Show Alert for debugging on real device
             Alert.alert('查询会话失败', message);
         } finally {
             setLoadingChannels(false);
         }
-    }, [serverUrl, teamId, selectedMember]);
+    }, [serverUrl, teamId, selectedMember, selectedDate]);
+
+    // Fetch conversation detail
+    const handleSelectConversation = useCallback(async (item: ConversationItem) => {
+        if (!teamId) return;
+
+        setLoadingDetail(true);
+        try {
+            const detail = await getConversationDetail(serverUrl, teamId, item.channel_id, selectedDate);
+            setSelectedConversation(detail);
+        } catch (err) {
+            console.error('Failed to fetch conversation detail:', err);
+            const message = err instanceof Error ? err.message : 'Failed to load conversation detail';
+            Alert.alert('加载详情失败', message);
+        } finally {
+            setLoadingDetail(false);
+        }
+    }, [serverUrl, teamId, selectedDate]);
 
     const backToSetup = useCallback(() => {
         setChannels([]);
@@ -478,7 +617,50 @@ const ConversationsScreen = () => {
             );
         }
 
-        if (channels.length === 0) {
+        // Show conversation detail if selected
+        if (selectedConversation) {
+            return (
+                <View style={style.detailContainer}>
+                    <View style={style.detailHeader}>
+                        <TouchableOpacity onPress={() => setSelectedConversation(null)}>
+                            <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
+                        </TouchableOpacity>
+                        <Text style={style.detailTitle} numberOfLines={1}>
+                            {selectedConversation.channel_name}
+                        </Text>
+                    </View>
+                    <ScrollView style={style.detailContent}>
+                        {/* Summary */}
+                        <View style={style.summaryBox}>
+                            <Text style={style.summaryLabel}>
+                                {intl.formatMessage({id: 'workbench.conversations.summary', defaultMessage: 'Summary'})}
+                            </Text>
+                            <Text style={style.summaryText}>
+                                {selectedConversation.summary || intl.formatMessage({id: 'workbench.conversations.no_summary', defaultMessage: 'No summary available'})}
+                            </Text>
+                        </View>
+
+                        {/* Messages */}
+                        <Text style={style.messagesLabel}>
+                            {intl.formatMessage({id: 'workbench.conversations.messages', defaultMessage: 'Messages'})} ({selectedConversation.messages.length})
+                        </Text>
+                        {selectedConversation.messages.map((msg) => (
+                            <View key={msg.id} style={style.messageItem}>
+                                <View style={style.messageHeader}>
+                                    <Text style={style.messageUsername}>{msg.username}</Text>
+                                    <Text style={style.messageTime}>
+                                        {formatTime(msg.create_at, intl.locale)}
+                                    </Text>
+                                </View>
+                                <Text style={style.messageText}>{msg.message}</Text>
+                            </View>
+                        ))}
+                    </ScrollView>
+                </View>
+            );
+        }
+
+        if (conversations.length === 0) {
             return (
                 <View style={style.emptyContainer}>
                     <CompassIcon name='forum-outline' size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
@@ -491,40 +673,61 @@ const ConversationsScreen = () => {
 
         return (
             <View style={style.dashboardContainer}>
+                {/* Date picker */}
+                <View style={style.datePicker}>
+                    <Text style={style.dateLabel}>
+                        {intl.formatMessage({id: 'workbench.conversations.date', defaultMessage: 'Date'})}:
+                    </Text>
+                    <TouchableOpacity
+                        style={style.dateBtn}
+                        onPress={() => {
+                            // Simple date input for now
+                            const newDate = prompt('Enter date (YYYY-MM-DD):', selectedDate);
+                            if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                                setSelectedDate(newDate);
+                                handleQuery();
+                            }
+                        }}
+                    >
+                        <Text style={style.dateText}>{selectedDate}</Text>
+                        <CompassIcon name='calendar' size={16} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                </View>
+
                 <View style={style.statsBar}>
                     <View style={style.statItem}>
                         <CompassIcon name='forum-outline' size={14} color={changeOpacity(theme.centerChannelColor, 0.64)}/>
                         <Text style={style.statText}>
                             {intl.formatMessage(
                                 {id: 'workbench.conversations.stats_groups', defaultMessage: '{count} groups'},
-                                {count: channels.length},
+                                {count: conversations.length},
                             )}
                         </Text>
                     </View>
                 </View>
 
                 <FlatList
-                    data={channels}
-                    keyExtractor={(item) => item.id}
+                    data={conversations}
+                    keyExtractor={(item) => item.channel_id}
                     renderItem={({item}) => (
-                        <View style={style.card}>
+                        <TouchableOpacity
+                            style={style.card}
+                            onPress={() => handleSelectConversation(item)}
+                            activeOpacity={0.7}
+                        >
                             <View style={style.cardHeader}>
                                 <CompassIcon name='forum-outline' size={16} color={theme.centerChannelColor}/>
                                 <Text style={style.cardTitle} numberOfLines={1}>
-                                    {item.display_name || item.id}
+                                    {item.channel_name}
                                 </Text>
-                                {item.last_post_at > 0 && (
-                                    <Text style={style.cardTime}>
-                                        {formatTime(item.last_post_at, intl.locale)}
-                                    </Text>
-                                )}
+                                <Text style={style.cardBadge}>
+                                    {item.message_count} {intl.formatMessage({id: 'workbench.conversations.msgs', defaultMessage: 'msgs'})}
+                                </Text>
                             </View>
-                            {item.member_ids && item.member_ids.length > 0 && (
-                                <Text style={style.cardMembers} numberOfLines={1}>
-                                    {item.member_ids.join(', ')}
-                                </Text>
-                            )}
-                        </View>
+                            <Text style={style.cardSummary} numberOfLines={2}>
+                                {item.summary || intl.formatMessage({id: 'workbench.conversations.no_summary', defaultMessage: 'No summary available'})}
+                            </Text>
+                        </TouchableOpacity>
                     )}
                     contentContainerStyle={{paddingBottom: 20}}
                 />

@@ -525,64 +525,89 @@ const KnowledgeBaseScreen = () => {
 
     // Init: load teamId
     useEffect(() => {
+        let mounted = true;
         const init = async () => {
             try {
                 if (!serverUrl) {
                     throw new Error('Server URL is not available');
                 }
+
+                // Add timeout to prevent hanging
+                const timeoutPromise = new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('初始化超时(10秒)')), 10000)
+                );
+
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const tid = await getCurrentTeamId(database);
+                const tid = await Promise.race([
+                    getCurrentTeamId(database),
+                    timeoutPromise,
+                ]);
+
                 if (!tid) {
                     throw new Error('Team ID not found');
                 }
-                setTeamId(tid);
-                setError(null);
+
+                if (mounted) {
+                    setTeamId(tid);
+                    setError(null);
+                    // Show success alert for debugging
+                    Alert.alert('知识库初始化成功', `Team ID: ${tid}`);
+                }
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Failed to initialize';
-                console.error('[KB] Init failed:', message);
-                setError(message);
-                setLoading(false);
+                if (mounted) {
+                    setError(message);
+                    setLoading(false);
+                    // Show error alert for debugging
+                    Alert.alert('知识库初始化失败', message);
+                }
             }
         };
         init();
+        return () => {
+            mounted = false;
+        };
     }, [serverUrl]);
 
     // Load documents when teamId or category changes
     const loadDocuments = useCallback(async () => {
-        if (!teamId) {
-            console.log('[KB] loadDocuments: no teamId, skipping');
+        if (!teamId || !serverUrl) {
+            setLoading(false);
             return;
         }
-        console.log('[KB] Loading documents, teamId:', teamId, 'category:', activeCategory);
         setLoading(true);
         setSearchResults(null);
         setError(null);
         try {
             // Add timeout to prevent hanging
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Request timeout')), 15000)
+                setTimeout(() => reject(new Error('请求超时(15秒)')), 15000)
             );
             const resp = await Promise.race([
                 listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100}),
                 timeoutPromise,
             ]);
-            console.log('[KB] Docs response:', resp);
             const docs = resp?.data?.documents || resp?.docs || resp?.documents || [];
-            console.log('[KB] Loaded', docs.length, 'documents');
             setDocuments(docs);
+            // Show success alert for debugging
+            Alert.alert('文档加载成功', `加载了 ${docs.length} 个文档`);
         } catch (err) {
-            console.error('[KB] Failed to load docs:', err);
             const message = err instanceof Error ? err.message : 'Failed to load documents';
             setError(message);
             setDocuments([]);
+            // Show error alert for debugging
+            Alert.alert('文档加载失败', message);
         } finally {
             setLoading(false);
         }
     }, [serverUrl, teamId, activeCategory]);
 
     useEffect(() => {
-        loadDocuments();
-    }, [loadDocuments]);
+        // Only load documents if teamId is set
+        if (teamId) {
+            loadDocuments();
+        }
+    }, [teamId, loadDocuments]);
 
     // Debounced search
     const performSearch = useCallback(async (query: string) => {

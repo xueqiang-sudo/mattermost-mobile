@@ -109,6 +109,75 @@ export function getDriveDownloadUrl(serverUrl: string, teamId: string, fileId: s
     return `${serverUrl}/api/v4/teams/${teamId}/drive/files/${fileId}/download`;
 }
 
+// ── Conversations ──
+
+export type ConversationItem = {
+    channel_id: string;
+    channel_name: string;
+    date: string;
+    summary: string;
+    message_count: number;
+    participant_count: number;
+    last_activity: number;
+};
+
+export type ConversationMessage = {
+    id: string;
+    user_id: string;
+    username: string;
+    message: string;
+    create_at: number;
+    file_ids?: string[];
+};
+
+export type ConversationDetail = {
+    channel_id: string;
+    channel_name: string;
+    date: string;
+    summary: string;
+    messages: ConversationMessage[];
+};
+
+export async function listConversations(
+    serverUrl: string,
+    teamId: string,
+    userId: string,
+    date?: string,
+): Promise<ConversationItem[]> {
+    const params = new URLSearchParams({
+        team_id: teamId,
+        user_id: userId,
+    });
+    if (date) {
+        params.set('date', date);
+    }
+    const data = await apiFetch(
+        serverUrl,
+        `${FACT_EXTRACTOR_BASE}/api/conversations/list?${params}`,
+        {method: 'get'},
+    );
+    return data?.conversations || [];
+}
+
+export async function getConversationDetail(
+    serverUrl: string,
+    teamId: string,
+    channelId: string,
+    date: string,
+): Promise<ConversationDetail> {
+    const params = new URLSearchParams({
+        team_id: teamId,
+        channel_id: channelId,
+        date,
+    });
+    const data = await apiFetch(
+        serverUrl,
+        `${FACT_EXTRACTOR_BASE}/api/conversations/detail?${params}`,
+        {method: 'get'},
+    );
+    return data || {channel_id: channelId, channel_name: '', date, summary: '', messages: []};
+}
+
 // ── Knowledge Base ──
 
 export type KBDoc = {
