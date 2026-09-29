@@ -24,6 +24,7 @@ const {SERVER: {CHANNEL_MEMBERSHIP}} = MM_TABLES;
 
 type EnhanceProps = {
     builtInCategories: CategoryModel[];
+    customCategoryChannelIds: ReadonlySet<string>;
     teamMemberIds: ReadonlySet<string>;
     currentUserId: string;
     locale: string;
@@ -80,33 +81,11 @@ const BuiltinChannelGroupsRenderer = ({
 };
 
 const enhanced = withObservables(
-    ['builtInCategories', 'teamMemberIds', 'currentUserId'],
-    ({builtInCategories, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
+    ['builtInCategories', 'customCategoryChannelIds', 'teamMemberIds', 'currentUserId'],
+    ({builtInCategories, customCategoryChannelIds, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
         // Get current team ID
         const currentTeamId = of$(builtInCategories).pipe(
             map(cats => cats[0]?.teamId || ''),
-        );
-
-        // Collect channel IDs from custom categories (to exclude them)
-        const customCategoryChannelIds = currentTeamId.pipe(
-            switchMap(async (teamId) => {
-                const customIds = new Set<string>();
-                if (!teamId) return customIds;
-
-                // Get all custom categories for this team
-                const allCategories = await database.get<CategoryModel>('category')
-                    .query(Q.where('team_id', teamId))
-                    .fetch();
-                for (const cat of allCategories) {
-                    if (cat.type === 'custom') {
-                        const cc = await cat.categoryChannels.fetch();
-                        for (const c of cc) {
-                            customIds.add(c.channelId);
-                        }
-                    }
-                }
-                return customIds;
-            }),
         );
 
         // Get ALL channels the user is a member of (including GM, DM, public, private)
@@ -125,7 +104,7 @@ const enhanced = withObservables(
 
         // Filter: only channels in current team, not in custom categories
         const builtInChannelIds = allUserChannels.pipe(
-            combineLatestWith(customCategoryChannelIds, currentTeamId),
+            combineLatestWith(of$(customCategoryChannelIds), currentTeamId),
             map(([channels, customIds, teamId]) => {
                 return channels
                     .filter(ch => {

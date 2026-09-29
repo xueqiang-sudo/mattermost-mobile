@@ -64,12 +64,20 @@ const Categories = ({
 
     // Split into built-in categories (all non-custom) and custom categories
     // This matches the webapp logic: classify channels from ALL non-custom categories
-    const {builtInCategories, customCategories} = useMemo(() => {
+    const {builtInCategories, customCategories, customCategoryChannelIds} = useMemo(() => {
         const builtIn: CategoryModel[] = [];
         const custom: CategoryModel[] = [];
+        const customChannelIds = new Set<string>();
+
         for (const cat of categories) {
             if (cat.type === 'custom') {
                 custom.push(cat);
+                // Collect channel IDs from custom categories
+                cat.categoryChannels.fetch().then(cc => {
+                    for (const c of cc) {
+                        customChannelIds.add(c.channelId);
+                    }
+                });
             } else {
                 // All non-custom categories (channels, DMs, favorites, etc.) go to built-in
                 builtIn.push(cat);
@@ -84,7 +92,7 @@ const Categories = ({
         console.log('[Categories] Custom names:', custom.map(c => c.displayName));
         console.log('[Categories] teamMemberIds size:', teamMemberIds.size);
 
-        return {builtInCategories: builtIn, customCategories: custom};
+        return {builtInCategories: builtIn, customCategories: custom, customCategoryChannelIds: customChannelIds};
     }, [categories, teamMemberIds]);
 
     // For the FlatList, combine: builtin groups item + custom categories
@@ -147,6 +155,7 @@ const Categories = ({
             return (
                 <BuiltinChannelGroups
                     builtInCategories={builtInCategories}
+                    customCategoryChannelIds={customCategoryChannelIds}
                     teamMemberIds={teamMemberIds}
                     currentUserId={currentUserId}
                     locale={intl.locale}
@@ -167,7 +176,7 @@ const Categories = ({
                 />
             </>
         );
-    }, [teamId, intl.locale, isTablet, onChannelSwitch, showOnlyUnreadsCategory, builtInCategories, teamMemberIds, currentUserId]);
+    }, [teamId, intl.locale, isTablet, onChannelSwitch, showOnlyUnreadsCategory, builtInCategories, customCategoryChannelIds, teamMemberIds, currentUserId]);
 
     useEffect(() => {
         const t = setTimeout(() => {
