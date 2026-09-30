@@ -147,24 +147,34 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
             // Sort by recent activity (most recent first)
             const sorted = sortChannels('recent' as CategorySorting, filtered, notifyProps, locale);
             console.log(`[ClassifiedGroup ${title}] Final sorted count: ${sorted.length}`);
-            return of$(sorted);
+            return of$({
+                channels: sorted,
+                filterStats: {
+                    initial: cwms.length,
+                    afterArchived: beforeArchived - filtered.length,
+                    afterManual: beforeManual - filtered.length,
+                    afterAuto: beforeAuto - filtered.length,
+                    final: sorted.length,
+                },
+            });
         }),
         // Extract just the ChannelModel[] from ChannelWithMyChannel[]
-        switchMap((cwms) => {
-            const result = cwms.map((c) => c.channel);
-            console.log(`[ClassifiedGroup ${title}] Extracted ${result.length} ChannelModel objects`);
-            return of$(result);
+        switchMap((result) => {
+            const channels = result.channels.map((c) => c.channel);
+            console.log(`[ClassifiedGroup ${title}] Extracted ${channels.length} ChannelModel objects`);
+            return of$({channels, filterStats: result.filterStats});
         }),
         distinctUntilChanged((a, b) => {
-            if (a.length !== b.length) {
+            if (a.channels.length !== b.channels.length) {
                 return false;
             }
-            return a.every((ch, i) => ch && b[i] && ch.id === b[i].id);
+            return a.channels.every((ch, i) => ch && b.channels[i] && ch.id === b.channels[i].id);
         }),
     );
 
     return {
-        sortedChannels,
+        sortedChannels: sortedChannels.pipe(map(r => r.channels)),
+        filterStats: sortedChannels.pipe(map(r => r.filterStats)),
         title: of$(title),
         groupId: of$(groupId),
         onChannelSwitch: of$(onChannelSwitch),

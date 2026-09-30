@@ -57,24 +57,20 @@ const BuiltinChannelGroupsRenderer = ({
     const internalTitle = intl.formatMessage({id: 'sidebar.classification.internal', defaultMessage: 'Internal'});
     const externalTitle = intl.formatMessage({id: 'sidebar.classification.external', defaultMessage: 'External'});
 
-    // DEBUG: Show counts in UI
-    const showDebug = __DEV__;
-
+    // DEBUG: Always show counts in UI (for real device testing)
     return (
         <>
-            {showDebug && (
-                <View style={{padding: 10, backgroundColor: '#ffeb3b'}}>
-                    <Text style={{fontSize: 12, color: '#000'}}>
-                        DEBUG: internal={internalChannelIds.length}, external={externalChannelIds.length}
-                    </Text>
-                    <Text style={{fontSize: 10, color: '#666'}}>
-                        Internal IDs: {internalChannelIds.slice(0, 3).join(', ')}{internalChannelIds.length > 3 ? '...' : ''}
-                    </Text>
-                    <Text style={{fontSize: 10, color: '#666'}}>
-                        External IDs: {externalChannelIds.slice(0, 3).join(', ')}{externalChannelIds.length > 3 ? '...' : ''}
-                    </Text>
-                </View>
-            )}
+            <View style={{padding: 10, backgroundColor: '#ffeb3b', borderBottomWidth: 2, borderBottomColor: '#000'}}>
+                <Text style={{fontSize: 14, color: '#000', fontWeight: 'bold'}}>
+                    🔍 DEBUG: internal={internalChannelIds.length}, external={externalChannelIds.length}
+                </Text>
+                <Text style={{fontSize: 11, color: '#333'}}>
+                    Internal IDs: {internalChannelIds.slice(0, 3).join(', ')}{internalChannelIds.length > 3 ? '...' : ''}
+                </Text>
+                <Text style={{fontSize: 11, color: '#333'}}>
+                    External IDs: {externalChannelIds.slice(0, 3).join(', ')}{externalChannelIds.length > 3 ? '...' : ''}
+                </Text>
+            </View>
             <ClassifiedGroup
                 title={internalTitle}
                 groupId='internal'
