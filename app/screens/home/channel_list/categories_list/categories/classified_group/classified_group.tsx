@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {DeviceEventEmitter, FlatList, StyleSheet, Text, View} from 'react-native';
+import {DeviceEventEmitter, FlatList, StyleSheet, View} from 'react-native';
 import Animated, {Easing, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
@@ -17,19 +17,10 @@ import ClassifiedHeader from './classified_header';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 
-type FilterStats = {
-    initial: number;
-    afterArchived: number;
-    afterManual: number;
-    afterAuto: number;
-    final: number;
-};
-
 type Props = {
     title: string;
     groupId: string;
     sortedChannels: ChannelModel[];
-    filterStats?: FilterStats;
     onChannelSwitch: (channel: Channel | ChannelModel) => void;
 }
 
@@ -45,7 +36,6 @@ const ClassifiedGroup = ({
     title,
     groupId,
     sortedChannels,
-    filterStats,
     onChannelSwitch,
 }: Props) => {
     const serverUrl = useServerUrl();
@@ -107,57 +97,12 @@ const ClassifiedGroup = ({
     // Filter out undefined values to prevent crashes in keyExtractor
     const validChannels = sortedChannels.filter((c): c is ChannelModel => c != null);
 
-    // DEBUG: Always show component state (for real device testing)
     if (validChannels.length === 0) {
-        return (
-            <View style={{padding: 10, backgroundColor: '#ffcccc', borderBottomWidth: 2, borderBottomColor: '#c00'}}>
-                <Text style={{fontSize: 12, color: '#c00', fontWeight: 'bold'}}>
-                    ❌ [{title}]: NO CHANNELS TO RENDER
-                </Text>
-                <Text style={{fontSize: 11, color: '#600'}}>
-                    sortedChannels: {sortedChannels.length}, validChannels: {validChannels.length}
-                </Text>
-                {filterStats && (
-                    <>
-                        <Text style={{fontSize: 10, color: '#600'}}>
-                            过滤统计:
-                        </Text>
-                        <Text style={{fontSize: 9, color: '#900'}}>
-                            • 初始: {filterStats.initial}
-                        </Text>
-                        <Text style={{fontSize: 9, color: '#900'}}>
-                            • 归档过滤: -{filterStats.afterArchived}
-                        </Text>
-                        <Text style={{fontSize: 9, color: '#900'}}>
-                            • 手动关闭: -{filterStats.afterManual}
-                        </Text>
-                        <Text style={{fontSize: 9, color: '#900'}}>
-                            • 自动关闭: -{filterStats.afterAuto}
-                        </Text>
-                        <Text style={{fontSize: 9, color: '#900'}}>
-                            • 最终: {filterStats.final}
-                        </Text>
-                    </>
-                )}
-            </View>
-        );
+        return null;
     }
 
     return (
         <View>
-            <View style={{padding: 8, backgroundColor: '#ccffcc', borderBottomWidth: 1, borderBottomColor: '#090'}}>
-                <Text style={{fontSize: 12, color: '#060', fontWeight: 'bold'}}>
-                    ✅ [{title}]: {validChannels.length} 个频道
-                </Text>
-                {filterStats && (
-                    <Text style={{fontSize: 9, color: '#333'}}>
-                        初始{filterStats.initial} → 归档-{filterStats.afterArchived} → 手动-{filterStats.afterManual} → 自动-{filterStats.afterAuto} → 最终{filterStats.final}
-                    </Text>
-                )}
-                <Text style={{fontSize: 9, color: '#333'}}>
-                    height: {height}px, collapsed: {String(collapsed)}
-                </Text>
-            </View>
             <ClassifiedHeader
                 title={title}
                 collapsed={collapsed}
