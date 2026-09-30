@@ -31,6 +31,8 @@ type EnhanceProps = {
 } & WithDatabaseArgs;
 
 const enhanced = withObservables(['channelIds'], ({channelIds, database, isTablet, locale, title, groupId, onChannelSwitch}: EnhanceProps) => {
+    console.log(`[ClassifiedGroup ${title}] withObservables running, channelIds:`, channelIds.length);
+
     const currentUserId = observeCurrentUserId(database);
     const currentChannelId = isTablet ? observeCurrentChannelId(database) : of$('');
     const lastUnreadId = isTablet ? observeLastUnreadChannelId(database) : of$(undefined);
@@ -49,14 +51,43 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
     const channelsWithMyChannel = channels.pipe(
         combineLatestWith(myChannels),
         switchMap(([chs, mys]) => {
+            console.log(`[ClassifiedGroup ${title}] Combining: channels=${chs.length}, myChannels=${mys.length}`);
             const myMap = new Map(mys.map((m) => [m.id, m]));
-            return of$(chs.reduce<ChannelWithMyChannel[]>((result, channel) => {
+            const result = chs.reduce<ChannelWithMyChannel[]>((result, channel) => {
                 const myChannel = myMap.get(channel.id);
                 if (myChannel) {
                     result.push({channel, myChannel, sortOrder: 0});
+                } else {
+                    // Fallback: create a minimal MyChannel-like object for channels without MyChannel records
+                    // This ensures classified channels are still displayed
+                    console.log(`[ClassifiedGroup ${title}] Channel ${channel.id} (${channel.displayName}) has no MyChannel record, using fallback`);
+                    result.push({
+                        channel,
+                        myChannel: {
+                            id: channel.id,
+                            lastPostAt: channel.createAt || 0,
+                            lastViewedAt: 0,
+                            isUnread: false,
+                            mentionsCount: 0,
+                            manuallyUnread: false,
+                            lastFetchedAt: 0,
+                            roles: '',
+                            notifyProps: {} as any,
+                            _raw: {} as any,
+                            update: async () => {},
+                            prepareUpdate: () => ({} as any),
+                            markAsDeleted: async () => {},
+                            markAsDestroyed: async () => {},
+                            collection: {} as any,
+                            subcollections: [],
+                        } as any,
+                        sortOrder: 0,
+                    });
                 }
                 return result;
-            }, []));
+            }, []);
+            console.log(`[ClassifiedGroup ${title}] After combining: ${result.length} channels (with fallback)`);
+            return of$(result);
         }),
     );
 
@@ -87,9 +118,18 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
     const sortedChannels = channelsWithMyChannel.pipe(
         combineLatestWith(currentUserId, currentChannelId, lastUnreadId, notifyPropsPerChannel, manuallyClosedPrefs, autoclosePrefs, deactivated),
         switchMap(([cwms, userId, channelId, unreadId, notifyProps, manuallyClosedDms, autoclose, deactivatedUsers]) => {
+            console.log(`[ClassifiedGroup ${title}] Starting filter pipeline with ${cwms.length} channels`);
             let filtered = cwms;
+
+            const beforeArchived = filtered.length;
             filtered = filterArchivedChannels(filtered, channelId);
+            console.log(`[ClassifiedGroup ${title}] After archived filter: ${filtered.length} (removed ${beforeArchived - filtered.length})`);
+
+            const beforeManual = filtered.length;
             filtered = filterManuallyClosedDms(filtered, notifyProps, manuallyClosedDms, userId, unreadId);
+            console.log(`[ClassifiedGroup ${title}] After manual close filter: ${filtered.length} (removed ${beforeManual - filtered.length})`);
+
+            const beforeAuto = filtered.length;
             // Use 'direct_messages' category type so DM autoclose logic applies
             filtered = filterAutoclosedDMs(
                 'direct_messages' as CategoryType,
@@ -102,11 +142,19 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
                 deactivatedUsers,
                 unreadId,
             );
+            console.log(`[ClassifiedGroup ${title}] After autoclose filter: ${filtered.length} (removed ${beforeAuto - filtered.length})`);
+
             // Sort by recent activity (most recent first)
-            return of$(sortChannels('recent' as CategorySorting, filtered, notifyProps, locale));
+            const sorted = sortChannels('recent' as CategorySorting, filtered, notifyProps, locale);
+            console.log(`[ClassifiedGroup ${title}] Final sorted count: ${sorted.length}`);
+            return of$(sorted);
         }),
         // Extract just the ChannelModel[] from ChannelWithMyChannel[]
-        switchMap((cwms) => of$(cwms.map((c) => c.channel))),
+        switchMap((cwms) => {
+            const result = cwms.map((c) => c.channel);
+            console.log(`[ClassifiedGroup ${title}] Extracted ${result.length} ChannelModel objects`);
+            return of$(result);
+        }),
         distinctUntilChanged((a, b) => {
             if (a.length !== b.length) {
                 return false;

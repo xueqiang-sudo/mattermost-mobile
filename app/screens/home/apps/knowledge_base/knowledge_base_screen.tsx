@@ -605,9 +605,12 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const [askAnswer, setAskAnswer] = useState('');
     const [askSources, setAskSources] = useState<KBAskSource[]>([]);
 
+    // Retry key - increment to trigger re-init
+    const [initRetryKey, setInitRetryKey] = useState(0);
+
     // Init: load teamId
     useEffect(() => {
-        console.log('[KB] Init useEffect running, serverUrl:', serverUrl);
+        console.log('[KB] Init useEffect running, serverUrl:', serverUrl, 'retryKey:', initRetryKey);
         let mounted = true;
         const init = async () => {
             try {
@@ -642,7 +645,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         return () => {
             mounted = false;
         };
-    }, [serverUrl]);
+    }, [serverUrl, initRetryKey]);
 
     // Load documents when teamId or category changes
     const loadDocuments = useCallback(async () => {
@@ -992,7 +995,8 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // ---- Loading state ----
 
-    if (!teamId) {
+    // Show loading only when teamId is not set AND there's no error
+    if (!teamId && !error) {
         console.log('[KB] Rendering loading state (no teamId)');
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
@@ -1006,6 +1010,40 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 </View>
                 <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // Show error state if teamId failed to load
+    if (!teamId && error) {
+        console.log('[KB] Rendering error state (no teamId):', error);
+        return (
+            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+                <View style={style.header}>
+                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                    </TouchableOpacity>
+                    <Text style={style.headerTitle}>
+                        {intl.formatMessage({id: 'workbench.kb.title', defaultMessage: 'Knowledge Base'})}
+                    </Text>
+                </View>
+                <View style={style.emptyContainer}>
+                    <CompassIcon name='alert-circle-outline' size={48} color={theme.errorTextColor}/>
+                    <Text style={style.emptyText}>{error}</Text>
+                    <TouchableOpacity
+                        style={{marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: theme.buttonBg}}
+                        onPress={() => {
+                            setError(null);
+                            setTeamId('');
+                            // Increment retry key to trigger re-init
+                            setInitRetryKey(prev => prev + 1);
+                        }}
+                    >
+                        <Text style={{color: theme.buttonColor, ...typography('Body', 100, 'SemiBold')}}>
+                            {intl.formatMessage({id: 'mobile.retry', defaultMessage: 'Retry'})}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </SafeAreaView>
         );
