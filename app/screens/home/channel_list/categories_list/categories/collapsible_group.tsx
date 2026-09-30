@@ -77,6 +77,7 @@ type Props = {
     showTrash?: boolean;
     canDelete?: boolean;
     onDelete?: () => void;
+    itemHeight?: number; // Height per item in pixels
 };
 
 const CollapsibleGroup = ({
@@ -87,17 +88,18 @@ const CollapsibleGroup = ({
     showTrash = false,
     canDelete = false,
     onDelete,
+    itemHeight = 40,
 }: Props) => {
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
-    const [contentHeight, setContentHeight] = useState(0);
-    const animatedHeight = useSharedValue(defaultCollapsed ? 0 : 9999);
+    const contentHeight = count * itemHeight;
+    const animatedHeight = useSharedValue(defaultCollapsed ? 0 : contentHeight);
 
     const toggle = () => {
         const newCollapsed = !collapsed;
         setCollapsed(newCollapsed);
-        animatedHeight.value = withTiming(newCollapsed ? 0 : contentHeight || 9999, {duration: 300});
+        animatedHeight.value = withTiming(newCollapsed ? 0 : contentHeight, {duration: 300});
     };
 
     const handleDelete = () => {
@@ -115,6 +117,7 @@ const CollapsibleGroup = ({
 
     const animatedStyle = useAnimatedStyle(() => ({
         height: animatedHeight.value,
+        overflow: 'hidden' as const,
     }));
 
     return (
@@ -147,15 +150,7 @@ const CollapsibleGroup = ({
                     )}
                 </View>
             </TouchableOpacity>
-            <Animated.View
-                style={[styles.content, animatedStyle] as any}
-                onLayout={(e) => {
-                    const h = e.nativeEvent.layout.height;
-                    if (h > 0 && h !== contentHeight) {
-                        setContentHeight(h);
-                    }
-                }}
-            >
+            <Animated.View style={[styles.content, animatedStyle] as any}>
                 {children}
             </Animated.View>
         </View>
