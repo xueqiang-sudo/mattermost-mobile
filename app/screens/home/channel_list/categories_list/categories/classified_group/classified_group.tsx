@@ -73,15 +73,19 @@ const ClassifiedGroup = ({
         return null;
     }
 
+    const containerHeight = validChannels.length * 40; // CHANNEL_ROW_HEIGHT
+
     return (
         <CollapsibleGroup title={title} count={validChannels.length}>
-            <FlatList
-                data={validChannels}
-                renderItem={renderItem}
-                keyExtractor={extractKey}
-                scrollEnabled={false}
-                strictMode={true}
-            />
+            <View style={{height: containerHeight}}>
+                <FlatList
+                    data={validChannels}
+                    renderItem={renderItem}
+                    keyExtractor={extractKey}
+                    scrollEnabled={false}
+                    strictMode={true}
+                />
+            </View>
         </CollapsibleGroup>
     );
 };

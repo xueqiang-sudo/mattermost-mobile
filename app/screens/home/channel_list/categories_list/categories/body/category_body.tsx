@@ -293,6 +293,7 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
 
     const isCustomCategory = category.type === 'custom';
     const canDelete = ids.length === 0;
+    const containerHeight = ids.length * 40; // CHANNEL_ROW_HEIGHT
 
     return (
         <CollapsibleGroup
@@ -302,13 +303,15 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
             canDelete={canDelete}
             onDelete={handleDeleteCategory}
         >
-            <FlatList
-                data={ids}
-                renderItem={renderItem}
-                keyExtractor={extractKey}
-                scrollEnabled={false}
-                strictMode={true}
-            />
+            <View style={{height: containerHeight}}>
+                <FlatList
+                    data={ids}
+                    renderItem={renderItem}
+                    keyExtractor={extractKey}
+                    scrollEnabled={false}
+                    strictMode={true}
+                />
+            </View>
         </CollapsibleGroup>
     );
 };
