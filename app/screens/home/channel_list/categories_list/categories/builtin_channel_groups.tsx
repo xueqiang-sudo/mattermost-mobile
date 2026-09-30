@@ -11,6 +11,7 @@ import {switchMap, combineLatestWith, distinctUntilChanged, map} from 'rxjs/oper
 import {MM_TABLES} from '@constants/database';
 import {queryChannelsById} from '@queries/servers/channel';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
+import {from} from 'rxjs';
 
 // Import from ./classified_group/index explicitly to get the withObservables-wrapped
 // version that accepts channelIds:string[] and resolves them to sortedChannels:ChannelModel[].
@@ -87,15 +88,17 @@ const enhanced = withObservables(
 
         // Get channel IDs from custom categories using observables
         const customCategoryChannelIds = of$(customCategories).pipe(
-            switchMap(async (cats) => {
-                const customIds = new Set<string>();
-                for (const cat of cats) {
-                    const cc = await cat.categoryChannels.fetch();
-                    for (const c of cc) {
-                        customIds.add(c.channelId);
+            switchMap((cats) => {
+                return from((async () => {
+                    const customIds = new Set<string>();
+                    for (const cat of cats) {
+                        const cc = await cat.categoryChannels.fetch();
+                        for (const c of cc) {
+                            customIds.add(c.channelId);
+                        }
                     }
-                }
-                return customIds;
+                    return customIds;
+                })());
             }),
         );
 

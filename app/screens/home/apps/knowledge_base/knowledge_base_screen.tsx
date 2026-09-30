@@ -820,8 +820,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         try {
             const result = await DocumentPicker.pick({
                 type: ['*/*'],
-                copyTo: 'cachesDirectory',
-            });
+            } as any);
             if (result && result[0]) {
                 setAddFileUri(result[0].uri);
                 setAddFileName(result[0].name || '');
