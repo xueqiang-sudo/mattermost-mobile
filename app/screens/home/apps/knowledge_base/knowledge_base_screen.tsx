@@ -561,6 +561,7 @@ type Props = {
 };
 
 const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
+    console.log('[KB] Component rendering, kbWrite:', kbWrite);
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -606,6 +607,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Init: load teamId
     useEffect(() => {
+        console.log('[KB] Init useEffect running, serverUrl:', serverUrl);
         let mounted = true;
         const init = async () => {
             try {
@@ -613,26 +615,22 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                     throw new Error('Server URL is not available');
                 }
 
-                // Add timeout to prevent hanging
-                const timeoutPromise = new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error('初始化超时(10秒)')), 10000)
-                );
-
+                console.log('[KB] Getting database and teamId...');
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const tid = await Promise.race([
-                    getCurrentTeamId(database),
-                    timeoutPromise,
-                ]);
+                const tid = await getCurrentTeamId(database);
+                console.log('[KB] Got teamId:', tid);
 
                 if (!tid) {
                     throw new Error('Team ID not found');
                 }
 
                 if (mounted) {
+                    console.log('[KB] Setting teamId state');
                     setTeamId(tid);
                     setError(null);
                 }
             } catch (err) {
+                console.error('[KB] Init error:', err);
                 const message = err instanceof Error ? err.message : 'Failed to initialize';
                 if (mounted) {
                     setError(message);
@@ -648,29 +646,29 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Load documents when teamId or category changes
     const loadDocuments = useCallback(async () => {
+        console.log('[KB] loadDocuments called, teamId:', teamId, 'serverUrl:', serverUrl);
         if (!teamId || !serverUrl) {
+            console.log('[KB] Missing teamId or serverUrl, setting loading false');
             setLoading(false);
             return;
         }
+        console.log('[KB] Setting loading true, fetching documents...');
         setLoading(true);
         setSearchResults(null);
         setError(null);
         try {
-            // Add timeout to prevent hanging
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('请求超时(15秒)')), 15000)
-            );
-            const resp = await Promise.race([
-                listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100}),
-                timeoutPromise,
-            ]);
+            const resp = await listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100});
+            console.log('[KB] Got response:', resp);
             const docs = resp?.data?.documents || resp?.docs || resp?.documents || [];
+            console.log('[KB] Parsed docs:', docs.length, 'documents');
             setDocuments(docs);
         } catch (err) {
+            console.error('[KB] loadDocuments error:', err);
             const message = err instanceof Error ? err.message : 'Failed to load documents';
             setError(message);
             setDocuments([]);
         } finally {
+            console.log('[KB] Setting loading false');
             setLoading(false);
         }
     }, [serverUrl, teamId, activeCategory]);
@@ -995,6 +993,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     // ---- Loading state ----
 
     if (!teamId) {
+        console.log('[KB] Rendering loading state (no teamId)');
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
@@ -1011,6 +1010,8 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             </SafeAreaView>
         );
     }
+
+    console.log('[KB] Rendering main content, teamId:', teamId, 'loading:', loading, 'error:', error);
 
     // Determine which list to show
     const isSearchMode = searchResults !== null;

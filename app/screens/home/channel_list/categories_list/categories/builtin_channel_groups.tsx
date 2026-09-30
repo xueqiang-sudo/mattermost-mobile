@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
+import {View, Text} from 'react-native';
 import {useIntl} from 'react-intl';
 import {Q} from '@nozbe/watermelondb';
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
@@ -56,8 +57,24 @@ const BuiltinChannelGroupsRenderer = ({
     const internalTitle = intl.formatMessage({id: 'sidebar.classification.internal', defaultMessage: 'Internal'});
     const externalTitle = intl.formatMessage({id: 'sidebar.classification.external', defaultMessage: 'External'});
 
+    // DEBUG: Show counts in UI
+    const showDebug = __DEV__;
+
     return (
         <>
+            {showDebug && (
+                <View style={{padding: 10, backgroundColor: '#ffeb3b'}}>
+                    <Text style={{fontSize: 12, color: '#000'}}>
+                        DEBUG: internal={internalChannelIds.length}, external={externalChannelIds.length}
+                    </Text>
+                    <Text style={{fontSize: 10, color: '#666'}}>
+                        Internal IDs: {internalChannelIds.slice(0, 3).join(', ')}{internalChannelIds.length > 3 ? '...' : ''}
+                    </Text>
+                    <Text style={{fontSize: 10, color: '#666'}}>
+                        External IDs: {externalChannelIds.slice(0, 3).join(', ')}{externalChannelIds.length > 3 ? '...' : ''}
+                    </Text>
+                </View>
+            )}
             <ClassifiedGroup
                 title={internalTitle}
                 groupId='internal'
@@ -81,14 +98,21 @@ const BuiltinChannelGroupsRenderer = ({
 const enhanced = withObservables(
     ['builtInCategories', 'customCategories', 'teamMemberIds', 'currentUserId'],
     ({builtInCategories, customCategories, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
+        console.log('[BuiltinGroups] withObservables running, builtInCategories:', builtInCategories.length, 'customCategories:', customCategories.length, 'teamMemberIds:', teamMemberIds.size, 'currentUserId:', currentUserId);
+
         // Get current team ID
         const currentTeamId = of$(builtInCategories).pipe(
-            map(cats => cats[0]?.teamId || ''),
+            map(cats => {
+                const teamId = cats[0]?.teamId || '';
+                console.log('[BuiltinGroups] currentTeamId:', teamId);
+                return teamId;
+            }),
         );
 
         // Get channel IDs from custom categories using observables
         const customCategoryChannelIds = of$(customCategories).pipe(
             switchMap((cats) => {
+                console.log('[BuiltinGroups] Fetching custom category channels for', cats.length, 'categories');
                 return from((async () => {
                     const customIds = new Set<string>();
                     for (const cat of cats) {
@@ -97,6 +121,7 @@ const enhanced = withObservables(
                             customIds.add(c.channelId);
                         }
                     }
+                    console.log('[BuiltinGroups] Custom category channel IDs:', customIds.size);
                     return customIds;
                 })());
             }),
@@ -122,6 +147,7 @@ const enhanced = withObservables(
         const builtInChannelIds = allUserChannels.pipe(
             combineLatestWith(customCategoryChannelIds, currentTeamId),
             map(([channels, customIds, teamId]) => {
+                console.log('[BuiltinGroups] Filtering', channels.length, 'channels, teamId:', teamId, 'customIds:', customIds.size);
                 const filtered = channels.filter(ch => {
                     // Include if:
                     // 1. It's a DM/GM (team_id might be empty or different)
@@ -132,6 +158,7 @@ const enhanced = withObservables(
                     return isInTeam && notInCustom;
                 });
 
+                console.log('[BuiltinGroups] After filter:', filtered.length, 'channels remain');
                 return filtered.map(ch => ch.id);
             }),
         );
@@ -167,6 +194,7 @@ const enhanced = withObservables(
         const classified = channels.pipe(
             combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds)),
             map(([chs, gmMembers, userId, teamMembers]) => {
+                console.log('[BuiltinGroups] Classifying', chs.length, 'channels, teamMembers:', teamMembers.size);
                 const internal: string[] = [];
                 const external: string[] = [];
 
@@ -179,6 +207,7 @@ const enhanced = withObservables(
                     }
                 }
 
+                console.log('[BuiltinGroups] Classification result: internal:', internal.length, 'external:', external.length);
                 return {internal, external};
             }),
             distinctUntilChanged((a, b) => {

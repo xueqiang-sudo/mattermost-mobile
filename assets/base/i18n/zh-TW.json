@@ -2450,6 +2450,7 @@
   "workbench.conversations.select_department": "選擇部門",
   "workbench.conversations.choose_department": "請選擇部門...",
   "workbench.conversations.no_departments": "暫無可用部門",
+  "workbench.conversations.default_department": "預設部門",
   "workbench.conversations.select_department_first": "請先選擇部門",
   "workbench.conversations.summary": "摘要",
   "workbench.conversations.no_summary": "暫無摘要",

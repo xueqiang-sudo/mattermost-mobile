@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {DeviceEventEmitter, FlatList, StyleSheet, View} from 'react-native';
+import {DeviceEventEmitter, FlatList, StyleSheet, Text, View} from 'react-native';
 import Animated, {Easing, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
@@ -97,12 +97,40 @@ const ClassifiedGroup = ({
     // Filter out undefined values to prevent crashes in keyExtractor
     const validChannels = sortedChannels.filter((c): c is ChannelModel => c != null);
 
+    // DEBUG: Show component state in UI
+    const showDebug = __DEV__;
+
     if (validChannels.length === 0) {
+        if (showDebug) {
+            return (
+                <View style={{padding: 10, backgroundColor: '#ffcccc'}}>
+                    <Text style={{fontSize: 12, color: '#c00', fontWeight: 'bold'}}>
+                        DEBUG [{title}]: Returning null
+                    </Text>
+                    <Text style={{fontSize: 10, color: '#666'}}>
+                        sortedChannels: {sortedChannels.length}, validChannels: {validChannels.length}
+                    </Text>
+                    <Text style={{fontSize: 10, color: '#666'}}>
+                        height: {height}, collapsed: {String(collapsed)}
+                    </Text>
+                </View>
+            );
+        }
         return null;
     }
 
     return (
         <View>
+            {showDebug && (
+                <View style={{padding: 8, backgroundColor: '#ccffcc'}}>
+                    <Text style={{fontSize: 11, color: '#060'}}>
+                        DEBUG [{title}]: Rendering {validChannels.length} channels
+                    </Text>
+                    <Text style={{fontSize: 9, color: '#666'}}>
+                        sorted: {sortedChannels.length}, height: {height}, collapsed: {String(collapsed)}
+                    </Text>
+                </View>
+            )}
             <ClassifiedHeader
                 title={title}
                 collapsed={collapsed}

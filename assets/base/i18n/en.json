@@ -2471,6 +2471,7 @@
   "workbench.conversations.select_department": "Select Department",
   "workbench.conversations.choose_department": "Choose a department...",
   "workbench.conversations.no_departments": "No departments available",
+  "workbench.conversations.default_department": "Default Department",
   "workbench.conversations.select_department_first": "Select a department first",
   "workbench.conversations.summary": "Summary",
   "workbench.conversations.no_summary": "No summary available",

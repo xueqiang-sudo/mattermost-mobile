@@ -94,6 +94,16 @@ function detectLocale(intl: ReturnType<typeof useIntl>): string {
     return 'en';
 }
 
+function getDepartmentDisplayName(dept: Department, intl: ReturnType<typeof useIntl>): string {
+    if (dept.name === 'FORCE_TEAM_DEFAULT_DEPARTMENT') {
+        return intl.formatMessage({
+            id: 'workbench.conversations.default_department',
+            defaultMessage: 'Default Department',
+        });
+    }
+    return dept.name;
+}
+
 const DEFAULT_DAY_SUMMARY: DaySummary = {
     date: '', summary: '', rawMessages: [], rawAvailable: false,
     rawTruncated: false, hasData: false, loading: false, error: null,
@@ -938,14 +948,20 @@ const ConversationsScreen = () => {
             </Text>
             <TouchableOpacity
                 style={style.selectBtn}
-                onPress={() => setShowDeptModal(true)}
+                onPress={() => {
+                    setShowMemberModal(false); // Close member modal if open
+                    setShowDeptModal(true);
+                }}
                 disabled={loadingDepts}
             >
                 <Text style={style.selectText}>
                     {loadingDepts
                         ? intl.formatMessage({id: 'workbench.loading', defaultMessage: 'Loading...'})
                         : selectedDeptId !== null
-                            ? departments.find(d => d.id === selectedDeptId)?.name || ''
+                            ? (() => {
+                                const dept = departments.find(d => d.id === selectedDeptId);
+                                return dept ? getDepartmentDisplayName(dept, intl) : '';
+                            })()
                             : intl.formatMessage({id: 'workbench.conversations.choose_department', defaultMessage: 'Choose a department...'})
                     }
                 </Text>
@@ -958,7 +974,12 @@ const ConversationsScreen = () => {
             </Text>
             <TouchableOpacity
                 style={[style.selectBtn, selectedDeptId === null && {opacity: 0.5}]}
-                onPress={() => selectedDeptId !== null && setShowMemberModal(true)}
+                onPress={() => {
+                    if (selectedDeptId !== null) {
+                        setShowDeptModal(false); // Close dept modal if open
+                        setShowMemberModal(true);
+                    }
+                }}
                 disabled={selectedDeptId === null || loadingMembers}
             >
                 <Text style={style.selectText}>
@@ -1252,7 +1273,7 @@ const ConversationsScreen = () => {
                                         setShowDeptModal(false);
                                     }}
                                 >
-                                    <Text style={style.listRowText}>{item.name}</Text>
+                                    <Text style={style.listRowText}>{getDepartmentDisplayName(item, intl)}</Text>
                                 </TouchableOpacity>
                             )}
                             ListEmptyComponent={
