@@ -4,13 +4,12 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import Animated, {Easing, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {moveChannelToCategory, toggleFavoriteChannel} from '@actions/remote/category';
+import {deleteCategory} from '../../../../apps/workbench_api';
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
 import CompassIcon from '@components/compass_icon';
-import {ROW_HEIGHT as CHANNEL_ROW_HEIGHT} from '@components/channel_item/channel_item';
 import {Events} from '@constants';
 import {CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY} from '@constants/categories';
 import {DRAFT, THREAD} from '@constants/screens';
@@ -24,6 +23,8 @@ import {showSnackBar} from '@utils/snack_bar';
 import {isDMorGM} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
+import CollapsibleGroup from '../collapsible_group';
 
 import type CategoryModel from '@typings/database/models/servers/category';
 import type ChannelModel from '@typings/database/models/servers/channel';
@@ -249,6 +250,26 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
         });
     }, [intl, serverUrl, showCategoryPicker, theme]);
 
+    const handleDeleteCategory = useCallback(async () => {
+        try {
+            await deleteCategory(serverUrl, category.teamId, category.id);
+            showSnackBar({
+                barType: 'FAVORITE_CHANNEL' as any,
+                customMessage: intl.formatMessage(
+                    {id: 'category.deleted', defaultMessage: 'Category "{name}" deleted'},
+                    {name: category.displayName},
+                ),
+            });
+        } catch (error) {
+            showSnackBar({
+                barType: 'UNFAVORITE_CHANNEL' as any,
+                customMessage: intl.formatMessage(
+                    {id: 'category.delete_error', defaultMessage: 'Failed to delete category'},
+                ),
+            });
+        }
+    }, [serverUrl, category, intl]);
+
     const renderItem = useCallback(({item}: {item: ChannelModel}) => {
         return (
             <ChannelItem
@@ -264,48 +285,31 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
         );
     }, [category.displayName, handleLongPress, isChannelScreenActive, onChannelSwitch]);
 
-    const sharedValue = useSharedValue(category.collapsed);
-
-    useEffect(() => {
-        sharedValue.value = category.collapsed;
-    }, [category.collapsed]);
-
     useEffect(() => {
         if (directChannels.length) {
             fetchDirectChannelsInfo(serverUrl, directChannels.filter((c) => !c.displayName));
         }
     }, [directChannels.length]);
 
-    const height = ids.length ? ids.length * CHANNEL_ROW_HEIGHT : 0;
-    const unreadHeight = unreadChannels.length ? unreadChannels.length * CHANNEL_ROW_HEIGHT : 0;
-
-    const animatedStyle = useAnimatedStyle(() => {
-        const opacity = unreadHeight > 0 ? 1 : 0;
-        const heightDuration = unreadHeight > 0 ? 200 : 300;
-        return {
-            height: withTiming(sharedValue.value ? unreadHeight : height, {duration: heightDuration}),
-            opacity: withTiming(sharedValue.value ? opacity : 1, {duration: sharedValue.value ? 200 : 300, easing: Easing.inOut(Easing.exp)}),
-            overflow: 'hidden' as const,
-        };
-    }, [height, unreadHeight]);
-
-    const listStyle = useMemo(() => ({
-        height: category.collapsed ? unreadHeight : height,
-        overflow: 'hidden' as const,
-    }), [category.collapsed, height, unreadHeight]);
+    const isCustomCategory = category.type === 'custom';
+    const canDelete = ids.length === 0;
 
     return (
-        <Animated.View style={animatedStyle}>
-            <View style={listStyle}>
-                <FlatList
-                    data={category.collapsed ? unreadChannels : ids}
-                    renderItem={renderItem}
-                    keyExtractor={extractKey}
-                    scrollEnabled={false}
-                    strictMode={true}
-                />
-            </View>
-        </Animated.View>
+        <CollapsibleGroup
+            title={category.displayName}
+            count={ids.length}
+            showTrash={isCustomCategory}
+            canDelete={canDelete}
+            onDelete={handleDeleteCategory}
+        >
+            <FlatList
+                data={ids}
+                renderItem={renderItem}
+                keyExtractor={extractKey}
+                scrollEnabled={false}
+                strictMode={true}
+            />
+        </CollapsibleGroup>
     );
 };
 

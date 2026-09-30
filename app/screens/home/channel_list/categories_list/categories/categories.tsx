@@ -38,6 +38,7 @@ type Props = {
 const styles = StyleSheet.create({
     mainList: {
         flex: 1,
+        backgroundColor: '#F5F5F5',
     },
     loadingView: {
         alignItems: 'center',

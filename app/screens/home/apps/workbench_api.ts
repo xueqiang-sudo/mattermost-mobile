@@ -397,3 +397,13 @@ export async function searchNoteEntries(serverUrl: string, teamId: string, scope
     const params = new URLSearchParams({team_id: teamId, scope, query, limit: String(limit)});
     return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/search?${params}`, {method: 'get'});
 }
+
+// ---- Category Management API ----
+
+export async function deleteCategory(
+    serverUrl: string,
+    teamId: string,
+    categoryId: string,
+): Promise<void> {
+    await apiFetch(serverUrl, `/api/v4/channels/${teamId}/categories/${categoryId}`, {method: 'delete'});
+}

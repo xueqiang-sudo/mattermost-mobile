@@ -3,17 +3,15 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {DeviceEventEmitter, FlatList, StyleSheet, View} from 'react-native';
-import Animated, {Easing, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
 
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
-import {ROW_HEIGHT as CHANNEL_ROW_HEIGHT} from '@components/channel_item/channel_item';
 import {Events} from '@constants';
 import {CHANNEL, DRAFT, THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {isDMorGM} from '@utils/channel';
 
-import ClassifiedHeader from './classified_header';
+import CollapsibleGroup from '../collapsible_group';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
 
@@ -26,15 +24,6 @@ type Props = {
 
 const extractKey = (item: ChannelModel) => item.id;
 
-const styles = StyleSheet.create({
-    container: {
-        marginBottom: 8,
-    },
-    mainList: {
-        flex: 1,
-    },
-});
-
 const ClassifiedGroup = ({
     title,
     groupId,
@@ -43,7 +32,6 @@ const ClassifiedGroup = ({
 }: Props) => {
     const serverUrl = useServerUrl();
     const [isChannelScreenActive, setChannelScreenActive] = useState(true);
-    const [collapsed, setCollapsed] = useState(false);
 
     useEffect(() => {
         const listener = DeviceEventEmitter.addListener(Events.ACTIVE_SCREEN, (screen: string) => {
@@ -78,32 +66,6 @@ const ClassifiedGroup = ({
         );
     }, [groupId, isChannelScreenActive, onChannelSwitch]);
 
-    const toggleCollapse = useCallback(() => {
-        setCollapsed((prev) => !prev);
-    }, []);
-
-    const sharedValue = useSharedValue(collapsed);
-
-    useEffect(() => {
-        sharedValue.value = collapsed;
-    }, [collapsed]);
-
-    const height = sortedChannels.length ? sortedChannels.length * CHANNEL_ROW_HEIGHT : 0;
-
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            height: withTiming(sharedValue.value ? 0 : height, {duration: 300}),
-            opacity: withTiming(sharedValue.value ? 0 : 1, {duration: sharedValue.value ? 200 : 300, easing: Easing.inOut(Easing.exp)}),
-            overflow: 'hidden' as const,
-        };
-    }, [height]);
-
-    // Wrapper style for the FlatList container
-    const listContainerStyle = useMemo(() => ({
-        height,
-        overflow: 'hidden' as const,
-    }), [height]);
-
     // Filter out undefined values to prevent crashes in keyExtractor
     const validChannels = sortedChannels.filter((c): c is ChannelModel => c != null);
 
@@ -112,24 +74,15 @@ const ClassifiedGroup = ({
     }
 
     return (
-        <View style={styles.container}>
-            <ClassifiedHeader
-                title={title}
-                collapsed={collapsed}
-                onToggle={toggleCollapse}
+        <CollapsibleGroup title={title} count={validChannels.length}>
+            <FlatList
+                data={validChannels}
+                renderItem={renderItem}
+                keyExtractor={extractKey}
+                scrollEnabled={false}
+                strictMode={true}
             />
-            <Animated.View style={animatedStyle}>
-                <View style={listContainerStyle}>
-                    <FlatList
-                        data={validChannels}
-                        renderItem={renderItem}
-                        keyExtractor={extractKey}
-                        scrollEnabled={false}
-                        strictMode={true}
-                    />
-                </View>
-            </Animated.View>
-        </View>
+        </CollapsibleGroup>
     );
 };
 
