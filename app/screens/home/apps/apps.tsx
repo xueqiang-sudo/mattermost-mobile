@@ -218,9 +218,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             case 'cloud_drive':
                 navigation.navigate(Screens.APPS_CLOUD_DRIVE);
                 break;
-            case 'knowledge_base':
-                navigation.navigate(Screens.APPS_KNOWLEDGE_BASE);
-                break;
+            // case 'knowledge_base':
+            //     navigation.navigate(Screens.APPS_KNOWLEDGE_BASE);
+            //     break;
             case 'notebook':
                 navigation.navigate(Screens.APPS_NOTEBOOK);
                 break;

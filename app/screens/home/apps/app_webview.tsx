@@ -80,7 +80,7 @@ const APP_URL_MAP: Record<string, string> = {
     conversations: '/workbench/conversations',
     price_list: '/workbench/price-list',
     cloud_drive: '/workbench/cloud-drive',
-    knowledge_base: '/workbench/knowledge-base',
+    // knowledge_base: '/workbench/knowledge-base',
     notebook: '/workbench/notebook',
 };
 

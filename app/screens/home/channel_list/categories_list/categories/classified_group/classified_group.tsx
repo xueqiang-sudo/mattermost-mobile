@@ -27,6 +27,9 @@ type Props = {
 const extractKey = (item: ChannelModel) => item.id;
 
 const styles = StyleSheet.create({
+    container: {
+        marginBottom: 8,
+    },
     mainList: {
         flex: 1,
     },
@@ -91,6 +94,7 @@ const ClassifiedGroup = ({
         return {
             height: withTiming(sharedValue.value ? 0 : height, {duration: 300}),
             opacity: withTiming(sharedValue.value ? 0 : 1, {duration: sharedValue.value ? 200 : 300, easing: Easing.inOut(Easing.exp)}),
+            overflow: 'hidden' as const,
         };
     }, [height]);
 
@@ -102,7 +106,7 @@ const ClassifiedGroup = ({
     }
 
     return (
-        <View>
+        <View style={styles.container}>
             <ClassifiedHeader
                 title={title}
                 collapsed={collapsed}
@@ -113,7 +117,6 @@ const ClassifiedGroup = ({
                     data={validChannels}
                     renderItem={renderItem}
                     keyExtractor={extractKey}
-                    style={{height}}
                     scrollEnabled={false}
                     strictMode={true}
                 />
