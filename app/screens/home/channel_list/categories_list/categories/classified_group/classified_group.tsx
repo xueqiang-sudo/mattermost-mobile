@@ -98,6 +98,12 @@ const ClassifiedGroup = ({
         };
     }, [height]);
 
+    // Wrapper style for the FlatList container
+    const listContainerStyle = useMemo(() => ({
+        height,
+        overflow: 'hidden' as const,
+    }), [height]);
+
     // Filter out undefined values to prevent crashes in keyExtractor
     const validChannels = sortedChannels.filter((c): c is ChannelModel => c != null);
 
@@ -113,13 +119,15 @@ const ClassifiedGroup = ({
                 onToggle={toggleCollapse}
             />
             <Animated.View style={animatedStyle}>
-                <FlatList
-                    data={validChannels}
-                    renderItem={renderItem}
-                    keyExtractor={extractKey}
-                    scrollEnabled={false}
-                    strictMode={true}
-                />
+                <View style={listContainerStyle}>
+                    <FlatList
+                        data={validChannels}
+                        renderItem={renderItem}
+                        keyExtractor={extractKey}
+                        scrollEnabled={false}
+                        strictMode={true}
+                    />
+                </View>
             </Animated.View>
         </View>
     );

@@ -57,7 +57,7 @@ export const APPS: AppDef[] = [
     {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询', iconName: 'forum-outline', erpOnly: false, noPermission: false},
     {key: 'price_list', labelId: 'workbench.tab.price_list', defaultLabel: '价格表', iconName: 'file-excel-outline', erpOnly: false, noPermission: false},
     {key: 'cloud_drive', labelId: 'workbench.tab.cloud_drive', defaultLabel: '云盘', iconName: 'folder-outline', erpOnly: false, noPermission: false},
-    {key: 'knowledge_base', labelId: 'workbench.tab.knowledge_base', defaultLabel: '知识库', iconName: 'book-outline', erpOnly: false, noPermission: false},
+    // {key: 'knowledge_base', labelId: 'workbench.tab.knowledge_base', defaultLabel: '知识库', iconName: 'book-outline', erpOnly: false, noPermission: false},
     {key: 'notebook', labelId: 'workbench.tab.notebook', defaultLabel: '记事本', iconName: 'notebook-outline', erpOnly: false, noPermission: true},
     // MES & Promotion
     {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: 'MES', iconName: 'monitor', erpOnly: false, noPermission: false},
@@ -273,7 +273,8 @@ export async function getDashboardAccess(serverUrl: string, teamId?: string): Pr
         return {
             tabs: ['conversations', 'finance', 'sales', 'hotproducts', 'inventory',
                 'orders', 'projects', 'approvals', 'price_list', 'cloud_drive',
-                'knowledge_base', 'notebook'],
+                // 'knowledge_base',
+                'notebook'],
             is_admin: false,
             configurable: false,
             mes_enabled: true,

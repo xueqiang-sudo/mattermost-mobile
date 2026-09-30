@@ -285,23 +285,26 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
         return {
             height: withTiming(sharedValue.value ? unreadHeight : height, {duration: heightDuration}),
             opacity: withTiming(sharedValue.value ? opacity : 1, {duration: sharedValue.value ? 200 : 300, easing: Easing.inOut(Easing.exp)}),
+            overflow: 'hidden' as const,
         };
     }, [height, unreadHeight]);
 
     const listStyle = useMemo(() => ({
         height: category.collapsed ? unreadHeight : height,
+        overflow: 'hidden' as const,
     }), [category.collapsed, height, unreadHeight]);
 
     return (
         <Animated.View style={animatedStyle}>
-            <FlatList
-                data={category.collapsed ? unreadChannels : ids}
-                renderItem={renderItem}
-                keyExtractor={extractKey}
-
-                strictMode={true}
-                style={listStyle}
-            />
+            <View style={listStyle}>
+                <FlatList
+                    data={category.collapsed ? unreadChannels : ids}
+                    renderItem={renderItem}
+                    keyExtractor={extractKey}
+                    scrollEnabled={false}
+                    strictMode={true}
+                />
+            </View>
         </Animated.View>
     );
 };

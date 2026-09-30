@@ -161,6 +161,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'Regular'),
         color: theme.centerChannelColor,
     },
+    dropdown: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 200,
+        backgroundColor: theme.centerChannelBg,
+    },
+    dropdownItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    dropdownItemText: {
+        ...typography('Body', 100, 'Regular'),
+        color: theme.centerChannelColor,
+    },
+    dropdownItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+    },
     queryBtn: {
         marginTop: 24,
         paddingVertical: 14,
@@ -555,8 +576,8 @@ const ConversationsScreen = () => {
     const [loadingMembers, setLoadingMembers] = useState(false);
 
     // Modal state
-    const [showDeptModal, setShowDeptModal] = useState(false);
-    const [showMemberModal, setShowMemberModal] = useState(false);
+    const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
+    const [memberDropdownOpen, setMemberDropdownOpen] = useState(false);
 
     // Dashboard state
     const [conversations, setConversations] = useState<ConversationChannel[]>([]);
@@ -949,8 +970,8 @@ const ConversationsScreen = () => {
             <TouchableOpacity
                 style={style.selectBtn}
                 onPress={() => {
-                    setShowMemberModal(false); // Close member modal if open
-                    setShowDeptModal(true);
+                    setMemberDropdownOpen(false); // Close member dropdown if open
+                    setDeptDropdownOpen(!deptDropdownOpen);
                 }}
                 disabled={loadingDepts}
             >
@@ -965,8 +986,32 @@ const ConversationsScreen = () => {
                             : intl.formatMessage({id: 'workbench.conversations.choose_department', defaultMessage: 'Choose a department...'})
                     }
                 </Text>
-                <CompassIcon name='chevron-down' size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                <CompassIcon name={deptDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
             </TouchableOpacity>
+            {deptDropdownOpen && (
+                <ScrollView style={style.dropdown}>
+                    {departments.map((dept) => (
+                        <TouchableOpacity
+                            key={String(dept.id)}
+                            style={[style.dropdownItem, selectedDeptId === dept.id && style.dropdownItemSelected]}
+                            onPress={() => {
+                                setSelectedDeptId(dept.id);
+                                setSelectedMember(null);
+                                setDeptDropdownOpen(false);
+                            }}
+                        >
+                            <Text style={style.dropdownItemText}>{getDepartmentDisplayName(dept, intl)}</Text>
+                        </TouchableOpacity>
+                    ))}
+                    {departments.length === 0 && (
+                        <View style={style.emptyContainer}>
+                            <Text style={style.emptyText}>
+                                {intl.formatMessage({id: 'workbench.conversations.no_departments', defaultMessage: 'No departments available'})}
+                            </Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
 
             {/* Member Selection */}
             <Text style={style.label}>
@@ -976,8 +1021,8 @@ const ConversationsScreen = () => {
                 style={[style.selectBtn, selectedDeptId === null && {opacity: 0.5}]}
                 onPress={() => {
                     if (selectedDeptId !== null) {
-                        setShowDeptModal(false); // Close dept modal if open
-                        setShowMemberModal(true);
+                        setDeptDropdownOpen(false); // Close dept dropdown if open
+                        setMemberDropdownOpen(!memberDropdownOpen);
                     }
                 }}
                 disabled={selectedDeptId === null || loadingMembers}
@@ -992,8 +1037,31 @@ const ConversationsScreen = () => {
                                 : intl.formatMessage({id: 'workbench.conversations.choose_member', defaultMessage: 'Choose a member...'})
                     }
                 </Text>
-                <CompassIcon name='chevron-down' size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                <CompassIcon name={memberDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
             </TouchableOpacity>
+            {memberDropdownOpen && (
+                <ScrollView style={style.dropdown}>
+                    {members.map((member) => (
+                        <TouchableOpacity
+                            key={member.id}
+                            style={[style.dropdownItem, selectedMember?.id === member.id && style.dropdownItemSelected]}
+                            onPress={() => {
+                                setSelectedMember(member);
+                                setMemberDropdownOpen(false);
+                            }}
+                        >
+                            <Text style={style.dropdownItemText}>{getMemberDisplayName(member)}</Text>
+                        </TouchableOpacity>
+                    ))}
+                    {members.length === 0 && (
+                        <View style={style.emptyContainer}>
+                            <Text style={style.emptyText}>
+                                {intl.formatMessage({id: 'workbench.conversations.no_members', defaultMessage: 'No members available'})}
+                            </Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
 
             <TouchableOpacity
                 style={[style.queryBtn, !selectedMember && style.queryBtnDisabled]}
@@ -1251,76 +1319,19 @@ const ConversationsScreen = () => {
                 </Text>
             </View>
 
+            {/* Click outside to close dropdowns */}
+            {(deptDropdownOpen || memberDropdownOpen) && (
+                <TouchableOpacity
+                    style={StyleSheet.absoluteFill}
+                    activeOpacity={1}
+                    onPress={() => {
+                        setDeptDropdownOpen(false);
+                        setMemberDropdownOpen(false);
+                    }}
+                />
+            )}
+
             {view === 'setup' ? renderSetup() : renderDashboard()}
-
-            {/* Department selector modal */}
-            {showDeptModal && (
-                <View style={style.modalOverlay}>
-                    <View style={style.modalSheet}>
-                        <View style={style.modalHandle}/>
-                        <Text style={style.modalTitle}>
-                            {intl.formatMessage({id: 'workbench.conversations.select_department', defaultMessage: 'Select Department'})}
-                        </Text>
-                        <FlatList
-                            data={departments}
-                            keyExtractor={(item) => String(item.id)}
-                            renderItem={({item}) => (
-                                <TouchableOpacity
-                                    style={style.listRow}
-                                    onPress={() => {
-                                        setSelectedDeptId(item.id);
-                                        setSelectedMember(null);
-                                        setShowDeptModal(false);
-                                    }}
-                                >
-                                    <Text style={style.listRowText}>{getDepartmentDisplayName(item, intl)}</Text>
-                                </TouchableOpacity>
-                            )}
-                            ListEmptyComponent={
-                                <View style={style.emptyContainer}>
-                                    <Text style={style.emptyText}>
-                                        {intl.formatMessage({id: 'workbench.conversations.no_departments', defaultMessage: 'No departments available'})}
-                                    </Text>
-                                </View>
-                            }
-                        />
-                    </View>
-                </View>
-            )}
-
-            {/* Member selector modal */}
-            {showMemberModal && (
-                <View style={style.modalOverlay}>
-                    <View style={style.modalSheet}>
-                        <View style={style.modalHandle}/>
-                        <Text style={style.modalTitle}>
-                            {intl.formatMessage({id: 'workbench.conversations.select_member', defaultMessage: 'Select Member'})}
-                        </Text>
-                        <FlatList
-                            data={members}
-                            keyExtractor={(item) => item.id}
-                            renderItem={({item}) => (
-                                <TouchableOpacity
-                                    style={style.listRow}
-                                    onPress={() => {
-                                        setSelectedMember(item);
-                                        setShowMemberModal(false);
-                                    }}
-                                >
-                                    <Text style={style.listRowText}>{getMemberDisplayName(item)}</Text>
-                                </TouchableOpacity>
-                            )}
-                            ListEmptyComponent={
-                                <View style={style.emptyContainer}>
-                                    <Text style={style.emptyText}>
-                                        {intl.formatMessage({id: 'workbench.conversations.no_members', defaultMessage: 'No members available'})}
-                                    </Text>
-                                </View>
-                            }
-                        />
-                    </View>
-                </View>
-            )}
         </SafeAreaView>
     );
 };
