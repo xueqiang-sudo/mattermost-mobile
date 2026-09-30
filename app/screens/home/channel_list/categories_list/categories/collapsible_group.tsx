@@ -13,17 +13,17 @@ import {typography} from '@utils/typography';
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         backgroundColor: '#FFFFFF',
-        marginBottom: 8,
+        marginBottom: 4,
         borderRadius: 8,
         overflow: 'hidden',
-        marginHorizontal: 12,
+        marginHorizontal: 8,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
         backgroundColor: '#FAFAFA',
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: '#E0E0E0',
@@ -67,6 +67,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     content: {
         overflow: 'hidden',
     },
+    contentMeasure: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+    },
 }));
 
 type Props = {
@@ -91,12 +97,13 @@ const CollapsibleGroup = ({
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
-    const animatedHeight = useSharedValue(defaultCollapsed ? 0 : 2000);
+    const [contentHeight, setContentHeight] = useState(0);
+    const animatedHeight = useSharedValue(defaultCollapsed ? 0 : 1);
 
     const toggle = () => {
         const newCollapsed = !collapsed;
         setCollapsed(newCollapsed);
-        animatedHeight.value = withTiming(newCollapsed ? 0 : 2000, {duration: 300});
+        animatedHeight.value = withTiming(newCollapsed ? 0 : contentHeight, {duration: 300});
     };
 
     const handleDelete = () => {
@@ -147,6 +154,25 @@ const CollapsibleGroup = ({
                     )}
                 </View>
             </TouchableOpacity>
+
+            {/* Measure content height */}
+            <View
+                style={styles.contentMeasure}
+                onLayout={(e) => {
+                    const height = e.nativeEvent.layout.height;
+                    if (height > 0 && height !== contentHeight) {
+                        setContentHeight(height);
+                        if (!collapsed) {
+                            animatedHeight.value = height;
+                        }
+                    }
+                }}
+                pointerEvents='none'
+            >
+                {children}
+            </View>
+
+            {/* Animated content */}
             <Animated.View style={[styles.content, animatedStyle] as any}>
                 {children}
             </Animated.View>

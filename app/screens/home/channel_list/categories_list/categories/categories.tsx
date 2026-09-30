@@ -152,17 +152,14 @@ const Categories = ({
                 />
             );
         }
-        // Custom category
+        // Custom category (CategoryBody includes CollapsibleGroup with title)
         return (
-            <>
-                <CategoryHeader category={item.category}/>
-                <CategoryBody
-                    category={item.category}
-                    isTablet={isTablet}
-                    locale={intl.locale}
-                    onChannelSwitch={onChannelSwitch}
-                />
-            </>
+            <CategoryBody
+                category={item.category}
+                isTablet={isTablet}
+                locale={intl.locale}
+                onChannelSwitch={onChannelSwitch}
+            />
         );
     }, [teamId, intl.locale, isTablet, onChannelSwitch, showOnlyUnreadsCategory, builtInCategories, customCategories, teamMemberIds, currentUserId]);
 
