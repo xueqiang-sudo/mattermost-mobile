@@ -4,7 +4,7 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {Q} from '@nozbe/watermelondb';
 import {of as of$} from 'rxjs';
-import {switchMap, combineLatestWith, distinctUntilChanged} from 'rxjs/operators';
+import {switchMap, combineLatestWith, distinctUntilChanged, map} from 'rxjs/operators';
 
 import {MM_TABLES} from '@constants/database';
 import {Preferences} from '@constants';
@@ -120,14 +120,17 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
         switchMap(([cwms, userId, channelId, unreadId, notifyProps, manuallyClosedDms, autoclose, deactivatedUsers]) => {
             console.log(`[ClassifiedGroup ${title}] Starting filter pipeline with ${cwms.length} channels`);
             let filtered = cwms;
+            const initial = cwms.length;
 
             const beforeArchived = filtered.length;
             filtered = filterArchivedChannels(filtered, channelId);
-            console.log(`[ClassifiedGroup ${title}] After archived filter: ${filtered.length} (removed ${beforeArchived - filtered.length})`);
+            const afterArchived = filtered.length;
+            console.log(`[ClassifiedGroup ${title}] After archived filter: ${afterArchived} (removed ${beforeArchived - afterArchived})`);
 
             const beforeManual = filtered.length;
             filtered = filterManuallyClosedDms(filtered, notifyProps, manuallyClosedDms, userId, unreadId);
-            console.log(`[ClassifiedGroup ${title}] After manual close filter: ${filtered.length} (removed ${beforeManual - filtered.length})`);
+            const afterManual = filtered.length;
+            console.log(`[ClassifiedGroup ${title}] After manual close filter: ${afterManual} (removed ${beforeManual - afterManual})`);
 
             const beforeAuto = filtered.length;
             // Use 'direct_messages' category type so DM autoclose logic applies
@@ -142,7 +145,8 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
                 deactivatedUsers,
                 unreadId,
             );
-            console.log(`[ClassifiedGroup ${title}] After autoclose filter: ${filtered.length} (removed ${beforeAuto - filtered.length})`);
+            const afterAuto = filtered.length;
+            console.log(`[ClassifiedGroup ${title}] After autoclose filter: ${afterAuto} (removed ${beforeAuto - afterAuto})`);
 
             // Sort by recent activity (most recent first)
             const sorted = sortChannels('recent' as CategorySorting, filtered, notifyProps, locale);
@@ -150,19 +154,18 @@ const enhanced = withObservables(['channelIds'], ({channelIds, database, isTable
             return of$({
                 channels: sorted,
                 filterStats: {
-                    initial: cwms.length,
-                    afterArchived: beforeArchived - filtered.length,
-                    afterManual: beforeManual - filtered.length,
-                    afterAuto: beforeAuto - filtered.length,
+                    initial,
+                    afterArchived: beforeArchived - afterArchived,
+                    afterManual: beforeManual - afterManual,
+                    afterAuto: beforeAuto - afterAuto,
                     final: sorted.length,
                 },
             });
         }),
-        // Extract just the ChannelModel[] from ChannelWithMyChannel[]
+        // sortChannels already returns ChannelModel[], no need to map again
         switchMap((result) => {
-            const channels = result.channels.map((c) => c.channel);
-            console.log(`[ClassifiedGroup ${title}] Extracted ${channels.length} ChannelModel objects`);
-            return of$({channels, filterStats: result.filterStats});
+            console.log(`[ClassifiedGroup ${title}] Final result: ${result.channels.length} ChannelModel objects`);
+            return of$({channels: result.channels, filterStats: result.filterStats});
         }),
         distinctUntilChanged((a, b) => {
             if (a.channels.length !== b.channels.length) {
