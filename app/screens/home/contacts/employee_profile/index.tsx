@@ -304,8 +304,6 @@ const ContactsEmployeeProfile = ({
 
     // 管理模式下的可编辑字段
     const [editNickname, setEditNickname] = useState(() => employee.nickname ?? '');
-    const [editFirstName, setEditFirstName] = useState(() => employee.firstName ?? '');
-    const [editLastName, setEditLastName] = useState(() => employee.lastName ?? '');
     const [editEmail, setEditEmail] = useState(() => employee.email ?? '');
     const [editPhone, setEditPhone] = useState(() => employee.phone ?? '');
     const [editPosition, setEditPosition] = useState(() => employee.position ?? '');
@@ -328,8 +326,6 @@ const ContactsEmployeeProfile = ({
             await client.patchUser({
                 id: employee.id,
                 nickname: editNickname,
-                first_name: editFirstName,
-                last_name: editLastName,
                 email: editEmail,
                 phone: editPhone,
                 position: editPosition,
@@ -342,7 +338,7 @@ const ContactsEmployeeProfile = ({
         } finally {
             setSaving(false);
         }
-    }, [serverUrl, saving, employee.id, editNickname, editFirstName, editLastName, editEmail, editPhone, editPosition, intl, componentId]));
+    }, [serverUrl, saving, employee.id, editNickname, editEmail, editPhone, editPosition, intl, componentId]));
 
     /** 企业所有者 ID（用于标签计算） */
     const [companyOwnerId, setCompanyOwnerId] = useState<string | undefined>();
@@ -864,42 +860,6 @@ const ContactsEmployeeProfile = ({
                         ) : (
                             <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
                                 {employee.nickname || '-'}
-                            </Text>
-                        )}
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>
-                            {intl.formatMessage({id: 'user.settings.general.firstName', defaultMessage: 'First Name'})}
-                        </Text>
-                        {fromManage ? (
-                            <TextInput
-                                style={styles.detailInput}
-                                value={editFirstName}
-                                onChangeText={setEditFirstName}
-                                placeholder='-'
-                                testID='employee_profile.edit.firstName'
-                            />
-                        ) : (
-                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
-                                {employee.firstName || '-'}
-                            </Text>
-                        )}
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>
-                            {intl.formatMessage({id: 'user.settings.general.lastName', defaultMessage: 'Last Name'})}
-                        </Text>
-                        {fromManage ? (
-                            <TextInput
-                                style={styles.detailInput}
-                                value={editLastName}
-                                onChangeText={setEditLastName}
-                                placeholder='-'
-                                testID='employee_profile.edit.lastName'
-                            />
-                        ) : (
-                            <Text style={styles.detailValue} numberOfLines={1} selectable={true}>
-                                {employee.lastName || '-'}
                             </Text>
                         )}
                     </View>
