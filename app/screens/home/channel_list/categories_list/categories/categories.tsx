@@ -121,6 +121,7 @@ const Categories = ({
                     customCategories={customCategories}
                     teamMemberIds={teamMemberIds}
                     currentUserId={currentUserId}
+                    currentTeamId={currentTeamId}
                     locale={intl.locale}
                     isTablet={isTablet}
                     onChannelSwitch={onChannelSwitch}

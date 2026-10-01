@@ -19,6 +19,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {queryChannelsById} from '@queries/servers/channel';
 import {queryCategoriesByTeamIds} from '@queries/servers/categories';
+import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 import {isDMorGM} from '@utils/channel';
 import {changeOpacity} from '@utils/theme';
@@ -31,8 +32,9 @@ import type CategoryModel from '@typings/database/models/servers/category';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
+import type PreferenceModel from '@typings/database/models/servers/preference';
 
-const {SERVER: {CHANNEL_MEMBERSHIP, MY_CHANNEL}} = MM_TABLES;
+const {SERVER: {CHANNEL_MEMBERSHIP, MY_CHANNEL, PREFERENCE}} = MM_TABLES;
 
 type Section = {
     title: string;
@@ -49,6 +51,7 @@ type EnhanceProps = {
     customCategories: CategoryModel[];
     teamMemberIds: ReadonlySet<string>;
     currentUserId: string;
+    currentTeamId: string;
     locale: string;
     isTablet: boolean;
     onChannelSwitch: (channel: Channel | ChannelModel) => void;
@@ -242,12 +245,10 @@ const CollapsibleChannelListRenderer = ({
 };
 
 const enhanced = withObservables(
-    ['builtInCategories', 'customCategories', 'teamMemberIds', 'currentUserId'],
-    ({builtInCategories, customCategories, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
-        // Get current team ID
-        const currentTeamId = of$(builtInCategories).pipe(
-            map(cats => cats[0]?.teamId || ''),
-        );
+    ['builtInCategories', 'customCategories', 'teamMemberIds', 'currentUserId', 'currentTeamId'],
+    ({builtInCategories, customCategories, teamMemberIds, currentUserId, currentTeamId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
+        // Use the passed currentTeamId directly (ensures proper reset on team switch)
+        const currentTeamId$ = of$(currentTeamId);
 
         // Get channel IDs from custom categories
         const customCategoryChannelIds = of$(customCategories).pipe(
@@ -295,7 +296,7 @@ const enhanced = withObservables(
 
         // Filter: only channels in current team, not in custom categories
         const builtInChannelIds = allUserChannels.pipe(
-            combineLatestWith(customCategoryChannelIds, currentTeamId),
+            combineLatestWith(customCategoryChannelIds, currentTeamId$),
             map(([channels, customIds, teamId]) => {
                 const filtered = channels.filter(ch => {
                     const isInTeam = ch.type === 'D' || ch.type === 'G' || ch.teamId === teamId;
@@ -333,15 +334,31 @@ const enhanced = withObservables(
             }),
         );
 
+        // Observe group_channel_category preferences (user manual classification)
+        const groupCategoryPreferences = database.get<PreferenceModel>(PREFERENCE)
+            .query(Q.where('category', 'group_channel_category'))
+            .observe()
+            .pipe(
+                map((prefs) => {
+                    const map = new Map<string, string>();
+                    for (const pref of prefs) {
+                        // Preference name format: "group_channel_category--{channelId}"
+                        // But we store the full key in the map for easier lookup
+                        map.set(pref.name, pref.value);
+                    }
+                    return map;
+                }),
+            );
+
         // Classify channels into internal/external
         const classified = channels.pipe(
-            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), favoritedChannelIds),
-            map(([chs, gmMembers, userId, teamMembers, favoritedIds]) => {
+            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), favoritedChannelIds, groupCategoryPreferences),
+            map(([chs, gmMembers, userId, teamMembers, favoritedIds, preferences]) => {
                 const internal: ChannelModel[] = [];
                 const external: ChannelModel[] = [];
 
                 for (const channel of chs) {
-                    const group = classifyChannel(channel, userId, teamMembers, gmMembers);
+                    const group = classifyChannel(channel, userId, teamMembers, gmMembers, preferences);
                     if (group === 'internal') {
                         internal.push(channel);
                     } else {
@@ -440,7 +457,7 @@ const enhanced = withObservables(
 
         // Build final sections
         const sections = classified.pipe(
-            combineLatestWith(customCategorySections, currentTeamId),
+            combineLatestWith(customCategorySections, currentTeamId$),
             map(([{internal, external}, customSections, teamId]) => {
                 const intl = {
                     formatMessage: ({defaultMessage}: {defaultMessage: string}) => defaultMessage,

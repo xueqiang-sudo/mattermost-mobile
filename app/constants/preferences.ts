@@ -20,6 +20,7 @@ export const CATEGORIES_TO_KEEP = {
 const CATEGORIES = {
     ...CATEGORIES_TO_KEEP,
     FAVORITE_CHANNEL: 'favorite_channel',
+    GROUP_CHANNEL_CATEGORY: 'group_channel_category',
 };
 
 const NOTICES = {

@@ -13,6 +13,7 @@ import type ChannelMembershipModel from '@typings/database/models/servers/channe
  *
  * Rules:
  * - Public channels are always internal.
+ * - Check group_channel_category preference first (user manual classification).
  * - DM: internal if the other user belongs to the current team.
  * - GM / Private: internal if ALL members (excluding self) belong to the current team.
  * - Fallback: external.
@@ -22,10 +23,20 @@ export function classifyChannel(
     currentUserId: string,
     teamMemberIds: ReadonlySet<string>,
     gmMemberIds: ReadonlyMap<string, string[]>,
+    preferences?: ReadonlyMap<string, string>,
 ): 'internal' | 'external' {
     // Public channels always internal
     if (channel.type === General.OPEN_CHANNEL) {
         return 'internal';
+    }
+
+    // Check for group_channel_category preference (user manual classification)
+    if (preferences) {
+        const prefKey = `group_channel_category--${channel.id}`;
+        const groupCategory = preferences.get(prefKey);
+        if (groupCategory === 'internal') {
+            return 'internal';
+        }
     }
 
     // DM: check if the other user is in the current team
