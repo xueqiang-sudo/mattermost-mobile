@@ -1,30 +1,25 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {DeviceEventEmitter, FlatList, StyleSheet, View} from 'react-native';
+import {DeviceEventEmitter, StyleSheet, View} from 'react-native';
 
 import {switchToChannelById} from '@actions/remote/channel';
 import Loading from '@components/loading';
 import {Events} from '@constants';
-import {CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY} from '@constants/categories';
 import {CHANNEL} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import {useTeamSwitch} from '@hooks/team_switch';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 
-import BuiltinChannelGroups from './builtin_channel_groups';
-import CategoryBody from './body';
+import CollapsibleChannelList from './collapsible_channel_list';
 import LoadCategoriesError from './error';
-import CategoryHeader from './header';
 import UnreadCategories from './unreads';
 
 import type CategoryModel from '@typings/database/models/servers/category';
 import type ChannelModel from '@typings/database/models/servers/channel';
-
-const BUILT_IN_TYPES = new Set([CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY]);
 
 type Props = {
     categories: CategoryModel[];
@@ -56,7 +51,6 @@ const Categories = ({
     unreadsOnTop,
 }: Props) => {
     const intl = useIntl();
-    const listRef = useRef<FlatList>(null);
     const serverUrl = useServerUrl();
     const isTablet = useIsTablet();
     const switchingTeam = useTeamSwitch();
@@ -64,7 +58,6 @@ const Categories = ({
     const showOnlyUnreadsCategory = onlyUnreads && !unreadsOnTop;
 
     // Split into built-in categories (all non-custom) and custom categories
-    // This matches the webapp logic: classify channels from ALL non-custom categories
     const {builtInCategories, customCategories} = useMemo(() => {
         const builtIn: CategoryModel[] = [];
         const custom: CategoryModel[] = [];
@@ -73,95 +66,21 @@ const Categories = ({
             if (cat.type === 'custom') {
                 custom.push(cat);
             } else {
-                // All non-custom categories (channels, DMs, favorites, etc.) go to built-in
                 builtIn.push(cat);
             }
         }
-        // Sort custom categories by sortOrder
         custom.sort((a, b) => a.sortOrder - b.sortOrder);
 
         return {builtInCategories: builtIn, customCategories: custom};
     }, [categories, teamMemberIds]);
 
-    // For the FlatList, combine: builtin groups item + custom categories
-    type ListItem = {type: 'builtin'} | {type: 'custom'; category: CategoryModel} | 'UNREADS';
-
-    const listItems = useMemo<ListItem[]>(() => {
-        if (showOnlyUnreadsCategory) {
-            return ['UNREADS' as const];
-        }
-
-        const items: ListItem[] = [];
-
-        if (unreadsOnTop) {
-            items.push('UNREADS');
-        }
-
-        // Built-in groups (internal/external) as a single item
-        if (builtInCategories.length > 0) {
-            items.push({type: 'builtin'});
-        }
-
-        // Custom categories
-        for (const cat of customCategories) {
-            items.push({type: 'custom', category: cat});
-        }
-
-        return items;
-    }, [builtInCategories, customCategories, unreadsOnTop, showOnlyUnreadsCategory]);
-
-    const [initiaLoad, setInitialLoad] = useState(!listItems.length);
+    const [initiaLoad, setInitialLoad] = useState(!categories.length);
 
     const onChannelSwitch = useCallback(async (c: Channel | ChannelModel) => {
         DeviceEventEmitter.emit(Events.ACTIVE_SCREEN, CHANNEL);
         PerformanceMetricsManager.startMetric('mobile_channel_switch');
-
-        // console.error('qgstest onChannelSwitch', c.id, c);
-        // switchToChannelById(serverUrl, 'jxt7qqgf9pd7uy3zjpr4kmi1tr');
         switchToChannelById(serverUrl, c.id);
     }, [serverUrl]);
-
-    const extractKey = useCallback((item: ListItem) => {
-        if (item === 'UNREADS') return 'UNREADS';
-        if (item.type === 'builtin') return 'builtin_groups';
-        return item.category.id;
-    }, []);
-
-    const renderCategory = useCallback((data: {item: ListItem}) => {
-        const {item} = data;
-        if (item === 'UNREADS') {
-            return (
-                <UnreadCategories
-                    currentTeamId={teamId}
-                    isTablet={isTablet}
-                    onChannelSwitch={onChannelSwitch}
-                    onlyUnreads={showOnlyUnreadsCategory}
-                />
-            );
-        }
-        if (item.type === 'builtin') {
-            return (
-                <BuiltinChannelGroups
-                    builtInCategories={builtInCategories}
-                    customCategories={customCategories}
-                    teamMemberIds={teamMemberIds}
-                    currentUserId={currentUserId}
-                    locale={intl.locale}
-                    isTablet={isTablet}
-                    onChannelSwitch={onChannelSwitch}
-                />
-            );
-        }
-        // Custom category (CategoryBody includes CollapsibleGroup with title)
-        return (
-            <CategoryBody
-                category={item.category}
-                isTablet={isTablet}
-                locale={intl.locale}
-                onChannelSwitch={onChannelSwitch}
-            />
-        );
-    }, [teamId, intl.locale, isTablet, onChannelSwitch, showOnlyUnreadsCategory, builtInCategories, customCategories, teamMemberIds, currentUserId]);
 
     useEffect(() => {
         const t = setTimeout(() => {
@@ -196,20 +115,14 @@ const Categories = ({
             </View>
             }
             {!switchingTeam && !initiaLoad && !showOnlyUnreadsCategory && (
-                <FlatList
-                    key={teamId || 'no-team'}
-                    data={listItems}
-                    ref={listRef}
-                    renderItem={renderCategory}
-                    style={styles.mainList}
-                    showsHorizontalScrollIndicator={false}
-                    showsVerticalScrollIndicator={true}
-                    keyExtractor={extractKey}
-                    initialNumToRender={listItems.length}
-                    extraData={teamId}
-
-                    // @ts-expect-error strictMode not included in the types
-                    strictMode={true}
+                <CollapsibleChannelList
+                    builtInCategories={builtInCategories}
+                    customCategories={customCategories}
+                    teamMemberIds={teamMemberIds}
+                    currentUserId={currentUserId}
+                    locale={intl.locale}
+                    isTablet={isTablet}
+                    onChannelSwitch={onChannelSwitch}
                 />
             )}
             {(switchingTeam || initiaLoad) && (
