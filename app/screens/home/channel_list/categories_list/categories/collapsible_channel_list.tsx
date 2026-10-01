@@ -9,7 +9,7 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
 import {switchMap, combineLatestWith, distinctUntilChanged, map} from 'rxjs/operators';
 
-import {deleteCategory} from '../../../../apps/workbench_api';
+import {deleteCategory} from '../../../apps/workbench_api';
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
 import CompassIcon from '@components/compass_icon';
