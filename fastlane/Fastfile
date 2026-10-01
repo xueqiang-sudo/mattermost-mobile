@@ -829,6 +829,8 @@ platform :ios do
 
     # Need to add xcargs to only notification and share extensions
     xcargs = ENV['SENTRY_ENABLED'] == 'true' ? "SENTRY_DSN_IOS='#{ENV['SENTRY_DSN_IOS']}' SENTRY_ENABLED='#{ENV['SENTRY_ENABLED']}'" : ''
+    # Disable warnings-as-errors to prevent third-party pod warnings from failing CI builds
+    xcargs += ' GCC_TREAT_WARNINGS_AS_ERRORS=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=NO'
 
     # Sync share extension version with main app (App Store requires them to match)
     update_info_plist(
