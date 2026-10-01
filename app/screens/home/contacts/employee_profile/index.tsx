@@ -920,6 +920,7 @@ const ContactsEmployeeProfile = ({
                             </Text>
                         )}
                     </View>
+                    {!isSupplierCustomer && (
                     <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>
                             {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
@@ -928,6 +929,7 @@ const ContactsEmployeeProfile = ({
                             {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
                         </Text>
                     </View>
+                    )}
                     {fromManage && (
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>
