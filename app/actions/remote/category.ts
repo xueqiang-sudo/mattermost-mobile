@@ -24,8 +24,10 @@ export const createCategory = async (serverUrl: string, teamId: string, displayN
     try {
         const client = NetworkManager.getClient(serverUrl);
         const newCategory = await client.createChannelCategory('me', teamId, {
+            team_id: teamId,
+            user_id: 'me',
             display_name: displayName,
-            type: 'custom',
+            channel_ids: [],
         } as Partial<Category>);
 
         // Refresh local categories after creation
