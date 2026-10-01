@@ -22,7 +22,7 @@ import {queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 import {isDMorGM} from '@utils/channel';
-import {changeOpacity} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {showSnackBar} from '@utils/snack_bar';
 import {from} from 'rxjs';
@@ -64,10 +64,10 @@ type RenderProps = {
     onChannelSwitch: (channel: Channel | ChannelModel) => void;
 };
 
-const styles = StyleSheet.create({
+const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: theme.centerChannelBg,
     },
     sectionHeader: {
         flexDirection: 'row',
@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 12,
         paddingVertical: 10,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#E0E0E0',
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
         marginHorizontal: 8,
         marginTop: 4,
         borderRadius: 8,
@@ -112,13 +112,14 @@ const styles = StyleSheet.create({
     trashIconDisabled: {
         opacity: 0.3,
     },
-});
+}));
 
 const CollapsibleChannelListRenderer = ({
     sections,
     onChannelSwitch,
 }: RenderProps) => {
     const theme = useTheme();
+    const styles = getStyles(theme);
     const serverUrl = useServerUrl();
     const intl = useIntl();
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['internal', 'external']));

@@ -62,8 +62,8 @@ export const APPS: AppDef[] = [
     // MES & Promotion
     {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: 'MES', iconName: 'monitor', erpOnly: false, noPermission: false},
     {key: 'promotion', labelId: 'sidebar.tab.promotion', defaultLabel: '推广', iconName: 'share-variant-outline', erpOnly: false, noPermission: true},
-    // Role Management
-    {key: 'role_management', labelId: 'sidebar.tab.role_management', defaultLabel: '角色管理', iconName: 'account-multiple-outline', erpOnly: false, noPermission: false},
+    // Role Management (disabled)
+    // {key: 'role_management', labelId: 'sidebar.tab.role_management', defaultLabel: '角色管理', iconName: 'account-multiple-outline', erpOnly: false, noPermission: false},
 ];
 
 // ---- MES Types ----
