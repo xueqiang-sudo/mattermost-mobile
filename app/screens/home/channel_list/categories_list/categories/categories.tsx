@@ -115,14 +115,18 @@ const Categories = ({
             </View>
             }
             {!switchingTeam && !initiaLoad && !showOnlyUnreadsCategory && (
-                <CollapsibleChannelList
-                    builtInCategories={builtInCategories}
-                    customCategories={customCategories}
-                    teamMemberIds={teamMemberIds}
-                    currentUserId={currentUserId}
-                    locale={intl.locale}
-                    isTablet={isTablet}
-                    onChannelSwitch={onChannelSwitch}
+                <FlatList
+                    key={teamId || 'no-team'}
+                    data={listItems}
+                    ref={listRef}
+                    renderItem={renderCategory}
+                    style={styles.mainList}
+                    showsHorizontalScrollIndicator={false}
+                    showsVerticalScrollIndicator={true}
+                    keyExtractor={extractKey}
+                    initialNumToRender={listItems.length}
+                    extraData={teamId}
+                    strictMode={true}
                 />
             )}
             {(switchingTeam || initiaLoad) && (

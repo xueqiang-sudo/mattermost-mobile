@@ -267,13 +267,15 @@ const enhanced = withObservables(
 
         // Get favorited channel IDs
         const favoritedChannelIds = of$(builtInCategories).pipe(
-            switchMap(async (cats) => {
-                const favoritesCategory = cats.find(cat => cat.type === FAVORITES_CATEGORY);
-                if (!favoritesCategory) {
-                    return new Set<string>();
-                }
-                const favoriteChannels = await favoritesCategory.categoryChannels.fetch();
-                return new Set(favoriteChannels.map(cc => cc.channelId));
+            switchMap((cats) => {
+                return from((async () => {
+                    const favoritesCategory = cats.find(cat => cat.type === FAVORITES_CATEGORY);
+                    if (!favoritesCategory) {
+                        return new Set<string>();
+                    }
+                    const favoriteChannels = await favoritesCategory.categoryChannels.fetch();
+                    return new Set(favoriteChannels.map(cc => cc.channelId));
+                })());
             }),
         );
 
@@ -390,47 +392,49 @@ const enhanced = withObservables(
         // Get custom category channels
         const customCategorySections = of$(customCategories).pipe(
             combineLatestWith(favoritedChannelIds),
-            switchMap(async ([cats, favoritedIds]) => {
-                const sections: Section[] = [];
-                for (const cat of cats) {
-                    const categoryChannels = await cat.categoryChannels.fetch();
-                    const channelIds = categoryChannels.map(cc => cc.channelId);
-                    if (channelIds.length > 0) {
-                        const channelModels = await queryChannelsById(database, channelIds).fetch();
+            switchMap(([cats, favoritedIds]) => {
+                return from((async () => {
+                    const sections: Section[] = [];
+                    for (const cat of cats) {
+                        const categoryChannels = await cat.categoryChannels.fetch();
+                        const channelIds = categoryChannels.map(cc => cc.channelId);
+                        if (channelIds.length > 0) {
+                            const channelModels = await queryChannelsById(database, channelIds).fetch();
 
-                        // Sort custom category channels: favorited first, then others
-                        channelModels.sort((a, b) => {
-                            const aIsFavorited = favoritedIds.has(a.id);
-                            const bIsFavorited = favoritedIds.has(b.id);
+                            // Sort custom category channels: favorited first, then others
+                            channelModels.sort((a, b) => {
+                                const aIsFavorited = favoritedIds.has(a.id);
+                                const bIsFavorited = favoritedIds.has(b.id);
 
-                            if (aIsFavorited && !bIsFavorited) return -1;
-                            if (!aIsFavorited && bIsFavorited) return 1;
+                                if (aIsFavorited && !bIsFavorited) return -1;
+                                if (!aIsFavorited && bIsFavorited) return 1;
 
-                            return 0;
-                        });
+                                return 0;
+                            });
 
-                        sections.push({
-                            title: cat.displayName,
-                            data: channelModels,
-                            key: `custom_${cat.id}`,
-                            type: 'custom',
-                            categoryId: cat.id,
-                            teamId: cat.teamId,
-                            isCustomCategory: true,
-                        });
-                    } else {
-                        sections.push({
-                            title: cat.displayName,
-                            data: [],
-                            key: `custom_${cat.id}`,
-                            type: 'custom',
-                            categoryId: cat.id,
-                            teamId: cat.teamId,
-                            isCustomCategory: true,
-                        });
+                            sections.push({
+                                title: cat.displayName,
+                                data: channelModels,
+                                key: `custom_${cat.id}`,
+                                type: 'custom',
+                                categoryId: cat.id,
+                                teamId: cat.teamId,
+                                isCustomCategory: true,
+                            });
+                        } else {
+                            sections.push({
+                                title: cat.displayName,
+                                data: [],
+                                key: `custom_${cat.id}`,
+                                type: 'custom',
+                                categoryId: cat.id,
+                                teamId: cat.teamId,
+                                isCustomCategory: true,
+                            });
+                        }
                     }
-                }
-                return sections;
+                    return sections;
+                })());
             }),
         );
 

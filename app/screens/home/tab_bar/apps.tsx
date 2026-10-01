@@ -17,7 +17,7 @@ const Apps = ({isFocused, theme}: Props) => {
     return (
         <View testID='apps-container'>
             <CompassIcon
-                name='application-outline'
+                name='apps'
                 size={BOTTOM_TAB_ICON_SIZE}
                 color={isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY)}
                 testID='apps-icon'

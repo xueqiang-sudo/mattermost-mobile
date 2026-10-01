@@ -350,12 +350,11 @@ const ChannelListHeader = ({
     const [externalInviteCopied, setExternalInviteCopied] = useState(false);
 
     const inviteLink = useMemo(() => {
-        const inviteId = (currentTeam as any)?.invite_id;
-        if (!inviteId || !serverUrl) {
+        if (!currentUser?.id || !serverUrl) {
             return '';
         }
-        return `${serverUrl}/signup_user_complete/?id=${inviteId}`;
-    }, [currentTeam, serverUrl]);
+        return `${serverUrl}/invite?id=${currentUser.id}`;
+    }, [currentUser?.id, serverUrl]);
 
     const externalInviteLink = useMemo(() => {
         if (!currentUser?.id || !serverUrl) {
