@@ -104,6 +104,10 @@ post_install do |installer|
         # Disable explicit module builds to avoid Xcode 26.1.1 SDK/compiler
         # Swift version mismatch (6.2.1.4.7 vs 6.2.1.4.8) on system frameworks
         bc.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
+        # Disable treating warnings as errors to avoid third-party pod diagnostics
+        # (Swift 6 Sendable, deprecated APIs, nullability) failing the archive
+        bc.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+        bc.build_settings['SWIFT_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
       end
     end
 

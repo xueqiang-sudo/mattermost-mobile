@@ -105,12 +105,14 @@ export default function PlusMenuOverlay() {
                                 }}
                                 testID={item.testID}
                             >
-                                <CompassIcon
-                                    name={item.icon}
-                                    size={20}
-                                    style={styles.itemIcon}
-                                />
-                                <Text style={styles.itemLabel}>
+                                {item.icon && (
+                                    <CompassIcon
+                                        name={item.icon}
+                                        size={20}
+                                        style={styles.itemIcon}
+                                    />
+                                )}
+                                <Text style={[styles.itemLabel, !item.icon && {marginLeft: 0}]}>
                                     {intl.formatMessage({id: item.labelId, defaultMessage: item.defaultLabel})}
                                 </Text>
                             </Pressable>

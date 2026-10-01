@@ -9,10 +9,12 @@ import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} f
 import FloatingCallContainer from '@calls/components/floating_call_container';
 
 import FreezeScreen from '@components/freeze_screen';
+import PlusMenuOverlay from '@components/plus_menu_overlay';
 import PostDraft from '@components/post_draft';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
 import {Screens} from '@constants';
 import {ExtraKeyboardProvider} from '@context/extra_keyboard';
+import {PlusMenuProvider} from '@context/plus_menu';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useChannelSwitch} from '@hooks/channel_switch';
@@ -117,15 +119,16 @@ const Channel = ({
 
     return (
         <FreezeScreen>
-            <SafeAreaView
-                style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
-                mode='margin'
-                edges={edges}
-                testID='channel.screen'
-                onLayout={onLayout}
-                nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
-            >
-                <ChannelHeader
+            <PlusMenuProvider>
+                <SafeAreaView
+                    style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
+                    mode='margin'
+                    edges={edges}
+                    testID='channel.screen'
+                    onLayout={onLayout}
+                    nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
+                >
+                    <ChannelHeader
                     channelId={channelId}
                     componentId={componentId}
                     callsEnabledInChannel={isCallsEnabledInChannel}
@@ -169,7 +172,9 @@ const Channel = ({
                         includeChannelBanner={includeChannelBanner}
                     />
                 }
-            </SafeAreaView>
+                <PlusMenuOverlay/>
+                </SafeAreaView>
+            </PlusMenuProvider>
         </FreezeScreen>
     );
 };

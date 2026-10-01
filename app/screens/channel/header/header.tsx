@@ -9,8 +9,8 @@ import {getCallsConfig} from '@calls/state';
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
-import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {General, Screens} from '@constants';
+import {type PlusMenuEntry, usePlusMenu} from '@context/plus_menu';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
@@ -20,10 +20,9 @@ import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@play
 import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
-import {bottomSheet, dismissBottomSheet, goToScreen, popTopScreen, showModal} from '@screens/navigation';
+import {goToScreen, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
-import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -220,73 +219,59 @@ const ChannelHeader = ({
         showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
     }, [channelId, teamId, intl, theme]);
 
-    const onChannelQuickAction = useCallback(() => {
-        // Show overflow menu bottom sheet with AI features + channel settings
+    const {openPlusMenu} = usePlusMenu();
+
+    const onChannelQuickAction = useCallback((event: any) => {
+        // Show overflow menu dropdown below the "..." button
         const isGM = channelType === General.GM_CHANNEL;
         const isDM = channelType === General.DM_CHANNEL;
 
-        // Count items for snap point calculation
-        let itemCount = 1; // channel settings always shown
-        if (isGM) itemCount++; // AI customer service
-        if (!isDM) itemCount += 2; // consult expert + AI assistant
+        const menuItems: PlusMenuEntry[] = [];
 
-        const renderContent = () => {
-            return (
-                <View>
-                    {isGM && (
-                        <SlideUpPanelItem
-                            leftIcon='robot'
-                            onPress={() => {
-                                dismissBottomSheet();
-                                openAICustomerService();
-                            }}
-                            testID='channel_header.overflow.ai_customer_service'
-                            text={intl.formatMessage({id: 'channel_header.ai_customer_service', defaultMessage: 'AI Customer Service'})}
-                        />
-                    )}
-                    {!isDM && (
-                        <SlideUpPanelItem
-                            leftIcon='account-question'
-                            onPress={() => {
-                                dismissBottomSheet();
-                                openConsultation();
-                            }}
-                            testID='channel_header.overflow.consultation'
-                            text={intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'})}
-                        />
-                    )}
-                    {!isDM && (
-                        <SlideUpPanelItem
-                            leftIcon='lightbulb-outline'
-                            onPress={() => {
-                                dismissBottomSheet();
-                                openAIAssistant();
-                            }}
-                            testID='channel_header.overflow.ai_assistant'
-                            text={intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'})}
-                        />
-                    )}
-                    <SlideUpPanelItem
-                        leftIcon='cog-outline'
-                        onPress={() => {
-                            dismissBottomSheet();
-                            onTitlePress();
-                        }}
-                        testID='channel_header.overflow.channel_settings'
-                        text={intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel Info'})}
-                    />
-                </View>
-            );
-        };
+        if (isGM) {
+            menuItems.push({
+                labelId: 'channel_header.ai_customer_service',
+                defaultLabel: 'AI Customer Service',
+                onPress: openAICustomerService,
+                testID: 'channel_header.overflow.ai_customer_service',
+            });
+        }
 
-        bottomSheet({
-            closeButtonId: 'close-channel-overflow',
-            renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
-            title: intl.formatMessage({id: 'channel_header.overflow.title', defaultMessage: 'More'}),
-            theme,
+        if (!isDM) {
+            menuItems.push({
+                labelId: 'consultation.title',
+                defaultLabel: 'Consult Expert',
+                onPress: openConsultation,
+                testID: 'channel_header.overflow.consultation',
+            });
+
+            menuItems.push({
+                labelId: 'ai_assistant.title',
+                defaultLabel: 'AI Assistant',
+                onPress: openAIAssistant,
+                testID: 'channel_header.overflow.ai_assistant',
+            });
+        }
+
+        menuItems.push({
+            labelId: 'screens.channel_info',
+            defaultLabel: 'Channel Info',
+            onPress: onTitlePress,
+            testID: 'channel_header.overflow.channel_settings',
         });
-    }, [channelType, intl, theme, openAICustomerService, openConsultation, openAIAssistant, onTitlePress]);
+
+        // Use event to get button position
+        const {pageX, pageY} = event?.nativeEvent || {};
+        const buttonWidth = 40; // Approximate button width
+        const buttonHeight = 40; // Approximate button height
+
+        openPlusMenu({
+            anchorLeft: pageX || 0,
+            anchorWidth: buttonWidth,
+            anchorTop: (pageY || 0) + buttonHeight + 4, // 4px gap below button
+            items: menuItems,
+        });
+    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openPlusMenu]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead

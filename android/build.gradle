@@ -43,18 +43,25 @@ buildscript {
 
 allprojects {
     repositories {
+        maven { url 'https://jitpack.io' }  // Moved to top to avoid timeout
         google()
         mavenCentral()
         mavenLocal()
         maven {
             url "$rootDir/../detox/node_modules/detox/Detox-android"
         }
-        maven { url 'https://jitpack.io' }
         //fcm，若不集成 FCM 通道，可直接跳过
         maven { url "https://maven.google.com" }
         //hms，若不集成华为厂商通道，可直接跳过
         maven {url 'https://developer.huawei.com/repo/'}
         maven { url 'https://developer.hihonor.com/repo' }//v5.9.0 开始需要添加
+    }
+
+    // Force specific version to avoid dynamic version metadata lookups
+    configurations.all {
+        resolutionStrategy {
+            force 'org.jitsi:webrtc:124.0.0'
+        }
     }
 }
 

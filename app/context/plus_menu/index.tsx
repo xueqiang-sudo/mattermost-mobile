@@ -4,7 +4,7 @@
 import React, {createContext, useCallback, useContext, useState} from 'react';
 
 export type PlusMenuItem = {
-    icon: string;
+    icon?: string;  // Made optional
     labelId: string;
     defaultLabel: string;
     onPress: () => void;
