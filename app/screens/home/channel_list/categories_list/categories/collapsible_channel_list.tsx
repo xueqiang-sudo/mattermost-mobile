@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useState, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, SectionList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Q} from '@nozbe/watermelondb';
@@ -44,6 +44,7 @@ type Section = {
     categoryId?: string;
     teamId?: string;
     isCustomCategory: boolean;
+    actualCount: number;
 };
 
 type EnhanceProps = {
@@ -124,6 +125,31 @@ const CollapsibleChannelListRenderer = ({
     const intl = useIntl();
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['internal', 'external']));
 
+    // Debug: Show classification info in alert
+    useEffect(() => {
+        const internalSection = sections.find(s => s.key === 'internal');
+        const externalSection = sections.find(s => s.key === 'external');
+        const customSections = sections.filter(s => s.type === 'custom');
+
+        const debugInfo = [
+            `Total sections: ${sections.length}`,
+            `Internal: ${internalSection?.actualCount || 0} channels`,
+            `External: ${externalSection?.actualCount || 0} channels`,
+            `Custom categories: ${customSections.length}`,
+            '',
+            'Internal channels:',
+            ...(internalSection?.data.slice(0, 5).map(ch => `  - ${ch.displayName || ch.name} (${ch.type})`) || []),
+            '',
+            'External channels:',
+            ...(externalSection?.data.slice(0, 5).map(ch => `  - ${ch.displayName || ch.name} (${ch.type})`) || []),
+        ].join('\n');
+
+        // Show alert after a short delay to not block UI
+        setTimeout(() => {
+            Alert.alert('Debug: Channel Classification', debugInfo);
+        }, 1000);
+    }, [sections]);
+
     const toggleSection = useCallback((sectionKey: string) => {
         setExpandedSections((prev) => {
             const newSet = new Set(prev);
@@ -191,7 +217,7 @@ const CollapsibleChannelListRenderer = ({
                 <View style={styles.sectionHeaderRight}>
                     <View style={[styles.badge, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.08)}]}>
                         <Text style={[styles.badgeText, {color: changeOpacity(theme.centerChannelColor, 0.64)}]}>
-                            {section.data.length}
+                            {section.actualCount}
                         </Text>
                     </View>
                     {section.isCustomCategory && (
@@ -358,14 +384,48 @@ const enhanced = withObservables(
                 const internal: ChannelModel[] = [];
                 const external: ChannelModel[] = [];
 
+                // Debug logging
+                console.log('=== Channel Classification Debug ===');
+                console.log('Current Team ID:', currentTeamId);
+                console.log('Current User ID:', userId);
+                console.log('Team Members Count:', teamMembers.size);
+                console.log('Team Members:', Array.from(teamMembers).slice(0, 10).join(', '), teamMembers.size > 10 ? '...' : '');
+                console.log('Total Channels to classify:', chs.length);
+                console.log('GM Member Map size:', gmMembers.size);
+                console.log('Preferences count:', preferences.size);
+                console.log('================================');
+
                 for (const channel of chs) {
                     const group = classifyChannel(channel, userId, teamMembers, gmMembers, preferences);
+
+                    // Debug logging for each channel
+                    if (channel.type === 'D' || channel.type === 'G' || channel.type === 'P') {
+                        const memberIds = channel.type === 'D'
+                            ? [channel.name.split('__').find(id => id !== userId) || '']
+                            : (gmMembers.get(channel.id) || []);
+                        const membersInTeam = memberIds.filter(id => id !== userId && teamMembers.has(id));
+                        const membersNotInTeam = memberIds.filter(id => id !== userId && !teamMembers.has(id));
+
+                        console.log(`Channel: ${channel.displayName || channel.name}`);
+                        console.log(`  Type: ${channel.type}, ID: ${channel.id}`);
+                        console.log(`  Members: ${memberIds.length}`);
+                        console.log(`  Members in team: ${membersInTeam.length}`);
+                        console.log(`  Members NOT in team: ${membersNotInTeam.length} [${membersNotInTeam.slice(0, 3).join(', ')}]`);
+                        console.log(`  Classification: ${group}`);
+                        console.log('---');
+                    }
+
                     if (group === 'internal') {
                         internal.push(channel);
                     } else {
                         external.push(channel);
                     }
                 }
+
+                console.log('=== Classification Results ===');
+                console.log('Internal channels:', internal.length);
+                console.log('External channels:', external.length);
+                console.log('==============================');
 
                 // Sort internal channels: public first, then favorited, then others
                 internal.sort((a, b) => {
@@ -438,6 +498,7 @@ const enhanced = withObservables(
                                 categoryId: cat.id,
                                 teamId: cat.teamId,
                                 isCustomCategory: true,
+                                actualCount: channelModels.length,
                             });
                         } else {
                             sections.push({
@@ -448,6 +509,7 @@ const enhanced = withObservables(
                                 categoryId: cat.id,
                                 teamId: cat.teamId,
                                 isCustomCategory: true,
+                                actualCount: 0,
                             });
                         }
                     }
@@ -474,6 +536,7 @@ const enhanced = withObservables(
                         type: 'internal',
                         teamId,
                         isCustomCategory: false,
+                        actualCount: internal.length,
                     });
                 }
 
@@ -485,6 +548,7 @@ const enhanced = withObservables(
                         type: 'external',
                         teamId,
                         isCustomCategory: false,
+                        actualCount: external.length,
                     });
                 }
 
