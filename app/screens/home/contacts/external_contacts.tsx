@@ -32,7 +32,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {showModalWithBackButton} from '@screens/navigation';
-import {getContactDisplayName} from '@utils/contact_section';
+import {getContactDisplayName as getContactDisplayNameUtil} from '@utils/contact_section';
 import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -130,7 +130,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 function getContactDisplayName(detail: MMEmployeeContactSimple): string {
-    return getContactDisplayName(detail.remark, detail.contact);
+    return getContactDisplayNameUtil(detail.remark, detail.contact);
 }
 
 type RowProps = {
