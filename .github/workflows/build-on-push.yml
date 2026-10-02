@@ -88,13 +88,13 @@ jobs:
 
       - name: Ensure correct Xcode and clean caches
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.1.app
+          sudo xcode-select -s /Applications/Xcode_26.1.app/Contents/Developer
           sudo xcodebuild -license accept || true
           echo "DEVELOPER_DIR=/Applications/Xcode_26.1.app/Contents/Developer" >> $GITHUB_ENV
-          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
+          echo "SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_ENV
           echo "/Applications/Xcode_26.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin" >> $GITHUB_PATH
           export DEVELOPER_DIR=/Applications/Xcode_26.1.app/Contents/Developer
-          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$PATH"
           echo "=== Xcode Diagnostics ==="
           xcode-select -p
@@ -261,7 +261,11 @@ jobs:
           FASTLANE_TEAM_ID: DAR9DHG22M
           FASTLANE_LOG_LEVEL: debug
           FASTLANE_DISABLE_COLORS: "1"
-        run: bundle exec fastlane ios build
+        run: |
+          # Ensure Node is available for React Native bundle script
+          export PATH="$(dirname $(which node)):$PATH"
+          echo "Node path: $(which node)"
+          bundle exec fastlane ios build
         working-directory: fastlane
 
       - name: Upload all build logs

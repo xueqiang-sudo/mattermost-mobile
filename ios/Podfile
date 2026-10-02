@@ -108,6 +108,10 @@ post_install do |installer|
         # (Swift 6 Sendable, deprecated APIs, nullability) failing the archive
         bc.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
         bc.build_settings['SWIFT_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+        # Remove -warnings-as-errors from OTHER_SWIFT_FLAGS if present
+        if bc.build_settings['OTHER_SWIFT_FLAGS']
+          bc.build_settings['OTHER_SWIFT_FLAGS'] = bc.build_settings['OTHER_SWIFT_FLAGS'].to_s.gsub('-warnings-as-errors', '')
+        end
       end
     end
 
