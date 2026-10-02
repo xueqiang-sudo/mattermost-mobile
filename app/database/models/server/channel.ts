@@ -15,6 +15,7 @@ import type ChannelModelInterface from '@typings/database/models/servers/channel
 import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
 import type ChannelInfoModel from '@typings/database/models/servers/channel_info';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
+import type ChannelTeamModel from '@typings/database/models/servers/channel_team';
 import type DraftModel from '@typings/database/models/servers/draft';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
 import type PostModel from '@typings/database/models/servers/post';
@@ -28,6 +29,7 @@ const {
     CHANNEL_BOOKMARK,
     CHANNEL_INFO,
     CHANNEL_MEMBERSHIP,
+    CHANNEL_TEAM,
     DRAFT,
     MY_CHANNEL,
     POSTS_IN_CHANNEL,
@@ -80,6 +82,9 @@ export default class ChannelModel extends Model implements ChannelModelInterface
 
         /** A CHANNEL can be associated with multiple PLAYBOOK_RUN (relationship is 1:N) */
         [PLAYBOOK_RUN]: {type: 'has_many', foreignKey: 'channel_id'},
+
+        /** A CHANNEL can be associated with multiple TEAM via CHANNEL_TEAM (relationship is N:N) */
+        [CHANNEL_TEAM]: {type: 'has_many', foreignKey: 'channel_id'},
     };
 
     /** create_at : The creation date for this channel */
@@ -141,6 +146,9 @@ export default class ChannelModel extends Model implements ChannelModelInterface
 
     /** playbookRuns : All playbook runs for this channel */
     @children(PLAYBOOK_RUN) playbookRuns!: Query<PlaybookRunModel>;
+
+    /** channelTeams : All team associations for this channel */
+    @children(CHANNEL_TEAM) channelTeams!: Query<ChannelTeamModel>;
 
     /** team : The TEAM to which this CHANNEL belongs */
     @immutableRelation(TEAM, 'team_id') team!: Relation<TeamModel>;

@@ -13,6 +13,7 @@ import {
     transformChannelInfoRecord,
     transformChannelMembershipRecord,
     transformChannelRecord,
+    transformChannelTeamRecord,
     transformMyChannelRecord,
     transformMyChannelSettingsRecord,
 } from '@database/operator/server_data_operator/transformers/channel';
@@ -22,10 +23,11 @@ import ChannelBookmarkModel from '@typings/database/models/servers/channel_bookm
 import {logWarning} from '@utils/log';
 
 import type ServerDataOperatorBase from '.';
-import type {HandleChannelArgs, HandleChannelBookmarkArgs, HandleChannelInfoArgs, HandleChannelMembershipArgs, HandleMyChannelArgs, HandleMyChannelSettingsArgs} from '@typings/database/database';
+import type {HandleChannelArgs, HandleChannelBookmarkArgs, HandleChannelInfoArgs, HandleChannelMembershipArgs, HandleChannelTeamArgs, HandleMyChannelArgs, HandleMyChannelSettingsArgs} from '@typings/database/database';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelInfoModel from '@typings/database/models/servers/channel_info';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
+import type ChannelTeamModel from '@typings/database/models/servers/channel_team';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
 import type MyChannelSettingsModel from '@typings/database/models/servers/my_channel_settings';
 
@@ -34,6 +36,7 @@ const {
     CHANNEL_BOOKMARK,
     CHANNEL_INFO,
     CHANNEL_MEMBERSHIP,
+    CHANNEL_TEAM,
     MY_CHANNEL,
     MY_CHANNEL_SETTINGS,
 } = MM_TABLES.SERVER;
@@ -42,6 +45,7 @@ export interface ChannelHandlerMix {
   handleChannel: ({channels, prepareRecordsOnly}: HandleChannelArgs) => Promise<ChannelModel[]>;
   handleChannelBookmark: ({bookmarks, prepareRecordsOnly}: HandleChannelBookmarkArgs) => Promise<Model[]>;
   handleChannelMembership: ({channelMemberships, prepareRecordsOnly}: HandleChannelMembershipArgs) => Promise<ChannelMembershipModel[]>;
+  handleChannelTeam: ({channelTeams, prepareRecordsOnly}: HandleChannelTeamArgs) => Promise<ChannelTeamModel[]>;
   handleMyChannelSettings: ({settings, prepareRecordsOnly}: HandleMyChannelSettingsArgs) => Promise<MyChannelSettingsModel[]>;
   handleChannelInfo: ({channelInfos, prepareRecordsOnly}: HandleChannelInfoArgs) => Promise<ChannelInfoModel[]>;
   handleMyChannel: ({channels, myChannels, isCRTEnabled, prepareRecordsOnly}: HandleMyChannelArgs) => Promise<MyChannelModel[]>;
@@ -436,6 +440,38 @@ const ChannelHandler = <TBase extends Constructor<ServerDataOperatorBase>>(super
         }
 
         return batch;
+    };
+
+    /**
+     * handleChannelTeam: Handler responsible for creating ChannelTeam records.
+     * Uses idempotent create: if the record already exists, it's skipped.
+     */
+    handleChannelTeam = async ({channelTeams, prepareRecordsOnly = true}: HandleChannelTeamArgs): Promise<ChannelTeamModel[]> => {
+        if (!channelTeams?.length) {
+            logWarning('An empty or undefined "channelTeams" array has been passed to the handleChannelTeam method');
+            return [];
+        }
+
+        const uniqueRaws = getUniqueRawsBy({raws: channelTeams, key: 'id'});
+        const keys = uniqueRaws.map((ct) => ct.id);
+        const db: Database = this.database;
+        const existing = await db.get<ChannelTeamModel>(CHANNEL_TEAM).query(
+            Q.where('id', Q.oneOf(keys)),
+        ).fetch();
+        const existingSet = new Set(existing.map((ct) => ct.id));
+        const createRawValues = uniqueRaws.filter((ct) => !existingSet.has(ct.id));
+
+        if (!createRawValues.length) {
+            return [];
+        }
+
+        return this.handleRecords({
+            fieldName: 'id',
+            transformer: transformChannelTeamRecord,
+            prepareRecordsOnly,
+            createOrUpdateRawValues: createRawValues,
+            tableName: CHANNEL_TEAM,
+        }, 'handleChannelTeam');
     };
 };
 

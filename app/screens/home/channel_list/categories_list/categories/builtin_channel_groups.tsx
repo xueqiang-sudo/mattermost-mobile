@@ -126,11 +126,8 @@ const enhanced = withObservables(
             combineLatestWith(customCategoryChannelIds, currentTeamId),
             map(([channels, customIds, teamId]) => {
                 const filtered = channels.filter(ch => {
-                    // Include if:
-                    // 1. It's a DM/GM (team_id might be empty or different)
-                    // 2. OR it belongs to the current team
-                    // AND it's not in a custom category
-                    const isInTeam = ch.type === 'D' || ch.type === 'G' || ch.teamId === teamId;
+                    // Only include channels that belong to the current team
+                    const isInTeam = ch.teamId === teamId;
                     const notInCustom = !customIds.has(ch.id);
                     return isInTeam && notInCustom;
                 });

@@ -37,6 +37,9 @@ export function classifyChannel(
         if (groupCategory === 'internal') {
             return 'internal';
         }
+        if (groupCategory === 'external') {
+            return 'external';
+        }
     }
 
     // DM: check if the other user is in the current team
@@ -48,12 +51,9 @@ export function classifyChannel(
         return teamMemberIds.has(otherUserId) ? 'internal' : 'external';
     }
 
-    // GM / Private: check all members
+    // GM / Private: check if ALL members (excluding self) are in the current team
     if (channel.type === General.GM_CHANNEL || channel.type === General.PRIVATE_CHANNEL) {
-        // Try to parse member IDs from channel name (works for most GM channels)
         let memberIds = parseUserIdsFromGroupedChannelName(channel.name);
-
-        // Fallback to membership data for non-parseable names
         if (!memberIds) {
             memberIds = gmMemberIds.get(channel.id) ?? [];
         }
@@ -62,6 +62,7 @@ export function classifyChannel(
             return 'external';
         }
 
+        // ALL members (excluding self) must be in the team for it to be internal
         for (const memberId of memberIds) {
             if (memberId === currentUserId) {
                 continue;

@@ -102,6 +102,12 @@ type TeamThreadsSync = {
     latest: number;
 };
 
+type ChannelTeam = {
+    id: string;
+    channel_id: string;
+    team_id: string;
+};
+
 type RawValue =
   | AppInfo
   | Category
@@ -111,6 +117,7 @@ type RawValue =
   | ChannelInfo
   | ChannelMember
   | ChannelMembership
+  | ChannelTeam
   | CustomEmoji
   | Draft
   | FileInfo

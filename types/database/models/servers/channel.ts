@@ -4,6 +4,7 @@
 import type CategoryChannelModel from './category_channel';
 import type ChannelBookmarkModel from './channel_bookmark';
 import type ChannelInfoModel from './channel_info';
+import type ChannelTeamModel from './channel_team';
 import type ChannelMembershipModel from './channel_membership';
 import type DraftModel from './draft';
 import type MyChannelModel from './my_channel';
@@ -95,6 +96,9 @@ declare class ChannelModel extends Model {
 
     /** categoryChannel: category of this channel */
     categoryChannel: Relation<CategoryChannelModel>;
+
+    /** channelTeams : All team associations for this channel */
+    channelTeams: Query<ChannelTeamModel>;
 
     toApi(): Channel;
 }

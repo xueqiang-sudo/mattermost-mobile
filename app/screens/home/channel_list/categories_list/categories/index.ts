@@ -25,6 +25,7 @@ const enhanced = withObservables(
         const categories = currentTeamId.pipe(switchMap((ctid) => queryCategoriesByTeamIds(database, [ctid]).observeWithColumns(['sort_order'])));
 
         // Team member IDs for channel classification (internal vs external)
+        // Only use TEAM_MEMBERSHIP to ensure accurate classification
         const teamMemberIds = currentTeamId.pipe(
             switchMap((tid) => (tid ? observeUserIdsInTeam(database, tid) : of$(new Set<string>()))),
         );

@@ -22,8 +22,10 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
+import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {buildClipboardTextFromLines} from '@utils/contact_profile_clipboard';
 import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
@@ -564,7 +566,9 @@ const ContactsEmployeeProfile = ({
             );
             return;
         }
-        const result = await makeGroupChannel(serverUrl, [userId], true);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentTeamId = await getCurrentTeamId(database);
+        const result = await makeGroupChannel(serverUrl, [userId], true, undefined, currentTeamId);
         setSending(false);
         if (result.error) {
             Alert.alert(

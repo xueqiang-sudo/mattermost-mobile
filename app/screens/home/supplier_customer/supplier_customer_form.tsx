@@ -36,6 +36,8 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
+import DatabaseManager from '@database/manager';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {dismissModal} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {getContactListDisplayName} from '@utils/contact_section';
@@ -1151,7 +1153,9 @@ const SupplierCustomerFormScreen = ({
                 setSendingMessage(false);
                 return;
             }
-            const result = await makeDirectChannel(serverUrl, userId, readOnlyDisplayName, true);
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const currentTeamId = await getCurrentTeamId(database);
+            const result = await makeDirectChannel(serverUrl, userId, readOnlyDisplayName, true, currentTeamId);
             if (!result.error) {
                 handleClose();
             }

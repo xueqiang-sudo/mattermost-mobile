@@ -13,6 +13,7 @@ const {
     CHANNEL,
     CHANNEL_BOOKMARK,
     CHANNEL_INFO,
+    CHANNEL_TEAM,
     CUSTOM_PROFILE_ATTRIBUTE,
     CUSTOM_PROFILE_FIELD,
     DRAFT,
@@ -25,6 +26,18 @@ const {
 const {PLAYBOOK_RUN, PLAYBOOK_CHECKLIST, PLAYBOOK_CHECKLIST_ITEM, PLAYBOOK_RUN_ATTRIBUTE, PLAYBOOK_RUN_ATTRIBUTE_VALUE} = PLAYBOOK_TABLES;
 
 export default schemaMigrations({migrations: [
+    {
+        toVersion: 17,
+        steps: [
+            createTable({
+                name: CHANNEL_TEAM,
+                columns: [
+                    {name: 'channel_id', type: 'string', isIndexed: true},
+                    {name: 'team_id', type: 'string', isIndexed: true},
+                ],
+            }),
+        ],
+    },
     {
         toVersion: 16,
         steps: [

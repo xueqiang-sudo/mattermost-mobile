@@ -12,6 +12,7 @@ import {
     ChannelBookmarkSchema,
     ChannelInfoSchema,
     ChannelMembershipSchema,
+    ChannelTeamSchema,
     ConfigSchema,
     CustomEmojiSchema,
     CustomProfileFieldSchema,
@@ -45,7 +46,7 @@ import {
 } from './table_schemas';
 
 export const serverSchema: AppSchema = appSchema({
-    version: 16,
+    version: 17,
     tables: [
         CategorySchema,
         CategoryChannelSchema,
@@ -53,6 +54,7 @@ export const serverSchema: AppSchema = appSchema({
         ChannelBookmarkSchema,
         ChannelInfoSchema,
         ChannelMembershipSchema,
+        ChannelTeamSchema,
         ConfigSchema,
         CustomEmojiSchema,
         CustomProfileFieldSchema,

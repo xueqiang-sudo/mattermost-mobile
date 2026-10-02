@@ -16,6 +16,7 @@ export const MM_TABLES = {
         CHANNEL_BOOKMARK: 'ChannelBookmark',
         CHANNEL_INFO: 'ChannelInfo',
         CHANNEL_MEMBERSHIP: 'ChannelMembership',
+        CHANNEL_TEAM: 'ChannelTeam',
         CONFIG: 'Config',
         CUSTOM_EMOJI: 'CustomEmoji',
         CUSTOM_PROFILE_FIELD: 'CustomProfileField',

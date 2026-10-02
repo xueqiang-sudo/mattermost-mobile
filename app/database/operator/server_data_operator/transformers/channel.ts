@@ -4,12 +4,14 @@
 import {MM_TABLES, OperationType} from '@constants/database';
 import {prepareBaseRecord} from '@database/operator/server_data_operator/transformers/index';
 import {extractChannelDisplayName} from '@helpers/database';
+import {generateGroupAssociationId} from '@utils/groups';
 
 import type {TransformerArgs} from '@typings/database/database';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
 import type ChannelInfoModel from '@typings/database/models/servers/channel_info';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
+import type ChannelTeamModel from '@typings/database/models/servers/channel_team';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
 import type MyChannelSettingsModel from '@typings/database/models/servers/my_channel_settings';
 
@@ -18,6 +20,7 @@ const {
     CHANNEL_BOOKMARK,
     CHANNEL_INFO,
     CHANNEL_MEMBERSHIP,
+    CHANNEL_TEAM,
     MY_CHANNEL,
     MY_CHANNEL_SETTINGS,
 } = MM_TABLES.SERVER;
@@ -239,6 +242,27 @@ export const transformChannelBookmarkRecord = ({action, database, value}: Transf
         action,
         database,
         tableName: CHANNEL_BOOKMARK,
+        value,
+        fieldsMapper,
+    });
+};
+
+/**
+ * transformChannelTeamRecord: Prepares a record of the SERVER database 'ChannelTeam' table for create actions.
+ */
+export const transformChannelTeamRecord = ({action, database, value}: TransformerArgs<ChannelTeamModel, ChannelTeam>): Promise<ChannelTeamModel> => {
+    const raw = value.raw;
+
+    const fieldsMapper = (model: ChannelTeamModel) => {
+        model._raw.id = raw.id || generateGroupAssociationId(raw.channel_id, raw.team_id);
+        model.channelId = raw.channel_id;
+        model.teamId = raw.team_id;
+    };
+
+    return prepareBaseRecord({
+        action,
+        database,
+        tableName: CHANNEL_TEAM,
         value,
         fieldsMapper,
     });

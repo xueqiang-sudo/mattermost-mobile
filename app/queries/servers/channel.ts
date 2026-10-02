@@ -34,7 +34,7 @@ import type MyChannelSettingsModel from '@typings/database/models/servers/my_cha
 import type UserModel from '@typings/database/models/servers/user';
 
 // 新增 CATEGORY、CATEGORY_CHANNEL：用于从 Category 表查询收藏频道 ID（替代已废弃的 Preferences 方式）
-const {SERVER: {CHANNEL, MY_CHANNEL, CHANNEL_MEMBERSHIP, MY_CHANNEL_SETTINGS, CHANNEL_INFO, USER, TEAM, CATEGORY, CATEGORY_CHANNEL}} = MM_TABLES;
+const {SERVER: {CHANNEL, MY_CHANNEL, CHANNEL_MEMBERSHIP, MY_CHANNEL_SETTINGS, CHANNEL_INFO, CHANNEL_TEAM, USER, TEAM, CATEGORY, CATEGORY_CHANNEL}} = MM_TABLES;
 
 export type ChannelMembershipsExtended = Pick<ChannelMembership, 'user_id' | 'channel_id' | 'scheme_admin'>;
 
@@ -45,6 +45,7 @@ export function prepareChannels(
     channelMemberships?: ChannelMembershipsExtended[],
     memberships?: ChannelMembership[],
     isCRTEnabled?: boolean,
+    teamId?: string,
 ): Array<Promise<Model[]>> {
     try {
         const channelRecords = operator.handleChannel({channels, prepareRecordsOnly: true});
@@ -53,13 +54,41 @@ export function prepareChannels(
         const myChannelRecords = operator.handleMyChannel({channels, myChannels: memberships, prepareRecordsOnly: true, isCRTEnabled});
         const myChannelSettingsRecords = operator.handleMyChannelSettings({settings: memberships, prepareRecordsOnly: true});
 
-        return [channelRecords, channelInfoRecords, membershipRecords, myChannelRecords, myChannelSettingsRecords];
+        const result: Array<Promise<Model[]>> = [channelRecords, channelInfoRecords, membershipRecords, myChannelRecords, myChannelSettingsRecords];
+
+        if (channels?.length) {
+            const channelTeams: ChannelTeam[] = [];
+            if (teamId) {
+                for (const c of channels) {
+                    channelTeams.push({
+                        id: `${c.id}-${teamId}`,
+                        channel_id: c.id,
+                        team_id: teamId,
+                    });
+                }
+            } else {
+                for (const c of channels) {
+                    if (c.team_id) {
+                        channelTeams.push({
+                            id: `${c.id}-${c.team_id}`,
+                            channel_id: c.id,
+                            team_id: c.team_id,
+                        });
+                    }
+                }
+            }
+            if (channelTeams.length) {
+                result.push(operator.handleChannelTeam({channelTeams, prepareRecordsOnly: true}));
+            }
+        }
+
+        return result;
     } catch {
         return [];
     }
 }
 
-export function prepareMissingChannelsForAllTeams(operator: ServerDataOperator, channels: Channel[], channelMembers: ChannelMembership[], isCRTEnabled?: boolean): Array<Promise<Model[]>> {
+export function prepareMissingChannelsForAllTeams(operator: ServerDataOperator, channels: Channel[], channelMembers: ChannelMembership[], isCRTEnabled?: boolean, teamId?: string): Array<Promise<Model[]>> {
     const channelInfos: ChannelInfo[] = [];
     const channelMap: Record<string, Channel> = {};
     for (const c of channels) {
@@ -85,7 +114,7 @@ export function prepareMissingChannelsForAllTeams(operator: ServerDataOperator, 
         };
     });
 
-    return prepareChannels(operator, channels, channelInfos, memberships, memberships, isCRTEnabled);
+    return prepareChannels(operator, channels, channelInfos, memberships, memberships, isCRTEnabled, teamId);
 }
 
 const buildChannelInfos = async (database: Database, channels: Channel[]) => {
@@ -153,7 +182,7 @@ export const prepareMyChannelsForTeam = async (operator: ServerDataOperator, tea
         return {...cm, id: cm.channel_id};
     });
 
-    return prepareChannels(operator, channels, channelInfos, channelMembers, memberships, isCRTEnabled);
+    return prepareChannels(operator, channels, channelInfos, channelMembers, memberships, isCRTEnabled, teamId);
 };
 
 export const prepareDeleteChannel = async (serverUrl: string, channel: ChannelModel): Promise<Model[]> => {
@@ -181,6 +210,7 @@ export const prepareDeleteChannel = async (serverUrl: string, channel: ChannelMo
         channel.members,
         channel.drafts,
         channel.postsInChannel,
+        channel.channelTeams,
     ];
     await Promise.all(associatedChildren.map(async (children) => {
         const models = await children?.fetch();
@@ -233,8 +263,22 @@ export const queryAllChannels = (database: Database) => {
     return database.get<ChannelModel>(CHANNEL).query();
 };
 
+/**
+ * Builds a SQL condition matching the server's 3-way OR for team-scoped channel queries:
+ *   channel.team_id = teamId
+ *   OR channel.team_id = '' (DM/GM with no team)
+ *   OR channel.id IN (SELECT channel_id FROM ChannelTeam WHERE team_id = teamId)
+ */
+function channelTeamWhereSql(teamId: string): string {
+    return `(c.team_id = '${teamId}' OR c.team_id = '' OR c.id IN (SELECT ct.channel_id FROM ${CHANNEL_TEAM} ct WHERE ct.team_id = '${teamId}'))`;
+}
+
 export const queryAllChannelsForTeam = (database: Database, teamId: string) => {
-    return database.get<ChannelModel>(CHANNEL).query(Q.where('team_id', teamId));
+    return database.get<ChannelModel>(CHANNEL).query(
+        Q.unsafeSqlQuery(
+            `SELECT c.* FROM ${CHANNEL} c WHERE ${channelTeamWhereSql(teamId)}`,
+        ),
+    );
 };
 
 export const queryAllChannelsInfo = (database: Database) => {
@@ -253,7 +297,9 @@ export const queryAllMyChannel = (database: Database) => {
 
 export const queryAllMyChannelsForTeam = (database: Database, teamId: string) => {
     return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(CHANNEL, Q.where('team_id', Q.oneOf([teamId, '']))),
+        Q.unsafeSqlQuery(
+            `SELECT my.* FROM ${MY_CHANNEL} my INNER JOIN ${CHANNEL} c ON c.id = my.id WHERE ${channelTeamWhereSql(teamId)}`,
+        ),
     );
 };
 
@@ -462,14 +508,11 @@ export const queryTeamDefaultChannel = (database: Database, teamId: string) => {
 };
 
 export const queryMyChannelsByTeam = (database: Database, teamId: string, includeDeleted = false) => {
-    const conditions: Q.Where[] = [Q.where('team_id', Q.eq(teamId))];
-    if (!includeDeleted) {
-        conditions.push(Q.where('delete_at', Q.eq(0)));
-    }
+    const deleteCondition = includeDeleted ? '' : 'AND c.delete_at = 0';
     return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(CHANNEL, Q.and(
-            ...conditions,
-        )),
+        Q.unsafeSqlQuery(
+            `SELECT my.* FROM ${MY_CHANNEL} my INNER JOIN ${CHANNEL} c ON c.id = my.id WHERE ${channelTeamWhereSql(teamId)} ${deleteCondition}`,
+        ),
     );
 };
 
@@ -511,46 +554,31 @@ export const observeNotifyPropsByChannels = (database: Database, channels: Chann
 
 export const queryMyChannelUnreads = (database: Database, currentTeamId: string) => {
     return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(
-            CHANNEL,
-            Q.and(
-                Q.or(
-                    Q.where('team_id', Q.eq(currentTeamId)),
-                    Q.where('team_id', Q.eq('')),
-                ),
-                Q.where('delete_at', Q.eq(0)),
-            ),
+        Q.unsafeSqlQuery(
+            `SELECT my.* FROM ${MY_CHANNEL} my INNER JOIN ${CHANNEL} c ON c.id = my.id WHERE c.delete_at = 0 AND ${channelTeamWhereSql(currentTeamId)} AND (my.is_unread = 1 OR my.mentions_count >= 0) ORDER BY my.last_post_at DESC`,
         ),
-        Q.or(
-            Q.where('is_unread', Q.eq(true)),
-            Q.where('mentions_count', Q.gte(0)),
-        ),
-        Q.sortBy('last_post_at', Q.desc),
     );
 };
 
 export function observeMyChannelMentionCount(database: Database, teamId?: string, columns = ['mentions_count', 'is_unread']): Observable<number> {
-    const conditions: Q.Where[] = [
-        Q.where('delete_at', Q.eq(0)),
-    ];
-
     if (teamId) {
-        conditions.push(Q.where('team_id', Q.eq(teamId)));
+        return database.get<MyChannelModel>(MY_CHANNEL).query(
+            Q.unsafeSqlQuery(
+                `SELECT my.* FROM ${MY_CHANNEL} my INNER JOIN ${CHANNEL} c ON c.id = my.id INNER JOIN ${MY_CHANNEL_SETTINGS} mcs ON mcs.id = my.id WHERE c.delete_at = 0 AND ${channelTeamWhereSql(teamId)} AND mcs.notify_props NOT LIKE '%"mark_unread":"mention"%'`,
+            ),
+        ).observeWithColumns(columns).pipe(
+            switchMap((val) => of$(val.reduce((acc, v) => acc + v.mentionsCount, 0))),
+            distinctUntilChanged(),
+        );
     }
 
     return database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.on(CHANNEL, Q.and(
-            ...conditions,
-        )),
+        Q.on(CHANNEL, Q.where('delete_at', Q.eq(0))),
         Q.on(MY_CHANNEL_SETTINGS, Q.where('notify_props', Q.notLike('%"mark_unread":"mention"%'))),
-    ).
-        observeWithColumns(columns).
-        pipe(
-            switchMap((val) => of$(val.reduce((acc, v) => {
-                return acc + v.mentionsCount;
-            }, 0))),
-            distinctUntilChanged(),
-        );
+    ).observeWithColumns(columns).pipe(
+        switchMap((val) => of$(val.reduce((acc, v) => acc + v.mentionsCount, 0))),
+        distinctUntilChanged(),
+    );
 }
 
 export function observeMyChannelUnreads(database: Database, teamId: string) {
@@ -620,13 +648,10 @@ export function queryMyJoinedTeamChannelsForTeam(database: Database, teamId: str
     if (!teamId) {
         return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
     }
-    return queryAllMyChannel(database).extend(
-        Q.on(CHANNEL, Q.and(
-            Q.where('delete_at', Q.eq(0)),
-            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
-            Q.where('team_id', Q.eq(teamId)),
-        )),
-        Q.sortBy('last_viewed_at', Q.desc),
+    return database.get<MyChannelModel>(MY_CHANNEL).query(
+        Q.unsafeSqlQuery(
+            `SELECT my.* FROM ${MY_CHANNEL} my INNER JOIN ${CHANNEL} c ON c.id = my.id WHERE c.delete_at = 0 AND c.type IN ('O', 'P') AND ${channelTeamWhereSql(teamId)} ORDER BY my.last_viewed_at DESC`,
+        ),
     );
 }
 
@@ -647,13 +672,10 @@ export function queryMyArchivedTeamChannelsForTeam(database: Database, teamId: s
     if (!teamId) {
         return database.get<MyChannelModel>(MY_CHANNEL).query(Q.where('id', Q.eq('')));
     }
-    return queryAllMyChannel(database).extend(
-        Q.on(CHANNEL, Q.and(
-            Q.where('delete_at', Q.gt(0)),
-            Q.where('type', Q.oneOf([General.OPEN_CHANNEL, General.PRIVATE_CHANNEL])),
-            Q.where('team_id', Q.eq(teamId)),
-        )),
-        Q.sortBy('last_viewed_at', Q.desc),
+    return database.get<MyChannelModel>(MY_CHANNEL).query(
+        Q.unsafeSqlQuery(
+            `SELECT my.* FROM ${MY_CHANNEL} my INNER JOIN ${CHANNEL} c ON c.id = my.id WHERE c.delete_at > 0 AND c.type IN ('O', 'P') AND ${channelTeamWhereSql(teamId)} ORDER BY my.last_viewed_at DESC`,
+        ),
     );
 }
 

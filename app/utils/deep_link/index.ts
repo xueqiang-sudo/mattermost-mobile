@@ -22,6 +22,7 @@ import {getPlaybookRunById} from '@playbooks/database/queries/run';
 import {fetchIsPlaybooksEnabled} from '@playbooks/database/queries/version';
 import {goToPlaybookRun} from '@playbooks/screens/navigation';
 import {getActiveServerUrl} from '@queries/app/servers';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {getCurrentUser, queryUsersByUsername} from '@queries/servers/user';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
@@ -95,7 +96,9 @@ export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: Int
                 }
 
                 if (userId) {
-                    makeDirectChannel(existingServerUrl, userId, '', true);
+                    const {database} = DatabaseManager.getServerDatabaseAndOperator(existingServerUrl);
+                    const currentTeamId = await getCurrentTeamId(database);
+                    makeDirectChannel(existingServerUrl, userId, '', true, currentTeamId);
                 } else {
                     errorUnkownUser(intl);
                 }

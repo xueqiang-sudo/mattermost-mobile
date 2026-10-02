@@ -15,7 +15,9 @@ import UserItem from '@components/user_item';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
 import {useDebounce} from '@hooks/utils';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {getChannelListModalRowSurfaceStyle} from '@utils/channel_list_modal_row';
 import {sortChannelsByDisplayName} from '@utils/channel';
 import {username2Nickname} from '@utils/user';
@@ -181,7 +183,9 @@ const FilteredList = ({
 
     const onOpenDirectMessage = useCallback(async (u: UserProfile | UserModel) => {
         const displayName = username2Nickname(u, {locale});
-        const {data, error} = await makeDirectChannel(serverUrl, u.id, displayName, false);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentTeamId = await getCurrentTeamId(database);
+        const {data, error} = await makeDirectChannel(serverUrl, u.id, displayName, false, currentTeamId);
         if (error || !data) {
             Alert.alert(
                 '',

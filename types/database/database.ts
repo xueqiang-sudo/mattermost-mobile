@@ -280,6 +280,10 @@ export type HandleChannelMembershipArgs = PrepareOnly & {
   channelMemberships?: Array<Pick<ChannelMembership, 'user_id' | 'channel_id' | 'scheme_admin'>>;
 };
 
+export type HandleChannelTeamArgs = PrepareOnly & {
+  channelTeams?: ChannelTeam[];
+};
+
 export type HandleTeamMembershipArgs = PrepareOnly & {
   teamMemberships?: TeamMembership[];
 };

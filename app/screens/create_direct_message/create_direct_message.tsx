@@ -435,21 +435,21 @@ export default function CreateDirectMessage({
 
     // Create direct channel
     const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
-        const result = await makeDirectChannel(serverUrl, id);
+        const result = await makeDirectChannel(serverUrl, id, '', true, currentTeamId);
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.dm);
         }
         return !result.error;
-    }, [intl, serverUrl]);
+    }, [intl, serverUrl, currentTeamId]);
 
     // Create group channel
     const createGroupChannel = useCallback(async (ids: string[], groupCategory?: string): Promise<boolean> => {
-        const result = await makeGroupChannel(serverUrl, ids, true, groupCategory);
+        const result = await makeGroupChannel(serverUrl, ids, true, groupCategory, currentTeamId);
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.gm);
         }
         return !result.error;
-    }, [intl, serverUrl]);
+    }, [intl, serverUrl, currentTeamId]);
 
     // Create bot group channel (Bot GM)
     const createBotGroupChannel = useCallback(async (botUserId: string, teamId: string): Promise<boolean> => {

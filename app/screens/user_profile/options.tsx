@@ -12,6 +12,8 @@ import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {dismissBottomSheet} from '@screens/navigation';
+import DatabaseManager from '@database/manager';
+import {getCurrentTeamId} from '@queries/servers/system';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -59,7 +61,9 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
 
     const openChannel = useCallback(async () => {
         await dismissBottomSheet(Screens.USER_PROFILE);
-        await makeGroupChannel(serverUrl, [userId], true);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentTeamId = await getCurrentTeamId(database);
+        await makeGroupChannel(serverUrl, [userId], true, undefined, currentTeamId);
     }, [userId, serverUrl]);
 
     if (type === 'all') {

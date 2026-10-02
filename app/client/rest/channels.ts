@@ -10,7 +10,7 @@ import type ClientBase from './base';
 export interface ClientChannelsMix {
     getAllChannels: (page?: number, perPage?: number, notAssociatedToGroup?: string, excludeDefaultChannels?: boolean, includeTotalCount?: boolean) => Promise<any>;
     createChannel: (channel: Channel) => Promise<Channel>;
-    createDirectChannel: (userIds: string[]) => Promise<Channel>;
+    createDirectChannel: (userIds: string[], teamId?: string) => Promise<Channel>;
     createGroupChannel: (userIds: string[], teamId?: string, groupCategory?: string) => Promise<Channel>;
     createBotGroupChannel: (userIds: string[], botUserId: string, teamId: string) => Promise<Channel>;
     deleteChannel: (channelId: string, permanent?: boolean) => Promise<any>;
@@ -99,10 +99,14 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         );
     };
 
-    createDirectChannel = async (userIds: string[]) => {
+    createDirectChannel = async (userIds: string[], teamId?: string) => {
+        const payload: Record<string, unknown> = {user_ids: userIds};
+        if (teamId) {
+            payload.team_id = teamId;
+        }
         return this.doFetch(
             `${this.getChannelsRoute()}/direct`,
-            {method: 'post', body: userIds},
+            {method: 'post', body: JSON.stringify(payload)},
         );
     };
 

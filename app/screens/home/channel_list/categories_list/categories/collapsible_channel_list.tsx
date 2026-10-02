@@ -321,12 +321,13 @@ const enhanced = withObservables(
                 }),
             );
 
-        // Filter: only channels in current team, not in custom categories
+        // Filter: only channels in current team (by team_id), not in custom categories
         const builtInChannelIds = allUserChannels.pipe(
             combineLatestWith(customCategoryChannelIds, currentTeamId$),
             map(([channels, customIds, teamId]) => {
                 const filtered = channels.filter(ch => {
-                    const isInTeam = ch.type === 'D' || ch.type === 'G' || ch.teamId === teamId;
+                    // Only include channels that belong to the current team
+                    const isInTeam = ch.teamId === teamId;
                     const notInCustom = !customIds.has(ch.id);
                     return isInTeam && notInCustom;
                 });

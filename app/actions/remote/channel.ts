@@ -881,7 +881,7 @@ export async function goToNPSChannel(serverUrl: string) {
     return {};
 }
 
-export async function createDirectChannel(serverUrl: string, userId: string, displayName = '') {
+export async function createDirectChannel(serverUrl: string, userId: string, displayName = '', teamId?: string) {
     try {
         EphemeralStore.creatingDMorGMTeammates = [userId];
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -898,7 +898,7 @@ export async function createDirectChannel(serverUrl: string, userId: string, dis
             return {data: channel.toApi()};
         }
 
-        const created = await client.createDirectChannel([userId, currentUser.id]);
+        const created = await client.createDirectChannel([userId, currentUser.id], teamId);
         const profiles: UserProfile[] = [];
 
         if (displayName) {
@@ -982,7 +982,7 @@ export async function fetchChannels(serverUrl: string, teamId: string, page = 0,
     }
 }
 
-export async function makeDirectChannel(serverUrl: string, userId: string, displayName = '', shouldSwitchToChannel = true) {
+export async function makeDirectChannel(serverUrl: string, userId: string, displayName = '', shouldSwitchToChannel = true, teamId?: string) {
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentUserId = await getCurrentUserId(database);
@@ -992,7 +992,7 @@ export async function makeDirectChannel(serverUrl: string, userId: string, displ
         if (channel) {
             result = {data: channel};
         } else {
-            result = await createDirectChannel(serverUrl, userId, displayName);
+            result = await createDirectChannel(serverUrl, userId, displayName, teamId);
             channel = result.data;
         }
 
@@ -1034,7 +1034,7 @@ export async function fetchArchivedChannels(serverUrl: string, teamId: string, p
     }
 }
 
-export async function createGroupChannel(serverUrl: string, userIds: string[], groupCategory?: string) {
+export async function createGroupChannel(serverUrl: string, userIds: string[], groupCategory?: string, teamId?: string) {
     try {
         EphemeralStore.creatingDMorGMTeammates = userIds;
         const client = NetworkManager.getClient(serverUrl);
@@ -1044,7 +1044,7 @@ export async function createGroupChannel(serverUrl: string, userIds: string[], g
             return {error: 'Cannot get the current user'};
         }
 
-        const created = await client.createGroupChannel(userIds, undefined, groupCategory);
+        const created = await client.createGroupChannel(userIds, teamId, groupCategory);
         const isExistingGM = created.total_msg_count > 0;
 
         const displayNamePreferences = await queryDisplayNamePreferences(database, Preferences.NAME_NAME_FORMAT).fetch();
@@ -1129,11 +1129,11 @@ export async function fetchSharedChannels(serverUrl: string, teamId: string, pag
     }
 }
 
-export async function makeGroupChannel(serverUrl: string, userIds: string[], shouldSwitchToChannel = true, groupCategory?: string) {
+export async function makeGroupChannel(serverUrl: string, userIds: string[], shouldSwitchToChannel = true, groupCategory?: string, teamId?: string) {
     try {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentUserId = await getCurrentUserId(database);
-        const result = await createGroupChannel(serverUrl, [currentUserId, ...userIds], groupCategory);
+        const result = await createGroupChannel(serverUrl, [currentUserId, ...userIds], groupCategory, teamId);
         const channel = result.data;
 
         if (channel && shouldSwitchToChannel) {
