@@ -26,7 +26,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 
 const TEST_ID = 'add_members';
 
-type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
+type CandidateTag = 'exactMatch' | 'external' | 'enterprise' | 'self';
 type CandidateProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
 
 function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
@@ -34,11 +34,8 @@ function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
     if (draft.sourceFlags.globalSearch) {
         tags.push('exactMatch');
     }
-    if (draft.sourceFlags.customer) {
-        tags.push('customer');
-    }
-    if (draft.sourceFlags.supplier) {
-        tags.push('supplier');
+    if (draft.sourceFlags.external) {
+        tags.push('external');
     }
     if (draft.sourceFlags.enterpriseSearch) {
         tags.push('enterprise');

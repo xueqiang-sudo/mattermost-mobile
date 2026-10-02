@@ -24,8 +24,9 @@ import type CategoryModel from '@typings/database/models/servers/category';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
+import type UserModel from '@typings/database/models/servers/user';
 
-const {SERVER: {CHANNEL_MEMBERSHIP}} = MM_TABLES;
+const {SERVER: {CHANNEL_MEMBERSHIP, USER}} = MM_TABLES;
 
 type EnhanceProps = {
     builtInCategories: CategoryModel[];
@@ -163,15 +164,52 @@ const enhanced = withObservables(
             }),
         );
 
+        // Observe bot user IDs among channel members
+        const botUserIds = channels.pipe(
+            switchMap((chs) => {
+                const channelIds = chs
+                    .filter(c => c.type === 'G' || c.type === 'P' || c.type === 'D')
+                    .map(c => c.id);
+                if (channelIds.length === 0) {
+                    return of$(new Set<string>());
+                }
+                return database.get<ChannelMembershipModel>(CHANNEL_MEMBERSHIP)
+                    .query(Q.where('channel_id', Q.oneOf(channelIds)))
+                    .observe()
+                    .pipe(
+                        switchMap((memberships) => {
+                            const userIds = [...new Set(memberships.map(m => m.userId))];
+                            if (userIds.length === 0) {
+                                return of$(new Set<string>());
+                            }
+                            return database.get<UserModel>(USER)
+                                .query(Q.where('id', Q.oneOf(userIds)))
+                                .observe()
+                                .pipe(
+                                    map((users) => {
+                                        const botIds = new Set<string>();
+                                        for (const u of users) {
+                                            if (u.isBot) {
+                                                botIds.add(u.id);
+                                            }
+                                        }
+                                        return botIds;
+                                    }),
+                                );
+                        }),
+                    );
+            }),
+        );
+
         // Classify channels into internal/external
         const classified = channels.pipe(
-            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds)),
-            map(([chs, gmMembers, userId, teamMembers]) => {
+            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), botUserIds),
+            map(([chs, gmMembers, userId, teamMembers, bots]) => {
                 const internal: string[] = [];
                 const external: string[] = [];
 
                 for (const channel of chs) {
-                    const group = classifyChannel(channel, userId, teamMembers, gmMembers);
+                    const group = classifyChannel(channel, userId, teamMembers, gmMembers, bots);
                     if (group === 'internal') {
                         internal.push(channel.id);
                     } else {

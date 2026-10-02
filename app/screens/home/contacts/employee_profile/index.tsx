@@ -491,7 +491,7 @@ const ContactsEmployeeProfile = ({
         }
         setRelationRemark(nextRemark.trim());
         setRelationDescription(nextDescription.trim());
-        DeviceEventEmitter.emit(Events.SUPPLIER_CUSTOMER_CONTACTS_CHANGED, {contactType: relationType});
+        DeviceEventEmitter.emit(Events.EXTERNAL_CONTACTS_CHANGED, {contactType: relationType});
         return true;
     }, [currentUserId, employee.id, intl, relationType, serverUrl]);
 
@@ -609,7 +609,7 @@ const ContactsEmployeeProfile = ({
         );
     }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee.id, intl, handleClose]));
 
-    const isSupplierCustomer = Boolean(relationType);
+    const isExternalContact = Boolean(relationType);
 
     const departmentClipboardValue = useMemo(() => {
         if (!departmentName?.trim() && !departmentParentPath?.trim()) {
@@ -632,17 +632,13 @@ const ContactsEmployeeProfile = ({
     }, [departmentName, departmentParentPath, intl]);
 
     const canDeleteEnterpriseMember = fromManage && Boolean(companyIdProp) && !isSelf && !isCompanyOwner;
-    const canDelete = (canDeleteEnterpriseMember || isSupplierCustomer) && !isErpRelation;
+    const canDelete = (canDeleteEnterpriseMember || isExternalContact) && !isErpRelation;
 
     const handleDeleteRelation = usePreventDoubleTap(useCallback(async () => {
-        if (!isSupplierCustomer || deleting) {
+        if (!isExternalContact || deleting) {
             return;
         }
-        const relationLabel = relationType === 'supplier'
-            ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'})
-            : relationType === 'customer'
-                ? intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'})
-                : intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contact'});
+        const relationLabel = intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contact'});
         const confirmName = relationRemark.trim() || getContactListDisplayName(employee);
         const ok = await new Promise<boolean>((resolve) => {
             Alert.alert(
@@ -675,10 +671,10 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [isSupplierCustomer, relationType, deleting, employee.id, relationRemark, handleClose, intl, serverUrl, currentUserId]));
+    }, [isExternalContact, relationType, deleting, employee.id, relationRemark, handleClose, intl, serverUrl, currentUserId]));
 
     const handleDeleteMember = usePreventDoubleTap(useCallback(async () => {
-        if (isSupplierCustomer) {
+        if (isExternalContact) {
             await handleDeleteRelation();
             return;
         }
@@ -732,7 +728,7 @@ const ContactsEmployeeProfile = ({
         } finally {
             setDeleting(false);
         }
-    }, [canDeleteEnterpriseMember, deleting, employee.id, employee, companyIdProp, handleClose, intl, serverUrl, isSupplierCustomer, handleDeleteRelation]));
+    }, [canDeleteEnterpriseMember, deleting, employee.id, employee, companyIdProp, handleClose, intl, serverUrl, isExternalContact, handleDeleteRelation]));
 
     const handleCopyBasicInfo = usePreventDoubleTap(
         useCallback(() => {
@@ -772,19 +768,13 @@ const ContactsEmployeeProfile = ({
                     value: departmentClipboardValue.trim(),
                 });
             }
-            if (isSupplierCustomer && relationType) {
-                const typeLabel =
-                    relationType === 'supplier'
-                        ? intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'})
-                        : relationType === 'customer'
-                            ? intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'})
-                            : intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contact'});
+            if (isExternalContact && relationType) {
                 lines.push({
                     label: intl.formatMessage({id: 'supplier_customer.type', defaultMessage: 'Type'}),
-                    value: typeLabel,
+                    value: intl.formatMessage({id: 'contacts.external', defaultMessage: 'External Contact'}),
                 });
             }
-            if (isSupplierCustomer && relationDescription.trim()) {
+            if (isExternalContact && relationDescription.trim()) {
                 lines.push({
                     label: intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'}),
                     value: relationDescription.trim(),
@@ -813,7 +803,7 @@ const ContactsEmployeeProfile = ({
             employee.phone,
             employee.position,
             intl,
-            isSupplierCustomer,
+            isExternalContact,
             relationDescription,
             relationRemark,
             relationType,
@@ -924,7 +914,7 @@ const ContactsEmployeeProfile = ({
                             </Text>
                         )}
                     </View>
-                    {!isSupplierCustomer && (
+                    {!isExternalContact && (
                     <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>
                             {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}

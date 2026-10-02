@@ -55,7 +55,7 @@ type Props = {
     database: Database;
 }
 
-type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
+type CandidateTag = 'exactMatch' | 'external' | 'enterprise' | 'self';
 type CandidateProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
 
 function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
@@ -63,11 +63,8 @@ function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
     if (draft.sourceFlags.globalSearch) {
         tags.push('exactMatch');
     }
-    if (draft.sourceFlags.customer) {
-        tags.push('customer');
-    }
-    if (draft.sourceFlags.supplier) {
-        tags.push('supplier');
+    if (draft.sourceFlags.external) {
+        tags.push('external');
     }
     if (draft.sourceFlags.enterpriseSearch) {
         tags.push('enterprise');
@@ -493,13 +490,14 @@ export default function CreateDirectMessage({
                     success = await createBotGroupChannel(idsToUse[0], currentTeamId);
                 } else {
                     // 普通用户 → GM，自动检测 internal/external
+                    // 有 external 标签的成员 → 外部群（与 webapp 对齐）
                     const hasExternal = idsToUse.some((id) => {
                         const profile = knownProfiles.get(id);
                         if (!profile) {
                             return false;
                         }
                         const tags = profile.mmCandidateTags || [];
-                        return !tags.includes('customer') && !tags.includes('supplier') && !tags.includes('enterprise');
+                        return tags.includes('external');
                     });
                     const autoCategory = hasExternal ? 'external' : 'internal';
                     success = await createGroupChannel(idsToUse, autoCategory);

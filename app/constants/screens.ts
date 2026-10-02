@@ -105,11 +105,8 @@ export const LOGIN = 'Login';
 export const LOGIN_ABOUT = 'LoginAbout';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
 export const MFA = 'MFA';
-/** 我的主页 Stack 内根屏路由名（供应商/客户已迁移至通讯录 Stack） */
+/** 我的主页 Stack 内根屏路由名 */
 export const MY_HOMEPAGE = 'MyHomepage';
-export const MY_SUPPLIERS = 'MySuppliers';
-export const MY_CUSTOMERS = 'MyCustomers';
-export const SUPPLIER_CUSTOMER_FORM = 'SupplierCustomerForm';
 export const ONBOARDING = 'Onboarding';
 export const PDF_VIEWER = 'PdfViewer';
 export const PERMALINK = 'Permalink';
@@ -254,9 +251,6 @@ export default {
     MANAGE_CHANNEL_MEMBERS,
     MFA,
     MY_HOMEPAGE,
-    MY_SUPPLIERS,
-    MY_CUSTOMERS,
-    SUPPLIER_CUSTOMER_FORM,
     ONBOARDING,
     PDF_VIEWER,
     PERMALINK,

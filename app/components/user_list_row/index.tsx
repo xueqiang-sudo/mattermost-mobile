@@ -54,7 +54,7 @@ type Props = {
     currentUserId?: string;
 }
 
-type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'enterprise' | 'self';
+type CandidateTag = 'exactMatch' | 'external' | 'enterprise' | 'self';
 type CandidateUserProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
 
 const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
@@ -278,10 +278,8 @@ function UserListRow({
                 return formatMessage({id: 'invite.tag.self', defaultMessage: 'Me'});
             case 'exactMatch':
                 return formatMessage({id: 'invite.tag.exact_match', defaultMessage: 'Exact match'});
-            case 'customer':
-                return formatMessage({id: 'invite.tag.customer', defaultMessage: 'My customer'});
-            case 'supplier':
-                return formatMessage({id: 'invite.tag.supplier', defaultMessage: 'My supplier'});
+            case 'external':
+                return formatMessage({id: 'invite.tag.external', defaultMessage: 'External contact'});
             case 'enterprise':
                 return formatMessage({id: 'invite.tag.enterprise', defaultMessage: 'Enterprise'});
             default:

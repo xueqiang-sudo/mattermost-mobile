@@ -301,10 +301,8 @@ export default function Selection({
                 return intl.formatMessage({id: 'invite.tag.self', defaultMessage: 'Me'});
             case 'exactMatch':
                 return intl.formatMessage({id: 'invite.tag.exact_match', defaultMessage: 'Exact match'});
-            case 'customer':
-                return intl.formatMessage({id: 'invite.tag.customer', defaultMessage: 'My customer'});
-            case 'supplier':
-                return intl.formatMessage({id: 'invite.tag.supplier', defaultMessage: 'My supplier'});
+            case 'external':
+                return intl.formatMessage({id: 'invite.tag.external', defaultMessage: 'External contact'});
             case 'enterprise':
                 return intl.formatMessage({id: 'invite.tag.enterprise', defaultMessage: 'Enterprise'});
             default:

@@ -27,6 +27,7 @@ import Message from './message';
 import QuotedPostPreview from './quoted_post_preview';
 import Reactions from './reactions';
 
+import type ChannelModel from '@typings/database/models/servers/channel';
 import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
 import type {SearchPattern} from '@typings/global/markdown';
@@ -50,6 +51,7 @@ const POST_RECALL_TIME_LIMIT_MS = 2 * 60 * 1000;
 
 type BodyProps = {
     appsEnabled: boolean;
+    channel?: ChannelModel;
     hasFiles: boolean;
     hasReactions: boolean;
     highlight: boolean;
@@ -211,7 +213,7 @@ const useWeChatStyle = (location: AvailableScreens) =>
     location === Screens.CHANNEL || location === Screens.PERMALINK;
 
 const Body = ({
-    appsEnabled, hasFiles, hasReactions, highlight, highlightReplyBar,
+    appsEnabled, channel, hasFiles, hasReactions, highlight, highlightReplyBar,
     isCRTEnabled, isEphemeral, isFirstReply, isJumboEmoji, isLastReply, isOwnPost, author, isPendingOrFailed, isPostAcknowledgementEnabled, isPostAddChannelMember,
     location, post, searchPatterns, showAddReaction, theme, weChatAvatarOnlyRow, onLongPress,
 }: BodyProps) => {
@@ -316,7 +318,14 @@ const Body = ({
     // The <Files> component renders attachments via post.file_ids; the raw
     // marker text should never appear in the chat bubble.
     const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
-    const displayMessage = (post.message || post.messageSource).replace(FILE_MARKER_RE, '').trim();
+    let displayMessage = (post.message || post.messageSource).replace(FILE_MARKER_RE, '').trim();
+
+    // Strip @bot mention prefix in bot GM channels (aligned with webapp post_message_view.tsx).
+    // The server prepends @bot_username to messages in 2-member bot GM channels
+    // so that bots can detect the mention. We hide this from the user.
+    if (channel?.type === 'G' && channel?.groupCategory?.startsWith('botgm_')) {
+        displayMessage = displayMessage.replace(/^@\w+\s+/, '');
+    }
     const quotedPostId = post.props?.quoted_post_id;
     const hasTextMessage = Boolean(displayMessage.length || isEdited);
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;

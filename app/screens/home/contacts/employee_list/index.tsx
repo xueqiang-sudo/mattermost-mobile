@@ -154,8 +154,8 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
             );
         }
         if (employees.length === 0) {
-            const emptyId = type === 'customer' ? 'contacts.no_customers' : 'contacts.no_suppliers';
-            const emptyDefault = type === 'customer' ? 'No customers' : 'No suppliers';
+            const emptyId = type === 'internal' ? 'contacts.no_internal' : 'contacts.no_external';
+            const emptyDefault = type === 'internal' ? 'No internal contacts' : 'No external contacts';
             return (
                 <Text style={styles.emptyMessage}>
                     {intl.formatMessage({id: emptyId, defaultMessage: emptyDefault})}

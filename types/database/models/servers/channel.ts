@@ -64,6 +64,9 @@ declare class ChannelModel extends Model {
     /** Whether the display_name was customized by the user (used for GM channels) */
     displayNameCustomized?: boolean;
 
+    /** Group category identifier (e.g. "botgm_{teamId}" for bot GM channels) */
+    groupCategory?: string;
+
     /** members : Users belonging to this channel */
     members: Query<ChannelMembershipModel>;
 

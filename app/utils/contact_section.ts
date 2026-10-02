@@ -20,11 +20,11 @@ export function getContactListDisplayName(user: UserProfile | SimpleUserProfile)
 }
 
 /**
- * 供应商/客户显示名统一处理：
+ * 联系人显示名统一处理：
  * - 没有设置备注：显示昵称
  * - 设置了备注：显示「备注（昵称）」
  */
-export function getSupplierCustomerDisplayName(remark: string | null | undefined, contact: UserProfile | SimpleUserProfile): string {
+export function getContactDisplayName(remark: string | null | undefined, contact: UserProfile | SimpleUserProfile): string {
     const nickname = getContactListDisplayName(contact);
     const trimmedRemark = remark?.trim();
     if (trimmedRemark) {

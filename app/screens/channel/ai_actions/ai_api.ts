@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {makeBotGroupChannel} from '@actions/remote/channel';
 import NetworkManager from '@managers/network_manager';
 
 // ─── AI Customer Service (bot DM in GM channels) ───
@@ -29,13 +30,13 @@ export async function getChannelBots(serverUrl: string, channelId: string): Prom
 }
 
 /**
- * Open or create a DM channel with a bot user.
+ * Open or create a bot GM channel with a bot user.
+ * Uses makeBotGroupChannel to create a type-G channel with group_category "botgm_{teamId}".
  */
-export async function openDirectChannelWithBot(serverUrl: string, botUserId: string): Promise<{id: string} | null> {
-    const client = NetworkManager.getClient(serverUrl);
+export async function openDirectChannelWithBot(serverUrl: string, botUserId: string, teamId: string): Promise<{id: string} | null> {
     try {
-        const channel = await client.createDirectChannel([botUserId]);
-        return channel;
+        const result = await makeBotGroupChannel(serverUrl, botUserId, teamId);
+        return result.data ?? null;
     } catch {
         return null;
     }

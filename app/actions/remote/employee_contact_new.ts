@@ -34,17 +34,16 @@ export const fetchEmployeeContacts = async (
 };
 
 /**
- * 获取指定员工的所有联系人（分组返回）
+ * 获取指定员工的所有外部联系人
  */
 export const fetchAllEmployeeContacts = async (
     serverUrl: string,
     employeeId: string,
     opts?: {page?: number; perPage?: number; granularity?: 1 | 2},
-): Promise<FetchRemoteResult<{customers: MMEmployeeContact[]; suppliers: MMEmployeeContact[]}>> => {
+): Promise<FetchRemoteResult<{external: MMEmployeeContact[]}>> => {
     try {
-        const customersRes = await fetchEmployeeContacts(serverUrl, employeeId, 'customer', opts);
-        const suppliersRes = await fetchEmployeeContacts(serverUrl, employeeId, 'supplier', opts);
-        return {data: {customers: customersRes.data ?? [], suppliers: suppliersRes.data ?? []}};
+        const externalRes = await fetchEmployeeContacts(serverUrl, employeeId, 'external', opts);
+        return {data: {external: externalRes.data ?? []}};
     } catch (error) {
         logDebug('[fetchAllEmployeeContacts] catch error', getFullErrorMessage(error));
         return {error};

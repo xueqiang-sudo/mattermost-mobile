@@ -258,8 +258,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 type RelationState = {
-    isSupplier: boolean;
-    isCustomer: boolean;
+    isExternal: boolean;
 };
 
 const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContactType}: AddUserToFriendsProps) => {
@@ -274,8 +273,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
     const [sheetVisible, setSheetVisible] = useState(false);
     const [targetUProfile, setTargetUProfile] = useState<UserProfile | undefined>();
     const [relationState, setRelationState] = useState<RelationState>({
-        isSupplier: false,
-        isCustomer: false,
+        isExternal: false,
     });
 
     const onClosePressed = useCallback(() => {
@@ -298,18 +296,16 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
             const currUid = await getCurrentUserId(database);
             const [targetUProfileTmp, relationRes] = await Promise.all([
                 fetchUserById(serverUrl, uid),
-                currUid && serverUrl ? fetchAllEmployeeContacts(serverUrl, currUid) : Promise.resolve({data: {suppliers: [], customers: []}}),
+                currUid && serverUrl ? fetchAllEmployeeContacts(serverUrl, currUid) : Promise.resolve({data: {external: []}}),
             ]);
             if (!mounted) {
                 return;
             }
-            const suppliers = relationRes.data?.suppliers ?? [];
-            const customers = relationRes.data?.customers ?? [];
+            const external = relationRes.data?.external ?? [];
             setCurrentUserId(currUid);
             setTargetUProfile(targetUProfileTmp);
             setRelationState({
-                isSupplier: suppliers.some((contact) => contact.contact_id === uid),
-                isCustomer: customers.some((contact) => contact.contact_id === uid),
+                isExternal: external.some((contact) => contact.contact_id === uid),
             });
             setLoading(false);
         };
@@ -324,22 +320,20 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
             return;
         }
         const relationRes = await fetchAllEmployeeContacts(serverUrl, currentUserId);
-        const suppliers = relationRes.data?.suppliers ?? [];
-        const customers = relationRes.data?.customers ?? [];
+        const external = relationRes.data?.external ?? [];
         setRelationState({
-            isSupplier: suppliers.some((contact) => contact.contact_id === uid),
-            isCustomer: customers.some((contact) => contact.contact_id === uid),
+            isExternal: external.some((contact) => contact.contact_id === uid),
         });
     }, [currentUserId, serverUrl, uid]);
 
-    const addRelation = usePreventDoubleTap(useCallback(async (kind: typeof MMEmployeeContactTypes.Supplier | typeof MMEmployeeContactTypes.Customer) => {
+    const addRelation = usePreventDoubleTap(useCallback(async () => {
         if (!currentUserId || !uid || !serverUrl || saving || uid === currentUserId) {
             return;
         }
         setSaving(true);
         const result = await addEmployeeContact(serverUrl, currentUserId, {
             contact_id: uid,
-            contact_type: kind,
+            contact_type: MMEmployeeContactTypes.External,
         });
         setSaving(false);
         if (result.error) {
@@ -356,30 +350,19 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
         }
     }, [componentId, currentUserId, forcedEmployeeContactType, intl, refreshRelations, saving, serverUrl, uid]));
 
-    const hasAnyRelation = relationState.isSupplier || relationState.isCustomer;
-    const allRelationsAdded = relationState.isSupplier && relationState.isCustomer;
+    const hasAnyRelation = relationState.isExternal;
+    const allRelationsAdded = relationState.isExternal;
     const isSelf = Boolean(uid && currentUserId && uid === currentUserId);
     const isForcedMode =
-        forcedEmployeeContactType === MMEmployeeContactTypes.Supplier ||
-        forcedEmployeeContactType === MMEmployeeContactTypes.Customer;
-    let forcedTypeAlreadyAdded = false;
-    if (forcedEmployeeContactType === MMEmployeeContactTypes.Supplier) {
-        forcedTypeAlreadyAdded = relationState.isSupplier;
-    } else if (forcedEmployeeContactType === MMEmployeeContactTypes.Customer) {
-        forcedTypeAlreadyAdded = relationState.isCustomer;
-    }
+        forcedEmployeeContactType === MMEmployeeContactTypes.External;
+    const forcedTypeAlreadyAdded = isForcedMode ? relationState.isExternal : false;
     const mainButtonDisabled = isForcedMode? saving || isSelf || forcedTypeAlreadyAdded: saving || allRelationsAdded || isSelf;
 
     let addContactButtonId = 'add_user_to_friends.add_contact';
     let addContactButtonDefault = 'Add contact';
     if (isForcedMode) {
-        if (forcedEmployeeContactType === MMEmployeeContactTypes.Supplier) {
-            addContactButtonId = 'add_user_to_friends.add_as_supplier_button';
-            addContactButtonDefault = 'Add as supplier';
-        } else {
-            addContactButtonId = 'add_user_to_friends.add_as_customer_button';
-            addContactButtonDefault = 'Add as customer';
-        }
+        addContactButtonId = 'add_user_to_friends.add_as_external_button';
+        addContactButtonDefault = 'Add as external contact';
     }
 
     const userDisplayName = username2Nickname(targetUProfile, {locale: intl.locale, includeFullName: false}) ?? uid ?? '-';
@@ -488,17 +471,11 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                                     defaultMessage='Current relation'
                                 />
                                 <View style={styles.relationTagsRow}>
-                                    {relationState.isSupplier &&
-                                        renderRelationTag(
-                                            'car-outline',
-                                            intl.formatMessage({id: 'supplier_customer.type_supplier', defaultMessage: 'Supplier'}),
-                                            theme.linkColor,
-                                        )}
-                                    {relationState.isCustomer &&
+                                    {relationState.isExternal &&
                                         renderRelationTag(
                                             'account-multiple-outline',
-                                            intl.formatMessage({id: 'supplier_customer.type_customer', defaultMessage: 'Customer'}),
-                                            theme.onlineIndicator,
+                                            intl.formatMessage({id: 'supplier_customer.type_external', defaultMessage: 'External'}),
+                                            theme.linkColor,
                                         )}
                                     {!hasAnyRelation ? (
                                         <FormattedText
@@ -632,18 +609,18 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                             />
 
                             <TouchableOpacity
-                                style={[styles.sheetOption, relationState.isSupplier && styles.sheetOptionDisabled]}
-                                disabled={relationState.isSupplier || saving}
-                                onPress={() => addRelation(MMEmployeeContactTypes.Supplier)}
-                                testID='add_user_to_friends.add_supplier'
+                                style={[styles.sheetOption, relationState.isExternal && styles.sheetOptionDisabled]}
+                                disabled={relationState.isExternal || saving}
+                                onPress={() => addRelation()}
+                                testID='add_user_to_friends.add_external'
                             >
                                 <View>
                                     <FormattedText
                                         style={styles.sheetOptionText}
-                                        id='add_user_to_friends.add_to_supplier'
-                                        defaultMessage='Add as supplier'
+                                        id='add_user_to_friends.add_to_external'
+                                        defaultMessage='Add as external contact'
                                     />
-                                    {relationState.isSupplier ? (
+                                    {relationState.isExternal ? (
                                         <FormattedText
                                             style={styles.sheetOptionHint}
                                             id='add_user_to_friends.already_added_hint'
@@ -651,36 +628,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
                                         />
                                     ) : null}
                                 </View>
-                                {relationState.isSupplier ? (
-                                    <FormattedText
-                                        style={styles.addedText}
-                                        id='add_user_to_friends.already_added'
-                                        defaultMessage='Added'
-                                    />
-                                ) : null}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.sheetOption, relationState.isCustomer && styles.sheetOptionDisabled]}
-                                disabled={relationState.isCustomer || saving}
-                                onPress={() => addRelation(MMEmployeeContactTypes.Customer)}
-                                testID='add_user_to_friends.add_customer'
-                            >
-                                <View>
-                                    <FormattedText
-                                        style={styles.sheetOptionText}
-                                        id='add_user_to_friends.add_to_customer'
-                                        defaultMessage='Add as customer'
-                                    />
-                                    {relationState.isCustomer ? (
-                                        <FormattedText
-                                            style={styles.sheetOptionHint}
-                                            id='add_user_to_friends.already_added_hint'
-                                            defaultMessage='Already added'
-                                        />
-                                    ) : null}
-                                </View>
-                                {relationState.isCustomer ? (
+                                {relationState.isExternal ? (
                                     <FormattedText
                                         style={styles.addedText}
                                         id='add_user_to_friends.already_added'

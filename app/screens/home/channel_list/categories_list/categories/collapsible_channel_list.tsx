@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState, useEffect} from 'react';
+import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, SectionList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Q} from '@nozbe/watermelondb';
@@ -20,6 +20,7 @@ import {useTheme} from '@context/theme';
 import {queryChannelsById} from '@queries/servers/channel';
 import {queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
+import {getLocalizedMessage} from '@i18n';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 import {isDMorGM} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -32,9 +33,9 @@ import type CategoryModel from '@typings/database/models/servers/category';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
-import type PreferenceModel from '@typings/database/models/servers/preference';
+import type UserModel from '@typings/database/models/servers/user';
 
-const {SERVER: {CHANNEL_MEMBERSHIP, MY_CHANNEL, PREFERENCE}} = MM_TABLES;
+const {SERVER: {CHANNEL_MEMBERSHIP, MY_CHANNEL, USER}} = MM_TABLES;
 
 type Section = {
     title: string;
@@ -124,31 +125,6 @@ const CollapsibleChannelListRenderer = ({
     const serverUrl = useServerUrl();
     const intl = useIntl();
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['internal', 'external']));
-
-    // Debug: Show classification info in alert
-    useEffect(() => {
-        const internalSection = sections.find(s => s.key === 'internal');
-        const externalSection = sections.find(s => s.key === 'external');
-        const customSections = sections.filter(s => s.type === 'custom');
-
-        const debugInfo = [
-            `Total sections: ${sections.length}`,
-            `Internal: ${internalSection?.actualCount || 0} channels`,
-            `External: ${externalSection?.actualCount || 0} channels`,
-            `Custom categories: ${customSections.length}`,
-            '',
-            'Internal channels:',
-            ...(internalSection?.data.slice(0, 5).map(ch => `  - ${ch.displayName || ch.name} (${ch.type})`) || []),
-            '',
-            'External channels:',
-            ...(externalSection?.data.slice(0, 5).map(ch => `  - ${ch.displayName || ch.name} (${ch.type})`) || []),
-        ].join('\n');
-
-        // Show alert after a short delay to not block UI
-        setTimeout(() => {
-            Alert.alert('Debug: Channel Classification', debugInfo);
-        }, 1000);
-    }, [sections]);
 
     const toggleSection = useCallback((sectionKey: string) => {
         setExpandedSections((prev) => {
@@ -362,59 +338,52 @@ const enhanced = withObservables(
             }),
         );
 
-        // Observe group_channel_category preferences (user manual classification)
-        const groupCategoryPreferences = database.get<PreferenceModel>(PREFERENCE)
-            .query(Q.where('category', 'group_channel_category'))
-            .observe()
-            .pipe(
-                map((prefs) => {
-                    const map = new Map<string, string>();
-                    for (const pref of prefs) {
-                        // Preference name format: "group_channel_category--{channelId}"
-                        // But we store the full key in the map for easier lookup
-                        map.set(pref.name, pref.value);
-                    }
-                    return map;
-                }),
-            );
+        // Observe bot user IDs among channel members
+        const botUserIds = channels.pipe(
+            switchMap((chs) => {
+                const channelIds = chs
+                    .filter(c => c.type === 'G' || c.type === 'P' || c.type === 'D')
+                    .map(c => c.id);
+                if (channelIds.length === 0) {
+                    return of$(new Set<string>());
+                }
+                return database.get<ChannelMembershipModel>(CHANNEL_MEMBERSHIP)
+                    .query(Q.where('channel_id', Q.oneOf(channelIds)))
+                    .observe()
+                    .pipe(
+                        switchMap((memberships) => {
+                            const userIds = [...new Set(memberships.map(m => m.userId))];
+                            if (userIds.length === 0) {
+                                return of$(new Set<string>());
+                            }
+                            return database.get<UserModel>(USER)
+                                .query(Q.where('id', Q.oneOf(userIds)))
+                                .observe()
+                                .pipe(
+                                    map((users) => {
+                                        const botIds = new Set<string>();
+                                        for (const u of users) {
+                                            if (u.isBot) {
+                                                botIds.add(u.id);
+                                            }
+                                        }
+                                        return botIds;
+                                    }),
+                                );
+                        }),
+                    );
+            }),
+        );
 
         // Classify channels into internal/external
         const classified = channels.pipe(
-            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), favoritedChannelIds, groupCategoryPreferences),
-            map(([chs, gmMembers, userId, teamMembers, favoritedIds, preferences]) => {
+            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), favoritedChannelIds, botUserIds),
+            map(([chs, gmMembers, userId, teamMembers, favoritedIds, bots]) => {
                 const internal: ChannelModel[] = [];
                 const external: ChannelModel[] = [];
 
-                // Debug logging
-                console.log('=== Channel Classification Debug ===');
-                console.log('Current Team ID:', currentTeamId);
-                console.log('Current User ID:', userId);
-                console.log('Team Members Count:', teamMembers.size);
-                console.log('Team Members:', Array.from(teamMembers).slice(0, 10).join(', '), teamMembers.size > 10 ? '...' : '');
-                console.log('Total Channels to classify:', chs.length);
-                console.log('GM Member Map size:', gmMembers.size);
-                console.log('Preferences count:', preferences.size);
-                console.log('================================');
-
                 for (const channel of chs) {
-                    const group = classifyChannel(channel, userId, teamMembers, gmMembers, preferences);
-
-                    // Debug logging for each channel
-                    if (channel.type === 'D' || channel.type === 'G' || channel.type === 'P') {
-                        const memberIds = channel.type === 'D'
-                            ? [channel.name.split('__').find(id => id !== userId) || '']
-                            : (gmMembers.get(channel.id) || []);
-                        const membersInTeam = memberIds.filter(id => id !== userId && teamMembers.has(id));
-                        const membersNotInTeam = memberIds.filter(id => id !== userId && !teamMembers.has(id));
-
-                        console.log(`Channel: ${channel.displayName || channel.name}`);
-                        console.log(`  Type: ${channel.type}, ID: ${channel.id}`);
-                        console.log(`  Members: ${memberIds.length}`);
-                        console.log(`  Members in team: ${membersInTeam.length}`);
-                        console.log(`  Members NOT in team: ${membersNotInTeam.length} [${membersNotInTeam.slice(0, 3).join(', ')}]`);
-                        console.log(`  Classification: ${group}`);
-                        console.log('---');
-                    }
+                    const group = classifyChannel(channel, userId, teamMembers, gmMembers, bots);
 
                     if (group === 'internal') {
                         internal.push(channel);
@@ -422,11 +391,6 @@ const enhanced = withObservables(
                         external.push(channel);
                     }
                 }
-
-                console.log('=== Classification Results ===');
-                console.log('Internal channels:', internal.length);
-                console.log('External channels:', external.length);
-                console.log('==============================');
 
                 // Sort internal channels: public first, then favorited, then others
                 internal.sort((a, b) => {
@@ -521,17 +485,16 @@ const enhanced = withObservables(
 
         // Build final sections
         const sections = classified.pipe(
-            combineLatestWith(customCategorySections, currentTeamId$),
-            map(([{internal, external}, customSections, teamId]) => {
-                const intl = {
-                    formatMessage: ({defaultMessage}: {defaultMessage: string}) => defaultMessage,
-                };
+            combineLatestWith(customCategorySections, currentTeamId$, of$(locale)),
+            map(([{internal, external}, customSections, teamId, loc]) => {
+                const internalTitle = getLocalizedMessage(loc, 'sidebar.classification.internal', 'Internal');
+                const externalTitle = getLocalizedMessage(loc, 'sidebar.classification.external', 'External');
 
                 const result: Section[] = [];
 
                 if (internal.length > 0) {
                     result.push({
-                        title: '内部群',
+                        title: internalTitle,
                         data: internal,
                         key: 'internal',
                         type: 'internal',
@@ -543,7 +506,7 @@ const enhanced = withObservables(
 
                 if (external.length > 0) {
                     result.push({
-                        title: '外部群',
+                        title: externalTitle,
                         data: external,
                         key: 'external',
                         type: 'external',

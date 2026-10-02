@@ -129,6 +129,9 @@ export default class ChannelModel extends Model implements ChannelModelInterface
     /** display_name_customized : Whether the display_name was customized by the user (used for GM channels) */
     @field('display_name_customized') displayNameCustomized?: boolean;
 
+    /** group_category : Group category identifier (e.g. "botgm_{teamId}" for bot GM channels) */
+    @field('group_category') groupCategory?: string;
+
     /** members : Users belonging to this channel */
     @children(CHANNEL_MEMBERSHIP) members!: Query<ChannelMembershipModel>;
 

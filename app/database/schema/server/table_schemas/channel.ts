@@ -23,5 +23,6 @@ export default tableSchema({
         {name: 'banner_info', type: 'string', isOptional: true},
         {name: 'abac_policy_enforced', type: 'boolean', isOptional: true},
         {name: 'display_name_customized', type: 'boolean', isOptional: true},
+        {name: 'group_category', type: 'string', isOptional: true},
     ],
 });

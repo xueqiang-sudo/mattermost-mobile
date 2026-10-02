@@ -167,17 +167,16 @@ const ChannelHeader = ({
             if (bots.length === 0) {
                 return;
             }
-            // If only one bot, open DM directly
+            // If only one bot, open bot GM directly
             if (bots.length === 1) {
-                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
+                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId, bots[0].teamId);
                 if (channel) {
-                    // Navigate to the bot DM channel
                     goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
                 }
             } else {
                 // Multiple bots - for now, use the first one
                 // TODO: Show ActionSheet to select bot
-                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId);
+                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId, bots[0].teamId);
                 if (channel) {
                     goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
                 }

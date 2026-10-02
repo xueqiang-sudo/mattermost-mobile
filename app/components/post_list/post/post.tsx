@@ -758,6 +758,7 @@ const Post = ({
             <Body
                 appsEnabled={appsEnabled}
                 author={author}
+                channel={channel}
                 hasFiles={hasFiles}
                 hasReactions={hasReactions}
                 highlight={Boolean(highlightedStyle)}

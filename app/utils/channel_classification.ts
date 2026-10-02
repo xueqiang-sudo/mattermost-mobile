@@ -11,11 +11,10 @@ import type ChannelMembershipModel from '@typings/database/models/servers/channe
 /**
  * Classify a single channel as 'internal' or 'external' based on team membership.
  *
- * Rules:
+ * Rules (aligned with webapp classifyChannel):
  * - Public channels are always internal.
- * - Check group_channel_category preference first (user manual classification).
- * - DM: internal if the other user belongs to the current team.
- * - GM / Private: internal if ALL members (excluding self) belong to the current team.
+ * - DM: internal if the other user is a bot (always internal) or belongs to the current team.
+ * - GM / Private: internal if ALL human (non-bot) members (excluding self) belong to the current team.
  * - Fallback: external.
  */
 export function classifyChannel(
@@ -23,35 +22,27 @@ export function classifyChannel(
     currentUserId: string,
     teamMemberIds: ReadonlySet<string>,
     gmMemberIds: ReadonlyMap<string, string[]>,
-    preferences?: ReadonlyMap<string, string>,
+    botUserIds: ReadonlySet<string>,
 ): 'internal' | 'external' {
     // Public channels always internal
     if (channel.type === General.OPEN_CHANNEL) {
         return 'internal';
     }
 
-    // Check for group_channel_category preference (user manual classification)
-    if (preferences) {
-        const prefKey = `group_channel_category--${channel.id}`;
-        const groupCategory = preferences.get(prefKey);
-        if (groupCategory === 'internal') {
-            return 'internal';
-        }
-        if (groupCategory === 'external') {
-            return 'external';
-        }
-    }
-
-    // DM: check if the other user is in the current team
+    // DM: check if the other user is in the current team.
+    // Bot users are always internal (aligned with webapp).
     if (channel.type === General.DM_CHANNEL) {
         const otherUserId = getUserIdFromChannelName(currentUserId, channel.name);
         if (!otherUserId) {
             return 'external';
         }
+        if (botUserIds.has(otherUserId)) {
+            return 'internal';
+        }
         return teamMemberIds.has(otherUserId) ? 'internal' : 'external';
     }
 
-    // GM / Private: check if ALL members (excluding self) are in the current team
+    // GM / Private: check if ALL human (non-bot) members (excluding self) are in the current team
     if (channel.type === General.GM_CHANNEL || channel.type === General.PRIVATE_CHANNEL) {
         let memberIds = parseUserIdsFromGroupedChannelName(channel.name);
         if (!memberIds) {
@@ -62,9 +53,12 @@ export function classifyChannel(
             return 'external';
         }
 
-        // ALL members (excluding self) must be in the team for it to be internal
+        // ALL members (excluding self and bots) must be in the team for it to be internal
         for (const memberId of memberIds) {
             if (memberId === currentUserId) {
+                continue;
+            }
+            if (botUserIds.has(memberId)) {
                 continue;
             }
             if (!teamMemberIds.has(memberId)) {

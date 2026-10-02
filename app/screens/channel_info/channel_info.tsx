@@ -72,6 +72,7 @@ type Props = {
     teamDisplayName?: string;
     isTeamAdmin: boolean;
     isChannelCreator: boolean;
+    isBotGM: boolean;
 }
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
@@ -129,6 +130,7 @@ const ChannelInfo = ({
     teamDisplayName,
     isTeamAdmin,
     isChannelCreator,
+    isBotGM,
 }: Props) => {
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -183,6 +185,7 @@ const ChannelInfo = ({
                 isMuted={isMuted}
                 memberIds={memberIds}
                 myNickname={myNickname}
+                isBotGM={isBotGM}
             />
         );
     }

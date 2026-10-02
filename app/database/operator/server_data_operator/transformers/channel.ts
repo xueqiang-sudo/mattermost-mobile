@@ -57,6 +57,7 @@ export const transformChannelRecord = ({action, database, value}: TransformerArg
         channel.bannerInfo = raw.banner_info;
         channel.abacPolicyEnforced = Boolean(raw.policy_enforced);
         channel.displayNameCustomized = Boolean(raw.display_name_customized);
+        channel.groupCategory = raw.group_category;
     };
 
     return prepareBaseRecord({

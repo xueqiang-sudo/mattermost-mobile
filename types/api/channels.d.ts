@@ -53,6 +53,9 @@ type Channel = {
 
     /** Whether the display_name was customized by the user (used for GM channels) */
     display_name_customized?: boolean;
+
+    /** Group category identifier (e.g. "botgm_{teamId}" for bot GM channels) */
+    group_category?: string;
 };
 type ChannelPatch = {
     name?: string;

@@ -33,7 +33,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 const CLOSE_BUTTON_ID = 'close-invite';
 const DEFAULT_RESULT: Result = {sent: [], notSent: []};
 
-type CandidateTag = 'exactMatch' | 'customer' | 'supplier' | 'self';
+type CandidateTag = 'exactMatch' | 'external' | 'self';
 type CandidateProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
 
 function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
@@ -41,11 +41,8 @@ function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
     if (draft.sourceFlags.globalSearch) {
         tags.push('exactMatch');
     }
-    if (draft.sourceFlags.customer) {
-        tags.push('customer');
-    }
-    if (draft.sourceFlags.supplier) {
-        tags.push('supplier');
+    if (draft.sourceFlags.external) {
+        tags.push('external');
     }
     if (draft.sourceFlags.self) {
         tags.push('self');
@@ -318,13 +315,12 @@ export default function Invite({
     const [selectedProfiles, setSelectedProfiles] = useState<Map<string, CandidateProfile>>(new Map());
     const [searchTerm, setSearchTerm] = useState('');
     const [candidates, setCandidates] = useState<{
-        suppliers: CandidateProfile[];
-        customers: CandidateProfile[];
+        external: CandidateProfile[];
         enterprise: CandidateProfile[];
         searchResults: CandidateProfile[];
-    }>({suppliers: [], customers: [], enterprise: [], searchResults: []});
+    }>({external: [], enterprise: [], searchResults: []});
     const [alreadyJoinedIds, setAlreadyJoinedIds] = useState<Set<string>>(new Set());
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['enterprise', 'suppliers', 'customers', 'searchResults']));
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['enterprise', 'external', 'searchResults']));
     const [showDropdown, setShowDropdown] = useState(false);
     const [stage, setStage] = useState(Stage.SELECTION);
     const [result, setResult] = useState<Result>(DEFAULT_RESULT);
@@ -393,7 +389,7 @@ export default function Invite({
         });
     }, [searchTerm, serverUrl, currentUserId, teamId]);
 
-    // Filter candidates by search term (client-side for suppliers/customers/enterprise)
+    // Filter candidates by search term (client-side for external/enterprise)
     const filteredCandidates = useMemo(() => {
         if (!searchTerm.trim()) {
             return candidates;
@@ -405,8 +401,7 @@ export default function Invite({
             return name.includes(term) || username.includes(term);
         };
         return {
-            suppliers: candidates.suppliers.filter(filterFn),
-            customers: candidates.customers.filter(filterFn),
+            external: candidates.external.filter(filterFn),
             enterprise: candidates.enterprise.filter(filterFn),
             searchResults: candidates.searchResults,
         };
@@ -450,7 +445,7 @@ export default function Invite({
             } else {
                 next.add(userId);
                 // Find profile from candidates
-                const allProfiles = [...candidates.enterprise, ...candidates.suppliers, ...candidates.customers, ...candidates.searchResults];
+                const allProfiles = [...candidates.enterprise, ...candidates.external, ...candidates.searchResults];
                 const profile = allProfiles.find((p) => p.id === userId);
                 if (profile) {
                     setSelectedProfiles((prevP) => {

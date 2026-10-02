@@ -1085,6 +1085,7 @@ export async function createGroupChannel(serverUrl: string, userIds: string[], g
         const preferences = [
             {user_id: currentUser.id, category: Preferences.CATEGORIES.GROUP_CHANNEL_SHOW, name: created.id, value: 'true'},
             {user_id: currentUser.id, category: Preferences.CATEGORIES.CHANNEL_OPEN_TIME, name: created.id, value: new Date().getTime().toString()},
+            {user_id: currentUser.id, category: 'group_channel_category', name: created.id, value: groupCategory || 'internal'},
         ];
         const preferenceModels = await savePreference(serverUrl, preferences, true);
         if (preferenceModels.preferences?.length) {
@@ -1149,10 +1150,56 @@ export async function makeGroupChannel(serverUrl: string, userIds: string[], sho
 export async function makeBotGroupChannel(serverUrl: string, botUserId: string, teamId: string) {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const currentUserId = await getCurrentUserId(database);
+        const {operator, database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentUser = await getCurrentUser(database);
+        if (!currentUser) {
+            return {error: 'Cannot get the current user'};
+        }
+        const currentUserId = currentUser.id;
+
         EphemeralStore.creatingDMorGMTeammates = [botUserId];
         const created = await client.createBotGroupChannel([currentUserId], botUserId, teamId);
+
+        // Save to local DB (aligned with createGroupChannel)
+        const member = {
+            channel_id: created.id,
+            user_id: '',
+            roles: `${General.CHANNEL_USER_ROLE}`,
+            last_viewed_at: 0,
+            msg_count: 0,
+            mention_count: 0,
+            msg_count_root: 0,
+            mention_count_root: 0,
+            notify_props: {desktop: 'default' as const, mark_unread: 'all' as const},
+            last_update_at: created.create_at,
+        };
+        const members = [currentUserId, botUserId].map((id) => ({...member, user_id: id}));
+        const models: Model[] = [];
+
+        const channelPromises = await prepareMyChannelsForTeam(operator, '', [created], members);
+        if (channelPromises.length) {
+            const channelModels = await Promise.all(channelPromises);
+            models.push(...channelModels.flat());
+        }
+
+        const categoryModels = await addChannelToDefaultCategory(serverUrl, created, true);
+        if (categoryModels.models?.length) {
+            models.push(...categoryModels.models);
+        }
+
+        const preferences = [
+            {user_id: currentUserId, category: Preferences.CATEGORIES.GROUP_CHANNEL_SHOW, name: created.id, value: 'true'},
+            {user_id: currentUserId, category: Preferences.CATEGORIES.CHANNEL_OPEN_TIME, name: created.id, value: new Date().getTime().toString()},
+        ];
+        const preferenceModels = await savePreference(serverUrl, preferences, true);
+        if (preferenceModels.preferences?.length) {
+            models.push(...preferenceModels.preferences);
+        }
+
+        if (models.length) {
+            await operator.batchRecords(models, 'makeBotGroupChannel');
+        }
+
         switchToChannelById(serverUrl, created.id);
         EphemeralStore.creatingDMorGMTeammates = [];
         return {data: created};

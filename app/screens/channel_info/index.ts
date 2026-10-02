@@ -231,6 +231,12 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         distinctUntilChanged(),
     );
 
+    // Detect bot GM channels (group_category starts with "botgm_")
+    const isBotGM = channel.pipe(
+        switchMap((c) => of$(Boolean(c?.groupCategory?.startsWith('botgm_')))),
+        distinctUntilChanged(),
+    );
+
     // Channel header (announcement) for GM channels
     const channelHeader = channel.pipe(
         switchMap((c) => {
@@ -279,6 +285,7 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         teamDisplayName,
         isTeamAdmin,
         isChannelCreator,
+        isBotGM,
     };
 });
 

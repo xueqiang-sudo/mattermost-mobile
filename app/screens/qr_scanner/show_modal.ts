@@ -100,20 +100,15 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                     }
                     const forcedType = options?.extra?.forcedEmployeeContactType;
                     const title =
-                        forcedType === MMEmployeeContactTypes.Supplier
+                        forcedType === MMEmployeeContactTypes.External
                             ? intl.formatMessage({
-                                id: 'add_user_to_friends.modal_title_add_supplier',
-                                defaultMessage: 'Add supplier',
+                                id: 'add_user_to_friends.modal_title_add_external',
+                                defaultMessage: 'Add external contact',
                             })
-                            : forcedType === MMEmployeeContactTypes.Customer
-                                ? intl.formatMessage({
-                                    id: 'add_user_to_friends.modal_title_add_customer',
-                                    defaultMessage: 'Add customer',
-                                })
-                                : intl.formatMessage({
-                                    id: 'add_user_to_friends.title',
-                                    defaultMessage: 'Add user as contact',
-                                });
+                            : intl.formatMessage({
+                                id: 'add_user_to_friends.title',
+                                defaultMessage: 'Add user as contact',
+                            });
                     showModalWithBackButton(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', mergedData, {
                         statusBar: {
                             drawBehind: true,

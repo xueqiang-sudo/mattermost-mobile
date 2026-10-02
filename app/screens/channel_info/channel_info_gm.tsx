@@ -38,6 +38,7 @@ type Props = {
     isMuted: boolean;
     memberIds: string[];
     myNickname?: string;
+    isBotGM: boolean;
 }
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
@@ -127,6 +128,7 @@ const ChannelInfoGM = ({
     isMuted,
     memberIds,
     myNickname,
+    isBotGM,
 }: Props) => {
     const intl = useIntl();
     const theme = useTheme();
@@ -261,8 +263,8 @@ const ChannelInfoGM = ({
                             memberIds={memberIds}
                             currentUserId={currentUserId}
                             myNickname={myNickname}
-                            showAddButton={true}
-                            showRemoveButton={isChannelCreator}
+                            showAddButton={!isBotGM}
+                            showRemoveButton={isChannelCreator && !isBotGM}
                             showSearch={true}
                             onAddPress={handleAddPeople}
                             onRemovePress={handleRemovePeople}
@@ -342,8 +344,8 @@ const ChannelInfoGM = ({
                         testID='channel_info_gm.search_history'
                     />
 
-                    {/* Member management (owner only) */}
-                    {isChannelCreator && (
+                    {/* Member management (owner only, hidden for bot GM) */}
+                    {isChannelCreator && !isBotGM && (
                         <TouchableOpacity
                             onPress={handleManageMembers}
                             style={styles.nicknameRow}
@@ -383,11 +385,11 @@ const ChannelInfoGM = ({
                                 onPress: handleClearHistory,
                                 testID: 'channel_info_gm.clear_history',
                             },
-                            {
+                            ...(!isBotGM ? [{
                                 label: intl.formatMessage({id: 'channel_info_rhs.gm.leave_group', defaultMessage: 'Leave Group'}),
                                 onPress: handleLeaveGroup,
                                 testID: 'channel_info_gm.leave_group',
-                            },
+                            }] : []),
                         ]}
                         testID='channel_info_gm.danger_section'
                     />

@@ -89,10 +89,9 @@ export type MMDepartmentMembersWithCount = {
     total_count: number;
 };
 
-/** 联系人类型枚举：对标服务端 internal/external（保留旧类型兼容） */
+/** 联系人类型枚举：对标服务端 internal/external */
 export const MMEmployeeContactTypes = {
-    Customer: 'customer',
-    Supplier: 'supplier',
+    Internal: 'internal',
     External: 'external',
 } as const;
 export type MMEmployeeContactType = typeof MMEmployeeContactTypes[keyof typeof MMEmployeeContactTypes];

@@ -32,7 +32,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {showModalWithBackButton} from '@screens/navigation';
-import {getSupplierCustomerDisplayName} from '@utils/contact_section';
+import {getContactDisplayName} from '@utils/contact_section';
 import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -130,7 +130,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 function getContactDisplayName(detail: MMEmployeeContactSimple): string {
-    return getSupplierCustomerDisplayName(detail.remark, detail.contact);
+    return getContactDisplayName(detail.remark, detail.contact);
 }
 
 type RowProps = {
@@ -335,7 +335,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
 
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener(
-            Events.SUPPLIER_CUSTOMER_CONTACTS_CHANGED,
+            Events.EXTERNAL_CONTACTS_CHANGED,
             () => {
                 if (!ownerId) {
                     return;
