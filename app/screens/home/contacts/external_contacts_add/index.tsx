@@ -182,6 +182,7 @@ const ContactsExternalAddScreen = () => {
     const [searchResult, setSearchResult] = useState<EmployeeContactSearchRow | null>(null);
     const [searchError, setSearchError] = useState('');
     const [remark, setRemark] = useState('');
+    const [company, setCompany] = useState('');
     const [description, setDescription] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -220,6 +221,7 @@ const ContactsExternalAddScreen = () => {
         const result = await addEmployeeContact(serverUrl, ownerId, {
             contact_id: searchResult.employee.id,
             contact_type: kind,
+            company: company.trim(),
             remark: remark.trim(),
             description: description.trim(),
         });
@@ -229,7 +231,7 @@ const ContactsExternalAddScreen = () => {
         } else {
             navigation.goBack();
         }
-    }, [ownerId, searchResult, remark, description, serverUrl, kind, intl, navigation]));
+    }, [ownerId, searchResult, remark, company, description, serverUrl, kind, intl, navigation]));
 
     const handlePhoneChange = useCallback((text: string) => {
         setPhone(text);
@@ -350,6 +352,19 @@ const ContactsExternalAddScreen = () => {
                                     value={remark}
                                     onChangeText={setRemark}
                                     placeholder={intl.formatMessage({id: 'contacts.external.add.remark_placeholder', defaultMessage: 'Display name'})}
+                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
+                                    editable={!saving}
+                                />
+                            </View>
+                            <View style={styles.formField}>
+                                <Text style={styles.formLabel}>
+                                    {intl.formatMessage({id: 'contacts.external.add.company', defaultMessage: '企业名称'})}
+                                </Text>
+                                <TextInput
+                                    style={styles.formInput}
+                                    value={company}
+                                    onChangeText={setCompany}
+                                    placeholder={intl.formatMessage({id: 'contacts.external.add.company_placeholder', defaultMessage: 'Company name'})}
                                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
                                     editable={!saving}
                                 />

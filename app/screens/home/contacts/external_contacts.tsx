@@ -414,7 +414,8 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                             relationType: MMEmployeeContactTypes.External,
                             relationSource: contact.source || '',
                             currentUserId: ownerId || '',
-                            companyId: contact.company_id || '',
+                            companyId: '',
+                            contactCompany: contact.company || '',
                         },
                     );
                 } catch (error) {
@@ -462,7 +463,8 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                             relationType: MMEmployeeContactTypes.External,
                             relationSource: contact.source || '',
                             currentUserId: ownerId || '',
-                            companyId: contact.company_id || '',
+                            companyId: '',
+                            contactCompany: contact.company || '',
                         },
                     );
                 } catch (error) {

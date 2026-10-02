@@ -54,6 +54,9 @@ type Props = {
     companyId?: string;
     companyName?: string;
 
+    /** 外部联系人的企业名称（来自 EmployeeContact.company） */
+    contactCompany?: string;
+
     /** 从管理界面进入时为 true，显示「设置部门」入口 */
     fromManage?: boolean;
 
@@ -287,6 +290,7 @@ const ContactsEmployeeProfile = ({
     departmentId,
     companyId: companyIdProp,
     companyName,
+    contactCompany,
     currentUserId,
     fromManage = false,
     description,
@@ -921,6 +925,16 @@ const ContactsEmployeeProfile = ({
                         </Text>
                         <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
                             {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
+                        </Text>
+                    </View>
+                    )}
+                    {isExternalContact && (
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'contacts.enterprise_name', defaultMessage: '企业名称'})}
+                        </Text>
+                        <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
+                            {contactCompany || '-'}
                         </Text>
                     </View>
                     )}

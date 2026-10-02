@@ -102,6 +102,7 @@ export type MMEmployeeContact = {
     contact_id: string;
     contact?: UserProfile | SimpleUserProfile;
     contact_type: MMEmployeeContactType;
+    company: string;
     description: string;
     remark: string;
     source?: 'manual' | 'erp';
@@ -159,6 +160,7 @@ export type MMBatchMoveDepartmentMembersRequest = {
 export type MMUpsertEmployeeContactRequest = {
     contact_id: string;
     contact_type: MMEmployeeContactType;
+    company?: string;
     description?: string;
     remark?: string;
 };
