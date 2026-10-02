@@ -2,6 +2,8 @@
 // See LICENSE.txt for license information.
 import {BehaviorSubject} from 'rxjs';
 
+import {debugLog} from '@store/debug_log';
+
 const loadingTeamChannels: {[serverUrl: string]: BehaviorSubject<number>} = {};
 
 export const getLoadingTeamChannelsSubject = (serverUrl: string) => {
@@ -13,5 +15,7 @@ export const getLoadingTeamChannelsSubject = (serverUrl: string) => {
 
 export const setTeamLoading = (serverUrl: string, loading: boolean) => {
     const subject = getLoadingTeamChannelsSubject(serverUrl);
-    subject.next(subject.value + (loading ? 1 : -1));
+    const newValue = subject.value + (loading ? 1 : -1);
+    subject.next(newValue);
+    debugLog('TEAM_LOAD_STORE', `setTeamLoading(${loading}): value ${subject.value - (loading ? 1 : -1)} → ${newValue}`);
 };

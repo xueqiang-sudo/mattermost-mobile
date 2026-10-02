@@ -120,6 +120,7 @@ export const RESCHEDULE_DRAFT = 'RescheduleDraft';
 export const REVIEW_APP = 'ReviewApp';
 export const SCHEDULED_POST_OPTIONS = 'ScheduledPostOptions';
 export const SELECT_TEAM = 'SelectTeam';
+export const DEBUG = 'Debug';
 export const SERVER = 'Server';
 export const SETTINGS = 'Settings';
 export const SETTINGS_ADVANCED = 'SettingsAdvanced';
@@ -264,6 +265,7 @@ export default {
     REVIEW_APP,
     SCHEDULED_POST_OPTIONS,
     SELECT_TEAM,
+    DEBUG,
     SERVER,
     SETTINGS,
     SETTINGS_ADVANCED,

@@ -15,6 +15,7 @@ import ChannelItem from '@components/channel_item';
 import CompassIcon from '@components/compass_icon';
 import {FAVORITES_CATEGORY} from '@constants/categories';
 import {MM_TABLES} from '@constants/database';
+import {Preferences} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {queryChannelsById} from '@queries/servers/channel';
@@ -23,6 +24,7 @@ import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {getLocalizedMessage} from '@i18n';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 import {isDMorGM} from '@utils/channel';
+import {getUserIdFromChannelName} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {showSnackBar} from '@utils/snack_bar';
@@ -377,14 +379,50 @@ const enhanced = withObservables(
             }),
         );
 
+        // Observe hidden DM/GM preferences (user explicitly closed these channels).
+        // Aligned with webapp: DM/GM channels with show preference = 'false' are excluded.
+        const hiddenDmPrefs = queryPreferencesByCategoryAndName(
+            database, Preferences.CATEGORIES.DIRECT_CHANNEL_SHOW, undefined, 'false',
+        ).observeWithColumns(['value']);
+        const hiddenGmPrefs = queryPreferencesByCategoryAndName(
+            database, Preferences.CATEGORIES.GROUP_CHANNEL_SHOW, undefined, 'false',
+        ).observeWithColumns(['value']);
+        const hiddenChannelIds = hiddenDmPrefs.pipe(
+            combineLatestWith(hiddenGmPrefs),
+            map(([dms, gms]) => {
+                const hidden = new Set<string>();
+                // GM prefs: name = channel ID
+                for (const p of gms) {
+                    hidden.add(p.name);
+                }
+                // DM prefs: name = other user ID (need to map to channel ID later)
+                for (const p of dms) {
+                    hidden.add(`dm_user:${p.name}`);
+                }
+                return hidden;
+            }),
+        );
+
         // Classify channels into internal/external
         const classified = channels.pipe(
-            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), favoritedChannelIds, botUserIds),
-            map(([chs, gmMembers, userId, teamMembers, favoritedIds, bots]) => {
+            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), favoritedChannelIds, botUserIds, hiddenChannelIds),
+            map(([chs, gmMembers, userId, teamMembers, favoritedIds, bots, hidden]) => {
                 const internal: ChannelModel[] = [];
                 const external: ChannelModel[] = [];
 
                 for (const channel of chs) {
+                    // Filter out hidden (manually closed) DM/GM channels — aligned with webapp
+                    if (channel.type === 'D') {
+                        const otherUserId = getUserIdFromChannelName(userId, channel.name);
+                        if (hidden.has(`dm_user:${otherUserId}`)) {
+                            continue;
+                        }
+                    } else if (channel.type === 'G') {
+                        if (hidden.has(channel.id)) {
+                            continue;
+                        }
+                    }
+
                     const group = classifyChannel(channel, userId, teamMembers, gmMembers, bots);
 
                     if (group === 'internal') {

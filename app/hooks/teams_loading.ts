@@ -5,16 +5,23 @@ import {useEffect, useState} from 'react';
 import {of as of$} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
+import {debugLog} from '@store/debug_log';
 import {getLoadingTeamChannelsSubject} from '@store/team_load_store';
 
 export const useTeamsLoading = (serverUrl: string) => {
     const subject = getLoadingTeamChannelsSubject(serverUrl);
-    const [loading, setLoading] = useState(subject.getValue() !== 0);
+    const initialValue = subject.getValue() !== 0;
+    const [loading, setLoading] = useState(initialValue);
+
     useEffect(() => {
+        debugLog('TEAMS_LOADING', `useTeamsLoading init: subjectValue=${subject.getValue()}, loading=${initialValue}`);
         const sub = getLoadingTeamChannelsSubject(serverUrl).pipe(
             switchMap((v) => of$(v !== 0)),
             distinctUntilChanged(),
-        ).subscribe(setLoading);
+        ).subscribe((val) => {
+            debugLog('TEAMS_LOADING', `useTeamsLoading changed: loading=${val}`);
+            setLoading(val);
+        });
 
         return () => sub.unsubscribe();
     }, []);

@@ -278,6 +278,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.SELECT_TEAM:
             screen = withServerDatabase(require('@screens/select_team').default);
             break;
+        case Screens.DEBUG:
+            screen = require('@screens/debug/debug_screen').default;
+            break;
         case Screens.PDF_VIEWER:
             screen = withServerDatabase(require('@screens/pdf_viewer').default);
             break;

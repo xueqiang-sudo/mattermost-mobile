@@ -20,6 +20,7 @@ import {getAutoClient, NetworkManager} from '@managers/network_manager';
 import {resetToHome} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
+import {debugLog} from '@store/debug_log';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -350,11 +351,13 @@ const PhoneLoginForm = ({
             }
 
             // 5.3 调用 login 接口进行登录，注意需要传递 loginedUser 参数
+            debugLog('LOGIN', `calling login() user=${username}`);
             const loginResult = await login(serverUrl, {serverDisplayName: userNickname || username, loginId: username, password: token, config: cfgLicenseData.config!, license: cfgLicenseData.license!, loginedUser});
             if (loginResult.error) {
+                debugLog('ERROR', `login() failed: ${getFullErrorMessage(loginResult.error)}`);
                 throw loginResult.error;
             }
-            // login() succeeded
+            debugLog('LOGIN', 'login() succeeded');
 
             // 登录成功 — 检查是否有待处理的邀请链接
             const pendingInvite = EphemeralStore.getPendingInviteInfo();
@@ -374,17 +377,21 @@ const PhoneLoginForm = ({
             // setTeamLoading(true) prevents the 500ms redirect timer in channel_list.tsx
             // from firing while we wait for the REST API response.
             try {
+                debugLog('LOGIN', 'setTeamLoading(true) + retryInitialTeamAndChannel');
                 setTeamLoading(serverUrl, true);
                 const retryResult = await retryInitialTeamAndChannel(serverUrl);
                 setTeamLoading(serverUrl, false);
+                debugLog('LOGIN', `retryInitialTeamAndChannel: ${retryResult.error ? 'FAIL' : 'OK'}`);
                 if (retryResult.error) {
                     logInfo('signInWithCode: retryInitialTeamAndChannel failed', getFullErrorMessage(retryResult.error));
                 }
             } catch (retryErr) {
                 setTeamLoading(serverUrl, false);
+                debugLog('ERROR', `retryInitialTeamAndChannel exception: ${getFullErrorMessage(retryErr)}`);
                 logInfo('signInWithCode: retryInitialTeamAndChannel exception', getFullErrorMessage(retryErr));
             }
 
+            debugLog('LOGIN', 'calling goToHome()');
             setError(undefined);
             setIsLoading(false);
             await goToHome();

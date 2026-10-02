@@ -515,6 +515,34 @@ export function resetToTeams() {
     });
 }
 
+export function resetToDebug() {
+    return Navigation.setRoot({
+        root: {
+            stack: {
+                children: [{
+                    component: {
+                        id: Screens.DEBUG,
+                        name: Screens.DEBUG,
+                        options: {
+                            topBar: {
+                                visible: false,
+                                height: 0,
+                            },
+                            layout: {
+                                componentBackgroundColor: '#1a1a2e',
+                            },
+                            statusBar: {
+                                visible: true,
+                                backgroundColor: '#1a1a2e',
+                            },
+                        },
+                    },
+                }],
+            },
+        },
+    });
+}
+
 export function goToScreen(name: AvailableScreens, title: string, passProps = {}, options: Options = {}) {
     if (!isScreenRegistered(name)) {
         return '';

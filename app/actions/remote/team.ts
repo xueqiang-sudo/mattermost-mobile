@@ -22,6 +22,7 @@ import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
 import {getFullErrorMessage} from '@utils/errors';
 import {isTablet} from '@utils/helpers';
+import {debugLog} from '@store/debug_log';
 import {logDebug} from '@utils/log';
 
 import {fetchMyChannelsForTeam, switchToChannelById} from './channel';
@@ -182,6 +183,7 @@ export async function fetchMyTeams(serverUrl: string, fetchOnly = false, groupLa
             client.getMyTeams(groupLabel),
             client.getMyTeamMembers(groupLabel),
         ]);
+        debugLog('TEAM', `fetchMyTeams: ${teams.length} teams, ${memberships.length} memberships`);
 
         if (!fetchOnly) {
             const modelPromises: Array<Promise<Model[]>> = [];
@@ -227,11 +229,13 @@ export async function fetchMyTeams(serverUrl: string, fetchOnly = false, groupLa
  */
 export async function fetchTeamMembersForClassification(serverUrl: string, teamId: string) {
     try {
+        debugLog('TEAM', `fetchTeamMembersForClassification(${teamId})`);
         const client = NetworkManager.getClient(serverUrl);
         const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
         // Fetch all team members (paginated, up to 500 per page)
         const members = await client.getTeamMembers(teamId, 0, 500);
+        debugLog('TEAM', `fetchTeamMembersForClassification: got ${members?.length || 0} members`);
         if (!members?.length) {
             return;
         }
@@ -243,8 +247,10 @@ export async function fetchTeamMembersForClassification(serverUrl: string, teamI
 
         if (records.length > 0) {
             await operator.batchRecords(records, 'fetchTeamMembersForClassification');
+            debugLog('TEAM', `fetchTeamMembersForClassification: wrote ${records.length} records to DB`);
         }
     } catch (error) {
+        debugLog('ERROR', `fetchTeamMembersForClassification: ${getFullErrorMessage(error)}`);
         logDebug('error on fetchTeamMembersForClassification', getFullErrorMessage(error));
     }
 }
