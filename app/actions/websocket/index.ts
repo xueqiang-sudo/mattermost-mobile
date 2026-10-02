@@ -1,8 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {Alert} from 'react-native';
-
 import {markChannelAsViewed} from '@actions/local/channel';
 import {dataRetentionCleanup, expiredBoRPostCleanup} from '@actions/local/systems';
 import {markChannelAsRead} from '@actions/remote/channel';
@@ -67,15 +65,12 @@ async function doReconnect(serverUrl: string, groupLabel?: BaseRequestGroupLabel
     const currentChannelId = await getCurrentChannelId(database);
 
     setTeamLoading(serverUrl, true);
-    Alert.alert('[DEBUG] WS doReconnect', 'calling entry()...');
     const entryData = await entry(serverUrl, currentTeamId, currentChannelId, lastFullSync, groupLabel);
     if ('error' in entryData) {
         setTeamLoading(serverUrl, false);
-        Alert.alert('[DEBUG] WS entry() FAILED', 'error: ' + JSON.stringify(entryData.error));
         return entryData.error;
     }
     const {models, initialTeamId, initialChannelId, prefData, teamData, chData, meData, gmConverted} = entryData;
-    Alert.alert('[DEBUG] WS entry() OK', `teams: ${teamData.teams?.length || 0}, memberships: ${teamData.memberships?.length || 0}, channels: ${chData?.channels?.length || 0}, models: ${models?.length || 0}, initialTeam: ${initialTeamId || 'none'}, initialChannel: ${initialChannelId || 'none'}`);
 
     await handleEntryAfterLoadNavigation(serverUrl, teamData.memberships || [], chData?.memberships || [], currentTeamId || '', currentChannelId || '', initialTeamId, initialChannelId, gmConverted);
 
@@ -85,7 +80,6 @@ async function doReconnect(serverUrl: string, groupLabel?: BaseRequestGroupLabel
     }
 
     logInfo('WEBSOCKET RECONNECT MODELS BATCHING TOOK', `${Date.now() - dt}ms`);
-    Alert.alert('[DEBUG] WS batchRecords', `saved ${models?.length || 0} models in ${Date.now() - dt}ms, setting teamLoading=false`);
 
     await fetchPostDataIfNeeded(serverUrl, groupLabel);
 

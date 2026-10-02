@@ -3,7 +3,7 @@
 
 import React, {useCallback, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Alert, Keyboard, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Keyboard, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {doPing} from '@actions/remote/general';
 import {sendAccountCode, verifyAccountCode} from '@actions/remote/plugin_gateway';
@@ -354,8 +354,7 @@ const PhoneLoginForm = ({
             if (loginResult.error) {
                 throw loginResult.error;
             }
-            // DEBUG: login() succeeded
-            Alert.alert('[DEBUG] login()', 'login succeeded, user: ' + (userNickname || username));
+            // login() succeeded
 
             // 登录成功 — 检查是否有待处理的邀请链接
             const pendingInvite = EphemeralStore.getPendingInviteInfo();
@@ -376,18 +375,13 @@ const PhoneLoginForm = ({
             // from firing while we wait for the REST API response.
             try {
                 setTeamLoading(serverUrl, true);
-                Alert.alert('[DEBUG] retry', 'calling retryInitialTeamAndChannel...');
                 const retryResult = await retryInitialTeamAndChannel(serverUrl);
                 setTeamLoading(serverUrl, false);
                 if (retryResult.error) {
-                    Alert.alert('[DEBUG] retry FAILED', 'error: ' + JSON.stringify(retryResult.error));
                     logInfo('signInWithCode: retryInitialTeamAndChannel failed', getFullErrorMessage(retryResult.error));
-                } else {
-                    Alert.alert('[DEBUG] retry OK', 'teams & channels loaded via REST');
                 }
             } catch (retryErr) {
                 setTeamLoading(serverUrl, false);
-                Alert.alert('[DEBUG] retry EXCEPTION', getFullErrorMessage(retryErr));
                 logInfo('signInWithCode: retryInitialTeamAndChannel exception', getFullErrorMessage(retryErr));
             }
 
