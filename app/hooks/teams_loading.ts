@@ -8,9 +8,8 @@ import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 import {getLoadingTeamChannelsSubject} from '@store/team_load_store';
 
 export const useTeamsLoading = (serverUrl: string) => {
-    // const subject = getLoadingTeamChannelsSubject(serverUrl);
-    // const [loading, setLoading] = useState(subject.getValue() !== 0);
-    const [loading, setLoading] = useState(false);
+    const subject = getLoadingTeamChannelsSubject(serverUrl);
+    const [loading, setLoading] = useState(subject.getValue() !== 0);
     useEffect(() => {
         const sub = getLoadingTeamChannelsSubject(serverUrl).pipe(
             switchMap((v) => of$(v !== 0)),

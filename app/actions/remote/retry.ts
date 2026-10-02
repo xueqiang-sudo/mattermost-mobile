@@ -20,7 +20,7 @@ import {fetchPostsForChannel} from './post';
 import {fetchMyPreferences, type MyPreferencesRequest} from './preference';
 import {fetchRolesIfNeeded} from './role';
 import {type ConfigAndLicenseRequest, fetchConfigAndLicense} from './systems';
-import {fetchMyTeams, type MyTeamsRequest} from './team';
+import {fetchMyTeams, fetchTeamMembersForClassification, type MyTeamsRequest} from './team';
 
 import type {Model} from '@nozbe/watermelondb';
 import type TeamModel from '@typings/database/models/servers/team';
@@ -117,6 +117,11 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
         ])).flat();
 
         await operator.batchRecords(models, 'retryInitialTeamAndChannel');
+
+        // Fire-and-forget: fetch all team members for channel classification
+        if (initialTeam?.id) {
+            fetchTeamMembersForClassification(serverUrl, initialTeam.id);
+        }
 
         const directChannels = chData!.channels!.filter(isDMorGM);
         const channelsToFetchProfiles = new Set<Channel>(directChannels);

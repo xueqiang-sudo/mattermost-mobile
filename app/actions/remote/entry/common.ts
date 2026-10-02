@@ -2,13 +2,12 @@
 // See LICENSE.txt for license information.
 
 import {nativeApplicationVersion} from 'expo-application';
-import {Alert} from 'react-native';
 import {RESULTS, checkNotifications} from 'react-native-permissions';
 
 import {fetchChannelById, fetchMyChannelsForTeam, handleKickFromChannel, type MyChannelsRequest} from '@actions/remote/channel';
 import {type MyPreferencesRequest, fetchMyPreferences} from '@actions/remote/preference';
 import {fetchConfigAndLicense, fetchDataRetentionPolicy} from '@actions/remote/systems';
-import {fetchMyTeams, handleKickFromTeam, type MyTeamsRequest} from '@actions/remote/team';
+import {fetchMyTeams, fetchTeamMembersForClassification, handleKickFromTeam, type MyTeamsRequest} from '@actions/remote/team';
 import {fetchMe, type MyUserRequest} from '@actions/remote/user';
 import {General, Preferences, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
@@ -118,22 +117,7 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         // loadMe() which silently ignores partial failures.
         const criticalError = teamData.error || meData.error;
         if (criticalError) {
-            const errStr = (e: unknown) => {
-                if (!e) return 'null';
-                if (e instanceof Error) return `${e.name}: ${e.message}`;
-                if (typeof e === 'object') {
-                    const obj = e as Record<string, unknown>;
-                    return `obj{msg=${obj.message || obj.server_error_id || ''}, status=${obj.status_code || obj.statusCode || ''}, url=${String(obj.url || '').slice(-40)}}`;
-                }
-                return String(e);
-            };
-            // eslint-disable-next-line no-alert
-            Alert.alert('[DEBUG] WS entry FAIL',
-                `team: ${errStr(teamData.error)}\n` +
-                `me: ${errStr(meData.error)}\n` +
-                `conf: ${errStr(confResp.error)}\n` +
-                `pref: ${errStr(prefData.error)}\n` +
-                `teams=${teamData.teams?.length || 0} memberships=${teamData.memberships?.length || 0}`);
+            logError('entry: critical error during team/me fetch', teamData.error || meData.error);
             return {error: criticalError};
         }
 
@@ -211,6 +195,13 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         const modelPromises = await prepareEntryModels({operator, teamData: initialTeamData, chData, prefData, meData, isCRTEnabled});
         const models = (await Promise.all(modelPromises)).flat();
         logDebug('Process models on entry', groupLabel, models.length, `${Date.now() - dt}ms`);
+
+        // Fire-and-forget: fetch all team members for channel classification
+        // (internal vs external). Without this, TEAM_MEMBERSHIP only has the
+        // current user's record(s) and classification always returns 'external'.
+        if (initialTeamId) {
+            fetchTeamMembersForClassification(serverUrl, initialTeamId);
+        }
 
         return {models, initialChannelId, initialTeamId, prefData, teamData, chData, meData, gmConverted};
     } catch (error) {

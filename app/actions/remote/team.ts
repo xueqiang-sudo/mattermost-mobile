@@ -219,6 +219,36 @@ export async function fetchMyTeams(serverUrl: string, fetchOnly = false, groupLa
     }
 }
 
+/**
+ * Fetch ALL team members for a given team and store them in TEAM_MEMBERSHIP.
+ * This is needed for channel classification (internal vs external) which checks
+ * if GM/DM channel members belong to the current team. Without this, the
+ * TEAM_MEMBERSHIP table only contains the current user's membership record(s).
+ */
+export async function fetchTeamMembersForClassification(serverUrl: string, teamId: string) {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+
+        // Fetch all team members (paginated, up to 500 per page)
+        const members = await client.getTeamMembers(teamId, 0, 500);
+        if (!members?.length) {
+            return;
+        }
+
+        const records = await operator.handleTeamMemberships({
+            teamMemberships: members,
+            prepareRecordsOnly: true,
+        });
+
+        if (records.length > 0) {
+            await operator.batchRecords(records, 'fetchTeamMembersForClassification');
+        }
+    } catch (error) {
+        logDebug('error on fetchTeamMembersForClassification', getFullErrorMessage(error));
+    }
+}
+
 export async function fetchTeamById(serverUrl: string, teamId: string) {
     try {
         const client = NetworkManager.getClient(serverUrl);
