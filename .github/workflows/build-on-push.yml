@@ -59,12 +59,31 @@ jobs:
         run: bundle install
         working-directory: fastlane
 
+      - name: Pre-bundle JS for Android (verbose)
+        env:
+          CI: "true"
+          NODE_ENV: production
+          BABEL_ENV: production
+          NODE_OPTIONS: "--max_old_space_size=12000"
+        run: |
+          export PATH="$(dirname $(which node)):$PATH"
+          echo "Node version: $(node -v) ($(which node))"
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res/ \
+            --max-workers 2 \
+            --verbose || (echo "react-native bundle failed — see logs above" && exit 1)
+
       - name: Build Android APK
         env:
           CI: "true"
           NODE_ENV: production
           BABEL_ENV: production
           NODE_OPTIONS: "--max_old_space_size=12000"
+          FASTLANE_LOG_LEVEL: debug
         run: bundle exec fastlane android build --env android.release
         working-directory: fastlane
 
@@ -91,15 +110,12 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_26.1.app/Contents/Developer
           sudo xcodebuild -license accept || true
           echo "DEVELOPER_DIR=/Applications/Xcode_26.1.app/Contents/Developer" >> $GITHUB_ENV
-          echo "SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_ENV
           echo "/Applications/Xcode_26.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin" >> $GITHUB_PATH
           export DEVELOPER_DIR=/Applications/Xcode_26.1.app/Contents/Developer
-          export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$PATH"
           echo "=== Xcode Diagnostics ==="
           xcode-select -p
           xcodebuild -version
-          echo "SDKROOT=$SDKROOT"
           which swift
           swift --version
           xcrun --sdk iphoneos swift --version || true
@@ -198,6 +214,10 @@ jobs:
           ruby-version: "3.2"
           bundler-cache: false
 
+      - name: Ensure macOS SDK for Ruby/gem builds
+        run: |
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
+
       - name: Install root Ruby gems (CocoaPods)
         run: |
           bundle config set --local silence_root_warning 1 || true
@@ -262,9 +282,13 @@ jobs:
           FASTLANE_LOG_LEVEL: debug
           FASTLANE_DISABLE_COLORS: "1"
         run: |
+          # Set iPhoneOS SDK only for the iOS build step
+          export DEVELOPER_DIR=/Applications/Xcode_26.1.app/Contents/Developer
+          export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           # Ensure Node is available for React Native bundle script
           export PATH="$(dirname $(which node)):$PATH"
           echo "Node path: $(which node)"
+          echo "SDKROOT: $SDKROOT"
           bundle exec fastlane ios build
         working-directory: fastlane
 

@@ -1096,12 +1096,14 @@ platform :android do
     config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
     build_task = ENV['ANDROID_BUILD_TASK'].nil? || ENV['ANDROID_BUILD_TASK'].empty? ? 'assemble' : ENV['ANDROID_BUILD_TASK']
     build_task = build_task.split(",")
+    gradle_flags = '--stacktrace'
 
     if build_task.include?("assemble")
       gradle(
           task: 'app:assemble',
           build_type: config_mode,
           project_dir: 'android/',
+          flags: gradle_flags,
           properties: {
             'separateApk' => ENV["SEPARATE_APKS"] || false,
             'universalApk' => ENV["UNIVERSAL_APK"] || false,
@@ -1114,6 +1116,7 @@ platform :android do
           task: 'app:bundle',
           build_type: config_mode,
           project_dir: 'android/',
+          flags: gradle_flags,
       )
     end
   end
