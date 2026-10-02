@@ -5,7 +5,7 @@
 import {useFocusEffect, useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
+import {Alert, BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
@@ -142,9 +142,14 @@ const ChannelListScreen = (props: ChannelProps) => {
             return undefined;
         }
 
+        Alert.alert('[DEBUG] channel_list', `hasTeams=false, teamsLoading=false, starting ${RESET_TO_TEAMS_DELAY_MS}ms timer → resetToTeams`);
+
         const timer = setTimeout(() => {
             if (!hasTeamsRef.current && !teamsLoadingRef.current) {
+                Alert.alert('[DEBUG] channel_list', 'TIMER FIRED: still no teams → resetToTeams()');
                 resetToTeams();
+            } else {
+                Alert.alert('[DEBUG] channel_list', `TIMER FIRED but resolved: hasTeams=${hasTeamsRef.current}, teamsLoading=${teamsLoadingRef.current}`);
             }
         }, RESET_TO_TEAMS_DELAY_MS);
 

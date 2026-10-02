@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {nativeApplicationVersion} from 'expo-application';
+import {Alert} from 'react-native';
 import {RESULTS, checkNotifications} from 'react-native-permissions';
 
 import {fetchChannelById, fetchMyChannelsForTeam, handleKickFromChannel, type MyChannelsRequest} from '@actions/remote/channel';
@@ -113,8 +114,13 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         const [teamData, meData] = await Promise.all(promises);
         const error = confResp.error || prefData.error || teamData.error || meData.error;
         if (error) {
+            // eslint-disable-next-line no-alert
+            Alert.alert('[DEBUG] WS entry', `FETCH ERROR: conf=${Boolean(confResp.error)} pref=${Boolean(prefData.error)} team=${Boolean(teamData.error)} me=${Boolean(meData.error)}`);
             return {error};
         }
+
+        // eslint-disable-next-line no-alert
+        Alert.alert('[DEBUG] WS entry', `teams=${teamData.teams?.length || 0}, memberships=${teamData.memberships?.length || 0}, requestedTeamId=${teamId || 'none'}`);
 
         let initialTeamId = teamId || '';
         let initialChannelId = channelId || '';
@@ -142,6 +148,8 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         }
 
         if (!teamData.error && teamData.teams?.length === 0) {
+            // eslint-disable-next-line no-alert
+            Alert.alert('[DEBUG] WS entry', 'teams.length === 0, setting initialTeamId to empty');
             initialTeamId = '';
         }
 
@@ -182,6 +190,9 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         const modelPromises = await prepareEntryModels({operator, teamData: initialTeamData, chData, prefData, meData, isCRTEnabled});
         const models = (await Promise.all(modelPromises)).flat();
         logDebug('Process models on entry', groupLabel, models.length, `${Date.now() - dt}ms`);
+
+        // eslint-disable-next-line no-alert
+        Alert.alert('[DEBUG] WS entry OK', `initialTeam=${initialTeamId || 'none'}, initialChannel=${initialChannelId || 'none'}, models=${models.length}, channels=${chData.channels?.length || 0}`);
 
         return {models, initialChannelId, initialTeamId, prefData, teamData, chData, meData, gmConverted};
     } catch (error) {

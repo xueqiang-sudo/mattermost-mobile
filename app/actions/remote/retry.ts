@@ -1,6 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {Alert} from 'react-native';
+
 import {storeConfig} from '@actions/local/systems';
 import {Preferences} from '@constants';
 import DatabaseManager from '@database/manager';
@@ -28,6 +30,7 @@ import type TeamModel from '@typings/database/models/servers/team';
 export async function retryInitialTeamAndChannel(serverUrl: string) {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
+        Alert.alert('[DEBUG] retry', 'FAIL: database not found for ' + serverUrl);
         return {error: `${serverUrl} database not found`};
     }
     const {database} = operator;
@@ -35,6 +38,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
     try {
         NetworkManager.getClient(serverUrl);
     } catch (error) {
+        Alert.alert('[DEBUG] retry', 'FAIL: getClient error: ' + String(error));
         return {error};
     }
 
@@ -44,6 +48,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
 
         const user = await getCurrentUser(database);
         if (!user) {
+            Alert.alert('[DEBUG] retry', 'FAIL: no current user in DB');
             return {error: true};
         }
 
@@ -54,7 +59,9 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
             fetchMyTeams(serverUrl, true),
         ];
 
+        Alert.alert('[DEBUG] retry', 'fetching config+prefs+teams...');
         const [clData, prefData, teamData] = await Promise.all(promises);
+        Alert.alert('[DEBUG] retry fetch done', `config err=${Boolean(clData.error)}, prefs err=${Boolean(prefData.error)}, teams err=${Boolean(teamData.error)}, teams count=${teamData.teams?.length || 0}, memberships=${teamData.memberships?.length || 0}`);
         let chData: MyChannelsRequest|undefined;
 
         // select initial team
@@ -70,12 +77,14 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
 
             const myTeams = teamData.teams!.filter((t) => teamMembers.has(t.id));
             initialTeam = selectDefaultTeam(myTeams, user.locale, teamOrderPreference, clData.config?.ExperimentalPrimaryTeam);
+            Alert.alert('[DEBUG] retry selectTeam', `myTeams=${myTeams.length}, selected: ${initialTeam?.display_name || initialTeam?.id || 'NONE'}`);
 
             if (initialTeam) {
                 const rolesToFetch = new Set<string>([...user.roles.split(' '), ...teamRoles]);
 
                 // fetch channels / channel membership for initial team
                 chData = await fetchMyChannelsForTeam(serverUrl, initialTeam.id, true, 0, true);
+                Alert.alert('[DEBUG] retry channels', `channels=${chData.channels?.length || 0}, memberships=${chData.memberships?.length || 0}`);
                 if (chData.channels?.length && chData.memberships?.length) {
                     const {channels, memberships} = chData;
                     const channelIds = new Set(channels?.map((c) => c.id));
@@ -96,6 +105,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
         }
 
         if (!initialTeam || !initialChannel) {
+            Alert.alert('[DEBUG] retry FAIL', `initialTeam=${Boolean(initialTeam)}, initialChannel=${Boolean(initialChannel)}`);
             return {error: true};
         }
 
@@ -117,6 +127,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
         ])).flat();
 
         await operator.batchRecords(models, 'retryInitialTeamAndChannel');
+        Alert.alert('[DEBUG] retry SAVE OK', `saved ${models.length} models (team=${initialTeam.display_name}, channel=${initialChannel.id})`);
 
         const directChannels = chData!.channels!.filter(isDMorGM);
         const channelsToFetchProfiles = new Set<Channel>(directChannels);
@@ -129,6 +140,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
 
         return {error: false};
     } catch (error) {
+        Alert.alert('[DEBUG] retry EXCEPTION', String(error));
         return {error: true};
     }
 }

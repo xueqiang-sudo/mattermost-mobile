@@ -3,10 +3,11 @@
 
 import React, {useCallback, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
-import {Keyboard, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Alert, Keyboard, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {doPing} from '@actions/remote/general';
 import {sendAccountCode, verifyAccountCode} from '@actions/remote/plugin_gateway';
+import {retryInitialTeamAndChannel} from '@actions/remote/retry';
 import {login, userPwdLoginAPI} from '@actions/remote/session';
 import {fetchConfigAndLicense} from '@actions/remote/systems';
 import Button from '@components/button';
@@ -18,6 +19,7 @@ import {prepareJPushAfterLogin} from '@init/launch';
 import {getAutoClient, NetworkManager} from '@managers/network_manager';
 import {resetToHome} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
+import {setTeamLoading} from '@store/team_load_store';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -352,6 +354,8 @@ const PhoneLoginForm = ({
             if (loginResult.error) {
                 throw loginResult.error;
             }
+            // DEBUG: login() succeeded
+            Alert.alert('[DEBUG] login()', 'login succeeded, user: ' + (userNickname || username));
 
             // 登录成功 — 检查是否有待处理的邀请链接
             const pendingInvite = EphemeralStore.getPendingInviteInfo();
@@ -364,6 +368,27 @@ const PhoneLoginForm = ({
                     logError('Failed to join team via invite link', getFullErrorMessage(joinErr));
                 }
                 EphemeralStore.clearPendingInviteInfo();
+            }
+
+            // Fallback: ensure teams & channels are loaded via REST API
+            // (WebSocket entry() may not connect fast enough on fresh install)
+            // setTeamLoading(true) prevents the 500ms redirect timer in channel_list.tsx
+            // from firing while we wait for the REST API response.
+            try {
+                setTeamLoading(serverUrl, true);
+                Alert.alert('[DEBUG] retry', 'calling retryInitialTeamAndChannel...');
+                const retryResult = await retryInitialTeamAndChannel(serverUrl);
+                setTeamLoading(serverUrl, false);
+                if (retryResult.error) {
+                    Alert.alert('[DEBUG] retry FAILED', 'error: ' + JSON.stringify(retryResult.error));
+                    logInfo('signInWithCode: retryInitialTeamAndChannel failed', getFullErrorMessage(retryResult.error));
+                } else {
+                    Alert.alert('[DEBUG] retry OK', 'teams & channels loaded via REST');
+                }
+            } catch (retryErr) {
+                setTeamLoading(serverUrl, false);
+                Alert.alert('[DEBUG] retry EXCEPTION', getFullErrorMessage(retryErr));
+                logInfo('signInWithCode: retryInitialTeamAndChannel exception', getFullErrorMessage(retryErr));
             }
 
             setError(undefined);
