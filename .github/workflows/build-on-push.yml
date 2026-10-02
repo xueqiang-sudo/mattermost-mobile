@@ -261,6 +261,18 @@ jobs:
           echo "=== Installed profiles ==="
           ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
 
+      - name: Make node reachable to Xcode build
+        run: |
+          set -euo pipefail
+          NODE_PATH="$(which node || true)"
+          if [ -z "$NODE_PATH" ]; then
+            echo "::error::node not found in PATH"
+            exit 1
+          fi
+          echo "Node at: $NODE_PATH"
+          sudo ln -sf "$NODE_PATH" /usr/local/bin/node
+          ls -l /usr/local/bin/node
+
       - name: Build iOS signed IPA
         env:
           CI: "true"
