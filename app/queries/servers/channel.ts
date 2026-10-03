@@ -48,11 +48,23 @@ export function prepareChannels(
     teamId?: string,
 ): Array<Promise<Model[]>> {
     try {
-        const channelRecords = operator.handleChannel({channels, prepareRecordsOnly: true});
-        const channelInfoRecords = operator.handleChannelInfo({channelInfos, prepareRecordsOnly: true});
-        const membershipRecords = operator.handleChannelMembership({channelMemberships, prepareRecordsOnly: true});
-        const myChannelRecords = operator.handleMyChannel({channels, myChannels: memberships, prepareRecordsOnly: true, isCRTEnabled});
-        const myChannelSettingsRecords = operator.handleMyChannelSettings({settings: memberships, prepareRecordsOnly: true});
+        // Wrap each handler's Promise with .catch() to properly handle async rejections
+        // (the outer try/catch only catches synchronous errors, not Promise rejections)
+        const channelRecords = operator.handleChannel({channels, prepareRecordsOnly: true}).catch((e: Error) => {
+            throw new Error(`handleChannel: ${e.message}`);
+        });
+        const channelInfoRecords = operator.handleChannelInfo({channelInfos, prepareRecordsOnly: true}).catch((e: Error) => {
+            throw new Error(`handleChannelInfo: ${e.message}`);
+        });
+        const membershipRecords = operator.handleChannelMembership({channelMemberships, prepareRecordsOnly: true}).catch((e: Error) => {
+            throw new Error(`handleChannelMembership: ${e.message}`);
+        });
+        const myChannelRecords = operator.handleMyChannel({channels, myChannels: memberships, prepareRecordsOnly: true, isCRTEnabled}).catch((e: Error) => {
+            throw new Error(`handleMyChannel: ${e.message}`);
+        });
+        const myChannelSettingsRecords = operator.handleMyChannelSettings({settings: memberships, prepareRecordsOnly: true}).catch((e: Error) => {
+            throw new Error(`handleMyChannelSettings: ${e.message}`);
+        });
 
         const result: Array<Promise<Model[]>> = [channelRecords, channelInfoRecords, membershipRecords, myChannelRecords, myChannelSettingsRecords];
 
@@ -78,7 +90,9 @@ export function prepareChannels(
                 }
             }
             if (channelTeams.length) {
-                result.push(operator.handleChannelTeam({channelTeams, prepareRecordsOnly: true}));
+                result.push(operator.handleChannelTeam({channelTeams, prepareRecordsOnly: true}).catch((e: Error) => {
+                    throw new Error(`handleChannelTeam: ${e.message}`);
+                }));
             }
         }
 
@@ -120,13 +134,27 @@ export function prepareMissingChannelsForAllTeams(operator: ServerDataOperator, 
 const buildChannelInfos = async (database: Database, channels: Channel[]) => {
     const channelInfos: ChannelInfo[] = [];
 
-    const channelsQuery = await queryAllChannels(database);
+    if (!database) {
+        throw new Error('buildChannelInfos: database is null/undefined');
+    }
+
+    let channelsQuery: ChannelModel[];
+    try {
+        channelsQuery = await queryAllChannels(database);
+    } catch (e) {
+        throw new Error(`queryAllChannels failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
     const storedChannelsMap = channelsQuery.reduce<Record<string, ChannelModel>>((map, channel) => {
         map[channel.id] = channel;
         return map;
     }, {});
 
-    const channelInfosQuery = await queryAllChannelsInfo(database);
+    let channelInfosQuery: ChannelInfoModel[];
+    try {
+        channelInfosQuery = await queryAllChannelsInfo(database);
+    } catch (e) {
+        throw new Error(`queryAllChannelsInfo failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
     const storedChannelInfosMap = channelInfosQuery.reduce<Record<string, ChannelInfoModel>>((map, info) => {
         map[info.id] = info;
         return map;
@@ -260,7 +288,14 @@ export const prepareDeleteBookmarks = async (bookmark: ChannelBookmarkModel) => 
 };
 
 export const queryAllChannels = (database: Database) => {
-    return database.get<ChannelModel>(CHANNEL).query();
+    if (!database) {
+        throw new Error('queryAllChannels: database is null');
+    }
+    const collection = database.get<ChannelModel>(CHANNEL);
+    if (!collection) {
+        throw new Error(`queryAllChannels: collection for ${CHANNEL} is null`);
+    }
+    return collection.query();
 };
 
 /**
@@ -282,7 +317,14 @@ export const queryAllChannelsForTeam = (database: Database, teamId: string) => {
 };
 
 export const queryAllChannelsInfo = (database: Database) => {
-    return database.get<ChannelInfoModel>(CHANNEL_INFO).query();
+    if (!database) {
+        throw new Error('queryAllChannelsInfo: database is null');
+    }
+    const collection = database.get<ChannelInfoModel>(CHANNEL_INFO);
+    if (!collection) {
+        throw new Error(`queryAllChannelsInfo: collection for ${CHANNEL_INFO} is null`);
+    }
+    return collection.query();
 };
 
 export const queryAllChannelsInfoForTeam = (database: Database, teamId: string) => {

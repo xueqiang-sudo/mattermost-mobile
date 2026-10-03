@@ -90,26 +90,52 @@ export async function prepareEntryModelsForDeletion({serverUrl, operator, teamDa
 
 export async function prepareEntryModels({operator, teamData, chData, prefData, meData, isCRTEnabled}: PrepareModelsArgs): Promise<Array<Promise<Model[]>>> {
     const modelPromises: Array<Promise<Model[]>> = [];
+    const {database} = operator;
+
+    // Validate database is not null before any query operations
+    if (!database) {
+        throw new Error('prepareEntryModels: operator.database is null/undefined');
+    }
 
     if (teamData?.teams?.length && teamData.memberships?.length) {
-        modelPromises.push(...prepareMyTeams(operator, teamData.teams, teamData.memberships));
+        try {
+            modelPromises.push(...prepareMyTeams(operator, teamData.teams, teamData.memberships));
+        } catch (e) {
+            throw new Error(`prepareMyTeams failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
     }
 
     if (chData?.categories?.length) {
-        modelPromises.push(prepareCategoriesAndCategoriesChannels(operator, chData.categories, true));
+        try {
+            modelPromises.push(prepareCategoriesAndCategoriesChannels(operator, chData.categories, true));
+        } catch (e) {
+            throw new Error(`prepareCategoriesAndCategoriesChannels failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
     }
 
     if (chData?.channels?.length && chData.memberships?.length) {
         const {channels, memberships} = chData;
-        modelPromises.push(...await prepareAllMyChannels(operator, channels, memberships, isCRTEnabled));
+        try {
+            modelPromises.push(...await prepareAllMyChannels(operator, channels, memberships, isCRTEnabled));
+        } catch (e) {
+            throw new Error(`prepareAllMyChannels failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
     }
 
     if (prefData?.preferences?.length) {
-        modelPromises.push(prepareMyPreferences(operator, prefData.preferences, true));
+        try {
+            modelPromises.push(prepareMyPreferences(operator, prefData.preferences, true));
+        } catch (e) {
+            throw new Error(`prepareMyPreferences failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
     }
 
     if (meData?.user) {
-        modelPromises.push(prepareUsers(operator, [meData.user]));
+        try {
+            modelPromises.push(prepareUsers(operator, [meData.user]));
+        } catch (e) {
+            throw new Error(`prepareUsers failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
     }
 
     return modelPromises;

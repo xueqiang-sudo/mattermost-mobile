@@ -199,16 +199,22 @@ export const getDefaultTeamId = async (database: Database, ignoreId?: string) =>
 
 export function prepareMyTeams(operator: ServerDataOperator, teams: Team[], memberships: TeamMembership[]): Array<Promise<Model[]>> {
     try {
-        const teamRecords = operator.handleTeam({prepareRecordsOnly: true, teams});
+        const teamRecords = operator.handleTeam({prepareRecordsOnly: true, teams}).catch((e: Error) => {
+            throw new Error(`handleTeam: ${e.message}`);
+        });
         const teamIds = new Set(teams.map((t) => t.id));
         const teamMemberships = memberships.filter((m) => teamIds.has(m.team_id) && m.delete_at === 0);
-        const teamMembershipRecords = operator.handleTeamMemberships({prepareRecordsOnly: true, teamMemberships});
+        const teamMembershipRecords = operator.handleTeamMemberships({prepareRecordsOnly: true, teamMemberships}).catch((e: Error) => {
+            throw new Error(`handleTeamMemberships: ${e.message}`);
+        });
         const myTeams: MyTeam[] = teamMemberships.map((tm) => {
             return {id: tm.team_id, roles: tm.roles ?? ''};
         });
         const myTeamRecords = operator.handleMyTeam({
             prepareRecordsOnly: true,
             myTeams,
+        }).catch((e: Error) => {
+            throw new Error(`handleMyTeam: ${e.message}`);
         });
 
         return [teamRecords, teamMembershipRecords, myTeamRecords];

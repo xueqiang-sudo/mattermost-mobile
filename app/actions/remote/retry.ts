@@ -106,24 +106,35 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
             return {error: true};
         }
 
-        const models: Model[] = (await Promise.all([
-            prepareMyPreferences(operator, prefData.preferences!),
-            storeConfig(serverUrl, clData.config, true),
-            ...prepareMyTeams(operator, teamData.teams!, teamData.memberships!),
-            ...await prepareMyChannelsForTeam(operator, initialTeam.id, chData!.channels!, chData!.memberships!),
-            prepareCategoriesAndCategoriesChannels(operator, chData!.categories!, true),
+        let models: Model[];
+        try {
+            models = (await Promise.all([
+                prepareMyPreferences(operator, prefData.preferences!),
+                storeConfig(serverUrl, clData.config, true),
+                ...prepareMyTeams(operator, teamData.teams!, teamData.memberships!),
+                ...await prepareMyChannelsForTeam(operator, initialTeam.id, chData!.channels!, chData!.memberships!),
+                prepareCategoriesAndCategoriesChannels(operator, chData!.categories!, true),
 
-            prepareCommonSystemValues(
-                operator,
-                {
-                    license: clData.license!,
-                    currentTeamId: initialTeam?.id,
-                    currentChannelId: initialChannel?.id,
-                },
-            ),
-        ])).flat();
+                prepareCommonSystemValues(
+                    operator,
+                    {
+                        license: clData.license!,
+                        currentTeamId: initialTeam?.id,
+                        currentChannelId: initialChannel?.id,
+                    },
+                ),
+            ])).flat();
+        } catch (prepareError) {
+            debugLog('ERROR', `retry prepareModels: ${prepareError instanceof Error ? prepareError.message : String(prepareError)}`);
+            return {error: prepareError};
+        }
 
-        await operator.batchRecords(models, 'retryInitialTeamAndChannel');
+        try {
+            await operator.batchRecords(models, 'retryInitialTeamAndChannel');
+        } catch (batchErr) {
+            debugLog('ERROR', `retry batchRecords: ${batchErr instanceof Error ? batchErr.message : String(batchErr)}`);
+            return {error: batchErr};
+        }
 
         // Fire-and-forget: fetch all team members for channel classification
         if (initialTeam?.id) {
@@ -141,7 +152,8 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
 
         return {error: false};
     } catch (error) {
-        return {error: true};
+        debugLog('ERROR', `retry exception: ${error instanceof Error ? error.message : String(error)}`);
+        return {error};
     }
 }
 
