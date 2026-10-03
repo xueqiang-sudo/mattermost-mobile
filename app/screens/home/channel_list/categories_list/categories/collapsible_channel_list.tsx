@@ -21,6 +21,7 @@ import {useTheme} from '@context/theme';
 import {queryChannelsById} from '@queries/servers/channel';
 import {queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
+import {observeUserIdsInTeam} from '@queries/servers/user';
 import {getLocalizedMessage} from '@i18n';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 import {isDMorGM} from '@utils/channel';
@@ -53,7 +54,6 @@ type Section = {
 type EnhanceProps = {
     builtInCategories: CategoryModel[];
     customCategories: CategoryModel[];
-    teamMemberIds: ReadonlySet<string>;
     currentUserId: string;
     currentTeamId: string;
     locale: string;
@@ -250,10 +250,14 @@ const CollapsibleChannelListRenderer = ({
 };
 
 const enhanced = withObservables(
-    ['builtInCategories', 'customCategories', 'teamMemberIds', 'currentUserId', 'currentTeamId'],
-    ({builtInCategories, customCategories, teamMemberIds, currentUserId, currentTeamId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
+    ['builtInCategories', 'customCategories', 'currentUserId', 'currentTeamId'],
+    ({builtInCategories, customCategories, currentUserId, currentTeamId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
         // Use the passed currentTeamId directly (ensures proper reset on team switch)
         const currentTeamId$ = of$(currentTeamId);
+
+        // Observe TEAM_MEMBERSHIP reactively so classification updates
+        // when fetchTeamMembersForClassification writes new members
+        const teamMemberIds$ = currentTeamId ? observeUserIdsInTeam(database, currentTeamId) : of$(new Set<string>());
 
         // Get channel IDs from custom categories
         const customCategoryChannelIds = of$(customCategories).pipe(
@@ -405,7 +409,7 @@ const enhanced = withObservables(
 
         // Classify channels into internal/external
         const classified = channels.pipe(
-            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), favoritedChannelIds, botUserIds, hiddenChannelIds),
+            combineLatestWith(gmMemberMap, of$(currentUserId), teamMemberIds$, favoritedChannelIds, botUserIds, hiddenChannelIds),
             map(([chs, gmMembers, userId, teamMembers, favoritedIds, bots, hidden]) => {
                 const internal: ChannelModel[] = [];
                 const external: ChannelModel[] = [];

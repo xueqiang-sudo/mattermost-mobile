@@ -25,7 +25,6 @@ type Props = {
     categories: CategoryModel[];
     currentTeamId: string;
     currentUserId: string;
-    teamMemberIds: ReadonlySet<string>;
     onlyUnreads: boolean;
     unreadsOnTop: boolean;
 }
@@ -46,7 +45,6 @@ const Categories = ({
     categories,
     currentTeamId,
     currentUserId,
-    teamMemberIds,
     onlyUnreads,
     unreadsOnTop,
 }: Props) => {
@@ -72,7 +70,7 @@ const Categories = ({
         custom.sort((a, b) => a.sortOrder - b.sortOrder);
 
         return {builtInCategories: builtIn, customCategories: custom};
-    }, [categories, teamMemberIds]);
+    }, [categories]);
 
     const [initiaLoad, setInitialLoad] = useState(!categories.length);
 
@@ -119,7 +117,6 @@ const Categories = ({
                     key={teamId || 'no-team'}
                     builtInCategories={builtInCategories}
                     customCategories={customCategories}
-                    teamMemberIds={teamMemberIds}
                     currentUserId={currentUserId}
                     currentTeamId={currentTeamId}
                     locale={intl.locale}

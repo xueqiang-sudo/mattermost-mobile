@@ -10,6 +10,7 @@ import {switchMap, combineLatestWith, distinctUntilChanged, map} from 'rxjs/oper
 
 import {MM_TABLES} from '@constants/database';
 import {queryChannelsById} from '@queries/servers/channel';
+import {observeUserIdsInTeam} from '@queries/servers/user';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 import {from} from 'rxjs';
 
@@ -31,7 +32,6 @@ const {SERVER: {CHANNEL_MEMBERSHIP, USER}} = MM_TABLES;
 type EnhanceProps = {
     builtInCategories: CategoryModel[];
     customCategories: CategoryModel[];
-    teamMemberIds: ReadonlySet<string>;
     currentUserId: string;
     locale: string;
     isTablet: boolean;
@@ -80,14 +80,20 @@ const BuiltinChannelGroupsRenderer = ({
 };
 
 const enhanced = withObservables(
-    ['builtInCategories', 'customCategories', 'teamMemberIds', 'currentUserId'],
-    ({builtInCategories, customCategories, teamMemberIds, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
+    ['builtInCategories', 'customCategories', 'currentUserId'],
+    ({builtInCategories, customCategories, currentUserId, database, locale, isTablet, onChannelSwitch}: EnhanceProps) => {
         // Get current team ID
         const currentTeamId = of$(builtInCategories).pipe(
             map(cats => {
                 const teamId = cats[0]?.teamId || '';
                 return teamId;
             }),
+        );
+
+        // Observe TEAM_MEMBERSHIP reactively so classification updates
+        // when fetchTeamMembersForClassification writes new members
+        const teamMemberIds$ = currentTeamId.pipe(
+            switchMap((tid) => (tid ? observeUserIdsInTeam(database, tid) : of$(new Set<string>()))),
         );
 
         // Get channel IDs from custom categories using observables
@@ -204,7 +210,7 @@ const enhanced = withObservables(
 
         // Classify channels into internal/external
         const classified = channels.pipe(
-            combineLatestWith(gmMemberMap, of$(currentUserId), of$(teamMemberIds), botUserIds),
+            combineLatestWith(gmMemberMap, of$(currentUserId), teamMemberIds$, botUserIds),
             map(([chs, gmMembers, userId, teamMembers, bots]) => {
                 const internal: string[] = [];
                 const external: string[] = [];
