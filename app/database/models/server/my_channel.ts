@@ -11,7 +11,7 @@ import type ChannelModel from '@typings/database/models/servers/channel';
 import type MyChannelModelInterface from '@typings/database/models/servers/my_channel';
 import type MyChannelSettingsModel from '@typings/database/models/servers/my_channel_settings';
 
-const {CATEGORY_CHANNEL, CHANNEL, MY_CHANNEL, MY_CHANNEL_SETTINGS} = MM_TABLES.SERVER;
+const {CATEGORY_CHANNEL, CHANNEL, CHANNEL_TEAM, MY_CHANNEL, MY_CHANNEL_SETTINGS} = MM_TABLES.SERVER;
 
 /**
  * MyChannel is an extension of the Channel model but it lists only the Channels the app's user belongs to
@@ -24,6 +24,7 @@ export default class MyChannelModel extends Model implements MyChannelModelInter
         [CHANNEL]: {type: 'belongs_to', key: 'id'},
         [CATEGORY_CHANNEL]: {type: 'has_many', foreignKey: 'channel_id'},
         [MY_CHANNEL_SETTINGS]: {type: 'has_many', foreignKey: 'id'},
+        [CHANNEL_TEAM]: {type: 'has_many', foreignKey: 'channel_id'},
     };
 
     /** last_post_at : The timestamp for any last post on this channel */
