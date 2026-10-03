@@ -6,7 +6,7 @@ import {fetchGroupsForMember} from '@actions/remote/groups';
 import {fetchPostsForUnreadChannels} from '@actions/remote/post';
 import {fetchRoles} from '@actions/remote/role';
 import {fetchScheduledPosts} from '@actions/remote/scheduled_post';
-import {fetchTeamsThreads, type MyTeamsRequest, updateCanJoinTeams} from '@actions/remote/team';
+import {fetchTeamsThreads, fetchTeamMembersForClassification, type MyTeamsRequest, updateCanJoinTeams} from '@actions/remote/team';
 import {syncTeamThreads} from '@actions/remote/thread';
 import {autoUpdateTimezone, updateAllUsersSince, type MyUserRequest} from '@actions/remote/user';
 import {Preferences} from '@constants';
@@ -103,6 +103,9 @@ export async function restDeferredAppEntryActions(
 
                 /* eslint-disable-next-line no-await-in-loop */
                 await processEntryModels({operator, teamData: currentTeamData, chData: data, isCRTEnabled});
+
+                // Fire-and-forget: fetch team members for channel classification
+                fetchTeamMembersForClassification(serverUrl, team.id);
             }
 
             const uniqueChannelsData: MyChannelsRequest = {

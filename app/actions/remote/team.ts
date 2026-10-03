@@ -493,6 +493,7 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
             await switchToChannelById(serverUrl, channelId, teamId);
             DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
             await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
+            fetchTeamMembersForClassification(serverUrl, teamId);
             return {};
         }
     }
@@ -516,6 +517,13 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
     fetchGroupsForTeamIfConstrained(serverUrl, teamId);
     fetchScheduledPosts(serverUrl, teamId, false);
     await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
+
+    // Fire-and-forget: fetch all team members for channel classification
+    // (internal vs external). Without this, TEAM_MEMBERSHIP only has
+    // members from the initial team, and classification returns 'external'
+    // for all GM/Private channels on the newly switched team.
+    fetchTeamMembersForClassification(serverUrl, teamId);
+
     return {};
 }
 
