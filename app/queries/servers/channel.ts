@@ -931,17 +931,15 @@ function isChannelVisibleInConversationList(
 }
 
 export const observeRecentConversationsForTeam = (database: Database, teamId: string): Observable<ChannelModel[]> => {
-    // Cannot use queryAllMyChannelsForTeam (Q.unsafeSqlQuery) with .extend()
-    // — WatermelonDB forbids extending unsafe SQL queries.
-    // Use safe Q.or with Q.on conditions instead.
+    // queryAllMyChannelsForTeam uses Q.unsafeSqlQuery which cannot be .extend()-ed.
+    // Build the complete SQL including delete_at filter and sort in one unsafe query.
     const myChannelsQuery = database.get<MyChannelModel>(MY_CHANNEL).query(
-        Q.or(
-            Q.on(CHANNEL, 'team_id', teamId),
-            Q.on(CHANNEL, 'team_id', ''),
-            Q.on(CHANNEL_TEAM, 'team_id', teamId),
+        Q.unsafeSqlQuery(
+            `SELECT my.* FROM ${MY_CHANNEL} my ` +
+            `INNER JOIN ${CHANNEL} c ON c.id = my.id ` +
+            `WHERE (${channelTeamWhereSql(teamId)}) AND c.delete_at = 0 ` +
+            `ORDER BY my.last_post_at DESC`,
         ),
-        Q.on(CHANNEL, Q.where('delete_at', Q.eq(0))),
-        Q.sortBy('last_post_at', Q.desc),
     );
 
     return myChannelsQuery.observeWithColumns(['last_post_at', 'last_viewed_at', 'is_unread', 'mentions_count', 'message_count']).pipe(
