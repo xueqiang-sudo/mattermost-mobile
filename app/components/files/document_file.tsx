@@ -8,6 +8,7 @@ import Document, {type DocumentRef} from '@components/document';
 import ProgressBar from '@components/progress_bar';
 import {useTheme} from '@context/theme';
 import {useDownloadFileAndPreview} from '@hooks/files';
+import {hasPdfPreview, isDocument, isPdf} from '@utils/file';
 
 import FileIcon from './file_icon';
 
@@ -37,6 +38,10 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
     const theme = useTheme();
     const document = useRef<DocumentRef>(null);
     const {downloading, progress, toggleDownloadAndPreview} = useDownloadFileAndPreview(enableSecureFilePreview);
+
+    // Office 文件没有 PDF 预览时，禁用点击（只显示文件名和大小）
+    const isOfficeWithoutPdfPreview = isDocument(file) && !isPdf(file) && !hasPdfPreview(file);
+    const isDisabled = disabled || isOfficeWithoutPdfPreview;
 
     const handlePreviewPress = async () => {
         document.current?.handlePreviewPress();
@@ -77,7 +82,7 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
             ref={document}
         >
             <TouchableOpacity
-                disabled={disabled}
+                disabled={isDisabled}
                 onPress={handlePreviewPress}
             >
                 {fileAttachmentComponent}

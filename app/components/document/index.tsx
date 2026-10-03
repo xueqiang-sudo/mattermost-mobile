@@ -5,7 +5,7 @@ import {forwardRef, useImperativeHandle, type ReactNode, useCallback} from 'reac
 import {useIntl} from 'react-intl';
 
 import {alertDownloadDocumentDisabled, alertOnlyPDFSupported} from '@utils/document';
-import {isPdf} from '@utils/file';
+import {hasPdfPreview, isPdf} from '@utils/file';
 
 export type DocumentRef = {
     handlePreviewPress: () => void;
@@ -28,7 +28,8 @@ const Document = forwardRef<DocumentRef, DocumentProps>(({canDownloadFiles, chil
             return;
         }
 
-        if (enableSecureFilePreview && !isPdf(file)) {
+        // 如果有 PDF 预览版本，允许预览（即使是 Office 文件）
+        if (enableSecureFilePreview && !isPdf(file) && !hasPdfPreview(file)) {
             alertOnlyPDFSupported(intl);
             return;
         }

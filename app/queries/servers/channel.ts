@@ -299,13 +299,17 @@ export const queryAllChannels = (database: Database) => {
 };
 
 /**
- * Builds a SQL condition matching the server's 3-way OR for team-scoped channel queries:
- *   channel.team_id = teamId
- *   OR channel.team_id = '' (DM/GM with no team)
- *   OR channel.id IN (SELECT channel_id FROM ChannelTeam WHERE team_id = teamId)
+ * Builds a SQL condition matching channels that belong to a team:
+ *   channel.team_id = teamId (team-scoped channels)
+ *   OR channel.id IN (SELECT channel_id FROM ChannelTeam WHERE team_id = teamId) (shared channels)
+ *   OR (channel.team_id = '' AND channel is in a category for this team) (DM/GM channels)
+ *
+ * DM/GM channels have team_id = '' but should only appear in teams where they
+ * belong to a category (matching webapp behavior). The server places DM/GM channels
+ * into the appropriate team's "Direct Messages" category.
  */
 function channelTeamWhereSql(teamId: string): string {
-    return `(c.team_id = '${teamId}' OR c.team_id = '' OR c.id IN (SELECT ct.channel_id FROM ${CHANNEL_TEAM} ct WHERE ct.team_id = '${teamId}'))`;
+    return `(c.team_id = '${teamId}' OR c.id IN (SELECT ct.channel_id FROM ${CHANNEL_TEAM} ct WHERE ct.team_id = '${teamId}') OR (c.team_id = '' AND c.id IN (SELECT cc.channel_id FROM ${CATEGORY_CHANNEL} cc INNER JOIN ${CATEGORY} cat ON cat.id = cc.category_id WHERE cat.team_id = '${teamId}')))`;
 }
 
 export const queryAllChannelsForTeam = (database: Database, teamId: string) => {

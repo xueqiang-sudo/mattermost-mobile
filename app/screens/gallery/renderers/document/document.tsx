@@ -13,7 +13,7 @@ import {useServerUrl} from '@context/server';
 import SecurityManager from '@managers/security_manager';
 import DownloadWithAction from '@screens/gallery/footer/download_with_action';
 import {buttonBackgroundStyle, buttonTextStyle} from '@utils/buttonStyles';
-import {isDocument, isPdf} from '@utils/file';
+import {hasPdfPreview, isDocument, isPdf} from '@utils/file';
 import {galleryItemToFileInfo} from '@utils/gallery';
 import {changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -76,20 +76,27 @@ const DocumentRenderer = ({canDownloadFiles, enableSecureFilePreview, item, hide
     const file = useMemo(() => galleryItemToFileInfo(item), [item]);
     const [enabled, setEnabled] = useState(true);
     const isSupported = useMemo(() => isDocument(file), [file]);
+    // Office 文件有 PDF 预览时，也允许打开
+    const hasPdfPreviewAvailable = useMemo(() => hasPdfPreview(file), [file]);
+
     const canOpenFile = useMemo(() => {
         if (!isSupported) {
             return false;
         }
-        if (enableSecureFilePreview && isPdf(file)) {
+        if (enableSecureFilePreview && (isPdf(file) || hasPdfPreviewAvailable)) {
             return true;
         }
 
         return !enableSecureFilePreview && canDownloadFiles;
-    }, [canDownloadFiles, enableSecureFilePreview, file, isSupported]);
+    }, [canDownloadFiles, enableSecureFilePreview, file, isSupported, hasPdfPreviewAvailable]);
 
     const optionText = useMemo(() => {
         const allowSaveToLocation = SecurityManager.canSaveToLocation(serverUrl, 'FilesApp');
-        if (enableSecureFilePreview && !isPdf(file)) {
+        // Office 文件没有 PDF 预览时，不允许下载（只显示文件名和大小）
+        if (isDocument(file) && !isPdf(file) && !hasPdfPreviewAvailable) {
+            return '';
+        }
+        if (enableSecureFilePreview && !isPdf(file) && !hasPdfPreviewAvailable) {
             return formatMessage(messages.onlyPdf);
         } else if (!isSupported && allowSaveToLocation) {
             return formatMessage(messages.unsupported);
@@ -97,7 +104,7 @@ const DocumentRenderer = ({canDownloadFiles, enableSecureFilePreview, item, hide
             return formatMessage(messages.unsupportedAndBlockedDownload);
         }
         return formatMessage(messages.openFile);
-    }, [enableSecureFilePreview, file, formatMessage, isSupported, serverUrl]);
+    }, [enableSecureFilePreview, file, formatMessage, isSupported, serverUrl, hasPdfPreviewAvailable]);
 
     const setGalleryAction = useCallback((action: GalleryAction) => {
         DeviceEventEmitter.emit(Events.GALLERY_ACTIONS, action);
@@ -111,13 +118,14 @@ const DocumentRenderer = ({canDownloadFiles, enableSecureFilePreview, item, hide
     }, []);
 
     const handlePdfPreview = useCallback(() => {
-        if (enableSecureFilePreview && isPdf(file)) {
+        // PDF 文件或有 PDF 预览的 Office 文件，关闭 Gallery 触发 PDF 预览
+        if (enableSecureFilePreview && (isPdf(file) || hasPdfPreviewAvailable)) {
             DeviceEventEmitter.emit(Events.CLOSE_GALLERY);
             return;
         }
 
         hideHeaderAndFooter();
-    }, [file, enableSecureFilePreview, hideHeaderAndFooter]);
+    }, [file, enableSecureFilePreview, hideHeaderAndFooter, hasPdfPreviewAvailable]);
 
     return (
         <>
@@ -137,7 +145,7 @@ const DocumentRenderer = ({canDownloadFiles, enableSecureFilePreview, item, hide
                     {!isSupported &&
                     <Text style={styles.unsupported}>{optionText}</Text>
                     }
-                    {canOpenFile &&
+                    {canOpenFile && Boolean(optionText) &&
                     <View style={{marginTop: 16}}>
                         <RectButton
                             enabled={enabled}

@@ -491,8 +491,8 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
         channelId = await getNthLastChannelFromTeam(database, teamId);
         if (channelId) {
             await switchToChannelById(serverUrl, channelId, teamId);
-            DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
             await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
+            DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
             fetchTeamMembersForClassification(serverUrl, teamId);
             return {};
         }
@@ -511,12 +511,14 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
     if (models.length) {
         await operator.batchRecords(models, 'handleTeamChange');
     }
-    DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
 
     // Fetch Groups + GroupTeams
     fetchGroupsForTeamIfConstrained(serverUrl, teamId);
     fetchScheduledPosts(serverUrl, teamId, false);
     await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
+
+    // 数据获取完成后再隐藏 loading，避免显示旧团队的空数据
+    DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
 
     // Fire-and-forget: fetch all team members for channel classification
     // (internal vs external). Without this, TEAM_MEMBERSHIP only has

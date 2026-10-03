@@ -18,12 +18,13 @@ import {getHomeLastPostPreviewText} from '@utils/home_last_post_preview';
 import {formatMessagePreview} from '@utils/message_preview';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_INSET, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {getUserIdFromChannelName} from '@utils/user';
+import {getUserIdFromChannelName, username2Nickname} from '@utils/user';
 import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 
 import {ChannelBody} from './channel_body';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
+import type UserModel from '@typings/database/models/servers/user';
 
 type FileInfo = {
     mimeType: string;
@@ -33,6 +34,7 @@ type FileInfo = {
 type Props = {
     channel: ChannelModel | Channel;
     currentUserId: string;
+    currentUser?: UserModel | null;
     currentTimezone?: string | null;
     hasDraft: boolean;
     isActive: boolean;
@@ -48,6 +50,9 @@ type Props = {
     testID?: string;
     hasCall: boolean;
     isOnCenterBg?: boolean;
+
+    /** GM 频道是否有自定义群名（display_name_customized 标记） */
+    displayNameCustomized?: boolean;
 
     /** 与 `isOnCenterBg` 配合：奇偶行背景区分 */
     listRowIndex?: number;
@@ -278,6 +283,7 @@ export const textStyle = StyleSheet.create({
 const ChannelItem = ({
     channel,
     currentUserId,
+    currentUser,
     currentTimezone,
     hasDraft,
     isActive,
@@ -293,6 +299,7 @@ const ChannelItem = ({
     testID,
     hasCall,
     isOnCenterBg = false,
+    displayNameCustomized = false,
     listRowIndex,
     useListInitialsForNonDm = false,
     showChannelTypeTag = false,
@@ -326,6 +333,33 @@ const ChannelItem = ({
         displayName = teamDisplayName || displayName;
     } else if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
+    } else if (channel.type === General.GM_CHANNEL && !displayNameCustomized && currentUser) {
+        // GM 频道没有自定义群名时，从成员名字列表中过滤掉当前用户自己的名字
+        const userNames = new Set<string>();
+        // 收集当前用户所有可能的显示名称
+        const nicknameWithFullName = username2Nickname(currentUser, {includeFullName: true, useFallbackUsername: false});
+        const nicknameOnly = username2Nickname(currentUser, {includeFullName: false, useFallbackUsername: false});
+        const username = currentUser.username || '';
+        const firstName = currentUser.firstName || '';
+        const lastName = currentUser.lastName || '';
+        const fullName = [firstName, lastName].filter(Boolean).join(' ');
+        const nickname = currentUser.nickname || '';
+
+        [nicknameWithFullName, nicknameOnly, username, fullName, nickname, firstName].forEach((name) => {
+            if (name) {
+                userNames.add(name.trim().toLowerCase());
+            }
+        });
+
+        // 从逗号分隔的成员列表中过滤掉当前用户
+        const members = displayName.split(',').map((m) => m.trim());
+        const filtered = members.filter((member) => {
+            const lower = member.toLowerCase();
+            return !userNames.has(lower) && !userNames.has(lower.replace(/\s*\([^)]*\)\s*/g, '').trim());
+        });
+        if (filtered.length > 0) {
+            displayName = filtered.join(', ');
+        }
     }
 
     const deleteAt = 'deleteAt' in channel ? channel.deleteAt : channel.delete_at;

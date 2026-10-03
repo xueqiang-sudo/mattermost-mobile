@@ -191,10 +191,22 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
         distinctUntilChanged(),
     );
 
+    const displayNameCustomized = 'observe' in channel ?
+        channel.observe().pipe(
+            switchMap((c) => of$(Boolean(c?.displayNameCustomized))),
+            distinctUntilChanged(),
+        ) : of$(false);
+
+    const currentUser = observeCurrentUser(database).pipe(
+        distinctUntilChanged((a, b) => a?.id === b?.id && a?.username === b?.username && a?.nickname === b?.nickname && a?.firstName === b?.firstName && a?.lastName === b?.lastName),
+    );
+
     return {
         channel: 'observe' in channel ? channel.observe() : of$(channel),
         currentUserId,
+        currentUser,
         currentTimezone,
+        displayNameCustomized,
         hasDraft,
         isActive,
         isFavorite,

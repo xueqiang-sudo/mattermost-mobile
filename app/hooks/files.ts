@@ -14,7 +14,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {alertDownloadFailed, alertFailedToOpenDocument, alertOnlyPDFSupported} from '@utils/document';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
-import {fileExists, getLocalFilePathFromFile, isAudio, isGif, isImage, isPdf, isVideo} from '@utils/file';
+import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isGif, isImage, isPdf, isVideo} from '@utils/file';
 import {getImageSize} from '@utils/gallery';
 import {logDebug} from '@utils/log';
 import {previewPdf} from '@utils/navigation';
@@ -135,6 +135,44 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
     const openDocument = useCallback(async (file: FileInfo) => {
         if (!didCancel && !preview) {
+            // 如果文件有 PDF 预览版本，下载并打开 PDF
+            if (hasPdfPreview(file) && file.pdf_preview_id) {
+                const pdfFileInfo: FileInfo = {
+                    ...file,
+                    id: file.pdf_preview_id,
+                    name: file.name.replace(/\.[^.]+$/, '.pdf'),
+                    extension: 'pdf',
+                    mime_type: 'application/pdf',
+                };
+
+                let pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
+                const pdfExists = await fileExists(pdfPath);
+
+                try {
+                    if (!pdfExists) {
+                        setDownloading(true);
+                        downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
+                        downloadTask.current?.progress?.(setProgress);
+                        await downloadTask.current;
+                        setProgress(1);
+                    }
+
+                    previewPdf(pdfFileInfo, pdfPath, theme, onDonePreviewingFile);
+                } catch (error) {
+                    if (pdfPath) {
+                        deleteAsync(pdfPath, {idempotent: true});
+                    }
+                    setDownloading(false);
+                    setProgress(0);
+
+                    if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
+                        logDebug('error on downloading PDF preview', getFullErrorMessage(error));
+                        alertDownloadFailed(intl);
+                    }
+                }
+                return;
+            }
+
             let path = decodeURIComponent(file.localPath || '');
             let exists = false;
             if (path) {

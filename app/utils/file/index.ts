@@ -325,6 +325,13 @@ export const isPdf = (file?: FileInfo | FileModel) => {
     return mime === 'application/pdf';
 };
 
+export const hasPdfPreview = (file?: FileInfo | FileModel): boolean => {
+    if (!file) {
+        return false;
+    }
+    return Boolean('pdf_preview_id' in file && file.pdf_preview_id);
+};
+
 export const isVideo = (file?: FileInfo | FileModel) => {
     if (!file) {
         return false;

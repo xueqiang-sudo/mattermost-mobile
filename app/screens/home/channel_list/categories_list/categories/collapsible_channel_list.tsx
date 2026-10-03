@@ -289,6 +289,22 @@ const enhanced = withObservables(
             }),
         );
 
+        // Get channel IDs from built-in categories (DM/GM channels are placed here by the server per team)
+        const builtInCategoryChannelIds = of$(builtInCategories).pipe(
+            switchMap((cats) => {
+                return from((async () => {
+                    const ids = new Set<string>();
+                    for (const cat of cats) {
+                        const cc = await cat.categoryChannels.fetch();
+                        for (const c of cc) {
+                            ids.add(c.channelId);
+                        }
+                    }
+                    return ids;
+                })());
+            }),
+        );
+
         // Get ALL channels the user is a member of
         const allUserChannels = database.get<MyChannelModel>(MY_CHANNEL)
             .query()
@@ -303,15 +319,16 @@ const enhanced = withObservables(
                 }),
             );
 
-        // Filter: channels in current team (by team_id) OR DM/GM (cross-team), not in custom categories.
-        // DM/GM channels have teamId='' (empty) but should still appear in the sidebar.
+        // Filter: channels in current team (by team_id), DM/GM only if in a built-in category for this team.
+        // This matches webapp behavior where DM/GM channels are team-scoped via category membership.
         const builtInChannelIds = allUserChannels.pipe(
-            combineLatestWith(customCategoryChannelIds, currentTeamId$),
-            map(([channels, customIds, teamId]) => {
+            combineLatestWith(customCategoryChannelIds, currentTeamId$, builtInCategoryChannelIds),
+            map(([channels, customIds, teamId, builtInIds]) => {
                 const filtered = channels.filter(ch => {
-                    // DM/GM channels are cross-team — always include them
                     const isDmOrGm = ch.type === 'D' || ch.type === 'G';
-                    const isInTeam = ch.teamId === teamId || isDmOrGm;
+                    // Non-DM/GM: match by team_id
+                    // DM/GM: only include if in a built-in category for this team
+                    const isInTeam = isDmOrGm ? builtInIds.has(ch.id) : ch.teamId === teamId;
                     const notInCustom = !customIds.has(ch.id);
                     return isInTeam && notInCustom;
                 });
