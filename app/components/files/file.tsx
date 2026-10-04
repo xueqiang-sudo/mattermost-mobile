@@ -1,18 +1,20 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {View, TouchableWithoutFeedback} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {useGalleryItem} from '@hooks/gallery';
+import {useDownloadFileAndPreview} from '@hooks/files';
 import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import AudioFile from './audio_file';
 import DocumentFile from './document_file';
+import FileActionDialog from './file_action_dialog';
 import FileIcon from './file_icon';
 import FileInfo from './file_info';
 import FileOptionsIcon from './file_options_icon';
@@ -102,6 +104,8 @@ const File = ({
     const document = useRef<DocumentRef>(null);
     const theme = useTheme();
     const style = getStyleSheet(theme);
+    const [showActionDialog, setShowActionDialog] = useState(false);
+    const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     const handlePreviewPress = useCallback(() => {
         if (document.current) {
@@ -116,6 +120,45 @@ const File = ({
     const handleOnOptionsPress = useCallback(() => {
         onOptionsPress?.(file);
     }, [file, onOptionsPress]);
+
+    // 智能文件路由：根据文件类型决定是直接打开还是显示对话框
+    const handleShowFileActions = useCallback(() => {
+        // PDF 文件：直接打开
+        if (isPdf(file)) {
+            handlePreviewPress();
+            return;
+        }
+
+        // Office 文件已转换为 PDF：直接打开
+        if (hasPdfPreview(file)) {
+            handlePreviewPress();
+            return;
+        }
+
+        // Office 文件未转换：显示对话框（带轮询）
+        if (isDocument(file) && !isPdf(file)) {
+            setShowActionDialog(true);
+            return;
+        }
+
+        // 不可识别的文件：显示对话框（用其他应用打开）
+        setShowActionDialog(true);
+    }, [file, handlePreviewPress]);
+
+    const handleCloseActionDialog = useCallback(() => {
+        setShowActionDialog(false);
+    }, []);
+
+    const handleFilePreview = useCallback((fileInfo: FileInfo) => {
+        // 轮询转换完成后，使用更新后的文件信息直接打开预览
+        // 不使用 document.current.handlePreviewPress()，因为它使用的是原始的 file prop
+        downloadAndPreviewFile(fileInfo);
+    }, [downloadAndPreviewFile]);
+
+    const handleFileOpenWithOtherApp = useCallback(async (fileInfo: FileInfo) => {
+        // 下载文件并用其他应用打开
+        downloadAndPreviewFile(fileInfo);
+    }, [downloadAndPreviewFile]);
 
     const renderCardWithImage = (fileIcon: JSX.Element) => {
         const fileInfo = (
@@ -216,48 +259,61 @@ const File = ({
 
         fileComponent = asCard ? renderCardWithImage(renderImageFile) : renderImageFile;
     } else if (isDocument(file)) {
-        // Office 文件没有 PDF 预览时，禁用点击（只显示文件名和大小）
-        const isOfficeWithoutPdfPreview = isDocument(file) && !isPdf(file) && !hasPdfPreview(file);
-
+        // 所有文件都可以点击显示操作对话框
         const renderDocumentFile = (
             <View style={style.iconWrapper}>
-                <DocumentFile
-                    ref={document}
-                    canDownloadFiles={canDownloadFiles}
+                <TouchableWithFeedback
+                    onPress={handleShowFileActions}
                     disabled={isPressDisabled}
-                    enableSecureFilePreview={enableSecureFilePreview}
-                    file={file}
-                />
+                    type={'opacity'}
+                >
+                    <DocumentFile
+                        ref={document}
+                        canDownloadFiles={canDownloadFiles}
+                        disabled={isPressDisabled}
+                        enableSecureFilePreview={enableSecureFilePreview}
+                        file={file}
+                    />
+                </TouchableWithFeedback>
             </View>
         );
 
         const fileInfo = (
             <FileInfo
                 channelName={channelName}
-                disabled={isPressDisabled || isOfficeWithoutPdfPreview}
+                disabled={isPressDisabled}
                 file={file}
                 fillRemainingRow={expandCardToParentWidth}
-                onPress={handlePreviewPress}
+                onPress={handleShowFileActions}
                 showDate={showDate}
             />
         );
 
         fileComponent = (
-            <View
-                style={[
-                    style.fileWrapper,
-                    expandCardToParentWidth ? style.fileWrapperFillWidth : style.fileWrapperShrinkToContent,
-                ]}
-            >
-                {renderDocumentFile}
-                {fileInfo}
-                {onOptionsPress &&
-                <FileOptionsIcon
-                    onPress={handleOnOptionsPress}
-                    selected={optionSelected}
+            <>
+                <View
+                    style={[
+                        style.fileWrapper,
+                        expandCardToParentWidth ? style.fileWrapperFillWidth : style.fileWrapperShrinkToContent,
+                    ]}
+                >
+                    {renderDocumentFile}
+                    {fileInfo}
+                    {onOptionsPress &&
+                    <FileOptionsIcon
+                        onPress={handleOnOptionsPress}
+                        selected={optionSelected}
+                    />
+                    }
+                </View>
+                <FileActionDialog
+                    visible={showActionDialog}
+                    file={file}
+                    onClose={handleCloseActionDialog}
+                    onPreview={handleFilePreview}
+                    onOpenWithOtherApp={handleFileOpenWithOtherApp}
                 />
-                }
-            </View>
+            </>
         );
     } else if (isAudio(file)) {
         const renderAudioFile = (

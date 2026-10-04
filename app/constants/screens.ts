@@ -74,6 +74,7 @@ export const EXTERNAL_PROFILE_CARD_STYLE = 'ExternalProfileCardStyle';
 export const FIND_CHANNELS = 'FindChannels';
 export const JOINED_CHANNELS_AND_GROUPS = 'JoinedChannelsAndGroups';
 export const FORGOT_PASSWORD = 'ForgotPassword';
+export const FORWARD_MESSAGE = 'ForwardMessage';
 export const GALLERY = 'Gallery';
 export const GENERIC_OVERLAY = 'GenericOverlay';
 export const GLOBAL_DRAFTS = 'GlobalDrafts';
@@ -222,6 +223,7 @@ export default {
     FIND_CHANNELS,
     JOINED_CHANNELS_AND_GROUPS,
     FORGOT_PASSWORD,
+    FORWARD_MESSAGE,
     GALLERY,
     GENERIC_OVERLAY,
     GLOBAL_DRAFTS,

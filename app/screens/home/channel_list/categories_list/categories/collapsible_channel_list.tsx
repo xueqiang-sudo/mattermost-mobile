@@ -19,7 +19,7 @@ import {MM_TABLES} from '@constants/database';
 import {Preferences} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {queryChannelsById} from '@queries/servers/channel';
+import {queryChannelsById, parseUserIdsFromGroupedChannelName} from '@queries/servers/channel';
 import {queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {observeUserIdsInTeam} from '@queries/servers/user';
@@ -431,6 +431,21 @@ const enhanced = withObservables(
             map(([chs, gmMembers, userId, teamMembers, favoritedIds, bots, hidden]) => {
                 const internal: ChannelModel[] = [];
                 const external: ChannelModel[] = [];
+
+                // 检查数据是否完全加载：如果有 GM 频道但 gmMembers 为空，说明数据还在加载
+                const hasGmChannels = chs.some(c => c.type === 'G' || c.type === 'P');
+                const isDataReady = !hasGmChannels || gmMembers.size > 0 || chs.every(c => {
+                    if (c.type !== 'G' && c.type !== 'P') return true;
+                    // 对于 GM 频道，检查是否能解析名称或有成员数据
+                    const canParseName = Boolean(parseUserIdsFromGroupedChannelName(c.name));
+                    const hasMemberData = gmMembers.has(c.id);
+                    return canParseName || hasMemberData;
+                });
+
+                // 如果数据未就绪，所有 GM 频道暂时归类为 external（避免错误分类）
+                if (!isDataReady) {
+                    return {internal: [], external: chs};
+                }
 
                 for (const channel of chs) {
                     // Filter out hidden (manually closed) DM/GM channels — aligned with webapp

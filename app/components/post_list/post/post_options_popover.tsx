@@ -26,11 +26,9 @@ const SCREEN_PADDING = 8;
 const GAP_FROM_ANCHOR = 6;
 const ARROW_W = 14;
 const ARROW_H = 7;
-const ICON_COL_W = 36;
-const ROW_PADDING_V = 12;
-const ROW_PADDING_H = 14;
+const ITEM_WIDTH = 72;
+const ITEM_PADDING_V = 12;
 const MIN_MENU_WIDTH = 120;
-const ESTIMATED_ROW = 48;
 
 /** WeChat-style dark action sheet; readable on both light and dark chat backgrounds */
 const popoverColors = {
@@ -72,29 +70,30 @@ const styles = StyleSheet.create({
     },
     menuInner: {
         backgroundColor: popoverColors.surface,
-    },
-    row: {
         flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: ROW_PADDING_V,
-        paddingHorizontal: ROW_PADDING_H,
+        flexWrap: 'wrap',
+        paddingHorizontal: 4,
     },
-    rowPressed: {
-        backgroundColor: popoverColors.rowPressed,
-    },
-    rowDivider: {
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(255,255,255,0.12)',
-    },
-    iconWrap: {
-        width: ICON_COL_W,
+    item: {
+        width: ITEM_WIDTH,
         alignItems: 'center',
         justifyContent: 'center',
+        paddingVertical: ITEM_PADDING_V,
+    },
+    itemPressed: {
+        backgroundColor: popoverColors.rowPressed,
+    },
+    iconWrap: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 4,
     },
     label: {
-        flex: 1,
         color: popoverColors.label,
-        ...typography('Body', 100),
+        fontSize: 12,
+        textAlign: 'center',
     },
     destructiveLabel: {
         color: popoverColors.destructive,
@@ -140,8 +139,15 @@ export default function PostOptionsPopover({x, y, onClose, items}: Props) {
     const {width: screenW, height: screenH} = Dimensions.get('window');
 
     const layout = useMemo(() => {
-        const w = menuW > 0 ? menuW : MIN_MENU_WIDTH;
-        const h = menuH > 0 ? menuH : items.length * ESTIMATED_ROW;
+        // 水平布局：计算菜单宽度和高度
+        const maxItemsPerRow = Math.floor((screenW - SCREEN_PADDING * 2) / ITEM_WIDTH);
+        const itemsPerRow = Math.min(items.length, maxItemsPerRow);
+        const rows = Math.ceil(items.length / itemsPerRow);
+        const estimatedW = itemsPerRow * ITEM_WIDTH + 8; // 8px for horizontal padding
+        const estimatedH = rows * (32 + 4 + 16 + ITEM_PADDING_V * 2); // icon + gap + label + padding
+
+        const w = menuW > 0 ? menuW : estimatedW;
+        const h = menuH > 0 ? menuH : estimatedH;
         const left = Math.min(
             Math.max(x - w / 2, SCREEN_PADDING),
             screenW - w - SCREEN_PADDING,
@@ -202,13 +208,12 @@ export default function PostOptionsPopover({x, y, onClose, items}: Props) {
                         onLayout={onMenuLayout}
                     >
                         <View style={styles.menuInner}>
-                            {items.map((item, index) => (
+                            {items.map((item) => (
                                 <Pressable
                                     key={item.key}
                                     style={({pressed}) => [
-                                        styles.row,
-                                        index < items.length - 1 && styles.rowDivider,
-                                        pressed && styles.rowPressed,
+                                        styles.item,
+                                        pressed && styles.itemPressed,
                                     ]}
                                     onPress={item.onPress}
                                     testID={`post.options.popover.item.${item.key}`}
@@ -216,13 +221,13 @@ export default function PostOptionsPopover({x, y, onClose, items}: Props) {
                                     <View style={styles.iconWrap}>
                                         <CompassIcon
                                             name={item.iconName}
-                                            size={20}
+                                            size={24}
                                             style={{color: item.destructive ? popoverColors.destructive : popoverColors.icon}}
                                         />
                                     </View>
                                     <Text
                                         style={[styles.label, item.destructive && styles.destructiveLabel]}
-                                        numberOfLines={2}
+                                        numberOfLines={1}
                                     >
                                         {item.label}
                                     </Text>

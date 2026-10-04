@@ -214,6 +214,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.FORGOT_PASSWORD:
             screen = withIntl(require('@screens/forgot_password').default);
             break;
+        case Screens.FORWARD_MESSAGE:
+            screen = withServerDatabase(require('@screens/forward_message').default);
+            break;
         case Screens.GALLERY:
             screen = withServerDatabase(require('@screens/gallery').default);
             break;

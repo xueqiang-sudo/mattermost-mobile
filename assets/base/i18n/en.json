@@ -2511,5 +2511,32 @@
   "channel_header.ai_customer_service": "AI Customer Service",
   "channel_header.overflow.title": "More",
   "consultation.title": "Consult Expert",
-  "ai_assistant.title": "AI Assistant"
+  "ai_assistant.title": "AI Assistant",
+  "forward.title": "Forward Message",
+  "forward.send": "Send",
+  "forward.search_placeholder": "Search channels",
+  "forward.no_channels": "No channels available",
+  "forward.no_channels_found": "No channels found",
+  "forward.select_channel": "Select Channel",
+  "forward.select_channel_message": "Please select a channel to forward the message",
+  "forward.error": "Forward Failed",
+  "forward.error_message": "Failed to forward the message. Please try again.",
+  "forward.prefix": "Forwarded message",
+  "post_info.forward": "Forward"
+}
+,
+  "file.conversion_pending": "Document Conversion",
+  "file.conversion_pending_message": "This document is being converted to PDF for preview. Please try again in a moment.",
+  "file.converting": "Converting document...",
+  "file.downloading": "Downloading...",
+  "file.download_error": "Download Failed",
+  "file.download_error_message": "Failed to download the file. Please try again.",
+  "file.open_error": "Cannot Open File",
+  "file.open_error_message": "No app is available to open this file type.",
+  "file.preview": "Preview",
+  "file.download": "Download",
+  "file.open_with_other": "Open with Other App",
+  "file.supported_message": "This file can be previewed or downloaded.",
+  "file.recognized_message": "This file type can be opened with other apps.",
+  "file.unrecognized_message": "This file type cannot be opened. You can download it to view with other apps."
 }

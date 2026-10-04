@@ -39,10 +39,6 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
     const document = useRef<DocumentRef>(null);
     const {downloading, progress, toggleDownloadAndPreview} = useDownloadFileAndPreview(enableSecureFilePreview);
 
-    // Office 文件没有 PDF 预览时，禁用点击（只显示文件名和大小）
-    const isOfficeWithoutPdfPreview = isDocument(file) && !isPdf(file) && !hasPdfPreview(file);
-    const isDisabled = disabled || isOfficeWithoutPdfPreview;
-
     const handlePreviewPress = async () => {
         document.current?.handlePreviewPress();
     };
@@ -82,7 +78,7 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
             ref={document}
         >
             <TouchableOpacity
-                disabled={isDisabled}
+                disabled={disabled}
                 onPress={handlePreviewPress}
             >
                 {fileAttachmentComponent}

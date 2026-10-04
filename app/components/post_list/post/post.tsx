@@ -341,12 +341,10 @@ const Post = ({
         const overlayId = `post-options-popover-${post.id}-${Date.now()}`;
         const textMessage = post.messageSource || post.message;
         const within2MinFromCreateAt = (post.createAt + POST_RECALL_TIME_LIMIT_MS) > Date.now();
-        const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
         const x = event?.nativeEvent.pageX ?? 0;
         const y = event?.nativeEvent.pageY ?? 0;
         const canQuote = !isSystemPost && !hasBeenDeleted;
         const canWithdrawPost = isOwnPost && !hasBeenDeleted && canDelete && within2MinFromCreateAt;
-        const canRecallEditPost = isOwnPost && isRecallInferred && within2MinFromCreateAt && Boolean(textMessage) && !isSystemPost;
         const canCopyText = Boolean(textMessage) && !borPost;
 
         const closePopover = () => dismissOverlay(overlayId);
@@ -390,28 +388,7 @@ const Post = ({
             });
         }
 
-        // 3. Add Reaction (添加表情) - webapp: mobile + non-system + non-readonly + has permission
-        if (canQuote && showAddReaction) {
-            items.push({
-                key: 'add_reaction',
-                label: intl.formatMessage({id: 'rhs_root.mobile.add_reaction', defaultMessage: 'Add Reaction'}),
-                iconName: 'emoticon-plus-outline',
-                onPress: closeAndRun(() => {
-                    const handleEmojiPress = (emoji: string) => {
-                        toggleReaction(serverUrl, post.id, emoji);
-                    };
-                    openAsBottomSheet({
-                        closeButtonId: 'close-add-reaction',
-                        screen: Screens.EMOJI_PICKER,
-                        theme,
-                        title: intl.formatMessage({id: 'mobile.post_info.add_reaction', defaultMessage: 'Add Reaction'}),
-                        props: {onEmojiPress: handleEmojiPress},
-                    });
-                }),
-            });
-        }
-
-        // 4. Copy (复制) - already exists
+        // 3. Copy (复制) - already exists
         if (canCopyText) {
             items.push({
                 key: 'copy_text',
@@ -421,46 +398,28 @@ const Post = ({
             });
         }
 
-        // 5. Re-edit (重新编辑) - already exists
-        if (canRecallEditPost) {
-            items.push({
-                key: 'reedit',
-                label: intl.formatMessage({id: 'mobile.post_info.reedit', defaultMessage: 'Re-edit'}),
-                iconName: 'pencil',
-                onPress: closeAndRun(async () => {
-                    const draftRootId = post.rootId || '';
-                    const message = textMessage;
-
-                    if (draftRootId) {
-                        DeviceEventEmitter.emit(Events.POST_DRAFT_SET_REPLY_ROOT, {channelId: post.channelId, rootId: draftRootId});
-                    } else {
-                        DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
-                    }
-
-                    await updateDraftMessage(serverUrl, post.channelId, draftRootId, message);
-
-                    DeviceEventEmitter.emit(Events.POST_DRAFT_FOCUS, {location: Screens.CHANNEL, channelId: post.channelId});
-                }),
-            });
-        }
-
-        // 6. Save/Unsave (收藏/取消收藏) - webapp: non-system
+        // 4. Forward (转发) - webapp reference
         if (canQuote) {
-            const saveLabel = isSaved
-                ? intl.formatMessage({id: 'mobile.post_info.unsave', defaultMessage: 'Unsave'})
-                : intl.formatMessage({id: 'mobile.post_info.save', defaultMessage: 'Save'});
             items.push({
-                key: 'save',
-                label: saveLabel,
-                iconName: 'bookmark-outline',
+                key: 'forward',
+                label: intl.formatMessage({id: 'post_info.forward', defaultMessage: 'Forward'}),
+                iconName: 'share-variant',
                 onPress: closeAndRun(() => {
-                    const saveAction = isSaved ? deleteSavedPost : savePostPreference;
-                    saveAction(serverUrl, post.id);
+                    showModal(
+                        Screens.FORWARD_MESSAGE,
+                        intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'}),
+                        {
+                            postId: post.id,
+                            channelId: post.channelId,
+                            message: textMessage,
+                            fileIds: post.fileIds,
+                        },
+                    );
                 }),
             });
         }
 
-        // 7. Recall/Withdraw (撤回) - within 2 minutes, own post
+        // 5. Recall/Withdraw (撤回) - within 2 minutes, own post
         if (canWithdrawPost) {
             const withdrawText = intl.locale.startsWith('zh') ? '撤回' : 'Recall';
             items.push({
@@ -487,7 +446,7 @@ const Post = ({
             });
         }
 
-        // 8. Delete (删除) - outside 2min window but with delete permission
+        // 6. Delete (删除) - outside 2min window but with delete permission
         const canDeleteOnly = isOwnPost && !hasBeenDeleted && canDelete && !within2MinFromCreateAt;
         if (canDeleteOnly) {
             items.push({
@@ -530,7 +489,7 @@ const Post = ({
         }, {overlay: {interceptTouchOutside: false}}, overlayId);
     }, [
         borPost, canDelete, canEdit, hasBeenDeleted, intl, isEphemeral, isPendingOrFailed,
-        isOwnPost, isSaved, isSystemPost, post, serverUrl, showAddReaction,
+        isOwnPost, isSystemPost, post, serverUrl,
     ]);
 
     const [, rerender] = useState(false);

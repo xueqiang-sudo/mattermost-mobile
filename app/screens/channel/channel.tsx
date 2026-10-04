@@ -2,7 +2,9 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useState} from 'react';
-import {type LayoutChangeEvent, StyleSheet, View} from 'react-native';
+import {type LayoutChangeEvent, Platform, StyleSheet, View} from 'react-native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import Animated, {runOnJS, useSharedValue} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
@@ -94,6 +96,24 @@ const Channel = ({
 
     useAndroidHardwareBackHandler(componentId, handleBack);
 
+    // 左滑返回手势：从左边缘开始的右滑触发返回
+    // iOS 已有 RNN popGesture，这里主要为 Android 添加相同功能
+    const startX = useSharedValue(0);
+    const swipeBackGesture = Platform.OS === 'android' ? Gesture.Pan()
+        .activeOffsetX(10)
+        .failOffsetY([-20, 20])
+        .onStart((event) => {
+            'worklet';
+            startX.value = event.x;
+        })
+        .onEnd((event) => {
+            'worklet';
+            // 只允许从屏幕左边缘 30px 内开始滑动，且右滑速度足够快
+            if (startX.value <= 30 && event.velocityX > 500) {
+                runOnJS(handleBack)();
+            }
+        }) : undefined;
+
     /** 消息区从顶栏占位底边开始，避免绝对定位顶栏（zIndex 10）盖住断网条 */
     const marginTop = defaultHeight;
     useEffect(() => {
@@ -117,17 +137,15 @@ const Channel = ({
 
     const showFloatingCallContainer = showJoinCallBanner || isInACall || showIncomingCalls;
 
-    return (
-        <FreezeScreen>
-            <PlusMenuProvider>
-                <SafeAreaView
-                    style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
-                    mode='margin'
-                    edges={edges}
-                    testID='channel.screen'
-                    onLayout={onLayout}
-                    nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
-                >
+    const content = (
+        <SafeAreaView
+            style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
+            mode='margin'
+            edges={edges}
+            testID='channel.screen'
+            onLayout={onLayout}
+            nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
+        >
                     <ChannelHeader
                     channelId={channelId}
                     componentId={componentId}
@@ -173,7 +191,17 @@ const Channel = ({
                     />
                 }
                 <PlusMenuOverlay/>
-                </SafeAreaView>
+            </SafeAreaView>
+    );
+
+    return (
+        <FreezeScreen>
+            <PlusMenuProvider>
+                {swipeBackGesture ? (
+                    <GestureDetector gesture={swipeBackGesture}>
+                        {content}
+                    </GestureDetector>
+                ) : content}
             </PlusMenuProvider>
         </FreezeScreen>
     );
