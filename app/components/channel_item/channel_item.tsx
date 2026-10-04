@@ -54,6 +54,9 @@ type Props = {
     /** GM 频道是否有自定义群名（display_name_customized 标记） */
     displayNameCustomized?: boolean;
 
+    /** GM 频道成员的当前用户资料（用于动态构建显示名） */
+    gmMembers?: UserModel[];
+
     /** 与 `isOnCenterBg` 配合：奇偶行背景区分 */
     listRowIndex?: number;
 
@@ -300,6 +303,7 @@ const ChannelItem = ({
     hasCall,
     isOnCenterBg = false,
     displayNameCustomized = false,
+    gmMembers,
     listRowIndex,
     useListInitialsForNonDm = false,
     showChannelTypeTag = false,
@@ -334,31 +338,41 @@ const ChannelItem = ({
     } else if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
     } else if (channel.type === General.GM_CHANNEL && !displayNameCustomized && currentUser) {
-        // GM 频道没有自定义群名时，从成员名字列表中过滤掉当前用户自己的名字
-        const userNames = new Set<string>();
-        // 收集当前用户所有可能的显示名称
-        const nicknameWithFullName = username2Nickname(currentUser, {includeFullName: true, useFallbackUsername: false});
-        const nicknameOnly = username2Nickname(currentUser, {includeFullName: false, useFallbackUsername: false});
-        const username = currentUser.username || '';
-        const firstName = currentUser.firstName || '';
-        const lastName = currentUser.lastName || '';
-        const fullName = [firstName, lastName].filter(Boolean).join(' ');
-        const nickname = currentUser.nickname || '';
-
-        [nicknameWithFullName, nicknameOnly, username, fullName, nickname, firstName].forEach((name) => {
-            if (name) {
-                userNames.add(name.trim().toLowerCase());
+        // GM 频道没有自定义群名时，动态从成员的最新用户资料构建显示名
+        // 优先使用 gmMembers（实时数据），回退到静态 displayName 过滤
+        if (gmMembers && gmMembers.length > 0) {
+            // 从成员列表中排除当前用户，用最新昵称构建显示名
+            const memberNames = gmMembers
+                .filter((m) => m.id !== currentUser.id)
+                .map((m) => username2Nickname(m, {includeFullName: false, useFallbackUsername: true}));
+            if (memberNames.length > 0) {
+                displayName = memberNames.join(', ');
             }
-        });
+        } else {
+            // 回退：从静态 displayName 中过滤掉当前用户
+            const userNames = new Set<string>();
+            const nicknameWithFullName = username2Nickname(currentUser, {includeFullName: true, useFallbackUsername: false});
+            const nicknameOnly = username2Nickname(currentUser, {includeFullName: false, useFallbackUsername: false});
+            const username = currentUser.username || '';
+            const firstName = currentUser.firstName || '';
+            const lastName = currentUser.lastName || '';
+            const fullName = [firstName, lastName].filter(Boolean).join(' ');
+            const nickname = currentUser.nickname || '';
 
-        // 从逗号分隔的成员列表中过滤掉当前用户
-        const members = displayName.split(',').map((m) => m.trim());
-        const filtered = members.filter((member) => {
-            const lower = member.toLowerCase();
-            return !userNames.has(lower) && !userNames.has(lower.replace(/\s*\([^)]*\)\s*/g, '').trim());
-        });
-        if (filtered.length > 0) {
-            displayName = filtered.join(', ');
+            [nicknameWithFullName, nicknameOnly, username, fullName, nickname, firstName].forEach((name) => {
+                if (name) {
+                    userNames.add(name.trim().toLowerCase());
+                }
+            });
+
+            const members = displayName.split(',').map((m) => m.trim());
+            const filtered = members.filter((member) => {
+                const lower = member.toLowerCase();
+                return !userNames.has(lower) && !userNames.has(lower.replace(/\s*\([^)]*\)\s*/g, '').trim());
+            });
+            if (filtered.length > 0) {
+                displayName = filtered.join(', ');
+            }
         }
     }
 

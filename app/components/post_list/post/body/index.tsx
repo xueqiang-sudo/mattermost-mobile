@@ -327,7 +327,7 @@ const Body = ({
         displayMessage = displayMessage.replace(/^@\w+\s+/, '');
     }
     const quotedPostId = post.props?.quoted_post_id;
-    const hasTextMessage = Boolean(displayMessage.length || isEdited);
+    const hasTextMessage = Boolean(displayMessage.length || (isEdited && !hasFiles));
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
     const isSystemPost = isSystemMessage(post);
     const showBubble = weChatStyleActive && !hasBeenDeleted && !isSystemPost;
@@ -446,7 +446,7 @@ const Body = ({
                 value={post.message}
             />
         );
-    } else if (displayMessage.length || isEdited) { // isEdited is added to handle the case where the post is edited and the message is empty
+    } else if (displayMessage.length || (isEdited && !hasFiles)) { // isEdited && !hasFiles: 纯文本帖子被编辑为空时显示"已编辑"，文件帖子不显示
         const weChatOwnBubble = weChatStyleActive && isOwnPost;
         message = (
             <Message
@@ -468,6 +468,25 @@ const Body = ({
 
     const acknowledgementsVisible = isPostAcknowledgementEnabled && post.metadata?.priority?.requested_ack;
     const reactionsVisible = hasReactions && showAddReaction;
+
+    // 文件部分：独立渲染在气泡外，不带背景色
+    const filesSection = (hasFiles && !hasBeenDeleted && post.type !== PostTypes.CUSTOM_VOICE_ASR) ? (
+        <Files
+            failed={isFailed}
+            alignAttachmentsEnd={weChatStyleActive && Boolean(isOwnPost)}
+            layoutWidth={filesPassLayoutWidth > 0 ? filesPassLayoutWidth : undefined}
+            maxPortraitWidth={filesMaxPortraitWidth}
+            location={location}
+            post={post}
+            isReplyPost={isReplyPost}
+            isMediaOnlyMessage={isMediaOnlyWeChat}
+            shrinkWrapNonImage={weChatStyleActive}
+        />
+    ) : null;
+
+    // 是否有文本内容（决定是否需要气泡）
+    const hasTextOrContent = Boolean(message) || hasContent || Boolean(quotedPostId);
+
     if (!hasBeenDeleted) {
         body = (
             <View
@@ -498,19 +517,8 @@ const Body = ({
                     theme={theme}
                 />
                 }
-                {hasFiles && post.type !== PostTypes.CUSTOM_VOICE_ASR &&
-                <Files
-                    failed={isFailed}
-                    alignAttachmentsEnd={weChatStyleActive && Boolean(isOwnPost)}
-                    layoutWidth={filesPassLayoutWidth > 0 ? filesPassLayoutWidth : undefined}
-                    maxPortraitWidth={filesMaxPortraitWidth}
-                    location={location}
-                    post={post}
-                    isReplyPost={isReplyPost}
-                    isMediaOnlyMessage={isMediaOnlyWeChat}
-                    shrinkWrapNonImage={weChatStyleActive}
-                />
-                }
+                {/* 文件在气泡内渲染（非 weChat 风格时保持原行为） */}
+                {!weChatStyleActive && filesSection}
                 {(acknowledgementsVisible || reactionsVisible) && (
                     <View style={[style.ackAndReactionsContainer, weChatStyleActive && isOwnPost && style.ackAndReactionsOwnWeChat]}>
                         {acknowledgementsVisible && (
@@ -534,38 +542,52 @@ const Body = ({
         );
     }
 
+    // WeChat 风格：有文件时，文本在气泡内，文件在气泡外（无背景色）
+    const showFilesOutsideBubble = weChatStyleActive && filesSection && hasTextOrContent;
+    // 纯文件消息（无文本）：不显示气泡
+    const skipBubbleForMediaOnly = weChatStyleActive && filesSection && !hasTextOrContent;
+
     let bubbleSection: ReactNode;
-    if (!bubbleStyle) {
-        bubbleSection = body;
+    if (!bubbleStyle || skipBubbleForMediaOnly) {
+        bubbleSection = (
+            <>
+                {body}
+                {weChatStyleActive && filesSection}
+            </>
+        );
     } else if (weChatStyleActive && chatBubbleSurface) {
         bubbleSection = (
-            <View
-                style={[
-                    style.bubbleWithTailWrapper,
-                    isOwnPost && style.bubbleWithTailWrapperOwn,
-                    {maxWidth: weChatBubbleMaxWidth},
-                ]}
-            >
-                {!isOwnPost && (
-                    <View
-                        style={[
-                            style.bubbleTailLeft,
-                            {borderRightColor: chatBubbleSurface.othersBg, marginTop: weChatBubbleTailMarginTop},
-                        ]}
-                    />
-                )}
-                <View style={bubbleStyle}>
-                    {body}
+            <>
+                <View
+                    style={[
+                        style.bubbleWithTailWrapper,
+                        isOwnPost && style.bubbleWithTailWrapperOwn,
+                        {maxWidth: weChatBubbleMaxWidth},
+                    ]}
+                >
+                    {!isOwnPost && (
+                        <View
+                            style={[
+                                style.bubbleTailLeft,
+                                {borderRightColor: chatBubbleSurface.othersBg, marginTop: weChatBubbleTailMarginTop},
+                            ]}
+                        />
+                    )}
+                    <View style={bubbleStyle}>
+                        {body}
+                    </View>
+                    {isOwnPost && (
+                        <View
+                            style={[
+                                style.bubbleTailRight,
+                                {borderLeftColor: chatBubbleSurface.ownBg, marginTop: weChatBubbleTailMarginTop},
+                            ]}
+                        />
+                    )}
                 </View>
-                {isOwnPost && (
-                    <View
-                        style={[
-                            style.bubbleTailRight,
-                            {borderLeftColor: chatBubbleSurface.ownBg, marginTop: weChatBubbleTailMarginTop},
-                        ]}
-                    />
-                )}
-            </View>
+                {/* 文件渲染在气泡外，不带背景色 */}
+                {showFilesOutsideBubble && filesSection}
+            </>
         );
     } else {
         bubbleSection = (

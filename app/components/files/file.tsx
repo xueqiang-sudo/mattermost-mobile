@@ -8,7 +8,7 @@ import Animated from 'react-native-reanimated';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {useGalleryItem} from '@hooks/gallery';
-import {isAudio, isDocument, isImage, isVideo} from '@utils/file';
+import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import AudioFile from './audio_file';
@@ -216,6 +216,9 @@ const File = ({
 
         fileComponent = asCard ? renderCardWithImage(renderImageFile) : renderImageFile;
     } else if (isDocument(file)) {
+        // Office 文件没有 PDF 预览时，禁用点击（只显示文件名和大小）
+        const isOfficeWithoutPdfPreview = isDocument(file) && !isPdf(file) && !hasPdfPreview(file);
+
         const renderDocumentFile = (
             <View style={style.iconWrapper}>
                 <DocumentFile
@@ -231,7 +234,7 @@ const File = ({
         const fileInfo = (
             <FileInfo
                 channelName={channelName}
-                disabled={isPressDisabled}
+                disabled={isPressDisabled || isOfficeWithoutPdfPreview}
                 file={file}
                 fillRemainingRow={expandCardToParentWidth}
                 onPress={handlePreviewPress}

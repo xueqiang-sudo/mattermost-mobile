@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, SectionList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Q} from '@nozbe/watermelondb';
@@ -12,6 +12,7 @@ import {switchMap, combineLatestWith, distinctUntilChanged, map} from 'rxjs/oper
 import {deleteCategory} from '../../../apps/workbench_api';
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
+import ConversationListSwipeableItem from '../../conversation_list/conversation_list_swipeable_item';
 import CompassIcon from '@components/compass_icon';
 import {FAVORITES_CATEGORY} from '@constants/categories';
 import {MM_TABLES} from '@constants/database';
@@ -127,6 +128,7 @@ const CollapsibleChannelListRenderer = ({
     const serverUrl = useServerUrl();
     const intl = useIntl();
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['internal', 'external']));
+    const swipeableRegistrar = useRef<{current: React.RefObject<any> | null}>({current: null});
 
     const toggleSection = useCallback((sectionKey: string) => {
         setExpandedSections((prev) => {
@@ -218,11 +220,10 @@ const CollapsibleChannelListRenderer = ({
 
     const renderItem = useCallback(({item}: {item: ChannelModel}) => {
         return (
-            <ChannelItem
+            <ConversationListSwipeableItem
                 channel={item}
                 onPress={onChannelSwitch}
-                key={item.id}
-                testID='channel_list.channel_item'
+                swipeableRegistrar={swipeableRegistrar.current}
                 shouldHighlightActive={true}
                 shouldHighlightState={true}
                 isOnHome={true}

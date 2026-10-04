@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {Q} from '@nozbe/watermelondb';
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 import {asyncScheduler, combineLatest, of as of$} from 'rxjs';
@@ -8,6 +9,7 @@ import {distinctUntilChanged, map, shareReplay, switchMap, throttleTime} from 'r
 
 import {observeChannelsWithCalls} from '@calls/state';
 import {General, Preferences} from '@constants';
+import {MM_TABLES} from '@constants/database';
 import {withServerUrl} from '@context/server';
 import {getDisplayNamePreferenceAsBool} from '@helpers/api/preference';
 import {observeIsChannelFavorited} from '@queries/servers/categories';
@@ -25,6 +27,7 @@ import {HOME_CONVERSATION_LAST_POST_THROTTLE_MS} from './conversation_list_const
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type ChannelModel from '@typings/database/models/servers/channel';
+import type UserModel from '@typings/database/models/servers/user';
 
 type EnhanceProps = WithDatabaseArgs & {
     channel: ChannelModel | Channel;
@@ -201,12 +204,34 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
         distinctUntilChanged((a, b) => a?.id === b?.id && a?.username === b?.username && a?.nickname === b?.nickname && a?.firstName === b?.firstName && a?.lastName === b?.lastName),
     );
 
+    // GM 频道：动态查询成员的最新用户资料，用于构建实时显示名
+    const {SERVER: {CHANNEL_MEMBERSHIP, USER}} = MM_TABLES;
+    const gmMembers = channel.type === General.GM_CHANNEL ?
+        queryChannelMembers(database, channel.id).observe().pipe(
+            switchMap((members) => {
+                const userIds = members.map((m) => m.userId);
+                if (userIds.length === 0) {
+                    return of$([] as UserModel[]);
+                }
+                return database.get<UserModel>(USER)
+                    .query(Q.where('id', Q.oneOf(userIds)))
+                    .observe()
+                    .pipe(
+                        distinctUntilChanged((a, b) => {
+                            if (a.length !== b.length) return false;
+                            return a.every((u, i) => u.id === b[i]?.id && u.nickname === b[i]?.nickname && u.username === b[i]?.username && u.firstName === b[i]?.firstName && u.lastName === b[i]?.lastName);
+                        }),
+                    );
+            }),
+        ) : of$([] as UserModel[]);
+
     return {
         channel: 'observe' in channel ? channel.observe() : of$(channel),
         currentUserId,
         currentUser,
         currentTimezone,
         displayNameCustomized,
+        gmMembers,
         hasDraft,
         isActive,
         isFavorite,
