@@ -2500,7 +2500,7 @@
   "forward.error": "轉發失敗",
   "forward.error_message": "訊息轉發失敗，請重試。",
   "forward.prefix": "轉發的訊息",
-  "post_info.forward": "轉發"
+  "post_info.forward": "轉發",
   "file.conversion_pending": "文檔轉換",
   "file.conversion_pending_message": "此文檔正在轉換為PDF以便預覽。請稍後再試。",
   "file.converting": "正在轉換文檔...",

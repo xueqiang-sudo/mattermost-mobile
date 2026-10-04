@@ -2519,7 +2519,7 @@
   "forward.error": "转发失败",
   "forward.error_message": "消息转发失败，请重试。",
   "forward.prefix": "转发的消息",
-  "post_info.forward": "转发"
+  "post_info.forward": "转发",
   "file.conversion_pending": "文档转换",
   "file.conversion_pending_message": "此文档正在转换为PDF以便预览。请稍后再试。",
   "file.converting": "正在转换文档...",

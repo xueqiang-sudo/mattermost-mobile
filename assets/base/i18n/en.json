@@ -2522,9 +2522,7 @@
   "forward.error": "Forward Failed",
   "forward.error_message": "Failed to forward the message. Please try again.",
   "forward.prefix": "Forwarded message",
-  "post_info.forward": "Forward"
-}
-,
+  "post_info.forward": "Forward",
   "file.conversion_pending": "Document Conversion",
   "file.conversion_pending_message": "This document is being converted to PDF for preview. Please try again in a moment.",
   "file.converting": "Converting document...",
