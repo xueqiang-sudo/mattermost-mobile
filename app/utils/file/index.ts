@@ -332,6 +332,39 @@ export const hasPdfPreview = (file?: FileInfo | FileModel): boolean => {
     return Boolean('pdf_preview_id' in file && file.pdf_preview_id);
 };
 
+export const isTextFile = (file?: FileInfo | FileModel): boolean => {
+    if (!file) {
+        return false;
+    }
+
+    const textMimeTypes = [
+        'text/plain',
+        'text/markdown',
+        'text/x-markdown',
+        'text/csv',
+        'text/xml',
+        'application/json',
+        'application/xml',
+    ];
+
+    let mime = 'mime_type' in file ? file.mime_type : file.mimeType;
+    if (mime && mime.includes(';')) {
+        mime = mime.split(';')[0];
+    }
+
+    return textMimeTypes.includes(mime);
+};
+
+export const isMarkdownFile = (fileName: string): boolean => {
+    const ext = extractExtension(fileName);
+    return ext === 'md' || ext === 'markdown';
+};
+
+export const isJsonFile = (fileName: string, mimeType: string): boolean => {
+    const ext = extractExtension(fileName);
+    return ext === 'json' || mimeType === 'application/json';
+};
+
 export const isVideo = (file?: FileInfo | FileModel) => {
     if (!file) {
         return false;

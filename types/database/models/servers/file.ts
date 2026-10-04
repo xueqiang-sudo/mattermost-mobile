@@ -48,6 +48,9 @@ declare class FileModel extends Model {
     /** isBlocked : Whether the file is blocked and cannot be opened */
     isBlocked: boolean;
 
+    /** pdf_preview_id : The ID of the PDF preview file (for Office documents converted to PDF) */
+    pdfPreviewId: string | null;
+
     toFileInfo: (authorId: string) => FileInfo;
 }
 

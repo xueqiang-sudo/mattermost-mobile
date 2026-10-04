@@ -14,10 +14,10 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {alertDownloadFailed, alertFailedToOpenDocument, alertOnlyPDFSupported} from '@utils/document';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
-import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isGif, isImage, isPdf, isVideo} from '@utils/file';
+import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isGif, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {getImageSize} from '@utils/gallery';
 import {logDebug} from '@utils/log';
-import {previewPdf} from '@utils/navigation';
+import {openUnifiedFileViewer, previewPdf, previewTextFile} from '@utils/navigation';
 
 import type {ClientResponse, ProgressPromise} from '@mattermost/react-native-network-client';
 import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
@@ -134,84 +134,9 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
     }, [setStatusBarColor]);
 
     const openDocument = useCallback(async (file: FileInfo) => {
-        if (!didCancel && !preview) {
-            // 如果文件有 PDF 预览版本，下载并打开 PDF
-            if (hasPdfPreview(file) && file.pdf_preview_id) {
-                const pdfFileInfo: FileInfo = {
-                    ...file,
-                    id: file.pdf_preview_id,
-                    name: file.name.replace(/\.[^.]+$/, '.pdf'),
-                    extension: 'pdf',
-                    mime_type: 'application/pdf',
-                };
-
-                let pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
-                const pdfExists = await fileExists(pdfPath);
-
-                try {
-                    if (!pdfExists) {
-                        setDownloading(true);
-                        downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
-                        downloadTask.current?.progress?.(setProgress);
-                        await downloadTask.current;
-                        setProgress(1);
-                    }
-
-                    previewPdf(pdfFileInfo, pdfPath, theme, onDonePreviewingFile);
-                } catch (error) {
-                    if (pdfPath) {
-                        deleteAsync(pdfPath, {idempotent: true});
-                    }
-                    setDownloading(false);
-                    setProgress(0);
-
-                    if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
-                        logDebug('error on downloading PDF preview', getFullErrorMessage(error));
-                        alertDownloadFailed(intl);
-                    }
-                }
-                return;
-            }
-
-            let path = decodeURIComponent(file.localPath || '');
-            let exists = false;
-            if (path) {
-                exists = await fileExists(path);
-            }
-
-            if (!exists) {
-                path = getLocalFilePathFromFile(serverUrl, file);
-            }
-
-            if (enableSecureFilePreview) {
-                if (isPdf(file)) {
-                    previewPdf(file, path, theme, onDonePreviewingFile);
-                } else {
-                    alertOnlyPDFSupported(intl);
-                }
-                return;
-            }
-
-            setPreview(true);
-            setStatusBarColor('dark-content');
-            FileViewer.open(path!.replace('file://', ''), {
-                displayName: decodeURIComponent(file.name),
-                onDismiss: onDonePreviewingFile,
-                showOpenWithDialog: true,
-                showAppsSuggestions: true,
-            }).then(() => {
-                setDownloading(false);
-                setProgress(0);
-            }).catch(() => {
-                alertFailedToOpenDocument(file, intl);
-                onDonePreviewingFile();
-
-                if (path) {
-                    deleteAsync(path, {idempotent: true});
-                }
-            });
-        }
-    }, [didCancel, preview, enableSecureFilePreview, setStatusBarColor, onDonePreviewingFile, serverUrl, theme, intl]);
+        // Use unified file viewer for all file types
+        openUnifiedFileViewer(file, theme, onDonePreviewingFile);
+    }, [theme, onDonePreviewingFile]);
 
     const downloadAndPreviewFile = useCallback(async (file: FileInfo) => {
         setDidCancel(false);

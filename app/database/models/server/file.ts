@@ -59,6 +59,9 @@ export default class FileModel extends Model implements FileModelInterface {
     /** isBlocked : Whether the file is blocked and cannot be opened */
     @field('is_blocked') isBlocked!: boolean;
 
+    /** pdf_preview_id : The ID of the PDF preview file (for Office documents converted to PDF) */
+    @field('pdf_preview_id') pdfPreviewId!: string | null;
+
     /** post : The related Post record for this file */
     @immutableRelation(POST, 'post_id') post!: Relation<PostModel>;
 
@@ -75,5 +78,6 @@ export default class FileModel extends Model implements FileModelInterface {
         has_preview_image: Boolean(this.imageThumbnail),
         localPath: this.localPath,
         width: this.width,
+        pdf_preview_id: this.pdfPreviewId,
     });
 }

@@ -287,6 +287,12 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.PDF_VIEWER:
             screen = withServerDatabase(require('@screens/pdf_viewer').default);
             break;
+        case Screens.TEXT_VIEWER:
+            screen = withServerDatabase(require('@screens/text_viewer').default);
+            break;
+        case Screens.UNIFIED_FILE_VIEWER:
+            screen = withServerDatabase(require('@screens/unified_file_viewer').default);
+            break;
         case Screens.PERMALINK:
             screen = withServerDatabase(require('@screens/permalink').default);
             break;

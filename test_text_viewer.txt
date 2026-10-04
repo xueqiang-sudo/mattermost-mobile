@@ -1,0 +1,14 @@
+This is a plain text file.
+It should be displayed with a monospace font.
+
+Line 1
+Line 2
+Line 3
+
+    Indented text
+        More indented text
+
+Special characters: @#$%^&*()
+Numbers: 1234567890
+
+End of file.

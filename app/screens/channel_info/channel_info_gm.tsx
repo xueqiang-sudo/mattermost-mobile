@@ -1,13 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {clearChannelHistory, leaveChannel, toggleMuteChannel} from '@actions/remote/channel';
 import {toggleFavoriteChannel} from '@actions/remote/category';
+import {fetchProfilesInChannel} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -134,6 +135,12 @@ const ChannelInfoGM = ({
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
+
+    // Fetch all channel members from server so local DB has complete membership records
+    // This is critical for correct channel classification (internal vs external)
+    useEffect(() => {
+        fetchProfilesInChannel(serverUrl, channelId, undefined, {page: 0, per_page: 200});
+    }, [serverUrl, channelId]);
 
     const close = useCallback(() => {
         return dismissModal({componentId});

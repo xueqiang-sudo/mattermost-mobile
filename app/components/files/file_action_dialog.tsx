@@ -8,7 +8,8 @@ import {useIntl} from 'react-intl';
 import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
 import {useServerUrl} from '@context/server';
-import {getLocalFileInfo} from '@actions/local/file';
+import NetworkManager from '@managers/network_manager';
+import DatabaseManager from '@database/manager';
 import {getFormattedFileSize} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -161,19 +162,34 @@ const FileActionDialog = ({
             pollingCountRef.current += 1;
 
             try {
-                // 从服务器获取最新的文件信息
-                const result = await getLocalFileInfo(serverUrl, fileInfo.id!);
-                if (result.file) {
-                    const updatedFileInfo = result.file.toFileInfo(fileInfo.user_id);
+                // 从服务器获取最新的文件信息（不是本地数据库）
+                const client = NetworkManager.getClient(serverUrl);
+                const updatedFileInfo = await client.getFileInfo(fileInfo.id!);
 
-                    // 检查是否已转换完成
-                    if (updatedFileInfo.pdf_preview_id) {
-                        stopPolling();
-                        // 转换完成，直接打开预览
-                        onPreview?.({...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id});
-                        onClose();
-                        return;
+                // 检查是否已转换完成
+                if (updatedFileInfo.pdf_preview_id) {
+                    stopPolling();
+
+                    // 保存 pdf_preview_id 到本地数据库，以便下次直接打开
+                    try {
+                        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                        const fileWithPdfId = {
+                            ...updatedFileInfo,
+                            id: fileInfo.id,
+                        };
+                        await operator.handleFiles({
+                            files: [fileWithPdfId],
+                            prepareRecordsOnly: false,
+                        });
+                    } catch (dbError) {
+                        console.error('Failed to save pdf_preview_id to database:', dbError);
+                        // 继续打开预览，不影响用户体验
                     }
+
+                    // 转换完成，直接打开预览
+                    onPreview?.({...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id});
+                    onClose();
+                    return;
                 }
 
                 // 超过最大轮询次数

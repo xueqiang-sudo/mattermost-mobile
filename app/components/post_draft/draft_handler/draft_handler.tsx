@@ -106,6 +106,72 @@ export default function DraftHandler(props: Props) {
             return;
         }
 
+        // Auto-send: if no text in draft, upload and post immediately (WeChat-style)
+        const hasDraftText = value.trim().length > 0;
+        if (!hasDraftText) {
+            // Upload and send immediately without adding to draft
+            void (async () => {
+                try {
+                    const uploadedFiles: FileInfo[] = [];
+
+                    for (const file of newFiles) {
+                        if (isDraftVideoLocalProcessingFile(file)) {
+                            continue;
+                        }
+
+                        // Upload file and wait for completion
+                        const uploaded = await new Promise<FileInfo>((resolve, reject) => {
+                            const {error} = uploadFile(
+                                serverUrl,
+                                file,
+                                channelId,
+                                () => {/* progress */},
+                                (response) => {
+                                    if (response.code !== 201 || !response.data?.file_infos?.length) {
+                                        reject(new Error((response.data?.message as string) || 'Failed to upload file'));
+                                        return;
+                                    }
+                                    const fi = response.data.file_infos[0] as FileInfo;
+                                    fi.clientId = file.clientId;
+                                    fi.localPath = file.localPath;
+                                    resolve(fi);
+                                },
+                                (err) => reject(new Error(err?.message || 'Upload failed')),
+                            );
+                            if (error) {
+                                reject(error);
+                            }
+                        });
+
+                        uploadedFiles.push(uploaded);
+                    }
+
+                    // Create and send post immediately
+                    if (uploadedFiles.length > 0) {
+                        const post = {
+                            user_id: currentUserId,
+                            channel_id: channelId,
+                            root_id: rootId,
+                            message: '',
+                        } as Post;
+                        await createPost(serverUrl, post, uploadedFiles);
+                        DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
+                    }
+                } catch (err) {
+                    logError('[addFiles auto-send]', err);
+                    showSnackBar({
+                        barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
+                        customMessage: getErrorMessage(err),
+                        type: MESSAGE_TYPE.ERROR,
+                    });
+                }
+            })();
+
+            newUploadError(null);
+            return;
+        }
+
+        // Has draft text: keep current behavior (add to draft, wait for user to send)
         addFilesToDraft(serverUrl, channelId, rootId, newFiles);
 
         for (const file of newFiles) {
@@ -117,7 +183,7 @@ export default function DraftHandler(props: Props) {
         }
 
         newUploadError(null);
-    }, [intl, newUploadError, maxFileSize, serverUrl, files?.length, channelId, rootId]);
+    }, [intl, newUploadError, maxFileSize, serverUrl, files?.length, channelId, rootId, value, currentUserId]);
 
     const addVideoPlaceholder = useCallback((file: FileInfo) => {
         if (!canUploadFiles) {

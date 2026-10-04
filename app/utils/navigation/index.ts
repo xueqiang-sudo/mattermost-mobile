@@ -109,3 +109,43 @@ export function previewPdf(item: FileInfo | GalleryItemType, path: string, theme
         onDismiss,
     }, options);
 }
+
+export function previewTextFile(item: FileInfo, path: string, theme: Theme, onDismiss?: () => void) {
+    const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+    const closeButtonId = 'close-text-viewer';
+
+    const options: Options = {
+        modalPresentationStyle: OptionsModalPresentationStyle.currentContext,
+        topBar: {
+            visible: true,
+            title: {
+                text: item.name,
+            },
+            leftButtons: [{
+                id: closeButtonId,
+                icon: closeButton,
+                testID: closeButtonId,
+            }],
+        },
+    };
+    showModal(Screens.TEXT_VIEWER, item.name, {
+        filePath: path,
+        fileName: item.name,
+        mimeType: item.mime_type,
+        closeButtonId,
+        onDismiss,
+    }, options);
+}
+
+export function openUnifiedFileViewer(file: FileInfo, theme: Theme, onDismiss?: () => void) {
+    const options: Options = {
+        topBar: {
+            visible: false,
+        },
+    };
+
+    goToScreen(Screens.UNIFIED_FILE_VIEWER, file.name, {
+        fileId: file.id,
+        fileInfo: file,
+    }, options);
+}

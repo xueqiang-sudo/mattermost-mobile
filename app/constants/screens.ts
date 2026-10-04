@@ -146,6 +146,8 @@ export const STARTUP_LOADING = 'StartupLoading';
 export const TABLE = 'Table';
 export const TEAM_SELECTOR_LIST = 'TeamSelectorList';
 export const TERMS_OF_SERVICE = 'TermsOfService';
+export const TEXT_VIEWER = 'TextViewer';
+export const UNIFIED_FILE_VIEWER = 'UnifiedFileViewer';
 export const LAUNCH_AGREEMENT = 'LaunchAgreement';
 export const WEB_VIEW = 'WebView';
 
@@ -292,6 +294,8 @@ export default {
     TABLE,
     TEAM_SELECTOR_LIST,
     TERMS_OF_SERVICE,
+    TEXT_VIEWER,
+    UNIFIED_FILE_VIEWER,
     LAUNCH_AGREEMENT,
     WEB_VIEW,
     THREAD,
@@ -317,6 +321,8 @@ export const MODAL_SCREENS_WITHOUT_BACK = new Set<string>([
     PDF_VIEWER,
     PERMALINK,
     RESCHEDULE_DRAFT,
+    TEXT_VIEWER,
+    UNIFIED_FILE_VIEWER,
 ]);
 
 export const SCREENS_WITH_TRANSPARENT_BACKGROUND = new Set<string>([

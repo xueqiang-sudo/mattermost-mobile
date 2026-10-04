@@ -1,0 +1,33 @@
+{
+  "name": "Test JSON File",
+  "version": "1.0.0",
+  "description": "This is a test JSON file to verify the text viewer implementation",
+  "features": [
+    "Syntax highlighting",
+    "Auto-formatting",
+    "Line numbers",
+    "Selectable text"
+  ],
+  "config": {
+    "theme": "dark",
+    "fontSize": 14,
+    "lineNumbers": true
+  },
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice",
+      "email": "alice@example.com"
+    },
+    {
+      "id": 2,
+      "name": "Bob",
+      "email": "bob@example.com"
+    }
+  ],
+  "metadata": {
+    "created": "2026-10-04",
+    "author": "Mattermost",
+    "tags": ["test", "json", "viewer"]
+  }
+}
