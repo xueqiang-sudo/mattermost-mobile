@@ -473,23 +473,29 @@ async function syncMyChannelsAfterTeamSwitch(serverUrl: string, teamId: string) 
 }
 
 export async function handleTeamChange(serverUrl: string, teamId: string) {
+    debugLog('TEAM_SWITCH', `start, teamId: ${teamId}`);
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
+        debugLog('TEAM_SWITCH', 'no database operator');
         return {error: 'no database'};
     }
     const {database} = operator;
 
     const currentTeamId = await getCurrentTeamId(database);
+    debugLog('TEAM_SWITCH', `currentTeamId: ${currentTeamId} new teamId: ${teamId}`);
 
     if (currentTeamId === teamId) {
+        debugLog('TEAM_SWITCH', 'same team, returning');
         return {};
     }
 
     let channelId = '';
     DeviceEventEmitter.emit(Events.TEAM_SWITCH, true);
     if (isTablet()) {
+        debugLog('TEAM_SWITCH', 'is tablet');
         channelId = await getNthLastChannelFromTeam(database, teamId);
         if (channelId) {
+            debugLog('TEAM_SWITCH', `tablet channelId: ${channelId}`);
             await switchToChannelById(serverUrl, channelId, teamId);
             await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
             await fetchTeamMembersForClassification(serverUrl, teamId);
@@ -499,29 +505,38 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
     }
 
     // 在更新 currentTeamId 之前先获取团队成员，避免 UI observable 在成员数据就绪前触发
+    debugLog('TEAM_SWITCH', 'fetching team members BEFORE updating currentTeamId');
     await fetchTeamMembersForClassification(serverUrl, teamId);
+    debugLog('TEAM_SWITCH', 'team members fetched');
 
     const models = [];
     const system = await prepareCommonSystemValues(operator, {currentChannelId: channelId, currentTeamId: teamId, lastUnreadChannelId: ''});
     if (system?.length) {
         models.push(...system);
     }
+    debugLog('TEAM_SWITCH', `prepared system values, models count: ${models.length}`);
+
     const history = await addTeamToTeamHistory(operator, teamId, true);
     if (history.length) {
         models.push(...history);
     }
+    debugLog('TEAM_SWITCH', `added team history, total models: ${models.length}`);
 
     if (models.length) {
         await operator.batchRecords(models, 'handleTeamChange');
+        debugLog('TEAM_SWITCH', 'batch records saved');
     }
 
     // Fetch Groups + GroupTeams
     fetchGroupsForTeamIfConstrained(serverUrl, teamId);
     fetchScheduledPosts(serverUrl, teamId, false);
+    debugLog('TEAM_SWITCH', 'syncing channels');
     await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
+    debugLog('TEAM_SWITCH', 'channels synced');
 
     // 数据获取完成后再隐藏 loading，避免显示旧团队的空数据
     DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
+    debugLog('TEAM_SWITCH', 'complete');
 
     return {};
 }

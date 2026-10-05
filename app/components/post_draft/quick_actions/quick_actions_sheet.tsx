@@ -15,6 +15,7 @@ import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import {bottomSheet, openAsBottomSheet} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {fileMaxWarning} from '@utils/file';
 import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
 import PickerUtil from '@utils/file/file_picker';
@@ -155,37 +156,46 @@ export default function QuickActionsSheet({
     }, [updateValue, focus]);
 
     const handleFilePress = useCallback(() => {
+        debugLog('QUICK_ACTION', 'handleFilePress called');
         if (maxFilesReached) {
+            debugLog('QUICK_ACTION', 'maxFilesReached, showing alert');
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 fileMaxWarning(intl, maxFileCount),
             );
             return;
         }
+        debugLog('QUICK_ACTION', 'creating PickerUtil and calling attachFileFromFiles');
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromFiles(undefined, true);
     }, [intl, addFiles, draftVideoProcessingBridge, maxFilesReached, maxFileCount]);
 
     const handleGalleryPress = useCallback(() => {
+        debugLog('QUICK_ACTION', 'handleGalleryPress called');
         if (maxFilesReached) {
+            debugLog('QUICK_ACTION', 'maxFilesReached, showing alert');
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 fileMaxWarning(intl, maxFileCount),
             );
             return;
         }
+        debugLog('QUICK_ACTION', 'creating PickerUtil and calling attachFileFromPhotoGallery');
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromPhotoGallery(maxFileCount - fileCount);
     }, [intl, addFiles, draftVideoProcessingBridge, fileCount, maxFileCount, maxFilesReached]);
 
     const handleCameraPress = useCallback((options: {type?: string}) => {
+        debugLog('QUICK_ACTION', `handleCameraPress called, options: ${JSON.stringify(options)}`);
         if (maxFilesReached) {
+            debugLog('QUICK_ACTION', 'maxFilesReached, showing alert');
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 fileMaxWarning(intl, maxFileCount),
             );
             return;
         }
+        debugLog('QUICK_ACTION', 'creating PickerUtil and calling attachFileFromCamera');
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromCamera(options);
     }, [intl, addFiles, draftVideoProcessingBridge, maxFileCount, maxFilesReached]);

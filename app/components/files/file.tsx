@@ -9,6 +9,7 @@ import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {useGalleryItem} from '@hooks/gallery';
 import {useDownloadFileAndPreview} from '@hooks/files';
+import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -108,9 +109,12 @@ const File = ({
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     const handlePreviewPress = useCallback(() => {
+        debugLog('FILE_CLICK', `handlePreviewPress called, document.current: ${document.current ? 'exists' : 'null'}`);
         if (document.current) {
+            debugLog('FILE_CLICK', 'calling document.current.handlePreviewPress()');
             document.current.handlePreviewPress();
         } else {
+            debugLog('FILE_CLICK', 'document.current is null, calling onPress(index)');
             onPress(index);
         }
     }, [index, onPress]);
@@ -123,31 +127,38 @@ const File = ({
 
     // 智能文件路由：根据文件类型决定是直接打开还是显示对话框
     const handleShowFileActions = useCallback(() => {
+        debugLog('FILE_CLICK', `clicked: ${file.name} mime:${file.mime_type} ext:${file.extension}`);
+
         // PDF 文件：直接打开
         if (isPdf(file)) {
+            debugLog('FILE_CLICK', 'is PDF, opening preview');
             handlePreviewPress();
             return;
         }
 
         // Office 文件已转换为 PDF：直接打开
         if (hasPdfPreview(file)) {
+            debugLog('FILE_CLICK', `has PDF preview (pdf_preview_id:${file.pdf_preview_id}), opening preview`);
             handlePreviewPress();
             return;
         }
 
         // 文本文件（.md, .json, .txt, .csv 等）：直接打开
         if (isTextFile(file)) {
+            debugLog('FILE_CLICK', 'is text file, opening preview');
             handlePreviewPress();
             return;
         }
 
         // Office 文件未转换：显示对话框（带轮询）
         if (isDocument(file) && !isPdf(file)) {
+            debugLog('FILE_CLICK', 'is document (not PDF), showing action dialog');
             setShowActionDialog(true);
             return;
         }
 
         // 不可识别的文件：显示对话框（用其他应用打开）
+        debugLog('FILE_CLICK', 'unrecognized file type, showing action dialog');
         setShowActionDialog(true);
     }, [file, handlePreviewPress]);
 
@@ -212,6 +223,7 @@ const File = ({
     );
 
     let fileComponent;
+    debugLog('FILE_RENDER', `rendering: ${file.name} isVideo:${isVideo(file)} isImage:${isImage(file)} isDocument:${isDocument(file)} isAudio:${isAudio(file)} isTextFile:${isTextFile(file)}`);
     if (isVideo(file)) {
         const renderVideoFile = (
             <TouchableWithoutFeedback

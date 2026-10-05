@@ -11,6 +11,7 @@ import Permissions from 'react-native-permissions';
 import {ENABLE_IMAGE_COMPRESS, ENABLE_VIDEO_COMPRESS} from '@constants/media_processing';
 import {showDraftVideoRecorderModal} from '@screens/draft_video_recorder/show_modal';
 import {dismissBottomSheet} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {extractFileInfo, getExtensionFromMime, lookupMimeType} from '@utils/file';
 import {
     buildDraftMediaPlaceholderFile,
@@ -290,9 +291,11 @@ export default class FilePickerUtil {
             }
 
             if (out.length > 0) {
+                debugLog('FILE_PICKER', `calling uploadFiles with ${out.length} files`);
                 await hideExportOverlayIfNeeded();
                 dismissBottomSheet();
                 this.uploadFiles(out);
+                debugLog('FILE_PICKER', 'uploadFiles called successfully');
             }
         } finally {
             await hideExportOverlayIfNeeded();

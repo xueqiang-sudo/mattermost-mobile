@@ -309,7 +309,13 @@ export const isDocument = (file?: FileInfo | FileModel) => {
         mime = lookupMimeType(file.name);
     }
 
-    return SUPPORTED_DOCS_FORMAT!.includes(mime);
+    const result = SUPPORTED_DOCS_FORMAT!.includes(mime);
+    if (__DEV__) {
+        // Only log in debug mode to avoid performance impact
+        const {debugLog} = require('@store/debug_log');
+        debugLog('FILE_TYPE', `isDocument: ${file.name} mime:${mime} result:${result}`);
+    }
+    return result;
 };
 
 export const isPdf = (file?: FileInfo | FileModel) => {
@@ -354,7 +360,13 @@ export const isTextFile = (file?: FileInfo | FileModel): boolean => {
         mime = mime.split(';')[0];
     }
 
-    return textMimeTypes.includes(mime);
+    const result = textMimeTypes.includes(mime);
+    if (__DEV__) {
+        // Only log in debug mode to avoid performance impact
+        const {debugLog} = require('@store/debug_log');
+        debugLog('FILE_TYPE', `isTextFile: ${file.name} mime:${mime} result:${result}`);
+    }
+    return result;
 };
 
 export const isMarkdownFile = (fileName: string): boolean => {

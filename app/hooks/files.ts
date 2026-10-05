@@ -12,6 +12,7 @@ import {getLocalFileInfo} from '@actions/local/file';
 import {buildFilePreviewUrl, buildFileUrl, downloadFile} from '@actions/remote/file';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {debugLog} from '@store/debug_log';
 import {alertDownloadFailed, alertFailedToOpenDocument, alertOnlyPDFSupported} from '@utils/document';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isGif, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
@@ -134,15 +135,19 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
     }, [setStatusBarColor]);
 
     const openDocument = useCallback(async (file: FileInfo) => {
+        debugLog('FILE_PREVIEW', `openDocument called: ${file.name} id:${file.id} ext:${file.extension} mime:${file.mime_type}`);
         // Use unified file viewer for all file types
+        debugLog('FILE_PREVIEW', 'calling openUnifiedFileViewer');
         openUnifiedFileViewer(file, theme, onDonePreviewingFile);
     }, [theme, onDonePreviewingFile]);
 
     const downloadAndPreviewFile = useCallback(async (file: FileInfo) => {
+        debugLog('FILE_PREVIEW', `downloadAndPreviewFile called: ${file.name} id:${file.id} mime:${file.mime_type}`);
         setDidCancel(false);
 
         // Office 文件有 PDF 预览版本时，下载并打开 PDF 版本
         if (hasPdfPreview(file) && file.pdf_preview_id) {
+            debugLog('FILE_PREVIEW', `has PDF preview, pdf_preview_id:${file.pdf_preview_id}`);
             const pdfFileInfo: FileInfo = {
                 ...file,
                 id: file.pdf_preview_id,
@@ -153,18 +158,23 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
             let pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
             const pdfExists = await fileExists(pdfPath);
+            debugLog('FILE_PREVIEW', `PDF path: ${pdfPath}, exists: ${pdfExists}`);
 
             try {
                 if (!pdfExists) {
+                    debugLog('FILE_PREVIEW', 'downloading PDF preview');
                     setDownloading(true);
                     downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
                     downloadTask.current?.progress?.(setProgress);
                     await downloadTask.current;
                     setProgress(1);
+                    debugLog('FILE_PREVIEW', 'PDF preview downloaded');
                 }
 
+                debugLog('FILE_PREVIEW', 'opening PDF document');
                 openDocument(pdfFileInfo);
             } catch (error) {
+                debugLog('FILE_PREVIEW', `error: ${getFullErrorMessage(error)}`);
                 if (pdfPath) {
                     deleteAsync(pdfPath, {idempotent: true});
                 }
@@ -179,6 +189,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             return;
         }
 
+        debugLog('FILE_PREVIEW', 'no PDF preview, downloading original file');
         let path;
         let exists = false;
 
@@ -187,24 +198,30 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             if (path) {
                 exists = await fileExists(path);
             }
+            debugLog('FILE_PREVIEW', `local path: ${path}, exists: ${exists}`);
 
             if (!exists) {
                 path = getLocalFilePathFromFile(serverUrl, file);
                 exists = await fileExists(path);
+                debugLog('FILE_PREVIEW', `computed path: ${path}, exists: ${exists}`);
             }
 
             if (exists) {
+                debugLog('FILE_PREVIEW', 'file exists, opening document');
                 openDocument(file);
             } else {
+                debugLog('FILE_PREVIEW', 'file does not exist, downloading');
                 setDownloading(true);
                 downloadTask.current = downloadFile(serverUrl, file.id!, path!);
                 downloadTask.current?.progress?.(setProgress);
 
                 await downloadTask.current;
                 setProgress(1);
+                debugLog('FILE_PREVIEW', 'file downloaded, opening document');
                 openDocument(file);
             }
         } catch (error) {
+            debugLog('FILE_PREVIEW', `error: ${getFullErrorMessage(error)}`);
             if (path) {
                 deleteAsync(path, {idempotent: true});
             }

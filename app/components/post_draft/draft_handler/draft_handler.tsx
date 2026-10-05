@@ -13,6 +13,7 @@ import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import useFileUploadError from '@hooks/file_upload_error';
 import DraftEditPostUploadManager from '@managers/draft_upload_manager';
+import {debugLog} from '@store/debug_log';
 import {getErrorMessage} from '@utils/errors';
 import {
     clearDraftVideoProcessingAborted,
@@ -84,11 +85,14 @@ export default function DraftHandler(props: Props) {
     }, [serverUrl, channelId, rootId]);
 
     const addFiles = useCallback((newFiles: FileInfo[]) => {
+        debugLog('ADD_FILES', `called with ${newFiles.length} files`);
         if (!newFiles.length) {
+            debugLog('ADD_FILES', 'no files, returning');
             return;
         }
 
         if (!canUploadFiles) {
+            debugLog('ADD_FILES', 'canUploadFiles is false');
             newUploadError(uploadDisabledWarning(intl));
             return;
         }
@@ -96,15 +100,19 @@ export default function DraftHandler(props: Props) {
         const currentFileCount = files?.length || 0;
         const availableCount = maxFileCount - currentFileCount;
         if (newFiles.length > availableCount) {
+            debugLog('ADD_FILES', `too many files: ${newFiles.length} > ${availableCount}`);
             newUploadError(fileMaxWarning(intl, maxFileCount));
             return;
         }
 
         const largeFile = newFiles.find((file) => file.size > maxFileSize);
         if (largeFile) {
+            debugLog('ADD_FILES', `file too large: ${largeFile.name} ${largeFile.size}`);
             newUploadError(fileSizeWarning(intl, maxFileSize));
             return;
         }
+
+        debugLog('ADD_FILES', `starting auto-send for ${newFiles.length} files`);
 
         // Auto-send: always upload and post files immediately (WeChat-style)
         void (async () => {
@@ -113,8 +121,11 @@ export default function DraftHandler(props: Props) {
 
                 for (const file of newFiles) {
                     if (isDraftVideoLocalProcessingFile(file)) {
+                        debugLog('ADD_FILES', `skipping video processing file: ${file.name}`);
                         continue;
                     }
+
+                    debugLog('ADD_FILES', `uploading file: ${file.name} ${file.size}`);
 
                     // Upload file and wait for completion
                     const uploaded = await new Promise<FileInfo>((resolve, reject) => {
@@ -124,6 +135,7 @@ export default function DraftHandler(props: Props) {
                             channelId,
                             () => {/* progress */},
                             (response) => {
+                                debugLog('ADD_FILES', `upload response: ${response.code} files:${response.data?.file_infos?.length}`);
                                 if (response.code !== 201 || !response.data?.file_infos?.length) {
                                     reject(new Error((response.data?.message as string) || 'Failed to upload file'));
                                     return;
@@ -136,12 +148,16 @@ export default function DraftHandler(props: Props) {
                             (err) => reject(new Error(err?.message || 'Upload failed')),
                         );
                         if (error) {
+                            debugLog('ADD_FILES', `uploadFile returned error: ${error}`);
                             reject(error);
                         }
                     });
 
+                    debugLog('ADD_FILES', `file uploaded successfully: ${uploaded.name} ${uploaded.id}`);
                     uploadedFiles.push(uploaded);
                 }
+
+                debugLog('ADD_FILES', `uploaded ${uploadedFiles.length} files, creating post`);
 
                 // Create and send post immediately
                 if (uploadedFiles.length > 0) {
@@ -151,10 +167,13 @@ export default function DraftHandler(props: Props) {
                         root_id: rootId,
                         message: '',
                     } as Post;
+                    debugLog('ADD_FILES', `creating post with ${uploadedFiles.length} files`);
                     await createPost(serverUrl, post, uploadedFiles);
+                    debugLog('ADD_FILES', 'post created successfully');
                     DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
                 }
             } catch (err) {
+                debugLog('ADD_FILES', `error: ${err}`);
                 logError('[addFiles auto-send]', err);
                 showSnackBar({
                     barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
