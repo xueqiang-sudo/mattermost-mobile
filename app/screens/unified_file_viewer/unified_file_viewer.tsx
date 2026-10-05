@@ -17,7 +17,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import TextViewer from '@screens/text_viewer/text_viewer';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
@@ -90,7 +90,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         if (pollingRef.current) {
             clearInterval(pollingRef.current);
         }
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, handleClose);
@@ -191,15 +191,15 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             }
 
             setFilePath(path!);
-            debugLog('FILE_VIEWER', `filePath set to: ${path}`);
+            debugLog('FILE_VIEWER', `filePath set to: ${path}, fileToDownload.name=${fileToDownload.name}, fileToDownload.extension=${fileToDownload.extension}`);
 
             // PDF and text files are rendered inline, no need to open external viewers
             if (isPdf(fileToDownload)) {
-                debugLog('FILE_VIEWER', `PDF ready for inline rendering`);
+                debugLog('FILE_VIEWER', `PDF ready for inline rendering, isPdf=true`);
             } else if (isTextFile(fileToDownload)) {
                 debugLog('FILE_VIEWER', `text file ready for inline rendering`);
             } else {
-                debugLog('FILE_VIEWER', `unsupported file type for inline viewing`);
+                debugLog('FILE_VIEWER', `unsupported file type for inline viewing, isPdf=${isPdf(fileToDownload)}, isTextFile=${isTextFile(fileToDownload)}`);
                 // For images/videos/audio, we'll embed them later
                 // For now, just store the path
             }
@@ -211,7 +211,8 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     intl.formatMessage({id: 'file_viewer.error', defaultMessage: 'Error'}),
                     intl.formatMessage({id: 'file_viewer.download_failed', defaultMessage: 'Failed to download file'}),
                 );
-                setFileState('unsupported');
+                // Don't set to unsupported - keep showing the error in UnsupportedView
+                // but allow retry via download button
             }
         }
     }, [serverUrl, theme, intl, handleClose]);
@@ -255,7 +256,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const handleMenuPress = useCallback(() => {
         bottomSheet({
             title: '',
-            renderContent: (
+            renderContent: () => (
                 <FileMenu
                     fileInfo={currentFileInfo}
                     onAction={(action) => {
@@ -315,9 +316,12 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         // Check if file should be rendered as PDF (either PDF file or Office file with PDF preview)
         const shouldRenderAsPdf = isPdf(currentFileInfo) || (hasPdfPreview(currentFileInfo) && currentFileInfo.pdf_preview_id);
 
+        debugLog('FILE_VIEWER', `shouldRenderAsPdf=${shouldRenderAsPdf}, isPdf=${isPdf(currentFileInfo)}, hasPdfPreview=${hasPdfPreview(currentFileInfo)}, pdf_preview_id=${currentFileInfo.pdf_preview_id}`);
+        debugLog('FILE_VIEWER', `currentFileInfo: name=${currentFileInfo.name}, extension=${currentFileInfo.extension}, mime_type=${currentFileInfo.mime_type}`);
+
         // Render PDF inline if ready (includes Office files converted to PDF)
         if (fileState === 'viewable' && filePath && shouldRenderAsPdf) {
-            debugLog('FILE_VIEWER', `rendering inline PDF viewer, isPdf:${isPdf(currentFileInfo)}, hasPdfPreview:${hasPdfPreview(currentFileInfo)}`);
+            debugLog('FILE_VIEWER', `rendering inline PDF viewer, filePath=${filePath}`);
             if (pdfError) {
                 debugLog('FILE_VIEWER', `PDF load error: ${pdfError}`);
                 return (
@@ -330,6 +334,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     </View>
                 );
             }
+            debugLog('FILE_VIEWER', `rendering SecurePdfViewer with source: ${filePath}`);
             return (
                 <SecurePdfViewer
                     allowLinks={false}
