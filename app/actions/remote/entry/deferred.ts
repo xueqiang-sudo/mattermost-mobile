@@ -13,6 +13,7 @@ import {Preferences} from '@constants';
 import DatabaseManager from '@database/manager';
 import {getTeammateNameDisplaySetting} from '@helpers/api/preference';
 import {processEntryModels, processEntryModelsForDeletion} from '@queries/servers/entry';
+import {getTeamSyncInfo, setTeamSyncInfo} from '@queries/servers/system';
 import {isDMorGM} from '@utils/channel';
 import {logError} from '@utils/log';
 import {processIsCRTEnabled} from '@utils/thread';
@@ -84,8 +85,6 @@ export async function restDeferredAppEntryActions(
         };
 
         const processTeams = async () => {
-            const {getTeamSyncInfo, setTeamSyncInfo} = require('@queries/servers/system');
-
             for (const team of teamQueue) {
                 let data: MyChannelsRequest = {};
                 try {

@@ -14,7 +14,7 @@ import NetworkManager from '@managers/network_manager';
 import {getActiveServerUrl} from '@queries/app/servers';
 import {prepareCategoriesAndCategoriesChannels} from '@queries/servers/categories';
 import {prepareMyChannelsForTeam, getDefaultChannelForTeam} from '@queries/servers/channel';
-import {prepareCommonSystemValues, getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
+import {prepareCommonSystemValues, getCurrentTeamId, getCurrentUserId, getTeamSyncInfo, setTeamSyncInfo} from '@queries/servers/system';
 import {addTeamToTeamHistory, prepareDeleteTeam, prepareMyTeams, getNthLastChannelFromTeam, queryTeamsById, getLastTeam, getTeamById, removeTeamFromTeamHistory, queryMyTeams} from '@queries/servers/team';
 import {getIsCRTEnabled} from '@queries/servers/thread';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
@@ -465,7 +465,6 @@ async function syncMyChannelsAfterTeamSwitch(serverUrl: string, teamId: string) 
         const isCRTEnabled = await getIsCRTEnabled(database);
 
         // Check team sync status to decide full vs incremental sync
-        const {getTeamSyncInfo, setTeamSyncInfo} = require('@queries/servers/system');
         const syncInfo = await getTeamSyncInfo(database, teamId);
 
         let since = 0;

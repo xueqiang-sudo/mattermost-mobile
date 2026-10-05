@@ -10,6 +10,7 @@ import {fetchConfigAndLicense, fetchDataRetentionPolicy} from '@actions/remote/s
 import {fetchMyTeams, fetchTeamMembersForClassification, handleKickFromTeam, type MyTeamsRequest} from '@actions/remote/team';
 import {debugLog} from '@store/debug_log';
 import {fetchMe, type MyUserRequest} from '@actions/remote/user';
+import {setTeamSyncInfo} from '@queries/servers/system';
 import {General, Preferences, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import {PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
@@ -206,7 +207,6 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
 
         // Mark initial team as fully synced if this is a fresh sync (since=0)
         if (initialTeamId && !since) {
-            const {setTeamSyncInfo} = require('@queries/servers/system');
             await setTeamSyncInfo(operator, {
                 teamId: initialTeamId,
                 lastFullSync: Date.now(),
