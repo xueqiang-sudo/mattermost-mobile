@@ -527,8 +527,11 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
         debugLog('TEAM_SWITCH', 'batch records saved');
     }
 
-    // Fetch Groups + GroupTeams
-    fetchGroupsForTeamIfConstrained(serverUrl, teamId);
+    // Fetch Groups + GroupTeams (必须等待完成，否则群组分类会出错)
+    debugLog('TEAM_SWITCH', 'fetching groups');
+    await fetchGroupsForTeamIfConstrained(serverUrl, teamId);
+    debugLog('TEAM_SWITCH', 'groups fetched');
+
     fetchScheduledPosts(serverUrl, teamId, false);
     debugLog('TEAM_SWITCH', 'syncing channels');
     await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
