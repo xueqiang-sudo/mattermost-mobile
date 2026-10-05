@@ -334,12 +334,14 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     </View>
                 );
             }
-            debugLog('FILE_VIEWER', `rendering SecurePdfViewer with source: ${filePath}`);
+            // SecurePdfViewer expects path without file:// prefix
+            const pdfSource = filePath.replace('file://', '');
+            debugLog('FILE_VIEWER', `rendering SecurePdfViewer with source: ${pdfSource}`);
             return (
                 <SecurePdfViewer
                     allowLinks={false}
                     onLoadError={onPdfLoadError}
-                    source={filePath}
+                    source={pdfSource}
                     style={styles.pdfView}
                 />
             );
