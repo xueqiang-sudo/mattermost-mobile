@@ -336,11 +336,14 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 );
             }
             // SecurePdfViewer expects path without file:// prefix
+            // This avoids URL parsing issues with special characters (Chinese, spaces, etc.)
             const pdfSource = filePath.replace('file://', '');
             debugLog('FILE_VIEWER', `rendering SecurePdfViewer:`);
             debugLog('FILE_VIEWER', `  original filePath: ${filePath}`);
             debugLog('FILE_VIEWER', `  pdfSource (without file://): ${pdfSource}`);
             debugLog('FILE_VIEWER', `  filePath length: ${filePath.length}, pdfSource length: ${pdfSource.length}`);
+            debugLog('FILE_VIEWER', `  contains Chinese chars: ${/[一-鿿]/.test(pdfSource)}`);
+            debugLog('FILE_VIEWER', `  contains spaces: ${pdfSource.includes(' ')}`);
             return (
                 <SecurePdfViewer
                     allowLinks={false}
