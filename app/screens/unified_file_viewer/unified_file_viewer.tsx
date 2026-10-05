@@ -97,6 +97,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
     const onPdfLoadError = useCallback((event: OnLoadErrorEvent) => {
         logError('Error loading PDF', event.nativeEvent.message);
+        debugLog('FILE_VIEWER', `PDF load error: ${event.nativeEvent.message}`);
         setPdfError(event.nativeEvent.message);
         setFileState('unsupported');
     }, []);
@@ -336,7 +337,10 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             }
             // SecurePdfViewer expects path without file:// prefix
             const pdfSource = filePath.replace('file://', '');
-            debugLog('FILE_VIEWER', `rendering SecurePdfViewer with source: ${pdfSource}`);
+            debugLog('FILE_VIEWER', `rendering SecurePdfViewer:`);
+            debugLog('FILE_VIEWER', `  original filePath: ${filePath}`);
+            debugLog('FILE_VIEWER', `  pdfSource (without file://): ${pdfSource}`);
+            debugLog('FILE_VIEWER', `  filePath length: ${filePath.length}, pdfSource length: ${pdfSource.length}`);
             return (
                 <SecurePdfViewer
                     allowLinks={false}
