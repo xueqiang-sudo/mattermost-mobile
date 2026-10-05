@@ -2,12 +2,13 @@
 // See LICENSE.txt for license information.
 
 import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {StyleSheet, TouchableOpacity, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 
 import Document, {type DocumentRef} from '@components/document';
 import ProgressBar from '@components/progress_bar';
 import {useTheme} from '@context/theme';
 import {useDownloadFileAndPreview} from '@hooks/files';
+import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isDocument, isPdf} from '@utils/file';
 
 import FileIcon from './file_icon';
@@ -40,6 +41,7 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
     const {downloading, progress, toggleDownloadAndPreview} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     const handlePreviewPress = async () => {
+        debugLog('FILE_CLICK', `DocumentFile.handlePreviewPress called for ${file.name}`);
         document.current?.handlePreviewPress();
     };
 
@@ -77,12 +79,7 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
             downloadAndPreviewFile={toggleDownloadAndPreview}
             ref={document}
         >
-            <TouchableOpacity
-                disabled={disabled}
-                onPress={handlePreviewPress}
-            >
-                {fileAttachmentComponent}
-            </TouchableOpacity>
+            {fileAttachmentComponent}
         </Document>
     );
 });

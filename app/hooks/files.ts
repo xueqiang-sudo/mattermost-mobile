@@ -236,13 +236,18 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
     }, [intl, openDocument, serverUrl]);
 
     const toggleDownloadAndPreview = useCallback((file: FileInfo) => {
+        debugLog('FILE_CLICK', `toggleDownloadAndPreview called for ${file.name}`);
+        debugLog('FILE_CLICK', `downloading: ${downloading}, progress: ${progress}`);
         if (downloading && progress < 1) {
+            debugLog('FILE_CLICK', 'cancelling download (in progress)');
             cancelDownload();
         } else if (downloading) {
+            debugLog('FILE_CLICK', 'cancelling download (completed)');
             setProgress(0);
             cancelDownload();
             setDownloading(false);
         } else {
+            debugLog('FILE_CLICK', 'calling downloadAndPreviewFile');
             downloadAndPreviewFile(file);
         }
     }, [downloading, progress, downloadAndPreviewFile]);

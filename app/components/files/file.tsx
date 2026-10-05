@@ -128,6 +128,16 @@ const File = ({
     // 智能文件路由：根据文件类型决定是直接打开还是显示对话框
     const handleShowFileActions = useCallback(() => {
         debugLog('FILE_CLICK', `clicked: ${file.name} mime:${file.mime_type} ext:${file.extension}`);
+        console.log('[File] handleShowFileActions called:', {
+            name: file.name,
+            mime: file.mime_type,
+            ext: file.extension,
+            isPdf: isPdf(file),
+            hasPdfPreview: hasPdfPreview(file),
+            isTextFile: isTextFile(file),
+            isDocument: isDocument(file),
+            pdf_preview_id: file.pdf_preview_id,
+        });
 
         // PDF 文件：直接打开
         if (isPdf(file)) {
@@ -153,12 +163,14 @@ const File = ({
         // Office 文件未转换：显示对话框（带轮询）
         if (isDocument(file) && !isPdf(file)) {
             debugLog('FILE_CLICK', 'is document (not PDF), showing action dialog');
+            console.log('[File] Setting showActionDialog to true');
             setShowActionDialog(true);
             return;
         }
 
         // 不可识别的文件：显示对话框（用其他应用打开）
         debugLog('FILE_CLICK', 'unrecognized file type, showing action dialog');
+        console.log('[File] Unrecognized file type, setting showActionDialog to true');
         setShowActionDialog(true);
     }, [file, handlePreviewPress]);
 
@@ -277,11 +289,15 @@ const File = ({
 
         fileComponent = asCard ? renderCardWithImage(renderImageFile) : renderImageFile;
     } else if (isDocument(file)) {
+        debugLog('FILE_RENDER', `rendering document: ${file.name}, ref exists: ${!!document}`);
         // 所有文件都可以点击显示操作对话框
         const renderDocumentFile = (
             <View style={style.iconWrapper}>
                 <TouchableWithFeedback
-                    onPress={handleShowFileActions}
+                    onPress={() => {
+                        debugLog('FILE_CLICK', `TouchableWithFeedback pressed for document: ${file.name}`);
+                        handleShowFileActions();
+                    }}
                     disabled={isPressDisabled}
                     type={'opacity'}
                 >

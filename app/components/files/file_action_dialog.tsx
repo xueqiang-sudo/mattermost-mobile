@@ -243,13 +243,31 @@ const FileActionDialog = ({
         }
     }, [visible, stopPolling]);
 
-    if (!file) return null;
+    if (!file) {
+        console.log('[FileActionDialog] no file, returning null');
+        return null;
+    }
+
+    console.log('[FileActionDialog] rendering:', {
+        visible,
+        fileName: file.name,
+        isPolling,
+        hasPdfPreviewId: Boolean(file.pdf_preview_id),
+    });
 
     const fileName = file.name || 'Unknown';
     const fileSize = getFormattedFileSize(file.size);
     const ext = getFileExtension(fileName);
     const isOffice = isOfficeFile(fileName);
     const hasConverted = Boolean(file.pdf_preview_id);
+
+    console.log('[FileActionDialog] file details:', {
+        fileName,
+        ext,
+        isOffice,
+        hasConverted,
+        fileSize,
+    });
 
     // 确定显示内容
     let content;
