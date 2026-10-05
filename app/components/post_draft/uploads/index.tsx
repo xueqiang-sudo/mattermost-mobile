@@ -31,17 +31,27 @@ const DRAFT_MEDIA_ROW_H_PAD = 12;
 const DRAFT_STRIP_MEDIA_MIN = 84;
 const DRAFT_STRIP_MEDIA_MAX = 102;
 
+/** WeChat-style large image preview: show images as larger previews (not small thumbnails) */
+const DRAFT_IMAGE_PREVIEW_MIN = 180;
+const DRAFT_IMAGE_PREVIEW_MAX = 240;
+
 /** Bottom padding on the animated file container when attachments exist (must match height math below). */
 const FILE_CONTAINER_PAD_BOTTOM = 5;
 
 /** `draftAttachmentsScrollContent` paddingTop/Bottom + `fileContainerStyle` paddingBottom when files exist */
 const DRAFT_STRIP_VERTICAL_CHROME = 14 + 2 + FILE_CONTAINER_PAD_BOTTOM;
+const DRAFT_IMAGE_VERTICAL_CHROME = 12 + 2 + FILE_CONTAINER_PAD_BOTTOM;
 const PREVIEW_HEIGHT_MIN_EMPTY = 0;
 const ERROR_HEIGHT_MAX = 20;
 const ERROR_HEIGHT_MIN = 0;
 
 function isDraftMediaFile(file: FileInfo): boolean {
     return isImage(file) || isVideo(file);
+}
+
+/** Check if all files are images (for WeChat-style large preview) */
+function allFilesAreImages(files: FileInfo[]): boolean {
+    return files.length > 0 && files.every((file) => isImage(file));
 }
 
 type Props = {
@@ -83,6 +93,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             paddingTop: 14,
             paddingBottom: 2,
         },
+        /** WeChat-style large image preview container */
+        draftImagePreviewScrollContent: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            paddingHorizontal: DRAFT_MEDIA_ROW_H_PAD,
+            paddingTop: 12,
+            paddingBottom: 2,
+        },
         errorContainer: {
             height: 0,
         },
@@ -121,20 +139,32 @@ function Uploads({
 
     const [innerLayoutHeight, setInnerLayoutHeight] = useState(0);
 
+    // Check if all files are images for WeChat-style large preview
+    const isAllImages = useMemo(() => allFilesAreImages(files), [files]);
+
     const draftStripMediaSize = useMemo(() => {
+        // Use larger size for images (WeChat-style)
+        if (isAllImages) {
+            return Math.min(
+                DRAFT_IMAGE_PREVIEW_MAX,
+                Math.max(DRAFT_IMAGE_PREVIEW_MIN, Math.round(windowWidth * 0.45)),
+            );
+        }
         return Math.min(
             DRAFT_STRIP_MEDIA_MAX,
             Math.max(DRAFT_STRIP_MEDIA_MIN, Math.round(windowWidth * 0.24)),
         );
-    }, [windowWidth]);
+    }, [windowWidth, isAllImages]);
 
     /** onLayout 前用于首帧高度，须包含 scroll 内边距 + 外层 paddingBottom，否则动画高度会小于真实内容并从顶部裁切 */
     const estimatedStripHeight = useMemo(() => {
         if (!files.length) {
             return PREVIEW_HEIGHT_MIN_EMPTY;
         }
-        return DRAFT_STRIP_VERTICAL_CHROME + draftStripMediaSize;
-    }, [files.length, draftStripMediaSize]);
+        // Use different chrome for images
+        const chrome = isAllImages ? DRAFT_IMAGE_VERTICAL_CHROME : DRAFT_STRIP_VERTICAL_CHROME;
+        return chrome + draftStripMediaSize;
+    }, [files.length, draftStripMediaSize, isAllImages]);
 
     const errorAnimatedStyle = useAnimatedStyle(() => {
         return {
@@ -182,12 +212,14 @@ function Uploads({
         const measuredCore =
             innerLayoutHeight > 0 ? innerLayoutHeight + paddingB : estimatedStripHeight;
         const fromLayout = Math.max(measuredCore, estimatedStripHeight);
+        // Use different minimum height for images
+        const minHeight = isAllImages ? DRAFT_IMAGE_PREVIEW_MIN : PREVIEW_HEIGHT_MIN;
         const h = Math.min(
-            Math.max(fromLayout, PREVIEW_HEIGHT_MIN),
+            Math.max(fromLayout, minHeight),
             PREVIEW_HEIGHT_CAP,
         );
         containerHeight.value = h;
-    }, [containerHeight, estimatedStripHeight, hasFiles, innerLayoutHeight]);
+    }, [containerHeight, estimatedStripHeight, hasFiles, innerLayoutHeight, isAllImages]);
 
     const openGallery = useCallback((file: FileInfo) => {
         const items = filesForGallery.current.map((f) => fileToGalleryItem(f, currentUserId, undefined, 0, f.id || f.clientId));
@@ -213,7 +245,7 @@ function Uploads({
                                 horizontal={true}
                                 showsHorizontalScrollIndicator={true}
                                 style={style.draftAttachmentsScroll}
-                                contentContainerStyle={style.draftAttachmentsScrollContent}
+                                contentContainerStyle={isAllImages ? style.draftImagePreviewScrollContent : style.draftAttachmentsScrollContent}
                                 keyboardShouldPersistTaps='handled'
                                 testID='uploads-draft-attachments'
                             >

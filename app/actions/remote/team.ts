@@ -492,8 +492,8 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
         if (channelId) {
             await switchToChannelById(serverUrl, channelId, teamId);
             await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
+            await fetchTeamMembersForClassification(serverUrl, teamId);
             DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
-            fetchTeamMembersForClassification(serverUrl, teamId);
             return {};
         }
     }
@@ -517,14 +517,11 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
     fetchScheduledPosts(serverUrl, teamId, false);
     await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
 
+    // 获取团队成员用于频道分类（内部群/外部群），必须在隐藏 loading 前完成
+    await fetchTeamMembersForClassification(serverUrl, teamId);
+
     // 数据获取完成后再隐藏 loading，避免显示旧团队的空数据
     DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);
-
-    // Fire-and-forget: fetch all team members for channel classification
-    // (internal vs external). Without this, TEAM_MEMBERSHIP only has
-    // members from the initial team, and classification returns 'external'
-    // for all GM/Private channels on the newly switched team.
-    fetchTeamMembersForClassification(serverUrl, teamId);
 
     return {};
 }

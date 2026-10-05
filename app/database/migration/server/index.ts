@@ -27,6 +27,17 @@ const {PLAYBOOK_RUN, PLAYBOOK_CHECKLIST, PLAYBOOK_CHECKLIST_ITEM, PLAYBOOK_RUN_A
 
 export default schemaMigrations({migrations: [
     {
+        toVersion: 19,
+        steps: [
+            addColumns({
+                table: FILE,
+                columns: [
+                    {name: 'pdf_preview_id', type: 'string', isOptional: true},
+                ],
+            }),
+        ],
+    },
+    {
         toVersion: 18,
         steps: [
             addColumns({

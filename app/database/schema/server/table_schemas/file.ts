@@ -20,5 +20,6 @@ export default tableSchema({
         {name: 'size', type: 'number'},
         {name: 'width', type: 'number'},
         {name: 'is_blocked', type: 'boolean'},
+        {name: 'pdf_preview_id', type: 'string', isOptional: true},
     ],
 });
