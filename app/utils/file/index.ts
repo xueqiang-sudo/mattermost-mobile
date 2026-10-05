@@ -53,7 +53,9 @@ export const GENERAL_SUPPORTED_DOCS_FORMAT = [
     'application/x-x509-ca-cert',
     'application/xml',
     'text/csv',
+    'text/markdown',
     'text/plain',
+    'text/x-markdown',
 ];
 
 const SUPPORTED_DOCS_FORMAT = Platform.select({

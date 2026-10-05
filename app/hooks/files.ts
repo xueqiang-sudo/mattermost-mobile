@@ -140,6 +140,45 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
     const downloadAndPreviewFile = useCallback(async (file: FileInfo) => {
         setDidCancel(false);
+
+        // Office 文件有 PDF 预览版本时，下载并打开 PDF 版本
+        if (hasPdfPreview(file) && file.pdf_preview_id) {
+            const pdfFileInfo: FileInfo = {
+                ...file,
+                id: file.pdf_preview_id,
+                name: file.name.replace(/\.[^.]+$/, '.pdf'),
+                extension: 'pdf',
+                mime_type: 'application/pdf',
+            };
+
+            let pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
+            const pdfExists = await fileExists(pdfPath);
+
+            try {
+                if (!pdfExists) {
+                    setDownloading(true);
+                    downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
+                    downloadTask.current?.progress?.(setProgress);
+                    await downloadTask.current;
+                    setProgress(1);
+                }
+
+                openDocument(pdfFileInfo);
+            } catch (error) {
+                if (pdfPath) {
+                    deleteAsync(pdfPath, {idempotent: true});
+                }
+                setDownloading(false);
+                setProgress(0);
+
+                if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
+                    logDebug('error downloading PDF preview', getFullErrorMessage(error));
+                    alertDownloadFailed(intl);
+                }
+            }
+            return;
+        }
+
         let path;
         let exists = false;
 
@@ -202,5 +241,6 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
         downloading,
         progress,
         toggleDownloadAndPreview,
+        downloadAndPreviewFile,
     };
 };

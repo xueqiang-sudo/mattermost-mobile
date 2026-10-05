@@ -498,6 +498,9 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
         }
     }
 
+    // 在更新 currentTeamId 之前先获取团队成员，避免 UI observable 在成员数据就绪前触发
+    await fetchTeamMembersForClassification(serverUrl, teamId);
+
     const models = [];
     const system = await prepareCommonSystemValues(operator, {currentChannelId: channelId, currentTeamId: teamId, lastUnreadChannelId: ''});
     if (system?.length) {
@@ -516,9 +519,6 @@ export async function handleTeamChange(serverUrl: string, teamId: string) {
     fetchGroupsForTeamIfConstrained(serverUrl, teamId);
     fetchScheduledPosts(serverUrl, teamId, false);
     await syncMyChannelsAfterTeamSwitch(serverUrl, teamId);
-
-    // 获取团队成员用于频道分类（内部群/外部群），必须在隐藏 loading 前完成
-    await fetchTeamMembersForClassification(serverUrl, teamId);
 
     // 数据获取完成后再隐藏 loading，避免显示旧团队的空数据
     DeviceEventEmitter.emit(Events.TEAM_SWITCH, false);

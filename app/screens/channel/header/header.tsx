@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Keyboard, Platform, Text, View} from 'react-native';
 
@@ -9,6 +9,8 @@ import {getCallsConfig} from '@calls/state';
 import CompassIcon from '@components/compass_icon';
 import CustomStatusEmoji from '@components/custom_status/custom_status_emoji';
 import NavigationHeader from '@components/navigation_header';
+import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import {switchToChannelById} from '@actions/remote/channel';
 import {General, Screens} from '@constants';
 import {type PlusMenuEntry, usePlusMenu} from '@context/plus_menu';
 import {useServerUrl} from '@context/server';
@@ -17,12 +19,13 @@ import {useIsTablet} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
 import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@playbooks/screens/navigation';
-import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
+import {type BotInfo, getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
-import {goToScreen, popTopScreen, showModal} from '@screens/navigation';
+import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -134,6 +137,23 @@ const ChannelHeader = ({
     }
 
     const isDMorGM = isTypeDMorGM(channelType);
+    const isGM = channelType === General.GM_CHANNEL;
+
+    // Pre-fetch bots for GM channels to conditionally show AI Customer Service
+    const [channelBots, setChannelBots] = useState<BotInfo[]>([]);
+    useEffect(() => {
+        if (!isGM) {
+            setChannelBots([]);
+            return;
+        }
+        let cancelled = false;
+        getChannelBots(serverUrl, channelId).then((bots) => {
+            if (!cancelled) {
+                setChannelBots(bots);
+            }
+        }).catch(() => {/* ignore */});
+        return () => { cancelled = true; };
+    }, [serverUrl, channelId, isGM]);
 
     const onBackPress = useCallback(() => {
         Keyboard.dismiss();
@@ -161,30 +181,56 @@ const ChannelHeader = ({
         showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
     }), [channelId, channelName, channelType, intl, theme]));
 
+    const openBotChat = useCallback(async (bot: BotInfo) => {
+        const channel = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
+        if (channel) {
+            switchToChannelById(serverUrl, channel.id);
+        }
+    }, [serverUrl]);
+
     const openAICustomerService = useCallback(async () => {
         try {
-            const bots = await getChannelBots(serverUrl, channelId);
+            const bots = channelBots.length > 0 ? channelBots : await getChannelBots(serverUrl, channelId);
             if (bots.length === 0) {
                 return;
             }
-            // If only one bot, open bot GM directly
+
             if (bots.length === 1) {
-                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId, bots[0].teamId);
-                if (channel) {
-                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
-                }
-            } else {
-                // Multiple bots - for now, use the first one
-                // TODO: Show ActionSheet to select bot
-                const channel = await openDirectChannelWithBot(serverUrl, bots[0].botId, bots[0].teamId);
-                if (channel) {
-                    goToScreen(Screens.CHANNEL, displayName, {channelId: channel.id});
-                }
+                await openBotChat(bots[0]);
+                return;
             }
+
+            // Multiple bots: show bottom sheet for selection
+            const CLOSE_BUTTON_ID = 'close-bot-selection';
+            const snapPoint = bottomSheetSnapPoint(bots.length, ITEM_HEIGHT);
+
+            const renderContent = () => (
+                <View>
+                    {bots.map((bot) => (
+                        <SlideUpPanelItem
+                            key={bot.botId}
+                            leftIcon='robot-happy-outline'
+                            onPress={async () => {
+                                await openBotChat(bot);
+                            }}
+                            text={bot.label}
+                            testID={`bot_selection.${bot.botId}`}
+                        />
+                    ))}
+                </View>
+            );
+
+            bottomSheet({
+                closeButtonId: CLOSE_BUTTON_ID,
+                title: intl.formatMessage({id: 'ai_customer_service.select_bot', defaultMessage: 'Select AI Assistant'}),
+                snapPoints: [1, snapPoint],
+                renderContent,
+                theme,
+            });
         } catch {
             // ignore
         }
-    }, [channelId, displayName, serverUrl]);
+    }, [channelBots, channelId, serverUrl, intl, theme, openBotChat]);
 
     const openConsultation = useCallback(() => {
         const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
@@ -221,13 +267,16 @@ const ChannelHeader = ({
     const {openPlusMenu} = usePlusMenu();
 
     const onChannelQuickAction = useCallback((event: any) => {
-        // Show overflow menu dropdown below the "..." button
-        const isGM = channelType === General.GM_CHANNEL;
-        const isDM = channelType === General.DM_CHANNEL;
+        // Public channel: directly open channel info, skip dropdown menu
+        if (channelType === General.OPEN_CHANNEL) {
+            onTitlePress();
+            return;
+        }
 
+        // Show overflow menu dropdown below the "..." button
         const menuItems: PlusMenuEntry[] = [];
 
-        if (isGM) {
+        if (isGM && channelBots.length > 0) {
             menuItems.push({
                 labelId: 'channel_header.ai_customer_service',
                 defaultLabel: 'AI Customer Service',
@@ -236,25 +285,23 @@ const ChannelHeader = ({
             });
         }
 
-        if (!isDM) {
-            menuItems.push({
-                labelId: 'consultation.title',
-                defaultLabel: 'Consult Expert',
-                onPress: openConsultation,
-                testID: 'channel_header.overflow.consultation',
-            });
-
-            menuItems.push({
-                labelId: 'ai_assistant.title',
-                defaultLabel: 'AI Assistant',
-                onPress: openAIAssistant,
-                testID: 'channel_header.overflow.ai_assistant',
-            });
-        }
+        menuItems.push({
+            labelId: 'consultation.title',
+            defaultLabel: 'Consult Expert',
+            onPress: openConsultation,
+            testID: 'channel_header.overflow.consultation',
+        });
 
         menuItems.push({
-            labelId: 'screens.channel_info',
-            defaultLabel: 'Channel Info',
+            labelId: 'channel_header.group_summary',
+            defaultLabel: 'Group Summary',
+            onPress: openAIAssistant,
+            testID: 'channel_header.overflow.group_summary',
+        });
+
+        menuItems.push({
+            labelId: 'screens.group_info',
+            defaultLabel: 'Group Info',
             onPress: onTitlePress,
             testID: 'channel_header.overflow.channel_settings',
         });
@@ -270,7 +317,7 @@ const ChannelHeader = ({
             anchorTop: (pageY || 0) + buttonHeight + 4, // 4px gap below button
             items: menuItems,
         });
-    }, [channelType, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openPlusMenu]);
+    }, [channelType, isGM, channelBots, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openPlusMenu]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead

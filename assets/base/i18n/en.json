@@ -2509,6 +2509,8 @@
   "contacts.role_saved": "Roles saved successfully",
   "contacts.role_save_failed": "Failed to save roles",
   "channel_header.ai_customer_service": "AI Customer Service",
+  "channel_header.group_summary": "Group Summary",
+  "ai_customer_service.select_bot": "Select AI Assistant",
   "channel_header.overflow.title": "More",
   "consultation.title": "Consult Expert",
   "ai_assistant.title": "AI Assistant",

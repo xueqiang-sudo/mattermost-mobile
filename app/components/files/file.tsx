@@ -9,7 +9,7 @@ import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {useGalleryItem} from '@hooks/gallery';
 import {useDownloadFileAndPreview} from '@hooks/files';
-import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isVideo} from '@utils/file';
+import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import AudioFile from './audio_file';
@@ -131,6 +131,12 @@ const File = ({
 
         // Office 文件已转换为 PDF：直接打开
         if (hasPdfPreview(file)) {
+            handlePreviewPress();
+            return;
+        }
+
+        // 文本文件（.md, .json, .txt, .csv 等）：直接打开
+        if (isTextFile(file)) {
             handlePreviewPress();
             return;
         }
