@@ -96,11 +96,9 @@ export async function restDeferredAppEntryActions(
                     if (!syncInfo.fullySynced) {
                         // First time syncing this team: full sync
                         teamSince = 0;
-                        debugLog('TEAM_SYNC', `background full sync for team ${team.id}`);
                     } else {
                         // Already synced: use team's own lastFullSync
                         teamSince = syncInfo.lastFullSync;
-                        debugLog('TEAM_SYNC', `background incremental sync for team ${team.id} since=${teamSince}`);
                     }
 
                     /* eslint-disable-next-line no-await-in-loop */

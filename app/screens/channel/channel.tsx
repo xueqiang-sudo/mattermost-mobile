@@ -139,11 +139,10 @@ const Channel = ({
     // Sync GM channel members when entering a GM channel
     useEffect(() => {
         if (channelType === General.GM_CHANNEL && channelId && serverUrl) {
-            debugLog('GM_SYNC', `entering GM channel ${channelId}, refreshing members`);
             // Fire-and-forget: refresh GM members when entering the channel
             // This ensures member list is up-to-date when user views the channel
             fetchProfilesInGroupChannels(serverUrl, [channelId], false, undefined, 0).catch((error) => {
-                debugLog('GM_SYNC', `error refreshing members: ${error}`);
+                logDebug('error refreshing GM members', error);
             });
         }
     }, [channelId, channelType, serverUrl]);

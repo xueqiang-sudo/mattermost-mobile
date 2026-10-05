@@ -212,7 +212,6 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
                 lastFullSync: Date.now(),
                 fullySynced: true,
             });
-            debugLog('TEAM_SYNC', `marked initial team ${initialTeamId} as fully synced`);
         }
 
         // Fire-and-forget: fetch all team members for channel classification
