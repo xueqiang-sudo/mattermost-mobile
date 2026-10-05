@@ -14,6 +14,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
@@ -62,6 +63,8 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
+
+    debugLog('FILE_VIEWER', `UnifiedFileViewer mounted: ${fileInfo.name}, id:${fileId}`);
 
     const [fileState, setFileState] = useState<FileState>('loading');
     const [filePath, setFilePath] = useState<string>('');
@@ -140,42 +143,58 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [serverUrl, fileId, currentFileInfo]);
 
     const downloadAndShowFile = useCallback(async (file: FileInfo) => {
+        debugLog('FILE_VIEWER', `downloadAndShowFile called: ${file.name}, id:${file.id}`);
         try {
             // Handle PDF preview (for Office files)
             const fileToDownload = hasPdfPreview(file) && file.pdf_preview_id
                 ? {...file, id: file.pdf_preview_id, name: file.name.replace(/\.[^.]+$/, '.pdf'), extension: 'pdf', mime_type: 'application/pdf'}
                 : file;
 
+            debugLog('FILE_VIEWER', `fileToDownload: ${fileToDownload.name}, id:${fileToDownload.id}, hasPdfPreview:${hasPdfPreview(file)}`);
+
             let path = decodeURIComponent(fileToDownload.localPath || '');
             let exists = false;
             if (path) {
                 exists = await fileExists(path);
+                debugLog('FILE_VIEWER', `local path: ${path}, exists: ${exists}`);
             }
 
             if (!exists) {
                 path = getLocalFilePathFromFile(serverUrl, fileToDownload);
+                debugLog('FILE_VIEWER', `computed path: ${path}`);
             }
 
             if (!exists) {
+                debugLog('FILE_VIEWER', `downloading file...`);
                 setProgress(0);
                 downloadTask.current = downloadFile(serverUrl, fileToDownload.id!, path!);
                 downloadTask.current?.progress?.(setProgress);
                 await downloadTask.current;
                 setProgress(1);
+                debugLog('FILE_VIEWER', `file downloaded`);
+            } else {
+                debugLog('FILE_VIEWER', `file already exists, skipping download`);
             }
 
             setFilePath(path!);
+            debugLog('FILE_VIEWER', `filePath set to: ${path}`);
 
             // Open with appropriate viewer
             if (isPdf(fileToDownload)) {
+                debugLog('FILE_VIEWER', `opening PDF viewer...`);
                 previewPdf(fileToDownload, path!, theme, handleClose);
+                debugLog('FILE_VIEWER', `PDF viewer opened`);
             } else if (isTextFile(fileToDownload)) {
+                debugLog('FILE_VIEWER', `opening text file viewer...`);
                 previewTextFile(fileToDownload, path!, theme, handleClose);
+                debugLog('FILE_VIEWER', `text file viewer opened`);
             } else {
+                debugLog('FILE_VIEWER', `unsupported file type for inline viewing`);
                 // For images/videos/audio, we'll embed them later
                 // For now, just store the path
             }
         } catch (error) {
+            debugLog('FILE_VIEWER', `error: ${getFullErrorMessage(error)}`);
             logDebug('Error downloading file:', getFullErrorMessage(error));
             if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
                 Alert.alert(
@@ -188,8 +207,13 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [serverUrl, theme, intl, handleClose]);
 
     const determineFileState = useCallback(() => {
+        debugLog('FILE_VIEWER', `determineFileState called for: ${fileInfo.name}`);
+        debugLog('FILE_VIEWER', `isOfficeFile: ${isOfficeFile(fileInfo)}, pdf_preview_id: ${fileInfo.pdf_preview_id}`);
+        debugLog('FILE_VIEWER', `isViewableFile: ${isViewableFile(fileInfo)}, isPdf: ${isPdf(fileInfo)}`);
+
         // Check if Office file is being converted
         if (isOfficeFile(fileInfo) && !fileInfo.pdf_preview_id) {
+            debugLog('FILE_VIEWER', `state: converting (Office file without PDF preview)`);
             setFileState('converting');
             startPolling();
             return;
@@ -197,12 +221,14 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
         // Check if file can be viewed
         if (isViewableFile(fileInfo)) {
+            debugLog('FILE_VIEWER', `state: viewable`);
             setFileState('viewable');
             downloadAndShowFile(fileInfo);
             return;
         }
 
         // Unsupported file
+        debugLog('FILE_VIEWER', `state: unsupported`);
         setFileState('unsupported');
     }, [fileInfo, startPolling, downloadAndShowFile]);
 
@@ -274,15 +300,20 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [filePath, currentFileInfo, handleDownload]);
 
     const renderContent = () => {
+        debugLog('FILE_VIEWER', `renderContent: fileState=${fileState}, progress=${progress}`);
         switch (fileState) {
             case 'loading':
+                debugLog('FILE_VIEWER', `rendering LoadingView (loading state)`);
                 return <LoadingView progress={progress}/>;
             case 'converting':
+                debugLog('FILE_VIEWER', `rendering ConvertingView`);
                 return <ConvertingView fileInfo={currentFileInfo}/>;
             case 'viewable':
                 // For now, just show loading while we open the appropriate viewer
+                debugLog('FILE_VIEWER', `rendering LoadingView (viewable state, waiting for viewer to open)`);
                 return <LoadingView progress={progress}/>;
             case 'unsupported':
+                debugLog('FILE_VIEWER', `rendering UnsupportedView`);
                 return (
                     <UnsupportedView
                         fileInfo={currentFileInfo}
@@ -291,6 +322,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     />
                 );
             default:
+                debugLog('FILE_VIEWER', `rendering null (unknown state)`);
                 return null;
         }
     };
