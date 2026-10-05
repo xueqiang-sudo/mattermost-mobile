@@ -572,7 +572,7 @@ export async function fetchMyChannel(serverUrl: string, teamId: string, channelI
 export async function fetchMissingDirectChannelsInfo(
     serverUrl: string, directChannels: Channel[], locale?: string,
     teammateDisplayNameSetting?: string, currentUserId?: string,
-    fetchOnly = false, groupLabel?: RequestGroupLabel,
+    fetchOnly = false, groupLabel?: RequestGroupLabel, since = 0,
 ) {
     try {
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -607,7 +607,7 @@ export async function fetchMissingDirectChannelsInfo(
         const profileChannelsToFetch = dmIds.filter((id) => membersCount[id] <= 1 && dmWithoutDisplayName.has(id));
         const results = await Promise.all([
             profileChannelsToFetch.length ? fetchProfilesPerChannels(serverUrl, profileChannelsToFetch, currentUserId, false, groupLabel) : Promise.resolve({data: undefined}),
-            fetchProfilesInGroupChannels(serverUrl, gms.map((c) => c.id), false, groupLabel),
+            fetchProfilesInGroupChannels(serverUrl, gms.map((c) => c.id), false, groupLabel, since),
         ]);
 
         const profileRequests = results.flat();

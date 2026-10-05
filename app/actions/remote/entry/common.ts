@@ -204,6 +204,17 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         logDebug('Process models on entry', groupLabel, models.length, `${Date.now() - dt}ms`);
         debugLog('ENTRY', `models written: ${models.length} in ${Date.now() - dt}ms`);
 
+        // Mark initial team as fully synced if this is a fresh sync (since=0)
+        if (initialTeamId && !since) {
+            const {setTeamSyncInfo} = require('@queries/servers/system');
+            await setTeamSyncInfo(operator, {
+                teamId: initialTeamId,
+                lastFullSync: Date.now(),
+                fullySynced: true,
+            });
+            debugLog('TEAM_SYNC', `marked initial team ${initialTeamId} as fully synced`);
+        }
+
         // Fire-and-forget: fetch all team members for channel classification
         // (internal vs external). Without this, TEAM_MEMBERSHIP only has the
         // current user's record(s) and classification always returns 'external'.

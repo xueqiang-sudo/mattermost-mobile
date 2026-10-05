@@ -65,7 +65,7 @@ export async function restDeferredAppEntryActions(
         // sidebar DM & GM profiles
         if (channelsToFetchProfiles.size) {
             const teammateDisplayNameSetting = getTeammateNameDisplaySetting(preferences || [], config.LockTeammateNameDisplay, config.TeammateNameDisplay, license);
-            fetchMissingDirectChannelsInfo(serverUrl, Array.from(channelsToFetchProfiles), currentUserLocale, teammateDisplayNameSetting, currentUserId, false, requestLabel);
+            fetchMissingDirectChannelsInfo(serverUrl, Array.from(channelsToFetchProfiles), currentUserLocale, teammateDisplayNameSetting, currentUserId, false, requestLabel, since);
         }
 
         updateAllUsersSince(serverUrl, since, false, requestLabel);
@@ -84,16 +84,42 @@ export async function restDeferredAppEntryActions(
         };
 
         const processTeams = async () => {
+            const {getTeamSyncInfo, setTeamSyncInfo} = require('@queries/servers/system');
+
             for (const team of teamQueue) {
                 let data: MyChannelsRequest = {};
                 try {
+                    // Check if this team has been synced before
                     /* eslint-disable-next-line no-await-in-loop */
-                    data = await fetchMyChannelsForTeam(serverUrl, team.id, false, since, true, false, isCRTEnabled, requestLabel);
+                    const syncInfo = await getTeamSyncInfo(database, team.id);
+
+                    let teamSince = since;
+                    if (!syncInfo.fullySynced) {
+                        // First time syncing this team: full sync
+                        teamSince = 0;
+                        debugLog('TEAM_SYNC', `background full sync for team ${team.id}`);
+                    } else {
+                        // Already synced: use team's own lastFullSync
+                        teamSince = syncInfo.lastFullSync;
+                        debugLog('TEAM_SYNC', `background incremental sync for team ${team.id} since=${teamSince}`);
+                    }
+
+                    /* eslint-disable-next-line no-await-in-loop */
+                    data = await fetchMyChannelsForTeam(serverUrl, team.id, false, teamSince, true, false, isCRTEnabled, requestLabel);
 
                     combineChannelsData(combinedChannelsData, data);
 
+                    // Mark team as synced
+                    /* eslint-disable-next-line no-await-in-loop */
+                    await setTeamSyncInfo(operator, {
+                        teamId: team.id,
+                        lastFullSync: Date.now(),
+                        fullySynced: true,
+                    });
+
                 } catch (error) {
                     logError('Error fetching channels for team', groupLabel, error);
+                    // Don't mark as synced if there was an error
                 }
 
                 const currentTeamData: MyTeamsRequest = {

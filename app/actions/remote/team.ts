@@ -461,14 +461,41 @@ export const removeUserFromTeam = async (serverUrl: string, teamId: string, user
 /** 切换团队后拉取该团队频道与分类，保证首页会话列表与当前企业一致（仅改 currentTeamId 时本地可能仍为旧数据） */
 async function syncMyChannelsAfterTeamSwitch(serverUrl: string, teamId: string) {
     try {
-        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const isCRTEnabled = await getIsCRTEnabled(database);
-        const {error} = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, false, false, isCRTEnabled);
+
+        // Check team sync status to decide full vs incremental sync
+        const {getTeamSyncInfo, setTeamSyncInfo} = require('@queries/servers/system');
+        const syncInfo = await getTeamSyncInfo(database, teamId);
+
+        let since = 0;
+        if (!syncInfo.fullySynced) {
+            // First time switching to this team: full sync
+            debugLog('TEAM_SYNC', `first time loading team ${teamId}, full sync`);
+            since = 0;
+        } else {
+            // Already synced: incremental sync
+            debugLog('TEAM_SYNC', `team ${teamId} already synced, incremental sync since=${syncInfo.lastFullSync}`);
+            since = syncInfo.lastFullSync;
+        }
+
+        const {error} = await fetchMyChannelsForTeam(serverUrl, teamId, true, since, false, false, isCRTEnabled);
         if (error) {
             logDebug('error on fetchMyChannelsForTeam after team switch', getFullErrorMessage(error));
+            debugLog('TEAM_SYNC', `team ${teamId} sync failed, will retry next time`);
+            // Don't mark as synced if there was an error
+        } else {
+            // Mark team as synced
+            await setTeamSyncInfo(operator, {
+                teamId,
+                lastFullSync: Date.now(),
+                fullySynced: true,
+            });
+            debugLog('TEAM_SYNC', `team ${teamId} synced successfully`);
         }
     } catch (e) {
         logDebug('syncMyChannelsAfterTeamSwitch', getFullErrorMessage(e));
+        debugLog('TEAM_SYNC', `team ${teamId} sync exception, will retry next time`);
     }
 }
 

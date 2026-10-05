@@ -12,9 +12,10 @@ import {General} from '@constants';
 import DatabaseManager from '@database/manager';
 import {debounce} from '@helpers/api/general';
 import NetworkManager from '@managers/network_manager';
-import {getMembersCountByChannelsId, queryChannelsByTypes} from '@queries/servers/channel';
+import {getMembersCountByChannelsId, queryChannelsById, queryChannelsByTypes} from '@queries/servers/channel';
 import {queryGroupsByNames} from '@queries/servers/group';
 import {getCurrentUserId, setCurrentUserId} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 import {getCurrentUser, prepareUsers, queryAllUsers, queryUsersById, queryUsersByIdsOrUsernames, queryUsersByUsername} from '@queries/servers/user';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
@@ -135,17 +136,53 @@ export async function fetchProfilesInChannel(
     }
 }
 
-export async function fetchProfilesInGroupChannels(serverUrl: string, groupChannelIds: string[], fetchOnly = false, groupLabel?: RequestGroupLabel): Promise<ProfilesPerChannelRequest> {
+export async function fetchProfilesInGroupChannels(serverUrl: string, groupChannelIds: string[], fetchOnly = false, groupLabel?: RequestGroupLabel, since = 0): Promise<ProfilesPerChannelRequest> {
     try {
         const client = NetworkManager.getClient(serverUrl);
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-        // let's filter those channels that we already have the users
-        const membersCount = await getMembersCountByChannelsId(database, groupChannelIds);
-        const channelsToFetch = groupChannelIds.filter((c) => membersCount[c] <= 1);
-        if (!channelsToFetch.length) {
+        if (!groupChannelIds.length) {
             return {data: []};
         }
+
+        // Incremental sync: only fetch members for GM channels that need it
+        const membersCount = await getMembersCountByChannelsId(database, groupChannelIds);
+
+        // Get channels from database to check their last_post_at
+        const channelIdsSet = new Set(groupChannelIds);
+        const channels = await queryChannelsById(database, groupChannelIds).fetch();
+        const channelMap = new Map(channels.map((c) => [c.id, c]));
+
+        // Filter channels to fetch:
+        // 1. New/empty channels (membersCount <= 1) - always fetch
+        // 2. Active channels (last_post_at > since) - fetch if active since last sync
+        // 3. If since = 0 (initial sync), fetch all
+        const channelsToFetch = groupChannelIds.filter((channelId) => {
+            // Always fetch for new/empty channels
+            if (membersCount[channelId] <= 1) {
+                return true;
+            }
+
+            // If no since timestamp (initial sync), fetch all
+            if (!since) {
+                return true;
+            }
+
+            // For incremental sync, only fetch if channel was active since last sync
+            const channel = channelMap.get(channelId);
+            if (channel && channel.lastPostAt > since) {
+                return true;
+            }
+
+            return false;
+        });
+
+        if (!channelsToFetch.length) {
+            debugLog('GM_SYNC', `no channels need refresh (${groupChannelIds.length} total, all inactive)`);
+            return {data: []};
+        }
+
+        debugLog('GM_SYNC', `fetching members for ${channelsToFetch.length}/${groupChannelIds.length} GM channels (incremental since=${since})`);
 
         // Batch fetching profiles per channel by chunks of 50
         const gms = chunk(channelsToFetch, 50);
@@ -189,6 +226,10 @@ export async function fetchProfilesInGroupChannels(serverUrl: string, groupChann
 
             const models = await Promise.all(modelPromises);
             await operator.batchRecords(models.flat(), 'fetchProfilesInGroupChannels');
+
+            // Log how many users were fetched
+            const totalUsers = data.reduce((sum, d) => sum + (d.users?.length || 0), 0);
+            debugLog('GM_SYNC', `fetched ${totalUsers} users from ${data.length} GM channels`);
         }
 
         return {data};

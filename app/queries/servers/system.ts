@@ -654,3 +654,41 @@ export const observeIsMinimumLicenseTier = (database: Database, shortSku: Licens
         distinctUntilChanged(),
     );
 };
+
+// Team sync status tracking
+const TEAM_SYNC_PREFIX = 'team_sync_';
+
+export type TeamSyncInfo = {
+    teamId: string;
+    lastFullSync: number;
+    fullySynced: boolean;
+};
+
+export const getTeamSyncInfo = async (database: Database, teamId: string): Promise<TeamSyncInfo> => {
+    const key = `${TEAM_SYNC_PREFIX}${teamId}`;
+    try {
+        const record = await database.get<SystemModel>(SYSTEM).find(key);
+        const data = JSON.parse(record.value || '{}');
+        return {
+            teamId,
+            lastFullSync: parseInt(data.lastFullSync || '0', 10),
+            fullySynced: Boolean(data.fullySynced),
+        };
+    } catch {
+        return { teamId, lastFullSync: 0, fullySynced: false };
+    }
+};
+
+export const setTeamSyncInfo = async (operator: ServerDataOperator, info: TeamSyncInfo, prepareRecordsOnly = false) => {
+    const key = `${TEAM_SYNC_PREFIX}${info.teamId}`;
+    return operator.handleSystem({
+        systems: [{
+            id: key,
+            value: JSON.stringify({
+                lastFullSync: info.lastFullSync.toString(),
+                fullySynced: info.fullySynced,
+            }),
+        }],
+        prepareRecordsOnly,
+    });
+};

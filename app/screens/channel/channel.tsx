@@ -8,13 +8,15 @@ import Animated, {runOnJS, useSharedValue} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
+import {fetchProfilesInGroupChannels} from '@actions/remote/user';
 import FloatingCallContainer from '@calls/components/floating_call_container';
 
 import FreezeScreen from '@components/freeze_screen';
 import PlusMenuOverlay from '@components/plus_menu_overlay';
 import PostDraft from '@components/post_draft';
 import ScheduledPostIndicator from '@components/scheduled_post_indicator';
-import {Screens} from '@constants';
+import {Screens, General} from '@constants';
+import {useServerUrl} from '@context/server';
 import {ExtraKeyboardProvider} from '@context/extra_keyboard';
 import {PlusMenuProvider} from '@context/plus_menu';
 import {useTheme} from '@context/theme';
@@ -24,6 +26,7 @@ import {useDefaultHeaderHeight} from '@hooks/header';
 import {useTeamSwitch} from '@hooks/team_switch';
 import SecurityManager from '@managers/security_manager';
 import {popTopScreen} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import EphemeralStore from '@store/ephemeral_store';
 import {getChatListBackdropColor} from '@utils/theme';
 
@@ -114,6 +117,8 @@ const Channel = ({
             }
         }) : undefined;
 
+    const serverUrl = useServerUrl();
+
     /** 消息区从顶栏占位底边开始，避免绝对定位顶栏（zIndex 10）盖住断网条 */
     const marginTop = defaultHeight;
     useEffect(() => {
@@ -130,6 +135,18 @@ const Channel = ({
             EphemeralStore.removeSwitchingToChannel(channelId);
         };
     }, [channelId]);
+
+    // Sync GM channel members when entering a GM channel
+    useEffect(() => {
+        if (channelType === General.GM_CHANNEL && channelId && serverUrl) {
+            debugLog('GM_SYNC', `entering GM channel ${channelId}, refreshing members`);
+            // Fire-and-forget: refresh GM members when entering the channel
+            // This ensures member list is up-to-date when user views the channel
+            fetchProfilesInGroupChannels(serverUrl, [channelId], false, undefined, 0).catch((error) => {
+                debugLog('GM_SYNC', `error refreshing members: ${error}`);
+            });
+        }
+    }, [channelId, channelType, serverUrl]);
 
     const onLayout = useCallback((e: LayoutChangeEvent) => {
         setContainerHeight(e.nativeEvent.layout.height);
