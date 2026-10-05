@@ -478,12 +478,27 @@ async function syncMyChannelsAfterTeamSwitch(serverUrl: string, teamId: string) 
             since = syncInfo.lastFullSync;
         }
 
-        const {error} = await fetchMyChannelsForTeam(serverUrl, teamId, true, since, false, false, isCRTEnabled);
-        if (error) {
-            logDebug('error on fetchMyChannelsForTeam after team switch', getFullErrorMessage(error));
+        const result = await fetchMyChannelsForTeam(serverUrl, teamId, true, since, false, false, isCRTEnabled);
+        if (result.error) {
+            logDebug('error on fetchMyChannelsForTeam after team switch', getFullErrorMessage(result.error));
             debugLog('TEAM_SYNC', `team ${teamId} sync failed, will retry next time`);
             // Don't mark as synced if there was an error
         } else {
+            debugLog('TEAM_SYNC', `team ${teamId} fetched ${result.channels?.length || 0} channels`);
+
+            // Fetch GM channel members
+            if (result.channels && result.channels.length > 0) {
+                const gmChannels = result.channels.filter((c) => c.type === 'G');
+                debugLog('TEAM_SYNC', `team ${teamId} has ${gmChannels.length} GM channels`);
+
+                if (gmChannels.length > 0) {
+                    debugLog('TEAM_SYNC', `fetching members for ${gmChannels.length} GM channels in team ${teamId}`);
+                    const {fetchProfilesInGroupChannels} = require('@actions/remote/user');
+                    await fetchProfilesInGroupChannels(serverUrl, gmChannels.map((c) => c.id), false, undefined, since);
+                    debugLog('TEAM_SYNC', `GM members fetched for team ${teamId}`);
+                }
+            }
+
             // Mark team as synced
             await setTeamSyncInfo(operator, {
                 teamId,
