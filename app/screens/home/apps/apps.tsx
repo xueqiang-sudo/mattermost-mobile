@@ -17,6 +17,7 @@ import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
+import {resetToDebug} from '@screens/navigation';
 
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -226,6 +227,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 break;
             case 'conversations':
                 navigation.navigate(Screens.APPS_CONVERSATIONS);
+                break;
+            case 'debug':
+                resetToDebug();
                 break;
             default:
                 navigation.navigate(Screens.APPS_WEBVIEW, {

@@ -62,6 +62,8 @@ export const APPS: AppDef[] = [
     // MES & Promotion
     {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: 'MES', iconName: 'monitor', erpOnly: false, noPermission: false},
     {key: 'promotion', labelId: 'sidebar.tab.promotion', defaultLabel: '推广', iconName: 'share-variant-outline', erpOnly: false, noPermission: true},
+    // Debug
+    {key: 'debug', labelId: 'workbench.tab.debug', defaultLabel: '调试日志', iconName: 'bug-outline', erpOnly: false, noPermission: true},
     // Role Management (disabled)
     // {key: 'role_management', labelId: 'sidebar.tab.role_management', defaultLabel: '角色管理', iconName: 'account-multiple-outline', erpOnly: false, noPermission: false},
 ];

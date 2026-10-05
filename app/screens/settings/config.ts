@@ -110,6 +110,10 @@ const messages = defineMessages({
         defaultMessage: 'Role Management',
         id: 'sidebar.tab.role_management',
     },
+    debug: {
+        defaultMessage: 'Debug Log',
+        id: 'general_settings.debug',
+    },
 });
 
 export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
@@ -163,6 +167,12 @@ export const SettingOptionConfig: Record<string, SettingConfigDetails> = {
         i18nId: messages.role_management.id,
         icon: 'shield-account-outline',
         testID: messages.role_management.id,
+    },
+    debug: {
+        defaultMessage: messages.debug.defaultMessage,
+        i18nId: messages.debug.id,
+        icon: 'bug-outline',
+        testID: messages.debug.id,
     },
 };
 
