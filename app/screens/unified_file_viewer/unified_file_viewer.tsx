@@ -1,6 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {
+    SecurePdfViewer,
+    type OnLoadErrorEvent,
+} from '@mattermost/secure-pdf-viewer';
 import {deleteAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
@@ -15,10 +19,10 @@ import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
+import TextViewer from '@screens/text_viewer/text_viewer';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
-import {logDebug} from '@utils/log';
-import {previewPdf, previewTextFile} from '@utils/navigation';
+import {logDebug, logError} from '@utils/log';
 import {bottomSheet} from '@screens/navigation';
 
 import ConvertingView from './converting_view';
@@ -48,6 +52,9 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
     },
+    pdfView: {
+        flex: 1,
+    },
 });
 
 const isOfficeFile = (file: FileInfo): boolean => {
@@ -70,6 +77,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const [filePath, setFilePath] = useState<string>('');
     const [progress, setProgress] = useState(0);
     const [currentFileInfo, setCurrentFileInfo] = useState<FileInfo>(fileInfo);
+    const [pdfError, setPdfError] = useState<string | undefined>(undefined);
 
     const downloadTask = useRef<ProgressPromise<ClientResponse>>();
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -86,6 +94,12 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, handleClose);
+
+    const onPdfLoadError = useCallback((event: OnLoadErrorEvent) => {
+        logError('Error loading PDF', event.nativeEvent.message);
+        setPdfError(event.nativeEvent.message);
+        setFileState('unsupported');
+    }, []);
 
     const startPolling = useCallback(async () => {
         pollingCountRef.current = 0;
@@ -179,15 +193,11 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             setFilePath(path!);
             debugLog('FILE_VIEWER', `filePath set to: ${path}`);
 
-            // Open with appropriate viewer
+            // PDF and text files are rendered inline, no need to open external viewers
             if (isPdf(fileToDownload)) {
-                debugLog('FILE_VIEWER', `opening PDF viewer...`);
-                previewPdf(fileToDownload, path!, theme, handleClose);
-                debugLog('FILE_VIEWER', `PDF viewer opened`);
+                debugLog('FILE_VIEWER', `PDF ready for inline rendering`);
             } else if (isTextFile(fileToDownload)) {
-                debugLog('FILE_VIEWER', `opening text file viewer...`);
-                previewTextFile(fileToDownload, path!, theme, handleClose);
-                debugLog('FILE_VIEWER', `text file viewer opened`);
+                debugLog('FILE_VIEWER', `text file ready for inline rendering`);
             } else {
                 debugLog('FILE_VIEWER', `unsupported file type for inline viewing`);
                 // For images/videos/audio, we'll embed them later
@@ -300,7 +310,51 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [filePath, currentFileInfo, handleDownload]);
 
     const renderContent = () => {
-        debugLog('FILE_VIEWER', `renderContent: fileState=${fileState}, progress=${progress}`);
+        debugLog('FILE_VIEWER', `renderContent: fileState=${fileState}, progress=${progress}, filePath=${filePath}`);
+
+        // Check if file should be rendered as PDF (either PDF file or Office file with PDF preview)
+        const shouldRenderAsPdf = isPdf(currentFileInfo) || (hasPdfPreview(currentFileInfo) && currentFileInfo.pdf_preview_id);
+
+        // Render PDF inline if ready (includes Office files converted to PDF)
+        if (fileState === 'viewable' && filePath && shouldRenderAsPdf) {
+            debugLog('FILE_VIEWER', `rendering inline PDF viewer, isPdf:${isPdf(currentFileInfo)}, hasPdfPreview:${hasPdfPreview(currentFileInfo)}`);
+            if (pdfError) {
+                debugLog('FILE_VIEWER', `PDF load error: ${pdfError}`);
+                return (
+                    <View style={styles.content}>
+                        <UnsupportedView
+                            fileInfo={currentFileInfo}
+                            onDownload={handleDownload}
+                            onOpenWith={handleOpenWith}
+                        />
+                    </View>
+                );
+            }
+            return (
+                <SecurePdfViewer
+                    allowLinks={false}
+                    onLoadError={onPdfLoadError}
+                    source={filePath}
+                    style={styles.pdfView}
+                />
+            );
+        }
+
+        // Render text files inline if ready
+        if (fileState === 'viewable' && filePath && isTextFile(currentFileInfo)) {
+            debugLog('FILE_VIEWER', `rendering inline text viewer`);
+            return (
+                <TextViewer
+                    componentId={componentId}
+                    closeButtonId='close-text-viewer'
+                    filePath={filePath}
+                    fileName={currentFileInfo.name}
+                    mimeType={currentFileInfo.mime_type || 'text/plain'}
+                    onDismiss={handleClose}
+                />
+            );
+        }
+
         switch (fileState) {
             case 'loading':
                 debugLog('FILE_VIEWER', `rendering LoadingView (loading state)`);
@@ -309,8 +363,8 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 debugLog('FILE_VIEWER', `rendering ConvertingView`);
                 return <ConvertingView fileInfo={currentFileInfo}/>;
             case 'viewable':
-                // For now, just show loading while we open the appropriate viewer
-                debugLog('FILE_VIEWER', `rendering LoadingView (viewable state, waiting for viewer to open)`);
+                // Still downloading or unsupported for inline viewing
+                debugLog('FILE_VIEWER', `rendering LoadingView (viewable state, waiting for download)`);
                 return <LoadingView progress={progress}/>;
             case 'unsupported':
                 debugLog('FILE_VIEWER', `rendering UnsupportedView`);
