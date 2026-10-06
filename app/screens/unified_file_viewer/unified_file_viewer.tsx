@@ -181,10 +181,22 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
             if (!exists) {
                 debugLog('FILE_VIEWER', `downloading file...`);
+                debugLog('FILE_VIEWER', `  fileId: ${fileToDownload.id}`);
+                debugLog('FILE_VIEWER', `  serverUrl: ${serverUrl}`);
+                debugLog('FILE_VIEWER', `  destination: ${path}`);
+
                 setProgress(0);
                 downloadTask.current = downloadFile(serverUrl, fileToDownload.id!, path!);
                 downloadTask.current?.progress?.(setProgress);
-                await downloadTask.current;
+
+                try {
+                    const response = await downloadTask.current;
+                    debugLog('FILE_VIEWER', `download response: ${JSON.stringify(response?.data || response)}`);
+                } catch (downloadError) {
+                    debugLog('FILE_VIEWER', `download error: ${getFullErrorMessage(downloadError)}`);
+                    throw downloadError;
+                }
+
                 setProgress(1);
                 debugLog('FILE_VIEWER', `file downloaded`);
             } else {
@@ -202,8 +214,12 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
                 if (!fileInfo.exists) {
                     debugLog('FILE_VIEWER', `ERROR: file does not exist after download!`);
+                    throw new Error('File does not exist after download');
                 } else if (fileInfo.size === 0) {
                     debugLog('FILE_VIEWER', `ERROR: file is empty (0 bytes)!`);
+                    // Delete empty file
+                    await deleteAsync(pathWithoutPrefix, {idempotent: true});
+                    throw new Error('Downloaded file is empty (0 bytes). Server may have returned an error.');
                 } else if (fileInfo.size < 100) {
                     debugLog('FILE_VIEWER', `WARNING: file is very small (${fileInfo.size} bytes), might be corrupted or error page`);
                 }
