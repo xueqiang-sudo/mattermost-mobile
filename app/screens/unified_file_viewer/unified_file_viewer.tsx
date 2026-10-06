@@ -5,7 +5,7 @@ import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
 } from '@mattermost/secure-pdf-viewer';
-import {deleteAsync} from 'expo-file-system';
+import {deleteAsync, getInfoAsync, readAsStringAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
@@ -193,6 +193,44 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
             setFilePath(path!);
             debugLog('FILE_VIEWER', `filePath set to: ${path}, fileToDownload.name=${fileToDownload.name}, fileToDownload.extension=${fileToDownload.extension}`);
+
+            // Validate downloaded file
+            try {
+                const pathWithoutPrefix = path!.replace('file://', '');
+                const fileInfo = await getInfoAsync(pathWithoutPrefix);
+                debugLog('FILE_VIEWER', `file validation: exists=${fileInfo.exists}, size=${fileInfo.size} bytes, isDirectory=${fileInfo.isDirectory}`);
+
+                if (!fileInfo.exists) {
+                    debugLog('FILE_VIEWER', `ERROR: file does not exist after download!`);
+                } else if (fileInfo.size === 0) {
+                    debugLog('FILE_VIEWER', `ERROR: file is empty (0 bytes)!`);
+                } else if (fileInfo.size < 100) {
+                    debugLog('FILE_VIEWER', `WARNING: file is very small (${fileInfo.size} bytes), might be corrupted or error page`);
+                }
+
+                // Read first 100 bytes to check if it's actually a PDF
+                if (fileInfo.exists && fileInfo.size > 0) {
+                    const firstBytes = await readAsStringAsync(pathWithoutPrefix, {
+                        encoding: 'base64',
+                        length: 100,
+                    });
+                    // PDF files start with "%PDF" (25 50 44 46 in hex)
+                    const isPdfHeader = firstBytes.startsWith('JVBER');
+                    debugLog('FILE_VIEWER', `file content check: firstBytes=${firstBytes.substring(0, 20)}..., isPdfHeader=${isPdfHeader}`);
+
+                    if (!isPdfHeader) {
+                        debugLog('FILE_VIEWER', `ERROR: file does not have PDF header! Might be HTML error page or wrong file type`);
+                        // Read more content to see what it actually is
+                        const moreContent = await readAsStringAsync(pathWithoutPrefix, {
+                            encoding: 'utf8',
+                            length: 500,
+                        });
+                        debugLog('FILE_VIEWER', `file content preview: ${moreContent.substring(0, 200)}`);
+                    }
+                }
+            } catch (validationError) {
+                debugLog('FILE_VIEWER', `file validation error: ${getFullErrorMessage(validationError)}`);
+            }
 
             // PDF and text files are rendered inline, no need to open external viewers
             if (isPdf(fileToDownload)) {
