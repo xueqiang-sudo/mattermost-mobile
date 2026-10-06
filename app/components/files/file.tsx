@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useRef, useState} from 'react';
-import {View, TouchableWithoutFeedback} from 'react-native';
+import {View, TouchableWithoutFeedback, type GestureResponderEvent} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import TouchableWithFeedback from '@components/touchable_with_feedback';
@@ -35,6 +35,7 @@ type FileProps = {
     isSingleImage?: boolean;
     nonVisibleImagesCount: number;
     onPress: (index: number) => void;
+    onLongPress?: (event?: GestureResponderEvent) => void;
     channelName?: string;
     onOptionsPress?: (fileInfo: FileInfo) => void;
     optionSelected?: boolean;
@@ -93,6 +94,7 @@ const File = ({
     index,
     isSingleImage = false,
     nonVisibleImagesCount = 0,
+    onLongPress,
     onOptionsPress,
     onPress,
     optionSelected,
@@ -225,6 +227,8 @@ const File = ({
     const touchableWithPreview = (
         <TouchableWithFeedback
             onPress={handlePreviewPress}
+            onLongPress={onLongPress}
+            delayLongPress={200}
             disabled={isPressDisabled}
             type={'opacity'}
         >
@@ -240,6 +244,8 @@ const File = ({
             <TouchableWithoutFeedback
                 disabled={isPressDisabled}
                 onPress={onGestureEvent}
+                onLongPress={onLongPress}
+                delayLongPress={200}
             >
                 <Animated.View style={[styles, asCard ? style.imageVideo : null]}>
                     <VideoFile
@@ -266,6 +272,8 @@ const File = ({
         const renderImageFile = (
             <TouchableWithoutFeedback
                 onPress={onGestureEvent}
+                onLongPress={onLongPress}
+                delayLongPress={200}
                 disabled={isPressDisabled}
             >
                 <Animated.View style={[styles, asCard ? style.imageVideo : null]}>
@@ -296,6 +304,8 @@ const File = ({
                         debugLog('FILE_CLICK', `TouchableWithFeedback pressed for document: ${file.name}`);
                         handleShowFileActions();
                     }}
+                    onLongPress={onLongPress}
+                    delayLongPress={200}
                     disabled={isPressDisabled}
                     type={'opacity'}
                 >

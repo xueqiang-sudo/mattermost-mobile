@@ -481,6 +481,7 @@ const Body = ({
             isReplyPost={isReplyPost}
             isMediaOnlyMessage={isMediaOnlyWeChat}
             shrinkWrapNonImage={weChatStyleActive}
+            onLongPress={onLongPress}
         />
     ) : null;
 

@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Dimensions, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {Dimensions, type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {GalleryInit} from '@context/gallery';
@@ -37,6 +37,9 @@ type FilesProps = {
 
     /** 本人微信：附件整体靠右，避免图片行 alignSelf:flex-start 在父级 flex-end 下仍留右侧大缝 */
     alignAttachmentsEnd?: boolean;
+
+    /** Long-press handler to show context menu (e.g., post options) */
+    onLongPress?: (event?: GestureResponderEvent) => void;
 }
 
 const MAX_VISIBLE_ROW_IMAGES = 99;
@@ -122,6 +125,7 @@ const Files = ({
     isMediaOnlyMessage = false,
     shrinkWrapNonImage = false,
     alignAttachmentsEnd = false,
+    onLongPress,
 }: FilesProps) => {
     const galleryIdentifier = `${postId}-fileAttachments-${location}`;
     const inViewPort = usePostMediaInViewport(postId, location);
@@ -233,6 +237,7 @@ const Files = ({
                         file={file}
                         index={attachmentIndex(file.id!)}
                         onPress={handlePreviewPress}
+                        onLongPress={onLongPress}
                         isSingleImage={isSingleImage}
                         nonVisibleImagesCount={nonVisibleImagesCount}
                         updateFileForGallery={updateFileForGallery}
