@@ -5,6 +5,7 @@ import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
+import CompassIcon from '@components/compass_icon';
 import Markdown from '@components/markdown';
 import {General, Screens} from '@constants';
 import {useTheme} from '@context/theme';
@@ -16,13 +17,20 @@ const MAX_PREVIEW = 96;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     bar: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
         paddingHorizontal: 16,
         paddingVertical: 10,
         backgroundColor: changeOpacity(theme.buttonBg, 0.08),
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
+    icon: {
+        marginRight: 8,
+        marginTop: 2,
+    },
     preview: {
+        flex: 1,
         color: theme.centerChannelColor,
         ...typography('Body', 100, 'Regular'),
     },
@@ -141,6 +149,12 @@ const ChannelAnnouncementBar = ({
             style={styles.bar}
             testID='channel_header.announcement_bar'
         >
+            <CompassIcon
+                name='bullhorn-outline'
+                size={16}
+                color={changeOpacity(theme.centerChannelColor, 0.64)}
+                style={styles.icon}
+            />
             <Text
                 numberOfLines={2}
                 ellipsizeMode='tail'

@@ -403,6 +403,20 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         );
     };
 
+    getChannelRestrictedViews = (channelId: string) => {
+        return this.doFetch<Record<string, boolean>>(
+            `${this.getChannelRoute(channelId)}/restricted_views`,
+            {method: 'get'},
+        );
+    };
+
+    setMemberRestrictedView = (channelId: string, userId: string, restrictedView: boolean) => {
+        return this.doFetch(
+            `${this.getChannelMembersRoute(channelId)}/${userId}/restricted_view`,
+            {method: 'put', body: {restricted_view: restrictedView}},
+        );
+    };
+
     getGroupMessageMembersCommonTeams = (channelId: string) => {
         return this.doFetch(
             `${this.getChannelRoute(channelId)}/common_teams`,

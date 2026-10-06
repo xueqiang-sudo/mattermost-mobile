@@ -2549,5 +2549,13 @@
   "file.open_with_other": "用其他應用打開",
   "file.supported_message": "此文件可以預覽或下載。",
   "file.recognized_message": "此文件類型可以用其他應用打開。",
-  "file.unrecognized_message": "此文件類型無法打開。您可以下載後用其他應用查看。"
+  "file.unrecognized_message": "此文件類型無法打開。您可以下載後用其他應用查看。",
+  "edit_channel_announcement.done": "完成",
+  "channel_info_rhs.gm.restricted_view": "受限視圖",
+  "restricted_views.title": "受限視圖",
+  "restricted_views.notice": "受限成員只能看到群公告、自己@別人的消息、以及別人@自己的消息，其他消息均不可見",
+  "mobile.cancel": "取消",
+  "mobile.confirm": "確定",
+  "mobile.saving": "保存中...",
+  "mobile.restricted_views.save_failed": "保存受限視圖設置失敗"
 }

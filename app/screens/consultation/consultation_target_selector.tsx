@@ -17,10 +17,9 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {queryUsers} from '@queries/servers/user';
 import {queryChannels} from '@queries/servers/channel';
-import {useDatabase} from '@context/database';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {withObservables} from '@nozbe/watermelondb/react';
+import {withObservables, useDatabase} from '@nozbe/watermelondb/react';
 import {of as of$, combineLatest} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 

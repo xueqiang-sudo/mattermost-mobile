@@ -15,9 +15,10 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {useDatabase} from '@nozbe/watermelondb/react';
+
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
-import {useDatabase} from '@context/database';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';

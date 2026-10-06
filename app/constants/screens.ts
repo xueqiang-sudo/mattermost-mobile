@@ -105,6 +105,7 @@ export const LATEX = 'Latex';
 export const LOGIN = 'Login';
 export const LOGIN_ABOUT = 'LoginAbout';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
+export const MANAGE_RESTRICTED_VIEWS = 'ManageRestrictedViews';
 export const MFA = 'MFA';
 /** 我的主页 Stack 内根屏路由名 */
 export const MY_HOMEPAGE = 'MyHomepage';
@@ -254,6 +255,7 @@ export default {
     LOGIN,
     LOGIN_ABOUT,
     MANAGE_CHANNEL_MEMBERS,
+    MANAGE_RESTRICTED_VIEWS,
     MFA,
     MY_HOMEPAGE,
     ONBOARDING,
@@ -318,6 +320,7 @@ export const MODAL_SCREENS_WITHOUT_BACK = new Set<string>([
     GALLERY,
     INVITE,
     MANAGE_CHANNEL_MEMBERS,
+    MANAGE_RESTRICTED_VIEWS,
     PDF_VIEWER,
     PERMALINK,
     RESCHEDULE_DRAFT,

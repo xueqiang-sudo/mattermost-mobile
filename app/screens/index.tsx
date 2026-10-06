@@ -275,6 +275,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.MANAGE_CHANNEL_MEMBERS:
             screen = withServerDatabase(require('@screens/manage_channel_members').default);
             break;
+        case Screens.MANAGE_RESTRICTED_VIEWS:
+            screen = withServerDatabase(require('@screens/manage_restricted_views').default);
+            break;
         case Screens.MFA:
             screen = withIntl(require('@screens/mfa').default);
             break;

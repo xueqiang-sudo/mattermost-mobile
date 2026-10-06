@@ -2574,5 +2574,13 @@
   "file.open_with_other": "Open with Other App",
   "file.supported_message": "This file can be previewed or downloaded.",
   "file.recognized_message": "This file type can be opened with other apps.",
-  "file.unrecognized_message": "This file type cannot be opened. You can download it to view with other apps."
+  "file.unrecognized_message": "This file type cannot be opened. You can download it to view with other apps.",
+  "edit_channel_announcement.done": "Done",
+  "channel_info_rhs.gm.restricted_view": "Restricted View",
+  "restricted_views.title": "Restricted View",
+  "restricted_views.notice": "Restricted members can only see group announcements, messages where they @mention others, and messages where others @mention them. All other messages are hidden.",
+  "mobile.cancel": "Cancel",
+  "mobile.confirm": "Confirm",
+  "mobile.saving": "Saving...",
+  "mobile.restricted_views.save_failed": "Failed to save restricted view settings."
 }
