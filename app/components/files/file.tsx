@@ -235,7 +235,6 @@ const File = ({
     );
 
     let fileComponent;
-    debugLog('FILE_RENDER', `rendering: ${file.name} isVideo:${isVideo(file)} isImage:${isImage(file)} isDocument:${isDocument(file)} isAudio:${isAudio(file)} isTextFile:${isTextFile(file)}`);
     if (isVideo(file)) {
         const renderVideoFile = (
             <TouchableWithoutFeedback
@@ -289,7 +288,6 @@ const File = ({
 
         fileComponent = asCard ? renderCardWithImage(renderImageFile) : renderImageFile;
     } else if (isDocument(file)) {
-        debugLog('FILE_RENDER', `rendering document: ${file.name}, ref exists: ${!!document}`);
         // 所有文件都可以点击显示操作对话框
         const renderDocumentFile = (
             <View style={style.iconWrapper}>

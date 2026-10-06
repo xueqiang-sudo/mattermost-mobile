@@ -5,7 +5,7 @@ import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
 } from '@mattermost/secure-pdf-viewer';
-import {deleteAsync, getInfoAsync, readAsStringAsync} from 'expo-file-system';
+import {deleteAsync, getInfoAsync, readAsStringAsync, writeAsStringAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
@@ -186,18 +186,80 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 debugLog('FILE_VIEWER', `  destination: ${path}`);
 
                 setProgress(0);
-                downloadTask.current = downloadFile(serverUrl, fileToDownload.id!, path!);
-                downloadTask.current?.progress?.(setProgress);
 
+                // Try to get authentication token
                 try {
-                    const response = await downloadTask.current;
-                    debugLog('FILE_VIEWER', `download response: ${JSON.stringify(response?.data || response)}`);
+                    const client = NetworkManager.getClient(serverUrl);
+                    const fileUrl = `${serverUrl}/api/v4/files/${fileToDownload.id}`;
+                    debugLog('FILE_VIEWER', `  fileUrl: ${fileUrl}`);
+
+                    // Get authentication header from client
+                    const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
+                    debugLog('FILE_VIEWER', `  authHeader: ${authHeader ? 'present' : 'missing'}`);
+
+                    // Use fetch with proper authentication
+                    const response = await fetch(fileUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': authHeader,
+                        },
+                    });
+
+                    debugLog('FILE_VIEWER', `  response status: ${response.status}`);
+                    debugLog('FILE_VIEWER', `  response ok: ${response.ok}`);
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        debugLog('FILE_VIEWER', `  response error: ${errorText}`);
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
+
+                    // Get the blob and save to file
+                    const blob = await response.blob();
+                    debugLog('FILE_VIEWER', `  blob size: ${blob.size} bytes`);
+
+                    if (blob.size === 0) {
+                        throw new Error('Downloaded file is empty');
+                    }
+
+                    // Save blob to file using expo-file-system
+                    const reader = new FileReader();
+                    reader.onloadend = async () => {
+                        const base64Data = reader.result as string;
+                        const pathWithoutPrefix = path!.replace('file://', '');
+                        await writeAsStringAsync(pathWithoutPrefix, base64Data.split(',')[1], {
+                            encoding: 'base64',
+                        });
+                        setProgress(1);
+                        debugLog('FILE_VIEWER', `file downloaded and saved`);
+                    };
+                    reader.readAsDataURL(blob);
+
+                    // Wait for file to be saved
+                    await new Promise<void>((resolve) => {
+                        const checkFile = async () => {
+                            const fileInfo = await getInfoAsync(path!.replace('file://', ''));
+                            if (fileInfo.exists && fileInfo.size > 0) {
+                                resolve();
+                            } else {
+                                setTimeout(checkFile, 100);
+                            }
+                        };
+                        checkFile();
+                    });
+
                 } catch (downloadError) {
                     debugLog('FILE_VIEWER', `download error: ${getFullErrorMessage(downloadError)}`);
-                    throw downloadError;
+
+                    // Fallback to original download method
+                    debugLog('FILE_VIEWER', `trying fallback download method...`);
+                    downloadTask.current = downloadFile(serverUrl, fileToDownload.id!, path!);
+                    downloadTask.current?.progress?.(setProgress);
+                    await downloadTask.current;
+                    setProgress(1);
+                    debugLog('FILE_VIEWER', `fallback download completed`);
                 }
 
-                setProgress(1);
                 debugLog('FILE_VIEWER', `file downloaded`);
             } else {
                 debugLog('FILE_VIEWER', `file already exists, skipping download`);
