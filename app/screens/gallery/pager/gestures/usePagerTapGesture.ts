@@ -2,13 +2,18 @@
 // See LICENSE.txt for license information.
 
 import {Gesture} from 'react-native-gesture-handler';
-import {cancelAnimation} from 'react-native-reanimated';
+import {cancelAnimation, type SharedValue} from 'react-native-reanimated';
 
 import {usePagerSharedValues} from '../context';
 
 import type {GalleryItemType} from '@typings/screens/gallery';
 
-export default function useTransformerPanGesture(pages: GalleryItemType[], hideHeaderAndFooter: (hidden?: boolean) => void) {
+export default function usePagerTapGesture(
+    pages: GalleryItemType[],
+    hideHeaderAndFooter: (hidden?: boolean) => void,
+    headerAndFooterHidden?: SharedValue<boolean>,
+    onClose?: () => void,
+) {
     const {
         activeIndex,
         offsetX,
@@ -29,7 +34,13 @@ export default function useTransformerPanGesture(pages: GalleryItemType[], hideH
         onEnd((evt) => {
             if (evt.numberOfPointers === 1) {
                 toValueAnimation.value = getPageTranslate(index.value);
-                hideHeaderAndFooter();
+
+                // WeChat-style: if header/footer already hidden, close gallery on second tap
+                if (headerAndFooterHidden?.value && onClose) {
+                    onClose();
+                } else {
+                    hideHeaderAndFooter();
+                }
             }
         });
 }

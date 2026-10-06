@@ -3,6 +3,7 @@
 
 import {makeBotGroupChannel} from '@actions/remote/channel';
 import NetworkManager from '@managers/network_manager';
+import {debugLog} from '@store/debug_log';
 
 // ─── AI Customer Service (bot DM in GM channels) ───
 
@@ -17,16 +18,22 @@ export type BotInfo = {
  * Server endpoint: GET /channels/{channelId}/bots
  */
 export async function getChannelBots(serverUrl: string, channelId: string): Promise<BotInfo[]> {
-    const client = NetworkManager.getClient(serverUrl);
-    const data = await client.doFetch(
-        `${client.getChannelRoute(channelId)}/bots`,
-        {method: 'get'},
-    );
-    return (data || []).map((info: any) => ({
-        botId: info.bot_id,
-        label: info.team_name || info.bot_id,
-        teamId: info.team_id || '',
-    }));
+    debugLog('AI_API', `getChannelBots: serverUrl=${serverUrl}, channelId=${channelId}`);
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const url = `${client.getChannelRoute(channelId)}/bots`;
+        debugLog('AI_API', `getChannelBots: fetching ${url}`);
+        const data = await client.doFetch(url, {method: 'get'});
+        debugLog('AI_API', `getChannelBots: response=${JSON.stringify(data)}`);
+        return (data || []).map((info: any) => ({
+            botId: info.bot_id,
+            label: info.team_name || info.bot_id,
+            teamId: info.team_id || '',
+        }));
+    } catch (err) {
+        debugLog('AI_API', `getChannelBots error: ${err}`);
+        throw err;
+    }
 }
 
 /**
@@ -34,10 +41,13 @@ export async function getChannelBots(serverUrl: string, channelId: string): Prom
  * Uses makeBotGroupChannel to create a type-G channel with group_category "botgm_{teamId}".
  */
 export async function openDirectChannelWithBot(serverUrl: string, botUserId: string, teamId: string): Promise<{id: string} | null> {
+    debugLog('AI_API', `openDirectChannelWithBot: botUserId=${botUserId}, teamId=${teamId}`);
     try {
         const result = await makeBotGroupChannel(serverUrl, botUserId, teamId);
+        debugLog('AI_API', `openDirectChannelWithBot: result=${JSON.stringify(result)}`);
         return result.data ?? null;
-    } catch {
+    } catch (err) {
+        debugLog('AI_API', `openDirectChannelWithBot error: ${err}`);
         return null;
     }
 }

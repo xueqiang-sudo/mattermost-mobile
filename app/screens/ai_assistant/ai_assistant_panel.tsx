@@ -287,18 +287,20 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                 <View style={{width: 40}}/>
             </View>
 
-            {answer !== null && (
-                <View style={styles.answerContainer}>
-                    <Text style={styles.answerText}>{answer}</Text>
-                </View>
-            )}
+            <View style={styles.flex}>
+                {answer !== null && (
+                    <View style={styles.answerContainer}>
+                        <Text style={styles.answerText}>{answer}</Text>
+                    </View>
+                )}
 
-            {answer === null && (
-                <>
-                    {renderTabs()}
-                    {renderResults()}
-                </>
-            )}
+                {answer === null && (
+                    <>
+                        {renderTabs()}
+                        {renderResults()}
+                    </>
+                )}
+            </View>
 
             <View style={styles.searchContainer}>
                 <TextInput

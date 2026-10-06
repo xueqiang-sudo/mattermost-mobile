@@ -2,28 +2,23 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {defineMessages, useIntl} from 'react-intl';
-import {DeviceEventEmitter, Keyboard, Platform, StyleSheet, View} from 'react-native';
+import {useIntl} from 'react-intl';
+import {Alert, FlatList, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchChannelMemberships} from '@actions/remote/channel';
-import {fetchUsersByIds, searchProfiles} from '@actions/remote/user';
+import CompassIcon from '@components/compass_icon';
+import Loading from '@components/loading';
+import ProfilePicture from '@components/profile_picture';
 import {PER_PAGE_DEFAULT} from '@client/rest/constants';
-import Search from '@components/search';
-import SectionNotice from '@components/section_notice';
-import UserList from '@components/user_list';
-import {Events, General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {useAccessControlAttributes} from '@hooks/access_control_attributes';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import SecurityManager from '@managers/security_manager';
-import {openAsBottomSheet, popTopScreen, setButtons} from '@screens/navigation';
-import NavigationStore from '@store/navigation_store';
-import {showRemoveChannelUserSnackbar} from '@utils/snack_bar';
-import {changeOpacity, getKeyboardAppearanceFromTheme} from '@utils/theme';
-import {filterProfilesMatchingTerm, username2Nickname} from '@utils/user';
+import NetworkManager from '@managers/network_manager';
+import {popTopScreen} from '@screens/navigation';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {typography} from '@utils/typography';
+import {displayUsername} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -38,321 +33,278 @@ type Props = {
     channelAbacPolicyEnforced: boolean;
 }
 
-const styles = StyleSheet.create({
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
+        backgroundColor: theme.centerChannelBg,
     },
-    searchBar: {
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    headerButton: {
+        padding: 4,
+        minWidth: 48,
+    },
+    cancelButton: {
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        ...typography('Body', 200),
+    },
+    confirmButton: {
+        color: theme.buttonBg,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+    headerTitle: {
+        ...typography('Heading', 400, 'SemiBold'),
+        color: theme.centerChannelColor,
+        flex: 1,
+        textAlign: 'center',
+    },
+    notice: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    noticeText: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.72),
+        lineHeight: 18,
+    },
+    listContent: {
+        paddingBottom: 24,
+    },
+    memberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    memberInfo: {
+        flex: 1,
         marginLeft: 12,
-        marginRight: Platform.select({ios: 4, default: 12}),
-        marginVertical: 12,
     },
-    flatBottomBanner: {
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
+    memberName: {
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
     },
-});
-
-const messages = defineMessages({
-    button_manage: {
-        id: 'mobile.manage_members.manage',
-        defaultMessage: 'Manage',
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    button_done: {
-        id: 'mobile.manage_members.done',
-        defaultMessage: 'Done',
+    checkboxChecked: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
     },
-});
-
-const sortUsers = (a: UserProfile, b: UserProfile, locale: string) => {
-    const aName = username2Nickname(a, {locale});
-    const bName = username2Nickname(b, {locale});
-    return aName.localeCompare(bName, locale);
-};
-
-const MANAGE_BUTTON = 'manage-button';
-const EMPTY: UserProfile[] = [];
-const EMPTY_MEMBERS: ChannelMembership[] = [];
-const EMPTY_IDS = new Set<string>();
-const {USER_PROFILE} = Screens;
-const CLOSE_BUTTON_ID = 'close-user-profile';
-const TEST_ID = 'manage_members';
+    loading: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+}));
 
 export default function ManageChannelMembers({
-    canManageAndRemoveMembers,
     channelId,
     componentId,
-    currentTeamId,
     currentUserId,
-    tutorialWatched,
-    teammateDisplayNameSetting: _teammateDisplayNameSetting,
-    channelAbacPolicyEnforced,
+    teammateDisplayNameSetting,
 }: Props) {
     const serverUrl = useServerUrl();
     const theme = useTheme();
     const {formatMessage, locale} = useIntl();
+    const styles = getStyleSheet(theme);
 
-    const searchTimeoutId = useRef<NodeJS.Timeout | null>(null);
     const mounted = useRef(false);
-    const hasMoreProfiles = useRef(true);
-    const pageRef = useRef(0);
 
-    // Use the hook to fetch access control attributes
-    const {attributeTags} = useAccessControlAttributes('channel', channelId, channelAbacPolicyEnforced);
-
-    const [isManageMode, setIsManageMode] = useState(false);
-    const [profiles, setProfiles] = useState<UserProfile[]>(EMPTY);
-    const [channelMembers, setChannelMembers] = useState<ChannelMembership[]>(EMPTY_MEMBERS);
-    const [searchResults, setSearchResults] = useState<UserProfile[]>(EMPTY);
+    const [profiles, setProfiles] = useState<UserProfile[]>([]);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [initialIds, setInitialIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [term, setTerm] = useState('');
-    const [searchedTerm, setSearchedTerm] = useState('');
+    const [saving, setSaving] = useState(false);
 
-    const hasTerm = Boolean(term);
+    useAndroidHardwareBackHandler(componentId, () => popTopScreen(componentId));
 
-    const clearSearch = useCallback(() => {
-        setTerm('');
-        setSearchResults(EMPTY);
-        if (searchTimeoutId.current) {
-            clearTimeout(searchTimeoutId.current);
-        }
-    }, []);
-
-    const close = useCallback(() => {
-        popTopScreen(componentId);
-    }, [componentId]);
-
-    useAndroidHardwareBackHandler(componentId, close);
-
-    const handleSelectProfile = useCallback(async (profile: UserProfile) => {
-        if (profile.id !== currentUserId) {
-            await fetchUsersByIds(serverUrl, [profile.id]);
-        }
-
-        const title = formatMessage({id: 'mobile.routes.user_profile', defaultMessage: 'Profile'});
-        const props = {
-            channelId,
-            closeButtonId: CLOSE_BUTTON_ID,
-            location: USER_PROFILE,
-            manageMode: isManageMode,
-            userId: profile.id,
-            canManageAndRemoveMembers,
-        };
-
-        Keyboard.dismiss();
-        openAsBottomSheet({screen: USER_PROFILE, title, theme, closeButtonId: CLOSE_BUTTON_ID, props});
-    }, [currentUserId, isManageMode, formatMessage, channelId, canManageAndRemoveMembers, theme, serverUrl]);
-
-    const searchUsers = useCallback(async (searchTerm: string) => {
-        setSearchedTerm(searchTerm);
-        if (!hasMoreProfiles.current) {
-            return;
-        }
-        const lowerCasedTerm = searchTerm.toLowerCase();
-        setLoading(true);
-
-        const options: SearchUserOptions = {team_id: currentTeamId, in_channel_id: channelId, allow_inactive: false};
-        const {data = EMPTY} = await searchProfiles(serverUrl, lowerCasedTerm, options);
-
-        setSearchResults(data.sort((a, b) => sortUsers(a, b, locale)));
-        setLoading(false);
-    }, [serverUrl, channelId, currentTeamId, locale]);
-
-    const search = useCallback(() => {
-        searchUsers(term);
-    }, [searchUsers, term]);
-
-    const onSearch = useCallback((text: string) => {
-        if (!text) {
-            clearSearch();
-            return;
-        }
-
-        setTerm(text);
-        if (searchTimeoutId.current) {
-            clearTimeout(searchTimeoutId.current);
-        }
-
-        searchTimeoutId.current = setTimeout(() => {
-            searchUsers(text);
-        }, General.SEARCH_TIMEOUT_MILLISECONDS);
-    }, [searchUsers, clearSearch]);
-
-    const updateNavigationButtons = useCallback((manage: boolean) => {
-        setButtons(componentId, {
-            rightButtons: [{
-                color: theme.sidebarHeaderTextColor,
-                enabled: true,
-                id: MANAGE_BUTTON,
-                showAsAction: 'always',
-                testID: `${TEST_ID}.button`,
-                text: formatMessage(manage ? messages.button_done : messages.button_manage),
-            }],
-        });
-    }, [componentId, formatMessage, theme.sidebarHeaderTextColor]);
-
-    const toggleManageEnabled = useCallback(() => {
-        updateNavigationButtons(!isManageMode);
-        setIsManageMode((prev) => !prev);
-    }, [isManageMode, updateNavigationButtons]);
-
-    const handleRemoveUser = useCallback(async (userId: string) => {
-        const pIndex = profiles.findIndex((user) => user.id === userId);
-        const mIndex = channelMembers.findIndex((m) => m.user_id === userId);
-        if (pIndex !== -1) {
-            const newProfiles = [...profiles];
-            newProfiles.splice(pIndex, 1);
-            setProfiles(newProfiles);
-
-            const newMembers = [...channelMembers];
-            newMembers.splice(mIndex, 1);
-            setChannelMembers(newMembers);
-
-            await NavigationStore.waitUntilScreensIsRemoved(USER_PROFILE);
-            showRemoveChannelUserSnackbar();
-        }
-    }, [profiles, channelMembers]);
-
-    const handleUserChangeRole = useCallback(async ({userId, schemeAdmin}: {userId: string; schemeAdmin: boolean}) => {
-        const clone = channelMembers.map((m) => {
-            if (m.user_id === userId) {
-                m.scheme_admin = schemeAdmin;
-                return m;
-            }
-            return m;
-        });
-
-        setChannelMembers(clone);
-    }, [channelMembers]);
-
-    const sortedProfiles = useMemo(() => [...profiles].sort((a, b) => {
-        return sortUsers(a, b, locale);
-    }), [profiles, locale]);
-
-    const data = useMemo(() => {
-        const isSearch = Boolean(searchedTerm);
-        if (isSearch) {
-            return filterProfilesMatchingTerm(searchResults.length ? searchResults : sortedProfiles, searchedTerm);
-        }
-        return profiles;
-    }, [searchResults, profiles, searchedTerm, sortedProfiles]);
-
+    // Fetch members and current restricted views
     useEffect(() => {
-        if (!hasTerm) {
-            setSearchResults(EMPTY);
-            setSearchedTerm('');
-        }
-    }, [hasTerm]);
-
-    useNavButtonPressed(MANAGE_BUTTON, componentId, toggleManageEnabled, [toggleManageEnabled]);
-
-    const getFetchChannelMembers = useCallback(async () => {
-        const options: GetUsersOptions = {sort: 'admin', active: true, per_page: PER_PAGE_DEFAULT, page: pageRef.current};
-        const {users, members} = await fetchChannelMemberships(serverUrl, channelId, options, true);
-
-        if (!mounted.current) {
-            return;
-        }
-
-        if (users.length < PER_PAGE_DEFAULT) {
-            hasMoreProfiles.current = false;
-        }
-
-        if (users.length) {
-            setChannelMembers((prev) => [...prev, ...members]);
-            setProfiles((prev) => [...prev, ...users]);
-        }
-
-        setLoading(false);
-    }, [serverUrl, channelId]);
-
-    const handleReachedBottom = useCallback(() => {
-        if (hasMoreProfiles.current && !loading && !searchedTerm) {
-            pageRef.current += 1;
+        const loadData = async () => {
             setLoading(true);
-            getFetchChannelMembers();
-        }
-    }, [loading, searchedTerm, getFetchChannelMembers]);
+            try {
+                const options: GetUsersOptions = {sort: 'admin', active: true, per_page: PER_PAGE_DEFAULT, page: 0};
+                const {users} = await fetchChannelMemberships(serverUrl, channelId, options, true);
 
-    useEffect(() => {
-        mounted.current = true;
-        getFetchChannelMembers();
+                // Filter out current user
+                const filteredUsers = users.filter((u) => u.id !== currentUserId);
+                setProfiles(filteredUsers);
+
+                // Fetch current restricted views
+                const client = NetworkManager.getClient(serverUrl);
+                const restrictedViews = await client.getChannelRestrictedViews(channelId);
+
+                const restricted = new Set<string>();
+                for (const [userId, isRestricted] of Object.entries(restrictedViews)) {
+                    if (isRestricted) {
+                        restricted.add(userId);
+                    }
+                }
+                setSelectedIds(restricted);
+                setInitialIds(new Set(restricted));
+            } catch {
+                // ignore - will show empty list
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadData();
 
         return () => {
             mounted.current = false;
         };
+    }, [channelId, currentUserId, serverUrl]);
 
-        // This effect is used only to track the mounted state and the initial fetch
-        // so it should only run once
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    const toggleSelection = useCallback((userId: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(userId)) {
+                next.delete(userId);
+            } else {
+                next.add(userId);
+            }
+            return next;
+        });
     }, []);
 
-    useEffect(() => {
-        if (canManageAndRemoveMembers) {
-            updateNavigationButtons(false);
+    const handleCancel = useCallback(() => {
+        popTopScreen(componentId);
+    }, [componentId]);
+
+    const handleConfirm = useCallback(async () => {
+        setSaving(true);
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+
+            // Find changed members
+            const toAdd: string[] = [];
+            const toRemove: string[] = [];
+
+            for (const userId of selectedIds) {
+                if (!initialIds.has(userId)) {
+                    toAdd.push(userId);
+                }
+            }
+            for (const userId of initialIds) {
+                if (!selectedIds.has(userId)) {
+                    toRemove.push(userId);
+                }
+            }
+
+            // Apply changes
+            const promises: Promise<any>[] = [];
+            for (const userId of toAdd) {
+                promises.push(client.setMemberRestrictedView(channelId, userId, true));
+            }
+            for (const userId of toRemove) {
+                promises.push(client.setMemberRestrictedView(channelId, userId, false));
+            }
+
+            await Promise.all(promises);
+            popTopScreen(componentId);
+        } catch (error) {
+            Alert.alert(
+                formatMessage({id: 'mobile.error.title', defaultMessage: 'Error'}),
+                formatMessage({id: 'mobile.restricted_views.save_failed', defaultMessage: 'Failed to save restricted view settings.'}),
+            );
+        } finally {
+            setSaving(false);
         }
+    }, [channelId, componentId, formatMessage, initialIds, selectedIds, serverUrl]);
 
-        // We only want to update the navigation buttons when the permission changes
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [canManageAndRemoveMembers]);
+    const renderItem = useCallback(({item}: {item: UserProfile}) => {
+        const isSelected = selectedIds.has(item.id);
+        const displayName = displayUsername(item, locale, teammateDisplayNameSetting);
 
-    useEffect(() => {
-        const removeUserListener = DeviceEventEmitter.addListener(Events.REMOVE_USER_FROM_CHANNEL, handleRemoveUser);
-        const changeUserRoleListener = DeviceEventEmitter.addListener(Events.MANAGE_USER_CHANGE_ROLE, handleUserChangeRole);
-        return (() => {
-            removeUserListener?.remove();
-            changeUserRoleListener?.remove();
-        });
-    }, [handleRemoveUser, handleUserChangeRole]);
+        return (
+            <TouchableOpacity
+                style={styles.memberRow}
+                onPress={() => toggleSelection(item.id)}
+                activeOpacity={0.7}
+            >
+                <ProfilePicture
+                    author={item}
+                    size={40}
+                    showStatus={false}
+                />
+                <View style={styles.memberInfo}>
+                    <Text style={styles.memberName} numberOfLines={1}>
+                        {displayName}
+                    </Text>
+                </View>
+                <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                    {isSelected && (
+                        <CompassIcon name='check' size={16} color='#fff'/>
+                    )}
+                </View>
+            </TouchableOpacity>
+        );
+    }, [selectedIds, locale, teammateDisplayNameSetting, styles, toggleSelection]);
+
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loading}>
+                    <Loading color={theme.centerChannelColor} size='large'/>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView
             style={styles.container}
-            testID={`${TEST_ID}.screen`}
-            nativeID={SecurityManager.getShieldScreenId(componentId)}
+            testID='manage_members.screen'
         >
-            {channelAbacPolicyEnforced && (
-                <SectionNotice
-                    type='info'
-                    title={formatMessage({
-                        id: 'channel.abac_policy_enforced.title',
-                        defaultMessage: 'Channel access is restricted by user attributes',
-                    })}
-                    tags={attributeTags.length > 0 ? attributeTags : undefined}
-                    location={Screens.MANAGE_CHANNEL_MEMBERS}
-                    testID={`${TEST_ID}.notice`}
-                    squareCorners={true}
-                />
-            )}
-            <View style={styles.searchBar}>
-                <Search
-                    autoCapitalize='none'
-                    cancelButtonTitle={formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                    keyboardAppearance={getKeyboardAppearanceFromTheme(theme)}
-                    onCancel={clearSearch}
-                    onChangeText={onSearch}
-                    onSubmitEditing={search}
-                    placeholder={formatMessage({id: 'search_bar.search', defaultMessage: 'Search'})}
-                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                    testID={`${TEST_ID}.search_bar`}
-                    value={term}
-                />
+            <View style={styles.header}>
+                <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
+                    <Text style={styles.cancelButton}>
+                        {formatMessage({id: 'mobile.cancel', defaultMessage: 'Cancel'})}
+                    </Text>
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>
+                    {formatMessage({id: 'channel_info_rhs.gm.member_management', defaultMessage: 'Member Management'})}
+                </Text>
+                <TouchableOpacity style={styles.headerButton} onPress={handleConfirm} disabled={saving}>
+                    <Text style={[styles.confirmButton, saving && {opacity: 0.5}]}>
+                        {saving
+                            ? formatMessage({id: 'mobile.saving', defaultMessage: 'Saving...'})
+                            : formatMessage({id: 'mobile.confirm', defaultMessage: 'Done'})}
+                    </Text>
+                </TouchableOpacity>
             </View>
-            <UserList
-                handleSelectProfile={handleSelectProfile}
-                loading={loading}
-                manageMode={true} // default true to change row select icon to a dropdown
-                profiles={data}
-                channelMembers={channelMembers}
-                selectedIds={EMPTY_IDS}
-                showManageMode={canManageAndRemoveMembers && isManageMode}
-                showNoResults={!loading}
-                term={searchedTerm}
-                testID={`${TEST_ID}.user_list`}
-                tutorialWatched={tutorialWatched}
-                includeUserMargin={true}
-                fetchMore={handleReachedBottom}
-                location={Screens.MANAGE_CHANNEL_MEMBERS}
+            <View style={styles.notice}>
+                <Text style={styles.noticeText}>
+                    {formatMessage({
+                        id: 'restricted_views.notice',
+                        defaultMessage: 'Restricted members can only see group announcements, messages where they @mention others, and messages where others @mention them. All other messages are hidden.',
+                    })}
+                </Text>
+            </View>
+            <FlatList
+                data={profiles}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                contentContainerStyle={styles.listContent}
             />
         </SafeAreaView>
     );

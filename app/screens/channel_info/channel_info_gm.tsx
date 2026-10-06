@@ -174,11 +174,6 @@ const ChannelInfoGM = ({
         goToScreen(Screens.MANAGE_CHANNEL_MEMBERS, title, {});
     }, [intl]);
 
-    const handleManageRestrictedViews = useCallback(() => {
-        const title = intl.formatMessage({id: 'restricted_views.title', defaultMessage: 'Restricted View'});
-        goToScreen(Screens.MANAGE_RESTRICTED_VIEWS, title, {channelId});
-    }, [channelId, intl]);
-
     const handleToggleMute = useCallback(() => {
         toggleMuteChannel(serverUrl, channelId);
     }, [channelId, serverUrl]);
@@ -365,21 +360,6 @@ const ChannelInfoGM = ({
                         >
                             <Text style={styles.navRowLabel}>
                                 {intl.formatMessage({id: 'channel_info_rhs.gm.member_management', defaultMessage: 'Member Management'})}
-                            </Text>
-                            <View style={{flex: 1}}/>
-                            <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>
-                        </TouchableOpacity>
-                    )}
-
-                    {/* Restricted view management (owner only, hidden for bot GM) */}
-                    {isChannelCreator && !isBotGM && (
-                        <TouchableOpacity
-                            onPress={handleManageRestrictedViews}
-                            style={styles.nicknameRow}
-                            testID='channel_info_gm.restricted_views'
-                        >
-                            <Text style={styles.navRowLabel}>
-                                {intl.formatMessage({id: 'channel_info_rhs.gm.restricted_view', defaultMessage: 'Restricted View'})}
                             </Text>
                             <View style={{flex: 1}}/>
                             <CompassIcon name='chevron-right' size={20} style={styles.nicknameArrow}/>

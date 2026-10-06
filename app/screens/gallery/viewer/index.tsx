@@ -19,11 +19,14 @@ export interface GalleryViewerProps {
     renderPage?: (props: GalleryPagerItem, index: number) => JSX.Element | null;
     width: number;
     hideHeaderAndFooter: (hide: boolean) => void;
+    headerAndFooterHidden?: import('react-native-reanimated').SharedValue<boolean>;
+    onClose?: () => void;
 }
 
 const GalleryViewer = ({
     gutterWidth, height, initialIndex, items, numToRender,
     onIndexChange, renderPage, width, hideHeaderAndFooter,
+    headerAndFooterHidden, onClose,
 }: GalleryViewerProps) => {
     const tempIndex = useRef<number>(initialIndex || 0);
 
@@ -71,6 +74,8 @@ const GalleryViewer = ({
             renderPage={pageToRender}
             numToRender={numToRender}
             hideHeaderAndFooter={hideHeaderAndFooter}
+            headerAndFooterHidden={headerAndFooterHidden}
+            onClose={onClose}
             shouldRenderGutter={true}
         />
     );

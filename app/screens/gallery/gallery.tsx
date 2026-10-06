@@ -29,6 +29,7 @@ interface GalleryProps {
     onHide: () => void;
     targetDimensions: { width: number; height: number };
     hideHeaderAndFooter: (hide: boolean) => void;
+    onClose?: () => void;
 }
 
 export interface GalleryRef {
@@ -44,6 +45,7 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     targetDimensions,
     hideHeaderAndFooter,
     onIndexChange,
+    onClose,
 }: GalleryProps, ref) => {
     const {refsByIndexSV, sharedValues} = useGallery(galleryIdentifier);
     const [localIndex, setLocalIndex] = useState(initialIndex);
@@ -220,6 +222,8 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
                 items={items}
                 onIndexChange={onIndexChangeWorklet}
                 hideHeaderAndFooter={hideHeaderAndFooter}
+                headerAndFooterHidden={headerAndFooterHidden}
+                onClose={onClose}
                 height={targetDimensions.height}
                 width={targetDimensions.width}
                 initialIndex={initialIndex}

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withObservables} from '@nozbe/watermelondb/react';
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 
 import {observeCurrentUserId} from '@queries/servers/system';
 import {observeTeammateNameDisplay} from '@queries/servers/user';
@@ -20,4 +20,4 @@ const enhance = withObservables(['database'], ({database}: WithDatabaseArgs) => 
     };
 });
 
-export default enhance(ManageRestrictedViews);
+export default withDatabase(enhance(ManageRestrictedViews));

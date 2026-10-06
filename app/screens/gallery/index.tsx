@@ -93,10 +93,8 @@ const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialInde
             nativeID={SecurityManager.getShieldScreenId(componentId)}
         >
             <Header
-                index={localIndex}
                 onClose={onClose}
                 style={headerStyles}
-                total={items.length}
             />
             <Gallery
                 headerAndFooterHidden={headerAndFooterHidden}
@@ -106,6 +104,7 @@ const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialInde
                 onHide={close}
                 onIndexChange={onIndexChange}
                 hideHeaderAndFooter={hideHeaderAndFooter}
+                onClose={onClose}
                 ref={galleryRef}
                 targetDimensions={dim}
             />

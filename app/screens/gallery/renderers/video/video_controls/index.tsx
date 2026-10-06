@@ -10,35 +10,23 @@ import {useDefaultHeaderHeight} from '@hooks/header';
 import {useLightboxSharedValues} from '@screens/gallery/lightbox_swipeout/context';
 
 import BottomControls from './bottom_controls';
-import {ViewPositionProvider} from './context';
-import PlaybackControls from './playback_controls';
-import PlaybackSpeedMenu from './playback_speed_menu';
-import TopControls from './top_controls';
 
 interface VideoControlsWithSeekProps {
     visible: boolean;
     paused: boolean;
     currentTime: SharedValue<number>;
     duration: number;
-    speed: number;
-    captionsEnabled?: boolean;
-    hasCaptions?: boolean;
     isFullscreen: boolean;
-    seekSeconds: 0 | 10 | 30;
     onPlay: () => void;
     onPause: () => void;
     onSeek: (time: number) => void;
-    onRewind: () => void;
-    onForward: () => void;
-    onSpeedChange: (rate: number) => void;
     onFullscreen: () => void;
-    onCaptionsToggle?: () => void;
     setShowCustomControls: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-type Control = 'play' | 'pause' | 'seek' | 'rewind' | 'forward' | 'selectSpeed' | 'closeSpeedMenu' | 'speed' | 'fullscreen' | 'captions';
+type Control = 'play' | 'pause' | 'seek' | 'fullscreen';
 
-const persistentControls = new Set<Control>(['pause', 'selectSpeed']);
+const persistentControls = new Set<Control>(['pause']);
 
 const SHOW_CONTROLS_TIMEOUT = 4000; // 4 seconds
 
@@ -74,27 +62,17 @@ const VideoControls: React.FC<VideoControlsWithSeekProps> = ({
     paused,
     currentTime,
     duration,
-    speed,
     onPlay,
     onPause,
     onSeek,
-    onRewind,
-    onForward,
-    onSpeedChange,
     onFullscreen,
-    onCaptionsToggle,
-    captionsEnabled,
-    hasCaptions = false,
     isFullscreen,
-    seekSeconds,
     visible,
     setShowCustomControls,
 }) => {
     const insets = useSafeAreaInsets();
     const headerHeight = useDefaultHeaderHeight();
     const {headerAndFooterHidden} = useLightboxSharedValues();
-
-    const [showSpeedMenu, setShowSpeedMenu] = useState(false);
 
     const isInteractingWithControlsRef = useRef(false);
     const isInteractingWithControlsTimeoutRef = useRef<NodeJS.Timeout>();
@@ -116,7 +94,6 @@ const VideoControls: React.FC<VideoControlsWithSeekProps> = ({
         if (!paused || control === 'play') {
             hideControlsTimeoutRef.current = setTimeout(() => {
                 setShowCustomControls(false);
-                setShowSpeedMenu(false);
             }, delay);
         }
     }, [paused, setShowCustomControls]);
@@ -135,7 +112,6 @@ const VideoControls: React.FC<VideoControlsWithSeekProps> = ({
         }, 300);
 
         if (persistentControls.has(control)) {
-            // If the control is persistent, do not hide controls
             return;
         }
 
@@ -144,7 +120,6 @@ const VideoControls: React.FC<VideoControlsWithSeekProps> = ({
 
     const handleBackgroundPress = useCallback(() => {
         if (isInteractingWithControlsRef.current) {
-            // If the user is interacting with the controls, do not hide them
             return;
         }
 
@@ -152,16 +127,11 @@ const VideoControls: React.FC<VideoControlsWithSeekProps> = ({
 
         if (visible) {
             setShowCustomControls(false);
-            setShowSpeedMenu(false);
         } else {
             setShowCustomControls(true);
             scheduleAutoHideControls();
         }
     }, [cancelHideControls, scheduleAutoHideControls, setShowCustomControls, visible]);
-
-    const onShowSpeedMenu = useCallback((value?: boolean) => {
-        setShowSpeedMenu(value || !showSpeedMenu);
-    }, [showSpeedMenu]);
 
     const containerStyle = useAnimatedStyle(() => ({
         paddingTop: headerAndFooterHidden.value ? insets.top : headerHeight,
@@ -180,50 +150,23 @@ const VideoControls: React.FC<VideoControlsWithSeekProps> = ({
     return (
         <Animated.View style={[StyleSheet.absoluteFill, containerStyle]}>
             <Animated.View style={[styles.container, controlsOpacityStyle]}>
-                <ViewPositionProvider>
-                    <View
-                        onTouchEnd={handleBackgroundPress}
-                        style={[styles.controlsArea, styles.controlsBackground]}
-                    >
-
-                        <TopControls
-                            captionsEnabled={captionsEnabled}
-                            handleControlAction={handleControlAction}
-                            hasCaptions={hasCaptions}
-                            isFullscreen={isFullscreen}
-                            onFullscreen={onFullscreen}
-                            onCaptionsToggle={onCaptionsToggle}
-                            onShowSpeedMenu={onShowSpeedMenu}
-                        />
-
-                        <PlaybackControls
-                            handleControlAction={handleControlAction}
-                            paused={paused}
-                            seekSeconds={seekSeconds}
-                            onPlay={onPlay}
-                            onPause={onPause}
-                            onRewind={onRewind}
-                            onForward={onForward}
-                        />
-
-                        <BottomControls
-                            currentTime={currentTime}
-                            duration={duration}
-                            handleControlAction={handleControlAction}
-                            onSeek={onSeek}
-                            paddingBottom={isFullscreen ? 0 : insets.bottom}
-                        />
-
-                        <PlaybackSpeedMenu
-                            visible={showSpeedMenu}
-                            currentSpeed={speed}
-                            handleControlAction={handleControlAction}
-                            isFullscreen={isFullscreen}
-                            onSpeedChange={onSpeedChange}
-                            setShowSpeedMenu={setShowSpeedMenu}
-                        />
-                    </View>
-                </ViewPositionProvider>
+                <View
+                    onTouchEnd={handleBackgroundPress}
+                    style={[styles.controlsArea, styles.controlsBackground]}
+                >
+                    <BottomControls
+                        currentTime={currentTime}
+                        duration={duration}
+                        handleControlAction={handleControlAction}
+                        isFullscreen={isFullscreen}
+                        onSeek={onSeek}
+                        onFullscreen={onFullscreen}
+                        onPlay={onPlay}
+                        onPause={onPause}
+                        paused={paused}
+                        paddingBottom={isFullscreen ? 0 : insets.bottom}
+                    />
+                </View>
             </Animated.View>
         </Animated.View>
     );

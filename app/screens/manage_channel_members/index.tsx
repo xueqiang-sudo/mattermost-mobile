@@ -33,6 +33,7 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     return {
         currentUserId: observeCurrentUserId(database),
         currentTeamId: observeCurrentTeamId(database),
+        channelId: currentChannelId,
         canManageAndRemoveMembers,
         tutorialWatched: observeTutorialWatched(Tutorial.PROFILE_LONG_PRESS),
         canChangeMemberRoles,

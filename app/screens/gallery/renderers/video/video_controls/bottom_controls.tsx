@@ -2,10 +2,11 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback} from 'react';
-import {StyleSheet, View, Text, Platform} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming, type SharedValue} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import CompassIcon from '@components/compass_icon';
 import {GALLERY_FOOTER_HEIGHT} from '@constants/gallery';
 import {translateYConfig} from '@hooks/gallery';
 import {useLightboxSharedValues} from '@screens/gallery/lightbox_swipeout/context';
@@ -21,7 +22,12 @@ import type {VideoControlAction} from './types';
 interface BottomControlsProps extends VideoControlAction {
     currentTime: SharedValue<number>;
     duration: number;
+    isFullscreen: boolean;
     onSeek: (time: number) => void;
+    onFullscreen: () => void;
+    onPlay: () => void;
+    onPause: () => void;
+    paused: boolean;
     paddingBottom: number;
 }
 
@@ -47,13 +53,24 @@ const styles = StyleSheet.create({
         color: 'white',
         ...typography('Body', 75),
     },
+    button: {
+        padding: 8,
+    },
+    fullscreenIcon: {
+        transform: [{rotate: '90deg'}],
+    },
 });
 
 const BottomControls: React.FC<BottomControlsProps> = ({
     currentTime,
     duration,
     handleControlAction,
+    isFullscreen,
     onSeek,
+    onFullscreen,
+    onPlay,
+    onPause,
+    paused,
     paddingBottom,
 }) => {
     const currentTimeValue = useStateFromSharedValue(currentTime, 0);
@@ -68,6 +85,18 @@ const BottomControls: React.FC<BottomControlsProps> = ({
         });
     }, [handleControlAction, onSeek]);
 
+    const handlePlayPause = useCallback(() => {
+        if (paused) {
+            handleControlAction('play', onPlay);
+        } else {
+            handleControlAction('pause', onPause);
+        }
+    }, [paused, handleControlAction, onPlay, onPause]);
+
+    const handleFullscreen = useCallback(() => {
+        handleControlAction('fullscreen', onFullscreen);
+    }, [handleControlAction, onFullscreen]);
+
     const animatedStyle = useAnimatedStyle(() => ({
         marginBottom: withTiming(headerAndFooterHidden.value ? insets.bottom : GALLERY_FOOTER_HEIGHT, translateYConfig),
     }));
@@ -78,6 +107,14 @@ const BottomControls: React.FC<BottomControlsProps> = ({
             style={[styles.bottomControls, animatedStyle]}
         >
             <View style={[styles.container, styles.row, {paddingBottom}]}>
+                <Pressable style={styles.button} onPress={handlePlayPause}>
+                    <CompassIcon
+                        name={paused ? 'play' : 'pause'}
+                        size={24}
+                        color='white'
+                    />
+                </Pressable>
+
                 <Text style={styles.time}>
                     {formatTime(currentTimeValue)}
                 </Text>
@@ -89,9 +126,17 @@ const BottomControls: React.FC<BottomControlsProps> = ({
                 />
 
                 <Text style={styles.time}>
-                    {Platform.OS === 'ios' ? `-${formatTime(duration - currentTimeValue)}` : formatTime(duration)
-                    }
+                    {formatTime(duration)}
                 </Text>
+
+                <Pressable style={styles.button} onPress={handleFullscreen}>
+                    <CompassIcon
+                        name={isFullscreen ? 'arrow-collapse' : 'arrow-expand'}
+                        size={24}
+                        color='white'
+                        style={styles.fullscreenIcon}
+                    />
+                </Pressable>
             </View>
         </Animated.View>
     );

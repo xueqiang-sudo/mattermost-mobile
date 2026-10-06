@@ -280,19 +280,11 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
                     paused={paused}
                     currentTime={currentTime}
                     duration={duration}
-                    speed={playbackRate}
                     isFullscreen={headerAndFooterHiddenValue}
                     onPlay={onPlay}
                     onPause={onPause}
                     onSeek={onSeek}
-                    onRewind={onRewind}
-                    onForward={onForward}
-                    onSpeedChange={onRateChange}
                     onFullscreen={onFullscreenToggle}
-                    onCaptionsToggle={onCaptionsPress}
-                    hasCaptions={videoHasCaptions}
-                    captionsEnabled={selected.type !== SelectedTrackType.DISABLED && captionsEnabled}
-                    seekSeconds={seekSeconds}
                     setShowCustomControls={setShowCustomControls}
                 />
             </>

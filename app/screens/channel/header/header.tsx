@@ -24,6 +24,7 @@ import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement
 import ChannelBanner from '@screens/channel/header/channel_banner';
 import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
+import {debugLog} from '@store/debug_log';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -182,19 +183,30 @@ const ChannelHeader = ({
     }), [channelId, channelName, channelType, intl, theme]));
 
     const openBotChat = useCallback(async (bot: BotInfo) => {
-        const channel = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
-        if (channel) {
-            switchToChannelById(serverUrl, channel.id);
+        debugLog('AI_ASSISTANT', `openBotChat: botId=${bot.botId}, teamId=${bot.teamId}`);
+        try {
+            const channel = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
+            debugLog('AI_ASSISTANT', `openBotChat: channel=${JSON.stringify(channel)}`);
+            if (channel) {
+                switchToChannelById(serverUrl, channel.id);
+                debugLog('AI_ASSISTANT', `openBotChat: switched to channel ${channel.id}`);
+            } else {
+                debugLog('AI_ASSISTANT', 'openBotChat: channel is null');
+                Alert.alert('Error', 'Failed to create bot channel');
+            }
+        } catch (err) {
+            debugLog('AI_ASSISTANT', `openBotChat error: ${err}`);
+            Alert.alert('Error', `openBotChat failed: ${err}`);
         }
     }, [serverUrl]);
 
     const openAICustomerService = useCallback(async () => {
+        debugLog('AI_ASSISTANT', `openAICustomerService: channelId=${channelId}, serverUrl=${serverUrl}`);
         try {
-            // 动态获取 bots（不依赖预加载的 channelBots）
             const bots = await getChannelBots(serverUrl, channelId);
+            debugLog('AI_ASSISTANT', `openAICustomerService: got ${bots.length} bots: ${JSON.stringify(bots)}`);
 
             if (bots.length === 0) {
-                // 显示提示：当前频道没有可用的 AI 助手
                 Alert.alert(
                     intl.formatMessage({id: 'ai_customer_service.no_bots', defaultMessage: 'No AI assistants available'}),
                     intl.formatMessage({id: 'ai_customer_service.no_bots_detail', defaultMessage: 'Please contact your administrator to add AI assistants.'})
@@ -235,10 +247,10 @@ const ChannelHeader = ({
                 theme,
             });
         } catch (error) {
-            // 错误处理
+            debugLog('AI_ASSISTANT', `openAICustomerService error: ${error}`);
             Alert.alert(
                 intl.formatMessage({id: 'ai_customer_service.error', defaultMessage: 'Failed to load AI assistants'}),
-                intl.formatMessage({id: 'ai_customer_service.error_detail', defaultMessage: 'Please try again later.'})
+                intl.formatMessage({id: 'ai_customer_service.error_detail', defaultMessage: 'Please try again later.'}) + `\n\n${error}`
             );
         }
     }, [channelId, serverUrl, intl, theme, openBotChat]);

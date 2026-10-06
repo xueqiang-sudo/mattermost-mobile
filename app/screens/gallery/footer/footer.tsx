@@ -9,78 +9,40 @@ import {Events} from '@constants';
 import {GALLERY_FOOTER_HEIGHT} from '@constants/gallery';
 import {useServerUrl} from '@context/server';
 import SecurityManager from '@managers/security_manager';
-import {changeOpacity} from '@utils/theme';
-import {ensureString} from '@utils/types';
-import {username2Nickname} from '@utils/user';
 
 import Actions from './actions';
-import Avatar from './avatar';
-import CopyPublicLink from './copy_public_link';
-import Details from './details';
 import DownloadWithAction from './download_with_action';
 
 import type {IntuneMAMSaveLocation} from '@managers/intune_manager/types';
-import type PostModel from '@typings/database/models/servers/post';
-import type UserModel from '@typings/database/models/servers/user';
 import type {GalleryAction, GalleryItemType} from '@typings/screens/gallery';
 
 type Props = {
-    author?: UserModel;
     canDownloadFiles: boolean;
-    channelName: string;
-    currentUserId: string;
-    enablePostIconOverride: boolean;
-    enablePostUsernameOverride: boolean;
     enablePublicLink: boolean;
     enableSecureFilePreview: boolean;
     hideActions: boolean;
-    isDirectChannel: boolean;
     item: GalleryItemType;
-    post?: PostModel;
     style: StyleProp<ViewStyle>;
-    teammateNameDisplay: string;
 }
 
 const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
-        backgroundColor: '#000',
-        borderTopColor: changeOpacity('#fff', 0.4),
-        borderTopWidth: 1,
+        backgroundColor: 'transparent',
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'flex-end',
         height: GALLERY_FOOTER_HEIGHT,
         paddingHorizontal: 20,
     },
-    details: {flex: 3, flexDirection: 'row'},
 });
 
 const Footer = ({
-    author, canDownloadFiles, channelName, currentUserId,
-    enablePostIconOverride, enablePostUsernameOverride, enablePublicLink, enableSecureFilePreview,
-    hideActions, isDirectChannel, item, post, style, teammateNameDisplay: _teammateNameDisplay,
+    canDownloadFiles, enablePublicLink, enableSecureFilePreview,
+    hideActions, item, style,
 }: Props) => {
     const serverUrl = useServerUrl();
     const showActions = !hideActions && Boolean(item.id) && !item.id?.startsWith('uid');
     const [action, setAction] = useState<GalleryAction>('none');
-
-    let overrideIconUrl;
-    if (enablePostIconOverride && post?.props?.use_user_icon !== 'true' && post?.props?.override_icon_url) {
-        overrideIconUrl = ensureString(post.props.override_icon_url);
-    }
-
-    let userDisplayName;
-    if (item.type === 'avatar') {
-        userDisplayName = item.name;
-    } else if (enablePostUsernameOverride && post?.props?.override_username) {
-        userDisplayName = ensureString(post.props.override_username);
-    } else {
-        userDisplayName = username2Nickname(author, {});
-    }
-
-    const handleCopyLink = useCallback(() => {
-        setAction('copying');
-    }, []);
 
     const handleDownload = useCallback(async () => {
         setAction('downloading');
@@ -118,35 +80,15 @@ const Footer = ({
                     setAction={setAction}
                 />
             }
-            {action === 'copying' && !enableSecureFilePreview && enablePublicLink &&
-            <CopyPublicLink
-                item={item}
-                setAction={setAction}
-            />
-            }
             <View style={styles.container}>
-                <View style={styles.details}>
-                    {item.type !== 'avatar' &&
-                        <Avatar
-                            author={author}
-                            overrideIconUrl={overrideIconUrl}
-                        />
-                    }
-                    <Details
-                        channelName={item.type === 'avatar' ? '' : channelName}
-                        isDirectChannel={isDirectChannel}
-                        ownPost={author?.id === currentUserId}
-                        userDisplayName={userDisplayName}
-                    />
-                </View>
                 {showActions &&
                 <Actions
                     allowSaveToLocation={allowSaveToLocation}
                     disabled={action !== 'none'}
                     canDownloadFiles={!enableSecureFilePreview && canDownloadFiles}
-                    enablePublicLinks={!enableSecureFilePreview && enablePublicLink && item.type !== 'avatar'}
+                    enablePublicLinks={false}
                     fileId={item.id!}
-                    onCopyPublicLink={handleCopyLink}
+                    onCopyPublicLink={() => {}}
                     onDownload={handleDownload}
                     onShare={handleShare}
                 />

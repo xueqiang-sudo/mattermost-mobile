@@ -15,11 +15,11 @@ import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {queryUsers} from '@queries/servers/user';
-import {queryChannels} from '@queries/servers/channel';
+import {queryAllUsers} from '@queries/servers/user';
+import {queryAllChannelsForTeam} from '@queries/servers/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {withObservables, useDatabase} from '@nozbe/watermelondb/react';
+import {withDatabase, withObservables, useDatabase} from '@nozbe/watermelondb/react';
 import {of as of$, combineLatest} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
@@ -346,8 +346,8 @@ const ConsultationTargetSelector = ({
 };
 
 const enhance = withObservables(['database', 'teamId'], ({database, teamId}: WithDatabaseArgs & {teamId: string}) => {
-    const users = queryUsers(database).observe();
-    const channels = queryChannels(database, {team_id: teamId}).observe();
+    const users = queryAllUsers(database).observe();
+    const channels = queryAllChannelsForTeam(database, teamId).observe();
     return {
         users,
         channels,
