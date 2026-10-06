@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, Platform, Text, View} from 'react-native';
+import {Alert, Keyboard, Platform, Text, View} from 'react-native';
 
 import {getCallsConfig} from '@calls/state';
 import CompassIcon from '@components/compass_icon';
@@ -190,8 +190,15 @@ const ChannelHeader = ({
 
     const openAICustomerService = useCallback(async () => {
         try {
-            const bots = channelBots.length > 0 ? channelBots : await getChannelBots(serverUrl, channelId);
+            // 动态获取 bots（不依赖预加载的 channelBots）
+            const bots = await getChannelBots(serverUrl, channelId);
+
             if (bots.length === 0) {
+                // 显示提示：当前频道没有可用的 AI 助手
+                Alert.alert(
+                    intl.formatMessage({id: 'ai_customer_service.no_bots', defaultMessage: 'No AI assistants available'}),
+                    intl.formatMessage({id: 'ai_customer_service.no_bots_detail', defaultMessage: 'Please contact your administrator to add AI assistants.'})
+                );
                 return;
             }
 
@@ -227,10 +234,14 @@ const ChannelHeader = ({
                 renderContent,
                 theme,
             });
-        } catch {
-            // ignore
+        } catch (error) {
+            // 错误处理
+            Alert.alert(
+                intl.formatMessage({id: 'ai_customer_service.error', defaultMessage: 'Failed to load AI assistants'}),
+                intl.formatMessage({id: 'ai_customer_service.error_detail', defaultMessage: 'Please try again later.'})
+            );
         }
-    }, [channelBots, channelId, serverUrl, intl, theme, openBotChat]);
+    }, [channelId, serverUrl, intl, theme, openBotChat]);
 
     const openConsultation = useCallback(() => {
         const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
@@ -276,14 +287,14 @@ const ChannelHeader = ({
         // Show overflow menu dropdown below the "..." button
         const menuItems: PlusMenuEntry[] = [];
 
-        if (isGM && channelBots.length > 0) {
-            menuItems.push({
-                labelId: 'channel_header.ai_customer_service',
-                defaultLabel: 'AI Customer Service',
-                onPress: openAICustomerService,
-                testID: 'channel_header.overflow.ai_customer_service',
-            });
-        }
+        // 在所有频道类型都显示 AI 助手（不限于 GM）
+        // 如果 channelBots 尚未加载，在点击时动态获取
+        menuItems.push({
+            labelId: 'channel_header.ai_customer_service',
+            defaultLabel: 'AI Assistant',
+            onPress: openAICustomerService,
+            testID: 'channel_header.overflow.ai_customer_service',
+        });
 
         menuItems.push({
             labelId: 'consultation.title',

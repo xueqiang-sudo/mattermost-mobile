@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withObservables} from '@nozbe/watermelondb/react';
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
@@ -24,4 +24,4 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     };
 });
 
-export default enhanced(ForwardMessage);
+export default withDatabase(enhanced(ForwardMessage));

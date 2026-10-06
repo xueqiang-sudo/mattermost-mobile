@@ -27,6 +27,9 @@ import {bottomSheet} from '@screens/navigation';
 
 import ConvertingView from './converting_view';
 import FileMenu from './file_menu';
+import ImagePreview from './image_preview';
+import VideoPreview from './video_preview';
+import AudioPreview from './audio_preview';
 import LoadingView from './loading_view';
 import TopBar from './top_bar';
 import UnsupportedView from './unsupported_view';
@@ -383,7 +386,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     onClose={() => {}}
                 />
             ),
-            snapPoints: ['CONTENT_HEIGHT', 0],
+            snapPoints: [1, 350],
             theme,
             closeButtonId: 'close-file-menu',
         });
@@ -485,6 +488,40 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             );
         }
 
+        // Render image preview if ready
+        if (fileState === 'viewable' && filePath && isImage(currentFileInfo)) {
+            debugLog('FILE_VIEWER', `rendering image preview`);
+            return (
+                <ImagePreview
+                    uri={`file://${filePath.replace('file://', '')}`}
+                    onClose={handleClose}
+                />
+            );
+        }
+
+        // Render video preview if ready
+        if (fileState === 'viewable' && filePath && isVideo(currentFileInfo)) {
+            debugLog('FILE_VIEWER', `rendering video preview`);
+            return (
+                <VideoPreview
+                    uri={`file://${filePath.replace('file://', '')}`}
+                    onClose={handleClose}
+                />
+            );
+        }
+
+        // Render audio preview if ready
+        if (fileState === 'viewable' && filePath && isAudio(currentFileInfo)) {
+            debugLog('FILE_VIEWER', `rendering audio preview`);
+            return (
+                <AudioPreview
+                    uri={`file://${filePath.replace('file://', '')}`}
+                    filename={currentFileInfo.name}
+                    onClose={handleClose}
+                />
+            );
+        }
+
         switch (fileState) {
             case 'loading':
                 debugLog('FILE_VIEWER', `rendering LoadingView (loading state)`);
@@ -511,13 +548,19 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         }
     };
 
+    // Check if we should hide TopBar (for image/video/audio previews)
+    const isMediaPreview = fileState === 'viewable' && filePath &&
+        (isImage(currentFileInfo) || isVideo(currentFileInfo) || isAudio(currentFileInfo));
+
     return (
         <View style={styles.container}>
-            <TopBar
-                title={currentFileInfo.name}
-                onBack={handleClose}
-                onMenuPress={handleMenuPress}
-            />
+            {!isMediaPreview && (
+                <TopBar
+                    title={currentFileInfo.name}
+                    onBack={handleClose}
+                    onMenuPress={handleMenuPress}
+                />
+            )}
             <View style={styles.content}>
                 {renderContent()}
             </View>
