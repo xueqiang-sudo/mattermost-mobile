@@ -1,9 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
+    Alert,
+    DeviceEventEmitter,
     FlatList,
     Keyboard,
     Text,
@@ -15,10 +17,12 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
+import {useDatabase} from '@context/database';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal} from '@screens/navigation';
+import {getCurrentUserId} from '@queries/servers/system';
+import {dismissModal, showModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -27,9 +31,13 @@ import {
     listConsultations,
     getConsultationResponses,
     replyToConsultation,
+    forwardResponseToCustomer,
+    closeConsultation,
     type ConsultationInfo,
     type ConsultationResponse,
 } from '@screens/channel/ai_actions/ai_api';
+
+import ConsultationTargetSelector from './consultation_target_selector';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -38,9 +46,10 @@ type Props = {
     channelId: string;
     teamId?: string;
     closeButtonId?: string;
+    prefillText?: string;
 };
 
-type ActiveView = 'list' | 'detail' | 'compose';
+type ActiveView = 'list' | 'detail' | 'compose' | 'target-selector';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {flex: 1},
@@ -118,20 +127,65 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.buttonColor,
         ...typography('Body', 200, 'SemiBold'),
     },
+    targetButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+    },
+    targetButtonText: {
+        ...typography('Body', 200),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+    },
+    targetButtonSelected: {
+        color: theme.centerChannelColor,
+    },
     detailContainer: {padding: 16},
-    responseItem: {
-        paddingVertical: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    messageBubble: {
+        maxWidth: '80%',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
     },
-    responseAuthor: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: theme.linkColor,
+    messageBubbleOwn: {
+        alignSelf: 'flex-end',
+        backgroundColor: theme.buttonBg,
     },
-    responseMessage: {
+    messageBubbleOther: {
+        alignSelf: 'flex-start',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    messageAuthor: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        marginBottom: 4,
+    },
+    messageText: {
         ...typography('Body', 100),
         color: theme.centerChannelColor,
-        marginTop: 2,
+    },
+    messageTextOwn: {
+        color: theme.buttonColor,
+    },
+    messageActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginTop: 4,
+    },
+    forwardButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+    },
+    forwardButtonText: {
+        ...typography('Body', 50),
+        color: theme.linkColor,
+        marginLeft: 4,
     },
     replyContainer: {
         flexDirection: 'row',
@@ -167,29 +221,45 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Props) => {
+const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId, prefillText}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
+    const database = useDatabase();
     const styles = getStyleSheet(theme);
 
-    const [activeView, setActiveView] = useState<ActiveView>('list');
+    const [currentUserId, setCurrentUserId] = useState('');
+    useEffect(() => {
+        (async () => {
+            const uid = await getCurrentUserId(database);
+            setCurrentUserId(uid);
+        })();
+    }, [database]);
+
+    const [activeView, setActiveView] = useState<ActiveView>(prefillText ? 'compose' : 'list');
     const [consultations, setConsultations] = useState<ConsultationInfo[]>([]);
     const [loading, setLoading] = useState(true);
-    const [composeQuestion, setComposeQuestion] = useState('');
+    const [composeQuestion, setComposeQuestion] = useState(prefillText || '');
     const [composing, setComposing] = useState(false);
     const [selectedConsultation, setSelectedConsultation] = useState<ConsultationInfo | null>(null);
     const [responses, setResponses] = useState<ConsultationResponse[]>([]);
     const [loadingResponses, setLoadingResponses] = useState(false);
     const [replyText, setReplyText] = useState('');
+    const [targetUserId, setTargetUserId] = useState('');
+    const [targetDisplayName, setTargetDisplayName] = useState('');
+    const [expertGroupId, setExpertGroupId] = useState('');
 
-    const handleClose = useCallback(() => {
-        if (closeButtonId) {
-            dismissModal({componentId});
-        } else {
-            dismissModal({componentId});
+    const handleClose = useCallback(async () => {
+        // Phase 3: AI summarization on close
+        if (selectedConsultation && selectedConsultation.status !== 'closed') {
+            try {
+                await closeConsultation(serverUrl, selectedConsultation.id);
+            } catch {
+                // ignore
+            }
         }
-    }, [closeButtonId, componentId]);
+        dismissModal({componentId});
+    }, [closeButtonId, componentId, selectedConsultation, serverUrl]);
 
     const loadConsultations = useCallback(async () => {
         setLoading(true);
@@ -207,8 +277,40 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
         loadConsultations();
     }, [loadConsultations]);
 
+    // Phase 2: WebSocket real-time updates
+    useEffect(() => {
+        const subscription = DeviceEventEmitter.addListener(
+            'consultation_response',
+            (data: any) => {
+                if (data.consultationId === selectedConsultation?.id) {
+                    setResponses((prev) => {
+                        // Avoid duplicates
+                        if (prev.some((r) => r.post_id === data.response.post_id)) {
+                            return prev;
+                        }
+                        return [...prev, data.response];
+                    });
+                }
+            }
+        );
+        return () => subscription.remove();
+    }, [selectedConsultation]);
+
+    const handleTargetSelect = useCallback((userId: string, groupId?: string) => {
+        setTargetUserId(userId);
+        setExpertGroupId(groupId || '');
+        setActiveView('compose');
+    }, []);
+
     const handleCompose = usePreventDoubleTap(useCallback(async () => {
         if (!composeQuestion.trim() || composing) {
+            return;
+        }
+        if (!targetUserId && !expertGroupId) {
+            Alert.alert(
+                intl.formatMessage({id: 'consultation.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'consultation.select_target_first', defaultMessage: 'Please select an expert or group first.'})
+            );
             return;
         }
         setComposing(true);
@@ -216,9 +318,14 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
             await createConsultation(serverUrl, {
                 source_channel_id: channelId,
                 team_id: teamId,
+                target_user_id: targetUserId || undefined,
+                expert_group_id: expertGroupId || undefined,
                 question: composeQuestion.trim(),
             });
             setComposeQuestion('');
+            setTargetUserId('');
+            setTargetDisplayName('');
+            setExpertGroupId('');
             setActiveView('list');
             await loadConsultations();
         } catch {
@@ -226,7 +333,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
         } finally {
             setComposing(false);
         }
-    }, [channelId, composeQuestion, composing, loadConsultations, serverUrl, teamId]));
+    }, [channelId, composeQuestion, composing, expertGroupId, loadConsultations, serverUrl, targetUserId, teamId]));
 
     const handleSelectConsultation = useCallback(async (c: ConsultationInfo) => {
         setSelectedConsultation(c);
@@ -255,6 +362,31 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
             // ignore
         }
     }, [replyText, selectedConsultation, serverUrl]));
+
+    // Phase 2: Forward to customer
+    const handleForward = usePreventDoubleTap(useCallback(async (response: ConsultationResponse) => {
+        if (!selectedConsultation) {
+            return;
+        }
+        try {
+            await forwardResponseToCustomer(serverUrl, selectedConsultation.id, response.post_id);
+            // Update local state
+            setResponses((prev) =>
+                prev.map((r) =>
+                    r.post_id === response.post_id ? {...r, forwarded: true} : r
+                )
+            );
+            Alert.alert(
+                intl.formatMessage({id: 'consultation.forward_success', defaultMessage: 'Success'}),
+                intl.formatMessage({id: 'consultation.forward_success_message', defaultMessage: 'Response forwarded to customer.'})
+            );
+        } catch {
+            Alert.alert(
+                intl.formatMessage({id: 'consultation.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'consultation.forward_failed', defaultMessage: 'Failed to forward response.'})
+            );
+        }
+    }, [selectedConsultation, serverUrl]));
 
     const renderList = () => {
         if (loading) {
@@ -293,7 +425,11 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
                             {' · '}
                             {new Date(item.created_at).toLocaleDateString()}
                         </Text>
-                        <Text style={styles.cardStatus}>{item.status}</Text>
+                        <Text style={styles.cardStatus}>
+                            {item.status === 'closed'
+                                ? intl.formatMessage({id: 'consultation.status.closed', defaultMessage: 'Closed'})
+                                : intl.formatMessage({id: 'consultation.status.open', defaultMessage: 'Open'})}
+                        </Text>
                     </TouchableOpacity>
                 )}
             />
@@ -302,6 +438,19 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
 
     const renderCompose = () => (
         <View style={styles.composeContainer}>
+            <Text style={styles.composeLabel}>
+                {intl.formatMessage({id: 'consultation.select_target', defaultMessage: 'Select Expert'})}
+            </Text>
+            <TouchableOpacity
+                style={styles.targetButton}
+                onPress={() => setActiveView('target-selector')}
+            >
+                <Text style={[styles.targetButtonText, targetDisplayName && styles.targetButtonSelected]}>
+                    {targetDisplayName || intl.formatMessage({id: 'consultation.target.choose', defaultMessage: 'Choose expert or group...'})}
+                </Text>
+                <CompassIcon name='chevron-right' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
+            </TouchableOpacity>
+
             <Text style={styles.composeLabel}>
                 {intl.formatMessage({id: 'consultation.question_label', defaultMessage: 'Your question'})}
             </Text>
@@ -314,9 +463,9 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
                 textAlignVertical='top'
             />
             <TouchableOpacity
-                style={[styles.composeButton, !composeQuestion.trim() && {opacity: 0.5}]}
+                style={[styles.composeButton, (!composeQuestion.trim() || !targetUserId && !expertGroupId) && {opacity: 0.5}]}
                 onPress={handleCompose}
-                disabled={!composeQuestion.trim() || composing}
+                disabled={!composeQuestion.trim() || (!targetUserId && !expertGroupId) || composing}
             >
                 <Text style={styles.composeButtonText}>
                     {composing
@@ -327,61 +476,109 @@ const ConsultationPanel = ({componentId, channelId, teamId, closeButtonId}: Prop
         </View>
     );
 
-    const renderDetail = () => (
-        <View style={styles.flex}>
-            <FlatList
-                data={responses}
-                keyExtractor={(item) => item.post_id}
-                contentContainerStyle={styles.detailContainer}
-                ListHeaderComponent={
-                    <View style={styles.card}>
-                        <Text style={styles.cardQuestion}>{selectedConsultation?.question}</Text>
-                        <Text style={styles.cardMeta}>{selectedConsultation?.status}</Text>
-                    </View>
-                }
-                renderItem={({item}) => (
-                    <View style={styles.responseItem}>
-                        <Text style={styles.responseAuthor}>{item.author_name}</Text>
-                        <Text style={styles.responseMessage}>{item.message}</Text>
+    const renderDetail = () => {
+        const isOpen = selectedConsultation?.status !== 'closed';
+
+        return (
+            <View style={styles.flex}>
+                <FlatList
+                    data={responses}
+                    keyExtractor={(item) => item.post_id}
+                    contentContainerStyle={styles.detailContainer}
+                    ListHeaderComponent={
+                        <View style={[styles.messageBubble, styles.messageBubbleOwn]}>
+                            <Text style={[styles.messageText, styles.messageTextOwn]}>
+                                {selectedConsultation?.question}
+                            </Text>
+                        </View>
+                    }
+                    renderItem={({item}) => {
+                        const isOwn = item.is_requester;
+                        return (
+                            <View style={[styles.messageBubble, isOwn ? styles.messageBubbleOwn : styles.messageBubbleOther]}>
+                                {!isOwn && (
+                                    <Text style={styles.messageAuthor}>{item.author_name}</Text>
+                                )}
+                                <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
+                                    {item.message}
+                                </Text>
+                                {!isOwn && !item.forwarded && isOpen && (
+                                    <View style={styles.messageActions}>
+                                        <TouchableOpacity
+                                            style={styles.forwardButton}
+                                            onPress={() => handleForward(item)}
+                                        >
+                                            <CompassIcon name='share-variant' size={14} color={theme.linkColor}/>
+                                            <Text style={styles.forwardButtonText}>
+                                                {intl.formatMessage({id: 'consultation.forward_to_customer', defaultMessage: 'Forward to customer'})}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                                {!isOwn && item.forwarded && (
+                                    <View style={styles.messageActions}>
+                                        <CompassIcon name='check' size={14} color={theme.linkColor}/>
+                                        <Text style={styles.forwardButtonText}>
+                                            {intl.formatMessage({id: 'consultation.forwarded', defaultMessage: 'Forwarded'})}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        );
+                    }}
+                    ListEmptyComponent={
+                        loadingResponses ? (
+                            <View style={styles.loadingContainer}>
+                                <Loading color={theme.centerChannelColor} size='small'/>
+                            </View>
+                        ) : (
+                            <Text style={styles.emptyText}>
+                                {intl.formatMessage({id: 'consultation.no_responses', defaultMessage: 'No responses yet'})}
+                            </Text>
+                        )
+                    }
+                />
+                {isOpen && (
+                    <View style={styles.replyContainer}>
+                        <TextInput
+                            style={styles.replyInput}
+                            value={replyText}
+                            onChangeText={setReplyText}
+                            placeholder={intl.formatMessage({id: 'consultation.followup_placeholder', defaultMessage: 'Type your follow-up...'})}
+                        />
+                        <TouchableOpacity
+                            style={styles.replyButton}
+                            onPress={handleReply}
+                            disabled={!replyText.trim()}
+                        >
+                            <Text style={styles.replyButtonText}>
+                                {intl.formatMessage({id: 'consultation.send', defaultMessage: 'Send'})}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 )}
-                ListEmptyComponent={
-                    loadingResponses ? (
-                        <View style={styles.loadingContainer}>
-                            <Loading color={theme.centerChannelColor} size='small'/>
-                        </View>
-                    ) : (
-                        <Text style={styles.emptyText}>
-                            {intl.formatMessage({id: 'consultation.no_responses', defaultMessage: 'No responses yet'})}
-                        </Text>
-                    )
-                }
-            />
-            <View style={styles.replyContainer}>
-                <TextInput
-                    style={styles.replyInput}
-                    value={replyText}
-                    onChangeText={setReplyText}
-                    placeholder={intl.formatMessage({id: 'consultation.reply_placeholder', defaultMessage: 'Type a reply...'})}
-                />
-                <TouchableOpacity
-                    style={styles.replyButton}
-                    onPress={handleReply}
-                    disabled={!replyText.trim()}
-                >
-                    <Text style={styles.replyButtonText}>
-                        {intl.formatMessage({id: 'consultation.send', defaultMessage: 'Send'})}
-                    </Text>
-                </TouchableOpacity>
             </View>
-        </View>
-    );
+        );
+    };
 
     const headerTitle = activeView === 'compose'
         ? intl.formatMessage({id: 'consultation.compose_title', defaultMessage: 'New Consultation'})
         : activeView === 'detail'
             ? intl.formatMessage({id: 'consultation.detail_title', defaultMessage: 'Consultation Detail'})
-            : intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
+            : activeView === 'target-selector'
+                ? intl.formatMessage({id: 'consultation.select_target', defaultMessage: 'Select Expert'})
+                : intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
+
+    if (activeView === 'target-selector') {
+        return (
+            <ConsultationTargetSelector
+                teamId={teamId || ''}
+                currentUserId={currentUserId}
+                onSelect={handleTargetSelect}
+                onClose={() => setActiveView('compose')}
+            />
+        );
+    }
 
     return (
         <SafeAreaView style={styles.flex} testID='consultation.panel'>

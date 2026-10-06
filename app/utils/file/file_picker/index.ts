@@ -773,12 +773,28 @@ export default class FilePickerUtil {
                     return;
                 }
 
-                if (this.draftVideoBridge) {
-                    await this.processPickedAssetsWithDraftBridge(files);
-                    return;
+                // Split files: images go direct upload, videos go through draft bridge
+                const imageFiles: Asset[] = [];
+                const videoFiles: Asset[] = [];
+                for (const f of files) {
+                    if (this.fileLooksLikeVideo(f)) {
+                        videoFiles.push(f);
+                    } else {
+                        imageFiles.push(f);
+                    }
                 }
 
-                await this.prepareFileUpload(files);
+                // Images: direct upload (auto-send)
+                if (imageFiles.length > 0) {
+                    await this.prepareFileUpload(imageFiles);
+                }
+
+                // Videos: draft bridge for processing
+                if (videoFiles.length > 0 && this.draftVideoBridge) {
+                    await this.processPickedAssetsWithDraftBridge(videoFiles);
+                } else if (videoFiles.length > 0) {
+                    await this.prepareFileUpload(videoFiles);
+                }
             });
         }
     };

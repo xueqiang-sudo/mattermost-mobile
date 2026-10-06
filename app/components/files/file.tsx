@@ -58,6 +58,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             borderWidth: 1,
             borderColor: changeOpacity(theme.centerChannelColor, 0.24),
             borderRadius: 5,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
         },
         fileWrapperFillWidth: {
             width: '100%',
@@ -65,11 +67,19 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         fileWrapperShrinkToContent: {
             alignSelf: 'flex-start',
         },
+        fileWrapperFixedWidth: {
+            width: '100%',
+            maxWidth: 320,
+        },
         iconWrapper: {
             marginTop: 8,
             marginRight: 8,
             marginBottom: 8,
             marginLeft: 8,
+        },
+        iconWrapperRight: {
+            marginLeft: 'auto',
+            paddingLeft: 8,
         },
         imageVideo: {
             height: 40,
@@ -199,21 +209,21 @@ const File = ({
                 file={file}
                 fillRemainingRow={expandCardToParentWidth}
                 onPress={handlePreviewPress}
-                showDate={showDate}
+                showDate={false}
             />
         );
 
         const cardRowStyle = [
             style.fileWrapper,
-            expandCardToParentWidth ? style.fileWrapperFillWidth : style.fileWrapperShrinkToContent,
+            style.fileWrapperFixedWidth,
         ];
 
         return (
             <View style={cardRowStyle}>
-                <View style={style.iconWrapper}>
+                {fileInfo}
+                <View style={style.iconWrapperRight}>
                     {fileIcon}
                 </View>
-                {fileInfo}
                 {onOptionsPress &&
                 <FileOptionsIcon
                     onPress={handleOnOptionsPress}

@@ -244,36 +244,24 @@ const ChannelHeader = ({
     }, [channelId, serverUrl, intl, theme, openBotChat]);
 
     const openConsultation = useCallback(() => {
-        const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
         const closeButtonId = 'close-consultation-panel';
         const options = {
             topBar: {
-                leftButtons: [{
-                    id: closeButtonId,
-                    icon: closeButton,
-                    testID: 'close.consultation_panel.button',
-                }],
+                visible: false,
             },
         };
-        showModal(Screens.CONSULTATION_PANEL, title, {channelId, teamId, closeButtonId}, options);
-    }, [channelId, teamId, intl, theme]);
+        showModal(Screens.CONSULTATION_PANEL, '', {channelId, teamId, closeButtonId}, options);
+    }, [channelId, teamId]);
 
     const openAIAssistant = useCallback(() => {
-        const title = intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'});
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
         const closeButtonId = 'close-ai-assistant-panel';
         const options = {
             topBar: {
-                leftButtons: [{
-                    id: closeButtonId,
-                    icon: closeButton,
-                    testID: 'close.ai_assistant_panel.button',
-                }],
+                visible: false,
             },
         };
-        showModal(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId, closeButtonId}, options);
-    }, [channelId, teamId, intl, theme]);
+        showModal(Screens.AI_ASSISTANT_PANEL, '', {channelId, teamId, closeButtonId}, options);
+    }, [channelId, teamId]);
 
     const {openPlusMenu} = usePlusMenu();
 

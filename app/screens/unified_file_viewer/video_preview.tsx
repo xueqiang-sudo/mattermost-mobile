@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Dimensions, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {useVideoPlayer, VideoView} from 'expo-video';
+import {Video, AVPlaybackStatus} from 'expo-av';
 import Animated, {FadeIn, FadeOut} from 'react-native-reanimated';
 
 import CompassIcon from '@components/compass_icon';
@@ -22,22 +22,27 @@ const VideoPreview = ({uri, onClose}: VideoPreviewProps) => {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const hideTimeoutRef = useRef<NodeJS.Timeout>();
+    const videoRef = useRef<Video | null>(null);
 
-    const player = useVideoPlayer(uri, (player) => {
-        player.loop = false;
-        player.play();
-    });
+    const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
+        if (!status || !status.isLoaded) {
+            return;
+        }
+        setIsPlaying(status.isPlaying ?? false);
+        setCurrentTime((status.positionMillis ?? 0) / 1000);
+        setDuration((status.durationMillis ?? 0) / 1000);
+    }, []);
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            if (player.playing) {
-                setCurrentTime(player.currentTime);
-                setDuration(player.duration);
+        // Auto play when mounted
+        (async () => {
+            try {
+                await videoRef.current?.playAsync();
+            } catch {
+                // ignore
             }
-        }, 100);
-
-        return () => clearInterval(interval);
-    }, [player]);
+        })();
+    }, []);
 
     const toggleControls = useCallback(() => {
         setShowControls((prev) => !prev);
@@ -54,15 +59,16 @@ const VideoPreview = ({uri, onClose}: VideoPreviewProps) => {
         }
     }, [showControls]);
 
-    const togglePlayPause = useCallback(() => {
-        if (player.playing) {
-            player.pause();
+    const togglePlayPause = useCallback(async () => {
+        const status = await videoRef.current?.getStatusAsync();
+        if (status?.isPlaying) {
+            await videoRef.current?.pauseAsync();
             setIsPlaying(false);
         } else {
-            player.play();
+            await videoRef.current?.playAsync();
             setIsPlaying(true);
         }
-    }, [player]);
+    }, []);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -70,11 +76,16 @@ const VideoPreview = ({uri, onClose}: VideoPreviewProps) => {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const onProgressChange = useCallback((value: number) => {
+    const onProgressChange = useCallback(async (value: number) => {
+        if (!videoRef.current) return;
         const newTime = (value / 100) * duration;
-        player.currentTime = newTime;
-        setCurrentTime(newTime);
-    }, [duration, player]);
+        try {
+            await videoRef.current.setPositionAsync(newTime * 1000);
+            setCurrentTime(newTime);
+        } catch {
+            // ignore
+        }
+    }, [duration]);
 
     useEffect(() => {
         return () => {
@@ -86,11 +97,15 @@ const VideoPreview = ({uri, onClose}: VideoPreviewProps) => {
 
     return (
         <View style={styles.container}>
-            <VideoView
-                player={player}
+            <Video
+                ref={videoRef}
+                source={{uri}}
                 style={styles.video}
-                allowsFullscreen={false}
-                allowsPictureInPicture={false}
+                resizeMode='contain'
+                shouldPlay={true}
+                isLooping={false}
+                onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+                useNativeControls={false}
             />
 
             {/* Tap area to toggle controls */}
@@ -136,7 +151,7 @@ const VideoPreview = ({uri, onClose}: VideoPreviewProps) => {
                             <View
                                 style={[
                                     styles.progressFill,
-                                    {width: `${(currentTime / duration) * 100}%`},
+                                    {width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`},
                                 ]}
                             />
                         </View>

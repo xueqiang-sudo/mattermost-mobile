@@ -4,11 +4,35 @@
 import React from 'react';
 import {Text, TouchableOpacity, View} from 'react-native';
 
-import FormattedDate, {type FormattedDateFormat} from '@components/formatted_date';
 import {useTheme} from '@context/theme';
 import {getFormattedFileSize} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
+// 工具函数：智能截断文件名，保留扩展名
+const truncateFileName = (fileName: string, maxLength: number = 20): {name: string, ext: string} => {
+    const lastDotIndex = fileName.lastIndexOf('.');
+
+    // 没有扩展名或扩展名在开头（如 .gitignore）
+    if (lastDotIndex <= 0) {
+        if (fileName.length > maxLength) {
+            return {name: fileName.slice(0, maxLength - 3) + '...', ext: ''};
+        }
+        return {name: fileName, ext: ''};
+    }
+
+    const name = fileName.slice(0, lastDotIndex);
+    const ext = fileName.slice(lastDotIndex + 1);
+
+    // 计算可用长度（总长度 - "..." - 扩展名 - "."）
+    const availableLength = maxLength - 3 - ext.length - 1;
+
+    if (name.length > availableLength) {
+        return {name: name.slice(0, availableLength) + '...', ext};
+    }
+
+    return {name, ext};
+};
 
 type FileInfoProps = {
     disabled?: boolean;
@@ -18,12 +42,6 @@ type FileInfoProps = {
     onPress: () => void;
     /** true：在文件行内占满剩余宽度；false：随文件名/大小收缩（微信气泡内非图附件） */
     fillRemainingRow?: boolean;
-};
-const FORMAT: FormattedDateFormat = {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -36,28 +54,23 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         attachmentContainerFill: {
             flex: 1,
         },
+        fileInfoTouchable: {
+            flexShrink: 1,
+        },
         fileDownloadContainer: {
             flexDirection: 'row',
             marginTop: 3,
-        },
-        fileStatsContainer: {
-            flexGrow: 1,
-            flexDirection: 'row',
-        },
-        fileStatsContainerCompact: {
-            flexGrow: 0,
-            flexDirection: 'row',
         },
         infoText: {
             color: changeOpacity(theme.centerChannelColor, 0.64),
             ...typography('Body', 75, 'Regular'),
         },
         fileName: {
-            marginTop: -4,
-            flexDirection: 'column',
-            flexWrap: 'wrap',
             color: theme.centerChannelColor,
-            paddingRight: 10,
+            ...typography('Body', 200, 'SemiBold'),
+        },
+        fileExtension: {
+            color: theme.centerChannelColor,
             ...typography('Body', 200, 'SemiBold'),
         },
         channelWrapper: {
@@ -78,18 +91,22 @@ const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDat
     const theme = useTheme();
     const style = getStyleSheet(theme);
 
+    // 智能截断文件名，保留扩展名
+    const {name, ext} = truncateFileName(file.name.trim(), 25);
+
     return (
         <View style={[style.attachmentContainer, fillRemainingRow && style.attachmentContainerFill]}>
             <TouchableOpacity
                 disabled={disabled}
                 onPress={onPress}
+                style={style.fileInfoTouchable}
             >
                 <Text
                     numberOfLines={1}
-                    ellipsizeMode='tail'
                     style={style.fileName}
                 >
-                    {file.name.trim()}
+                    {name}
+                    {ext ? <Text style={style.fileExtension}>.{ext}</Text> : null}
                 </Text>
                 <View style={style.fileDownloadContainer}>
                     {channelName &&
@@ -102,23 +119,9 @@ const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDat
                             </Text>
                         </View>
                     }
-                    <View style={fillRemainingRow ? style.fileStatsContainer : style.fileStatsContainerCompact}>
-                        <Text style={style.infoText}>
-                            {`${getFormattedFileSize(file.size)}`}
-                        </Text>
-                        {showDate && file.create_at != null && (
-                            <>
-                                <Text style={style.infoText}>
-                                    {' • '}
-                                </Text>
-                                <FormattedDate
-                                    style={style.infoText}
-                                    format={FORMAT}
-                                    value={file.create_at}
-                                />
-                            </>
-                        )}
-                    </View>
+                    <Text style={style.infoText}>
+                        {`${getFormattedFileSize(file.size)}`}
+                    </Text>
                 </View>
             </TouchableOpacity>
         </View>

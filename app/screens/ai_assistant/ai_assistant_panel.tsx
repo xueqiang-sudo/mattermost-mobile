@@ -282,29 +282,9 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                     <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'ai_assistant.title', defaultMessage: 'AI Assistant'})}
+                    {intl.formatMessage({id: 'channel_header.group_summary', defaultMessage: 'Group Summary'})}
                 </Text>
                 <View style={{width: 40}}/>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <TextInput
-                    style={styles.searchInput}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder={intl.formatMessage({id: 'ai_assistant.search_placeholder', defaultMessage: 'Ask knowledge base...'})}
-                />
-                <TouchableOpacity
-                    style={styles.searchButton}
-                    onPress={handleSearch}
-                    disabled={!searchQuery.trim() || searching}
-                >
-                    <Text style={styles.searchButtonText}>
-                        {searching
-                            ? intl.formatMessage({id: 'ai_assistant.searching', defaultMessage: 'Searching...'})
-                            : intl.formatMessage({id: 'ai_assistant.search', defaultMessage: 'Ask'})}
-                    </Text>
-                </TouchableOpacity>
             </View>
 
             {answer !== null && (
@@ -319,6 +299,26 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                     {renderResults()}
                 </>
             )}
+
+            <View style={styles.searchContainer}>
+                <TextInput
+                    style={styles.searchInput}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder={intl.formatMessage({id: 'ai_assistant.search_placeholder', defaultMessage: 'Ask AI...'})}
+                />
+                <TouchableOpacity
+                    style={styles.searchButton}
+                    onPress={handleSearch}
+                    disabled={!searchQuery.trim() || searching}
+                >
+                    <Text style={styles.searchButtonText}>
+                        {searching
+                            ? intl.formatMessage({id: 'ai_assistant.searching', defaultMessage: 'Searching...'})
+                            : intl.formatMessage({id: 'ai_assistant.search', defaultMessage: 'Ask'})}
+                    </Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 };
