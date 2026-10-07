@@ -11,7 +11,7 @@ import {Alert, DeviceEventEmitter, Platform, type GestureResponderEvent, type St
 import {updateDraftMessage} from '@actions/local/draft';
 import {removePost} from '@actions/local/post';
 import {showPermalink} from '@actions/remote/permalink';
-import {deletePost, deletePostBatch} from '@actions/remote/post';
+import {deletePost} from '@actions/remote/post';
 import {deleteSavedPost, savePostPreference} from '@actions/remote/preference';
 import {toggleReaction} from '@actions/remote/reactions';
 import {getBatchById} from '@utils/batch_posts';

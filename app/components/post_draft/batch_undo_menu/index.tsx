@@ -3,7 +3,7 @@
 
 import React from 'react';
 import {useIntl} from 'react-intl';
-import {Modal, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Modal, Text, TouchableOpacity} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 
 import {useTheme} from '@context/theme';
@@ -80,16 +80,6 @@ const BatchUndoMenu = ({
     const theme = useTheme();
     const styles = getStyleSheet(theme);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [
-                {
-                    translateY: withTiming(visible ? 0 : 300, {duration: 250}),
-                },
-            ],
-        };
-    }, [visible]);
-
     const handleUndoSingle = () => {
         onUndoSingle(postId);
         onHide();
@@ -100,11 +90,15 @@ const BatchUndoMenu = ({
         onHide();
     };
 
+    if (!visible) {
+        return null;
+    }
+
     return (
         <Modal
             visible={visible}
             transparent={true}
-            animationType='fade'
+            animationType='slide'
             onRequestClose={onHide}
         >
             <TouchableOpacity
@@ -112,7 +106,7 @@ const BatchUndoMenu = ({
                 activeOpacity={1}
                 onPress={onHide}
             >
-                <Animated.View style={[styles.container, animatedStyle]}>
+                <Animated.View style={styles.container}>
                     <Text style={styles.title}>
                         {intl.formatMessage({id: 'batch_undo.title', defaultMessage: 'Recall Message'})}
                     </Text>
