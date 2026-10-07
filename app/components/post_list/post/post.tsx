@@ -11,7 +11,7 @@ import {Alert, DeviceEventEmitter, Platform, type GestureResponderEvent, type St
 import {updateDraftMessage} from '@actions/local/draft';
 import {removePost} from '@actions/local/post';
 import {showPermalink} from '@actions/remote/permalink';
-import {deletePost} from '@actions/remote/post';
+import {deletePost, deletePostBatch} from '@actions/remote/post';
 import {deleteSavedPost, savePostPreference} from '@actions/remote/preference';
 import {toggleReaction} from '@actions/remote/reactions';
 import CallsCustomMessage from '@calls/components/calls_custom_message';
@@ -365,10 +365,19 @@ const Post = ({
                 label: intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'}),
                 iconName: 'message-arrow-right-outline',
                 onPress: closeAndRun(() => {
+                    const consultTitle = intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'});
                     showModal(
                         Screens.CONSULTATION_PANEL,
-                        intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'}),
+                        consultTitle,
                         {channelId: post.channelId, prefillText: textMessage},
+                        {
+                            topBar: {
+                                leftButtons: [{
+                                    id: 'close-consultation-panel',
+                                    text: intl.formatMessage({id: 'mobile.close', defaultMessage: 'Close'}),
+                                }],
+                            },
+                        },
                     );
                 }),
             });
@@ -422,6 +431,8 @@ const Post = ({
         // 5. Recall/Withdraw (撤回) - within 2 minutes, own post
         if (canWithdrawPost) {
             const withdrawText = intl.locale.startsWith('zh') ? '撤回' : 'Recall';
+            const batchId = (post.props as Record<string, unknown>)?.batch_id as string | undefined;
+
             items.push({
                 key: 'withdraw',
                 label: withdrawText,
@@ -429,18 +440,43 @@ const Post = ({
                 destructive: true,
                 onPress: () => {
                     closePopover().finally(() => {
-                        Alert.alert(
-                            intl.formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
-                            intl.formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
-                            [{
-                                text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
-                                style: 'cancel',
-                            }, {
-                                text: withdrawText,
-                                style: 'destructive',
-                                onPress: () => deletePost(serverUrl, post),
-                            }],
-                        );
+                        if (batchId) {
+                            // Batch post: show options to revoke single or all
+                            Alert.alert(
+                                withdrawText,
+                                '',
+                                [
+                                    {
+                                        text: intl.formatMessage({id: 'post_info.revoke_this', defaultMessage: 'Revoke this message'}),
+                                        style: 'destructive',
+                                        onPress: () => deletePost(serverUrl, post),
+                                    },
+                                    {
+                                        text: intl.formatMessage({id: 'post_info.revoke_batch', defaultMessage: 'Revoke all messages in this batch'}),
+                                        style: 'destructive',
+                                        onPress: () => deletePostBatch(serverUrl, batchId),
+                                    },
+                                    {
+                                        text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                                        style: 'cancel',
+                                    },
+                                ],
+                            );
+                        } else {
+                            // Single post: standard confirm
+                            Alert.alert(
+                                intl.formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
+                                intl.formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
+                                [{
+                                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                                    style: 'cancel',
+                                }, {
+                                    text: withdrawText,
+                                    style: 'destructive',
+                                    onPress: () => deletePost(serverUrl, post),
+                                }],
+                            );
+                        }
                     });
                 },
             });

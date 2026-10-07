@@ -13,7 +13,6 @@ import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import AudioFile from './audio_file';
 import DocumentFile from './document_file';
 import FileActionDialog from './file_action_dialog';
 import FileIcon from './file_icon';
@@ -85,10 +84,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             height: 40,
             width: 40,
             margin: 4,
-        },
-        audioFile: {
-            flexDirection: 'row',
-            alignItems: 'center',
         },
     };
 });
@@ -207,7 +202,7 @@ const File = ({
                 channelName={channelName}
                 disabled={isPressDisabled}
                 file={file}
-                fillRemainingRow={expandCardToParentWidth}
+                fillRemainingRow={true}
                 onPress={handlePreviewPress}
                 showDate={false}
             />
@@ -306,58 +301,55 @@ const File = ({
 
         fileComponent = asCard ? renderCardWithImage(renderImageFile) : renderImageFile;
     } else if (isDocument(file)) {
-        // 所有文件都可以点击显示操作对话框
-        const renderDocumentFile = (
-            <View style={style.iconWrapper}>
-                <TouchableWithFeedback
-                    onPress={() => {
-                        debugLog('FILE_CLICK', `TouchableWithFeedback pressed for document: ${file.name}`);
-                        handleShowFileActions();
-                    }}
-                    onLongPress={onLongPress}
-                    delayLongPress={200}
-                    disabled={isPressDisabled}
-                    type={'opacity'}
-                >
-                    <DocumentFile
-                        ref={document}
-                        canDownloadFiles={canDownloadFiles}
-                        disabled={isPressDisabled}
-                        enableSecureFilePreview={enableSecureFilePreview}
-                        file={file}
-                    />
-                </TouchableWithFeedback>
-            </View>
-        );
-
+        // 文档文件：统一卡片样式，文件名+大小在左，图标在右
         const fileInfo = (
             <FileInfo
                 channelName={channelName}
                 disabled={isPressDisabled}
                 file={file}
-                fillRemainingRow={expandCardToParentWidth}
+                fillRemainingRow={true}
                 onPress={handleShowFileActions}
-                showDate={showDate}
+                showDate={false}
             />
+        );
+
+        const documentIcon = (
+            <TouchableWithFeedback
+                onPress={() => {
+                    debugLog('FILE_CLICK', `TouchableWithFeedback pressed for document: ${file.name}`);
+                    handleShowFileActions();
+                }}
+                onLongPress={onLongPress}
+                delayLongPress={200}
+                disabled={isPressDisabled}
+                type={'opacity'}
+            >
+                <DocumentFile
+                    ref={document}
+                    canDownloadFiles={canDownloadFiles}
+                    disabled={isPressDisabled}
+                    enableSecureFilePreview={enableSecureFilePreview}
+                    file={file}
+                />
+            </TouchableWithFeedback>
         );
 
         fileComponent = (
             <>
-                <View
-                    style={[
-                        style.fileWrapper,
-                        expandCardToParentWidth ? style.fileWrapperFillWidth : style.fileWrapperShrinkToContent,
-                    ]}
+                <TouchableWithFeedback
+                    onPress={handleShowFileActions}
+                    onLongPress={onLongPress}
+                    delayLongPress={200}
+                    disabled={isPressDisabled}
+                    type={'opacity'}
                 >
-                    {renderDocumentFile}
-                    {fileInfo}
-                    {onOptionsPress &&
-                    <FileOptionsIcon
-                        onPress={handleOnOptionsPress}
-                        selected={optionSelected}
-                    />
-                    }
-                </View>
+                    <View style={[style.fileWrapper, style.fileWrapperFixedWidth]}>
+                        {fileInfo}
+                        <View style={style.iconWrapperRight}>
+                            {documentIcon}
+                        </View>
+                    </View>
+                </TouchableWithFeedback>
                 <FileActionDialog
                     visible={showActionDialog}
                     file={file}
@@ -368,17 +360,7 @@ const File = ({
             </>
         );
     } else if (isAudio(file)) {
-        const renderAudioFile = (
-            <Animated.View style={[styles, asCard ? style.imageVideo : style.audioFile]}>
-                <AudioFile
-                    file={file}
-                    canDownloadFiles={canDownloadFiles}
-                    enableSecureFilePreview={enableSecureFilePreview}
-                />
-            </Animated.View>
-        );
-
-        fileComponent = asCard ? renderCardWithImage(touchableWithPreview) : renderAudioFile;
+        fileComponent = renderCardWithImage(touchableWithPreview);
     } else {
         fileComponent = renderCardWithImage(touchableWithPreview);
     }

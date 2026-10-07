@@ -119,6 +119,10 @@ export async function closeConsultation(serverUrl: string, id: string): Promise<
     return apiPost(serverUrl, `${CONSULT_API_BASE}/${encodeURIComponent(id)}/close`, {});
 }
 
+export async function forwardResponseToCustomer(serverUrl: string, consultationId: string, postId: string): Promise<any> {
+    return apiPost(serverUrl, `${CONSULT_API_BASE}/${encodeURIComponent(consultationId)}/forward`, {post_id: postId});
+}
+
 // ─── AI Assistant (fact-extractor plugin) ───
 
 const AI_API_BASE = '/plugins/com.mattermost.fact-extractor';

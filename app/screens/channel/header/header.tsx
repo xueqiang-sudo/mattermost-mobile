@@ -257,14 +257,16 @@ const ChannelHeader = ({
     }, [channelId, serverUrl, intl, theme, openBotChat]);
 
     const openConsultation = useCallback(() => {
-        const closeButtonId = 'close-consultation-panel';
-        const options = {
+        const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
+        showModal(Screens.CONSULTATION_PANEL, title, {channelId, teamId}, {
             topBar: {
-                visible: false,
+                leftButtons: [{
+                    id: 'close-consultation-panel',
+                    text: intl.formatMessage({id: 'mobile.close', defaultMessage: 'Close'}),
+                }],
             },
-        };
-        showModal(Screens.CONSULTATION_PANEL, '', {channelId, teamId, closeButtonId}, options);
-    }, [channelId, teamId]);
+        });
+    }, [channelId, teamId, intl]);
 
     const openAIAssistant = useCallback(() => {
         const closeButtonId = 'close-ai-assistant-panel';

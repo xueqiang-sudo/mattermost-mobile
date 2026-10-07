@@ -159,17 +159,35 @@ export default function DraftHandler(props: Props) {
 
                 debugLog('ADD_FILES', `uploaded ${uploadedFiles.length} files, creating post`);
 
-                // Create and send post immediately
+                // Create and send post(s) immediately
                 if (uploadedFiles.length > 0) {
-                    const post = {
-                        user_id: currentUserId,
-                        channel_id: channelId,
-                        root_id: rootId,
-                        message: '',
-                    } as Post;
-                    debugLog('ADD_FILES', `creating post with ${uploadedFiles.length} files`);
-                    await createPost(serverUrl, post, uploadedFiles);
-                    debugLog('ADD_FILES', 'post created successfully');
+                    if (uploadedFiles.length > 1) {
+                        // Multi-file: create one post per file with shared batch_id
+                        const batchId = `${currentUserId}:${Date.now()}`;
+                        for (const file of uploadedFiles) {
+                            const post = {
+                                user_id: currentUserId,
+                                channel_id: channelId,
+                                root_id: rootId,
+                                message: '',
+                                props: {batch_id: batchId},
+                            } as Post;
+                            debugLog('ADD_FILES', `creating batch post for file: ${file.name}`);
+                            await createPost(serverUrl, post, [file]);
+                        }
+                        debugLog('ADD_FILES', `created ${uploadedFiles.length} batch posts with batch_id: ${batchId}`);
+                    } else {
+                        // Single file: create one post
+                        const post = {
+                            user_id: currentUserId,
+                            channel_id: channelId,
+                            root_id: rootId,
+                            message: '',
+                        } as Post;
+                        debugLog('ADD_FILES', `creating post with 1 file`);
+                        await createPost(serverUrl, post, uploadedFiles);
+                    }
+                    debugLog('ADD_FILES', 'post(s) created successfully');
                     DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
                 }
             } catch (err) {

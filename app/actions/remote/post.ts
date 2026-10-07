@@ -4,6 +4,8 @@
 
 /* eslint-disable max-lines */
 
+import {Q} from '@nozbe/watermelondb';
+
 import {markChannelAsUnread, updateLastPostAt} from '@actions/local/channel';
 import {addPostAcknowledgement, removePost, removePostAcknowledgement, storePostsForChannel} from '@actions/local/post';
 import {addRecentReaction} from '@actions/local/reactions';
@@ -874,6 +876,37 @@ export const deletePost = async (serverUrl: string, postToDelete: PostModel | Po
         return {post};
     } catch (error) {
         logDebug('error on deletePost', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
+export const deletePostBatch = async (serverUrl: string, batchId: string) => {
+    try {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const client = NetworkManager.getClient(serverUrl);
+
+        // Find all posts with this batch_id
+        const posts = await database.get('Post').query(
+            Q.where('props', Q.like(`%"batch_id":"${batchId}"%`)),
+        ).fetch();
+
+        if (posts.length === 0) {
+            return {error: 'No posts found for batch'};
+        }
+
+        // Delete all posts on server
+        const promises = posts.map((p) => client.deletePost(p.id));
+        await Promise.all(promises);
+
+        // Remove all posts locally
+        for (const p of posts) {
+            await removePost(serverUrl, p);
+        }
+
+        return {count: posts.length};
+    } catch (error) {
+        logDebug('error on deletePostBatch', getFullErrorMessage(error));
         forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }
