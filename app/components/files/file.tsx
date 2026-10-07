@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useRef, useState} from 'react';
-import {View, TouchableWithoutFeedback, type GestureResponderEvent} from 'react-native';
+import {Alert, View, TouchableWithoutFeedback, type GestureResponderEvent} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import TouchableWithFeedback from '@components/touchable_with_feedback';
@@ -117,11 +117,14 @@ const File = ({
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     const handlePreviewPress = useCallback(() => {
+        Alert.alert('File Step A', `handlePreviewPress idx=${index}`);
         debugLog('FILE_CLICK', `handlePreviewPress called, document.current: ${document.current ? 'exists' : 'null'}`);
         if (document.current) {
+            Alert.alert('File Step B', `calling document.current`);
             debugLog('FILE_CLICK', 'calling document.current.handlePreviewPress()');
             document.current.handlePreviewPress();
         } else {
+            Alert.alert('File Step B', `calling onPress(idx)`);
             debugLog('FILE_CLICK', 'document.current is null, calling onPress(index)');
             onPress(index);
         }

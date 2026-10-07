@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useCallback, useEffect} from 'react';
+import {Alert} from 'react-native';
 import {
     Easing, runOnJS, useAnimatedRef, useAnimatedStyle,
     useSharedValue,
@@ -112,6 +113,7 @@ export function useGalleryItem(
     const onGestureEvent = () => {
         'worklet';
 
+        runOnJS(Alert.alert)('Gallery Step 0', `onGestureEvent idx=${index}`);
         activeIndex.value = index;
 
         runOnJS(onPress)(identifier, index);
