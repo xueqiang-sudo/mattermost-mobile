@@ -2,7 +2,9 @@
 // See LICENSE.txt for license information.
 
 import {Gesture} from 'react-native-gesture-handler';
-import {cancelAnimation, runOnJS} from 'react-native-reanimated';
+import {cancelAnimation} from 'react-native-reanimated';
+
+import {debugLog} from '@store/debug_log';
 
 import {usePagerSharedValues} from '../context';
 
@@ -30,12 +32,11 @@ export default function usePagerTapGesture(
             }
         }).
         onEnd((evt) => {
-            'worklet';
             if (evt.numberOfPointers === 1) {
+                debugLog('GALLERY', 'Tap to close: triggering onClose');
                 toValueAnimation.value = getPageTranslate(index.value);
-                if (onClose) {
-                    runOnJS(onClose)();
-                }
+                onClose?.();
+                debugLog('GALLERY', 'Tap to close: onClose called');
             }
         });
 }

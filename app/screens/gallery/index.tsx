@@ -47,17 +47,20 @@ const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialInde
     const containerStyle = dim;
 
     const onClose = useCallback(() => {
+        debugLog('GALLERY', 'onClose: unfreezing, starting close animation');
         // We keep the un freeze here as we want
         // the screen to be visible when the gallery
         // starts to dismiss as the hanlder for shouldHandleEvent
         // of the lightbox is not called
         freezeOtherScreens(false);
         requestAnimationFrame(() => {
+            debugLog('GALLERY', 'onClose: calling galleryRef.close()');
             galleryRef.current?.close();
         });
     }, []);
 
     const close = useCallback(() => {
+        debugLog('GALLERY', 'close: dismissing overlay');
         setScreensOrientation(isTablet);
         if (Platform.OS === 'ios' && !isTablet) {
             // We need both the navigation & the module
@@ -65,6 +68,7 @@ const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialInde
         }
         freezeOtherScreens(false);
         requestAnimationFrame(async () => {
+            debugLog('GALLERY', 'close: calling dismissOverlay');
             dismissOverlay(componentId);
         });
     }, [componentId, isTablet]);

@@ -13,6 +13,7 @@ import {
 } from 'react-native-reanimated';
 
 import {pagerTimingConfig} from '@screens/gallery/animation_config/timing';
+import {debugLog} from '@store/debug_log';
 
 import {LightboxProvider, type LightboxSharedValues} from './context';
 import Lightbox from './lightbox';
@@ -68,6 +69,7 @@ const LightboxSwipeout = forwardRef<LightboxSwipeoutRef, LightboxSwipeoutProps>(
     const closeLightbox = () => {
         'worklet';
 
+        runOnJS(debugLog)('GALLERY', 'closeLightbox: starting close animation');
         lightboxImageOpacity.value = 1;
         childrenOpacity.value = 0;
         animationProgress.value = withTiming(
@@ -77,6 +79,7 @@ const LightboxSwipeout = forwardRef<LightboxSwipeoutRef, LightboxSwipeoutProps>(
                 'worklet';
 
                 opacity.value = 1;
+                runOnJS(debugLog)('GALLERY', 'closeLightbox: animation complete, calling onHide');
                 runOnJS(onAnimationFinished)();
             },
         );

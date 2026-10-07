@@ -57,6 +57,7 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     const serverUrl = useServerUrl();
 
     const close = () => {
+        debugLog('GALLERY', 'close() called, calling closeLightbox');
         lightboxRef.current?.closeLightbox();
     };
 
@@ -141,6 +142,7 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     const hideLightboxItem = useCallback(() => {
         'worklet';
 
+        runOnJS(debugLog)('GALLERY', 'hideLightboxItem: resetting shared values');
         sharedValues.width.value = 0;
         sharedValues.height.value = 0;
         sharedValues.opacity.value = 1;
@@ -148,6 +150,7 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
         sharedValues.x.value = 0;
         sharedValues.y.value = 0;
 
+        runOnJS(debugLog)('GALLERY', 'hideLightboxItem: calling onHide (dismiss overlay)');
         runOnJS(onHide)();
 
         // sharedValues do not trigger re-renders
