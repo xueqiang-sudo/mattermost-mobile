@@ -161,34 +161,23 @@ export default function DraftHandler(props: Props) {
 
                 // Create and send post(s) immediately
                 if (uploadedFiles.length > 0) {
-                    if (uploadedFiles.length > 1) {
-                        // Multi-file: create one post per file with shared batch_id
-                        const batchId = `${currentUserId}:${Date.now()}`;
-                        for (const file of uploadedFiles) {
-                            const post = {
-                                user_id: currentUserId,
-                                channel_id: channelId,
-                                root_id: rootId,
-                                message: '',
-                                props: {batch_id: batchId},
-                            } as Post;
-                            debugLog('ADD_FILES', `creating batch post for file: ${file.name}`);
-                            await createPost(serverUrl, post, [file]);
-                        }
-                        debugLog('ADD_FILES', `created ${uploadedFiles.length} batch posts with batch_id: ${batchId}`);
-                    } else {
-                        // Single file: create one post
-                        const post = {
-                            user_id: currentUserId,
-                            channel_id: channelId,
-                            root_id: rootId,
-                            message: '',
-                        } as Post;
-                        debugLog('ADD_FILES', `creating post with 1 file`);
-                        await createPost(serverUrl, post, uploadedFiles);
+                    // Create one post with all files (like WeChat)
+                    const post = {
+                        user_id: currentUserId,
+                        channel_id: channelId,
+                        root_id: rootId,
+                        message: '',
+                    } as Post;
+                    debugLog('ADD_FILES', `creating post with ${uploadedFiles.length} files: ${uploadedFiles.map(f => f.name).join(', ')}`);
+                    const result = await createPost(serverUrl, post, uploadedFiles);
+                    if (result.error) {
+                        debugLog('ADD_FILES', `createPost failed: ${result.error}`);
+                        throw result.error;
                     }
-                    debugLog('ADD_FILES', 'post(s) created successfully');
+                    debugLog('ADD_FILES', 'post created successfully');
                     DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
+                } else {
+                    debugLog('ADD_FILES', 'no files uploaded, skipping post creation');
                 }
             } catch (err) {
                 debugLog('ADD_FILES', `error: ${err}`);
