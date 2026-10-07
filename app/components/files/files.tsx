@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Dimensions, type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {Alert, Dimensions, type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {GalleryInit} from '@context/gallery';
@@ -164,9 +164,11 @@ const Files = ({
 
     const handlePreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
         try {
+            Alert.alert('Step 1', `点击图片 idx=${idx}`);
             debugLog('GALLERY', `Files click: idx=${idx} files=${filesForGallery.length} channel=${channelMediaFiles?.length || 0}`);
             const tappedFile = filesForGallery[idx];
             if (!tappedFile) {
+                Alert.alert('ERROR', `tappedFile undefined! idx=${idx}`);
                 debugLog('GALLERY_ERR', `tappedFile undefined! idx=${idx} len=${filesForGallery.length}`);
                 return;
             }
@@ -175,12 +177,15 @@ const Files = ({
                 const channelGalleryIdentifier = `${channelId}-channel-media-${location}`;
                 const channelIdx = channelMediaFiles.findIndex((f) => f.id === tappedFile?.id);
                 const items = channelMediaFiles.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
+                Alert.alert('Step 2', `调用 openGalleryAtIndex (channel)`);
                 openGalleryAtIndex(channelGalleryIdentifier, channelIdx >= 0 ? channelIdx : 0, items);
             } else {
                 const items = filesForGallery.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
+                Alert.alert('Step 2', `调用 openGalleryAtIndex`);
                 openGalleryAtIndex(galleryIdentifier, idx, items);
             }
         } catch (error: any) {
+            Alert.alert('ERROR', `handlePreviewPress: ${error?.message || error}`);
             debugLog('GALLERY_ERR', `Files click crash: ${error?.message || error}`);
         }
     }, [filesForGallery, galleryIdentifier, postProps, channelId, message, channelMediaFiles, location]));

@@ -3,7 +3,7 @@
 
 import RNUtils from '@mattermost/rnutils';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {DeviceEventEmitter, Platform, View} from 'react-native';
+import {Alert, DeviceEventEmitter, Platform, View} from 'react-native';
 import {initialWindowMetrics, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {Events} from '@constants';
@@ -32,6 +32,7 @@ type Props = {
 }
 
 const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialIndex, items}: Props) => {
+    Alert.alert('Step 6', `GalleryScreen render idx=${initialIndex}`);
     debugLog('GALLERY', `Screen render: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
     const dim = useWindowDimensions();
     const isTablet = useIsTablet();

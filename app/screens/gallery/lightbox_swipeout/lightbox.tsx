@@ -3,7 +3,7 @@
 
 import {type ImageSource} from 'expo-image';
 import React, {useEffect, useMemo, useState} from 'react';
-import {type ImageStyle, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {Alert, type ImageStyle, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated, {
     interpolate, runOnJS, runOnUI,
     useAnimatedStyle, withTiming,
@@ -80,6 +80,7 @@ export default function Lightbox({
     };
 
     useEffect(() => {
+        Alert.alert('Step 8', `Lightbox mount`);
         debugLog('GALLERY', 'Lightbox mount, starting animation');
         runOnUI(animateOnMount)();
 

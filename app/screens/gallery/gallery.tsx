@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from 'react';
-import {BackHandler} from 'react-native';
+import {Alert, BackHandler} from 'react-native';
 import {runOnJS, runOnUI, useAnimatedReaction, type SharedValue} from 'react-native-reanimated';
 
 import {buildFilePreviewUrl} from '@actions/remote/file';
@@ -48,6 +48,7 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     onIndexChange,
     onClose,
 }: GalleryProps, ref) => {
+    Alert.alert('Step 7', `Gallery render idx=${initialIndex}`);
     debugLog('GALLERY', `Gallery render: id=${galleryIdentifier} idx=${initialIndex} items=${items.length}`);
     const {refsByIndexSV, sharedValues} = useGallery(galleryIdentifier);
     const [localIndex, setLocalIndex] = useState(initialIndex);

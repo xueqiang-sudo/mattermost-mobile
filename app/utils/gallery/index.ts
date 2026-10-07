@@ -4,7 +4,7 @@
 import RNUtils from '@mattermost/rnutils';
 import {Image} from 'expo-image';
 import React, {type RefObject} from 'react';
-import {DeviceEventEmitter, Keyboard, Platform, View} from 'react-native';
+import {Alert, DeviceEventEmitter, Keyboard, Platform, View} from 'react-native';
 import {Navigation, type Options, type OptionsLayout} from 'react-native-navigation';
 import {measure, type AnimatedRef} from 'react-native-reanimated';
 
@@ -150,12 +150,15 @@ export function measureViewInWindow(ref: RefObject<View>): Promise<{x: number; y
 
 export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: number, items: GalleryItemType[], hideActions = false) {
     try {
+        Alert.alert('Step 3', `openGalleryAtIndex idx=${initialIndex} items=${items?.length}`);
         debugLog('GALLERY', `openGalleryAtIndex: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
         if (!items || items.length === 0) {
+            Alert.alert('ERROR', `items is empty!`);
             debugLog('GALLERY_ERR', `items is empty! items=${items} idx=${initialIndex}`);
             return;
         }
         if (initialIndex < 0 || initialIndex >= items.length) {
+            Alert.alert('ERROR', `idx out of bounds! idx=${initialIndex} len=${items.length}`);
             debugLog('GALLERY_ERR', `idx out of bounds! idx=${initialIndex} len=${items.length}`);
             return;
         }
@@ -197,8 +200,10 @@ export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: numb
             Navigation.setDefaultOptions({layout});
             RNUtils.unlockOrientation();
         }
+        Alert.alert('Step 4', `调用 showOverlay`);
         debugLog('GALLERY', 'calling showOverlay');
         showOverlay(Screens.GALLERY, props, options);
+        Alert.alert('Step 5', `showOverlay 完成`);
         debugLog('GALLERY', 'showOverlay OK');
 
         setTimeout(() => {
