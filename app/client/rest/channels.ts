@@ -107,7 +107,7 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         }
         return this.doFetch(
             `${this.getChannelsRoute()}/direct`,
-            {method: 'post', body: JSON.stringify(payload)},
+            {method: 'post', body: payload},
         );
     };
 
@@ -122,7 +122,7 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
             }
             return this.doFetch(
                 `${this.getChannelsRoute()}/group`,
-                {method: 'post', body: JSON.stringify(payload)},
+                {method: 'post', body: payload},
             );
         }
         return this.doFetch(

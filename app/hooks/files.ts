@@ -148,6 +148,12 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
         // Office 文件有 PDF 预览版本时，下载并打开 PDF 版本
         if (hasPdfPreview(file) && file.pdf_preview_id) {
             debugLog('FILE_PREVIEW', `has PDF preview, pdf_preview_id:${file.pdf_preview_id}`);
+            debugLog('FILE_PREVIEW', `original file id: ${file.id}, name: ${file.name}`);
+
+            const client = NetworkManager.getClient(serverUrl);
+            const downloadUrl = client.getFileRoute(file.pdf_preview_id);
+            debugLog('FILE_PREVIEW', `download URL: ${serverUrl}${downloadUrl}`);
+
             const pdfFileInfo: FileInfo = {
                 ...file,
                 id: file.pdf_preview_id,
@@ -162,7 +168,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
             try {
                 if (!pdfExists) {
-                    debugLog('FILE_PREVIEW', 'downloading PDF preview');
+                    debugLog('FILE_PREVIEW', `downloading PDF preview (id: ${file.pdf_preview_id})`);
                     setDownloading(true);
                     downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
                     downloadTask.current?.progress?.(setProgress);

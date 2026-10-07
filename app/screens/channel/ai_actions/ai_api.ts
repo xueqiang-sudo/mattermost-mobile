@@ -84,7 +84,7 @@ async function apiPost<T>(serverUrl: string, url: string, body: Record<string, u
     const client = NetworkManager.getClient(serverUrl);
     return client.doFetch(url, {
         method: 'post',
-        body: JSON.stringify(body),
+        body,
     });
 }
 
