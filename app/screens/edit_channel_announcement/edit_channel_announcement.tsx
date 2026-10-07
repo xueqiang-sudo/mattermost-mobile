@@ -13,7 +13,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -71,7 +71,7 @@ const EditChannelAnnouncement = ({
 
     const handleClose = useCallback(() => {
         Keyboard.dismiss();
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, handleClose);
@@ -84,7 +84,7 @@ const EditChannelAnnouncement = ({
         Keyboard.dismiss();
         await handlePatchChannel(serverUrl, channel.id, {header: text});
         setSaving(false);
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [channel, canEdit, componentId, serverUrl, text]);
 
     useNavButtonPressed('cancel-edit-announcement', componentId, handleClose, [handleClose]);

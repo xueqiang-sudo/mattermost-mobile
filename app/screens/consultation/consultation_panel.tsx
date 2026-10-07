@@ -7,6 +7,8 @@ import {
     Alert,
     DeviceEventEmitter,
     FlatList,
+    ScrollView,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -18,14 +20,14 @@ import {useDatabase} from '@nozbe/watermelondb/react';
 
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
-import ProfilePicture from '@components/profile_picture';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {queryAllChannelsForTeam} from '@queries/servers/channel';
 import {getCurrentUserId} from '@queries/servers/system';
-import {queryAllUsers} from '@queries/servers/user';
+import {queryAllUsers, observeUserIdsInTeam} from '@queries/servers/user';
+import {displayUsername} from '@utils/user';
 import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -79,70 +81,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     activeTabText: {
         color: theme.buttonBg,
-    },
-    searchContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    searchInput: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-    },
-    searchText: {
-        flex: 1,
-        marginLeft: 8,
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-    },
-    listItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
-    },
-    selectedItem: {
-        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
-    },
-    itemInfo: {
-        flex: 1,
-        marginLeft: 12,
-    },
-    itemName: {
-        ...typography('Body', 200, 'SemiBold'),
-        color: theme.centerChannelColor,
-    },
-    itemMeta: {
-        ...typography('Body', 50),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 2,
-    },
-    checkmark: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    checkmarkSelected: {
-        backgroundColor: theme.buttonBg,
-        borderColor: theme.buttonBg,
-    },
-    groupAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     emptyState: {
         alignItems: 'center',
@@ -349,6 +287,62 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     responseBubbleWrapper: {
         flex: 1,
     },
+    label: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginBottom: 8,
+        marginTop: 16,
+        paddingHorizontal: 16,
+    },
+    selectBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.02),
+        marginHorizontal: 16,
+    },
+    selectText: {
+        ...typography('Body', 100, 'Regular'),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    selectTextPlaceholder: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+    },
+    dropdown: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 200,
+        backgroundColor: theme.centerChannelBg,
+        marginHorizontal: 16,
+    },
+    dropdownItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    dropdownItemText: {
+        ...typography('Body', 100, 'Regular'),
+        color: theme.centerChannelColor,
+    },
+    dropdownItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+    },
+    clearButton: {
+        padding: 4,
+    },
+    dropdownContainer: {
+        paddingVertical: 8,
+        paddingHorizontal: 0,
+    },
 }));
 
 const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props) => {
@@ -361,7 +355,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     const [currentUserId, setCurrentUserId] = useState('');
     const [activeView, setActiveView] = useState<ActiveView>(prefillText ? 'compose' : 'compose');
     const [activeTab, setActiveTab] = useState<TargetType>('member');
-    const [searchQuery, setSearchQuery] = useState('');
     const [users, setUsers] = useState<UserModel[]>([]);
     const [channels, setChannels] = useState<ChannelModel[]>([]);
 
@@ -381,6 +374,8 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     const [selectMode, setSelectMode] = useState(false);
     const [selectedResponseIds, setSelectedResponseIds] = useState<Set<string>>(new Set());
     const [forwarding, setForwarding] = useState(false);
+    const [memberDropdownOpen, setMemberDropdownOpen] = useState(false);
+    const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
 
     // Load current user ID
     useEffect(() => {
@@ -390,21 +385,31 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         })();
     }, [database]);
 
-    // Load users via observable
+    // Load users via observable - filter by team membership
     useEffect(() => {
-        const sub = queryAllUsers(database).observe().subscribe((u) => {
-            setUsers(u.filter((user) => user.id !== currentUserId));
+        if (!teamId) {
+            return;
+        }
+        let teamUserIds = new Set<string>();
+        const teamSub = observeUserIdsInTeam(database, teamId).subscribe((ids) => {
+            teamUserIds = ids;
         });
-        return () => sub.unsubscribe();
-    }, [database, currentUserId]);
+        const userSub = queryAllUsers(database).observe().subscribe((u) => {
+            setUsers(u.filter((user) => user.id !== currentUserId && teamUserIds.has(user.id)));
+        });
+        return () => {
+            teamSub.unsubscribe();
+            userSub.unsubscribe();
+        };
+    }, [database, currentUserId, teamId]);
 
-    // Load channels via observable
+    // Load channels via observable - only GM and DM (not channels)
     useEffect(() => {
         if (!teamId) {
             return;
         }
         const sub = queryAllChannelsForTeam(database, teamId).observe().subscribe((c) => {
-            setChannels(c.filter((ch) => ch.type === 'G'));
+            setChannels(c.filter((ch) => ch.type === 'G' || ch.type === 'D'));
         });
         return () => sub.unsubscribe();
     }, [database, teamId]);
@@ -436,32 +441,13 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         return () => subscription.remove();
     }, [selectedConsultation]);
 
-    // Filter list based on tab and search
+    // List based on active tab
     const filteredList = useMemo(() => {
-        const query = searchQuery.toLowerCase().trim();
-
         if (activeTab === 'member') {
-            const list = users;
-            if (!query) {
-                return list;
-            }
-            return list.filter((u) => {
-                const name = (u.firstName + ' ' + u.lastName).toLowerCase();
-                const username = u.username.toLowerCase();
-                const position = (u.position || '').toLowerCase();
-                return name.includes(query) || username.includes(query) || position.includes(query);
-            });
-        } else {
-            const list = channels;
-            if (!query) {
-                return list;
-            }
-            return list.filter((c) => {
-                const name = (c.displayName || c.name || '').toLowerCase();
-                return name.includes(query);
-            });
+            return users;
         }
-    }, [searchQuery, activeTab, users, channels]);
+        return channels;
+    }, [activeTab, users, channels]);
 
     const handleClose = useCallback(() => {
         if (selectedConsultation && selectedConsultation.status !== 'closed') {
@@ -475,7 +461,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     const handleSelectTarget = useCallback((item: UserModel | ChannelModel) => {
         if (activeTab === 'member') {
             const user = item as UserModel;
-            const name = `${user.firstName} ${user.lastName}`.trim() || user.username;
+            const name = displayUsername(user, 'zh-CN', 'nickname_full_name') || user.username;
             setSelectedTargetId(user.id);
             setSelectedTargetName(name);
             setIsGroupTarget(false);
@@ -789,52 +775,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     }
 
     // ── Compose view (main) ──
-    const renderListItem = ({item}: {item: UserModel | ChannelModel}) => {
-        const isMember = activeTab === 'member';
-        const isSelected = selectedTargetId === item.id;
-
-        if (isMember) {
-            const user = item as UserModel;
-            const name = `${user.firstName} ${user.lastName}`.trim() || user.username;
-            const meta = user.position || '';
-            return (
-                <TouchableOpacity
-                    style={[styles.listItem, isSelected && styles.selectedItem]}
-                    onPress={() => handleSelectTarget(item)}
-                    activeOpacity={0.7}
-                >
-                    <ProfilePicture author={user} size={40} showStatus={false}/>
-                    <View style={styles.itemInfo}>
-                        <Text style={styles.itemName} numberOfLines={1}>{name}</Text>
-                        {Boolean(meta) && <Text style={styles.itemMeta} numberOfLines={1}>{meta}</Text>}
-                    </View>
-                    <View style={[styles.checkmark, isSelected && styles.checkmarkSelected]}>
-                        {isSelected && <CompassIcon name='check' size={14} color='#fff'/>}
-                    </View>
-                </TouchableOpacity>
-            );
-        }
-
-        const channel = item as ChannelModel;
-        const name = channel.displayName || channel.name || '';
-        return (
-            <TouchableOpacity
-                style={[styles.listItem, isSelected && styles.selectedItem]}
-                onPress={() => handleSelectTarget(item)}
-                activeOpacity={0.7}
-            >
-                <View style={styles.groupAvatar}>
-                    <CompassIcon name='account-multiple-outline' size={24} color={theme.centerChannelColor}/>
-                </View>
-                <View style={styles.itemInfo}>
-                    <Text style={styles.itemName} numberOfLines={1}>{name}</Text>
-                </View>
-                <View style={[styles.checkmark, isSelected && styles.checkmarkSelected]}>
-                    {isSelected && <CompassIcon name='check' size={14} color='#fff'/>}
-                </View>
-            </TouchableOpacity>
-        );
-    };
+    const isDropdownOpen = activeTab === 'member' ? memberDropdownOpen : groupDropdownOpen;
 
     return (
         <SafeAreaView style={styles.flex} testID='consultation.panel'>
@@ -844,6 +785,8 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     style={[styles.tab, activeTab === 'member' && styles.activeTab]}
                     onPress={() => {
                         setActiveTab('member');
+                        setMemberDropdownOpen(false);
+                        setGroupDropdownOpen(false);
                         setSelectedTargetId('');
                         setSelectedTargetName('');
                     }}
@@ -856,6 +799,8 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     style={[styles.tab, activeTab === 'group' && styles.activeTab]}
                     onPress={() => {
                         setActiveTab('group');
+                        setMemberDropdownOpen(false);
+                        setGroupDropdownOpen(false);
                         setSelectedTargetId('');
                         setSelectedTargetName('');
                     }}
@@ -866,49 +811,92 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                 </TouchableOpacity>
             </View>
 
-            {/* Search */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchInput}>
-                    <CompassIcon name='magnify' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
-                    <TextInput
-                        style={styles.searchText}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder={intl.formatMessage({id: 'consultation.target.search_placeholder', defaultMessage: 'Search experts...'})}
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.56)}
-                    />
-                </View>
+            {/* Dropdown selector - fixed */}
+            <View style={styles.dropdownContainer}>
+                <Text style={styles.label}>
+                    {intl.formatMessage({id: 'consultation.select_target', defaultMessage: 'Select Consultation Target'})}
+                </Text>
+                <TouchableOpacity
+                    style={styles.selectBtn}
+                    onPress={() => {
+                        if (activeTab === 'member') {
+                            setGroupDropdownOpen(false);
+                            setMemberDropdownOpen(!memberDropdownOpen);
+                        } else {
+                            setMemberDropdownOpen(false);
+                            setGroupDropdownOpen(!groupDropdownOpen);
+                        }
+                    }}
+                >
+                    <Text style={[styles.selectText, !selectedTargetName && styles.selectTextPlaceholder]} numberOfLines={1}>
+                        {selectedTargetName || (activeTab === 'member'
+                            ? intl.formatMessage({id: 'consultation.select_member_placeholder', defaultMessage: 'Select internal member...'})
+                            : intl.formatMessage({id: 'consultation.select_group_placeholder', defaultMessage: 'Select internal group...'})
+                        )}
+                    </Text>
+                    {selectedTargetName ? (
+                        <TouchableOpacity
+                            style={styles.clearButton}
+                            onPress={() => {
+                                setSelectedTargetId('');
+                                setSelectedTargetName('');
+                                setMemberDropdownOpen(false);
+                                setGroupDropdownOpen(false);
+                            }}
+                        >
+                            <CompassIcon name='close-circle' size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                        </TouchableOpacity>
+                    ) : (
+                        <CompassIcon name={isDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                    )}
+                </TouchableOpacity>
             </View>
 
-            {/* List */}
-            <FlatList
-                data={filteredList}
-                keyExtractor={(item) => item.id}
-                renderItem={renderListItem}
-                keyboardShouldPersistTaps='handled'
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <CompassIcon name='account-search-outline' size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
-                        <Text style={styles.emptyText}>
-                            {intl.formatMessage({id: 'consultation.target.no_results', defaultMessage: 'No experts found'})}
-                        </Text>
-                    </View>
-                }
-            />
+            {/* Scrollable area: dropdown list + history */}
+            <ScrollView style={styles.flex} keyboardShouldPersistTaps='handled'>
+                {/* Dropdown list */}
+                {isDropdownOpen && (
+                    <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                        {filteredList.map((item) => {
+                            const isSelected = selectedTargetId === item.id;
+                            const name = activeTab === 'member'
+                                ? displayUsername(item as UserModel, 'zh-CN', 'nickname_full_name') || (item as UserModel).username
+                                : ((item as ChannelModel).displayName || (item as ChannelModel).name || '');
+                            return (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    style={[styles.dropdownItem, isSelected && styles.dropdownItemSelected]}
+                                    onPress={() => {
+                                        handleSelectTarget(item);
+                                        setMemberDropdownOpen(false);
+                                        setGroupDropdownOpen(false);
+                                    }}
+                                >
+                                    <Text style={styles.dropdownItemText} numberOfLines={1}>{name}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                        {filteredList.length === 0 && (
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyText}>
+                                    {intl.formatMessage({id: 'consultation.target.no_results', defaultMessage: 'No results'})}
+                                </Text>
+                            </View>
+                        )}
+                    </ScrollView>
+                )}
 
-            {/* History section - show existing open consultations */}
-            {consultations.length > 0 && (
-                <View>
-                    <View style={styles.historySection}>
-                        <Text style={styles.historyTitle}>
-                            {intl.formatMessage({id: 'consultation.history', defaultMessage: 'History'})}
-                        </Text>
-                    </View>
-                    <FlatList
-                        data={consultations.slice(0, 3)}
-                        keyExtractor={(item) => item.id}
-                        renderItem={({item}) => (
+                {/* History section */}
+                {consultations.length > 0 && (
+                    <View>
+                        <View style={styles.historySection}>
+                            <Text style={styles.historyTitle}>
+                                {intl.formatMessage({id: 'consultation.history', defaultMessage: 'History'})}
+                            </Text>
+                        </View>
+                        {consultations.slice(0, 3).map((item) => (
                             <TouchableOpacity
+                                key={item.id}
                                 style={styles.historyCard}
                                 onPress={() => handleSelectConsultation(item)}
                                 activeOpacity={0.7}
@@ -927,10 +915,10 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                                         : intl.formatMessage({id: 'consultation.status.open', defaultMessage: 'Open'})}
                                 </Text>
                             </TouchableOpacity>
-                        )}
-                    />
-                </View>
-            )}
+                        ))}
+                    </View>
+                )}
+            </ScrollView>
 
             {/* Bottom input bar */}
             <View style={styles.inputBar}>

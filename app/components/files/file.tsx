@@ -53,6 +53,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         fileWrapper: {
             flexDirection: 'row',
             alignItems: 'center',
+            justifyContent: 'space-between',
             minWidth: 0,
             borderWidth: 1,
             borderColor: changeOpacity(theme.centerChannelColor, 0.24),
@@ -67,8 +68,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             alignSelf: 'flex-start',
         },
         fileWrapperFixedWidth: {
-            width: '100%',
-            maxWidth: 320,
+            width: 240,
+            height: 80,
         },
         iconWrapper: {
             marginTop: 8,
@@ -77,7 +78,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             marginLeft: 8,
         },
         iconWrapperRight: {
-            marginLeft: 'auto',
+            flexShrink: 0,
             paddingLeft: 8,
         },
         imageVideo: {

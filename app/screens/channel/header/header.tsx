@@ -262,7 +262,7 @@ const ChannelHeader = ({
             topBar: {
                 leftButtons: [{
                     id: 'close-consultation-panel',
-                    text: intl.formatMessage({id: 'mobile.close', defaultMessage: 'Close'}),
+                    text: intl.formatMessage({id: 'common.close', defaultMessage: 'Close'}),
                 }],
             },
         });

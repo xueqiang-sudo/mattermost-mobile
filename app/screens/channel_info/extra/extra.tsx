@@ -19,7 +19,7 @@ import {General, Screens} from '@constants';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {ANDROID_33, OS_VERSION} from '@constants/versions';
 import {useTheme} from '@context/theme';
-import {bottomSheet, dismissBottomSheet, showModal} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, goToScreen, showModal} from '@screens/navigation';
 import {CHANNEL_INFO_CARD_RADIUS} from '../channel_info_constants';
 import {bottomSheetSnapPoint, isEmail} from '@utils/helpers';
 import {channelSupportsAnnouncementUx} from '@utils/channel';
@@ -180,7 +180,7 @@ const Extra = ({
         const title = isDM
             ? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'})
             : intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
-        showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId}, {
+        goToScreen(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId}, {
             topBar: {
                 leftButtons: [{
                     id: 'cancel-edit-announcement',
