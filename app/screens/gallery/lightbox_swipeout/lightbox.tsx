@@ -64,7 +64,7 @@ export default function Lightbox({
 
     const animateOnMount = () => {
         'worklet';
-        requestAnimationFrame(() => {
+        runOnJS(requestAnimationFrame)(() => {
             opacity.value = 0;
         });
 

@@ -85,7 +85,7 @@ export default function useLightboxPanGesture() {
                             'worklet';
 
                             opacity.value = 1;
-                            onAnimationFinished();
+                            runOnJS(onAnimationFinished)();
                         },
                     );
                 } else {
@@ -106,7 +106,7 @@ export default function useLightboxPanGesture() {
                             velocity: Math.abs(evt.velocityY) < 1200 ? maybeInvert(1200) : evt.velocityY,
                         },
                         () => {
-                            onAnimationFinished();
+                            runOnJS(onAnimationFinished)();
                         },
                     );
                 }

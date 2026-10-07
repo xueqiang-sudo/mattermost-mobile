@@ -784,7 +784,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
             <KeyboardAvoidingView
                 style={styles.flex}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 110 : 0}
             >
                 {/* Tabs */}
                 <View style={styles.tabs}>

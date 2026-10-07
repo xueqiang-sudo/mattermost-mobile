@@ -6,6 +6,7 @@ import React, {forwardRef, useImperativeHandle, useMemo} from 'react';
 import {type ImageSize, type ImageStyle, type StyleProp} from 'react-native';
 import {
     cancelAnimation,
+    runOnJS,
     useAnimatedReaction, useSharedValue, withTiming,
     type AnimatedStyle,
     type SharedValue,
@@ -76,7 +77,7 @@ const LightboxSwipeout = forwardRef<LightboxSwipeoutRef, LightboxSwipeoutProps>(
                 'worklet';
 
                 opacity.value = 1;
-                onAnimationFinished();
+                runOnJS(onAnimationFinished)();
             },
         );
     };

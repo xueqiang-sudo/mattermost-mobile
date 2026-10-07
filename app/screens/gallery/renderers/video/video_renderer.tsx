@@ -52,7 +52,7 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
     const serverUrl = useServerUrl();
     const videoRef = useRef<VideoRef>();
     const [captionsEnabled, setCaptionsEnabled] = useState(true);
-    const [paused, setPaused] = useState(!(initialIndex === index));
+    const [paused, setPaused] = useState(true);
     const [videoReady, setVideoReady] = useState(false);
     const [videoUri, setVideoUri] = useState(item.uri);
     const [downloading, setDownloading] = useState(false);

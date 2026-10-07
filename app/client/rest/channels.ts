@@ -138,10 +138,7 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
             `${this.getChannelsRoute()}/bot_group`,
             {
                 method: 'post',
-                body: JSON.stringify(requestBody),
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                body: requestBody,
             },
         );
     };
