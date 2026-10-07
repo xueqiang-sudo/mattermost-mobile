@@ -371,7 +371,7 @@ export default function PostInput({
             placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
             ref={inputRef}
             smartPunctuation='disable'
-            submitBehavior='newline'
+            submitBehavior={Platform.OS === 'ios' ? 'submit' : 'newline'}
             returnKeyType={Platform.OS === 'ios' ? 'send' : 'default'}
             enablesReturnKeyAutomatically={Platform.OS === 'ios'}
             style={pasteInputStyle}

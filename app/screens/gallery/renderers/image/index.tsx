@@ -24,7 +24,8 @@ function ImageRenderer({
     pagerTapGesture,
     lightboxPanGesture,
 }: GalleryPagerItem) {
-    const windowDimensions = useWindowDimensions();
+    const {width: windowWidth, height: windowHeight} = useWindowDimensions();
+    const windowDimensions = useMemo(() => ({width: windowWidth, height: windowHeight}), [windowWidth, windowHeight]);
     const targetDimensions = useMemo(() => ({height, width}), [height, width]);
     const interactionsEnabled = useSharedValue(false);
     const scale = useSharedValue(1);

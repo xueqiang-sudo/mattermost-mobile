@@ -2,14 +2,13 @@
 // See LICENSE.txt for license information.
 
 import {type ImageSource} from 'expo-image';
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {StyleSheet} from 'react-native';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {useAnimatedReaction, useAnimatedStyle} from 'react-native-reanimated';
 import {SvgUri} from 'react-native-svg';
 
 import ExpoImage from '@components/expo_image';
-import {debugLog} from '@store/debug_log';
 
 import {useTransformerSharedValues} from './context';
 import useTransformerDoubleTap from './gestures/useTransformerDoubleTap';
@@ -59,8 +58,17 @@ const ImageTransformer = (
         resetSharedState,
     } = useTransformerSharedValues();
 
+    // Delay rendering the image until after the lightbox animation completes
+    // to prevent the "flash" effect from double rendering
+    const [showImage, setShowImage] = useState(false);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowImage(true);
+        }, 300); // Wait for lightbox image to start fading out
+        return () => clearTimeout(timer);
+    }, []);
+
     const setInteractionsEnabled = useCallback((value: boolean) => {
-        debugLog('GALLERY', `setInteractionsEnabled: ${value}`);
         interactionsEnabled.value = value;
 
         // SharedValue does not trigger re-renders
@@ -132,7 +140,9 @@ const ImageTransformer = (
     );
 
     let element;
-    if (isSvg) {
+    if (!showImage) {
+        element = null;
+    } else if (isSvg) {
         element = (
             <SvgUri
                 uri={imageSource.uri!}
