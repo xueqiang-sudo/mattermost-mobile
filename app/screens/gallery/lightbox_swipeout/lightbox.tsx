@@ -103,6 +103,10 @@ export default function Lightbox({
         true,
     ), [targetDimensions.width, targetDimensions.height, target.width, target.height]);
 
+    // 在 JS 线程捕获 targetDimensions，避免 UI 线程访问 JS 对象
+    const targetDimWidth = targetDimensions.width;
+    const targetDimHeight = targetDimensions.height;
+
     function onChildrenLayout() {
         if (imageOpacity.value === 0) {
             return;
@@ -137,8 +141,8 @@ export default function Lightbox({
         const interpolateProgress = (range: [number, number]) =>
             interpolate(animationProgress.value, [0, 1], range);
 
-        const targetX = (targetDimensions.width - tw) / 2;
-        const targetY = ((targetDimensions.height - th) / 2);
+        const targetX = (targetDimWidth - tw) / 2;
+        const targetY = ((targetDimHeight - th) / 2);
 
         const top =
             translateY.value +

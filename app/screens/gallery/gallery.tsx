@@ -48,12 +48,28 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     onIndexChange,
     onClose,
 }: GalleryProps, ref) => {
-    Alert.alert('Step 7', `Gallery render idx=${initialIndex}`);
+    Alert.alert('Step 7', `Gallery render idx=${initialIndex} items=${items?.length}`);
     debugLog('GALLERY', `Gallery render: id=${galleryIdentifier} idx=${initialIndex} items=${items.length}`);
+
+    // 防御性检查
+    if (!items || items.length === 0) {
+        Alert.alert('ERROR', `items is empty!`);
+        return null;
+    }
+
     const {refsByIndexSV, sharedValues} = useGallery(galleryIdentifier);
     const [localIndex, setLocalIndex] = useState(initialIndex);
     const lightboxRef = useRef<LightboxSwipeoutRef>(null);
     const item = items[localIndex];
+
+    // 检查 item 是否存在
+    if (!item) {
+        Alert.alert('ERROR', `item is undefined! idx=${localIndex} len=${items.length}`);
+        return null;
+    }
+
+    Alert.alert('Step 7.1', `item OK: ${item.type} ${item.width}x${item.height}`);
+
     const fileInfo = useMemo(() => galleryItemToFileInfo(item), [item]);
     const serverUrl = useServerUrl();
 
@@ -68,13 +84,21 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     }, [onIndexChange]);
 
     useEffect(() => {
+        if (!item || !item.width || !item.height) {
+            Alert.alert('ERROR', `useEffect: item invalid! w=${item?.width} h=${item?.height}`);
+            return;
+        }
+        // 在 JS 线程捕获值，避免 UI 线程访问 JS 对象
+        const itemWidth = item.width;
+        const itemHeight = item.height;
+
         runOnUI(() => {
             'worklet';
 
             const tw = targetDimensions.width;
             sharedValues.targetWidth.value = tw;
-            const scaleFactor = item.width / targetDimensions.width;
-            const th = item.height / scaleFactor;
+            const scaleFactor = itemWidth / targetDimensions.width;
+            const th = itemHeight / scaleFactor;
             sharedValues.targetHeight.value = th;
         })();
 
@@ -204,6 +228,8 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
 
         return fileInfo.localPath || fileInfo.uri || item.uri;
     }, [fileInfo, item.uri, serverUrl]);
+
+    Alert.alert('Step 7.2', `准备渲染 LightboxSwipeout`);
 
     return (
         <LightboxSwipeout

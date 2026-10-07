@@ -85,10 +85,13 @@ const LightboxSwipeout = forwardRef<LightboxSwipeoutRef, LightboxSwipeoutProps>(
         );
     };
 
+    // 在 JS 线程捕获 target.height，避免 UI 线程访问 JS 对象
+    const targetHeight = target.height;
+
     useAnimatedReaction(
         () => childTranslateY.value,
         (value) => {
-            if (Math.abs(value) >= target.height + 100) {
+            if (Math.abs(value) >= targetHeight + 100) {
                 cancelAnimation(childTranslateY);
             }
         },
@@ -98,12 +101,16 @@ const LightboxSwipeout = forwardRef<LightboxSwipeoutRef, LightboxSwipeoutProps>(
         closeLightbox,
     }));
 
+    // 在 JS 线程捕获 targetDimensions，避免 UI 线程访问 JS 对象
+    const targetDimHeight = targetDimensions.height;
+    const targetDimWidth = targetDimensions.width;
+
     const isVisibleImage = () => {
         'worklet';
 
         return (
-            targetDimensions.height >= y.value &&
-            targetDimensions.width >= x.value &&
+            targetDimHeight >= y.value &&
+            targetDimWidth >= x.value &&
             x.value >= 0 &&
             y.value >= 0
         );
