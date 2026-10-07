@@ -185,14 +185,15 @@ const ChannelHeader = ({
     const openBotChat = useCallback(async (bot: BotInfo) => {
         debugLog('AI_ASSISTANT', `openBotChat: botId=${bot.botId}, teamId=${bot.teamId}`);
         try {
-            const channel = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
-            debugLog('AI_ASSISTANT', `openBotChat: channel=${JSON.stringify(channel)}`);
-            if (channel) {
-                switchToChannelById(serverUrl, channel.id);
-                debugLog('AI_ASSISTANT', `openBotChat: switched to channel ${channel.id}`);
+            const result = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
+            debugLog('AI_ASSISTANT', `openBotChat: result=${JSON.stringify(result)}`);
+            if (result.data) {
+                switchToChannelById(serverUrl, result.data.id);
+                debugLog('AI_ASSISTANT', `openBotChat: switched to channel ${result.data.id}`);
             } else {
-                debugLog('AI_ASSISTANT', 'openBotChat: channel is null');
-                Alert.alert('Error', 'Failed to create bot channel');
+                const errMsg = result.error ? String(result.error) : 'unknown error';
+                debugLog('AI_ASSISTANT', `openBotChat: failed - ${errMsg}`);
+                Alert.alert('Error', `Failed to create bot channel: ${errMsg}`);
             }
         } catch (err) {
             debugLog('AI_ASSISTANT', `openBotChat error: ${err}`);

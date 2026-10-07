@@ -7,10 +7,8 @@ import {Platform} from 'react-native';
 
 import OptionItem from '@components/option_item';
 import {General, Screens} from '@constants';
-import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {goToScreen} from '@screens/navigation';
-import {changeOpacity} from '@utils/theme';
 
 type MembersProps = {
     channelId: string;
@@ -26,7 +24,6 @@ type MembersProps = {
  */
 const Members = ({displayName, channelId, count, channelType, isTeamDefaultOpenChannel = false}: MembersProps) => {
     const {formatMessage} = useIntl();
-    const theme = useTheme();
     const title = formatMessage({id: 'channel_info.members', defaultMessage: 'Members'});
 
     /**
@@ -42,18 +39,21 @@ const Members = ({displayName, channelId, count, channelType, isTeamDefaultOpenC
     }, [displayName, formatMessage]);
 
     const goToChannelMembers = usePreventDoubleTap(useCallback(() => {
-        const subtitleText = getSubtitle();
         const options = {
             topBar: {
-                subtitle: {
-                    color: changeOpacity(theme.sidebarHeaderTextColor, 0.72),
-                    text: subtitleText,
-                },
+                leftButtons: [{
+                    id: 'cancel-manage-members',
+                    text: formatMessage({id: 'mobile.cancel', defaultMessage: 'Cancel'}),
+                }],
+                rightButtons: [{
+                    id: 'confirm-manage-members',
+                    text: formatMessage({id: 'mobile.confirm', defaultMessage: 'Done'}),
+                }],
             },
         };
 
         goToScreen(Screens.MANAGE_CHANNEL_MEMBERS, title, {channelId}, options);
-    }, [channelId, theme.sidebarHeaderTextColor, title, getSubtitle]));
+    }, [channelId, formatMessage, title]));
 
     return (
         <OptionItem

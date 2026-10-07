@@ -166,13 +166,35 @@ const ChannelInfoGM = ({
 
     const handleEditAnnouncement = useCallback(async () => {
         const title = intl.formatMessage({id: 'channel_info_rhs.gm.announcement.edit_title', defaultMessage: 'Edit Announcement'});
-        goToScreen(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
+        goToScreen(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId}, {
+            topBar: {
+                leftButtons: [{
+                    id: 'cancel-edit-announcement',
+                    text: intl.formatMessage({id: 'mobile.cancel', defaultMessage: 'Cancel'}),
+                }],
+                rightButtons: [{
+                    id: 'confirm-edit-announcement',
+                    text: intl.formatMessage({id: 'mobile.confirm', defaultMessage: 'Done'}),
+                }],
+            },
+        });
     }, [channelId, intl]);
 
     const handleManageMembers = useCallback(async () => {
         const title = intl.formatMessage({id: 'channel_info_rhs.gm.member_management', defaultMessage: 'Member Management'});
-        goToScreen(Screens.MANAGE_CHANNEL_MEMBERS, title, {});
-    }, [intl]);
+        goToScreen(Screens.MANAGE_CHANNEL_MEMBERS, title, {channelId}, {
+            topBar: {
+                leftButtons: [{
+                    id: 'cancel-manage-members',
+                    text: intl.formatMessage({id: 'mobile.cancel', defaultMessage: 'Cancel'}),
+                }],
+                rightButtons: [{
+                    id: 'confirm-manage-members',
+                    text: intl.formatMessage({id: 'mobile.confirm', defaultMessage: 'Done'}),
+                }],
+            },
+        });
+    }, [channelId, intl]);
 
     const handleToggleMute = useCallback(() => {
         toggleMuteChannel(serverUrl, channelId);

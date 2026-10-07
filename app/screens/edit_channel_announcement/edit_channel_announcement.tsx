@@ -3,16 +3,16 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, StatusBar, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Keyboard, StatusBar, TextInput, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {patchChannel as handlePatchChannel} from '@actions/remote/channel';
-import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
+import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -25,33 +25,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
-    },
-    headerTitle: {
-        ...typography('Heading', 400, 'SemiBold'),
-        color: theme.centerChannelColor,
-        flex: 1,
-        textAlign: 'center',
-    },
-    headerButton: {
-        padding: 4,
-        minWidth: 48,
-    },
-    doneText: {
-        ...typography('Body', 200, 'SemiBold'),
-        color: theme.buttonBg,
-        textAlign: 'right',
-    },
-    closeIcon: {
-        padding: 4,
     },
     textInput: {
         flex: 1,
@@ -114,9 +87,8 @@ const EditChannelAnnouncement = ({
         dismissModal({componentId});
     }, [channel, canEdit, componentId, serverUrl, text]);
 
-    const title = isDM
-        ? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'})
-        : intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit Announcement'});
+    useNavButtonPressed('cancel-edit-announcement', componentId, handleClose, [handleClose]);
+    useNavButtonPressed('confirm-edit-announcement', componentId, handleDone, [handleDone]);
 
     const placeholder = isDM
         ? intl.formatMessage({id: 'screens.edit_conversation_note.placeholder', defaultMessage: 'e.g. their birthday, important notes, or helpful links'})
@@ -151,17 +123,6 @@ const EditChannelAnnouncement = ({
     return (
         <SafeAreaView style={styles.container} testID='edit_channel_announcement'>
             <StatusBar/>
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.closeIcon} onPress={handleClose}>
-                    <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{title}</Text>
-                <TouchableOpacity style={styles.headerButton} onPress={handleDone} disabled={!canEdit}>
-                    <Text style={[styles.doneText, !canEdit && {opacity: 0.38}]}>
-                        {intl.formatMessage({id: 'edit_channel_announcement.done', defaultMessage: 'Done'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
             <TextInput
                 style={styles.textInput}
                 value={text}

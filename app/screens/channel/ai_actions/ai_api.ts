@@ -40,15 +40,15 @@ export async function getChannelBots(serverUrl: string, channelId: string): Prom
  * Open or create a bot GM channel with a bot user.
  * Uses makeBotGroupChannel to create a type-G channel with group_category "botgm_{teamId}".
  */
-export async function openDirectChannelWithBot(serverUrl: string, botUserId: string, teamId: string): Promise<{id: string} | null> {
+export async function openDirectChannelWithBot(serverUrl: string, botUserId: string, teamId: string): Promise<{data?: {id: string}; error?: unknown}> {
     debugLog('AI_API', `openDirectChannelWithBot: botUserId=${botUserId}, teamId=${teamId}`);
     try {
         const result = await makeBotGroupChannel(serverUrl, botUserId, teamId);
         debugLog('AI_API', `openDirectChannelWithBot: result=${JSON.stringify(result)}`);
-        return result.data ?? null;
+        return result;
     } catch (err) {
         debugLog('AI_API', `openDirectChannelWithBot error: ${err}`);
-        return null;
+        return {error: err};
     }
 }
 

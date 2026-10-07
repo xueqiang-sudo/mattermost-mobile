@@ -14,6 +14,7 @@ import {PER_PAGE_DEFAULT} from '@client/rest/constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
+import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import NetworkManager from '@managers/network_manager';
 import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -37,33 +38,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
-    },
-    headerButton: {
-        padding: 4,
-        minWidth: 48,
-    },
-    cancelButton: {
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        ...typography('Body', 200),
-    },
-    confirmButton: {
-        color: theme.buttonBg,
-        ...typography('Body', 200, 'SemiBold'),
-    },
-    headerTitle: {
-        ...typography('Heading', 400, 'SemiBold'),
-        color: theme.centerChannelColor,
-        flex: 1,
-        textAlign: 'center',
     },
     notice: {
         backgroundColor: changeOpacity(theme.buttonBg, 0.08),
@@ -231,6 +205,9 @@ export default function ManageChannelMembers({
         }
     }, [channelId, componentId, formatMessage, initialIds, selectedIds, serverUrl]);
 
+    useNavButtonPressed('cancel-manage-members', componentId, handleCancel, [handleCancel]);
+    useNavButtonPressed('confirm-manage-members', componentId, handleConfirm, [handleConfirm]);
+
     const renderItem = useCallback(({item}: {item: UserProfile}) => {
         const isSelected = selectedIds.has(item.id);
         const displayName = displayUsername(item, locale, teammateDisplayNameSetting);
@@ -275,23 +252,6 @@ export default function ManageChannelMembers({
             style={styles.container}
             testID='manage_members.screen'
         >
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
-                    <Text style={styles.cancelButton}>
-                        {formatMessage({id: 'mobile.cancel', defaultMessage: 'Cancel'})}
-                    </Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {formatMessage({id: 'channel_info_rhs.gm.member_management', defaultMessage: 'Member Management'})}
-                </Text>
-                <TouchableOpacity style={styles.headerButton} onPress={handleConfirm} disabled={saving}>
-                    <Text style={[styles.confirmButton, saving && {opacity: 0.5}]}>
-                        {saving
-                            ? formatMessage({id: 'mobile.saving', defaultMessage: 'Saving...'})
-                            : formatMessage({id: 'mobile.confirm', defaultMessage: 'Done'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
             <View style={styles.notice}>
                 <Text style={styles.noticeText}>
                     {formatMessage({

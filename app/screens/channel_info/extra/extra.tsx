@@ -177,10 +177,21 @@ const Extra = ({
     const showLegacyHeaderSection = !usesAnnouncementUx && Boolean(header);
 
     const onEditAnnouncement = useCallback(() => {
-        const title = isDM 
+        const title = isDM
             ? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'})
             : intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
-        showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
+        showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId}, {
+            topBar: {
+                leftButtons: [{
+                    id: 'cancel-edit-announcement',
+                    text: intl.formatMessage({id: 'mobile.cancel', defaultMessage: 'Cancel'}),
+                }],
+                rightButtons: [{
+                    id: 'confirm-edit-announcement',
+                    text: intl.formatMessage({id: 'mobile.confirm', defaultMessage: 'Done'}),
+                }],
+            },
+        });
     }, [channelId, intl, isDM]);
 
     const created = useMemo(() => ({
