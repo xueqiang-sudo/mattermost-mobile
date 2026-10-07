@@ -110,10 +110,15 @@ export function useGalleryItem(
         gallery.registerItem(index, ref);
     }, []);
 
+    // 包装 Alert.alert 供 worklet 使用
+    const showAlert = useCallback((title: string, message: string) => {
+        Alert.alert(title, message);
+    }, []);
+
     const onGestureEvent = () => {
         'worklet';
 
-        runOnJS(Alert.alert)('Gallery Step 0', `onGestureEvent idx=${index}`);
+        runOnJS(showAlert)('Gallery Step 0', `onGestureEvent idx=${index}`);
         activeIndex.value = index;
 
         runOnJS(onPress)(identifier, index);
