@@ -136,7 +136,13 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
         debugLog('BOT_CHANNEL', `createBotGroupChannel request body: ${JSON.stringify(requestBody)}`);
         return this.doFetch(
             `${this.getChannelsRoute()}/bot_group`,
-            {method: 'post', body: JSON.stringify(requestBody)},
+            {
+                method: 'post',
+                body: JSON.stringify(requestBody),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
         );
     };
 

@@ -288,7 +288,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             <KeyboardAvoidingView
                 style={styles.flex}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
             >
                 <View style={styles.header}>
                     <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
