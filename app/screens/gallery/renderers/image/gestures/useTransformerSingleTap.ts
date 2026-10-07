@@ -17,6 +17,7 @@ export function useTransformerSingleTap(enabled: boolean) {
     return Gesture.Tap().
         enabled(enabled).
         onStart((evt) => {
+            'worklet';
             if (!shouldHandleEvent(evt)) {
                 return;
             }
@@ -24,6 +25,7 @@ export function useTransformerSingleTap(enabled: boolean) {
             cancelAnimation(offset.y);
         }).
         onEnd((evt) => {
+            'worklet';
             if (!shouldHandleEvent(evt)) {
                 return;
             }

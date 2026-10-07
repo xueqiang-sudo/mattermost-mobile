@@ -215,7 +215,7 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
     }), [width, height]);
 
     useEffect(() => {
-        if (initialIndex === index && videoReady && isPageActiveValue) {
+        if (videoReady && isPageActiveValue) {
             setPaused(false);
             hideControlsTimeoutRef.current = setTimeout(() => {
                 setShowCustomControls(false);

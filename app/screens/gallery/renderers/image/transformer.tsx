@@ -9,6 +9,7 @@ import Animated, {useAnimatedReaction, useAnimatedStyle} from 'react-native-rean
 import {SvgUri} from 'react-native-svg';
 
 import ExpoImage from '@components/expo_image';
+import {debugLog} from '@store/debug_log';
 
 import {useTransformerSharedValues} from './context';
 import useTransformerDoubleTap from './gestures/useTransformerDoubleTap';
@@ -59,6 +60,7 @@ const ImageTransformer = (
     } = useTransformerSharedValues();
 
     const setInteractionsEnabled = useCallback((value: boolean) => {
+        debugLog('GALLERY', `setInteractionsEnabled: ${value}`);
         interactionsEnabled.value = value;
 
         // SharedValue does not trigger re-renders
