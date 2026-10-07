@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
         width: CLOSE_BUTTON_SIZE,
         height: CLOSE_BUTTON_SIZE,
         borderRadius: CLOSE_BUTTON_SIZE / 2,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
