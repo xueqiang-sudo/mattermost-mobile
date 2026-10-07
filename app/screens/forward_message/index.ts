@@ -6,7 +6,7 @@ import {of} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {observeCurrentChannelId} from '@queries/servers/system';
-import {queryMyChannels} from '@queries/servers/channel';
+import {queryAllChannels} from '@queries/servers/channel';
 
 import ForwardMessage from './forward_message';
 
@@ -15,7 +15,7 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     const currentChannelId = observeCurrentChannelId(database);
     const channels = currentChannelId.pipe(
-        switchMap(() => queryMyChannels(database).observe()),
+        switchMap(() => queryAllChannels(database).observe()),
     );
 
     return {

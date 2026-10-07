@@ -15,7 +15,7 @@ type Props = {
     fileId: string;
     onCopyPublicLink: () => void;
     onDownload: () => void;
-    onShare: () => void;
+    onForward: () => void;
 }
 
 const styles = StyleSheet.create({
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
 const Actions = ({
     allowSaveToLocation, canDownloadFiles, disabled,
     enablePublicLinks, fileId,
-    onCopyPublicLink, onDownload, onShare,
+    onCopyPublicLink, onDownload, onForward,
 }: Props) => {
     const managedConfig = useManagedConfig<ManagedConfig>();
     const canCopyPublicLink = !fileId.startsWith('uid') && enablePublicLinks && managedConfig.copyAndPasteProtection !== 'true';
@@ -53,8 +53,8 @@ const Actions = ({
                 }
                 <Action
                     disabled={disabled}
-                    iconName='export-variant'
-                    onPress={onShare}
+                    iconName='send'
+                    onPress={onForward}
                 />
             </>
             }

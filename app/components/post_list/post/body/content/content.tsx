@@ -54,9 +54,11 @@ const Content = ({isReplyPost, layoutWidth, location, onLongPress, post, theme, 
         case contentType.image:
             return (
                 <ImagePreview
+                    channelId={post.channelId}
                     isReplyPost={isReplyPost}
                     layoutWidth={layoutWidth}
                     location={location}
+                    message={post.message}
                     metadata={post.metadata}
                     onLongPress={onLongPress}
                     postId={post.id}

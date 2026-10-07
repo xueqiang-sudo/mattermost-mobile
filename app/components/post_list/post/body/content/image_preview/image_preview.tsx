@@ -25,11 +25,13 @@ import {extractFilenameFromUrl, isImageLink, isValidUrl} from '@utils/url';
 import type {GalleryItemType} from '@typings/screens/gallery';
 
 type ImagePreviewProps = {
+    channelId?: string;
     expandedLink?: string;
     isReplyPost: boolean;
     link: string;
     layoutWidth?: number;
     location: string;
+    message?: string;
     metadata: PostMetadata | undefined | null;
     onLongPress?: (event?: GestureResponderEvent) => void;
     postId: string;
@@ -51,7 +53,7 @@ const style = StyleSheet.create({
     },
 });
 
-const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, metadata, onLongPress, postId, theme}: ImagePreviewProps) => {
+const ImagePreview = ({channelId, expandedLink, isReplyPost, layoutWidth, link, location, message, metadata, onLongPress, postId, theme}: ImagePreviewProps) => {
     const mediaInViewport = usePostMediaInViewport(postId, location);
     const galleryIdentifier = `${postId}-ImagePreview-${location}`;
     const [error, setError] = useState(false);
@@ -73,6 +75,8 @@ const ImagePreview = ({expandedLink, isReplyPost, layoutWidth, link, location, m
         const item: GalleryItemType = {
             id: fileId.current || '',
             postId,
+            channelId,
+            postMessage: message,
             uri: imageUrl,
             width: imageProps?.width || 0,
             height: imageProps?.height || 0,

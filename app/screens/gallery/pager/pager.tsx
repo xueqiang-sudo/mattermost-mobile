@@ -24,8 +24,6 @@ export type PagerContentProps = {
     width: number;
     height: number;
     numToRender?: number;
-    hideHeaderAndFooter: (hidden?: boolean) => void;
-    headerAndFooterHidden?: import('react-native-reanimated').SharedValue<boolean>;
     onClose?: () => void;
 };
 
@@ -38,8 +36,7 @@ const styles = StyleSheet.create({
 
 export function PagerContent({
     totalCount, pages, renderPage, shouldRenderGutter,
-    width, height, numToRender = 2, hideHeaderAndFooter,
-    headerAndFooterHidden, onClose,
+    width, height, numToRender = 2, onClose,
 }: PagerContentProps) {
     const sharedValues = usePagerSharedValues();
     const [diffValue, setDiffValue] = useState(0);
@@ -53,7 +50,7 @@ export function PagerContent({
 
     const panGesture = usePagerPanGesture();
     const lightboxPanGesture = useLightboxPanGesture();
-    const tapGesture = usePagerTapGesture(pages, hideHeaderAndFooter, headerAndFooterHidden, onClose);
+    const tapGesture = usePagerTapGesture(pages, onClose);
 
     useEffect(() => {
         setDiffValue(numToRender);

@@ -21,6 +21,7 @@ type FilesProps = {
     enableSecureFilePreview: boolean;
     failed?: boolean;
     filesInfo: FileInfo[];
+    channelMediaFiles?: FileInfo[];
     layoutWidth?: number;
 
     /** 上限宽度（如本人带正文+附件时的 weChatContentMaxWidth），与 layoutWidth 缺省时的 fallback 取 min */
@@ -28,6 +29,8 @@ type FilesProps = {
     location: string;
     isReplyPost: boolean;
     postId?: string;
+    channelId?: string;
+    message?: string;
     postProps?: Record<string, unknown>;
     isPermalinkPreview?: boolean;
     isMediaOnlyMessage?: boolean;
@@ -115,11 +118,14 @@ const Files = ({
     enableSecureFilePreview,
     failed,
     filesInfo,
+    channelMediaFiles,
     isReplyPost,
     layoutWidth,
     maxPortraitWidth,
     location,
     postId,
+    channelId,
+    message,
     postProps,
     isPermalinkPreview = false,
     isMediaOnlyMessage = false,
@@ -156,9 +162,18 @@ const Files = ({
     };
 
     const handlePreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
-        const items = filesForGallery.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id));
-        openGalleryAtIndex(galleryIdentifier, idx, items);
-    }, [filesForGallery, galleryIdentifier, postProps]));
+        const tappedFile = filesForGallery[idx];
+        if (channelMediaFiles && channelMediaFiles.length > 1) {
+            // Use all channel media files for the gallery (WeChat-style browsing)
+            const channelGalleryIdentifier = `${channelId}-channel-media-${location}`;
+            const channelIdx = channelMediaFiles.findIndex((f) => f.id === tappedFile?.id);
+            const items = channelMediaFiles.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
+            openGalleryAtIndex(channelGalleryIdentifier, channelIdx >= 0 ? channelIdx : 0, items);
+        } else {
+            const items = filesForGallery.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
+            openGalleryAtIndex(galleryIdentifier, idx, items);
+        }
+    }, [filesForGallery, galleryIdentifier, postProps, channelId, message, channelMediaFiles, location]));
 
     const updateFileForGallery = useCallback((idx: number, file: FileInfo) => {
         const newFilesForGallery = [...filesForGallery];

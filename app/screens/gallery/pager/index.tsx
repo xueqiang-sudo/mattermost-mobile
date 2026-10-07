@@ -20,8 +20,7 @@ const GUTTER_WIDTH = 10;
 const Pager = ({
     gutterWidth = GUTTER_WIDTH, initialIndex,
     numToRender = 2, onIndexChange, pages, renderPage,
-    shouldRenderGutter = false, totalCount, width, height, hideHeaderAndFooter,
-    headerAndFooterHidden, onClose,
+    shouldRenderGutter = false, totalCount, width, height, onClose,
 }: PagerProps) => {
     const gutterWidthToUse = shouldRenderGutter ? gutterWidth : 0;
     const [activeIndex, setActiveIndex] = useState(initialIndex);
@@ -132,8 +131,6 @@ const Pager = ({
                 shouldRenderGutter={shouldRenderGutter}
                 width={width}
                 height={height}
-                hideHeaderAndFooter={hideHeaderAndFooter}
-                headerAndFooterHidden={headerAndFooterHidden}
                 onClose={onClose}
             />
         </PagerProvider>

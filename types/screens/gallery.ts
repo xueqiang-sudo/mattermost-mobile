@@ -33,6 +33,8 @@ export type GalleryItemType = {
     authorId?: string;
     size?: number;
     postId?: string;
+    channelId?: string;
+    postMessage?: string;
     postProps?: Record<string, unknown> & {captions?: Caption[]};
     cacheKey: string;
 };

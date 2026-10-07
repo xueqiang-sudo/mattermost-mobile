@@ -128,17 +128,12 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
 
     function onSwipeActive(translateY: number) {
         'worklet';
-
-        if (Math.abs(translateY) > 8) {
-            hideHeaderAndFooter(true);
-        }
     }
 
     function onSwipeFailure() {
         'worklet';
 
         runOnJS(freezeOtherScreens)(true);
-        hideHeaderAndFooter(false);
     }
 
     const hideLightboxItem = useCallback(() => {
@@ -221,8 +216,6 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
             <GalleryViewer
                 items={items}
                 onIndexChange={onIndexChangeWorklet}
-                hideHeaderAndFooter={hideHeaderAndFooter}
-                headerAndFooterHidden={headerAndFooterHidden}
                 onClose={onClose}
                 height={targetDimensions.height}
                 width={targetDimensions.width}

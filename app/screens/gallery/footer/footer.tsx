@@ -4,11 +4,13 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {DeviceEventEmitter, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
+import {useIntl} from 'react-intl';
 
-import {Events} from '@constants';
+import {Events, Screens} from '@constants';
 import {GALLERY_FOOTER_HEIGHT} from '@constants/gallery';
 import {useServerUrl} from '@context/server';
 import SecurityManager from '@managers/security_manager';
+import {showModal} from '@screens/navigation';
 
 import Actions from './actions';
 import DownloadWithAction from './download_with_action';
@@ -40,6 +42,7 @@ const Footer = ({
     canDownloadFiles, enablePublicLink, enableSecureFilePreview,
     hideActions, item, style,
 }: Props) => {
+    const intl = useIntl();
     const serverUrl = useServerUrl();
     const showActions = !hideActions && Boolean(item.id) && !item.id?.startsWith('uid');
     const [action, setAction] = useState<GalleryAction>('none');
@@ -48,9 +51,18 @@ const Footer = ({
         setAction('downloading');
     }, []);
 
-    const handleShare = useCallback(() => {
-        setAction('sharing');
-    }, []);
+    const handleForward = useCallback(() => {
+        showModal(
+            Screens.FORWARD_MESSAGE,
+            intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'}),
+            {
+                postId: item.postId || '',
+                channelId: item.channelId || '',
+                message: item.postMessage || '',
+                fileIds: [item.id!],
+            },
+        );
+    }, [item, intl]);
 
     const allowSaveToLocation = useMemo(() => {
         let location: keyof IntuneMAMSaveLocation = 'CameraRoll';
@@ -72,7 +84,7 @@ const Footer = ({
         <Animated.View
             style={[style]}
         >
-            {['downloading', 'sharing'].includes(action) && !enableSecureFilePreview && canDownloadFiles &&
+            {action === 'downloading' && !enableSecureFilePreview && canDownloadFiles &&
                 <DownloadWithAction
                     action={action}
                     enableSecureFilePreview={enableSecureFilePreview}
@@ -90,7 +102,7 @@ const Footer = ({
                     fileId={item.id!}
                     onCopyPublicLink={() => {}}
                     onDownload={handleDownload}
-                    onShare={handleShare}
+                    onForward={handleForward}
                 />
                 }
             </View>

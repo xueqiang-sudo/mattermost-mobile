@@ -207,15 +207,16 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
         if (mounted.current) {
             try {
                 const cameraType = item.type === 'avatar' ? 'image' : item.type;
-                await CameraRoll.saveAsset(path, {
+                await CameraRoll.saveAsset(pathWithPrefix('file://', path), {
                     type: cameraType === 'image' ? 'photo' : 'video',
-                    album: applicationName || '',
+                    album: applicationName || 'Mattermost',
                 });
                 setSaved(true);
                 if (item.type !== 'avatar') {
                     updateLocalFilePath(serverUrl, item.id, path);
                 }
-            } catch {
+            } catch (e) {
+                logDebug('saveImageOrVideo failed', getFullErrorMessage(e));
                 setError(intl.formatMessage({id: 'gallery.save_failed', defaultMessage: 'Unable to save the file'}));
             }
         }

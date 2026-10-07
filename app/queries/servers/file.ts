@@ -9,7 +9,7 @@ import {MM_TABLES} from '@constants/database';
 
 import type FileModel from '@typings/database/models/servers/file';
 
-const {SERVER: {FILE}} = MM_TABLES;
+const {SERVER: {FILE, POST}} = MM_TABLES;
 
 export const getFileById = async (database: Database, fileId: string) => {
     try {
@@ -49,4 +49,14 @@ export const getFilesByIds = async (database: Database, fileIds: string[]) => {
     } catch {
         return [];
     }
+};
+
+export const queryMediaFilesForChannel = (database: Database, channelId: string) => {
+    return database.get<FileModel>(FILE).query(
+        Q.experimentalJoinTables([POST]),
+        Q.on(POST, Q.and(
+            Q.where('channel_id', channelId),
+            Q.where('delete_at', Q.eq(0)),
+        )),
+    );
 };

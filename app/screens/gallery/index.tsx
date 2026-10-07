@@ -93,6 +93,7 @@ const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialInde
             nativeID={SecurityManager.getShieldScreenId(componentId)}
         >
             <Header
+                fileType={items[localIndex]?.type}
                 onClose={onClose}
                 style={headerStyles}
             />
