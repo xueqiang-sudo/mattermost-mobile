@@ -164,7 +164,7 @@ export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: numb
             background: {
                 color: '#000',
             },
-            visible: Platform.OS === 'android',
+            visible: false,
         },
         statusBar: {
             backgroundColor: '#000',

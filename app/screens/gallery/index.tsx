@@ -110,6 +110,7 @@ const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialInde
                 targetDimensions={dim}
             />
             <Footer
+                componentId={componentId}
                 hideActions={hideActions}
                 item={items[localIndex]}
                 style={footerStyles}

@@ -24,7 +24,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {alertFailedToOpenDocument, alertOnlyPDFSupported} from '@utils/document';
 import {getFullErrorMessage} from '@utils/errors';
-import {fileExists, getLocalFilePathFromFile, hasWriteStoragePermission, isPdf, pathWithPrefix} from '@utils/file';
+import {fileExists, getLocalFilePathFromFile, hasPhotoLibraryWritePermission, isPdf, pathWithPrefix} from '@utils/file';
 import {galleryItemToFileInfo} from '@utils/gallery';
 import {logDebug} from '@utils/log';
 import {previewPdf} from '@utils/navigation';
@@ -226,7 +226,7 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
         if (response.data?.path) {
             const path = response.data.path as string;
             onDownloadSuccess?.(path);
-            const hasPermission = await hasWriteStoragePermission(intl);
+            const hasPermission = await hasPhotoLibraryWritePermission(intl);
 
             if (hasPermission) {
                 switch (item.type) {

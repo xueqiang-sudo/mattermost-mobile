@@ -18,7 +18,7 @@ type Props = {
     style: StyleProp<AnimatedStyle<ViewStyle>>;
 }
 
-const CLOSE_BUTTON_SIZE = 40;
+const CLOSE_BUTTON_SIZE = 48;
 
 const styles = StyleSheet.create({
     container: {
@@ -70,7 +70,7 @@ const Header = ({fileType, onClose, style}: Props) => {
                     <CompassIcon
                         color='white'
                         name='close'
-                        size={24}
+                        size={28}
                     />
                 </PressableOpacity>
             </Animated.View>

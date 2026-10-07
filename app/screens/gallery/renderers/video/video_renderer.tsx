@@ -68,7 +68,10 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
     const progressDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const playbackStateDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const isPageActiveValue = useStateFromSharedValue(isPageActive, false);
+    const isPageActiveValue = useStateFromSharedValue(isPageActive, initialIndex === index);
+    const isPageActiveReady = useRef(false);
+    const isPageActiveRef = useRef(isPageActiveValue);
+    isPageActiveRef.current = isPageActiveValue;
 
     const headerAndFooterHiddenValue = useStateFromSharedValue(headerAndFooterHidden, false);
 
@@ -130,11 +133,11 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
             clearTimeout(playbackStateDebounceTimeoutRef.current);
         }
         playbackStateDebounceTimeoutRef.current = setTimeout(() => {
-            if (isPageActiveValue) {
+            if (isPageActiveRef.current) {
                 setPaused(!isPlaying);
             }
         }, 200);
-    }, [isPageActiveValue]);
+    }, []);
 
     const onReadyForDisplay = useCallback(() => {
         setVideoReady(true);
@@ -224,6 +227,10 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
     }, [index, initialIndex, videoReady]);
 
     useEffect(() => {
+        if (!isPageActiveReady.current) {
+            isPageActiveReady.current = true;
+            return;
+        }
         if (!isPageActiveValue && !paused) {
             setShowCustomControls(true);
             setPaused(true);

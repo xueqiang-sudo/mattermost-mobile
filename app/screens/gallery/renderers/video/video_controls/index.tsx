@@ -148,12 +148,13 @@ const VideoControls: React.FC<VideoControlsWithSeekProps> = ({
     }, [cancelHideControls]);
 
     return (
-        <Animated.View style={[StyleSheet.absoluteFill, containerStyle]}>
+        <Animated.View style={[StyleSheet.absoluteFill, containerStyle]} pointerEvents={visible ? 'auto' : 'none'}>
             <Animated.View style={[styles.container, controlsOpacityStyle]}>
                 <View
                     onTouchEnd={handleBackgroundPress}
                     style={[styles.controlsArea, styles.controlsBackground]}
-                >
+                />
+                <View style={styles.controlsArea} pointerEvents='box-none'>
                     <BottomControls
                         currentTime={currentTime}
                         duration={duration}

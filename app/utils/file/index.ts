@@ -622,6 +622,54 @@ export const hasWriteStoragePermission = async (intl: IntlShape) => {
     return true;
 };
 
+export const hasPhotoLibraryWritePermission = async (intl: IntlShape) => {
+    if (Platform.OS === 'ios') {
+        const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
+        let permissionRequest;
+        const hasPermission = await Permissions.check(permission);
+        switch (hasPermission) {
+            case Permissions.RESULTS.DENIED:
+                permissionRequest = await Permissions.request(permission);
+                return permissionRequest === Permissions.RESULTS.GRANTED || permissionRequest === Permissions.RESULTS.LIMITED;
+            case Permissions.RESULTS.BLOCKED: {
+                const title = intl.formatMessage(
+                    {
+                        id: 'mobile.photos_permission_denied_title',
+                        defaultMessage: '{applicationName} would like to access your photos',
+                    },
+                    {applicationName},
+                );
+                const text = intl.formatMessage(
+                    {
+                        id: 'mobile.photos_permission_denied_description',
+                        defaultMessage: 'Save photos and videos to your device. Open Settings to grant {applicationName} write access to your photo library.',
+                    },
+                    {applicationName},
+                );
+                Alert.alert(title, text, [
+                    {
+                        text: intl.formatMessage({
+                            id: 'mobile.permission_denied_dismiss',
+                            defaultMessage: "Don't Allow",
+                        }),
+                    },
+                    {
+                        text: intl.formatMessage({
+                            id: 'mobile.permission_denied_retry',
+                            defaultMessage: 'Settings',
+                        }),
+                        onPress: () => Linking.openSettings(),
+                    },
+                ]);
+                return false;
+            }
+            default: return true;
+        }
+    }
+
+    return hasWriteStoragePermission(intl);
+};
+
 export const getAllFilesInCachesDirectory = async (serverUrl: string) => {
     try {
         const files: ExpoFileInfo[] = [];

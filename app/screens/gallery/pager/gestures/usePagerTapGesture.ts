@@ -21,7 +21,7 @@ export default function usePagerTapGesture(
     } = usePagerSharedValues();
 
     return Gesture.Tap().
-        enabled(pages[activeIndex].type === 'image').
+        enabled(pages[activeIndex]?.type === 'image').
         maxDeltaX(10).
         maxDeltaY(10).
         onStart((evt) => {

@@ -7,7 +7,7 @@ import {useSharedValue, withSpring} from 'react-native-reanimated';
 import {MAX_VELOCITY, MIN_VELOCITY} from '@constants/gallery';
 import {pagerPanSpringConfig} from '@screens/gallery/animation_config/spring';
 import {useLightboxSharedValues} from '@screens/gallery/lightbox_swipeout/context';
-import {clampVelocity, friction} from '@utils/gallery';
+import {clampVelocity} from '@utils/gallery';
 
 import {usePagerSharedValues} from '../context';
 
@@ -65,7 +65,7 @@ export default function usePagerPanGesture() {
 
             const val = evt.translationX - offset.value;
             const canSwipe = getCanSwipe(val);
-            pagerX.value = canSwipe ? val : friction(val);
+            pagerX.value = canSwipe ? val : 0;
         }).
         onEnd((evt) => {
             if (!shouldHandleEvent(evt)) {
