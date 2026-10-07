@@ -2597,5 +2597,9 @@
   "mobile.cancel": "Cancel",
   "mobile.confirm": "Confirm",
   "mobile.saving": "Saving...",
-  "mobile.restricted_views.save_failed": "Failed to save restricted view settings."
+  "mobile.restricted_views.save_failed": "Failed to save restricted view settings.",
+  "batch_undo.title": "Recall Message",
+  "batch_undo.recall_single": "Recall this message",
+  "batch_undo.recall_all": "Recall all messages sent this time",
+  "batch_undo.cancel": "Cancel"
 }

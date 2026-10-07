@@ -32,6 +32,12 @@ export default keyMirror({
     /** Scroll channel/permalink list to a post and briefly highlight it (e.g. tap quoted message). */
     POST_LIST_JUMP_TO_POST: null,
 
+    /** Batch posts created (e.g., multiple images sent at once) - for undo functionality */
+    POST_BATCH_CREATED: null,
+
+    /** Show batch undo menu on long-press */
+    SHOW_BATCH_UNDO_MENU: null,
+
     /** 在频道屏打开「回复某根帖」草稿（替代独立 Thread 屏） */
     POST_DRAFT_SET_REPLY_ROOT: null,
     POST_DRAFT_CLEAR_REPLY_ROOT: null,

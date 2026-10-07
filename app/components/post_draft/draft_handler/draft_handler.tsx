@@ -114,28 +114,33 @@ export default function DraftHandler(props: Props) {
 
         debugLog('ADD_FILES', `starting auto-send for ${newFiles.length} files`);
 
-        // Auto-send: always upload and post files immediately (WeChat-style)
+        // Auto-send: upload files in parallel and create separate posts (WeChat-style batch)
         void (async () => {
             try {
-                const uploadedFiles: FileInfo[] = [];
+                // Filter out video processing files
+                const filesToUpload = newFiles.filter(file => !isDraftVideoLocalProcessingFile(file));
 
-                for (const file of newFiles) {
-                    if (isDraftVideoLocalProcessingFile(file)) {
-                        debugLog('ADD_FILES', `skipping video processing file: ${file.name}`);
-                        continue;
-                    }
+                if (filesToUpload.length === 0) {
+                    debugLog('ADD_FILES', 'no files to upload');
+                    return;
+                }
 
+                // Generate batch ID for grouping these posts
+                const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                debugLog('ADD_FILES', `uploading ${filesToUpload.length} files in parallel with batchId: ${batchId}`);
+
+                // Upload all files in parallel
+                const uploadPromises = filesToUpload.map(file => {
                     debugLog('ADD_FILES', `uploading file: ${file.name} ${file.size}`);
 
-                    // Upload file and wait for completion
-                    const uploaded = await new Promise<FileInfo>((resolve, reject) => {
+                    return new Promise<FileInfo>((resolve, reject) => {
                         const {error} = uploadFile(
                             serverUrl,
                             file,
                             channelId,
                             () => {/* progress */},
                             (response) => {
-                                debugLog('ADD_FILES', `upload response: ${response.code} files:${response.data?.file_infos?.length}`);
+                                debugLog('ADD_FILES', `upload response for ${file.name}: ${response.code} files:${response.data?.file_infos?.length}`);
                                 if (response.code !== 201 || !response.data?.file_infos?.length) {
                                     reject(new Error((response.data?.message as string) || 'Failed to upload file'));
                                     return;
@@ -148,33 +153,57 @@ export default function DraftHandler(props: Props) {
                             (err) => reject(new Error(err?.message || 'Upload failed')),
                         );
                         if (error) {
-                            debugLog('ADD_FILES', `uploadFile returned error: ${error}`);
+                            debugLog('ADD_FILES', `uploadFile returned error for ${file.name}: ${error}`);
                             reject(error);
                         }
                     });
+                });
 
-                    debugLog('ADD_FILES', `file uploaded successfully: ${uploaded.name} ${uploaded.id}`);
-                    uploadedFiles.push(uploaded);
-                }
+                // Wait for all uploads to complete
+                const uploadedFiles = await Promise.all(uploadPromises);
 
-                debugLog('ADD_FILES', `uploaded ${uploadedFiles.length} files, creating post`);
+                debugLog('ADD_FILES', `uploaded ${uploadedFiles.length} files in parallel, creating batch posts`);
 
-                // Create and send post(s) immediately
+                // Create separate post for each file (WeChat-style: one post per image)
                 if (uploadedFiles.length > 0) {
-                    // Create one post with all files (like WeChat)
-                    const post = {
-                        user_id: currentUserId,
-                        channel_id: channelId,
-                        root_id: rootId,
-                        message: '',
-                    } as Post;
-                    debugLog('ADD_FILES', `creating post with ${uploadedFiles.length} files: ${uploadedFiles.map(f => f.name).join(', ')}`);
-                    const result = await createPost(serverUrl, post, uploadedFiles);
-                    if (result.error) {
-                        debugLog('ADD_FILES', `createPost failed: ${result.error}`);
-                        throw result.error;
+                    const createdPostIds: string[] = [];
+
+                    for (const file of uploadedFiles) {
+                        const post = {
+                            user_id: currentUserId,
+                            channel_id: channelId,
+                            root_id: rootId,
+                            message: '',
+                            props: {
+                                batch_id: batchId,  // Mark as part of batch
+                                batch_size: uploadedFiles.length,
+                            },
+                        } as Post;
+
+                        debugLog('ADD_FILES', `creating post for file: ${file.name}`);
+                        const result = await createPost(serverUrl, post, [file]);
+                        if (result.error) {
+                            debugLog('ADD_FILES', `createPost failed for ${file.name}: ${result.error}`);
+                            throw result.error;
+                        }
+
+                        // Track created post IDs for batch operations
+                        if (result.data) {
+                            createdPostIds.push(result.data as string);
+                        }
                     }
-                    debugLog('ADD_FILES', 'post created successfully');
+
+                    debugLog('ADD_FILES', `batch posts created successfully: ${createdPostIds.length} posts`);
+
+                    // Store batch info for undo functionality
+                    if (createdPostIds.length > 0) {
+                        DeviceEventEmitter.emit(Events.POST_BATCH_CREATED, {
+                            batchId,
+                            postIds: createdPostIds,
+                            channelId,
+                        });
+                    }
+
                     DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
                 } else {
                     debugLog('ADD_FILES', 'no files uploaded, skipping post creation');

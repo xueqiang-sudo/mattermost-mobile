@@ -2572,5 +2572,9 @@
   "mobile.cancel": "取消",
   "mobile.confirm": "確定",
   "mobile.saving": "保存中...",
-  "mobile.restricted_views.save_failed": "保存受限視圖設置失敗"
+  "mobile.restricted_views.save_failed": "保存受限視圖設置失敗",
+  "batch_undo.title": "撤回消息",
+  "batch_undo.recall_single": "撤回該條消息",
+  "batch_undo.recall_all": "撤回本次發送的全部消息",
+  "batch_undo.cancel": "取消"
 }

@@ -8,12 +8,14 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {markChannelAsRead, unsetActiveChannelOnServer} from '@actions/remote/channel';
 import {fetchPosts, fetchPostsBefore} from '@actions/remote/post';
 import {PER_PAGE_DEFAULT} from '@client/rest/constants';
+import BatchUndoMenu from '@components/post_draft/batch_undo_menu';
 import PostList from '@components/post_list';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useAppState, useIsTablet} from '@hooks/device';
 import useDidUpdate from '@hooks/did_update';
 import {useDebounce} from '@hooks/utils';
+import {deleteBatchPosts, deletePostFromBatch, removePostFromBatch} from '@utils/batch_posts';
 import EphemeralStore from '@store/ephemeral_store';
 
 import Intro from './intro';
@@ -49,6 +51,10 @@ const ChannelPostList = ({
     const canLoadPost = useRef(true);
     const [fetchingPosts, setFetchingPosts] = useState(EphemeralStore.isLoadingMessagesForChannel(serverUrl, channelId));
     const oldPostsCount = useRef<number>(posts.length);
+
+    // Batch undo state
+    const [showUndoMenu, setShowUndoMenu] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<{postId: string; batchId: string; postIds: string[]} | null>(null);
 
     const onEndReached = useDebounce(useCallback(async () => {
         if (!fetchingPosts && canLoadPostsBefore.current && posts.length) {
@@ -113,6 +119,55 @@ const ChannelPostList = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Listen for show batch undo menu event (triggered by long-press on batch post)
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(
+            Events.SHOW_BATCH_UNDO_MENU,
+            ({postId, batchId, postIds}) => {
+                setSelectedPost({postId, batchId, postIds});
+                setShowUndoMenu(true);
+            },
+        );
+
+        return () => listener.remove();
+    }, []);
+
+    // Handler for long-press on batch post
+    const handleLongPressBatchPost = useCallback((postId: string, batchId: string, postIds: string[]) => {
+        setSelectedPost({postId, batchId, postIds});
+        setShowUndoMenu(true);
+    }, []);
+
+    const handleUndoSingle = useCallback(async (postId: string) => {
+        if (!selectedPost) {
+            return;
+        }
+
+        const result = await deletePostFromBatch(serverUrl, postId);
+        if (result.data) {
+            removePostFromBatch(selectedPost.batchId, postId);
+            setShowUndoMenu(false);
+            setSelectedPost(null);
+        }
+    }, [selectedPost, serverUrl]);
+
+    const handleUndoAll = useCallback(async () => {
+        if (!selectedPost) {
+            return;
+        }
+
+        const result = await deleteBatchPosts(serverUrl, selectedPost.batchId);
+        if (result.data) {
+            setShowUndoMenu(false);
+            setSelectedPost(null);
+        }
+    }, [selectedPost, serverUrl]);
+
+    const handleHideMenu = useCallback(() => {
+        setShowUndoMenu(false);
+        setSelectedPost(null);
+    }, []);
+
     const intro = (<Intro channelId={channelId}/>);
 
     const postList = (
@@ -135,7 +190,19 @@ const ChannelPostList = ({
     );
 
     if (isTablet) {
-        return postList;
+        return (
+            <>
+                {postList}
+                <BatchUndoMenu
+                    visible={showUndoMenu}
+                    postId={selectedPost?.postId || ''}
+                    postIds={selectedPost?.postIds || []}
+                    onUndoSingle={handleUndoSingle}
+                    onUndoAll={handleUndoAll}
+                    onHide={handleHideMenu}
+                />
+            </>
+        );
     }
 
     return (
@@ -144,6 +211,14 @@ const ChannelPostList = ({
             style={styles.flex}
         >
             {postList}
+            <BatchUndoMenu
+                visible={showUndoMenu}
+                postId={selectedPost?.postId || ''}
+                postIds={selectedPost?.postIds || []}
+                onUndoSingle={handleUndoSingle}
+                onUndoAll={handleUndoAll}
+                onHide={handleHideMenu}
+            />
         </SafeAreaView>
     );
 };
