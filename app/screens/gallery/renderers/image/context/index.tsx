@@ -44,7 +44,7 @@ export const useTransformerSharedValues = () => {
     }
 
     const {
-        canvas, image, offset, panVelocity, scale, scaleOffset, scaleTranslation,
+        canvas, image, interactionsEnabled, offset, panVelocity, scale, scaleOffset, scaleTranslation,
         targetDimensions, targetHeight, translation,
     } = context;
 

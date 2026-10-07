@@ -28,6 +28,7 @@ import {generateChannelNameFromDisplayName, getDirectChannelName, isDMorGM} from
 import {getFullErrorMessage} from '@utils/errors';
 import {isTablet} from '@utils/helpers';
 import {logDebug, logError, logInfo} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 import {showMuteChannelSnackbar} from '@utils/snack_bar';
 import {displayGroupMessageName, username2Nickname} from '@utils/user';
 
