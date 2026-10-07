@@ -662,37 +662,12 @@ export default class FilePickerUtil {
                     return;
                 }
 
-                const hasVideoAsset = response.assets?.some((asset) => this.fileLooksLikeVideo(asset)) ?? false;
-
                 const files = await this.getFilesFromResponse(response);
                 if (!files.length) {
                     return;
                 }
 
-                if (hasVideoAsset && this.draftVideoBridge) {
-                    const clientId = generateId();
-                    clearDraftVideoProcessingAborted(clientId);
-                    const preparingLabel = this.mediaExportMessages().preparing;
-                    const first = files[0]!;
-                    const placeholderSnapshot = this.buildPlaceholderFromAsset(
-                        first,
-                        clientId,
-                        this.draftVideoBridge.currentUserId,
-                        preparingLabel,
-                    );
-                    this.draftVideoBridge.addVideoPlaceholder(placeholderSnapshot);
-                    if (isDraftVideoProcessingAborted(clientId)) {
-                        return;
-                    }
-                    await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, files, false);
-                    return;
-                }
-
-                if (this.draftVideoBridge) {
-                    await this.processPickedAssetsWithDraftBridge(files);
-                    return;
-                }
-
+                // All files (images and videos): direct upload (auto-send, like photo gallery)
                 await this.handlePickedCameraAssetsWithoutDraftPlaceholder(files);
             });
         }
@@ -735,12 +710,7 @@ export default class FilePickerUtil {
                     return {error: undefined};
                 }
 
-                if (this.draftVideoBridge) {
-                    const assets = docs.map((d) => this.documentPickerResponseToAsset(d));
-                    await this.processPickedAssetsWithDraftBridge(assets);
-                    return {error: undefined};
-                }
-
+                // All files: direct upload (auto-send, like photo gallery)
                 await this.prepareFileUpload(docs);
                 return {error: undefined};
             } catch (error) {

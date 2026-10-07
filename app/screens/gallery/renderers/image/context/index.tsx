@@ -166,6 +166,21 @@ export const useTransformerSharedValues = () => {
     function maybeRunOnEnd() {
         'worklet';
 
+        // Guard: don't run animations if interactions are disabled (e.g., gallery is closing)
+        if (!interactionsEnabled.value) {
+            return;
+        }
+
+        // If everything is already centered and not zoomed, no need to animate
+        if (
+            vec.eq(offset, 0) &&
+            vec.eq(translation, 0) &&
+            vec.eq(scaleTranslation, 0) &&
+            scale.value === 1
+        ) {
+            return;
+        }
+
         // Target is the centered position (no offset)
         const target = vec.create(0, 0);
 
@@ -192,16 +207,6 @@ export const useTransformerSharedValues = () => {
         // If the image can't be panned vertically, animate it back to center vertically
         if (!canPanVertically.value) {
             offset.y.value = withSpring(target.y, transformerSpringConfig);
-        }
-
-        // If everything is already centered and not zoomed, no need to animate
-        if (
-            vec.eq(offset, 0) &&
-            vec.eq(translation, 0) &&
-            vec.eq(scaleTranslation, 0) &&
-            scale.value === 1
-        ) {
-            return;
         }
 
         // If zoomed out, animate everything back to center

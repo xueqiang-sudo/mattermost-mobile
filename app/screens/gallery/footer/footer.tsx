@@ -63,6 +63,11 @@ const Footer = ({
                     message: item.postMessage || '',
                     fileIds: [item.id!],
                 },
+                {
+                    topBar: {
+                        visible: false,
+                    },
+                },
             );
         });
     }, [componentId, item, intl]);

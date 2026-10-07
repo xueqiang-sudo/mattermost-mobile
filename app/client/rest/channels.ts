@@ -131,9 +131,11 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
     };
 
     createBotGroupChannel = async (userIds: string[], botUserId: string, teamId: string) => {
+        const requestBody = {user_ids: userIds, bot_user_id: botUserId, team_id: teamId};
+        debugLog('BOT_CHANNEL', `createBotGroupChannel request body: ${JSON.stringify(requestBody)}`);
         return this.doFetch(
             `${this.getChannelsRoute()}/bot_group`,
-            {method: 'post', body: JSON.stringify({user_ids: userIds, bot_user_id: botUserId, team_id: teamId})},
+            {method: 'post', body: JSON.stringify(requestBody)},
         );
     };
 

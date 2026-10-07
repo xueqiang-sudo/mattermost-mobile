@@ -7,6 +7,8 @@ import {
     Alert,
     DeviceEventEmitter,
     FlatList,
+    KeyboardAvoidingView,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -779,8 +781,13 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
 
     return (
         <SafeAreaView style={styles.flex} testID='consultation.panel'>
-            {/* Tabs */}
-            <View style={styles.tabs}>
+            <KeyboardAvoidingView
+                style={styles.flex}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+                {/* Tabs */}
+                <View style={styles.tabs}>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'member' && styles.activeTab]}
                     onPress={() => {
@@ -947,6 +954,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     }
                 </TouchableOpacity>
             </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };

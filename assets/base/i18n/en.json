@@ -2553,6 +2553,8 @@
   "consultation.forward_selected": "Forward to customer",
   "consultation.forwarding": "Forwarding...",
   "consultation.forward_batch_success": "{count} response(s) forwarded to customer.",
+  "consultation.select_member_placeholder": "Select internal member...",
+  "consultation.select_group_placeholder": "Select internal group...",
   "ai_assistant.title": "AI Assistant",
   "ai_assistant.search_placeholder": "Ask AI...",
   "ai_assistant.search": "Search",

@@ -165,6 +165,8 @@ export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: numb
                 color: '#000',
             },
             visible: false,
+            leftButtons: [],
+            rightButtons: [],
         },
         statusBar: {
             backgroundColor: '#000',

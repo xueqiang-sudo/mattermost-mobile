@@ -2551,6 +2551,8 @@
   "consultation.forward_selected": "转发给客户",
   "consultation.forwarding": "转发中...",
   "consultation.forward_batch_success": "已成功转发{count}条回复给客户。",
+  "consultation.select_member_placeholder": "选择内部成员...",
+  "consultation.select_group_placeholder": "选择内部群组...",
   "ai_assistant.title": "AI助手",
   "ai_assistant.search_placeholder": "问AI...",
   "ai_assistant.search": "搜索",

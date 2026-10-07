@@ -78,6 +78,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     channelItemSelected: {
         backgroundColor: changeOpacity(theme.buttonBg, 0.08),
     },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    checkboxSelected: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
+    },
     channelIcon: {
         width: 40,
         height: 40,
@@ -99,9 +113,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 13,
         color: changeOpacity(theme.centerChannelColor, 0.56),
         marginTop: 2,
-    },
-    checkIcon: {
-        marginLeft: 8,
     },
     emptyState: {
         flex: 1,
@@ -130,7 +141,7 @@ const ForwardMessage = ({
     const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
 
-    const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+    const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isForwarding, setIsForwarding] = useState(false);
 
@@ -162,11 +173,19 @@ const ForwardMessage = ({
     }, [componentId]);
 
     const handleSelectChannel = useCallback((channel: ChannelModel) => {
-        setSelectedChannelId(channel.id);
+        setSelectedChannelIds((prev) => {
+            if (prev.includes(channel.id)) {
+                // Remove from selection
+                return prev.filter((id) => id !== channel.id);
+            } else {
+                // Add to selection
+                return [...prev, channel.id];
+            }
+        });
     }, []);
 
     const handleForward = useCallback(async () => {
-        if (!selectedChannelId) {
+        if (selectedChannelIds.length === 0) {
             Alert.alert(
                 intl.formatMessage({id: 'forward.select_channel', defaultMessage: 'Select Channel'}),
                 intl.formatMessage({id: 'forward.select_channel_message', defaultMessage: 'Please select a channel to forward the message'}),
@@ -185,21 +204,31 @@ const ForwardMessage = ({
 
             let forwardMessage = '';
             if (message) {
-                forwardMessage = `_${forwardPrefix}_\n\n${message}`;
+                // Check if message already has the forwarded prefix to avoid duplication
+                const prefixPattern = new RegExp(`^_${forwardPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_\\s*`, 'i');
+                if (prefixPattern.test(message)) {
+                    // Message already has the prefix, use as-is
+                    forwardMessage = message;
+                } else {
+                    // Add the prefix
+                    forwardMessage = `_${forwardPrefix}_\n\n${message}`;
+                }
             }
 
-            // Create the forwarded post
-            const post = {
-                channel_id: selectedChannelId,
-                message: forwardMessage,
-                file_ids: fileIds || [],
-                root_id: '',
-                props: {
-                    forwarded_from_post_id: postId,
-                },
-            };
+            // Create the forwarded post for each selected channel
+            for (const targetChannelId of selectedChannelIds) {
+                const post = {
+                    channel_id: targetChannelId,
+                    message: forwardMessage,
+                    file_ids: fileIds || [],
+                    root_id: '',
+                    props: {
+                        forwarded_from_post_id: postId,
+                    },
+                };
 
-            await createPost(serverUrl, post);
+                await createPost(serverUrl, post, []);
+            }
 
             // Close the modal
             handleClose();
@@ -211,10 +240,10 @@ const ForwardMessage = ({
         } finally {
             setIsForwarding(false);
         }
-    }, [selectedChannelId, message, fileIds, postId, serverUrl, intl, handleClose]);
+    }, [selectedChannelIds, message, fileIds, postId, serverUrl, intl, handleClose]);
 
     const renderChannelItem = useCallback(({item: channel}: {item: ChannelModel}) => {
-        const isSelected = channel.id === selectedChannelId;
+        const isSelected = selectedChannelIds.includes(channel.id);
         const channelType = channel.type === 'D' ? 'Direct Message' :
             channel.type === 'G' ? 'Group Message' :
                 channel.type === 'P' ? 'Private Channel' : 'Public Channel';
@@ -224,6 +253,15 @@ const ForwardMessage = ({
                 style={[styles.channelItem, isSelected && styles.channelItemSelected]}
                 onPress={() => handleSelectChannel(channel)}
             >
+                <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected && (
+                        <CompassIcon
+                            name='check'
+                            size={16}
+                            color='#fff'
+                        />
+                    )}
+                </View>
                 <View style={styles.channelIcon}>
                     <CompassIcon
                         name={channel.type === 'D' ? 'account' :
@@ -241,17 +279,9 @@ const ForwardMessage = ({
                         {channelType}
                     </Text>
                 </View>
-                {isSelected && (
-                    <CompassIcon
-                        name='check-circle'
-                        size={24}
-                        color={theme.buttonBg}
-                        style={styles.checkIcon}
-                    />
-                )}
             </Pressable>
         );
-    }, [selectedChannelId, handleSelectChannel, styles, theme]);
+    }, [selectedChannelIds, handleSelectChannel, styles, theme]);
 
     const renderEmptyState = useCallback(() => (
         <View style={styles.emptyState}>
@@ -280,14 +310,17 @@ const ForwardMessage = ({
                 <Pressable
                     style={styles.headerButton}
                     onPress={handleForward}
-                    disabled={!selectedChannelId || isForwarding}
+                    disabled={selectedChannelIds.length === 0 || isForwarding}
                 >
                     <Text style={{
                         fontSize: 17,
                         fontWeight: '600',
-                        color: selectedChannelId && !isForwarding ? theme.buttonBg : changeOpacity(theme.buttonBg, 0.4),
+                        color: selectedChannelIds.length > 0 && !isForwarding ? theme.buttonBg : changeOpacity(theme.buttonBg, 0.4),
                     }}>
-                        {intl.formatMessage({id: 'forward.send', defaultMessage: 'Send'})}
+                        {selectedChannelIds.length > 0
+                            ? `${intl.formatMessage({id: 'forward.send', defaultMessage: 'Send'})} (${selectedChannelIds.length})`
+                            : intl.formatMessage({id: 'forward.send', defaultMessage: 'Send'})
+                        }
                     </Text>
                 </Pressable>
             </View>

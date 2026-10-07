@@ -207,17 +207,43 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
         if (mounted.current) {
             try {
                 const cameraType = item.type === 'avatar' ? 'image' : item.type;
-                await CameraRoll.saveAsset(pathWithPrefix('file://', path), {
-                    type: cameraType === 'image' ? 'photo' : 'video',
-                    album: applicationName || 'Mattermost',
+                const filePath = pathWithPrefix('file://', path);
+
+                logDebug('saveImageOrVideo: attempting to save', {
+                    path: filePath,
+                    type: cameraType,
+                    itemType: item.type,
                 });
+
+                // Save to default camera roll (without specifying album to avoid iOS issues)
+                await CameraRoll.saveAsset(filePath, {
+                    type: cameraType === 'image' ? 'photo' : 'video',
+                });
+
                 setSaved(true);
                 if (item.type !== 'avatar') {
                     updateLocalFilePath(serverUrl, item.id, path);
                 }
             } catch (e) {
-                logDebug('saveImageOrVideo failed', getFullErrorMessage(e));
-                setError(intl.formatMessage({id: 'gallery.save_failed', defaultMessage: 'Unable to save the file'}));
+                const errorMsg = getFullErrorMessage(e);
+                logDebug('saveImageOrVideo failed', errorMsg);
+
+                // Provide more specific error messages based on the error
+                let errorMessage = 'gallery.save_failed';
+                let defaultMessage = 'Unable to save the file';
+
+                if (errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('access')) {
+                    errorMessage = 'gallery.save_permission_denied';
+                    defaultMessage = 'Permission denied. Please allow photo library access in Settings.';
+                } else if (errorMsg.toLowerCase().includes('space') || errorMsg.toLowerCase().includes('storage')) {
+                    errorMessage = 'gallery.save_no_space';
+                    defaultMessage = 'Not enough space to save the file.';
+                } else if (errorMsg.toLowerCase().includes('format') || errorMsg.toLowerCase().includes('invalid')) {
+                    errorMessage = 'gallery.save_invalid_format';
+                    defaultMessage = 'Invalid file format. The file cannot be saved to photo library.';
+                }
+
+                setError(intl.formatMessage({id: errorMessage, defaultMessage}));
             }
         }
     };
@@ -237,6 +263,12 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                         saveImageOrVideo(path);
                         break;
                 }
+            } else {
+                // Permission denied or blocked - show error message
+                setError(intl.formatMessage({
+                    id: 'gallery.save_permission_denied',
+                    defaultMessage: 'Permission denied. Please allow photo library access in Settings.',
+                }));
             }
         }
     };

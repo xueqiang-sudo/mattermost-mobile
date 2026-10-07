@@ -71,8 +71,8 @@ const SUPPORTED_DOCS_FORMAT = Platform.select({
 const SUPPORTED_IMAGE_FORMAT = ['png', 'jpg', 'jpeg', 'bmp', 'tiff', 'svg', 'xcf', 'gif'];
 
 const SUPPORTED_VIDEO_FORMAT = Platform.select({
-    ios: ['video/mp4', 'video/x-m4v', 'video/quicktime'],
-    android: ['video/3gpp', 'video/x-matroska', 'video/mp4', 'video/webm', 'video/quicktime'],
+    ios: ['video/mp4', 'video/x-m4v', 'video/quicktime', 'video/mov', 'video/mpeg', 'video/x-flv', 'video/avi', 'video/x-msvideo'],
+    android: ['video/3gpp', 'video/x-matroska', 'video/mp4', 'video/webm', 'video/quicktime', 'video/mov', 'video/mpeg', 'video/x-flv', 'video/avi', 'video/x-msvideo'],
 });
 
 const SUPPORTED_AUDIO_FORMAT = Platform.select({
@@ -391,7 +391,21 @@ export const isVideo = (file?: FileInfo | FileModel) => {
         mime = lookupMimeType(file.name);
     }
 
-    return SUPPORTED_VIDEO_FORMAT!.includes(mime);
+    // Check by mime type first
+    if (SUPPORTED_VIDEO_FORMAT!.includes(mime)) {
+        return true;
+    }
+
+    // Fallback: check by file extension for common video formats
+    if (file?.name) {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp', 'm4v', 'mpeg', 'mpg', 'flv', 'wmv'];
+        if (ext && videoExtensions.includes(ext)) {
+            return true;
+        }
+    }
+
+    return false;
 };
 
 export const isAudio = (file?: FileInfo | FileModel) => {

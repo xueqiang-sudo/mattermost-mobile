@@ -53,7 +53,7 @@ const Actions = ({
                 }
                 <Action
                     disabled={disabled}
-                    iconName='share-variant'
+                    iconName='share'
                     onPress={onForward}
                 />
             </>

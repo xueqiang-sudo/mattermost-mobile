@@ -1159,6 +1159,7 @@ export async function makeBotGroupChannel(serverUrl: string, botUserId: string, 
 
         // Use current team ID if teamId is not provided
         const teamIdToUse = teamId || await getCurrentTeamId(database);
+        debugLog('BOT_CHANNEL', `makeBotGroupChannel params: serverUrl=${serverUrl}, botUserId=${botUserId}, teamId=${teamId}, teamIdToUse=${teamIdToUse}, currentUserId=${currentUserId}`);
 
         EphemeralStore.creatingDMorGMTeammates = [botUserId];
         const created = await client.createBotGroupChannel([currentUserId], botUserId, teamIdToUse);

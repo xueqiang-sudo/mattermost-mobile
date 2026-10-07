@@ -2528,6 +2528,8 @@
   "consultation.forward_selected": "轉發給客戶",
   "consultation.forwarding": "轉發中...",
   "consultation.forward_batch_success": "已成功轉發{count}條回覆給客戶。",
+  "consultation.select_member_placeholder": "選擇內部成員...",
+  "consultation.select_group_placeholder": "選擇內部群組...",
   "ai_assistant.title": "AI助手",
   "ai_assistant.search_placeholder": "問AI...",
   "ai_assistant.search": "搜尋",

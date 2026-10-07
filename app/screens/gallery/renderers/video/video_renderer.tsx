@@ -215,7 +215,7 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
     }), [width, height]);
 
     useEffect(() => {
-        if (initialIndex === index && videoReady) {
+        if (initialIndex === index && videoReady && isPageActiveValue) {
             setPaused(false);
             hideControlsTimeoutRef.current = setTimeout(() => {
                 setShowCustomControls(false);
@@ -224,7 +224,7 @@ const VideoRenderer = ({canDownloadFiles, enableSecureFilePreview, height, index
             videoRef.current?.seek(0.4);
         }
 
-    }, [index, initialIndex, videoReady]);
+    }, [index, initialIndex, videoReady, isPageActiveValue]);
 
     useEffect(() => {
         if (!isPageActiveReady.current) {

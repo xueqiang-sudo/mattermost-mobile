@@ -165,11 +165,12 @@ const Files = ({
         const tappedFile = filesForGallery[idx];
         if (channelMediaFiles && channelMediaFiles.length > 1) {
             // Use all channel media files for the gallery (WeChat-style browsing)
-            // Reverse so oldest image is at index 0 → swipe left = next image, swipe right = previous
-            const reversed = [...channelMediaFiles].reverse();
+            // Keep chronological order: oldest at index 0, newest at end
+            // This way: swipe left = next (newer), swipe right = previous (older)
+            // Opening the last image (newest) at highest index → swipe left blocked
             const channelGalleryIdentifier = `${channelId}-channel-media-${location}`;
-            const channelIdx = reversed.findIndex((f) => f.id === tappedFile?.id);
-            const items = reversed.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
+            const channelIdx = channelMediaFiles.findIndex((f) => f.id === tappedFile?.id);
+            const items = channelMediaFiles.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
             openGalleryAtIndex(channelGalleryIdentifier, channelIdx >= 0 ? channelIdx : 0, items);
         } else {
             const items = filesForGallery.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));

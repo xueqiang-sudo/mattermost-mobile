@@ -5,6 +5,8 @@ import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     FlatList,
+    KeyboardAvoidingView,
+    Platform,
     Text,
     TextInput,
     TouchableOpacity,
@@ -277,15 +279,20 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
 
     return (
         <SafeAreaView style={styles.flex} testID='ai_assistant.panel'>
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
-                    <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'channel_header.group_summary', defaultMessage: 'Group Summary'})}
-                </Text>
-                <View style={{width: 40}}/>
-            </View>
+            <KeyboardAvoidingView
+                style={styles.flex}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={0}
+            >
+                <View style={styles.header}>
+                    <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
+                        <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>
+                        {intl.formatMessage({id: 'channel_header.group_summary', defaultMessage: 'Group Summary'})}
+                    </Text>
+                    <View style={{width: 40}}/>
+                </View>
 
             <View style={styles.flex}>
                 {answer !== null && (
@@ -321,6 +328,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                     </Text>
                 </TouchableOpacity>
             </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
