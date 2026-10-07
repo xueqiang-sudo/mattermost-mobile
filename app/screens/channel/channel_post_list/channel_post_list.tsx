@@ -8,14 +8,14 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {markChannelAsRead, unsetActiveChannelOnServer} from '@actions/remote/channel';
 import {fetchPosts, fetchPostsBefore} from '@actions/remote/post';
 import {PER_PAGE_DEFAULT} from '@client/rest/constants';
-import BatchUndoMenu from '@components/post_draft/batch_undo_menu';
+// import BatchUndoMenu from '@components/post_draft/batch_undo_menu';
 import PostList from '@components/post_list';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useAppState, useIsTablet} from '@hooks/device';
 import useDidUpdate from '@hooks/did_update';
 import {useDebounce} from '@hooks/utils';
-import {deleteBatchPosts, deletePostFromBatch, removePostFromBatch} from '@utils/batch_posts';
+import {deleteBatchPosts, deletePostFromBatch, removePostFromBatch, storeBatchForUndo} from '@utils/batch_posts';
 import EphemeralStore from '@store/ephemeral_store';
 
 import Intro from './intro';
@@ -119,6 +119,20 @@ const ChannelPostList = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Listen for batch creation events and store them
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(
+            Events.POST_BATCH_CREATED,
+            ({batchId, postIds, channelId: eventChannelId}) => {
+                if (eventChannelId === channelId) {
+                    storeBatchForUndo(batchId, postIds, channelId);
+                }
+            },
+        );
+
+        return () => listener.remove();
+    }, [channelId]);
+
     // Listen for show batch undo menu event (triggered by long-press on batch post)
     useEffect(() => {
         const listener = DeviceEventEmitter.addListener(
@@ -193,14 +207,6 @@ const ChannelPostList = ({
         return (
             <>
                 {postList}
-                <BatchUndoMenu
-                    visible={showUndoMenu}
-                    postId={selectedPost?.postId || ''}
-                    postIds={selectedPost?.postIds || []}
-                    onUndoSingle={handleUndoSingle}
-                    onUndoAll={handleUndoAll}
-                    onHide={handleHideMenu}
-                />
             </>
         );
     }
@@ -211,14 +217,6 @@ const ChannelPostList = ({
             style={styles.flex}
         >
             {postList}
-            <BatchUndoMenu
-                visible={showUndoMenu}
-                postId={selectedPost?.postId || ''}
-                postIds={selectedPost?.postIds || []}
-                onUndoSingle={handleUndoSingle}
-                onUndoAll={handleUndoAll}
-                onHide={handleHideMenu}
-            />
         </SafeAreaView>
     );
 };

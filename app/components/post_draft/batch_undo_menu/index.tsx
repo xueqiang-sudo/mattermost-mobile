@@ -4,7 +4,7 @@
 import React from 'react';
 import {useIntl} from 'react-intl';
 import {Modal, Text, TouchableOpacity} from 'react-native';
-import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';

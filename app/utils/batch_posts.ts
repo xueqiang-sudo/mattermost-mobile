@@ -139,8 +139,3 @@ export const removePostFromBatch = (batchId: string, postId: string) => {
         }
     }
 };
-
-// Listen for batch creation events
-DeviceEventEmitter.addListener(Events.POST_BATCH_CREATED, ({batchId, postIds, channelId}) => {
-    storeBatchForUndo(batchId, postIds, channelId);
-});

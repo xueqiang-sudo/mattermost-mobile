@@ -11,10 +11,9 @@ import {Alert, DeviceEventEmitter, Platform, type GestureResponderEvent, type St
 import {updateDraftMessage} from '@actions/local/draft';
 import {removePost} from '@actions/local/post';
 import {showPermalink} from '@actions/remote/permalink';
-import {deletePost} from '@actions/remote/post';
+import {deletePost, deletePostBatch} from '@actions/remote/post';
 import {deleteSavedPost, savePostPreference} from '@actions/remote/preference';
 import {toggleReaction} from '@actions/remote/reactions';
-import {getBatchById} from '@utils/batch_posts';
 import CallsCustomMessage from '@calls/components/calls_custom_message';
 import {isCallsCustomMessage} from '@calls/utils';
 import UnrevealedBurnOnReadPost from '@components/post_list/post/burn_on_read/unrevealed';
@@ -442,18 +441,27 @@ const Post = ({
                 onPress: () => {
                     closePopover().finally(() => {
                         if (batchId) {
-                            // Batch post: emit event to show custom bottom menu
-                            const batch = getBatchById(batchId);
-                            if (batch) {
-                                DeviceEventEmitter.emit(Events.SHOW_BATCH_UNDO_MENU, {
-                                    postId: post.id,
-                                    batchId,
-                                    postIds: batch.postIds,
-                                });
-                            } else {
-                                // Fallback to single delete if batch not found
-                                deletePost(serverUrl, post);
-                            }
+                            // Batch post: show options to revoke single or all
+                            Alert.alert(
+                                withdrawText,
+                                '',
+                                [
+                                    {
+                                        text: intl.formatMessage({id: 'post_info.revoke_this', defaultMessage: 'Revoke this message'}),
+                                        style: 'destructive',
+                                        onPress: () => deletePost(serverUrl, post),
+                                    },
+                                    {
+                                        text: intl.formatMessage({id: 'post_info.revoke_batch', defaultMessage: 'Revoke all messages in this batch'}),
+                                        style: 'destructive',
+                                        onPress: () => deletePostBatch(serverUrl, batchId),
+                                    },
+                                    {
+                                        text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                                        style: 'cancel',
+                                    },
+                                ],
+                            );
                         } else {
                             // Single post: standard confirm
                             Alert.alert(
