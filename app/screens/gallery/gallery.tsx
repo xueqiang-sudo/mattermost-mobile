@@ -9,6 +9,7 @@ import {buildFilePreviewUrl} from '@actions/remote/file';
 import {ExpoImageAnimated} from '@components/expo_image';
 import {useGallery} from '@context/gallery';
 import {useServerUrl} from '@context/server';
+import {debugLog} from '@store/debug_log';
 import {isGif} from '@utils/file';
 import {freezeOtherScreens, galleryItemToFileInfo, measureItem} from '@utils/gallery';
 
@@ -47,6 +48,7 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     onIndexChange,
     onClose,
 }: GalleryProps, ref) => {
+    debugLog('GALLERY', `Gallery render: id=${galleryIdentifier} idx=${initialIndex} items=${items.length}`);
     const {refsByIndexSV, sharedValues} = useGallery(galleryIdentifier);
     const [localIndex, setLocalIndex] = useState(initialIndex);
     const lightboxRef = useRef<LightboxSwipeoutRef>(null);

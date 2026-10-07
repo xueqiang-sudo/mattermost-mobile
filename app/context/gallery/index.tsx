@@ -4,6 +4,8 @@
 import {useEffect, useLayoutEffect} from 'react';
 import {makeMutable, runOnUI, type AnimatedRef, type SharedValue} from 'react-native-reanimated';
 
+import {debugLog} from '@store/debug_log';
+
 import type {GalleryManagerSharedValues} from '@typings/screens/gallery';
 
 export interface GalleryManagerItem {
@@ -148,6 +150,7 @@ export function useGallery(galleryIdentifier: string) {
 
 export function GalleryInit({children, galleryIdentifier}: GalleryInitProps) {
     const gallery = useGallery(galleryIdentifier);
+    debugLog('GALLERY', `GalleryInit: id=${galleryIdentifier}`);
 
     useLayoutEffect(() => {
         gallery.initialize();

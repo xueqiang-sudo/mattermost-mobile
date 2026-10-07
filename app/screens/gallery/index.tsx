@@ -12,6 +12,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useIsTablet, useWindowDimensions} from '@hooks/device';
 import {useGalleryControls} from '@hooks/gallery';
 import SecurityManager from '@managers/security_manager';
+import {debugLog} from '@store/debug_log';
 import {dismissOverlay, setScreensOrientation} from '@screens/navigation';
 import {freezeOtherScreens} from '@utils/gallery';
 
@@ -31,6 +32,7 @@ type Props = {
 }
 
 const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialIndex, items}: Props) => {
+    debugLog('GALLERY', `Screen render: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
     const dim = useWindowDimensions();
     const isTablet = useIsTablet();
     const {bottom: bottomInset} = useSafeAreaInsets();

@@ -60,7 +60,7 @@ export default function usePagerPanGesture() {
             );
 
             if (offset.value === null) {
-                offset.value = evt.translationX < 0 ? evt.translationX : -evt.translationX;
+                offset.value = evt.translationX;
             }
 
             const val = evt.translationX - offset.value;

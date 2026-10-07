@@ -10,6 +10,7 @@ import {measure, type AnimatedRef} from 'react-native-reanimated';
 
 import {Events, Screens} from '@constants';
 import {allOrientations, showOverlay} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {isImage, isVideo} from '@utils/file';
 import {generateId} from '@utils/general';
 import {urlSafeBase64Encode} from '@utils/security';
@@ -148,49 +149,64 @@ export function measureViewInWindow(ref: RefObject<View>): Promise<{x: number; y
 }
 
 export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: number, items: GalleryItemType[], hideActions = false) {
-    Keyboard.dismiss();
-    const props = {
-        galleryIdentifier,
-        hideActions,
-        initialIndex,
-        items,
-    };
-    const layout: OptionsLayout = {
-        orientation: allOrientations,
-    };
-    const options: Options = {
-        layout,
-        topBar: {
-            background: {
-                color: '#000',
+    try {
+        debugLog('GALLERY', `openGalleryAtIndex: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
+        if (!items || items.length === 0) {
+            debugLog('GALLERY_ERR', `items is empty! items=${items} idx=${initialIndex}`);
+            return;
+        }
+        if (initialIndex < 0 || initialIndex >= items.length) {
+            debugLog('GALLERY_ERR', `idx out of bounds! idx=${initialIndex} len=${items.length}`);
+            return;
+        }
+        Keyboard.dismiss();
+        const props = {
+            galleryIdentifier,
+            hideActions,
+            initialIndex,
+            items,
+        };
+        const layout: OptionsLayout = {
+            orientation: allOrientations,
+        };
+        const options: Options = {
+            layout,
+            topBar: {
+                background: {
+                    color: '#000',
+                },
+                visible: false,
             },
-            visible: false,
-        },
-        statusBar: {
-            backgroundColor: '#000',
-            style: 'light',
-        },
-        animations: {
-            showModal: {
-                waitForRender: false,
-                enabled: false,
+            statusBar: {
+                backgroundColor: '#000',
+                style: 'light',
             },
-            dismissModal: {
-                enabled: false,
+            animations: {
+                showModal: {
+                    waitForRender: false,
+                    enabled: false,
+                },
+                dismissModal: {
+                    enabled: false,
+                },
             },
-        },
-    };
+        };
 
-    if (Platform.OS === 'ios') {
-        // on iOS we need both the navigation & the module
-        Navigation.setDefaultOptions({layout});
-        RNUtils.unlockOrientation();
+        if (Platform.OS === 'ios') {
+            // on iOS we need both the navigation & the module
+            Navigation.setDefaultOptions({layout});
+            RNUtils.unlockOrientation();
+        }
+        debugLog('GALLERY', 'calling showOverlay');
+        showOverlay(Screens.GALLERY, props, options);
+        debugLog('GALLERY', 'showOverlay OK');
+
+        setTimeout(() => {
+            freezeOtherScreens(true);
+        }, 500);
+    } catch (error: any) {
+        debugLog('GALLERY_ERR', `openGalleryAtIndex crash: ${error?.message || error}`);
     }
-    showOverlay(Screens.GALLERY, props, options);
-
-    setTimeout(() => {
-        freezeOtherScreens(true);
-    }, 500);
 }
 
 export const typedMemo: <T>(c: T) => T = React.memo;

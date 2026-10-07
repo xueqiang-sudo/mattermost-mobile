@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {ExpoImageAnimated} from '@components/expo_image';
+import {debugLog} from '@store/debug_log';
 import {calculateDimensions} from '@utils/images';
 
 import {pagerTimingConfig} from '../animation_config/timing';
@@ -73,11 +74,13 @@ export default function Lightbox({
 
             childrenOpacity.value = 1;
             runOnJS(setRenderChildren)(true);
+            runOnJS(debugLog)('GALLERY', 'Lightbox animation complete, rendering children');
             runOnJS(onChildrenLayout)();
         });
     };
 
     useEffect(() => {
+        debugLog('GALLERY', 'Lightbox mount, starting animation');
         runOnUI(animateOnMount)();
 
         return () => {

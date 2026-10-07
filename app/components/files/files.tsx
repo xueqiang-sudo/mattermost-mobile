@@ -10,6 +10,7 @@ import {useIsTablet} from '@hooks/device';
 import {useImageAttachments} from '@hooks/files';
 import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {debugLog} from '@store/debug_log';
 import {isImage, isVideo} from '@utils/file';
 import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
 import {getViewPortWidth} from '@utils/images';
@@ -162,19 +163,25 @@ const Files = ({
     };
 
     const handlePreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
-        const tappedFile = filesForGallery[idx];
-        if (channelMediaFiles && channelMediaFiles.length > 1) {
-            // Use all channel media files for the gallery (WeChat-style browsing)
-            // Keep chronological order: oldest at index 0, newest at end
-            // This way: swipe left = next (newer), swipe right = previous (older)
-            // Opening the last image (newest) at highest index → swipe left blocked
-            const channelGalleryIdentifier = `${channelId}-channel-media-${location}`;
-            const channelIdx = channelMediaFiles.findIndex((f) => f.id === tappedFile?.id);
-            const items = channelMediaFiles.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
-            openGalleryAtIndex(channelGalleryIdentifier, channelIdx >= 0 ? channelIdx : 0, items);
-        } else {
-            const items = filesForGallery.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
-            openGalleryAtIndex(galleryIdentifier, idx, items);
+        try {
+            debugLog('GALLERY', `Files click: idx=${idx} files=${filesForGallery.length} channel=${channelMediaFiles?.length || 0}`);
+            const tappedFile = filesForGallery[idx];
+            if (!tappedFile) {
+                debugLog('GALLERY_ERR', `tappedFile undefined! idx=${idx} len=${filesForGallery.length}`);
+                return;
+            }
+            if (channelMediaFiles && channelMediaFiles.length > 1) {
+                // Use all channel media files for the gallery (WeChat-style browsing)
+                const channelGalleryIdentifier = `${channelId}-channel-media-${location}`;
+                const channelIdx = channelMediaFiles.findIndex((f) => f.id === tappedFile?.id);
+                const items = channelMediaFiles.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
+                openGalleryAtIndex(channelGalleryIdentifier, channelIdx >= 0 ? channelIdx : 0, items);
+            } else {
+                const items = filesForGallery.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
+                openGalleryAtIndex(galleryIdentifier, idx, items);
+            }
+        } catch (error: any) {
+            debugLog('GALLERY_ERR', `Files click crash: ${error?.message || error}`);
         }
     }, [filesForGallery, galleryIdentifier, postProps, channelId, message, channelMediaFiles, location]));
 
