@@ -366,11 +366,14 @@ export default function PostInput({
             onFocus={onFocus}
             onPaste={onPaste}
             onSelectionChange={handlePostDraftSelectionChanged}
+            onSubmitEditing={Platform.OS === 'ios' ? sendMessage : undefined}
             placeholder={intl.formatMessage(getPlaceHolder(rootId))}
             placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
             ref={inputRef}
             smartPunctuation='disable'
             submitBehavior='newline'
+            returnKeyType={Platform.OS === 'ios' ? 'send' : 'default'}
+            enablesReturnKeyAutomatically={Platform.OS === 'ios'}
             style={pasteInputStyle}
             testID={testID}
             underlineColorAndroid='transparent'

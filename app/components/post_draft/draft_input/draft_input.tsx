@@ -581,7 +581,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             alignSelf: 'stretch',
         },
         weChatSideIconHit: {
-            padding: 6,
+            padding: 8,
         },
         postPriorityLabel: {
             marginLeft: 12,
@@ -645,7 +645,7 @@ function DraftInput({
     const quickActionsTestID = `${testID}.quick_actions`;
     const sendActionTestID = `${testID}.send_action`;
     const style = getStyleSheet(theme);
-    const weChatFooterIconColor = changeOpacity(theme.centerChannelColor, 0.52);
+    const weChatFooterIconColor = changeOpacity(theme.centerChannelColor, 0.64);
 
     const {persistentNotificationsEnabled, noMentionsError, mentionsList} = usePersistentNotificationProps({
         value,
@@ -1097,13 +1097,13 @@ function DraftInput({
                             {voiceMode ? (
                                 <CompassIcon
                                     name='keyboard-outline'
-                                    size={22}
+                                    size={30}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             ) : (
                                 <CompassIcon
                                     name='volume-high'
-                                    size={22}
+                                    size={30}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             )}
@@ -1156,7 +1156,7 @@ function DraftInput({
                         <CompassIcon
                             color={weChatFooterIconColor}
                             name={emojiPanelOpen ? 'keyboard-outline' : 'emoticon-happy-outline'}
-                            size={26}
+                            size={30}
                         />
                     </View>
                 </TouchableWithFeedback>
@@ -1172,11 +1172,11 @@ function DraftInput({
                         <CompassIcon
                             color={weChatFooterIconColor}
                             name='plus-box-outline'
-                            size={26}
+                            size={30}
                         />
                     </View>
                 </TouchableWithFeedback>
-                {!(voiceMode && hasVoiceRecording) && (
+                {Platform.OS === 'android' && value.trim() && !(voiceMode && hasVoiceRecording) && (
                     <SendAction
                         testID={sendActionTestID}
                         disabled={sendActionDisabled}
