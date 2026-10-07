@@ -220,7 +220,7 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
                 height={targetDimensions.height}
                 width={targetDimensions.width}
                 initialIndex={initialIndex}
-                numToRender={1}
+                numToRender={5}
                 renderPage={onRenderPage}
             />
         </LightboxSwipeout>
