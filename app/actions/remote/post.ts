@@ -198,7 +198,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
 
     // Update file records' post_id from pending_post_id to real post ID
     if (files.length > 0 && pendingPostId !== created.id) {
-        const fileRecords = await database.get('files').query(
+        const fileRecords = await database.get('File').query(
             Q.where('post_id', pendingPostId),
         ).fetch();
         for (const fileRecord of fileRecords) {
