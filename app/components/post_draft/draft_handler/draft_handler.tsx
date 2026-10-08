@@ -126,9 +126,9 @@ export default function DraftHandler(props: Props) {
                     return;
                 }
 
-                // Generate batch ID for grouping these posts
-                const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                debugLog('ADD_FILES', `creating ${filesToUpload.length} posts immediately with batchId: ${batchId}`);
+                // Generate batch ID for grouping these posts (only for multiple files)
+                const batchId = filesToUpload.length > 1 ? `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
+                debugLog('ADD_FILES', `creating ${filesToUpload.length} posts immediately${batchId ? ` with batchId: ${batchId}` : ''}`);
 
                 // Create posts immediately with local file references (optimistic UI)
                 const pendingPosts: Array<{postId: string; file: FileInfo}> = [];
@@ -140,6 +140,8 @@ export default function DraftHandler(props: Props) {
                     // Extract extension from filename
                     const fileName = file.name || '';
                     const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+
+                    debugLog('ADD_FILES', `preparing file: ${fileName}, extension: ${extension}, size: ${file.size}, mime: ${file.mime_type}`);
 
                     // Ensure FileInfo has all required fields for database storage
                     // Important: Set required fields explicitly, don't rely on spread
@@ -161,14 +163,18 @@ export default function DraftHandler(props: Props) {
                         update_at: Date.now(),
                     };
 
+                    debugLog('ADD_FILES', `localFile created: id=${localFile.id}, name=${localFile.name}, localPath=${localFile.localPath}`);
+
                     const post = {
                         user_id: currentUserId,
                         channel_id: channelId,
                         root_id: rootId,
                         message: '',
-                        props: {
+                        props: batchId ? {
                             batch_id: batchId,
                             batch_size: filesToUpload.length,
+                            upload_status: 'uploading', // Mark as uploading
+                        } : {
                             upload_status: 'uploading', // Mark as uploading
                         },
                     } as Post;
@@ -181,10 +187,13 @@ export default function DraftHandler(props: Props) {
                     }
 
                     if (result.data) {
+                        debugLog('ADD_FILES', `post created successfully, postId: ${result.data}`);
                         pendingPosts.push({
                             postId: result.data as string,
                             file: localFile,
                         });
+                    } else {
+                        debugLog('ADD_FILES', `createPost returned no data for ${file.name}`);
                     }
                 }
 
@@ -193,8 +202,8 @@ export default function DraftHandler(props: Props) {
                 // Emit scroll to bottom immediately so user sees their posts
                 DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
 
-                // Store batch info for undo functionality
-                if (pendingPosts.length > 0) {
+                // Store batch info for undo functionality (only for multiple files)
+                if (pendingPosts.length > 0 && batchId) {
                     DeviceEventEmitter.emit(Events.POST_BATCH_CREATED, {
                         batchId,
                         postIds: pendingPosts.map(p => p.postId),
@@ -236,8 +245,9 @@ export default function DraftHandler(props: Props) {
                         });
 
                         // Update post with real file ID
-                        debugLog('ADD_FILES', `upload complete for ${file.name}, updating post ${postId}`);
+                        debugLog('ADD_FILES', `upload complete for ${file.name}, updating post ${postId}, uploadedFile: id=${uploadedFile.id}, name=${uploadedFile.name}, localPath=${uploadedFile.localPath}`);
                         await updatePostFileIds(serverUrl, postId, [uploadedFile]);
+                        debugLog('ADD_FILES', `post ${postId} updated successfully with file ${uploadedFile.id}`);
 
                     } catch (uploadErr) {
                         debugLog('ADD_FILES', `upload failed for ${file.name}: ${uploadErr}`);

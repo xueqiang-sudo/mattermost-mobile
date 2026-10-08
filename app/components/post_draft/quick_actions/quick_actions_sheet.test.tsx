@@ -16,8 +16,7 @@ describe('QuickActionsSheet', () => {
                 resolveDismiss = resolve;
             });
         });
-        const updateValue = jest.fn();
-        const focus = jest.fn();
+        const addFiles = jest.fn();
 
         const {getByTestId} = renderWithIntlAndTheme(
             <QuickActionsSheet
@@ -28,28 +27,27 @@ describe('QuickActionsSheet', () => {
                 canShowPostPriority={true}
                 maxFileCount={10}
                 value=''
-                updateValue={updateValue}
-                addFiles={jest.fn()}
+                updateValue={jest.fn()}
+                addFiles={addFiles}
                 postPriority={{priority: PostPriorityType.STANDARD}}
                 updatePostPriority={jest.fn()}
-                focus={focus}
+                focus={jest.fn()}
                 onDismiss={onDismiss}
             />,
         );
 
-        fireEvent.press(getByTestId('quick_actions_sheet.at_action'));
+        fireEvent.press(getByTestId('quick_actions_sheet.image_action'));
 
         expect(onDismiss).toHaveBeenCalledTimes(1);
-        expect(updateValue).not.toHaveBeenCalled();
-        expect(focus).not.toHaveBeenCalled();
+        expect(addFiles).not.toHaveBeenCalled();
 
         await act(async () => {
             resolveDismiss?.();
         });
 
+        // Gallery action opens a picker, so we just verify dismiss was called
         await waitFor(() => {
-            expect(updateValue).toHaveBeenCalledTimes(1);
-            expect(focus).toHaveBeenCalledTimes(1);
+            expect(onDismiss).toHaveBeenCalledTimes(1);
         });
     });
 });

@@ -110,7 +110,6 @@ type Props = {
     updatePostPriority: (postPriority: PostPriority) => void;
     focus: () => void;
     onDismiss: () => void | Promise<void>;
-    showAtMention?: boolean;
 };
 
 const POST_PRIORITY_PICKER_BUTTON = 'close-post-priority-picker-sheet';
@@ -130,12 +129,10 @@ export default function QuickActionsSheet({
     updatePostPriority,
     focus,
     onDismiss,
-    showAtMention = true,
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
     const isTablet = useIsTablet();
-    const atDisabled = value[value.length - 1] === '@';
     const maxFilesReached = fileCount >= maxFileCount;
 
     const wrapWithDismiss = useCallback((fn: () => void) => {
@@ -149,11 +146,6 @@ export default function QuickActionsSheet({
             })();
         };
     }, [onDismiss]);
-
-    const handleAtPress = useCallback(() => {
-        updateValue((v) => (v.length > 0 && !v.endsWith(' ') ? `${v} @` : `${v}@`));
-        focus();
-    }, [updateValue, focus]);
 
     const handleFilePress = useCallback(() => {
         debugLog('QUICK_ACTION', 'handleFilePress called');
@@ -279,15 +271,6 @@ export default function QuickActionsSheet({
             disabled: false,
             onPress: wrapWithDismiss(handlePriorityPress),
             testID: `${baseTestID}.post_priority_action`,
-        }] : []),
-        ...(showAtMention ? [{
-            key: 'at',
-            icon: 'at',
-            labelId: 'post_draft.quick_action.at_mention',
-            labelDefault: '@ Mention',
-            disabled: atDisabled,
-            onPress: wrapWithDismiss(handleAtPress),
-            testID: `${baseTestID}.at_action`,
         }] : []),
     ];
 

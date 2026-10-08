@@ -952,9 +952,8 @@ function DraftInput({
             updateValue={updateValue}
             value={value}
             onDismiss={() => dismissBottomSheet()}
-            showAtMention={!voiceMode && channelType !== General.DM_CHANNEL}
         />
-    ), [addFiles, canShowPostPriority, draftVideoProcessingBridge, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value, voiceMode, channelType]);
+    ), [addFiles, canShowPostPriority, draftVideoProcessingBridge, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value]);
 
     const openDraftMoreSheet = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
