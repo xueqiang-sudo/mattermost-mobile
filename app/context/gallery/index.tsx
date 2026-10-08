@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useEffect, useLayoutEffect} from 'react';
+import {Alert} from 'react-native';
 import {makeMutable, runOnUI, type AnimatedRef, type SharedValue} from 'react-native-reanimated';
 
 import {debugLog} from '@store/debug_log';
@@ -149,6 +150,7 @@ export function useGallery(galleryIdentifier: string) {
 }
 
 export function GalleryInit({children, galleryIdentifier}: GalleryInitProps) {
+    Alert.alert('Step 5.5', `GalleryInit render id=${galleryIdentifier}`);
     const gallery = useGallery(galleryIdentifier);
     debugLog('GALLERY', `GalleryInit: id=${galleryIdentifier}`);
 

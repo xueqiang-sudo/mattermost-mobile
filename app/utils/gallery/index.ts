@@ -206,8 +206,11 @@ export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: numb
         Alert.alert('Step 5', `showOverlay 完成`);
         debugLog('GALLERY', 'showOverlay OK');
 
+        Alert.alert('Step 5.1', `设置 setTimeout`);
         setTimeout(() => {
+            Alert.alert('Step 5.2', `调用 freezeOtherScreens`);
             freezeOtherScreens(true);
+            Alert.alert('Step 5.3', `freezeOtherScreens 完成`);
         }, 500);
     } catch (error: any) {
         debugLog('GALLERY_ERR', `openGalleryAtIndex crash: ${error?.message || error}`);
