@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {DeviceEventEmitter} from 'react-native';
+import {DeviceEventEmitter, Image} from 'react-native';
 
 import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
@@ -87,6 +87,17 @@ export default function DraftHandler(props: Props) {
         updateValue('');
     }, [serverUrl, channelId, rootId]);
 
+    // Helper function to get image dimensions
+    const getImageDimensions = (uri: string): Promise<{width: number; height: number}> => {
+        return new Promise((resolve) => {
+            Image.getSize(
+                uri,
+                (width, height) => resolve({width, height}),
+                () => resolve({width: 800, height: 600}), // Default on error
+            );
+        });
+    };
+
     const addFiles = useCallback((newFiles: FileInfo[]) => {
         debugLog('ADD_FILES', `called with ${newFiles.length} files`);
         if (!newFiles.length) {
@@ -154,10 +165,24 @@ export default function DraftHandler(props: Props) {
                     const isImageFile = file.mime_type?.startsWith('image/') || extension.match(/^(jpg|jpeg|png|gif|webp|heic|heif)$/i);
                     const hasPreviewImage = Boolean(isImageFile);
 
-                    // Use actual dimensions from file picker if available, otherwise use reasonable defaults
-                    // This prevents layout jitter by having accurate dimensions from the start
-                    const fileWidth = file.width || (isImageFile ? 800 : 100);
-                    const fileHeight = file.height || (isImageFile ? 600 : 100);
+                    // Get actual dimensions from file picker or read from image file
+                    let fileWidth = file.width;
+                    let fileHeight = file.height;
+
+                    if (isImageFile && (!fileWidth || !fileHeight)) {
+                        // Try to get dimensions from the image file
+                        const imageUri = file.localPath || file.uri || '';
+                        if (imageUri) {
+                            const dimensions = await getImageDimensions(imageUri);
+                            fileWidth = dimensions.width;
+                            fileHeight = dimensions.height;
+                            debugLog('ADD_FILES', `got dimensions from image: ${fileWidth}x${fileHeight}`);
+                        }
+                    }
+
+                    // Use defaults if still not available
+                    fileWidth = fileWidth || (isImageFile ? 800 : 100);
+                    fileHeight = fileHeight || (isImageFile ? 600 : 100);
 
                     // Ensure FileInfo has all required fields for database storage
                     // Important: Set required fields explicitly, don't rely on spread
