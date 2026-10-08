@@ -418,10 +418,16 @@ const Post = ({
                         Screens.FORWARD_MESSAGE,
                         intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'}),
                         {
+                            componentId: Screens.FORWARD_MESSAGE,
                             postId: post.id,
                             channelId: post.channelId,
                             message: textMessage,
                             fileIds: post.fileIds,
+                        },
+                        {
+                            topBar: {
+                                visible: false,
+                            },
                         },
                     );
                 }),

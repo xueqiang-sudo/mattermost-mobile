@@ -58,6 +58,7 @@ const Footer = ({
                 Screens.FORWARD_MESSAGE,
                 intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'}),
                 {
+                    componentId: Screens.FORWARD_MESSAGE,
                     postId: item.postId || '',
                     channelId: item.channelId || '',
                     message: item.postMessage || '',

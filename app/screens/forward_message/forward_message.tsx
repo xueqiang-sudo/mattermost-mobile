@@ -332,7 +332,9 @@ const ForwardMessage = ({
                         color={theme.centerChannelColor}
                     />
                 </Pressable>
-                <View style={{flex: 1}}/>
+                <Text style={styles.headerTitle}>
+                    {intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'})}
+                </Text>
                 <Pressable
                     style={styles.headerButton}
                     onPress={handleForward}
