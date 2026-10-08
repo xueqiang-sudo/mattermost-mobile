@@ -77,6 +77,18 @@ export const getPostById = async (database: Database, postId: string) => {
     }
 };
 
+export const getPostByPendingPostId = async (database: Database, pendingPostId: string) => {
+    try {
+        const posts = await database.get<PostModel>(POST).query(
+            Q.where('pending_post_id', pendingPostId),
+            Q.take(1),
+        ).fetch();
+        return posts.length > 0 ? posts[0] : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 export const observePost = (database: Database, postId: string) => {
     return database.get<PostModel>(POST).query(Q.where('id', postId), Q.take(1)).observe().pipe(
         switchMap((result) => (result.length ? result[0].observe() : of$(undefined))),

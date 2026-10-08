@@ -8,6 +8,8 @@ import {DeviceEventEmitter} from 'react-native';
 import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
 import {createPost, updatePostFileIds, markPostUploadFailed} from '@actions/remote/post';
+import DatabaseManager from '@database/manager';
+import {getPostByPendingPostId} from '@queries/servers/post';
 import {Events, Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
@@ -202,9 +204,21 @@ export default function DraftHandler(props: Props) {
                     }
 
                     if (result.data) {
-                        debugLog('ADD_FILES', `post created successfully with pendingPostId: ${pendingPostId}`);
+                        // Query for the post by pending_post_id to get the real ID
+                        const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+                        let realPostId = pendingPostId;
+                        if (database) {
+                            const realPost = await getPostByPendingPostId(database, pendingPostId);
+                            if (realPost) {
+                                realPostId = realPost.id;
+                                debugLog('ADD_FILES', `post created successfully, realPostId: ${realPostId} (was pending: ${pendingPostId})`);
+                            } else {
+                                debugLog('ADD_FILES', `post created but could not find by pendingPostId: ${pendingPostId}, using pending ID`);
+                            }
+                        }
+
                         pendingPosts.push({
-                            postId: pendingPostId, // Use the pendingPostId we generated
+                            postId: realPostId, // Use the real post ID
                             file: localFile,
                         });
                     } else {
