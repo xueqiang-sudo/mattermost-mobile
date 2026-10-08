@@ -141,7 +141,17 @@ export default function DraftHandler(props: Props) {
                     const fileName = file.name || '';
                     const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
 
-                    debugLog('ADD_FILES', `preparing file: ${fileName}, extension: ${extension}, size: ${file.size}, mime: ${file.mime_type}`);
+                    debugLog('ADD_FILES', `preparing file: ${fileName}, extension: ${extension}, size: ${file.size}, mime: ${file.mime_type}, width: ${file.width}, height: ${file.height}`);
+
+                    // Determine if this is an image and set has_preview_image accordingly
+                    // This prevents layout shifts when the post is updated after upload
+                    const isImageFile = file.mime_type?.startsWith('image/') || extension.match(/^(jpg|jpeg|png|gif|webp|heic|heif)$/i);
+                    const hasPreviewImage = Boolean(isImageFile);
+
+                    // Use actual dimensions from file picker if available, otherwise use reasonable defaults
+                    // This prevents layout jitter by having accurate dimensions from the start
+                    const fileWidth = file.width || (isImageFile ? 800 : 100);
+                    const fileHeight = file.height || (isImageFile ? 600 : 100);
 
                     // Ensure FileInfo has all required fields for database storage
                     // Important: Set required fields explicitly, don't rely on spread
@@ -154,16 +164,16 @@ export default function DraftHandler(props: Props) {
                         extension,
                         size: file.size || 0,
                         mime_type: file.mime_type || 'application/octet-stream',
-                        has_preview_image: false, // Will be updated after upload
-                        height: file.height || 100, // Default height for layout
-                        width: file.width || 100, // Default width for layout
+                        has_preview_image: hasPreviewImage, // Set correctly from the start to avoid layout shifts
+                        height: fileHeight,
+                        width: fileWidth,
                         localPath: file.localPath || file.uri || '',
                         uri: file.uri || '',
                         create_at: Date.now(),
                         update_at: Date.now(),
                     };
 
-                    debugLog('ADD_FILES', `localFile created: id=${localFile.id}, name=${localFile.name}, localPath=${localFile.localPath}`);
+                    debugLog('ADD_FILES', `localFile created: id=${localFile.id}, name=${localFile.name}, localPath=${localFile.localPath}, dimensions: ${localFile.width}x${localFile.height}, hasPreview: ${localFile.has_preview_image}`);
 
                     const post = {
                         user_id: currentUserId,
