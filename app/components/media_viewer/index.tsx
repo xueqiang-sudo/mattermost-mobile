@@ -19,8 +19,11 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Share from 'react-native-share';
 
 import CompassIcon from '@components/compass_icon';
+import {useServerUrl} from '@context/server';
 import {dismissOverlay} from '@screens/navigation';
+import {downloadFile} from '@actions/remote/file';
 import {hasPhotoLibraryWritePermission, pathWithPrefix} from '@utils/file';
+import {fileExists} from '@utils/file';
 
 interface MediaViewerScreenProps {
     componentId: string;
@@ -90,6 +93,7 @@ const styles = StyleSheet.create({
 const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProps) => {
     const intl = useIntl();
     const insets = useSafeAreaInsets();
+    const serverUrl = useServerUrl();
     const [saving, setSaving] = useState(false);
     const isVideo = type === 'video';
     const isAudio = type === 'audio';
@@ -113,12 +117,44 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
                 return;
             }
 
-            const filePath = pathWithPrefix('file://', uri);
-            await CameraRoll.saveAsset(filePath, {type: isVideo ? 'video' : 'photo'});
+            let filePath = uri;
+
+            // Check if uri is a remote URL (starts with http/https)
+            const isRemoteUrl = uri.startsWith('http://') || uri.startsWith('https://');
+
+            if (isRemoteUrl) {
+                // Extract file ID from URL (pattern: /api/v4/file/{fileId})
+                const fileIdMatch = uri.match(/\/api\/v4\/file\/([a-z0-9]+)/i);
+                if (!fileIdMatch || !fileIdMatch[1]) {
+                    throw new Error('Cannot extract file ID from URL');
+                }
+                const fileId = fileIdMatch[1];
+
+                // Download the file first
+                console.log('[MediaViewer] Downloading remote file:', fileId);
+                const cacheDir = `${serverUrl}/files`;
+                const destination = `${cacheDir}/${fileId}`;
+                const response = await downloadFile(serverUrl, fileId, destination);
+                if (!response.data?.path) {
+                    throw new Error('Download failed');
+                }
+                filePath = response.data.path;
+                console.log('[MediaViewer] Downloaded to:', filePath);
+            }
+
+            // Ensure file exists
+            const exists = await fileExists(filePath);
+            if (!exists) {
+                throw new Error('File not found');
+            }
+
+            const cameraRollPath = pathWithPrefix('file://', filePath);
+            await CameraRoll.saveAsset(cameraRollPath, {type: isVideo ? 'video' : 'photo'});
             Alert.alert(
                 intl.formatMessage({id: 'gallery.saved', defaultMessage: 'Saved'}),
             );
         } catch (e: any) {
+            console.error('[MediaViewer] Save failed:', e);
             Alert.alert(
                 intl.formatMessage({id: 'gallery.save_failed', defaultMessage: 'Save failed'}),
                 e?.message || String(e),
@@ -126,7 +162,7 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
         } finally {
             setSaving(false);
         }
-    }, [uri, saving, isVideo, intl]);
+    }, [uri, saving, isVideo, intl, serverUrl]);
 
     const handleShare = useCallback(async () => {
         if (!uri) {
@@ -134,14 +170,45 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
         }
 
         try {
+            let filePath = uri;
+
+            // Check if uri is a remote URL (starts with http/https)
+            const isRemoteUrl = uri.startsWith('http://') || uri.startsWith('https://');
+
+            if (isRemoteUrl) {
+                // Extract file ID from URL (pattern: /api/v4/file/{fileId})
+                const fileIdMatch = uri.match(/\/api\/v4\/file\/([a-z0-9]+)/i);
+                if (!fileIdMatch || !fileIdMatch[1]) {
+                    throw new Error('Cannot extract file ID from URL');
+                }
+                const fileId = fileIdMatch[1];
+
+                // Download the file first
+                console.log('[MediaViewer] Downloading remote file for share:', fileId);
+                const cacheDir = `${serverUrl}/files`;
+                const destination = `${cacheDir}/${fileId}`;
+                const response = await downloadFile(serverUrl, fileId, destination);
+                if (!response.data?.path) {
+                    throw new Error('Download failed');
+                }
+                filePath = response.data.path;
+            }
+
             await Share.open({
-                url: pathWithPrefix('file://', uri),
+                url: pathWithPrefix('file://', filePath),
                 type: isVideo ? 'video/*' : 'image/*',
             });
-        } catch {
-            // User cancelled
+        } catch (e: any) {
+            console.error('[MediaViewer] Share failed:', e);
+            // Don't show alert for user cancellation
+            if (e?.message && !e.message.includes('cancelled')) {
+                Alert.alert(
+                    intl.formatMessage({id: 'gallery.share_failed', defaultMessage: 'Share failed'}),
+                    e?.message || String(e),
+                );
+            }
         }
-    }, [uri, isVideo]);
+    }, [uri, isVideo, serverUrl, intl]);
 
     return (
         <View style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom}]}>
