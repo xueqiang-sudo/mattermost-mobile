@@ -137,6 +137,10 @@ export default function DraftHandler(props: Props) {
                     // Generate pending ID for the file (not uploaded yet)
                     const pendingFileId = `pending_${generateId()}`;
 
+                    // Generate pending post ID so we can track it for updates
+                    const timestamp = Date.now();
+                    const pendingPostId = `${currentUserId}:${timestamp}`;
+
                     // Extract extension from filename
                     const fileName = file.name || '';
                     const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
@@ -176,6 +180,7 @@ export default function DraftHandler(props: Props) {
                     debugLog('ADD_FILES', `localFile created: id=${localFile.id}, name=${localFile.name}, localPath=${localFile.localPath}, dimensions: ${localFile.width}x${localFile.height}, hasPreview: ${localFile.has_preview_image}`);
 
                     const post = {
+                        pending_post_id: pendingPostId, // Provide the pending ID so we know what it is
                         user_id: currentUserId,
                         channel_id: channelId,
                         root_id: rootId,
@@ -189,7 +194,7 @@ export default function DraftHandler(props: Props) {
                         },
                     } as Post;
 
-                    debugLog('ADD_FILES', `creating post immediately for file: ${file.name} (pending)`);
+                    debugLog('ADD_FILES', `creating post immediately for file: ${file.name} with pendingPostId: ${pendingPostId}`);
                     const result = await createPost(serverUrl, post, [localFile]);
                     if (result.error) {
                         debugLog('ADD_FILES', `createPost failed for ${file.name}: ${result.error}`);
@@ -197,9 +202,9 @@ export default function DraftHandler(props: Props) {
                     }
 
                     if (result.data) {
-                        debugLog('ADD_FILES', `post created successfully, postId: ${result.data}`);
+                        debugLog('ADD_FILES', `post created successfully with pendingPostId: ${pendingPostId}`);
                         pendingPosts.push({
-                            postId: result.data as string,
+                            postId: pendingPostId, // Use the pendingPostId we generated
                             file: localFile,
                         });
                     } else {
