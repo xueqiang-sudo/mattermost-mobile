@@ -23,6 +23,7 @@ export interface ClientFilesMix {
     ) => () => void;
     searchFiles: (teamId: string, terms: string, isOrSearch: boolean) => Promise<FileSearchRequest>;
     searchFilesWithParams: (teamId: string, FileSearchParams: FileSearchParams) => Promise<FileSearchRequest>;
+    copyFiles: (fileIds: string[]) => Promise<{file_ids: string[]}>;
 }
 
 const ClientFiles = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
@@ -107,6 +108,16 @@ const ClientFiles = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
 
     searchFiles = async (teamId: string, terms: string, isOrSearch: boolean) => {
         return this.searchFilesWithParams(teamId, {terms, is_or_search: isOrSearch});
+    };
+
+    copyFiles = async (fileIds: string[]) => {
+        return this.doFetch(
+            `${this.getFilesRoute()}/copy`,
+            {
+                method: 'post',
+                body: {file_ids: fileIds},
+            },
+        );
     };
 };
 

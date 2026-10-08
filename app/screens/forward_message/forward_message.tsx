@@ -14,6 +14,7 @@ import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {dismissModal} from '@screens/navigation';
+import NetworkManager from '@managers/network_manager';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -92,15 +93,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.buttonBg,
         borderColor: theme.buttonBg,
     },
-    channelIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 4,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
     channelInfo: {
         flex: 1,
     },
@@ -108,11 +100,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 16,
         fontWeight: '500',
         color: theme.centerChannelColor,
-    },
-    channelType: {
-        fontSize: 13,
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 2,
     },
     emptyState: {
         flex: 1,
@@ -196,38 +183,94 @@ const ForwardMessage = ({
         setIsForwarding(true);
 
         try {
-            // Format the forwarded message
-            const forwardPrefix = intl.formatMessage({
-                id: 'forward.prefix',
-                defaultMessage: 'Forwarded message',
-            });
-
-            let forwardMessage = '';
-            if (message) {
-                // Check if message already has the forwarded prefix to avoid duplication
-                const prefixPattern = new RegExp(`^_${forwardPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_\\s*`, 'i');
-                if (prefixPattern.test(message)) {
-                    // Message already has the prefix, use as-is
-                    forwardMessage = message;
-                } else {
-                    // Add the prefix
-                    forwardMessage = `_${forwardPrefix}_\n\n${message}`;
+            // Step 1: Collect file IDs from message (inline markers) and traditional file_ids
+            const messageSource = message || '';
+            const inlineFileIds: string[] = [];
+            const inlineRegex = /!\{file:([a-z0-9_-]+)\}/g;
+            let inlineMatch;
+            while ((inlineMatch = inlineRegex.exec(messageSource)) !== null) {
+                // Skip pending_xxx markers (files being uploaded)
+                if (!inlineMatch[1].startsWith('pending_')) {
+                    inlineFileIds.push(inlineMatch[1]);
                 }
             }
 
-            // Create the forwarded post for each selected channel
+            // Collect traditional file_ids that are not in inline markers
+            const traditionalFileIds = (fileIds || []).filter(
+                (id) => !inlineFileIds.includes(id),
+            );
+
+            const allOriginalFileIds = [...inlineFileIds, ...traditionalFileIds];
+
+            // Step 2: Copy files on server (like webapp)
+            const oldToNewIdMap: Record<string, string> = {};
+
+            if (allOriginalFileIds.length > 0) {
+                try {
+                    const client = NetworkManager.getClient(serverUrl);
+                    const copyResult = await client.copyFiles(allOriginalFileIds);
+                    const newIds = copyResult.file_ids;
+
+                    // Map old IDs to new IDs
+                    allOriginalFileIds.forEach((oldId, index) => {
+                        const newId = newIds[index];
+                        if (newId) {
+                            oldToNewIdMap[oldId] = newId;
+                        }
+                    });
+                } catch (copyError) {
+                    // File copy failed - abort forwarding
+                    throw copyError;
+                }
+            }
+
+            // Step 3: Rebuild message with new file IDs
+            let forwardMessage = messageSource;
+
+            // Replace inline markers: !{file:oldId} → !{file:newId}
+            forwardMessage = forwardMessage.replace(
+                /!\{file:([a-z0-9_-]+)\}/g,
+                (fullMatch, oldId) => {
+                    const newId = oldToNewIdMap[oldId];
+                    return newId ? `!{file:${newId}}` : '';
+                },
+            );
+
+            // Append traditional file_ids as new inline markers
+            const appendedMarkers = traditionalFileIds
+                .filter((oldId) => oldToNewIdMap[oldId])
+                .map((oldId) => `!{file:${oldToNewIdMap[oldId]}}`)
+                .join('\n');
+
+            if (appendedMarkers) {
+                forwardMessage = forwardMessage.trim()
+                    ? `${forwardMessage.trim()}\n${appendedMarkers}`
+                    : appendedMarkers;
+            }
+
+            forwardMessage = forwardMessage.trim();
+
+            // Get new file IDs for the post
+            const newFileIds = allOriginalFileIds
+                .map((oldId) => oldToNewIdMap[oldId])
+                .filter(Boolean);
+
+            // Step 4: Create the forwarded post for each selected channel
             for (const targetChannelId of selectedChannelIds) {
                 const post = {
                     channel_id: targetChannelId,
                     message: forwardMessage,
-                    file_ids: fileIds || [],
+                    file_ids: newFileIds,  // Use new copied file IDs
                     root_id: '',
                     props: {
-                        forwarded_from_post_id: postId,
+                        forwarded_from: {
+                            channel_id: channelId,
+                            post_id: postId,
+                        },
                     },
                 };
 
-                await createPost(serverUrl, post, []);
+                await createPost(serverUrl, post);
             }
 
             // Close the modal
@@ -240,13 +283,10 @@ const ForwardMessage = ({
         } finally {
             setIsForwarding(false);
         }
-    }, [selectedChannelIds, message, fileIds, postId, serverUrl, intl, handleClose]);
+    }, [selectedChannelIds, message, fileIds, postId, channelId, serverUrl, intl, handleClose]);
 
     const renderChannelItem = useCallback(({item: channel}: {item: ChannelModel}) => {
         const isSelected = selectedChannelIds.includes(channel.id);
-        const channelType = channel.type === 'D' ? 'Direct Message' :
-            channel.type === 'G' ? 'Group Message' :
-                channel.type === 'P' ? 'Private Channel' : 'Public Channel';
 
         return (
             <Pressable
@@ -262,21 +302,9 @@ const ForwardMessage = ({
                         />
                     )}
                 </View>
-                <View style={styles.channelIcon}>
-                    <CompassIcon
-                        name={channel.type === 'D' ? 'account' :
-                            channel.type === 'G' ? 'account-multiple' :
-                                channel.type === 'P' ? 'lock' : 'globe'}
-                        size={24}
-                        color={theme.centerChannelColor}
-                    />
-                </View>
                 <View style={styles.channelInfo}>
                     <Text style={styles.channelName} numberOfLines={1}>
                         {channel.displayName || channel.name}
-                    </Text>
-                    <Text style={styles.channelType}>
-                        {channelType}
                     </Text>
                 </View>
             </Pressable>
@@ -304,9 +332,7 @@ const ForwardMessage = ({
                         color={theme.centerChannelColor}
                     />
                 </Pressable>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'})}
-                </Text>
+                <View style={{flex: 1}}/>
                 <Pressable
                     style={styles.headerButton}
                     onPress={handleForward}
@@ -328,7 +354,7 @@ const ForwardMessage = ({
             <View style={styles.searchContainer}>
                 <TextInput
                     style={styles.searchInput}
-                    placeholder={intl.formatMessage({id: 'forward.search_placeholder', defaultMessage: 'Search channels'})}
+                    placeholder={intl.formatMessage({id: 'forward.search_placeholder', defaultMessage: 'Search groups...'})}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.56)}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
