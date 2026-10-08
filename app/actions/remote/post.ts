@@ -29,6 +29,7 @@ import {getValidEmojis, matchEmoticons} from '@utils/emoji/helpers';
 import {getFullErrorMessage, isServerError} from '@utils/errors';
 import {hasArrayChanged} from '@utils/helpers';
 import {logDebug, logError} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 import {processPostsFetched} from '@utils/post';
 import {getPostIdsForCombinedUserActivityPost} from '@utils/post_list';
 
@@ -251,11 +252,13 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         // Get the current post
         const existingPost = await getPostById(database, postId);
         if (!existingPost) {
+            debugLog('UPDATE_POST_FILE_IDS', `Post not found: ${postId}`);
             return {error: 'Post not found'};
         }
 
         // Get old file IDs (pending ones)
         const oldFileIds = existingPost.fileIds || [];
+        debugLog('UPDATE_POST_FILE_IDS', `Updating post ${postId}, oldFileIds: ${JSON.stringify(oldFileIds)}, newFileIds: ${JSON.stringify(files.map(f => f.id))}`);
 
         // Update file_ids
         const fileIds = files.map(f => f.id);
@@ -277,17 +280,18 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             prepareRecordsOnly: true,
         });
 
-        // Delete old file records (pending ones)
+        // Delete old pending file records to avoid duplicates
         if (oldFileIds.length > 0) {
-            const oldFiles = await database.get('files').query(
+            const oldFiles = await database.get('File').query(
                 Q.where('id', Q.oneOf(oldFileIds)),
             ).fetch();
+            debugLog('UPDATE_POST_FILE_IDS', `Deleting ${oldFiles.length} old pending file records`);
             for (const oldFile of oldFiles) {
                 models.push(oldFile.prepareDestroyPermanently());
             }
         }
 
-        // Create/update file records with the real post_id
+        // Create new file records with real IDs
         for (const file of files) {
             file.post_id = postId;
         }
@@ -295,6 +299,7 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         models.push(...fileModels);
 
         await operator.batchRecords(models, 'updatePostFileIds');
+        debugLog('UPDATE_POST_FILE_IDS', `Successfully updated post ${postId}: deleted ${oldFileIds.length} old files, created ${fileModels.length} new files`);
 
         // Update on server using patchPost
         await client.patchPost(postId, {
