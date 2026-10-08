@@ -195,6 +195,20 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         posts: [created],
         prepareRecordsOnly: true,
     });
+
+    // Update file records' post_id from pending_post_id to real post ID
+    if (files.length > 0 && pendingPostId !== created.id) {
+        const fileRecords = await database.get('files').query(
+            Q.where('post_id', pendingPostId),
+        ).fetch();
+        for (const fileRecord of fileRecords) {
+            const prepared = fileRecord.prepareUpdate((f) => {
+                f.post_id = created.id;
+            });
+            models.push(prepared);
+        }
+    }
+
     const isCrtReply = isCRTEnabled && created.root_id !== '';
     if (!isCrtReply) {
         const {member} = await updateLastPostAt(serverUrl, created.channel_id, created.create_at, true);
@@ -240,6 +254,9 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             return {error: 'Post not found'};
         }
 
+        // Get old file IDs (pending ones)
+        const oldFileIds = existingPost.fileIds || [];
+
         // Update file_ids
         const fileIds = files.map(f => f.id);
         const updatedPost = {
@@ -260,7 +277,17 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             prepareRecordsOnly: true,
         });
 
-        // Also update file records with the real post_id
+        // Delete old file records (pending ones)
+        if (oldFileIds.length > 0) {
+            const oldFiles = await database.get('files').query(
+                Q.where('id', Q.oneOf(oldFileIds)),
+            ).fetch();
+            for (const oldFile of oldFiles) {
+                models.push(oldFile.prepareDestroyPermanently());
+            }
+        }
+
+        // Create/update file records with the real post_id
         for (const file of files) {
             file.post_id = postId;
         }
