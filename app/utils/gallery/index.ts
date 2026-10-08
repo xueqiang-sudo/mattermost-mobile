@@ -148,7 +148,7 @@ export function measureViewInWindow(ref: RefObject<View>): Promise<{x: number; y
     });
 }
 
-export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: number, items: GalleryItemType[], hideActions = false) {
+export async function openGalleryAtIndex(galleryIdentifier: string, initialIndex: number, items: GalleryItemType[], hideActions = false) {
     try {
         Alert.alert('Step 3', `openGalleryAtIndex idx=${initialIndex} items=${items?.length}`, [{text: '确定'}]);
         debugLog('GALLERY', `openGalleryAtIndex: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
