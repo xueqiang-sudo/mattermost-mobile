@@ -4,7 +4,7 @@
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {DeviceEventEmitter, Pressable, Text, View} from 'react-native';
+import {DeviceEventEmitter, Pressable, StyleSheet, Text, View} from 'react-native';
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
@@ -29,14 +29,17 @@ type Props = {
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
-        borderRadius: 4,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.12),
+        borderRadius: 6,
         marginBottom: 6,
-        paddingHorizontal: 8,
-        paddingVertical: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
     },
     ownContainer: {
-        backgroundColor: changeOpacity('#FFFFFF', 0.14),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.12),
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
     },
     content: {
         flexDirection: 'row',

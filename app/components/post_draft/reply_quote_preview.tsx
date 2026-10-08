@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useMemo} from 'react';
-import {DeviceEventEmitter, Image, Text, TouchableOpacity, View} from 'react-native';
+import {DeviceEventEmitter, Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
@@ -14,7 +14,7 @@ import {useTheme} from '@context/theme';
 import {observePost, observePostAuthor} from '@queries/servers/post';
 import {observeFilesForPost} from '@queries/servers/file';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
-import {isImage} from '@utils/file';
+import {isImage, isVideo} from '@utils/file';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type PostModel from '@typings/database/models/servers/post';
@@ -36,16 +36,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginHorizontal: 12,
         marginBottom: 8,
         borderRadius: 8,
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-        borderWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.14),
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
         alignSelf: 'flex-start',
         maxWidth: '90%',
     },
     content: {
-        flex: 1,
+        flexShrink: 1,
         flexDirection: 'row',
         alignItems: 'center',
         minWidth: 0,
@@ -59,7 +59,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     quoteMessage: {
         color: theme.centerChannelColor,
         fontSize: 13,
-        flex: 1,
+        flexShrink: 1,
     },
     thumbnail: {
         width: 32,
@@ -72,7 +72,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     closeButton: {
         padding: 4,
-        marginLeft: 8,
+        marginLeft: 4,
     },
 }));
 
@@ -110,13 +110,27 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
     }
 
     const formattedAuthor = useMemo(() => {
-        const rawUsername = author?.username ?? '';
-        if (!rawUsername) {
+        // Use nickname first, then firstName + lastName, then username
+        const nickname = author?.nickname?.trim();
+        const firstName = author?.firstName?.trim();
+        const lastName = author?.lastName?.trim();
+        const username = author?.username ?? '';
+
+        let displayName = '';
+        if (nickname) {
+            displayName = nickname;
+        } else if (firstName || lastName) {
+            displayName = `${firstName} ${lastName}`.trim();
+        } else if (username) {
+            displayName = username;
+        }
+
+        if (!displayName) {
             return '';
         }
 
-        return rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`;
-    }, [author?.username]);
+        return displayName.startsWith('@') ? displayName : `@${displayName}`;
+    }, [author?.nickname, author?.firstName, author?.lastName, author?.username]);
 
     // Determine content type and display
     const {contentElement, displayText} = useMemo(() => {
@@ -128,9 +142,10 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
         if (hasFiles) {
             const firstFile = files[0];
             const fileIsImage = firstFile && isImage(firstFile);
+            const fileIsVideo = firstFile && isVideo(firstFile);
 
-            if (fileIsImage && firstFile.localPath) {
-                // Image: show thumbnail
+            if ((fileIsImage || fileIsVideo) && firstFile.localPath) {
+                // Image or Video: show thumbnail, no filename
                 return {
                     contentElement: (
                         <Image
@@ -141,7 +156,7 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
                     displayText: '',
                 };
             } else {
-                // File: show filename
+                // Other files: show filename + file type icon
                 const fileName = firstFile?.name || 'File';
                 return {
                     contentElement: (
