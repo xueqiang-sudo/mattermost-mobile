@@ -12,8 +12,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {useGalleryItem} from '@hooks/gallery';
-import {openGalleryAtIndex} from '@utils/gallery';
-import {urlSafeBase64Encode} from '@utils/security';
+import {showMediaViewer} from '@utils/gallery';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {username2Nickname} from '@utils/user';
@@ -22,8 +21,6 @@ import UserProfileAvatar from './avatar';
 import UserProfileTag from './tag';
 
 import type UserModel from '@typings/database/models/servers/user';
-import type {GalleryItemType} from '@typings/screens/gallery';
-
 type Props = {
     enablePostIconOverride: boolean;
     enablePostUsernameOverride: boolean;
@@ -105,27 +102,19 @@ const UserProfileTitle = ({
         }
 
         if (imageUrl) {
-            // Match the cache key pattern used by UserProfileAvatar component
-            let cacheKey;
-            if (enablePostIconOverride && userIconOverride) {
-                cacheKey = `user-override-icon-${urlSafeBase64Encode(userIconOverride)}`;
-            } else {
-                cacheKey = `user-${user.id}-${user.lastPictureUpdate}`;
-            }
-
-            const item: GalleryItemType = {
+            const file: FileInfo = {
                 id: user.id,
                 uri: imageUrl,
                 width: 400,
                 height: 400,
-                lastPictureUpdate: user.lastPictureUpdate,
                 name: displayName,
                 mime_type: 'image/png',
-                authorId: user.id,
-                type: 'avatar',
-                cacheKey,
+                has_preview_image: true,
+                size: 0,
+                user_id: user.id,
+                extension: 'png',
             };
-            openGalleryAtIndex(galleryIdentifier, 0, [item]);
+            showMediaViewer(file);
         }
     };
 

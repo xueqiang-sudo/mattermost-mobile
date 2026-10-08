@@ -16,7 +16,7 @@ import {GalleryInit} from '@context/gallery';
 import {useTheme} from '@context/theme';
 import DraftEditPostUploadManager from '@managers/draft_upload_manager';
 import {isImage, isVideo} from '@utils/file';
-import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
 import UploadItem from './upload_item/upload_item_wrapper';
@@ -222,10 +222,8 @@ function Uploads({
     }, [containerHeight, estimatedStripHeight, hasFiles, innerLayoutHeight, isAllImages]);
 
     const openGallery = useCallback((file: FileInfo) => {
-        const items = filesForGallery.current.map((f) => fileToGalleryItem(f, currentUserId, undefined, 0, f.id || f.clientId));
-        const index = filesForGallery.current.findIndex((f) => f.clientId === file.clientId);
-        openGalleryAtIndex(galleryIdentifier, index, items, true);
-    }, [currentUserId, galleryIdentifier]);
+        showMediaViewer(file);
+    }, []);
 
     return (
         <GalleryInit galleryIdentifier={galleryIdentifier}>

@@ -12,13 +12,11 @@ import {useIsTablet} from '@hooks/device';
 import {useGalleryItem} from '@hooks/gallery';
 import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {lookupMimeType} from '@utils/file';
-import {openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {isGifTooLarge, calculateDimensions, getViewPortWidth} from '@utils/images';
 import {urlSafeBase64Encode} from '@utils/security';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {extractFilenameFromUrl, isValidUrl} from '@utils/url';
-
-import type {GalleryItemType} from '@typings/screens/gallery';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
@@ -72,19 +70,20 @@ const AttachmentImage = ({imageUrl, imageMetadata, layoutWidth, location, onLong
     }, []);
 
     const onPress = () => {
-        const item: GalleryItemType = {
+        const file: FileInfo = {
             id: fileId.current || '',
-            postId,
+            post_id: postId,
             uri: imageUrl,
             width: imageMetadata.width,
             height: imageMetadata.height,
             name: extractFilenameFromUrl(imageUrl) || 'attachmentImage.png',
             mime_type: lookupMimeType(imageUrl) || 'image/png',
-            type: 'image',
-            lastPictureUpdate: 0,
-            cacheKey: fileId.current || '',
+            has_preview_image: true,
+            size: 0,
+            user_id: '',
+            extension: (extractFilenameFromUrl(imageUrl) || 'attachmentImage.png').split('.').pop() || 'png',
         };
-        openGalleryAtIndex(galleryIdentifier, 0, [item]);
+        showMediaViewer(file);
     };
 
     const {ref, onGestureEvent, styles} = useGalleryItem(

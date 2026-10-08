@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Alert, Dimensions, type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
+import {Dimensions, type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import {GalleryInit} from '@context/gallery';
@@ -12,7 +12,7 @@ import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {debugLog} from '@store/debug_log';
 import {isImage, isVideo} from '@utils/file';
-import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {getViewPortWidth} from '@utils/images';
 
 import File from './file';
@@ -164,31 +164,17 @@ const Files = ({
 
     const handlePreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
         try {
-            Alert.alert('Step 1', `点击图片 idx=${idx}`);
             debugLog('GALLERY', `Files click: idx=${idx} files=${filesForGallery.length} channel=${channelMediaFiles?.length || 0}`);
             const tappedFile = filesForGallery[idx];
             if (!tappedFile) {
-                Alert.alert('ERROR', `tappedFile undefined! idx=${idx}`);
                 debugLog('GALLERY_ERR', `tappedFile undefined! idx=${idx} len=${filesForGallery.length}`);
                 return;
             }
-            if (channelMediaFiles && channelMediaFiles.length > 1) {
-                // Use all channel media files for the gallery (WeChat-style browsing)
-                const channelGalleryIdentifier = `${channelId}-channel-media-${location}`;
-                const channelIdx = channelMediaFiles.findIndex((f) => f.id === tappedFile?.id);
-                const items = channelMediaFiles.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
-                Alert.alert('Step 2', `调用 openGalleryAtIndex (channel)`);
-                openGalleryAtIndex(channelGalleryIdentifier, channelIdx >= 0 ? channelIdx : 0, items);
-            } else {
-                const items = filesForGallery.map((f) => fileToGalleryItem(f, f.user_id, postProps, 0, f.id, channelId, message));
-                Alert.alert('Step 2', `调用 openGalleryAtIndex`);
-                openGalleryAtIndex(galleryIdentifier, idx, items);
-            }
+            showMediaViewer(tappedFile);
         } catch (error: any) {
-            Alert.alert('ERROR', `handlePreviewPress: ${error?.message || error}`);
             debugLog('GALLERY_ERR', `Files click crash: ${error?.message || error}`);
         }
-    }, [filesForGallery, galleryIdentifier, postProps, channelId, message, channelMediaFiles, location]));
+    }, [filesForGallery, channelMediaFiles]));
 
     const updateFileForGallery = useCallback((idx: number, file: FileInfo) => {
         const newFilesForGallery = [...filesForGallery];

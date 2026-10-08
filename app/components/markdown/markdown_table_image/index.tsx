@@ -12,14 +12,12 @@ import {useServerUrl} from '@context/server';
 import {useGalleryItem} from '@hooks/gallery';
 import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {lookupMimeType} from '@utils/file';
-import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {calculateDimensions, isGifTooLarge} from '@utils/images';
 import {removeImageProxyForKey} from '@utils/markdown';
 import {urlSafeBase64Encode} from '@utils/security';
 import {secureGetFromRecord} from '@utils/types';
 import {safeDecodeURIComponent} from '@utils/url';
-
-import type {GalleryItemType} from '@typings/screens/gallery';
 
 type MarkdownTableImageProps = {
     disabled?: boolean;
@@ -107,12 +105,8 @@ const MarkTableImage = ({
         if (!file?.uri) {
             return;
         }
-        const item: GalleryItemType = {
-            ...fileToGalleryItem(file, undefined, undefined, 0, file.id),
-            type: 'image',
-        };
-        openGalleryAtIndex(galleryIdentifier, 0, [item]);
-    }, [getFileInfo, galleryIdentifier]);
+        showMediaViewer(file);
+    }, [getFileInfo]);
 
     const {ref, onGestureEvent, styles} = useGalleryItem(
         galleryIdentifier,

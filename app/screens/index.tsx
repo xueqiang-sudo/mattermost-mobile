@@ -220,6 +220,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.GALLERY:
             screen = withServerDatabase(require('@screens/gallery').default);
             break;
+        case Screens.MEDIA_VIEWER:
+            screen = withIntl(require('@components/media_viewer').default);
+            break;
         case Screens.GENERIC_OVERLAY:
             screen = withServerDatabase(require('@screens/overlay').default);
             break;

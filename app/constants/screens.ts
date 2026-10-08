@@ -107,6 +107,7 @@ export const LOGIN_ABOUT = 'LoginAbout';
 export const MANAGE_CHANNEL_MEMBERS = 'ManageChannelMembers';
 export const MANAGE_RESTRICTED_VIEWS = 'ManageRestrictedViews';
 export const MFA = 'MFA';
+export const MEDIA_VIEWER = 'MediaViewer';
 /** 我的主页 Stack 内根屏路由名 */
 export const MY_HOMEPAGE = 'MyHomepage';
 export const ONBOARDING = 'Onboarding';
@@ -257,6 +258,7 @@ export default {
     MANAGE_CHANNEL_MEMBERS,
     MANAGE_RESTRICTED_VIEWS,
     MFA,
+    MEDIA_VIEWER,
     MY_HOMEPAGE,
     ONBOARDING,
     PDF_VIEWER,
@@ -318,6 +320,7 @@ export const MODAL_SCREENS_WITHOUT_BACK = new Set<string>([
     EDIT_SERVER,
     FIND_CHANNELS,
     GALLERY,
+    MEDIA_VIEWER,
     INVITE,
     MANAGE_CHANNEL_MEMBERS,
     MANAGE_RESTRICTED_VIEWS,

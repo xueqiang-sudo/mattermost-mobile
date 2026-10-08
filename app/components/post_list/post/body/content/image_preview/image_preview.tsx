@@ -15,14 +15,12 @@ import useDidUpdate from '@hooks/did_update';
 import {useGalleryItem} from '@hooks/gallery';
 import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {lookupMimeType} from '@utils/file';
-import {openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {calculateDimensions, getViewPortWidth, isGifTooLarge} from '@utils/images';
 import {urlSafeBase64Encode} from '@utils/security';
 import {changeOpacity} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 import {extractFilenameFromUrl, isImageLink, isValidUrl} from '@utils/url';
-
-import type {GalleryItemType} from '@typings/screens/gallery';
 
 type ImagePreviewProps = {
     channelId?: string;
@@ -72,21 +70,20 @@ const ImagePreview = ({channelId, expandedLink, isReplyPost, layoutWidth, link, 
     }, []);
 
     const onPress = () => {
-        const item: GalleryItemType = {
+        const file: FileInfo = {
             id: fileId.current || '',
-            postId,
-            channelId,
-            postMessage: message,
+            post_id: postId,
             uri: imageUrl,
             width: imageProps?.width || 0,
             height: imageProps?.height || 0,
             name: extractFilenameFromUrl(imageUrl) || 'imagePreview.png',
             mime_type: lookupMimeType(imageUrl) || 'image/png',
-            type: 'image',
-            lastPictureUpdate: 0,
-            cacheKey: fileId.current || '',
+            has_preview_image: true,
+            size: 0,
+            user_id: '',
+            extension: (extractFilenameFromUrl(imageUrl) || 'imagePreview.png').split('.').pop() || 'png',
         };
-        openGalleryAtIndex(galleryIdentifier, 0, [item]);
+        showMediaViewer(file);
     };
 
     const {ref, onGestureEvent, styles} = useGalleryItem(

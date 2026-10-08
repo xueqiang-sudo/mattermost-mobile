@@ -11,7 +11,7 @@ import {useTheme} from '@context/theme';
 import {useChannelBookmarkFiles} from '@hooks/files';
 import {usePreventDoubleTap} from '@hooks/utils';
 import ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
-import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import AddBookmark from './add_bookmark';
@@ -85,11 +85,11 @@ const ChannelBookmarks = ({
     }, [files]);
 
     const handlePreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
-        if (files.length) {
-            const items = files.map((f) => fileToGalleryItem(f, f.user_id, undefined, 0, f.id));
-            openGalleryAtIndex(galleryIdentifier, idx, items);
+        const file = files[idx];
+        if (file) {
+            showMediaViewer(file);
         }
-    }, [files, galleryIdentifier]));
+    }, [files]));
 
     const renderItem = useCallback(({item}: ListRenderItemInfo<ChannelBookmarkModel>) => {
         return (

@@ -16,9 +16,8 @@ import {
     getFileInfosIndexes,
     getNumberFileMenuOptions,
     getOrderedFileInfos,
-    getOrderedGalleryItems,
 } from '@utils/files';
-import {openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {TabTypes} from '@utils/search';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -50,8 +49,6 @@ type Props = {
     isFilterEnabled?: boolean;
 }
 
-const galleryIdentifier = 'search-files-location';
-
 const separatorStyle = {height: 10};
 const Separator = () => <View style={separatorStyle}/>;
 
@@ -82,11 +79,12 @@ const FileResults = ({
     const channelNames = useMemo(() => getChannelNamesWithID(fileChannels), [fileChannels]);
     const orderedFileInfos = useMemo(() => getOrderedFileInfos(filesForGallery), [filesForGallery]);
     const fileInfosIndexes = useMemo(() => getFileInfosIndexes(orderedFileInfos), [orderedFileInfos]);
-    const orderedGalleryItems = useMemo(() => getOrderedGalleryItems(orderedFileInfos), [orderedFileInfos]);
-
     const onPreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
-        openGalleryAtIndex(galleryIdentifier, idx, orderedGalleryItems);
-    }, [orderedGalleryItems]));
+        const file = orderedFileInfos[idx];
+        if (file) {
+            showMediaViewer(file);
+        }
+    }, [orderedFileInfos]));
 
     const updateFileForGallery = useCallback((idx: number, file: FileInfo) => {
         'worklet';

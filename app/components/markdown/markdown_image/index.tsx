@@ -22,7 +22,7 @@ import {useGalleryItem} from '@hooks/gallery';
 import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {bottomSheet, dismissBottomSheet} from '@screens/navigation';
 import {lookupMimeType} from '@utils/file';
-import {fileToGalleryItem, openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {calculateDimensions, getViewPortWidth, isGifTooLarge} from '@utils/images';
 import {getMarkdownImageSize, removeImageProxyForKey} from '@utils/markdown';
@@ -31,8 +31,6 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 import {normalizeProtocol, safeDecodeURIComponent, tryOpenURL} from '@utils/url';
 import {onOpenLinkError} from '@utils/url/links';
-
-import type {GalleryItemType} from '@typings/screens/gallery';
 
 type MarkdownImageProps = {
     disabled?: boolean;
@@ -131,13 +129,8 @@ const MarkdownImage = ({
     }, [source, serverUrl, isReplyPost, isTablet, sourceSize, metadata, layoutWidth, layoutHeight, genericFileId, postId]);
 
     const handlePreviewImage = useCallback(() => {
-        const item: GalleryItemType = {
-            ...fileToGalleryItem(fileInfo, undefined, undefined, 0, fileInfo.id),
-            mime_type: lookupMimeType(fileInfo.name),
-            type: 'image',
-        };
-        openGalleryAtIndex(galleryIdentifier, 0, [item]);
-    }, [fileInfo, galleryIdentifier]);
+        showMediaViewer(fileInfo);
+    }, [fileInfo]);
 
     const {ref, onGestureEvent, styles} = useGalleryItem(
         galleryIdentifier,

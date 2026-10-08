@@ -3,238 +3,78 @@
 
 import RNUtils from '@mattermost/rnutils';
 import {Image} from 'expo-image';
-import React, {type RefObject} from 'react';
-import {Alert, DeviceEventEmitter, Keyboard, Platform, View} from 'react-native';
+import {type RefObject} from 'react';
+import {DeviceEventEmitter, Keyboard, Platform, View} from 'react-native';
 import {Navigation, type Options, type OptionsLayout} from 'react-native-navigation';
-import {measure, type AnimatedRef} from 'react-native-reanimated';
 
 import {Events, Screens} from '@constants';
 import {allOrientations, showOverlay} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
-import {isImage, isVideo} from '@utils/file';
-import {generateId} from '@utils/general';
+import {isAudio, isVideo} from '@utils/file';
 import {urlSafeBase64Encode} from '@utils/security';
-
-import type {GalleryItemType, GalleryManagerSharedValues} from '@typings/screens/gallery';
 
 export const clamp = (value: number, lowerBound: number, upperBound: number) => {
     'worklet';
-
     return Math.min(Math.max(lowerBound, value), upperBound);
-};
-
-export const clampVelocity = (velocity: number, minVelocity: number, maxVelocity: number) => {
-    'worklet';
-
-    if (velocity > 0) {
-        return Math.min(Math.max(velocity, minVelocity), maxVelocity);
-    }
-    return Math.max(Math.min(velocity, -minVelocity), -maxVelocity);
-};
-
-export const fileToGalleryItem = (file: FileInfo, authorId?: string, postProps?: Record<string, unknown>, lastPictureUpdate = 0, cacheKey: string = file.id || '', channelId?: string, message?: string): GalleryItemType => {
-    let type: GalleryItemType['type'] = 'file';
-    if (isVideo(file)) {
-        type = 'video';
-    } else if (isImage(file)) {
-        type = 'image';
-    }
-
-    return {
-        authorId,
-        extension: file.extension,
-        height: file.height,
-        id: file.id || generateId('uid'),
-        lastPictureUpdate,
-        mime_type: file.mime_type,
-        name: file.name,
-        posterUri: type === 'video' ? file.mini_preview : undefined, // set the video poster to the mini_preview
-        postId: file.post_id,
-        channelId,
-        postMessage: message,
-        size: file.size,
-        type,
-        uri: file.localPath || file.uri || '',
-        width: file.width,
-        postProps: postProps || file.postProps,
-        cacheKey,
-    };
 };
 
 export const freezeOtherScreens = (value: boolean) => {
     DeviceEventEmitter.emit(Events.FREEZE_SCREEN, value);
 };
 
-export const friction = (value: number) => {
-    'worklet';
-
-    const MAX_FRICTION = 30;
-    const MAX_VALUE = 200;
-
-    const res = Math.max(
-        1,
-        Math.min(
-            MAX_FRICTION,
-            (1 + (Math.abs(value) * (MAX_FRICTION - 1))) / MAX_VALUE,
-        ),
-    );
-
-    return value > 0 ? res : -res;
-};
-
-export const galleryItemToFileInfo = (item: GalleryItemType): FileInfo => ({
-    id: item.id,
-    name: item.name,
-    create_at: 0,
-    delete_at: 0,
-    update_at: 0,
-    width: item.width,
-    height: item.height,
-    extension: item.extension || '',
-    mime_type: item.mime_type,
-    has_preview_image: false,
-    post_id: item.postId!,
-    size: 0,
-    user_id: item.authorId!,
-});
-
-export const getShouldRender = (index: number, activeIndex: number, diffValue = 3) => {
-    const diff = Math.abs(index - activeIndex);
-
-    if (diff > diffValue) {
-        return false;
-    }
-
-    return true;
-};
-
-export function measureItem(ref: AnimatedRef<any>, sharedValues: GalleryManagerSharedValues) {
-    'worklet';
-
-    try {
-        const measurements = measure(ref);
-
-        sharedValues.x.value = measurements?.pageX || 999999;
-        sharedValues.y.value = measurements?.pageY || 999999;
-        sharedValues.width.value = measurements?.width || 0;
-        sharedValues.height.value = measurements?.height || 0;
-    } catch (err) {
-        sharedValues.x.value = 999999;
-        sharedValues.y.value = 999999;
-        sharedValues.width.value = 0;
-        sharedValues.height.value = 0;
-    }
-}
-
 export function measureViewInWindow(ref: RefObject<View>): Promise<{x: number; y: number; width: number; height: number}> {
     return new Promise((resolve) => {
         if (ref.current) {
             ref.current.measure((x, y, width, height, pageX, pageY) => {
-                resolve({
-                    x: pageX,
-                    y: pageY,
-                    width,
-                    height,
-                });
+                resolve({x: pageX, y: pageY, width, height});
             });
         } else {
-            resolve({
-                x: 0,
-                y: 0,
-                width: 0,
-                height: 0,
-            });
+            resolve({x: 0, y: 0, width: 0, height: 0});
         }
     });
 }
 
-let isOpeningGallery = false;
+let isShowing = false;
 
-export async function openGalleryAtIndex(galleryIdentifier: string, initialIndex: number, items: GalleryItemType[], hideActions = false) {
-    if (isOpeningGallery) {
-        Alert.alert('GUARD', `already opening gallery, skipping`, [{text: '确定'}]);
+/**
+ * 直接预览单个文件。点哪个文件就传哪个文件，不需要构建 items 数组。
+ */
+export function showMediaViewer(file: FileInfo) {
+    if (isShowing) {
         return;
     }
-    isOpeningGallery = true;
+
+    const uri = file.localPath || file.uri || '';
+    if (!uri) {
+        debugLog('MEDIA', `showMediaViewer: no uri for file ${file.id}`);
+        return;
+    }
+
+    isShowing = true;
+
     try {
-        Alert.alert('Step 3', `openGalleryAtIndex idx=${initialIndex} items=${items?.length}`, [{text: '确定'}]);
-        debugLog('GALLERY', `openGalleryAtIndex: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
-        if (!items || items.length === 0) {
-            Alert.alert('ERROR', `items is empty!`, [{text: '确定'}]);
-            debugLog('GALLERY_ERR', `items is empty! items=${items} idx=${initialIndex}`);
-            return;
-        }
-        if (initialIndex < 0 || initialIndex >= items.length) {
-            Alert.alert('ERROR', `idx out of bounds! idx=${initialIndex} len=${items.length}`, [{text: '确定'}]);
-            debugLog('GALLERY_ERR', `idx out of bounds! idx=${initialIndex} len=${items.length}`);
-            return;
-        }
-        Alert.alert('Step 3.1', `validation passed, calling Keyboard.dismiss`, [{text: '确定'}]);
         Keyboard.dismiss();
-        Alert.alert('Step 3.2', `building props/options`, [{text: '确定'}]);
-        const props = {
-            galleryIdentifier,
-            hideActions,
-            initialIndex,
-            items,
-        };
-        const layout: OptionsLayout = {
-            orientation: allOrientations,
-        };
+
+        const type = isVideo(file) ? 'video' : isAudio(file) ? 'audio' : 'image';
         const options: Options = {
-            layout,
-            topBar: {
-                background: {
-                    color: '#000',
-                },
-                visible: false,
-            },
-            statusBar: {
-                backgroundColor: '#000',
-                style: 'light',
-            },
-            animations: {
-                showModal: {
-                    waitForRender: false,
-                    enabled: false,
-                },
-                dismissModal: {
-                    enabled: false,
-                },
-            },
+            layout: {backgroundColor: '#000'},
+            overlay: {interceptTouchOutside: true},
+            statusBar: {backgroundColor: '#000', style: 'light'},
         };
 
-        Alert.alert('Step 3.3', `Platform.OS=${Platform.OS}`, [{text: '确定'}]);
         if (Platform.OS === 'ios') {
-            // on iOS we need both the navigation & the module
+            const layout: OptionsLayout = {orientation: allOrientations};
             Navigation.setDefaultOptions({layout});
             RNUtils.unlockOrientation();
         }
-        Alert.alert('Step 3.4', `about to show Step 4`, [{text: '确定'}]);
-        await new Promise(resolve => Alert.alert('Step 4', `调用 showOverlay`, [{text: '确定', onPress: resolve}]));
-        debugLog('GALLERY', 'calling showOverlay');
-        showOverlay(Screens.GALLERY, props, options);
-        await new Promise(resolve => Alert.alert('Step 5', `showOverlay 完成`, [{text: '确定', onPress: resolve}]));
-        debugLog('GALLERY', 'showOverlay OK');
 
-        await new Promise(resolve => Alert.alert('Step 5.1', `设置 setTimeout`, [{text: '确定', onPress: resolve}]));
-        setTimeout(() => {
-            Alert.alert('Step 5.2', `调用 freezeOtherScreens`, [{text: '确定'}]);
-            freezeOtherScreens(true);
-            Alert.alert('Step 5.3', `freezeOtherScreens 完成`, [{text: '确定'}]);
-        }, 500);
-
-        await new Promise(resolve => Alert.alert('Step 5.4', `openGalleryAtIndex 函数即将结束`, [{text: '确定', onPress: resolve}]));
+        showOverlay(Screens.MEDIA_VIEWER, {uri, type, name: file.name}, options);
     } catch (error: any) {
-        const msg = error?.message || String(error);
-        Alert.alert('CATCH', `openGalleryAtIndex crash: ${msg}`, [{text: '确定'}]);
-        debugLog('GALLERY_ERR', `openGalleryAtIndex crash: ${msg}`);
+        debugLog('MEDIA', `showMediaViewer: ${error?.message || error}`);
     } finally {
-        isOpeningGallery = false;
+        isShowing = false;
     }
 }
-
-export const typedMemo: <T>(c: T) => T = React.memo;
 
 export const getImageSize = async (serverUrl: string, uri: string, cacheKey: string) => {
     const image = await Image.loadAsync({uri, cacheKey, cachePath: urlSafeBase64Encode(serverUrl)});

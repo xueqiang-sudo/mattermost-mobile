@@ -11,15 +11,13 @@ import {View as ViewConstants} from '@constants';
 import {GalleryInit} from '@context/gallery';
 import {useGalleryItem} from '@hooks/gallery';
 import {lookupMimeType} from '@utils/file';
-import {openGalleryAtIndex} from '@utils/gallery';
+import {showMediaViewer} from '@utils/gallery';
 import {isTablet} from '@utils/helpers';
 import {calculateDimensions} from '@utils/images';
 import {type BestImage, getNearestPoint} from '@utils/opengraph';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 import {extractFilenameFromUrl, isValidUrl} from '@utils/url';
-
-import type {GalleryItemType} from '@typings/screens/gallery';
 
 type OpengraphImageProps = {
     isReplyPost: boolean;
@@ -94,19 +92,20 @@ const OpengraphImage = ({isReplyPost, layoutWidth, location, metadata, onLongPre
     }
 
     const onPress = () => {
-        const item: GalleryItemType = {
+        const file: FileInfo = {
             id: fileId.current!,
-            postId,
+            post_id: postId,
             uri: imageUrl,
             width: imageDimensions.width,
             height: imageDimensions.height,
             name: extractFilenameFromUrl(imageUrl) || 'openGraph.png',
             mime_type: lookupMimeType(imageUrl) || 'image/png',
-            type: 'image',
-            lastPictureUpdate: 0,
-            cacheKey: fileId.current!,
+            has_preview_image: true,
+            size: 0,
+            user_id: '',
+            extension: (extractFilenameFromUrl(imageUrl) || 'openGraph.png').split('.').pop() || 'png',
         };
-        openGalleryAtIndex(galleryIdentifier, 0, [item]);
+        showMediaViewer(file);
     };
 
     const source: ImageSource = {};
