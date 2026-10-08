@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
+import {cacheDirectory} from 'expo-file-system';
 import {Image} from 'expo-image';
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
@@ -24,6 +25,7 @@ import {dismissOverlay} from '@screens/navigation';
 import {downloadFile} from '@actions/remote/file';
 import {hasPhotoLibraryWritePermission, pathWithPrefix} from '@utils/file';
 import {fileExists} from '@utils/file';
+import {urlSafeBase64Encode} from '@utils/security';
 
 interface MediaViewerScreenProps {
     componentId: string;
@@ -130,9 +132,10 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
                 }
                 const fileId = fileIdMatch[1];
 
-                // Download the file first
+                // Download the file first to proper cache directory
                 console.log('[MediaViewer] Downloading remote file:', fileId);
-                const cacheDir = `${serverUrl}/files`;
+                const server = urlSafeBase64Encode(serverUrl);
+                const cacheDir = `${cacheDirectory}${server}/Files`;
                 const destination = `${cacheDir}/${fileId}`;
                 const response = await downloadFile(serverUrl, fileId, destination);
                 if (!response.data?.path) {
@@ -183,9 +186,10 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
                 }
                 const fileId = fileIdMatch[1];
 
-                // Download the file first
+                // Download the file first to proper cache directory
                 console.log('[MediaViewer] Downloading remote file for share:', fileId);
-                const cacheDir = `${serverUrl}/files`;
+                const server = urlSafeBase64Encode(serverUrl);
+                const cacheDir = `${cacheDirectory}${server}/Files`;
                 const destination = `${cacheDir}/${fileId}`;
                 const response = await downloadFile(serverUrl, fileId, destination);
                 if (!response.data?.path) {

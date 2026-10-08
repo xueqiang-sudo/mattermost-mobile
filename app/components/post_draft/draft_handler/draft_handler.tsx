@@ -136,10 +136,29 @@ export default function DraftHandler(props: Props) {
                 for (const file of filesToUpload) {
                     // Generate pending ID for the file (not uploaded yet)
                     const pendingFileId = `pending_${generateId()}`;
+
+                    // Extract extension from filename
+                    const fileName = file.name || '';
+                    const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+
+                    // Ensure FileInfo has all required fields for database storage
+                    // Important: Set required fields explicitly, don't rely on spread
                     const localFile: FileInfo = {
-                        ...file,
+                        ...file, // Spread original file first to preserve any fields
                         id: pendingFileId,
                         post_id: '', // Will be set by createPost
+                        user_id: currentUserId,
+                        name: fileName,
+                        extension,
+                        size: file.size || 0,
+                        mime_type: file.mime_type || 'application/octet-stream',
+                        has_preview_image: false, // Will be updated after upload
+                        height: file.height || 100, // Default height for layout
+                        width: file.width || 100, // Default width for layout
+                        localPath: file.localPath || file.uri || '',
+                        uri: file.uri || '',
+                        create_at: Date.now(),
+                        update_at: Date.now(),
                     };
 
                     const post = {
