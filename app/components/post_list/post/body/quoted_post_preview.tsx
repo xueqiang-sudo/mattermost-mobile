@@ -38,16 +38,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     ownContainer: {
         backgroundColor: changeOpacity('#FFFFFF', 0.14),
     },
+    content: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'baseline',
+    },
     author: {
         color: theme.linkColor,
         fontSize: 12,
         lineHeight: 16,
-        marginBottom: 1,
+        marginRight: 4,
     },
     text: {
         color: changeOpacity(theme.centerChannelColor, 0.85),
         fontSize: 12,
         lineHeight: 16,
+        flex: 1,
     },
 }));
 
@@ -97,20 +103,22 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, post, quoted
             })}
         >
             <View style={[style.container, isOwnPost && style.ownContainer]}>
-                {Boolean(displayAuthor) && (
+                <View style={style.content}>
+                    {Boolean(displayAuthor) && (
+                        <Text
+                            numberOfLines={1}
+                            style={style.author}
+                        >
+                            {displayAuthor}:
+                        </Text>
+                    )}
                     <Text
                         numberOfLines={1}
-                        style={style.author}
+                        style={style.text}
                     >
-                        {displayAuthor}
+                        {snippet}
                     </Text>
-                )}
-                <Text
-                    numberOfLines={1}
-                    style={style.text}
-                >
-                    {snippet}
-                </Text>
+                </View>
             </View>
         </Pressable>
     );

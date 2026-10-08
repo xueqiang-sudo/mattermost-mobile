@@ -2,89 +2,93 @@
 // See LICENSE.txt for license information.
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useMemo} from 'react';
-import {DeviceEventEmitter, Text, TouchableOpacity, View} from 'react-native';
+import {DeviceEventEmitter, Image, Text, TouchableOpacity, View} from 'react-native';
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {showPermalink} from '@actions/remote/permalink';
 import CompassIcon from '@components/compass_icon';
-import FormattedText from '@components/formatted_text';
 import {Events} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {observePost, observePostAuthor} from '@queries/servers/post';
+import {observeFilesForPost} from '@queries/servers/file';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
+import {isImage} from '@utils/file';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type PostModel from '@typings/database/models/servers/post';
 import type UserModel from '@typings/database/models/servers/user';
+import type FileModel from '@typings/database/models/servers/file';
 
 type Props = {
     quotedPostId: string;
     channelId: string;
     post?: PostModel;
     author?: UserModel;
+    files?: FileModel[];
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginHorizontal: 12,
         marginBottom: 8,
         borderRadius: 8,
-        paddingVertical: 8,
+        paddingVertical: 6,
         paddingHorizontal: 10,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
         borderWidth: 1,
         borderColor: changeOpacity(theme.centerChannelColor, 0.14),
+        alignSelf: 'flex-start',
+        maxWidth: '90%',
     },
-    topRow: {
+    content: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 6,
-    },
-    title: {
-        color: theme.centerChannelColor,
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    closeButton: {
-        padding: 4,
-    },
-    quotePressArea: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: 10,
-    },
-    quoteTextContainer: {
-        flex: 1,
         minWidth: 0,
     },
     quoteAuthor: {
         color: theme.linkColor,
         fontSize: 13,
-        marginBottom: 2,
-        lineHeight: 16,
+        fontWeight: '600',
+        marginRight: 4,
     },
     quoteMessage: {
         color: theme.centerChannelColor,
         fontSize: 13,
-        lineHeight: 16,
+        flex: 1,
+    },
+    thumbnail: {
+        width: 32,
+        height: 32,
+        borderRadius: 4,
+        marginRight: 6,
+    },
+    fileIcon: {
+        marginRight: 6,
+    },
+    closeButton: {
+        padding: 4,
+        marginLeft: 8,
     },
 }));
 
 const enhance = withObservables(['quotedPostId'], ({database, quotedPostId}: WithDatabaseArgs & {quotedPostId: string}) => {
     const post$ = quotedPostId ? observePost(database, quotedPostId) : of$(undefined);
     const author$ = post$.pipe(switchMap((post) => (post ? observePostAuthor(database, post) : of$(undefined))));
+    const files$ = post$.pipe(switchMap((post) => (post ? observeFilesForPost(database, post.id) : of$([]))));
 
     return {
         post: post$,
         author: author$,
+        files: files$,
     };
 });
 
-const ReplyQuotePreview = ({post, author}: Props) => {
+const ReplyQuotePreview = ({post, author, files = []}: Props) => {
     const serverUrl = useServerUrl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -114,50 +118,92 @@ const ReplyQuotePreview = ({post, author}: Props) => {
         return rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`;
     }, [author?.username]);
 
-    // PostDraft 的 rootId 指向“引用的根帖”；展示时只做轻量摘要（避免重复复杂渲染）
-    const messageSource = post.messageSource || post.message;
-    const snippet = (messageSource || '').
-        trim().
-        split('\n')[0].
-        slice(0, 56);
+    // Determine content type and display
+    const {contentElement, displayText} = useMemo(() => {
+        const messageSource = post.messageSource || post.message;
+        const hasFiles = files.length > 0;
+        const hasText = Boolean(messageSource?.trim());
+
+        // Case 1: Has files
+        if (hasFiles) {
+            const firstFile = files[0];
+            const fileIsImage = firstFile && isImage(firstFile);
+
+            if (fileIsImage && firstFile.localPath) {
+                // Image: show thumbnail
+                return {
+                    contentElement: (
+                        <Image
+                            source={{uri: firstFile.localPath}}
+                            style={styles.thumbnail}
+                        />
+                    ),
+                    displayText: '',
+                };
+            } else {
+                // File: show filename
+                const fileName = firstFile?.name || 'File';
+                return {
+                    contentElement: (
+                        <CompassIcon
+                            name='file-outline'
+                            size={18}
+                            color={theme.centerChannelColor}
+                            style={styles.fileIcon}
+                        />
+                    ),
+                    displayText: fileName,
+                };
+            }
+        }
+
+        // Case 2: Text only
+        if (hasText) {
+            const snippet = messageSource!.trim().split('\n')[0].slice(0, 56);
+            return {
+                contentElement: null,
+                displayText: snippet,
+            };
+        }
+
+        // Case 3: Empty post
+        return {
+            contentElement: null,
+            displayText: '',
+        };
+    }, [post, files, styles, theme]);
 
     return (
         <View style={styles.container}>
-            <View style={styles.topRow}>
-                <FormattedText
-                    id='mobile.post_draft.quote_title'
-                    defaultMessage='Quote'
-                    style={styles.title}
-                />
-                <TouchableOpacity
-                    onPress={onClose}
-                    style={styles.closeButton}
-                    testID='post_draft.quote.close.button'
-                >
-                    <CompassIcon
-                        name='close'
-                        size={18}
-                        color={theme.centerChannelColor}
-                    />
-                </TouchableOpacity>
-            </View>
-
             <TouchableOpacity
                 onPress={onJump}
                 activeOpacity={0.8}
+                style={styles.content}
                 testID='post_draft.quote.jump_area'
             >
-                <View style={styles.quotePressArea}>
-                    <View style={styles.quoteTextContainer}>
-                        {Boolean(formattedAuthor) && <Text style={styles.quoteAuthor}>{formattedAuthor}</Text>}
-                        <Text
-                            style={styles.quoteMessage}
-                            numberOfLines={1}
-                        >
-                            {snippet}
-                        </Text>
-                    </View>
-                </View>
+                {contentElement}
+                {Boolean(formattedAuthor) && (
+                    <Text style={styles.quoteAuthor}>{formattedAuthor}:</Text>
+                )}
+                {Boolean(displayText) && (
+                    <Text
+                        style={styles.quoteMessage}
+                        numberOfLines={1}
+                    >
+                        {displayText}
+                    </Text>
+                )}
+            </TouchableOpacity>
+            <TouchableOpacity
+                onPress={onClose}
+                style={styles.closeButton}
+                testID='post_draft.quote.close.button'
+            >
+                <CompassIcon
+                    name='close'
+                    size={18}
+                    color={theme.centerChannelColor}
+                />
             </TouchableOpacity>
         </View>
     );
