@@ -148,7 +148,14 @@ export function measureViewInWindow(ref: RefObject<View>): Promise<{x: number; y
     });
 }
 
+let isOpeningGallery = false;
+
 export async function openGalleryAtIndex(galleryIdentifier: string, initialIndex: number, items: GalleryItemType[], hideActions = false) {
+    if (isOpeningGallery) {
+        Alert.alert('GUARD', `already opening gallery, skipping`, [{text: '确定'}]);
+        return;
+    }
+    isOpeningGallery = true;
     try {
         Alert.alert('Step 3', `openGalleryAtIndex idx=${initialIndex} items=${items?.length}`, [{text: '确定'}]);
         debugLog('GALLERY', `openGalleryAtIndex: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
@@ -162,7 +169,9 @@ export async function openGalleryAtIndex(galleryIdentifier: string, initialIndex
             debugLog('GALLERY_ERR', `idx out of bounds! idx=${initialIndex} len=${items.length}`);
             return;
         }
+        Alert.alert('Step 3.1', `validation passed, calling Keyboard.dismiss`, [{text: '确定'}]);
         Keyboard.dismiss();
+        Alert.alert('Step 3.2', `building props/options`, [{text: '确定'}]);
         const props = {
             galleryIdentifier,
             hideActions,
@@ -195,11 +204,13 @@ export async function openGalleryAtIndex(galleryIdentifier: string, initialIndex
             },
         };
 
+        Alert.alert('Step 3.3', `Platform.OS=${Platform.OS}`, [{text: '确定'}]);
         if (Platform.OS === 'ios') {
             // on iOS we need both the navigation & the module
             Navigation.setDefaultOptions({layout});
             RNUtils.unlockOrientation();
         }
+        Alert.alert('Step 3.4', `about to show Step 4`, [{text: '确定'}]);
         await new Promise(resolve => Alert.alert('Step 4', `调用 showOverlay`, [{text: '确定', onPress: resolve}]));
         debugLog('GALLERY', 'calling showOverlay');
         showOverlay(Screens.GALLERY, props, options);
@@ -215,7 +226,11 @@ export async function openGalleryAtIndex(galleryIdentifier: string, initialIndex
 
         await new Promise(resolve => Alert.alert('Step 5.4', `openGalleryAtIndex 函数即将结束`, [{text: '确定', onPress: resolve}]));
     } catch (error: any) {
-        debugLog('GALLERY_ERR', `openGalleryAtIndex crash: ${error?.message || error}`);
+        const msg = error?.message || String(error);
+        Alert.alert('CATCH', `openGalleryAtIndex crash: ${msg}`, [{text: '确定'}]);
+        debugLog('GALLERY_ERR', `openGalleryAtIndex crash: ${msg}`);
+    } finally {
+        isOpeningGallery = false;
     }
 }
 
