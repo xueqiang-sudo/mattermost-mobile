@@ -150,15 +150,15 @@ export function measureViewInWindow(ref: RefObject<View>): Promise<{x: number; y
 
 export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: number, items: GalleryItemType[], hideActions = false) {
     try {
-        Alert.alert('Step 3', `openGalleryAtIndex idx=${initialIndex} items=${items?.length}`);
+        Alert.alert('Step 3', `openGalleryAtIndex idx=${initialIndex} items=${items?.length}`, [{text: '确定'}]);
         debugLog('GALLERY', `openGalleryAtIndex: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
         if (!items || items.length === 0) {
-            Alert.alert('ERROR', `items is empty!`);
+            Alert.alert('ERROR', `items is empty!`, [{text: '确定'}]);
             debugLog('GALLERY_ERR', `items is empty! items=${items} idx=${initialIndex}`);
             return;
         }
         if (initialIndex < 0 || initialIndex >= items.length) {
-            Alert.alert('ERROR', `idx out of bounds! idx=${initialIndex} len=${items.length}`);
+            Alert.alert('ERROR', `idx out of bounds! idx=${initialIndex} len=${items.length}`, [{text: '确定'}]);
             debugLog('GALLERY_ERR', `idx out of bounds! idx=${initialIndex} len=${items.length}`);
             return;
         }
@@ -200,18 +200,20 @@ export function openGalleryAtIndex(galleryIdentifier: string, initialIndex: numb
             Navigation.setDefaultOptions({layout});
             RNUtils.unlockOrientation();
         }
-        Alert.alert('Step 4', `调用 showOverlay`);
+        await new Promise(resolve => Alert.alert('Step 4', `调用 showOverlay`, [{text: '确定', onPress: resolve}]));
         debugLog('GALLERY', 'calling showOverlay');
         showOverlay(Screens.GALLERY, props, options);
-        Alert.alert('Step 5', `showOverlay 完成`);
+        await new Promise(resolve => Alert.alert('Step 5', `showOverlay 完成`, [{text: '确定', onPress: resolve}]));
         debugLog('GALLERY', 'showOverlay OK');
 
-        Alert.alert('Step 5.1', `设置 setTimeout`);
+        await new Promise(resolve => Alert.alert('Step 5.1', `设置 setTimeout`, [{text: '确定', onPress: resolve}]));
         setTimeout(() => {
-            Alert.alert('Step 5.2', `调用 freezeOtherScreens`);
+            Alert.alert('Step 5.2', `调用 freezeOtherScreens`, [{text: '确定'}]);
             freezeOtherScreens(true);
-            Alert.alert('Step 5.3', `freezeOtherScreens 完成`);
+            Alert.alert('Step 5.3', `freezeOtherScreens 完成`, [{text: '确定'}]);
         }, 500);
+
+        await new Promise(resolve => Alert.alert('Step 5.4', `openGalleryAtIndex 函数即将结束`, [{text: '确定', onPress: resolve}]));
     } catch (error: any) {
         debugLog('GALLERY_ERR', `openGalleryAtIndex crash: ${error?.message || error}`);
     }

@@ -149,15 +149,26 @@ export function useGallery(galleryIdentifier: string) {
     return gallery;
 }
 
+let galleryInitRenderCount = 0;
+
 export function GalleryInit({children, galleryIdentifier}: GalleryInitProps) {
-    Alert.alert('Step 5.5', `GalleryInit render id=${galleryIdentifier}`);
+    galleryInitRenderCount++;
+    Alert.alert('Step 5.5', `GalleryInit render #${galleryInitRenderCount} id=${galleryIdentifier}`, [{text: '确定'}]);
+
+    // 如果渲染次数过多，说明有无限循环
+    if (galleryInitRenderCount > 10) {
+        Alert.alert('ERROR', `GalleryInit 渲染次数过多: ${galleryInitRenderCount}`, [{text: '确定'}]);
+    }
+
     const gallery = useGallery(galleryIdentifier);
-    debugLog('GALLERY', `GalleryInit: id=${galleryIdentifier}`);
+    debugLog('GALLERY', `GalleryInit: id=${galleryIdentifier} renderCount=${galleryInitRenderCount}`);
 
     useLayoutEffect(() => {
+        Alert.alert('Step 5.6', `GalleryInit useLayoutEffect`, [{text: '确定'}]);
         gallery.initialize();
 
         return () => {
+            Alert.alert('Step 5.6-cleanup', `GalleryInit useLayoutEffect cleanup`, [{text: '确定'}]);
             gallery.reset();
         };
     }, []);
