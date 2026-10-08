@@ -32,6 +32,15 @@ type Props = {
 }
 
 const GalleryScreen = ({componentId, galleryIdentifier, hideActions, initialIndex, items}: Props) => {
+    Alert.alert('Step 6.0', `GalleryScreen 函数开始`);
+
+    // 验证 props
+    if (!items) {
+        Alert.alert('ERROR', `items is undefined!`);
+        return null;
+    }
+
+    Alert.alert('Step 6.1', `props OK: idx=${initialIndex} items=${items.length}`);
     Alert.alert('Step 6', `GalleryScreen render idx=${initialIndex}`);
     debugLog('GALLERY', `Screen render: id=${galleryIdentifier} idx=${initialIndex} items=${items?.length}`);
     const dim = useWindowDimensions();
