@@ -7,7 +7,7 @@ import {DeviceEventEmitter} from 'react-native';
 
 import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
-import {createPost} from '@actions/remote/post';
+import {createPost, updatePostFileIds, markPostUploadFailed} from '@actions/remote/post';
 import {Events, Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
@@ -23,6 +23,7 @@ import {
     type DraftVideoProcessingBridge,
 } from '@utils/file/draft_video_local_processing';
 import {fileMaxWarning, fileSizeWarning, getExtensionFromMime, uploadDisabledWarning} from '@utils/file';
+import {generateId} from '@utils/general';
 import {logError} from '@utils/log';
 import {showSnackBar} from '@utils/snack_bar';
 
@@ -114,7 +115,7 @@ export default function DraftHandler(props: Props) {
 
         debugLog('ADD_FILES', `starting auto-send for ${newFiles.length} files`);
 
-        // Auto-send: upload files in parallel and create separate posts (WeChat-style batch)
+        // Optimistic UI: create posts immediately, upload files in background
         void (async () => {
             try {
                 // Filter out video processing files
@@ -127,90 +128,111 @@ export default function DraftHandler(props: Props) {
 
                 // Generate batch ID for grouping these posts
                 const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                debugLog('ADD_FILES', `uploading ${filesToUpload.length} files in parallel with batchId: ${batchId}`);
+                debugLog('ADD_FILES', `creating ${filesToUpload.length} posts immediately with batchId: ${batchId}`);
 
-                // Upload all files in parallel
-                const uploadPromises = filesToUpload.map(file => {
-                    debugLog('ADD_FILES', `uploading file: ${file.name} ${file.size}`);
+                // Create posts immediately with local file references (optimistic UI)
+                const pendingPosts: Array<{postId: string; file: FileInfo}> = [];
 
-                    return new Promise<FileInfo>((resolve, reject) => {
-                        const {error} = uploadFile(
-                            serverUrl,
-                            file,
-                            channelId,
-                            () => {/* progress */},
-                            (response) => {
-                                debugLog('ADD_FILES', `upload response for ${file.name}: ${response.code} files:${response.data?.file_infos?.length}`);
-                                if (response.code !== 201 || !response.data?.file_infos?.length) {
-                                    reject(new Error((response.data?.message as string) || 'Failed to upload file'));
-                                    return;
-                                }
-                                const fi = response.data.file_infos[0] as FileInfo;
-                                fi.clientId = file.clientId;
-                                fi.localPath = file.localPath;
-                                resolve(fi);
-                            },
-                            (err) => reject(new Error(err?.message || 'Upload failed')),
-                        );
-                        if (error) {
-                            debugLog('ADD_FILES', `uploadFile returned error for ${file.name}: ${error}`);
-                            reject(error);
-                        }
-                    });
-                });
+                for (const file of filesToUpload) {
+                    // Generate pending ID for the file (not uploaded yet)
+                    const pendingFileId = `pending_${generateId()}`;
+                    const localFile: FileInfo = {
+                        ...file,
+                        id: pendingFileId,
+                        post_id: '', // Will be set by createPost
+                    };
 
-                // Wait for all uploads to complete
-                const uploadedFiles = await Promise.all(uploadPromises);
+                    const post = {
+                        user_id: currentUserId,
+                        channel_id: channelId,
+                        root_id: rootId,
+                        message: '',
+                        props: {
+                            batch_id: batchId,
+                            batch_size: filesToUpload.length,
+                            upload_status: 'uploading', // Mark as uploading
+                        },
+                    } as Post;
 
-                debugLog('ADD_FILES', `uploaded ${uploadedFiles.length} files in parallel, creating batch posts`);
-
-                // Create separate post for each file (WeChat-style: one post per image)
-                if (uploadedFiles.length > 0) {
-                    const createdPostIds: string[] = [];
-
-                    for (const file of uploadedFiles) {
-                        const post = {
-                            user_id: currentUserId,
-                            channel_id: channelId,
-                            root_id: rootId,
-                            message: '',
-                            props: {
-                                batch_id: batchId,  // Mark as part of batch
-                                batch_size: uploadedFiles.length,
-                            },
-                        } as Post;
-
-                        debugLog('ADD_FILES', `creating post for file: ${file.name}`);
-                        const result = await createPost(serverUrl, post, [file]);
-                        if (result.error) {
-                            debugLog('ADD_FILES', `createPost failed for ${file.name}: ${result.error}`);
-                            throw result.error;
-                        }
-
-                        // Track created post IDs for batch operations
-                        if (result.data) {
-                            createdPostIds.push(result.data as string);
-                        }
+                    debugLog('ADD_FILES', `creating post immediately for file: ${file.name} (pending)`);
+                    const result = await createPost(serverUrl, post, [localFile]);
+                    if (result.error) {
+                        debugLog('ADD_FILES', `createPost failed for ${file.name}: ${result.error}`);
+                        throw result.error;
                     }
 
-                    debugLog('ADD_FILES', `batch posts created successfully: ${createdPostIds.length} posts`);
-
-                    // Store batch info for undo functionality
-                    if (createdPostIds.length > 0) {
-                        DeviceEventEmitter.emit(Events.POST_BATCH_CREATED, {
-                            batchId,
-                            postIds: createdPostIds,
-                            channelId,
+                    if (result.data) {
+                        pendingPosts.push({
+                            postId: result.data as string,
+                            file: localFile,
                         });
                     }
-
-                    DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
-                } else {
-                    debugLog('ADD_FILES', 'no files uploaded, skipping post creation');
                 }
+
+                debugLog('ADD_FILES', `created ${pendingPosts.length} pending posts, starting background uploads`);
+
+                // Emit scroll to bottom immediately so user sees their posts
+                DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
+
+                // Store batch info for undo functionality
+                if (pendingPosts.length > 0) {
+                    DeviceEventEmitter.emit(Events.POST_BATCH_CREATED, {
+                        batchId,
+                        postIds: pendingPosts.map(p => p.postId),
+                        channelId,
+                    });
+                }
+
+                // Upload files in background and update posts
+                for (const {postId, file} of pendingPosts) {
+                    debugLog('ADD_FILES', `uploading file in background: ${file.name}`);
+
+                    try {
+                        const uploadedFile = await new Promise<FileInfo>((resolve, reject) => {
+                            const {error} = uploadFile(
+                                serverUrl,
+                                file,
+                                channelId,
+                                () => {/* progress */},
+                                (response) => {
+                                    debugLog('ADD_FILES', `upload response for ${file.name}: ${response.code}`);
+                                    if (response.code !== 201 || !response.data?.file_infos?.length) {
+                                        const errorMsg = (response.data?.message as string) || intl.formatMessage({id: 'mobile.post.upload_failed', defaultMessage: 'Failed to upload file'});
+                                        reject(new Error(errorMsg));
+                                        return;
+                                    }
+                                    const fi = response.data.file_infos[0] as FileInfo;
+                                    fi.clientId = file.clientId;
+                                    fi.localPath = file.localPath;
+                                    resolve(fi);
+                                },
+                                (err) => {
+                                    const errorMsg = err?.message || intl.formatMessage({id: 'mobile.post.upload_failed', defaultMessage: 'Failed to upload file'});
+                                    reject(new Error(errorMsg));
+                                },
+                            );
+                            if (error) {
+                                reject(error);
+                            }
+                        });
+
+                        // Update post with real file ID
+                        debugLog('ADD_FILES', `upload complete for ${file.name}, updating post ${postId}`);
+                        await updatePostFileIds(serverUrl, postId, [uploadedFile]);
+
+                    } catch (uploadErr) {
+                        debugLog('ADD_FILES', `upload failed for ${file.name}: ${uploadErr}`);
+                        logError('[addFiles background upload]', uploadErr);
+                        // Mark post as failed (don't throw, continue with other files)
+                        await markPostUploadFailed(serverUrl, postId, file.name);
+                    }
+                }
+
+                debugLog('ADD_FILES', `all background uploads completed`);
+
             } catch (err) {
                 debugLog('ADD_FILES', `error: ${err}`);
-                logError('[addFiles auto-send]', err);
+                logError('[addFiles optimistic]', err);
                 showSnackBar({
                     barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
                     customMessage: getErrorMessage(err),
@@ -328,7 +350,8 @@ export default function DraftHandler(props: Props) {
                     () => {/* progress */},
                     (response) => {
                         if (response.code !== 201 || !response.data?.file_infos?.length) {
-                            reject(new Error((response.data?.message as string) || 'Failed to upload image'));
+                            const errorMsg = (response.data?.message as string) || intl.formatMessage({id: 'mobile.post.upload_failed', defaultMessage: 'Failed to upload file'});
+                            reject(new Error(errorMsg));
                             return;
                         }
                         const fi = response.data.file_infos[0] as FileInfo;
@@ -336,7 +359,10 @@ export default function DraftHandler(props: Props) {
                         fi.localPath = file.localPath;
                         resolve(fi);
                     },
-                    (err) => reject(new Error(err?.message || 'Upload failed')),
+                    (err) => {
+                        const errorMsg = err?.message || intl.formatMessage({id: 'mobile.post.upload_failed', defaultMessage: 'Failed to upload file'});
+                        reject(new Error(errorMsg));
+                    },
                 );
                 if (error) {
                     reject(error);

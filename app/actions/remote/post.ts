@@ -215,6 +215,113 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     return {data: true};
 }
 
+/**
+ * Update a post's file_ids after background upload completes.
+ * This is used for optimistic UI: create post immediately, upload files in background.
+ */
+export async function updatePostFileIds(serverUrl: string, postId: string, files: FileInfo[]): Promise<{data?: boolean; error?: unknown}> {
+    const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
+    if (!operator) {
+        return {error: `${serverUrl} database not found`};
+    }
+    const {database} = operator;
+
+    let client: Client;
+    try {
+        client = NetworkManager.getClient(serverUrl);
+    } catch (error) {
+        return {error};
+    }
+
+    try {
+        // Get the current post
+        const existingPost = await getPostById(database, postId);
+        if (!existingPost) {
+            return {error: 'Post not found'};
+        }
+
+        // Update file_ids
+        const fileIds = files.map(f => f.id);
+        const updatedPost = {
+            id: postId,
+            file_ids: fileIds,
+            update_at: Date.now(),
+            props: {
+                ...existingPost.props,
+                upload_status: 'completed',
+            },
+        };
+
+        // Update local database
+        const models = await operator.handlePosts({
+            actionType: ActionType.POSTS.RECEIVED_NEW,
+            order: [postId],
+            posts: [updatedPost as Post],
+            prepareRecordsOnly: true,
+        });
+
+        // Also update file records with the real post_id
+        for (const file of files) {
+            file.post_id = postId;
+        }
+        const fileModels = await operator.handleFiles({files, prepareRecordsOnly: true});
+        models.push(...fileModels);
+
+        await operator.batchRecords(models, 'updatePostFileIds');
+
+        // Update on server using patchPost
+        await client.patchPost(postId, {
+            file_ids: fileIds,
+            props: updatedPost.props,
+        });
+
+        return {data: true};
+    } catch (error) {
+        logError('[updatePostFileIds]', error);
+        return {error};
+    }
+}
+
+/**
+ * Mark a post's upload as failed.
+ */
+export async function markPostUploadFailed(serverUrl: string, postId: string, fileName: string): Promise<void> {
+    const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
+    if (!operator) {
+        return;
+    }
+    const {database} = operator;
+
+    try {
+        const existingPost = await getPostById(database, postId);
+        if (!existingPost) {
+            return;
+        }
+
+        const updatedPost = {
+            id: postId,
+            props: {
+                ...existingPost.props,
+                failed: true,
+                upload_status: 'failed',
+                failed_file: fileName,
+            },
+            update_at: Date.now(),
+        };
+
+        const models = await operator.handlePosts({
+            actionType: ActionType.POSTS.RECEIVED_NEW,
+            order: [postId],
+            posts: [updatedPost as Post],
+            prepareRecordsOnly: true,
+        });
+
+        await operator.batchRecords(models, 'markPostUploadFailed');
+    } catch (error) {
+        logError('[markPostUploadFailed]', error);
+    }
+}
+
 export const retryFailedPost = async (serverUrl: string, post: PostModel) => {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
