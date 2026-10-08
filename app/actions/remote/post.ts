@@ -190,6 +190,16 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         return {data: true};
     }
 
+    // If we have pending files, set the post's file_ids to include them
+    // Server returns empty file_ids since it doesn't know about pending files
+    if (files.length > 0) {
+        const pendingFileIds = files.map((file) => file.id);
+        created = {
+            ...created,
+            file_ids: pendingFileIds,
+        };
+    }
+
     const models = await operator.handlePosts({
         actionType: ActionType.POSTS.RECEIVED_NEW,
         order: [created.id],
