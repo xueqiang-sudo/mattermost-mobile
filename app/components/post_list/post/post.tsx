@@ -413,7 +413,8 @@ const Post = ({
                 key: 'forward',
                 label: intl.formatMessage({id: 'post_info.forward', defaultMessage: 'Forward'}),
                 iconName: 'share-variant',
-                onPress: closeAndRun(() => {
+                onPress: closeAndRun(async () => {
+                    const fileIds = await post.files.fetchIds();
                     showModal(
                         Screens.FORWARD_MESSAGE,
                         intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'}),
@@ -422,7 +423,7 @@ const Post = ({
                             postId: post.id,
                             channelId: post.channelId,
                             message: textMessage,
-                            fileIds: post.fileIds,
+                            fileIds,
                         },
                         {
                             topBar: {

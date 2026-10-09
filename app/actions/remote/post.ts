@@ -266,9 +266,9 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             return {error: 'Post not found'};
         }
 
-        // Get old file IDs (pending ones)
-        const oldFileIds = existingPost.fileIds || [];
-        debugLog('UPDATE_POST_FILE_IDS', `Updating post ${postId}, oldFileIds: ${JSON.stringify(oldFileIds)}, newFileIds: ${JSON.stringify(files.map(f => f.id))}`);
+        // Query existing file records for this post (post_id was already updated by createPost)
+        const oldFiles = await queryFilesForPost(database, postId).fetch();
+        debugLog('UPDATE_POST_FILE_IDS', `Updating post ${postId}, existing files: ${oldFiles.length}, newFileIds: ${JSON.stringify(files.map(f => f.id))}`);
 
         // Update file_ids
         const fileIds = files.map(f => f.id);
@@ -291,14 +291,8 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         });
 
         // Delete old pending file records to avoid duplicates
-        if (oldFileIds.length > 0) {
-            const oldFiles = await database.get('File').query(
-                Q.where('id', Q.oneOf(oldFileIds)),
-            ).fetch();
-            debugLog('UPDATE_POST_FILE_IDS', `Deleting ${oldFiles.length} old pending file records`);
-            for (const oldFile of oldFiles) {
-                models.push(oldFile.prepareDestroyPermanently());
-            }
+        for (const oldFile of oldFiles) {
+            models.push(oldFile.prepareDestroyPermanently());
         }
 
         // Create new file records with real IDs
@@ -309,7 +303,7 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         models.push(...fileModels);
 
         await operator.batchRecords(models, 'updatePostFileIds');
-        debugLog('UPDATE_POST_FILE_IDS', `Successfully updated post ${postId}: deleted ${oldFileIds.length} old files, created ${fileModels.length} new files`);
+        debugLog('UPDATE_POST_FILE_IDS', `Successfully updated post ${postId}: deleted ${oldFiles.length} old files, created ${fileModels.length} new files`);
 
         // Update on server using patchPost
         await client.patchPost(postId, {
