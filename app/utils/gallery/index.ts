@@ -9,7 +9,6 @@ import {Navigation, type Options, type OptionsLayout} from 'react-native-navigat
 
 import {Events, Screens} from '@constants';
 import {allOrientations, showOverlay} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import {isAudio, isVideo} from '@utils/file';
 import {urlSafeBase64Encode} from '@utils/security';
 
@@ -46,7 +45,6 @@ export function showMediaViewer(file: FileInfo) {
 
     const uri = file.localPath || file.uri || '';
     if (!uri) {
-        debugLog('MEDIA', `showMediaViewer: no uri for file ${file.id}`);
         return;
     }
 
@@ -70,7 +68,6 @@ export function showMediaViewer(file: FileInfo) {
 
         showOverlay(Screens.MEDIA_VIEWER, {uri, type, name: file.name}, options);
     } catch (error: any) {
-        debugLog('MEDIA', `showMediaViewer: ${error?.message || error}`);
     } finally {
         isShowing = false;
     }

@@ -21,7 +21,6 @@ import {useTeamsLoading} from '@hooks/teams_loading';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {resetToTeams, resetToDebug, openToS} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import NavigationStore from '@store/navigation_store';
 import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
@@ -139,16 +138,12 @@ const ChannelListScreen = (props: ChannelProps) => {
     }, [isFocused, params]);
 
     useEffect(() => {
-        debugLog('CHANNEL_LIST', `useEffect: hasTeams=${props.hasTeams}, teamsLoading=${teamsLoading}`);
         if (props.hasTeams || teamsLoading) {
             return undefined;
         }
 
-        debugLog('CHANNEL_LIST', `starting ${RESET_TO_TEAMS_DELAY_MS}ms timer (hasTeams=false, teamsLoading=false)`);
         const timer = setTimeout(() => {
-            debugLog('CHANNEL_LIST', `TIMER FIRED: hasTeamsRef=${hasTeamsRef.current}, teamsLoadingRef=${teamsLoadingRef.current}`);
             if (!hasTeamsRef.current && !teamsLoadingRef.current) {
-                debugLog('ERROR', 'No teams after timer — navigating to debug screen');
                 resetToDebug();
             }
         }, RESET_TO_TEAMS_DELAY_MS);

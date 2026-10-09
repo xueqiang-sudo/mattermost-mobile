@@ -313,7 +313,6 @@ export const isDocument = (file?: FileInfo | FileModel) => {
     if (__DEV__) {
         // Only log in debug mode to avoid performance impact
         const {debugLog} = require('@store/debug_log');
-        debugLog('FILE_TYPE', `isDocument: ${file.name} mime:${mime} result:${result}`);
     }
     return result;
 };
@@ -364,7 +363,6 @@ export const isTextFile = (file?: FileInfo | FileModel): boolean => {
     if (__DEV__) {
         // Only log in debug mode to avoid performance impact
         const {debugLog} = require('@store/debug_log');
-        debugLog('FILE_TYPE', `isTextFile: ${file.name} mime:${mime} result:${result}`);
     }
     return result;
 };

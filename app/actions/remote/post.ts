@@ -29,7 +29,6 @@ import {getValidEmojis, matchEmoticons} from '@utils/emoji/helpers';
 import {getFullErrorMessage, isServerError} from '@utils/errors';
 import {hasArrayChanged} from '@utils/helpers';
 import {logDebug, logError} from '@utils/log';
-import {debugLog} from '@store/debug_log';
 import {processPostsFetched} from '@utils/post';
 import {getPostIdsForCombinedUserActivityPost} from '@utils/post_list';
 
@@ -261,14 +260,12 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         // Get the current post
         const existingPost = await getPostById(database, postId);
         if (!existingPost) {
-            debugLog('UPDATE_POST_FILE_IDS', `Post not found: ${postId}`);
             return {error: 'Post not found'};
         }
 
         // Query existing file records for this post
         const oldFiles = await queryFilesForPost(database, postId).fetch();
         const fileIds = files.map(f => f.id);
-        debugLog('UPDATE_POST_FILE_IDS', `Updating post ${postId}, existing files: ${oldFiles.length}, newFileIds: ${JSON.stringify(fileIds)}`);
 
         // Prepare updates
         const models: Model[] = [];
@@ -298,7 +295,6 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         models.push(...fileModels);
 
         await operator.batchRecords(models, 'updatePostFileIds');
-        debugLog('UPDATE_POST_FILE_IDS', `Successfully updated post ${postId}: deleted ${oldFiles.length} old files, created ${fileModels.length} new files`);
 
         // Update on server using patchPost
         await client.patchPost({
@@ -306,12 +302,10 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             file_ids: fileIds,
             props: newProps,
         });
-        debugLog('UPDATE_POST_FILE_IDS', `Server patchPost completed for ${postId}`);
 
         return {data: true};
     } catch (error) {
         logError('[updatePostFileIds]', error);
-        debugLog('UPDATE_POST_FILE_IDS', `Error: ${error}`);
         return {error};
     }
 }

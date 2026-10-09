@@ -2,14 +2,13 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useRef, useState} from 'react';
-import {View, TouchableWithoutFeedback, type GestureResponderEvent} from 'react-native';
+import {View, TouchableWithoutFeedback, StyleSheet, type GestureResponderEvent} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {useGalleryItem} from '@hooks/gallery';
 import {useDownloadFileAndPreview} from '@hooks/files';
-import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -86,6 +85,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             width: 40,
             margin: 4,
         },
+        pressOverlay: {
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            borderRadius: 4,
+        },
     };
 });
 
@@ -114,15 +118,21 @@ const File = ({
     const theme = useTheme();
     const style = getStyleSheet(theme);
     const [showActionDialog, setShowActionDialog] = useState(false);
+    const [isPressed, setIsPressed] = useState(false);
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
+    const handlePressIn = useCallback(() => {
+        setIsPressed(true);
+    }, []);
+
+    const handlePressOut = useCallback(() => {
+        setIsPressed(false);
+    }, []);
+
     const handlePreviewPress = useCallback(() => {
-        debugLog('FILE_CLICK', `handlePreviewPress called, document.current: ${document.current ? 'exists' : 'null'}`);
         if (document.current) {
-            debugLog('FILE_CLICK', 'calling document.current.handlePreviewPress()');
             document.current.handlePreviewPress();
         } else {
-            debugLog('FILE_CLICK', 'document.current is null, calling onPress(index)');
             onPress(index);
         }
     }, [index, onPress]);
@@ -135,7 +145,6 @@ const File = ({
 
     // 智能文件路由：根据文件类型决定是直接打开还是显示对话框
     const handleShowFileActions = useCallback(() => {
-        debugLog('FILE_CLICK', `clicked: ${file.name} mime:${file.mime_type} ext:${file.extension}`);
         console.log('[File] handleShowFileActions called:', {
             name: file.name,
             mime: file.mime_type,
@@ -149,35 +158,30 @@ const File = ({
 
         // PDF 文件：直接打开
         if (isPdf(file)) {
-            debugLog('FILE_CLICK', 'is PDF, opening preview');
             handlePreviewPress();
             return;
         }
 
         // Office 文件已转换为 PDF：直接打开
         if (hasPdfPreview(file)) {
-            debugLog('FILE_CLICK', `has PDF preview (pdf_preview_id:${file.pdf_preview_id}), opening preview`);
             handlePreviewPress();
             return;
         }
 
         // 文本文件（.md, .json, .txt, .csv 等）：直接打开
         if (isTextFile(file)) {
-            debugLog('FILE_CLICK', 'is text file, opening preview');
             handlePreviewPress();
             return;
         }
 
         // Office 文件未转换：显示对话框（带轮询）
         if (isDocument(file) && !isPdf(file)) {
-            debugLog('FILE_CLICK', 'is document (not PDF), showing action dialog');
             console.log('[File] Setting showActionDialog to true');
             setShowActionDialog(true);
             return;
         }
 
         // 不可识别的文件：显示对话框（用其他应用打开）
-        debugLog('FILE_CLICK', 'unrecognized file type, showing action dialog');
         console.log('[File] Unrecognized file type, setting showActionDialog to true');
         setShowActionDialog(true);
     }, [file, handlePreviewPress]);
@@ -250,6 +254,8 @@ const File = ({
             <TouchableWithoutFeedback
                 disabled={isPressDisabled}
                 onPress={onGestureEvent}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
                 onLongPress={onLongPress}
                 delayLongPress={200}
             >
@@ -269,6 +275,7 @@ const File = ({
                         value={nonVisibleImagesCount}
                     />
                     }
+                    {isPressed && <View style={style.pressOverlay} />}
                 </Animated.View>
             </TouchableWithoutFeedback>
         );
@@ -278,6 +285,8 @@ const File = ({
         const renderImageFile = (
             <TouchableWithoutFeedback
                 onPress={onGestureEvent}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
                 onLongPress={onLongPress}
                 delayLongPress={200}
                 disabled={isPressDisabled}
@@ -296,6 +305,7 @@ const File = ({
                         value={nonVisibleImagesCount}
                     />
                     }
+                    {isPressed && <View style={style.pressOverlay} />}
                 </Animated.View>
             </TouchableWithoutFeedback>
         );
@@ -317,7 +327,6 @@ const File = ({
         const documentIcon = (
             <TouchableWithFeedback
                 onPress={() => {
-                    debugLog('FILE_CLICK', `TouchableWithFeedback pressed for document: ${file.name}`);
                     handleShowFileActions();
                 }}
                 onLongPress={onLongPress}
@@ -339,12 +348,14 @@ const File = ({
             <>
                 <TouchableWithFeedback
                     onPress={handleShowFileActions}
+                    onPressIn={handlePressIn}
+                    onPressOut={handlePressOut}
                     onLongPress={onLongPress}
                     delayLongPress={200}
                     disabled={isPressDisabled}
                     type={'opacity'}
                 >
-                    <View style={[style.fileWrapper, style.fileWrapperFixedWidth]}>
+                    <View style={[style.fileWrapper, style.fileWrapperFixedWidth, isPressed && style.pressOverlay]}>
                         {fileInfo}
                         <View style={style.iconWrapperRight}>
                             {documentIcon}

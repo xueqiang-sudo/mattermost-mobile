@@ -11,7 +11,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {ExpoImageAnimated} from '@components/expo_image';
-import {debugLog} from '@store/debug_log';
 import {calculateDimensions} from '@utils/images';
 
 import {pagerTimingConfig} from '../animation_config/timing';
@@ -81,7 +80,6 @@ export default function Lightbox({
 
     useEffect(() => {
         Alert.alert('Step 8', `Lightbox mount`);
-        debugLog('GALLERY', 'Lightbox mount, starting animation');
         runOnUI(animateOnMount)();
 
         return () => {

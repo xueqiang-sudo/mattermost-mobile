@@ -7,7 +7,6 @@ import {Navigation, OptionsModalPresentationStyle, type Options} from 'react-nat
 import CompassIcon from '@components/compass_icon';
 import {Events, Screens, ServerErrors} from '@constants';
 import {goToScreen, showModal} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import {isErrorWithMessage, isServerError} from '@utils/errors';
 
 import type {GalleryItemType} from '@typings/screens/gallery';
@@ -139,7 +138,6 @@ export function previewTextFile(item: FileInfo, path: string, theme: Theme, onDi
 }
 
 export function openUnifiedFileViewer(file: FileInfo, theme: Theme, onDismiss?: () => void) {
-    debugLog('FILE_VIEWER', `openUnifiedFileViewer called: ${file.name}, id:${file.id}`);
 
     const options: Options = {
         topBar: {
@@ -147,10 +145,8 @@ export function openUnifiedFileViewer(file: FileInfo, theme: Theme, onDismiss?: 
         },
     };
 
-    debugLog('FILE_VIEWER', `calling goToScreen with ${Screens.UNIFIED_FILE_VIEWER}`);
     goToScreen(Screens.UNIFIED_FILE_VIEWER, file.name, {
         fileId: file.id,
         fileInfo: file,
     }, options);
-    debugLog('FILE_VIEWER', `goToScreen completed`);
 }

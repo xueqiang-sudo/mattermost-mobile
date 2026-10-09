@@ -32,7 +32,6 @@ import {getCurrentUserId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
 import {getCurrentUser} from '@queries/servers/user';
 import {resetToHome, resetToLogin, resetToTeams, resetToDebug} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
 import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
@@ -308,7 +307,6 @@ export const launchToHome = async (props: LaunchProps) => {
         if (database) {
             nTeams = await queryMyTeams(database).fetchCount();
         }
-        debugLog('LAUNCH', `serverUrl=${props.serverUrl.slice(-30)}, nTeams=${nTeams}`);
     }
 
     if (nTeams) {
@@ -324,7 +322,6 @@ export const launchToHome = async (props: LaunchProps) => {
         return homeResult;
     }
 
-    debugLog('ERROR', `launchApp: nTeams=0 — showing debug screen instead of teams page`);
     logInfo('Launch app in Debug screen (no teams loaded)');
     return resetToDebug();
 };

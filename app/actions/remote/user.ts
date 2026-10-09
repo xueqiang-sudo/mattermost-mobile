@@ -15,7 +15,6 @@ import NetworkManager from '@managers/network_manager';
 import {getMembersCountByChannelsId, queryChannelsById, queryChannelsByTypes} from '@queries/servers/channel';
 import {queryGroupsByNames} from '@queries/servers/group';
 import {getCurrentUserId, setCurrentUserId} from '@queries/servers/system';
-import {debugLog} from '@store/debug_log';
 import {getCurrentUser, prepareUsers, queryAllUsers, queryUsersById, queryUsersByIdsOrUsernames, queryUsersByUsername} from '@queries/servers/user';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
@@ -178,11 +177,9 @@ export async function fetchProfilesInGroupChannels(serverUrl: string, groupChann
         });
 
         if (!channelsToFetch.length) {
-            debugLog('GM_SYNC', `no channels need refresh (${groupChannelIds.length} total, all inactive)`);
             return {data: []};
         }
 
-        debugLog('GM_SYNC', `fetching members for ${channelsToFetch.length}/${groupChannelIds.length} GM channels (incremental since=${since})`);
 
         // Batch fetching profiles per channel by chunks of 50
         const gms = chunk(channelsToFetch, 50);
@@ -229,7 +226,6 @@ export async function fetchProfilesInGroupChannels(serverUrl: string, groupChann
 
             // Log how many users were fetched
             const totalUsers = data.reduce((sum, d) => sum + (d.users?.length || 0), 0);
-            debugLog('GM_SYNC', `fetched ${totalUsers} users from ${data.length} GM channels`);
         }
 
         return {data};

@@ -4,7 +4,6 @@
 import {Gesture} from 'react-native-gesture-handler';
 import {cancelAnimation} from 'react-native-reanimated';
 
-import {debugLog} from '@store/debug_log';
 
 import {usePagerSharedValues} from '../context';
 
@@ -33,10 +32,8 @@ export default function usePagerTapGesture(
         }).
         onEnd((evt) => {
             if (evt.numberOfPointers === 1) {
-                debugLog('GALLERY', 'Tap to close: triggering onClose');
                 toValueAnimation.value = getPageTranslate(index.value);
                 onClose?.();
-                debugLog('GALLERY', 'Tap to close: onClose called');
             }
         });
 }

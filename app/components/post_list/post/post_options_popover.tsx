@@ -13,6 +13,7 @@ type PopoverItem = {
     iconName: string;
     destructive?: boolean;
     onPress: () => void;
+    circleIcon?: boolean;
 };
 
 type Props = {
@@ -86,6 +87,16 @@ const styles = StyleSheet.create({
     iconWrap: {
         width: 32,
         height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 4,
+    },
+    iconCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: popoverColors.icon,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 4,
@@ -218,10 +229,10 @@ export default function PostOptionsPopover({x, y, onClose, items}: Props) {
                                     onPress={item.onPress}
                                     testID={`post.options.popover.item.${item.key}`}
                                 >
-                                    <View style={styles.iconWrap}>
+                                    <View style={item.circleIcon ? styles.iconCircle : styles.iconWrap}>
                                         <CompassIcon
                                             name={item.iconName}
-                                            size={24}
+                                            size={item.circleIcon ? 18 : 24}
                                             style={{color: item.destructive ? popoverColors.destructive : popoverColors.icon}}
                                         />
                                     </View>

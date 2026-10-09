@@ -3,7 +3,6 @@
 
 import {storeConfig} from '@actions/local/systems';
 import {Preferences} from '@constants';
-import {debugLog} from '@store/debug_log';
 import DatabaseManager from '@database/manager';
 import {getPreferenceValue, getTeammateNameDisplaySetting} from '@helpers/api/preference';
 import {selectDefaultTeam} from '@helpers/api/team';
@@ -40,16 +39,13 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
     }
 
     try {
-        debugLog('RETRY', 'retryInitialTeamAndChannel start');
         let initialTeam: Team|TeamModel|undefined;
         let initialChannel: Channel|undefined;
 
         const user = await getCurrentUser(database);
         if (!user) {
-            debugLog('ERROR', 'retry: getCurrentUser returned null');
             return {error: true};
         }
-        debugLog('RETRY', `user=${user.username || user.id}`);
 
         // Fetch in parallel server config & license / user preferences / teams / team membership
         const promises: [Promise<ConfigAndLicenseRequest>, Promise<MyPreferencesRequest>, Promise<MyTeamsRequest>] = [
@@ -59,7 +55,6 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
         ];
 
         const [clData, prefData, teamData] = await Promise.all(promises);
-        debugLog('RETRY', `config=${clData.error ? 'FAIL' : 'OK'}, prefs=${prefData.error ? 'FAIL' : 'OK'}, teams=${teamData.error ? 'FAIL' : `${teamData.teams?.length || 0} teams, ${teamData.memberships?.length || 0} memberships`}`);
         let chData: MyChannelsRequest|undefined;
 
         // select initial team
@@ -100,9 +95,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
             }
         }
 
-        debugLog('RETRY', `initialTeam=${initialTeam?.id || 'NONE'}, initialChannel=${initialChannel?.id || 'NONE'}`);
         if (!initialTeam || !initialChannel) {
-            debugLog('ERROR', `retry: no initialTeam (${!initialTeam}) or initialChannel (${!initialChannel})`);
             return {error: true};
         }
 
@@ -125,14 +118,12 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
                 ),
             ])).flat();
         } catch (prepareError) {
-            debugLog('ERROR', `retry prepareModels: ${prepareError instanceof Error ? prepareError.message : String(prepareError)}`);
             return {error: prepareError};
         }
 
         try {
             await operator.batchRecords(models, 'retryInitialTeamAndChannel');
         } catch (batchErr) {
-            debugLog('ERROR', `retry batchRecords: ${batchErr instanceof Error ? batchErr.message : String(batchErr)}`);
             return {error: batchErr};
         }
 
@@ -152,7 +143,6 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
 
         return {error: false};
     } catch (error) {
-        debugLog('ERROR', `retry exception: ${error instanceof Error ? error.message : String(error)}`);
         return {error};
     }
 }

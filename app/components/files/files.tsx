@@ -10,7 +10,6 @@ import {useIsTablet} from '@hooks/device';
 import {useImageAttachments} from '@hooks/files';
 import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {debugLog} from '@store/debug_log';
 import {isImage, isVideo} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {getViewPortWidth} from '@utils/images';
@@ -164,15 +163,12 @@ const Files = ({
 
     const handlePreviewPress = usePreventDoubleTap(useCallback((idx: number) => {
         try {
-            debugLog('GALLERY', `Files click: idx=${idx} files=${filesForGallery.length} channel=${channelMediaFiles?.length || 0}`);
             const tappedFile = filesForGallery[idx];
             if (!tappedFile) {
-                debugLog('GALLERY_ERR', `tappedFile undefined! idx=${idx} len=${filesForGallery.length}`);
                 return;
             }
             showMediaViewer(tappedFile);
         } catch (error: any) {
-            debugLog('GALLERY_ERR', `Files click crash: ${error?.message || error}`);
         }
     }, [filesForGallery, channelMediaFiles]));
 

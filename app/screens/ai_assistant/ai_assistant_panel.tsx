@@ -18,7 +18,6 @@ import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {debugLog} from '@store/debug_log';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -194,20 +193,15 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
     }, [loadTabData]);
 
     const handleSearch = usePreventDoubleTap(useCallback(async () => {
-        debugLog('AI_SEARCH', `handleSearch called: query="${searchQuery}", searching=${searching}`);
         if (!searchQuery.trim() || searching) {
-            debugLog('AI_SEARCH', 'handleSearch early return: empty query or already searching');
             return;
         }
         setSearching(true);
         setAnswer(null);
         try {
-            debugLog('AI_SEARCH', `Calling askKnowledgeBase: serverUrl=${serverUrl}, teamId=${teamId}, query=${searchQuery.trim()}`);
             const result = await askKnowledgeBase(serverUrl, teamId, searchQuery.trim());
-            debugLog('AI_SEARCH', `askKnowledgeBase returned: ${JSON.stringify(result)}`);
             setAnswer(result.answer || '');
         } catch (error) {
-            debugLog('AI_SEARCH', `askKnowledgeBase error: ${error}`);
             setAnswer(null);
         } finally {
             setSearching(false);

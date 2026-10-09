@@ -9,7 +9,6 @@ import {buildFilePreviewUrl} from '@actions/remote/file';
 import {ExpoImageAnimated} from '@components/expo_image';
 import {useGallery} from '@context/gallery';
 import {useServerUrl} from '@context/server';
-import {debugLog} from '@store/debug_log';
 import {isGif} from '@utils/file';
 import {freezeOtherScreens, galleryItemToFileInfo, measureItem} from '@utils/gallery';
 
@@ -49,7 +48,6 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     onClose,
 }: GalleryProps, ref) => {
     Alert.alert('Step 7', `Gallery render idx=${initialIndex} items=${items?.length}`);
-    debugLog('GALLERY', `Gallery render: id=${galleryIdentifier} idx=${initialIndex} items=${items.length}`);
 
     // 防御性检查
     if (!items || items.length === 0) {
@@ -74,7 +72,6 @@ const Gallery = forwardRef<GalleryRef, GalleryProps>(({
     const serverUrl = useServerUrl();
 
     const close = () => {
-        debugLog('GALLERY', 'close() called, calling closeLightbox');
         lightboxRef.current?.closeLightbox();
     };
 

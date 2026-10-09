@@ -2,7 +2,6 @@
 // See LICENSE.txt for license information.
 
 import {buildQueryString} from '@utils/helpers';
-import {debugLog} from '@store/debug_log';
 
 import {PER_PAGE_DEFAULT} from './constants';
 
@@ -133,7 +132,6 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
 
     createBotGroupChannel = async (userIds: string[], botUserId: string, teamId: string) => {
         const requestBody = {user_ids: userIds, bot_user_id: botUserId, team_id: teamId};
-        debugLog('BOT_CHANNEL', `createBotGroupChannel request body: ${JSON.stringify(requestBody)}`);
         return this.doFetch(
             `${this.getChannelsRoute()}/bot_group`,
             {

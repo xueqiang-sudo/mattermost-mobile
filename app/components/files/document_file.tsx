@@ -8,7 +8,6 @@ import Document, {type DocumentRef} from '@components/document';
 import ProgressBar from '@components/progress_bar';
 import {useTheme} from '@context/theme';
 import {useDownloadFileAndPreview} from '@hooks/files';
-import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isDocument, isPdf} from '@utils/file';
 
 import FileIcon from './file_icon';
@@ -41,7 +40,6 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
     const {downloading, progress, toggleDownloadAndPreview} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     const handlePreviewPress = async () => {
-        debugLog('FILE_CLICK', `DocumentFile.handlePreviewPress called for ${file.name}`);
         document.current?.handlePreviewPress();
     };
 

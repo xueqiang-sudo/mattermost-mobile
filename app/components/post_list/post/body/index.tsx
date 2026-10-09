@@ -548,7 +548,7 @@ const Body = ({
 
     // WeChat 风格：引用预览在气泡外（下方，无背景色）
     const quotedSection = (weChatStyleActive && quotedPostId && !hasBeenDeleted) ? (
-        <View style={{alignSelf: isOwnPost ? 'flex-end' : 'flex-start', marginTop: 2}}>
+        <View style={{alignSelf: isOwnPost ? 'flex-end' : 'flex-start', marginTop: 4, paddingHorizontal: 4, backgroundColor: 'rgba(255,0,0,0.2)'}}>
             <QuotedPostPreview
                 quotedPostId={quotedPostId}
                 channelId={post.channelId}

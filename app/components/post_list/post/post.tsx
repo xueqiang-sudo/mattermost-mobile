@@ -389,6 +389,7 @@ const Post = ({
                 key: 'quote',
                 label: intl.formatMessage({id: 'mobile.post_info.quote', defaultMessage: 'Quote'}),
                 iconName: 'format-quote-open',
+                circleIcon: true,
                 onPress: closeAndRun(async () => {
                     DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
                     DeviceEventEmitter.emit(Events.POST_DRAFT_SET_QUOTED_POST, {channelId: post.channelId, postId: post.id});
@@ -412,7 +413,7 @@ const Post = ({
             items.push({
                 key: 'forward',
                 label: intl.formatMessage({id: 'post_info.forward', defaultMessage: 'Forward'}),
-                iconName: 'share-variant',
+                iconName: 'send',
                 onPress: closeAndRun(async () => {
                     const fileIds = await post.files.fetchIds();
                     showModal(

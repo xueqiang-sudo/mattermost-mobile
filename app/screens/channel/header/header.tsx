@@ -24,7 +24,6 @@ import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement
 import ChannelBanner from '@screens/channel/header/channel_banner';
 import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
-import {debugLog} from '@store/debug_log';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -183,29 +182,22 @@ const ChannelHeader = ({
     }), [channelId, channelName, channelType, intl, theme]));
 
     const openBotChat = useCallback(async (bot: BotInfo) => {
-        debugLog('AI_ASSISTANT', `openBotChat: botId=${bot.botId}, teamId=${bot.teamId}`);
         try {
             const result = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
-            debugLog('AI_ASSISTANT', `openBotChat: result=${JSON.stringify(result)}`);
             if (result.data) {
                 switchToChannelById(serverUrl, result.data.id);
-                debugLog('AI_ASSISTANT', `openBotChat: switched to channel ${result.data.id}`);
             } else {
                 const errMsg = result.error ? String(result.error) : 'unknown error';
-                debugLog('AI_ASSISTANT', `openBotChat: failed - ${errMsg}`);
                 Alert.alert('Error', `Failed to create bot channel: ${errMsg}`);
             }
         } catch (err) {
-            debugLog('AI_ASSISTANT', `openBotChat error: ${err}`);
             Alert.alert('Error', `openBotChat failed: ${err}`);
         }
     }, [serverUrl]);
 
     const openAICustomerService = useCallback(async () => {
-        debugLog('AI_ASSISTANT', `openAICustomerService: channelId=${channelId}, serverUrl=${serverUrl}`);
         try {
             const bots = await getChannelBots(serverUrl, channelId);
-            debugLog('AI_ASSISTANT', `openAICustomerService: got ${bots.length} bots: ${JSON.stringify(bots)}`);
 
             if (bots.length === 0) {
                 Alert.alert(
@@ -248,7 +240,6 @@ const ChannelHeader = ({
                 theme,
             });
         } catch (error) {
-            debugLog('AI_ASSISTANT', `openAICustomerService error: ${error}`);
             Alert.alert(
                 intl.formatMessage({id: 'ai_customer_service.error', defaultMessage: 'Failed to load AI assistants'}),
                 intl.formatMessage({id: 'ai_customer_service.error_detail', defaultMessage: 'Please try again later.'}) + `\n\n${error}`

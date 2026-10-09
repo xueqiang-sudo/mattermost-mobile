@@ -12,7 +12,6 @@ import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import {bottomSheet} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import {fileMaxWarning} from '@utils/file';
 import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
 import PickerUtil from '@utils/file/file_picker';
@@ -23,7 +22,7 @@ import CameraType from './camera_quick_action/camera_type';
 
 const GRID_COLUMNS = 3;
 const ICON_LABEL_GAP = 8;
-const WECHAT_ICON_SIZE = 52;
+const WECHAT_ICON_SIZE = 64;
 
 type SheetItemProps = {
     iconName: string;
@@ -57,7 +56,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginBottom: ICON_LABEL_GAP,
     },
     label: {
-        fontSize: 13,
+        fontSize: 14,
         color: theme.centerChannelColor,
     },
 }));
@@ -136,46 +135,37 @@ export default function QuickActionsSheet({
     }, [onDismiss]);
 
     const handleFilePress = useCallback(() => {
-        debugLog('QUICK_ACTION', 'handleFilePress called');
         if (maxFilesReached) {
-            debugLog('QUICK_ACTION', 'maxFilesReached, showing alert');
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 fileMaxWarning(intl, maxFileCount),
             );
             return;
         }
-        debugLog('QUICK_ACTION', 'creating PickerUtil and calling attachFileFromFiles');
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromFiles(undefined, true);
     }, [intl, addFiles, draftVideoProcessingBridge, maxFilesReached, maxFileCount]);
 
     const handleGalleryPress = useCallback(() => {
-        debugLog('QUICK_ACTION', 'handleGalleryPress called');
         if (maxFilesReached) {
-            debugLog('QUICK_ACTION', 'maxFilesReached, showing alert');
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 fileMaxWarning(intl, maxFileCount),
             );
             return;
         }
-        debugLog('QUICK_ACTION', 'creating PickerUtil and calling attachFileFromPhotoGallery');
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromPhotoGallery(maxFileCount - fileCount);
     }, [intl, addFiles, draftVideoProcessingBridge, fileCount, maxFileCount, maxFilesReached]);
 
     const handleCameraPress = useCallback((options: {type?: string}) => {
-        debugLog('QUICK_ACTION', `handleCameraPress called, options: ${JSON.stringify(options)}`);
         if (maxFilesReached) {
-            debugLog('QUICK_ACTION', 'maxFilesReached, showing alert');
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 fileMaxWarning(intl, maxFileCount),
             );
             return;
         }
-        debugLog('QUICK_ACTION', 'creating PickerUtil and calling attachFileFromCamera');
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
         picker.attachFileFromCamera(options);
     }, [intl, addFiles, draftVideoProcessingBridge, maxFileCount, maxFilesReached]);

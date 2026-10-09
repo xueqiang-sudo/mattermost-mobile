@@ -14,7 +14,6 @@ import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import useFileUploadError from '@hooks/file_upload_error';
 import DraftEditPostUploadManager from '@managers/draft_upload_manager';
-import {debugLog} from '@store/debug_log';
 import {getErrorMessage} from '@utils/errors';
 import {
     clearDraftVideoProcessingAborted,
@@ -98,14 +97,11 @@ export default function DraftHandler(props: Props) {
     };
 
     const addFiles = useCallback((newFiles: FileInfo[]) => {
-        debugLog('ADD_FILES', `called with ${newFiles.length} files`);
         if (!newFiles.length) {
-            debugLog('ADD_FILES', 'no files, returning');
             return;
         }
 
         if (!canUploadFiles) {
-            debugLog('ADD_FILES', 'canUploadFiles is false');
             newUploadError(uploadDisabledWarning(intl));
             return;
         }
@@ -113,19 +109,16 @@ export default function DraftHandler(props: Props) {
         const currentFileCount = files?.length || 0;
         const availableCount = maxFileCount - currentFileCount;
         if (newFiles.length > availableCount) {
-            debugLog('ADD_FILES', `too many files: ${newFiles.length} > ${availableCount}`);
             newUploadError(fileMaxWarning(intl, maxFileCount));
             return;
         }
 
         const largeFile = newFiles.find((file) => file.size > maxFileSize);
         if (largeFile) {
-            debugLog('ADD_FILES', `file too large: ${largeFile.name} ${largeFile.size}`);
             newUploadError(fileSizeWarning(intl, maxFileSize));
             return;
         }
 
-        debugLog('ADD_FILES', `starting auto-send for ${newFiles.length} files`);
 
         // Optimistic UI: create posts immediately, upload files in background
         void (async () => {
@@ -134,13 +127,11 @@ export default function DraftHandler(props: Props) {
                 const filesToUpload = newFiles.filter(file => !isDraftVideoLocalProcessingFile(file));
 
                 if (filesToUpload.length === 0) {
-                    debugLog('ADD_FILES', 'no files to upload');
                     return;
                 }
 
                 // Generate batch ID for grouping these posts (only for multiple files)
                 const batchId = filesToUpload.length > 1 ? `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
-                debugLog('ADD_FILES', `creating ${filesToUpload.length} posts immediately${batchId ? ` with batchId: ${batchId}` : ''}`);
 
                 // Create posts immediately with local file references (optimistic UI)
                 const pendingPosts: Array<{postId: string; file: FileInfo}> = [];
@@ -157,7 +148,6 @@ export default function DraftHandler(props: Props) {
                     const fileName = file.name || '';
                     const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
 
-                    debugLog('ADD_FILES', `preparing file: ${fileName}, extension: ${extension}, size: ${file.size}, mime: ${file.mime_type}, width: ${file.width}, height: ${file.height}`);
 
                     // Determine if this is an image and set has_preview_image accordingly
                     // This prevents layout shifts when the post is updated after upload
@@ -175,7 +165,6 @@ export default function DraftHandler(props: Props) {
                             const dimensions = await getImageDimensions(imageUri);
                             fileWidth = dimensions.width;
                             fileHeight = dimensions.height;
-                            debugLog('ADD_FILES', `got dimensions from image: ${fileWidth}x${fileHeight}`);
                         }
                     }
 
@@ -203,7 +192,6 @@ export default function DraftHandler(props: Props) {
                         update_at: Date.now(),
                     };
 
-                    debugLog('ADD_FILES', `localFile created: id=${localFile.id}, name=${localFile.name}, localPath=${localFile.localPath}, dimensions: ${localFile.width}x${localFile.height}, hasPreview: ${localFile.has_preview_image}`);
 
                     const post = {
                         pending_post_id: pendingPostId, // Provide the pending ID so we know what it is
@@ -220,22 +208,18 @@ export default function DraftHandler(props: Props) {
                         },
                     } as Post;
 
-                    debugLog('ADD_FILES', `creating post immediately for file: ${file.name} with pendingPostId: ${pendingPostId}`);
                     const result = await createPost(serverUrl, post, [localFile]);
                     if (result.error) {
-                        debugLog('ADD_FILES', `createPost failed for ${file.name}: ${result.error}`);
                         throw result.error;
                     }
 
                     if (result.data?.postId) {
                         const realPostId = result.data.postId;
-                        debugLog('ADD_FILES', `post created successfully, realPostId: ${realPostId} (was pending: ${pendingPostId})`);
                         pendingPosts.push({
                             postId: realPostId,
                             file: localFile,
                         });
                     } else {
-                        debugLog('ADD_FILES', `createPost returned no postId for ${file.name}, using pendingPostId: ${pendingPostId}`);
                         pendingPosts.push({
                             postId: pendingPostId,
                             file: localFile,
@@ -243,7 +227,6 @@ export default function DraftHandler(props: Props) {
                     }
                 }
 
-                debugLog('ADD_FILES', `created ${pendingPosts.length} pending posts, starting background uploads`);
 
                 // Emit scroll to bottom immediately so user sees their posts
                 DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
@@ -259,7 +242,6 @@ export default function DraftHandler(props: Props) {
 
                 // Upload files in background and update posts
                 for (const {postId, file} of pendingPosts) {
-                    debugLog('ADD_FILES', `uploading file in background: ${file.name}`);
 
                     try {
                         const uploadedFile = await new Promise<FileInfo>((resolve, reject) => {
@@ -269,7 +251,6 @@ export default function DraftHandler(props: Props) {
                                 channelId,
                                 () => {/* progress */},
                                 (response) => {
-                                    debugLog('ADD_FILES', `upload response for ${file.name}: ${response.code}`);
                                     if (response.code !== 201 || !response.data?.file_infos?.length) {
                                         const errorMsg = (response.data?.message as string) || intl.formatMessage({id: 'mobile.post.upload_failed', defaultMessage: 'Failed to upload file'});
                                         reject(new Error(errorMsg));
@@ -307,22 +288,17 @@ export default function DraftHandler(props: Props) {
                         });
 
                         // Update post with real file ID
-                        debugLog('ADD_FILES', `upload complete for ${file.name}, updating post ${postId}, uploadedFile: id=${uploadedFile.id}, name=${uploadedFile.name}, localPath=${uploadedFile.localPath}`);
                         await updatePostFileIds(serverUrl, postId, [uploadedFile]);
-                        debugLog('ADD_FILES', `post ${postId} updated successfully with file ${uploadedFile.id}`);
 
                     } catch (uploadErr) {
-                        debugLog('ADD_FILES', `upload failed for ${file.name}: ${uploadErr}`);
                         logError('[addFiles background upload]', uploadErr);
                         // Mark post as failed (don't throw, continue with other files)
                         await markPostUploadFailed(serverUrl, postId, file.name);
                     }
                 }
 
-                debugLog('ADD_FILES', `all background uploads completed`);
 
             } catch (err) {
-                debugLog('ADD_FILES', `error: ${err}`);
                 logError('[addFiles optimistic]', err);
                 showSnackBar({
                     barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,

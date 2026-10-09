@@ -43,7 +43,7 @@ import type {PasteInputRef} from '@mattermost/react-native-paste-input';
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
 
 // 微信风格：圆角与边距（输入区/底栏背景随 theme，见 getStyleSheet）
-const CHAT_INPUT_BORDER_RADIUS = 8;
+const CHAT_INPUT_BORDER_RADIUS = 18;
 const CHAT_INPUT_MARGIN_H = 10;
 const CHAT_INPUT_MARGIN_B = 6;
 
@@ -103,6 +103,50 @@ const voiceHudStyles = StyleSheet.create({
         textAlign: 'center',
     },
 });
+
+/** WeChat-style keyboard icon: circle with 2 rows of 4 dots + bottom line */
+const WeChatKeyboardIcon = ({size, color}: {size: number; color: string}) => {
+    const dotSize = size * 0.1;
+    const dotGap = size * 0.08;
+    const rowGap = size * 0.14;
+    const lineWidth = size * 0.4;
+    const lineHeight = size * 0.06;
+    return (
+        <View style={{width: size, height: size, alignItems: 'center', justifyContent: 'center'}}>
+            {[0, 1].map((row) => (
+                <View
+                    key={row}
+                    style={{
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        gap: dotGap,
+                        marginBottom: rowGap,
+                    }}
+                >
+                    {[0, 1, 2, 3].map((col) => (
+                        <View
+                            key={col}
+                            style={{
+                                width: dotSize,
+                                height: dotSize,
+                                borderRadius: dotSize / 2,
+                                backgroundColor: color,
+                            }}
+                        />
+                    ))}
+                </View>
+            ))}
+            <View
+                style={{
+                    width: lineWidth,
+                    height: lineHeight,
+                    borderRadius: lineHeight / 2,
+                    backgroundColor: color,
+                }}
+            />
+        </View>
+    );
+};
 
 type VoiceRecordingHudProps = {
     inCancelZone: boolean;
@@ -1107,15 +1151,14 @@ function DraftInput({
                     >
                         <View style={{justifyContent: 'center', alignItems: 'center'}}>
                             {voiceMode ? (
-                                <CompassIcon
-                                    name='keyboard-outline'
-                                    size={38}
+                                <WeChatKeyboardIcon
+                                    size={28}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             ) : (
                                 <CompassIcon
                                     name='microphone'
-                                    size={38}
+                                    size={28}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             )}
@@ -1165,20 +1208,28 @@ function DraftInput({
                     type='opacity'
                 >
                     <View style={[style.weChatSideIconHit, {
-                        width: 38,
-                        height: 38,
-                        borderRadius: 19,
+                        width: 34,
+                        height: 34,
+                        borderRadius: 17,
                         borderWidth: 1.5,
                         borderColor: weChatFooterIconColor,
                         justifyContent: 'center',
                         alignItems: 'center',
                         padding: 0,
+                        marginRight: 8,
                     }]}>
-                        <CompassIcon
-                            color={weChatFooterIconColor}
-                            name={emojiPanelOpen ? 'keyboard-outline' : 'emoticon-happy-outline'}
-                            size={20}
-                        />
+                        {emojiPanelOpen ? (
+                            <WeChatKeyboardIcon
+                                size={22}
+                                color={weChatFooterIconColor}
+                            />
+                        ) : (
+                            <CompassIcon
+                                color={weChatFooterIconColor}
+                                name='emoticon-happy-outline'
+                                size={18}
+                            />
+                        )}
                     </View>
                 </TouchableWithFeedback>
                 {/* 加号按钮：始终显示，圆形样式 */}
@@ -1191,9 +1242,9 @@ function DraftInput({
                     testID={`${quickActionsTestID}.more.button`}
                 >
                     <View style={[style.weChatSideIconHit, {
-                        width: 38,
-                        height: 38,
-                        borderRadius: 19,
+                        width: 34,
+                        height: 34,
+                        borderRadius: 17,
                         borderWidth: 1.5,
                         borderColor: weChatFooterIconColor,
                         justifyContent: 'center',
@@ -1203,7 +1254,7 @@ function DraftInput({
                         <CompassIcon
                             color={weChatFooterIconColor}
                             name='plus'
-                            size={20}
+                            size={18}
                         />
                     </View>
                 </TouchableWithFeedback>

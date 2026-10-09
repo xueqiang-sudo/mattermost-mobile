@@ -8,7 +8,6 @@ import {fetchChannelById, fetchMyChannelsForTeam, handleKickFromChannel, type My
 import {type MyPreferencesRequest, fetchMyPreferences} from '@actions/remote/preference';
 import {fetchConfigAndLicense, fetchDataRetentionPolicy} from '@actions/remote/systems';
 import {fetchMyTeams, fetchTeamMembersForClassification, handleKickFromTeam, type MyTeamsRequest} from '@actions/remote/team';
-import {debugLog} from '@store/debug_log';
 import {fetchMe, type MyUserRequest} from '@actions/remote/user';
 import {setTeamSyncInfo} from '@queries/servers/system';
 import {General, Preferences, Screens} from '@constants';
@@ -83,13 +82,11 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
     try {
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         let lastDisconnectedAt = since || await getLastFullSync(database);
-        debugLog('ENTRY', `start serverUrl=${serverUrl.slice(-30)}, since=${since}`);
 
         const [confResp, prefData] = await Promise.all([
             fetchConfigAndLicense(serverUrl, false, groupLabel),
             fetchMyPreferences(serverUrl, true, groupLabel),
         ]);
-        debugLog('ENTRY', `config: ${confResp.error ? 'FAIL' : 'OK'}, prefs: ${prefData.error ? 'FAIL' : 'OK'} (${prefData.preferences?.length || 0} prefs)`);
 
         const isCRTEnabled = Boolean(prefData.preferences && processIsCRTEnabled(prefData.preferences, confResp.config?.CollapsedThreads, confResp.config?.FeatureFlagCollapsedThreads, confResp.config?.Version));
         if (prefData.preferences) {
@@ -115,14 +112,12 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         ];
 
         const [teamData, meData] = await Promise.all(promises);
-        debugLog('ENTRY', `teams: ${teamData.error ? 'FAIL' : 'OK'} (${teamData.teams?.length || 0} teams, ${teamData.memberships?.length || 0} memberships), me: ${meData.error ? 'FAIL' : 'OK'} (${meData.user?.username || 'null'})`);
 
         // Only fail on critical errors (teams/me). Non-critical failures
         // (config/preferences) are logged but tolerated — aligned with webapp
         // loadMe() which silently ignores partial failures.
         const criticalError = teamData.error || meData.error;
         if (criticalError) {
-            debugLog('ERROR', `entry critical: team=${teamData.error ? String(teamData.error) : 'ok'}, me=${meData.error ? String(meData.error) : 'ok'}`);
             logError('entry: critical error during team/me fetch', teamData.error || meData.error);
             return {error: criticalError};
         }
@@ -198,12 +193,10 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
 
         const dt = Date.now();
 
-        debugLog('ENTRY', `initialTeamId=${initialTeamId || 'NONE'}, channels=${chData.channels?.length || 0}, memberships=${chData.memberships?.length || 0}, categories=${chData.categories?.length || 0}`);
 
         const modelPromises = await prepareEntryModels({operator, teamData: initialTeamData, chData, prefData, meData, isCRTEnabled});
         const models = (await Promise.all(modelPromises)).flat();
         logDebug('Process models on entry', groupLabel, models.length, `${Date.now() - dt}ms`);
-        debugLog('ENTRY', `models written: ${models.length} in ${Date.now() - dt}ms`);
 
         // Mark initial team as fully synced if this is a fresh sync (since=0)
         if (initialTeamId && !since) {
@@ -218,14 +211,11 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         // (internal vs external). Without this, TEAM_MEMBERSHIP only has the
         // current user's record(s) and classification always returns 'external'.
         if (initialTeamId) {
-            debugLog('ENTRY', `fire-and-forget fetchTeamMembersForClassification(${initialTeamId})`);
             fetchTeamMembersForClassification(serverUrl, initialTeamId);
         }
 
-        debugLog('ENTRY', `DONE initialChannelId=${initialChannelId || 'NONE'}`);
         return {models, initialChannelId, initialTeamId, prefData, teamData, chData, meData, gmConverted};
     } catch (error) {
-        debugLog('ERROR', `entryRest exception: ${error instanceof Error ? error.message : String(error)}`);
         logError('entryRest', groupLabel, error);
         return {error};
     }
