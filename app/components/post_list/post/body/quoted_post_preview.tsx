@@ -8,6 +8,7 @@ import {DeviceEventEmitter, Pressable, StyleSheet, Text, View} from 'react-nativ
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
+import {debugLog} from '@store/debug_log';
 import {Events, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {observePost, observePostAuthor} from '@queries/servers/post';
@@ -58,6 +59,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 12,
         lineHeight: 16,
         flex: 1,
+    },
+    plainText: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        fontSize: 12,
+        lineHeight: 16,
+        flex: 1,
+    },
+    plainAuthor: {
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        fontSize: 12,
+        lineHeight: 16,
+        marginRight: 4,
     },
 }));
 
@@ -110,6 +123,15 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, plain, post,
     const snippet = useMemo(() => source.trim().replace(/\n/g, ' ').slice(0, 64), [source]);
 
     if (plain) {
+        debugLog('QUOTED_PREVIEW_PLAIN', {
+            quotedPostId,
+            hasPost: Boolean(post),
+            postMessage: post?.message,
+            postMessageSource: post?.messageSource,
+            source,
+            snippet,
+            displayAuthor,
+        });
         return (
             <Pressable
                 onPress={onPress}
@@ -123,14 +145,14 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, plain, post,
                     {Boolean(displayAuthor) && (
                         <Text
                             numberOfLines={1}
-                            style={style.author}
+                            style={style.plainAuthor}
                         >
                             {displayAuthor}:
                         </Text>
                     )}
                     <Text
                         numberOfLines={1}
-                        style={style.text}
+                        style={style.plainText}
                     >
                         {snippet}
                     </Text>

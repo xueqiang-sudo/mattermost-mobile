@@ -1156,67 +1156,58 @@ function DraftInput({
                         </View>
                     )}
                 </View>
-                {/* 表情面板打开时的按钮布局 */}
-                {emojiPanelOpen ? (
-                    <>
-                        {/* iOS: 输入栏不显示按钮，X 和发送浮动在面板上 */}
-                        {/* Android: 输入栏显示发送按钮（替换 +），X 浮动在面板上 */}
-                        {Platform.OS === 'android' && (
-                            <SendAction
-                                testID={sendActionTestID}
-                                disabled={sendActionDisabled}
-                                sendMessage={handleSendMessageWithVoiceCleanup}
-                                showScheduledPostOptions={handleShowScheduledPostOptions}
-                                scheduledPostEnabled={scheduledPostsEnabled}
-                                weChatCompact={true}
-                            />
-                        )}
-                    </>
-                ) : (
-                    <>
-                        {/* 表情面板关闭时：显示 😊 和 + */}
-                        <TouchableWithFeedback
-                            borderlessRipple={true}
-                            hitSlop={sideHitSlop}
-                            onPress={onEmojiToolbarPress}
-                            rippleRadius={20}
-                            type='opacity'
-                        >
-                            <View style={style.weChatSideIconHit}>
-                                <CompassIcon
-                                    color={weChatFooterIconColor}
-                                    name='emoticon-happy-outline'
-                                    size={30}
-                                />
-                            </View>
-                        </TouchableWithFeedback>
-                        <TouchableWithFeedback
-                            borderlessRipple={true}
-                            hitSlop={sideHitSlop}
-                            onPress={openDraftMoreSheet}
-                            rippleRadius={20}
-                            type='opacity'
-                            testID={`${quickActionsTestID}.more.button`}
-                        >
-                            <View style={style.weChatSideIconHit}>
-                                <CompassIcon
-                                    color={weChatFooterIconColor}
-                                    name='plus-box-outline'
-                                    size={30}
-                                />
-                            </View>
-                        </TouchableWithFeedback>
-                        {Platform.OS === 'android' && value.trim() && !(voiceMode && hasVoiceRecording) && (
-                            <SendAction
-                                testID={sendActionTestID}
-                                disabled={sendActionDisabled}
-                                sendMessage={handleSendMessageWithVoiceCleanup}
-                                showScheduledPostOptions={handleShowScheduledPostOptions}
-                                scheduledPostEnabled={scheduledPostsEnabled}
-                                weChatCompact={true}
-                            />
-                        )}
-                    </>
+                {/* 表情按钮：始终显示，面板打开时变成键盘图标 */}
+                <TouchableWithFeedback
+                    borderlessRipple={true}
+                    hitSlop={sideHitSlop}
+                    onPress={onEmojiToolbarPress}
+                    rippleRadius={20}
+                    type='opacity'
+                >
+                    <View style={style.weChatSideIconHit}>
+                        <CompassIcon
+                            color={weChatFooterIconColor}
+                            name={emojiPanelOpen ? 'keyboard-outline' : 'emoticon-happy-outline'}
+                            size={30}
+                        />
+                    </View>
+                </TouchableWithFeedback>
+                {/* 加号按钮：始终显示，圆形样式 */}
+                <TouchableWithFeedback
+                    borderlessRipple={true}
+                    hitSlop={sideHitSlop}
+                    onPress={openDraftMoreSheet}
+                    rippleRadius={20}
+                    type='opacity'
+                    testID={`${quickActionsTestID}.more.button`}
+                >
+                    <View style={[style.weChatSideIconHit, {
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        borderWidth: 1.5,
+                        borderColor: weChatFooterIconColor,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 0,
+                    }]}>
+                        <CompassIcon
+                            color={weChatFooterIconColor}
+                            name='plus'
+                            size={22}
+                        />
+                    </View>
+                </TouchableWithFeedback>
+                {/* Android: 有文本时显示发送按钮 */}
+                {Platform.OS === 'android' && value.trim() && !(voiceMode && hasVoiceRecording) && (
+                    <SendAction
+                        testID={sendActionTestID}
+                        disabled={sendActionDisabled}
+                        sendMessage={handleSendMessageWithVoiceCleanup}
+                        showScheduledPostOptions={handleShowScheduledPostOptions}
+                        scheduledPostEnabled={scheduledPostsEnabled}
+                        weChatCompact={true}
+                    />
                 )}
             </View>
             {emojiPanelOpen && (
@@ -1235,19 +1226,27 @@ function DraftInput({
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 12,
+                        zIndex: 9999,
                     }}>
                         <TouchableWithFeedback
                             borderlessRipple={true}
                             hitSlop={sideHitSlop}
                             onPress={handleEmojiDelete}
-                            rippleRadius={20}
+                            rippleRadius={24}
                             type='opacity'
                         >
-                            <View style={style.weChatSideIconHit}>
+                            <View style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 22,
+                                backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}>
                                 <CompassIcon
                                     color={weChatFooterIconColor}
                                     name='backspace-outline'
-                                    size={26}
+                                    size={28}
                                 />
                             </View>
                         </TouchableWithFeedback>
