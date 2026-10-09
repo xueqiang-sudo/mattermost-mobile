@@ -207,19 +207,15 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         prepareRecordsOnly: true,
     });
 
-    // Update file records' post_id to real post ID
-    // Files are created with post_id: '' (empty), so we query by file IDs
-    if (files.length > 0 && pendingPostId !== created.id) {
-        const fileIds = files.map(f => f.id);
-        const fileRecords = await database.get('File').query(
-            Q.where('id', Q.oneOf(fileIds)),
-        ).fetch();
-        for (const fileRecord of fileRecords) {
-            const prepared = fileRecord.prepareUpdate((f) => {
-                f.post_id = created.id;
-            });
-            models.push(prepared);
-        }
+    // Create file records with the real post ID
+    // Files are passed with post_id: '' (empty), so we set it to the real post ID
+    if (files.length > 0) {
+        const filesWithPostId = files.map(f => ({
+            ...f,
+            post_id: created.id,
+        }));
+        const fileModels = await operator.handleFiles({files: filesWithPostId, prepareRecordsOnly: true});
+        models.push(...fileModels);
     }
 
     const isCrtReply = isCRTEnabled && created.root_id !== '';
