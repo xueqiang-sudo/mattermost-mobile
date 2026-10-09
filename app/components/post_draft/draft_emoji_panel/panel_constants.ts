@@ -3,7 +3,7 @@
 
 import {EmojiIndicesByAlias, Emojis} from '@utils/emoji';
 
-export const PANEL_SCROLL_MAX_HEIGHT = 228;
+export const PANEL_SCROLL_MAX_HEIGHT = 280;
 export const H_PADDING = 10;
 
 /** 排序权重：数字越小在「全部」里越靠前（仅 Emoji 页排序用） */

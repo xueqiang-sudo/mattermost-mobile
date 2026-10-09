@@ -46,7 +46,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.centerChannelBg,
     },
     scrollRegion: {
-        maxHeight: PANEL_SCROLL_MAX_HEIGHT,
+        height: PANEL_SCROLL_MAX_HEIGHT,
         paddingHorizontal: H_PADDING,
         paddingTop: 8,
         paddingBottom: 8,

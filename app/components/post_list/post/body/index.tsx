@@ -11,6 +11,7 @@ import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
 import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
+import {debugLog} from '@store/debug_log';
 import {PROFILE_PICTURE_SIZE} from '@constants/view';
 import {THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
@@ -327,6 +328,7 @@ const Body = ({
         displayMessage = displayMessage.replace(/^@\w+\s+/, '');
     }
     const quotedPostId = post.props?.quoted_post_id;
+    debugLog('POST_BODY', `postId=${post.id}, quotedPostId=${quotedPostId}, weChatStyleActive=${weChatStyleActive}, hasBeenDeleted=${hasBeenDeleted}`);
     const hasTextMessage = Boolean(displayMessage.length || (isEdited && !hasFiles));
     const isMediaOnlyWeChat = weChatStyleActive && !hasBeenDeleted && hasFiles && !hasTextMessage && !hasContent;
     const isSystemPost = isSystemMessage(post);

@@ -301,7 +301,8 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         debugLog('UPDATE_POST_FILE_IDS', `Successfully updated post ${postId}: deleted ${oldFiles.length} old files, created ${fileModels.length} new files`);
 
         // Update on server using patchPost
-        await client.patchPost(postId, {
+        await client.patchPost({
+            id: postId,
             file_ids: fileIds,
             props: newProps,
         });

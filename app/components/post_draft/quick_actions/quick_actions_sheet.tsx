@@ -9,12 +9,9 @@ import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
-import {Screens} from '@constants';
-import {ICON_SIZE} from '@constants/post_draft';
 import {useTheme} from '@context/theme';
-import {useIsTablet} from '@hooks/device';
 import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
-import {bottomSheet, openAsBottomSheet} from '@screens/navigation';
+import {bottomSheet} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {fileMaxWarning} from '@utils/file';
 import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
@@ -25,7 +22,8 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import CameraType from './camera_quick_action/camera_type';
 
 const GRID_COLUMNS = 3;
-const ICON_LABEL_GAP = 6;
+const ICON_LABEL_GAP = 8;
+const WECHAT_ICON_SIZE = 52;
 
 type SheetItemProps = {
     iconName: string;
@@ -40,26 +38,26 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
+        paddingVertical: 16,
+        paddingHorizontal: 12,
     },
     cell: {
         width: `${100 / GRID_COLUMNS}%`,
         alignItems: 'center',
         justifyContent: 'flex-start',
-        paddingVertical: 12,
+        paddingVertical: 16,
     },
     iconWrapper: {
-        width: ICON_SIZE + 20,
-        height: ICON_SIZE + 20,
-        borderRadius: 8,
+        width: WECHAT_ICON_SIZE,
+        height: WECHAT_ICON_SIZE,
+        borderRadius: 10,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: ICON_LABEL_GAP,
     },
     label: {
-        fontSize: 12,
+        fontSize: 13,
         color: theme.centerChannelColor,
     },
 }));
@@ -81,7 +79,7 @@ function SheetItem({iconName, labelId, labelDefault, disabled, onPress, testID}:
                 <CompassIcon
                     name={iconName}
                     color={color}
-                    size={ICON_SIZE}
+                    size={WECHAT_ICON_SIZE * 0.55}
                 />
             </View>
             <FormattedText
@@ -112,27 +110,17 @@ type Props = {
     onDismiss: () => void | Promise<void>;
 };
 
-const POST_PRIORITY_PICKER_BUTTON = 'close-post-priority-picker-sheet';
-
 export default function QuickActionsSheet({
     testID,
     canUploadFiles,
     fileCount,
-    isPostPriorityEnabled,
-    canShowPostPriority = true,
     maxFileCount,
-    value,
-    updateValue,
     addFiles,
     draftVideoProcessingBridge,
-    postPriority,
-    updatePostPriority,
-    focus,
     onDismiss,
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
-    const isTablet = useIsTablet();
     const maxFilesReached = fileCount >= maxFileCount;
 
     const wrapWithDismiss = useCallback((fn: () => void) => {
@@ -204,21 +192,6 @@ export default function QuickActionsSheet({
         void picker.attachVideoFromVisionRecorder();
     }, [intl, addFiles, draftVideoProcessingBridge, maxFileCount, maxFilesReached]);
 
-    const handlePriorityPress = useCallback(() => {
-        const title = isTablet ? intl.formatMessage({id: 'post_priority.picker.title', defaultMessage: 'Message priority'}) : '';
-        openAsBottomSheet({
-            closeButtonId: POST_PRIORITY_PICKER_BUTTON,
-            screen: Screens.POST_PRIORITY_PICKER,
-            theme,
-            title,
-            props: {
-                postPriority,
-                updatePostPriority,
-                closeButtonId: POST_PRIORITY_PICKER_BUTTON,
-            },
-        });
-    }, [isTablet, intl, theme, postPriority, updatePostPriority]);
-
     const baseTestID = testID ?? 'quick_actions_sheet';
     const fileDisabled = !canUploadFiles;
 
@@ -263,15 +236,6 @@ export default function QuickActionsSheet({
             onPress: wrapWithDismiss(handleFilePress),
             testID: `${baseTestID}.file_action`,
         },
-        ...(isPostPriorityEnabled && canShowPostPriority ? [{
-            key: 'priority',
-            icon: 'alert-circle-outline',
-            labelId: 'post_draft.quick_action.priority',
-            labelDefault: 'Priority',
-            disabled: false,
-            onPress: wrapWithDismiss(handlePriorityPress),
-            testID: `${baseTestID}.post_priority_action`,
-        }] : []),
     ];
 
     return (

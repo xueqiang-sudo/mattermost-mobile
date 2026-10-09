@@ -1109,13 +1109,13 @@ function DraftInput({
                             {voiceMode ? (
                                 <CompassIcon
                                     name='keyboard-outline'
-                                    size={30}
+                                    size={38}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             ) : (
                                 <CompassIcon
-                                    name='volume-high'
-                                    size={30}
+                                    name='microphone'
+                                    size={38}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             )}
@@ -1164,11 +1164,20 @@ function DraftInput({
                     rippleRadius={20}
                     type='opacity'
                 >
-                    <View style={style.weChatSideIconHit}>
+                    <View style={[style.weChatSideIconHit, {
+                        width: 38,
+                        height: 38,
+                        borderRadius: 19,
+                        borderWidth: 1.5,
+                        borderColor: weChatFooterIconColor,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 0,
+                    }]}>
                         <CompassIcon
                             color={weChatFooterIconColor}
                             name={emojiPanelOpen ? 'keyboard-outline' : 'emoticon-happy-outline'}
-                            size={30}
+                            size={20}
                         />
                     </View>
                 </TouchableWithFeedback>
@@ -1182,9 +1191,9 @@ function DraftInput({
                     testID={`${quickActionsTestID}.more.button`}
                 >
                     <View style={[style.weChatSideIconHit, {
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
+                        width: 38,
+                        height: 38,
+                        borderRadius: 19,
                         borderWidth: 1.5,
                         borderColor: weChatFooterIconColor,
                         justifyContent: 'center',
@@ -1194,7 +1203,7 @@ function DraftInput({
                         <CompassIcon
                             color={weChatFooterIconColor}
                             name='plus'
-                            size={22}
+                            size={20}
                         />
                     </View>
                 </TouchableWithFeedback>
@@ -1218,16 +1227,22 @@ function DraftInput({
                         skinTone={skinTone}
                         testID={`${testID}.draft_emoji_panel`}
                     />
-                    {/* 浮动按钮容器：固定在右下角，不随表情列表滚动 */}
+                    {/* 浮动按钮容器：固定在右下角，带不透明背景遮挡滚动的表情（类似微信） */}
                     <View style={{
                         position: 'absolute',
-                        right: 16,
-                        bottom: 16,
+                        right: 0,
+                        bottom: 0,
                         flexDirection: 'row',
                         alignItems: 'center',
+                        justifyContent: 'flex-end',
                         gap: 12,
+                        paddingRight: 16,
+                        paddingBottom: 16,
+                        paddingTop: 12,
+                        paddingLeft: 24,
+                        backgroundColor: theme.centerChannelBg,
                         zIndex: 9999,
-                        elevation: 10, // Android 阴影层级
+                        elevation: 10,
                     }}>
                         <TouchableWithFeedback
                             borderlessRipple={true}

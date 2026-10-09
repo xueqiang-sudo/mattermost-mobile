@@ -11,6 +11,7 @@ import {switchMap} from 'rxjs/operators';
 import {Events, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {observePost, observePostAuthor} from '@queries/servers/post';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
@@ -98,7 +99,10 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, plain, post,
         });
     }, [channelId, location, quotedPostId]);
 
+    debugLog('QUOTED_PREVIEW', `rendering: quotedPostId=${quotedPostId}, plain=${plain}, hasPost=${Boolean(post)}, hasAuthor=${Boolean(author)}`);
+
     if (!post) {
+        debugLog('QUOTED_PREVIEW', `no post found for quotedPostId=${quotedPostId}, returning null`);
         return null;
     }
 
@@ -120,6 +124,8 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, plain, post,
     const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
     const source = (post.messageSource || post.message || '').replace(FILE_MARKER_RE, '').trim();
     const snippet = useMemo(() => source.trim().replace(/\n/g, ' ').slice(0, 64), [source]);
+
+    debugLog('QUOTED_PREVIEW', `content: displayAuthor=${displayAuthor}, snippet=${snippet}, source=${source}`);
 
     if (plain) {
         return (
