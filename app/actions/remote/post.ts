@@ -66,7 +66,7 @@ type AuthorsRequest = {
     error?: unknown;
 }
 
-export async function createPost(serverUrl: string, post: Partial<Post>, files: FileInfo[] = []): Promise<{data?: boolean; error?: unknown}> {
+export async function createPost(serverUrl: string, post: Partial<Post>, files: FileInfo[] = []): Promise<{data?: {postId?: string}; error?: unknown}> {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
         return {error: `${serverUrl} database not found`};
@@ -86,7 +86,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
 
     const existing = await getPostById(database, pendingPostId);
     if (existing && !existing.props?.failed) {
-        return {data: false};
+        return {data: {postId: existing.id}};
     }
 
     let newPost = {
@@ -188,7 +188,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
             await operator.batchRecords(models, 'createPost - failure');
         }
 
-        return {data: true};
+        return {data: {postId: pendingPostId}};
     }
 
     // If we have pending files, set the post's file_ids to include them
@@ -236,7 +236,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
 
     newPost = created;
 
-    return {data: true};
+    return {data: {postId: created.id}};
 }
 
 /**
@@ -265,32 +265,27 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             return {error: 'Post not found'};
         }
 
-        // Query existing file records for this post (post_id was already updated by createPost)
+        // Query existing file records for this post
         const oldFiles = await queryFilesForPost(database, postId).fetch();
-        debugLog('UPDATE_POST_FILE_IDS', `Updating post ${postId}, existing files: ${oldFiles.length}, newFileIds: ${JSON.stringify(files.map(f => f.id))}`);
-
-        // Update file_ids
         const fileIds = files.map(f => f.id);
-        const updatedPost = {
-            id: postId,
-            file_ids: fileIds,
-            update_at: Date.now(),
-            props: {
-                ...existingPost.props,
-                upload_status: 'completed',
-            },
+        debugLog('UPDATE_POST_FILE_IDS', `Updating post ${postId}, existing files: ${oldFiles.length}, newFileIds: ${JSON.stringify(fileIds)}`);
+
+        // Prepare updates
+        const models: Model[] = [];
+
+        // Update post's file_ids directly (avoid handlePosts which would delete files twice)
+        const newProps = {
+            ...existingPost.props,
+            upload_status: 'completed',
         };
-
-        // Update local database
-        const models = await operator.handlePosts({
-            actionType: ActionType.POSTS.RECEIVED_NEW,
-            order: [postId],
-            posts: [updatedPost as Post],
-            prepareRecordsOnly: true,
+        existingPost.prepareUpdate((p) => {
+            p.fileIds = fileIds;
+            p.updateAt = Date.now();
+            p.props = newProps;
         });
+        models.push(existingPost);
 
-        // Delete old pending file records and create new ones with real IDs
-        // WatermelonDB doesn't support changing primary key (id), so we must delete and recreate
+        // Delete old pending file records
         for (const oldFile of oldFiles) {
             models.push(oldFile.prepareDestroyPermanently());
         }
@@ -308,12 +303,14 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
         // Update on server using patchPost
         await client.patchPost(postId, {
             file_ids: fileIds,
-            props: updatedPost.props,
+            props: newProps,
         });
+        debugLog('UPDATE_POST_FILE_IDS', `Server patchPost completed for ${postId}`);
 
         return {data: true};
     } catch (error) {
         logError('[updatePostFileIds]', error);
+        debugLog('UPDATE_POST_FILE_IDS', `Error: ${error}`);
         return {error};
     }
 }

@@ -9,7 +9,6 @@ import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@a
 import {uploadFile} from '@actions/remote/file';
 import {createPost, updatePostFileIds, markPostUploadFailed} from '@actions/remote/post';
 import DatabaseManager from '@database/manager';
-import {getPostByPendingPostId} from '@queries/servers/post';
 import {Events, Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
@@ -228,26 +227,19 @@ export default function DraftHandler(props: Props) {
                         throw result.error;
                     }
 
-                    if (result.data) {
-                        // Query for the post by pending_post_id to get the real ID
-                        const database = DatabaseManager.serverDatabases[serverUrl]?.database;
-                        let realPostId = pendingPostId;
-                        if (database) {
-                            const realPost = await getPostByPendingPostId(database, pendingPostId);
-                            if (realPost) {
-                                realPostId = realPost.id;
-                                debugLog('ADD_FILES', `post created successfully, realPostId: ${realPostId} (was pending: ${pendingPostId})`);
-                            } else {
-                                debugLog('ADD_FILES', `post created but could not find by pendingPostId: ${pendingPostId}, using pending ID`);
-                            }
-                        }
-
+                    if (result.data?.postId) {
+                        const realPostId = result.data.postId;
+                        debugLog('ADD_FILES', `post created successfully, realPostId: ${realPostId} (was pending: ${pendingPostId})`);
                         pendingPosts.push({
-                            postId: realPostId, // Use the real post ID
+                            postId: realPostId,
                             file: localFile,
                         });
                     } else {
-                        debugLog('ADD_FILES', `createPost returned no data for ${file.name}`);
+                        debugLog('ADD_FILES', `createPost returned no postId for ${file.name}, using pendingPostId: ${pendingPostId}`);
+                        pendingPosts.push({
+                            postId: pendingPostId,
+                            file: localFile,
+                        });
                     }
                 }
 
