@@ -207,10 +207,12 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         prepareRecordsOnly: true,
     });
 
-    // Update file records' post_id from pending_post_id to real post ID
+    // Update file records' post_id to real post ID
+    // Files are created with post_id: '' (empty), so we query by file IDs
     if (files.length > 0 && pendingPostId !== created.id) {
+        const fileIds = files.map(f => f.id);
         const fileRecords = await database.get('File').query(
-            Q.where('post_id', pendingPostId),
+            Q.where('id', Q.oneOf(fileIds)),
         ).fetch();
         for (const fileRecord of fileRecords) {
             const prepared = fileRecord.prepareUpdate((f) => {
@@ -290,20 +292,45 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             prepareRecordsOnly: true,
         });
 
-        // Delete old pending file records to avoid duplicates
-        for (const oldFile of oldFiles) {
-            models.push(oldFile.prepareDestroyPermanently());
+        // Update existing file records instead of deleting and recreating
+        const matchedOldFiles = new Set<string>();
+        for (const newFile of files) {
+            // Try to find matching old file by localPath (most reliable)
+            const oldFile = oldFiles.find(of => of.localPath && of.localPath === newFile.localPath);
+
+            if (oldFile) {
+                // Update existing record
+                matchedOldFiles.add(oldFile.id);
+                const prepared = oldFile.prepareUpdate((f) => {
+                    f._raw.id = newFile.id;
+                    f.name = newFile.name || f.name;
+                    f.extension = newFile.extension || f.extension;
+                    f.size = newFile.size || f.size;
+                    f.mimeType = newFile.mime_type || f.mimeType;
+                    f.width = newFile.width || f.width;
+                    f.height = newFile.height || f.height;
+                    f.localPath = newFile.localPath || f.localPath;
+                    f.imageThumbnail = newFile.mini_preview || f.imageThumbnail;
+                    f.postId = postId;
+                });
+                models.push(prepared);
+            } else {
+                // Create new file record
+                newFile.post_id = postId;
+                const fileModels = await operator.handleFiles({files: [newFile], prepareRecordsOnly: true});
+                models.push(...fileModels);
+            }
         }
 
-        // Create new file records with real IDs
-        for (const file of files) {
-            file.post_id = postId;
+        // Delete old files that weren't matched (shouldn't happen in normal flow)
+        for (const oldFile of oldFiles) {
+            if (!matchedOldFiles.has(oldFile.id)) {
+                models.push(oldFile.prepareDestroyPermanently());
+            }
         }
-        const fileModels = await operator.handleFiles({files, prepareRecordsOnly: true});
-        models.push(...fileModels);
 
         await operator.batchRecords(models, 'updatePostFileIds');
-        debugLog('UPDATE_POST_FILE_IDS', `Successfully updated post ${postId}: deleted ${oldFiles.length} old files, created ${fileModels.length} new files`);
+        debugLog('UPDATE_POST_FILE_IDS', `Successfully updated post ${postId}: updated ${matchedOldFiles.size} files`);
 
         // Update on server using patchPost
         await client.patchPost(postId, {
