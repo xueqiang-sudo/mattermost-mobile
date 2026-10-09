@@ -1211,22 +1211,23 @@ function DraftInput({
                 )}
             </View>
             {emojiPanelOpen && (
-                <View style={{position: 'relative'}}>
+                <View style={{position: 'relative', zIndex: 1}}>
                     <DraftEmojiPanel
                         onPick={handleDraftEmojiPick}
                         recentEmojis={recentEmojis}
                         skinTone={skinTone}
                         testID={`${testID}.draft_emoji_panel`}
                     />
-                    {/* 浮动按钮容器：X 删除按钮（iOS + Android）+ 发送按钮（仅 iOS） */}
+                    {/* 浮动按钮容器：固定在右下角，不随表情列表滚动 */}
                     <View style={{
                         position: 'absolute',
-                        right: 12,
-                        bottom: 12,
+                        right: 16,
+                        bottom: 16,
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 12,
                         zIndex: 9999,
+                        elevation: 10, // Android 阴影层级
                     }}>
                         <TouchableWithFeedback
                             borderlessRipple={true}
@@ -1236,12 +1237,19 @@ function DraftInput({
                             type='opacity'
                         >
                             <View style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 22,
-                                backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
+                                width: 48,
+                                height: 48,
+                                borderRadius: 24,
+                                backgroundColor: theme.centerChannelBg,
+                                borderWidth: 1,
+                                borderColor: changeOpacity(theme.centerChannelColor, 0.2),
                                 justifyContent: 'center',
                                 alignItems: 'center',
+                                shadowColor: theme.centerChannelColor,
+                                shadowOffset: {width: 0, height: 2},
+                                shadowOpacity: 0.15,
+                                shadowRadius: 4,
+                                elevation: 5,
                             }}>
                                 <CompassIcon
                                     color={weChatFooterIconColor}

@@ -122,13 +122,23 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, plain, post,
     const source = (post.messageSource || post.message || '').replace(FILE_MARKER_RE, '').trim();
     const snippet = useMemo(() => source.trim().replace(/\n/g, ' ').slice(0, 64), [source]);
 
+    // Debug: log all rendering data
+    debugLog('QUOTED_PREVIEW_DATA', {
+        quotedPostId,
+        plain,
+        hasPost: Boolean(post),
+        postId: post?.id,
+        postMessage: post?.message,
+        postMessageSource: post?.messageSource,
+        hasAuthor: Boolean(author),
+        source,
+        snippet,
+        displayAuthor,
+    });
+
     if (plain) {
         debugLog('QUOTED_PREVIEW_PLAIN', {
             quotedPostId,
-            hasPost: Boolean(post),
-            postMessage: post?.message,
-            postMessageSource: post?.messageSource,
-            source,
             snippet,
             displayAuthor,
         });
