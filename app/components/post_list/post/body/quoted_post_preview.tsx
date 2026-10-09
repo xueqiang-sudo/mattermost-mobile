@@ -8,7 +8,6 @@ import {DeviceEventEmitter, Pressable, StyleSheet, Text, View} from 'react-nativ
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
-import {debugLog} from '@store/debug_log';
 import {Events, Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {observePost, observePostAuthor} from '@queries/servers/post';
@@ -122,26 +121,7 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, plain, post,
     const source = (post.messageSource || post.message || '').replace(FILE_MARKER_RE, '').trim();
     const snippet = useMemo(() => source.trim().replace(/\n/g, ' ').slice(0, 64), [source]);
 
-    // Debug: log all rendering data
-    debugLog('QUOTED_PREVIEW_DATA', {
-        quotedPostId,
-        plain,
-        hasPost: Boolean(post),
-        postId: post?.id,
-        postMessage: post?.message,
-        postMessageSource: post?.messageSource,
-        hasAuthor: Boolean(author),
-        source,
-        snippet,
-        displayAuthor,
-    });
-
     if (plain) {
-        debugLog('QUOTED_PREVIEW_PLAIN', {
-            quotedPostId,
-            snippet,
-            displayAuthor,
-        });
         return (
             <Pressable
                 onPress={onPress}
