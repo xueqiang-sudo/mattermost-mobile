@@ -486,7 +486,8 @@ const Body = ({
     ) : null;
 
     // 是否有文本内容（决定是否需要气泡）
-    const hasTextOrContent = Boolean(message) || hasContent || Boolean(quotedPostId);
+    // WeChat 模式下引用预览在气泡外渲染，不计入气泡内容判断
+    const hasTextOrContent = Boolean(message) || hasContent || (!weChatStyleActive && Boolean(quotedPostId));
 
     if (!hasBeenDeleted) {
         body = (
@@ -499,7 +500,7 @@ const Body = ({
                     weChatStyleActive && isOwnPost && hasFiles && !isMediaOnlyWeChat && style.messageBodyOwnWeChatAttachmentsEnd,
                 ]}
             >
-                {Boolean(quotedPostId) && (
+                {Boolean(quotedPostId) && !weChatStyleActive && (
                     <QuotedPostPreview
                         quotedPostId={quotedPostId}
                         channelId={post.channelId}
@@ -543,6 +544,19 @@ const Body = ({
         );
     }
 
+    // WeChat 风格：引用预览在气泡外（下方，无背景色）
+    const quotedSection = (weChatStyleActive && quotedPostId && !hasBeenDeleted) ? (
+        <View style={{alignSelf: isOwnPost ? 'flex-end' : 'flex-start', marginTop: 2}}>
+            <QuotedPostPreview
+                quotedPostId={quotedPostId}
+                channelId={post.channelId}
+                location={location}
+                isOwnPost={isOwnPost}
+                plain={true}
+            />
+        </View>
+    ) : null;
+
     // WeChat 风格：有文件时，文本在气泡内，文件在气泡外（无背景色）
     const showFilesOutsideBubble = weChatStyleActive && filesSection && hasTextOrContent;
     // 纯文件消息（无文本）：不显示气泡
@@ -554,6 +568,7 @@ const Body = ({
             <>
                 {body}
                 {weChatStyleActive && filesSection}
+                {quotedSection}
             </>
         );
     } else if (weChatStyleActive && chatBubbleSurface) {
@@ -588,6 +603,8 @@ const Body = ({
                 </View>
                 {/* 文件渲染在气泡外，不带背景色 */}
                 {showFilesOutsideBubble && filesSection}
+                {/* 引用预览渲染在气泡外（下方），不带背景色 */}
+                {quotedSection}
             </>
         );
     } else {

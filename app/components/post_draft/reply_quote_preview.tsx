@@ -7,6 +7,7 @@ import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {showPermalink} from '@actions/remote/permalink';
+import {buildFileThumbnailUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
 import {Events} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -129,7 +130,7 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
             return '';
         }
 
-        return displayName.startsWith('@') ? displayName : `@${displayName}`;
+        return displayName;
     }, [author?.nickname, author?.firstName, author?.lastName, author?.username]);
 
     // Determine content type and display
@@ -144,32 +145,39 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
             const fileIsImage = firstFile && isImage(firstFile);
             const fileIsVideo = firstFile && isVideo(firstFile);
 
-            if ((fileIsImage || fileIsVideo) && firstFile.localPath) {
+            if (fileIsImage || fileIsVideo) {
                 // Image or Video: show thumbnail, no filename
-                return {
-                    contentElement: (
-                        <Image
-                            source={{uri: firstFile.localPath}}
-                            style={styles.thumbnail}
-                        />
-                    ),
-                    displayText: '',
-                };
-            } else {
-                // Other files: show filename + file type icon
-                const fileName = firstFile?.name || 'File';
-                return {
-                    contentElement: (
-                        <CompassIcon
-                            name='file-outline'
-                            size={18}
-                            color={theme.centerChannelColor}
-                            style={styles.fileIcon}
-                        />
-                    ),
-                    displayText: fileName,
-                };
+                const localUri = firstFile.localPath ? (
+                    firstFile.localPath.startsWith('file://') ? firstFile.localPath : `file://${firstFile.localPath}`
+                ) : undefined;
+                const thumbnailUri = localUri || (firstFile.id ? buildFileThumbnailUrl(serverUrl, firstFile.id) : undefined);
+
+                if (thumbnailUri) {
+                    return {
+                        contentElement: (
+                            <Image
+                                source={{uri: thumbnailUri}}
+                                style={styles.thumbnail}
+                            />
+                        ),
+                        displayText: '',
+                    };
+                }
             }
+
+            // Non-media files or image without any source: show filename + file type icon
+            const fileName = firstFile?.name || 'File';
+            return {
+                contentElement: (
+                    <CompassIcon
+                        name='file-outline'
+                        size={18}
+                        color={theme.centerChannelColor}
+                        style={styles.fileIcon}
+                    />
+                ),
+                displayText: fileName,
+            };
         }
 
         // Case 2: Text only
@@ -186,7 +194,7 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
             contentElement: null,
             displayText: '',
         };
-    }, [post, files, styles, theme]);
+    }, [post, files, styles, theme, serverUrl]);
 
     return (
         <View style={styles.container}>
@@ -196,10 +204,10 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
                 style={styles.content}
                 testID='post_draft.quote.jump_area'
             >
-                {contentElement}
                 {Boolean(formattedAuthor) && (
                     <Text style={styles.quoteAuthor}>{formattedAuthor}:</Text>
                 )}
+                {contentElement}
                 {Boolean(displayText) && (
                     <Text
                         style={styles.quoteMessage}

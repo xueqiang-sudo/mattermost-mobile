@@ -821,6 +821,19 @@ function DraftInput({
         updateCursorPosition((cp) => cp + [...token].length);
     }, [customEmojiNames, skinTone, updateValue, updateCursorPosition]);
 
+    const handleEmojiDelete = useCallback(() => {
+        const text = value;
+        if (!text.length) return;
+
+        // 使用展开运算符按 Unicode 码点分割，正确处理组合 emoji
+        const codePoints = [...text];
+        if (codePoints.length > 0) {
+            const newCodePoints = codePoints.slice(0, -1);
+            updateValue(() => newCodePoints.join(''));
+            updateCursorPosition(() => newCodePoints.length);
+        }
+    }, [value, updateValue, updateCursorPosition]);
+
     const onEmojiToolbarPress = usePreventDoubleTap(useCallback(() => {
         if (emojiPanelOpen) {
             setEmojiPanelOpen(false);
@@ -1143,56 +1156,113 @@ function DraftInput({
                         </View>
                     )}
                 </View>
-                {/* 在按住说话模式下也显示表情和加号按钮，但隐藏发送按钮 */}
-                <TouchableWithFeedback
-                    borderlessRipple={true}
-                    hitSlop={sideHitSlop}
-                    onPress={onEmojiToolbarPress}
-                    rippleRadius={20}
-                    type='opacity'
-                >
-                    <View style={style.weChatSideIconHit}>
-                        <CompassIcon
-                            color={weChatFooterIconColor}
-                            name={emojiPanelOpen ? 'keyboard-outline' : 'emoticon-happy-outline'}
-                            size={30}
-                        />
-                    </View>
-                </TouchableWithFeedback>
-                <TouchableWithFeedback
-                    borderlessRipple={true}
-                    hitSlop={sideHitSlop}
-                    onPress={openDraftMoreSheet}
-                    rippleRadius={20}
-                    type='opacity'
-                    testID={`${quickActionsTestID}.more.button`}
-                >
-                    <View style={style.weChatSideIconHit}>
-                        <CompassIcon
-                            color={weChatFooterIconColor}
-                            name='plus-box-outline'
-                            size={30}
-                        />
-                    </View>
-                </TouchableWithFeedback>
-                {Platform.OS === 'android' && value.trim() && !(voiceMode && hasVoiceRecording) && (
-                    <SendAction
-                        testID={sendActionTestID}
-                        disabled={sendActionDisabled}
-                        sendMessage={handleSendMessageWithVoiceCleanup}
-                        showScheduledPostOptions={handleShowScheduledPostOptions}
-                        scheduledPostEnabled={scheduledPostsEnabled}
-                        weChatCompact={true}
-                    />
+                {/* 表情面板打开时的按钮布局 */}
+                {emojiPanelOpen ? (
+                    <>
+                        {/* iOS: 输入栏不显示按钮，X 和发送浮动在面板上 */}
+                        {/* Android: 输入栏显示发送按钮（替换 +），X 浮动在面板上 */}
+                        {Platform.OS === 'android' && (
+                            <SendAction
+                                testID={sendActionTestID}
+                                disabled={sendActionDisabled}
+                                sendMessage={handleSendMessageWithVoiceCleanup}
+                                showScheduledPostOptions={handleShowScheduledPostOptions}
+                                scheduledPostEnabled={scheduledPostsEnabled}
+                                weChatCompact={true}
+                            />
+                        )}
+                    </>
+                ) : (
+                    <>
+                        {/* 表情面板关闭时：显示 😊 和 + */}
+                        <TouchableWithFeedback
+                            borderlessRipple={true}
+                            hitSlop={sideHitSlop}
+                            onPress={onEmojiToolbarPress}
+                            rippleRadius={20}
+                            type='opacity'
+                        >
+                            <View style={style.weChatSideIconHit}>
+                                <CompassIcon
+                                    color={weChatFooterIconColor}
+                                    name='emoticon-happy-outline'
+                                    size={30}
+                                />
+                            </View>
+                        </TouchableWithFeedback>
+                        <TouchableWithFeedback
+                            borderlessRipple={true}
+                            hitSlop={sideHitSlop}
+                            onPress={openDraftMoreSheet}
+                            rippleRadius={20}
+                            type='opacity'
+                            testID={`${quickActionsTestID}.more.button`}
+                        >
+                            <View style={style.weChatSideIconHit}>
+                                <CompassIcon
+                                    color={weChatFooterIconColor}
+                                    name='plus-box-outline'
+                                    size={30}
+                                />
+                            </View>
+                        </TouchableWithFeedback>
+                        {Platform.OS === 'android' && value.trim() && !(voiceMode && hasVoiceRecording) && (
+                            <SendAction
+                                testID={sendActionTestID}
+                                disabled={sendActionDisabled}
+                                sendMessage={handleSendMessageWithVoiceCleanup}
+                                showScheduledPostOptions={handleShowScheduledPostOptions}
+                                scheduledPostEnabled={scheduledPostsEnabled}
+                                weChatCompact={true}
+                            />
+                        )}
+                    </>
                 )}
             </View>
             {emojiPanelOpen && (
-                <DraftEmojiPanel
-                    onPick={handleDraftEmojiPick}
-                    recentEmojis={recentEmojis}
-                    skinTone={skinTone}
-                    testID={`${testID}.draft_emoji_panel`}
-                />
+                <View style={{position: 'relative'}}>
+                    <DraftEmojiPanel
+                        onPick={handleDraftEmojiPick}
+                        recentEmojis={recentEmojis}
+                        skinTone={skinTone}
+                        testID={`${testID}.draft_emoji_panel`}
+                    />
+                    {/* 浮动按钮容器：X 删除按钮（iOS + Android）+ 发送按钮（仅 iOS） */}
+                    <View style={{
+                        position: 'absolute',
+                        right: 12,
+                        bottom: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                    }}>
+                        <TouchableWithFeedback
+                            borderlessRipple={true}
+                            hitSlop={sideHitSlop}
+                            onPress={handleEmojiDelete}
+                            rippleRadius={20}
+                            type='opacity'
+                        >
+                            <View style={style.weChatSideIconHit}>
+                                <CompassIcon
+                                    color={weChatFooterIconColor}
+                                    name='backspace-outline'
+                                    size={26}
+                                />
+                            </View>
+                        </TouchableWithFeedback>
+                        {Platform.OS === 'ios' && (
+                            <SendAction
+                                testID={sendActionTestID}
+                                disabled={sendActionDisabled}
+                                sendMessage={handleSendMessageWithVoiceCleanup}
+                                showScheduledPostOptions={handleShowScheduledPostOptions}
+                                scheduledPostEnabled={scheduledPostsEnabled}
+                                weChatCompact={true}
+                            />
+                        )}
+                    </View>
+                </View>
             )}
         </SafeAreaView>
     );

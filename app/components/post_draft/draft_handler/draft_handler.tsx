@@ -286,6 +286,22 @@ export default function DraftHandler(props: Props) {
                                     const fi = response.data.file_infos[0] as FileInfo;
                                     fi.clientId = file.clientId;
                                     fi.localPath = file.localPath;
+                                    // Preserve dimensions and mime_type from local file if server doesn't provide them
+                                    if (!fi.width && file.width) {
+                                        fi.width = file.width;
+                                    }
+                                    if (!fi.height && file.height) {
+                                        fi.height = file.height;
+                                    }
+                                    if (!fi.mime_type && file.mime_type) {
+                                        fi.mime_type = file.mime_type;
+                                    }
+                                    if (!fi.extension && file.extension) {
+                                        fi.extension = file.extension;
+                                    }
+                                    if (!fi.name && file.name) {
+                                        fi.name = file.name;
+                                    }
                                     resolve(fi);
                                 },
                                 (err) => {
@@ -440,6 +456,22 @@ export default function DraftHandler(props: Props) {
                         const fi = response.data.file_infos[0] as FileInfo;
                         fi.clientId = file.clientId;
                         fi.localPath = file.localPath;
+                        // Preserve dimensions and mime_type from local file if server doesn't provide them
+                        if (!fi.width && file.width) {
+                            fi.width = file.width;
+                        }
+                        if (!fi.height && file.height) {
+                            fi.height = file.height;
+                        }
+                        if (!fi.mime_type && file.mime_type) {
+                            fi.mime_type = file.mime_type;
+                        }
+                        if (!fi.extension && file.extension) {
+                            fi.extension = file.extension;
+                        }
+                        if (!fi.name && file.name) {
+                            fi.name = file.name;
+                        }
                         resolve(fi);
                     },
                     (err) => {

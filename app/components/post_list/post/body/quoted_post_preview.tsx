@@ -23,6 +23,7 @@ type Props = {
     channelId: string;
     location: AvailableScreens;
     isOwnPost?: boolean;
+    plain?: boolean;
     post?: PostModel;
     author?: UserModel;
 };
@@ -69,7 +70,7 @@ const enhance = withObservables(['quotedPostId'], ({database, quotedPostId}: Wit
     };
 });
 
-const QuotedPostPreview = ({author, channelId, isOwnPost, location, post, quotedPostId}: Props) => {
+const QuotedPostPreview = ({author, channelId, isOwnPost, location, plain, post, quotedPostId}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const style = getStyleSheet(theme);
@@ -89,12 +90,54 @@ const QuotedPostPreview = ({author, channelId, isOwnPost, location, post, quoted
         return null;
     }
 
-    const rawUsername = author?.username ?? '';
-    const displayAuthor = rawUsername ? (rawUsername.startsWith('@') ? rawUsername : `@${rawUsername}`) : '';
+    const displayAuthor = useMemo(() => {
+        const nickname = author?.nickname?.trim();
+        const firstName = author?.firstName?.trim();
+        const lastName = author?.lastName?.trim();
+        const username = author?.username ?? '';
+
+        if (nickname) {
+            return nickname;
+        }
+        if (firstName || lastName) {
+            return `${firstName} ${lastName}`.trim();
+        }
+        return username;
+    }, [author?.nickname, author?.firstName, author?.lastName, author?.username]);
     // Strip !{file:ID} markers from quoted post preview
     const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
     const source = (post.messageSource || post.message || '').replace(FILE_MARKER_RE, '').trim();
     const snippet = useMemo(() => source.trim().replace(/\n/g, ' ').slice(0, 64), [source]);
+
+    if (plain) {
+        return (
+            <Pressable
+                onPress={onPress}
+                accessibilityRole='button'
+                accessibilityLabel={intl.formatMessage({
+                    id: 'mobile.post_body.quoted_jump_a11y',
+                    defaultMessage: 'Jump to quoted message',
+                })}
+            >
+                <View style={style.content}>
+                    {Boolean(displayAuthor) && (
+                        <Text
+                            numberOfLines={1}
+                            style={style.author}
+                        >
+                            {displayAuthor}:
+                        </Text>
+                    )}
+                    <Text
+                        numberOfLines={1}
+                        style={style.text}
+                    >
+                        {snippet}
+                    </Text>
+                </View>
+            </Pressable>
+        );
+    }
 
     return (
         <Pressable
