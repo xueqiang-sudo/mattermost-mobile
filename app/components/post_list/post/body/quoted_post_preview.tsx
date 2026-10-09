@@ -52,8 +52,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     content: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        alignItems: 'baseline',
+        alignItems: 'center',
+        flexShrink: 1,
     },
     author: {
         color: theme.linkColor,
@@ -65,13 +65,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.85),
         fontSize: 12,
         lineHeight: 16,
-        flex: 1,
+        flexShrink: 1,
     },
     plainText: {
         color: changeOpacity(theme.centerChannelColor, 0.72),
         fontSize: 12,
         lineHeight: 16,
-        flex: 1,
+        flexShrink: 1,
     },
     plainAuthor: {
         color: theme.linkColor,
@@ -153,6 +153,9 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         const firstFile = files[0];
         const fileIsImage = firstFile && isImage(firstFile);
         const fileIsVideo = firstFile && isVideo(firstFile);
+        const fileName = firstFile?.name || 'File';
+
+        debugLog('QUOTED_PREVIEW', `file: name=${fileName}, id=${firstFile?.id}, localPath=${firstFile?.localPath}, isImage=${fileIsImage}, isVideo=${fileIsVideo}`);
 
         if (fileIsImage || fileIsVideo) {
             // Show thumbnail for images/videos
@@ -160,6 +163,8 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
                 firstFile.localPath.startsWith('file://') ? firstFile.localPath : `file://${firstFile.localPath}`
             ) : undefined;
             const thumbnailUri = localUri || (firstFile.id ? buildFileThumbnailUrl(serverUrl, firstFile.id) : undefined);
+
+            debugLog('QUOTED_PREVIEW', `thumbnail: localUri=${localUri}, thumbnailUri=${thumbnailUri}`);
 
             if (thumbnailUri) {
                 return (
@@ -172,7 +177,6 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         }
 
         // Show file icon for non-media files or media without thumbnail
-        const fileName = firstFile?.name || 'File';
         return (
             <>
                 <CompassIcon
@@ -213,12 +217,20 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
                         </Text>
                     )}
                     {fileContent}
-                    {Boolean(snippet) && !fileContent && (
+                    {!fileContent && Boolean(snippet) && (
+                        <Text
+                            numberOfLines={1}
+                            style={[style.plainText, {flexShrink: 1}]}
+                        >
+                            {snippet}
+                        </Text>
+                    )}
+                    {!fileContent && !snippet && (
                         <Text
                             numberOfLines={1}
                             style={style.plainText}
                         >
-                            {snippet}
+                            {'[消息]'}
                         </Text>
                     )}
                 </View>
@@ -246,12 +258,20 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
                         </Text>
                     )}
                     {fileContent}
-                    {Boolean(snippet) && !fileContent && (
+                    {!fileContent && Boolean(snippet) && (
+                        <Text
+                            numberOfLines={1}
+                            style={[style.text, {flexShrink: 1}]}
+                        >
+                            {snippet}
+                        </Text>
+                    )}
+                    {!fileContent && !snippet && (
                         <Text
                             numberOfLines={1}
                             style={style.text}
                         >
-                            {snippet}
+                            {'[消息]'}
                         </Text>
                     )}
                 </View>
