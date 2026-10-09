@@ -98,19 +98,20 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         delete_at: 0,
     } as Post;
 
-    if (files.length) {
-        const fileIds = files.map((file) => file.id);
-
-        newPost = {
-            ...newPost,
-            file_ids: fileIds,
-        };
-    }
+    // Note: Don't include file_ids in newPost when sending to server
+    // Files haven't been uploaded yet, so server doesn't know about pending file IDs
+    // file_ids will be added later via patchPost after upload completes
 
     const databasePost = {
         ...newPost,
         id: pendingPostId,
     };
+
+    // Add file_ids to databasePost for local storage only
+    if (files.length) {
+        const fileIds = files.map((file) => file.id);
+        databasePost.file_ids = fileIds;
+    }
 
     const initialPostModels: Model[] = [];
 
