@@ -76,7 +76,6 @@ export function useVoiceRecorder(
 
     const startingTsRef = useRef<number | null>(null);
     const recordStartTimeRef = useRef<number>(0);
-    const startTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const requestPermission = useCallback(async (): Promise<boolean> => {
         debugLog('VOICE', 'requestPermission: requesting microphone permission');
@@ -112,27 +111,11 @@ export function useVoiceRecorder(
         startingTsRef.current = startingTs;
         isGlobalRecorderBusy = true;
 
-        const safeCleanup = async () => {
-            if (startTimeoutRef.current) {
-                clearTimeout(startTimeoutRef.current);
-                startTimeoutRef.current = null;
-            }
-        };
-
-        startTimeoutRef.current = setTimeout(async () => {
-            debugLog('VOICE', '[useVoiceRecorder.startRecording] 超时，强制重置状态');
-            await safeResetRecordingState();
-            startingTsRef.current = null;
-            setState('idle');
-            meteringShared.value = DEFAULT_METERING;
-        }, 10000);
-
         try {
             debugLog('VOICE', '[useVoiceRecorder.startRecording] 步骤1：请求麦克风权限');
             const hasPermission = await requestPermission();
             if (!hasPermission) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 麦克风权限被拒绝');
-                await safeCleanup();
                 startingTsRef.current = null;
                 await safeResetRecordingState();
                 onError?.('permission_denied');
@@ -151,7 +134,6 @@ export function useVoiceRecorder(
             debugLog('VOICE', `[useVoiceRecorder.startRecording] proceed=${proceed}`);
             if (!proceed) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 用户已松开，不继续录音');
-                await safeCleanup();
                 startingTsRef.current = null;
                 await safeResetRecordingState();
                 return;
@@ -178,7 +160,6 @@ export function useVoiceRecorder(
             debugLog('VOICE', `[useVoiceRecorder.startRecording] VoiceRecorder.startRecording 返回, success=${success}`);
             if (!success) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 原生录音启动失败');
-                await safeCleanup();
                 startingTsRef.current = null;
                 await safeResetRecordingState();
                 onError?.('record_failed');
@@ -193,11 +174,9 @@ export function useVoiceRecorder(
             setState('recording');
             meteringShared.value = DEFAULT_METERING;
 
-            await safeCleanup();
             debugLog('VOICE', '[useVoiceRecorder.startRecording] ========== 录音启动成功 ==========');
         } catch (err) {
             logError('[useVoiceRecorder.startRecording] 录音启动失败', err);
-            await safeCleanup();
             setState('idle');
             meteringShared.value = DEFAULT_METERING;
             startingTsRef.current = null;
@@ -214,6 +193,7 @@ export function useVoiceRecorder(
         debugLog('VOICE', '[useVoiceRecorder.stopRecordingAndSend] 当前 startingTsRef.current:', startingTsRef.current);
         debugLog('VOICE', '[useVoiceRecorder.stopRecordingAndSend] 当前 isRecordingGlobally:', isRecordingGlobally);
         debugLog('VOICE', '[useVoiceRecorder.stopRecordingAndSend] 当前 isGlobalRecorderBusy:', isGlobalRecorderBusy);
+
         const startingTs = startingTsRef.current;
         let filePathToClean: string | null = null;
 

@@ -189,9 +189,22 @@ export default class FilePickerUtil {
         draftVideoContext?: DraftVideoPrepareContext,
         compressChatVideos = false,
     ) => {
-        await new Promise<void>((resolve) => {
-            InteractionManager.runAfterInteractions(() => resolve());
-        });
+        debugLog('FILE', `[prepareFileUpload] start, files=${files.length}`);
+
+        // 添加超时机制：如果 InteractionManager 超过 5 秒未响应，继续执行
+        debugLog('FILE', '[prepareFileUpload] waiting for InteractionManager (timeout: 5s)...');
+        await Promise.race([
+            new Promise<void>((resolve) => {
+                InteractionManager.runAfterInteractions(() => resolve());
+            }),
+            new Promise<void>((resolve) => {
+                setTimeout(() => {
+                    debugLog('FILE', '[prepareFileUpload] InteractionManager timeout, continuing...');
+                    resolve();
+                }, 5000);
+            }),
+        ]);
+        debugLog('FILE', '[prepareFileUpload] InteractionManager ready');
 
         const {exporting, progressLabel} = this.mediaExportMessages();
         const hasVideoFiles = files.some((f) => this.fileLooksLikeVideo(f));
@@ -199,6 +212,8 @@ export default class FilePickerUtil {
         const hasImageFiles = files.some((f) => this.fileLooksLikeImage(f));
         const needsImageCompress = ENABLE_IMAGE_COMPRESS && hasImageFiles;
         const showExportOverlay = !draftVideoContext && (needsVideoCompress || needsImageCompress);
+
+        debugLog('FILE', `[prepareFileUpload] needsVideoCompress=${needsVideoCompress}, needsImageCompress=${needsImageCompress}, showExportOverlay=${showExportOverlay}`);
 
         let exportOverlayShown = false;
         let filesToExtract = files;
@@ -245,36 +260,68 @@ export default class FilePickerUtil {
             }
 
             if (needsImageCompress) {
+                debugLog('FILE', `[prepareFileUpload] starting image compression for ${filesToExtract.length} files`);
                 try {
                     const next: Array<Asset | DocumentPickerResponse> = [];
-                    for (const f of filesToExtract) {
+                    for (let i = 0; i < filesToExtract.length; i++) {
+                        const f = filesToExtract[i];
                         if (this.fileLooksLikeImage(f)) {
+                            debugLog('FILE', `[prepareFileUpload] compressing image ${i + 1}/${filesToExtract.length}: ${f.fileName || 'unknown'}`);
                             const clientId = draftVideoContext?.clientId;
                             const isAborted = clientId ? () => isDraftVideoProcessingAborted(clientId) : undefined;
-                            // eslint-disable-next-line no-await-in-loop
-                            next.push(await compressChatImageAsset(f, {
-                                isAborted,
-                                onProgress: draftVideoContext?.onCompressProgress,
-                            }));
+
+                            // 添加超时机制：如果压缩超过 10 秒，跳过压缩
+                            let compressedFile: Asset | DocumentPickerResponse;
+                            try {
+                                compressedFile = await Promise.race([
+                                    compressChatImageAsset(f, {
+                                        isAborted,
+                                        onProgress: draftVideoContext?.onCompressProgress,
+                                    }),
+                                    new Promise<Asset | DocumentPickerResponse>((_, reject) => {
+                                        setTimeout(() => reject(new Error('Image compression timeout')), 10000);
+                                    }),
+                                ]);
+                                debugLog('FILE', '[prepareFileUpload] image compression complete');
+                            } catch (compressError) {
+                                debugLog('FILE', `[prepareFileUpload] compression failed, using original: ${compressError instanceof Error ? compressError.message : String(compressError)}`);
+                                compressedFile = f; // 压缩失败时使用原图
+                            }
+
+                            next.push(compressedFile);
                             await new Promise<void>((r) => setImmediate(r));
                         } else {
                             next.push(f);
                         }
                     }
                     filesToExtract = next;
+                    debugLog('FILE', `[prepareFileUpload] all images compressed, ${next.length} files ready`);
                 } catch (e) {
                     logError('[FilePickerUtil.prepareFileUpload] image compression batch failed', e);
+                    debugLog('FILE', `[prepareFileUpload] image compression ERROR: ${e instanceof Error ? e.message : String(e)}`);
                 }
             }
 
             if (draftVideoContext && isDraftVideoProcessingAborted(draftVideoContext.clientId)) {
+                debugLog('FILE', '[prepareFileUpload] video processing aborted');
                 return;
             }
 
-            await new Promise<void>((resolve) => {
-                InteractionManager.runAfterInteractions(() => resolve());
-            });
+            debugLog('FILE', '[prepareFileUpload] waiting for InteractionManager (timeout: 5s)...');
+            await Promise.race([
+                new Promise<void>((resolve) => {
+                    InteractionManager.runAfterInteractions(() => resolve());
+                }),
+                new Promise<void>((resolve) => {
+                    setTimeout(() => {
+                        debugLog('FILE', '[prepareFileUpload] InteractionManager timeout, continuing...');
+                        resolve();
+                    }, 5000);
+                }),
+            ]);
+            debugLog('FILE', `[prepareFileUpload] calling extractFileInfo for ${filesToExtract.length} files`);
             const out = await extractFileInfo(filesToExtract);
+            debugLog('FILE', `[prepareFileUpload] extractFileInfo returned ${out.length} files`);
 
             if (draftVideoContext) {
                 if (isDraftVideoProcessingAborted(draftVideoContext.clientId)) {
