@@ -189,22 +189,15 @@ export default class FilePickerUtil {
         draftVideoContext?: DraftVideoPrepareContext,
         compressChatVideos = false,
     ) => {
-        debugLog('FILE', `[prepareFileUpload] start, files=${files.length}`);
-
         // 添加超时机制：如果 InteractionManager 超过 5 秒未响应，继续执行
-        debugLog('FILE', '[prepareFileUpload] waiting for InteractionManager (timeout: 5s)...');
         await Promise.race([
             new Promise<void>((resolve) => {
                 InteractionManager.runAfterInteractions(() => resolve());
             }),
             new Promise<void>((resolve) => {
-                setTimeout(() => {
-                    debugLog('FILE', '[prepareFileUpload] InteractionManager timeout, continuing...');
-                    resolve();
-                }, 5000);
+                setTimeout(() => resolve(), 5000);
             }),
         ]);
-        debugLog('FILE', '[prepareFileUpload] InteractionManager ready');
 
         const {exporting, progressLabel} = this.mediaExportMessages();
         const hasVideoFiles = files.some((f) => this.fileLooksLikeVideo(f));
@@ -212,8 +205,6 @@ export default class FilePickerUtil {
         const hasImageFiles = files.some((f) => this.fileLooksLikeImage(f));
         const needsImageCompress = ENABLE_IMAGE_COMPRESS && hasImageFiles;
         const showExportOverlay = !draftVideoContext && (needsVideoCompress || needsImageCompress);
-
-        debugLog('FILE', `[prepareFileUpload] needsVideoCompress=${needsVideoCompress}, needsImageCompress=${needsImageCompress}, showExportOverlay=${showExportOverlay}`);
 
         let exportOverlayShown = false;
         let filesToExtract = files;

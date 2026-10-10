@@ -966,7 +966,10 @@ function DraftInput({
         const sub = AppState.addEventListener('change', (nextAppState) => {
             if (nextAppState === 'background') {
                 resetAllVoiceStates();
-                cancelRecording();
+                // 只在真正录音时才取消
+                if (getIsRecordingGlobally() || getIsRecorderBusy()) {
+                    cancelRecording();
+                }
             }
         });
         return () => sub.remove();
@@ -975,7 +978,10 @@ function DraftInput({
     useEffect(() => {
         return () => {
             resetAllVoiceStates();
-            cancelRecording();
+            // 只在真正录音时才取消
+            if (getIsRecordingGlobally() || getIsRecorderBusy()) {
+                cancelRecording();
+            }
         };
     }, [cancelRecording, resetAllVoiceStates]);
 

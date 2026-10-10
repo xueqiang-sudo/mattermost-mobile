@@ -145,6 +145,9 @@ export function useVoiceRecorder(
                 return;
             }
 
+            // 权限刚授予后，给原生模块一点时间初始化（避免首次录音失败）
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
             const replaceBeforeTs = startingTsRef.current;
             startingTs = Date.now();
             startingTsRef.current = startingTs;
@@ -156,10 +159,29 @@ export function useVoiceRecorder(
                 android: ANDROID_RECORDING_EXTENSION,
             });
             debugLog('VOICE', `[useVoiceRecorder.startRecording] 调用 VoiceRecorder.startRecording, format=${format}`);
-            const success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
+            let success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
             debugLog('VOICE', `[useVoiceRecorder.startRecording] VoiceRecorder.startRecording 返回, success=${success}`);
+
+            // 如果首次失败，重试一次（处理权限刚授予后的初始化延迟）
             if (!success) {
-                debugLog('VOICE', '[useVoiceRecorder.startRecording] 原生录音启动失败');
+                debugLog('VOICE', '[useVoiceRecorder.startRecording] 首次启动失败，150ms后重试');
+                await new Promise((resolve) => setTimeout(resolve, 150));
+
+                // 再次检查用户是否还按着
+                const stillProceed = optionsRef.current?.shouldProceedAfterPermission?.() ?? true;
+                if (!stillProceed) {
+                    debugLog('VOICE', '[useVoiceRecorder.startRecording] 重试前用户已松开，不继续');
+                    startingTsRef.current = null;
+                    await safeResetRecordingState();
+                    return;
+                }
+
+                success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
+                debugLog('VOICE', `[useVoiceRecorder.startRecording] 重试返回, success=${success}`);
+            }
+
+            if (!success) {
+                debugLog('VOICE', '[useVoiceRecorder.startRecording] 原生录音启动失败（含重试）');
                 startingTsRef.current = null;
                 await safeResetRecordingState();
                 onError?.('record_failed');
