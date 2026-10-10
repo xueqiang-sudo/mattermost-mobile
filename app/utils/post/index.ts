@@ -52,7 +52,8 @@ export function isInvalidEphemeralTipPost(post: PostModel | Post): boolean {
     if (post.type !== Post.POST_TYPES.EPHEMERAL) {
         return false;
     }
-    return post.props?.invalid === true;
+    // 支持旧版 (invalid) 和新版 (error) 属性
+    return post.props?.invalid === true || post.props?.error === true;
 }
 
 export function isPostFailed(post: PostModel): boolean {

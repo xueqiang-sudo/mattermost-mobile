@@ -8,6 +8,8 @@ import DocumentPicker, {type DocumentPickerResponse} from 'react-native-document
 import {type Asset, type CameraOptions, type ImageLibraryOptions, type ImagePickerResponse, launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import Permissions from 'react-native-permissions';
 
+import {debugLog} from '@store/debug_log';
+
 import {ENABLE_IMAGE_COMPRESS, ENABLE_VIDEO_COMPRESS} from '@constants/media_processing';
 import {showDraftVideoRecorderModal} from '@screens/draft_video_recorder/show_modal';
 import {dismissBottomSheet} from '@screens/navigation';
@@ -290,9 +292,13 @@ export default class FilePickerUtil {
             }
 
             if (out.length > 0) {
+                debugLog('FILE', `[prepareFileUpload] calling uploadFiles with ${out.length} files`);
                 await hideExportOverlayIfNeeded();
                 dismissBottomSheet();
                 this.uploadFiles(out);
+                debugLog('FILE', '[prepareFileUpload] uploadFiles called successfully');
+            } else {
+                debugLog('FILE', '[prepareFileUpload] no files to upload');
             }
         } finally {
             await hideExportOverlayIfNeeded();
@@ -719,6 +725,7 @@ export default class FilePickerUtil {
     };
 
     attachFileFromPhotoGallery = async (selectionLimit = 1) => {
+        debugLog('FILE', `[attachFileFromPhotoGallery] called with selectionLimit=${selectionLimit}`);
         const options: ImageLibraryOptions = {
             quality: ENABLE_IMAGE_COMPRESS ? 0.8 : 1,
             mediaType: 'mixed',
@@ -727,16 +734,22 @@ export default class FilePickerUtil {
         };
 
         const hasPermission = await this.hasPhotoPermission('photo');
+        debugLog('FILE', `[attachFileFromPhotoGallery] hasPermission=${hasPermission}`);
         if (hasPermission) {
+            debugLog('FILE', '[attachFileFromPhotoGallery] launching image library');
             launchImageLibrary(options, async (response: ImagePickerResponse) => {
+                debugLog('FILE', `[attachFileFromPhotoGallery] response received: hasError=${Boolean(response.errorMessage)}, didCancel=${response.didCancel}, assetsCount=${response.assets?.length || 0}`);
                 StatusBar.setHidden(false);
                 if (response.errorMessage || response.didCancel) {
                     logWarning('Attach failed', response.errorMessage || (response.didCancel ? 'cancelled' : ''));
+                    debugLog('FILE', `[attachFileFromPhotoGallery] attach failed: ${response.errorMessage || 'cancelled'}`);
                     return;
                 }
 
                 const files = await this.getFilesFromResponse(response);
+                debugLog('FILE', `[attachFileFromPhotoGallery] extracted ${files.length} files`);
                 if (!files.length) {
+                    debugLog('FILE', '[attachFileFromPhotoGallery] no files extracted, exiting');
                     return;
                 }
 
@@ -753,14 +766,19 @@ export default class FilePickerUtil {
 
                 // Images: direct upload (auto-send)
                 if (imageFiles.length > 0) {
+                    debugLog('FILE', `[attachFileFromPhotoGallery] preparing ${imageFiles.length} image files for upload`);
                     await this.prepareFileUpload(imageFiles);
+                    debugLog('FILE', '[attachFileFromPhotoGallery] image files prepared');
                 }
 
                 // Videos: draft bridge for processing
                 if (videoFiles.length > 0 && this.draftVideoBridge) {
+                    debugLog('FILE', `[attachFileFromPhotoGallery] processing ${videoFiles.length} video files with draft bridge`);
                     await this.processPickedAssetsWithDraftBridge(videoFiles);
                 } else if (videoFiles.length > 0) {
+                    debugLog('FILE', `[attachFileFromPhotoGallery] preparing ${videoFiles.length} video files for upload`);
                     await this.prepareFileUpload(videoFiles);
+                    debugLog('FILE', '[attachFileFromPhotoGallery] video files prepared');
                 }
             });
         }

@@ -98,24 +98,30 @@ export default function DraftHandler(props: Props) {
     };
 
     const addFiles = useCallback((newFiles: FileInfo[]) => {
+        debugLog('DRAFT', `[addFiles] called with ${newFiles.length} files`);
         if (!newFiles.length) {
+            debugLog('DRAFT', '[addFiles] no files provided, exiting');
             return;
         }
 
         if (!canUploadFiles) {
+            debugLog('DRAFT', '[addFiles] upload disabled, showing error');
             newUploadError(uploadDisabledWarning(intl));
             return;
         }
 
         const currentFileCount = files?.length || 0;
         const availableCount = maxFileCount - currentFileCount;
+        debugLog('DRAFT', `[addFiles] currentFileCount=${currentFileCount}, availableCount=${availableCount}, newFilesCount=${newFiles.length}`);
         if (newFiles.length > availableCount) {
+            debugLog('DRAFT', `[addFiles] too many files, showing error`);
             newUploadError(fileMaxWarning(intl, maxFileCount));
             return;
         }
 
         const largeFile = newFiles.find((file) => file.size > maxFileSize);
         if (largeFile) {
+            debugLog('DRAFT', `[addFiles] file too large: ${largeFile.name}, size=${largeFile.size}`);
             newUploadError(fileSizeWarning(intl, maxFileSize));
             return;
         }

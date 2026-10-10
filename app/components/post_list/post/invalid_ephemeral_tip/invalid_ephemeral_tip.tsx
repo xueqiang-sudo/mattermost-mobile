@@ -89,7 +89,8 @@ const InvalidEphemeralTip = ({location, post, weChatOwnRightAlign = false}: Prop
     }, [maxWidthPx, sheet.wrapCard, sheet.wrapOwnRight, tipBg, tipBorder, weChatOwnRightAlign]);
 
     const messageText = (post.message || post.messageSource || '').trim();
-    const reason = ensureString(post.props?.invalid_reason).trim();
+    // 支持旧版 (invalid_reason) 和新版 (error_message) 属性
+    const reason = ensureString(post.props?.invalid_reason || post.props?.error_message).trim();
     const value = messageText || reason;
 
     const baseTextStyle = useMemo(() => {
