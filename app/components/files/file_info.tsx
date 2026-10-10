@@ -42,6 +42,8 @@ type FileInfoProps = {
     onPress: () => void;
     /** true：在文件行内占满剩余宽度；false：随文件名/大小收缩（微信气泡内非图附件） */
     fillRemainingRow?: boolean;
+    /** false：不使用内部触摸组件，由父级处理触摸事件 */
+    touchable?: boolean;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -87,43 +89,55 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDate, onPress}: FileInfoProps) => {
+const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDate, onPress, touchable = true}: FileInfoProps) => {
     const theme = useTheme();
     const style = getStyleSheet(theme);
 
     // 智能截断文件名，保留扩展名
     const {name, ext} = truncateFileName(file.name.trim(), 25);
 
+    const content = (
+        <>
+            <Text
+                numberOfLines={1}
+                style={style.fileName}
+            >
+                {name}
+                {ext ? <Text style={style.fileExtension}>.{ext}</Text> : null}
+            </Text>
+            <View style={style.fileDownloadContainer}>
+                {channelName &&
+                    <View style={style.channelWrapper}>
+                        <Text
+                            style={style.channelText}
+                            numberOfLines={1}
+                        >
+                            {channelName}
+                        </Text>
+                    </View>
+                }
+                <Text style={style.infoText}>
+                    {`${getFormattedFileSize(file.size)}`}
+                </Text>
+            </View>
+        </>
+    );
+
     return (
         <View style={[style.attachmentContainer, fillRemainingRow && style.attachmentContainerFill]}>
-            <TouchableOpacity
-                disabled={disabled}
-                onPress={onPress}
-                style={style.fileInfoTouchable}
-            >
-                <Text
-                    numberOfLines={1}
-                    style={style.fileName}
+            {touchable ? (
+                <TouchableOpacity
+                    disabled={disabled}
+                    onPress={onPress}
+                    style={style.fileInfoTouchable}
                 >
-                    {name}
-                    {ext ? <Text style={style.fileExtension}>.{ext}</Text> : null}
-                </Text>
-                <View style={style.fileDownloadContainer}>
-                    {channelName &&
-                        <View style={style.channelWrapper}>
-                            <Text
-                                style={style.channelText}
-                                numberOfLines={1}
-                            >
-                                {channelName}
-                            </Text>
-                        </View>
-                    }
-                    <Text style={style.infoText}>
-                        {`${getFormattedFileSize(file.size)}`}
-                    </Text>
+                    {content}
+                </TouchableOpacity>
+            ) : (
+                <View style={style.fileInfoTouchable}>
+                    {content}
                 </View>
-            </TouchableOpacity>
+            )}
         </View>
     );
 };

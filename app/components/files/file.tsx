@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useRef, useState} from 'react';
-import {View, TouchableWithoutFeedback, StyleSheet, type GestureResponderEvent} from 'react-native';
+import {View, TouchableWithoutFeedback, StyleSheet, Animated as RNAnimated, type GestureResponderEvent} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import TouchableWithFeedback from '@components/touchable_with_feedback';
@@ -118,18 +118,26 @@ const File = ({
     const theme = useTheme();
     const style = getStyleSheet(theme);
     const [showActionDialog, setShowActionDialog] = useState(false);
-    const [isPressed, setIsPressed] = useState(false);
+    const pressOpacity = useRef(new RNAnimated.Value(0)).current;
     const longPressTriggered = useRef(false);
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     const handlePressIn = useCallback(() => {
-        setIsPressed(true);
+        RNAnimated.timing(pressOpacity, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+        }).start();
         longPressTriggered.current = false;
-    }, []);
+    }, [pressOpacity]);
 
     const handlePressOut = useCallback(() => {
-        setIsPressed(false);
-    }, []);
+        RNAnimated.timing(pressOpacity, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+        }).start();
+    }, [pressOpacity]);
 
     const handleLongPress = useCallback((event?: GestureResponderEvent) => {
         longPressTriggered.current = true;
@@ -216,7 +224,7 @@ const File = ({
         downloadAndPreviewFile(fileInfo);
     }, [downloadAndPreviewFile]);
 
-    const renderCardWithImage = (fileIcon: JSX.Element) => {
+    const renderCardWithImage = (fileIcon: JSX.Element, wrapInTouchable?: boolean) => {
         const fileInfo = (
             <FileInfo
                 channelName={channelName}
@@ -225,6 +233,7 @@ const File = ({
                 fillRemainingRow={true}
                 onPress={handlePreviewPress}
                 showDate={false}
+                touchable={!wrapInTouchable}
             />
         );
 
@@ -233,7 +242,7 @@ const File = ({
             style.fileWrapperFixedWidth,
         ];
 
-        return (
+        const cardContent = (
             <View style={cardRowStyle}>
                 {fileInfo}
                 <View style={style.iconWrapperRight}>
@@ -245,15 +254,34 @@ const File = ({
                     selected={optionSelected}
                 />
                 }
+                {wrapInTouchable && <RNAnimated.View style={[style.pressOverlay, {opacity: pressOpacity}]} />}
             </View>
         );
+
+        if (wrapInTouchable) {
+            return (
+                <TouchableWithFeedback
+                    onPress={handlePreviewPress}
+                    onPressIn={handlePressIn}
+                    onPressOut={handlePressOut}
+                    onLongPress={handleLongPress}
+                    delayLongPress={350}
+                    disabled={isPressDisabled}
+                    type={'opacity'}
+                >
+                    {cardContent}
+                </TouchableWithFeedback>
+            );
+        }
+
+        return cardContent;
     };
 
     const touchableWithPreview = (
         <TouchableWithFeedback
             onPress={handlePreviewPress}
             onLongPress={handleLongPress}
-            delayLongPress={200}
+            delayLongPress={350}
             disabled={isPressDisabled}
             type={'opacity'}
         >
@@ -272,7 +300,7 @@ const File = ({
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
                 onLongPress={handleLongPress}
-                delayLongPress={200}
+                delayLongPress={350}
             >
                 <Animated.View style={[styles, asCard ? style.imageVideo : null]}>
                     <VideoFile
@@ -290,7 +318,7 @@ const File = ({
                         value={nonVisibleImagesCount}
                     />
                     }
-                    {isPressed && <View style={style.pressOverlay} />}
+                    <RNAnimated.View style={[style.pressOverlay, {opacity: pressOpacity}]} />
                 </Animated.View>
             </TouchableWithoutFeedback>
         );
@@ -303,7 +331,7 @@ const File = ({
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
                 onLongPress={handleLongPress}
-                delayLongPress={200}
+                delayLongPress={350}
                 disabled={isPressDisabled}
             >
                 <Animated.View style={[styles, asCard ? style.imageVideo : null]}>
@@ -320,7 +348,7 @@ const File = ({
                         value={nonVisibleImagesCount}
                     />
                     }
-                    {isPressed && <View style={style.pressOverlay} />}
+                    <RNAnimated.View style={[style.pressOverlay, {opacity: pressOpacity}]} />
                 </Animated.View>
             </TouchableWithoutFeedback>
         );
@@ -328,6 +356,7 @@ const File = ({
         fileComponent = asCard ? renderCardWithImage(renderImageFile) : renderImageFile;
     } else if (isDocument(file)) {
         // 文档文件：统一卡片样式，文件名+大小在左，图标在右
+        // 使用单个外层触摸组件，避免嵌套触摸冲突
         const fileInfo = (
             <FileInfo
                 channelName={channelName}
@@ -336,27 +365,18 @@ const File = ({
                 fillRemainingRow={true}
                 onPress={handleShowFileActions}
                 showDate={false}
+                touchable={false}
             />
         );
 
         const documentIcon = (
-            <TouchableWithFeedback
-                onPress={() => {
-                    handleShowFileActions();
-                }}
-                onLongPress={handleLongPress}
-                delayLongPress={200}
+            <DocumentFile
+                ref={document}
+                canDownloadFiles={canDownloadFiles}
                 disabled={isPressDisabled}
-                type={'opacity'}
-            >
-                <DocumentFile
-                    ref={document}
-                    canDownloadFiles={canDownloadFiles}
-                    disabled={isPressDisabled}
-                    enableSecureFilePreview={enableSecureFilePreview}
-                    file={file}
-                />
-            </TouchableWithFeedback>
+                enableSecureFilePreview={enableSecureFilePreview}
+                file={file}
+            />
         );
 
         fileComponent = (
@@ -366,15 +386,16 @@ const File = ({
                     onPressIn={handlePressIn}
                     onPressOut={handlePressOut}
                     onLongPress={handleLongPress}
-                    delayLongPress={200}
+                    delayLongPress={350}
                     disabled={isPressDisabled}
                     type={'opacity'}
                 >
-                    <View style={[style.fileWrapper, style.fileWrapperFixedWidth, isPressed && style.pressOverlay]}>
+                    <View style={[style.fileWrapper, style.fileWrapperFixedWidth]}>
                         {fileInfo}
                         <View style={style.iconWrapperRight}>
                             {documentIcon}
                         </View>
+                        <RNAnimated.View style={[style.pressOverlay, {opacity: pressOpacity}]} />
                     </View>
                 </TouchableWithFeedback>
                 <FileActionDialog
@@ -387,9 +408,9 @@ const File = ({
             </>
         );
     } else if (isAudio(file)) {
-        fileComponent = renderCardWithImage(touchableWithPreview);
+        fileComponent = renderCardWithImage(touchableWithPreview, true);
     } else {
-        fileComponent = renderCardWithImage(touchableWithPreview);
+        fileComponent = renderCardWithImage(touchableWithPreview, true);
     }
     return fileComponent;
 };

@@ -7,15 +7,18 @@ import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
 import {showPermalink} from '@actions/remote/permalink';
-import {buildFileThumbnailUrl} from '@actions/remote/file';
+import {buildFileThumbnailUrl, buildFileUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
+import {getFileIconInfo} from '@components/files/file_icon';
 import {Events} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {observePost, observePostAuthor} from '@queries/servers/post';
 import {observeFilesForPost} from '@queries/servers/file';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
-import {isImage, isVideo} from '@utils/file';
+import {isAudio, isImage, isVideo} from '@utils/file';
+import {showMediaViewer} from '@utils/gallery';
+import {openUnifiedFileViewer} from '@utils/navigation';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
 import type PostModel from '@typings/database/models/servers/post';
@@ -103,8 +106,36 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
             return;
         }
 
+        // If the quoted post has files, open the file directly (like clicking the original file)
+        if (files.length > 0) {
+            const file = files[0];
+            const fileInfo: FileInfo = {
+                id: file.id,
+                name: file.name,
+                extension: file.extension,
+                mime_type: file.mimeType,
+                size: file.size,
+                width: file.width,
+                height: file.height,
+                has_preview_image: file.hasPreviewImage,
+                localPath: file.localPath,
+                uri: buildFileUrl(serverUrl, file.id),
+                post_id: file.postId,
+                user_id: file.userId,
+                create_at: file.createAt,
+                update_at: file.updateAt,
+            };
+
+            if (isImage(file) || isVideo(file) || isAudio(file)) {
+                showMediaViewer(fileInfo);
+            } else {
+                openUnifiedFileViewer(fileInfo, theme);
+            }
+            return;
+        }
+
         void showPermalink(serverUrl, '', post.id);
-    }, [post?.id, serverUrl]);
+    }, [files, post?.id, serverUrl, theme]);
 
     if (!post) {
         return null;
@@ -167,12 +198,13 @@ const ReplyQuotePreview = ({post, author, files = []}: Props) => {
 
             // Non-media files or image without any source: show filename + file type icon
             const fileName = firstFile?.name || 'File';
+            const {iconName, color: iconColor} = getFileIconInfo(firstFile);
             return {
                 contentElement: (
                     <CompassIcon
-                        name='file-outline'
+                        name={iconName}
                         size={18}
-                        color={theme.centerChannelColor}
+                        color={iconColor}
                         style={styles.fileIcon}
                     />
                 ),

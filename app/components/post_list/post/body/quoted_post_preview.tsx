@@ -8,15 +8,18 @@ import {DeviceEventEmitter, Image, Pressable, StyleSheet, Text, View} from 'reac
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
-import {buildFileThumbnailUrl} from '@actions/remote/file';
+import {buildFileThumbnailUrl, buildFileUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
+import {getFileIconInfo} from '@components/files/file_icon';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {observeFilesForPost} from '@queries/servers/file';
 import {observePost, observePostAuthor} from '@queries/servers/post';
 import {debugLog} from '@store/debug_log';
-import {isImage, isVideo} from '@utils/file';
+import {isAudio, isImage, isVideo} from '@utils/file';
+import {showMediaViewer} from '@utils/gallery';
+import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
@@ -109,6 +112,34 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
     const style = getStyleSheet(theme);
 
     const onPress = useCallback(() => {
+        // If the quoted post has files, open the file directly (like clicking the original file)
+        if (files.length > 0) {
+            const file = files[0];
+            const fileInfo: FileInfo = {
+                id: file.id,
+                name: file.name,
+                extension: file.extension,
+                mime_type: file.mimeType,
+                size: file.size,
+                width: file.width,
+                height: file.height,
+                has_preview_image: file.hasPreviewImage,
+                localPath: file.localPath,
+                uri: buildFileUrl(serverUrl, file.id),
+                post_id: file.postId,
+                user_id: file.userId,
+                create_at: file.createAt,
+                update_at: file.updateAt,
+            };
+
+            if (isImage(file) || isVideo(file) || isAudio(file)) {
+                showMediaViewer(fileInfo);
+            } else {
+                openUnifiedFileViewer(fileInfo, theme);
+            }
+            return;
+        }
+
         if (location !== Screens.CHANNEL && location !== Screens.PERMALINK) {
             return;
         }
@@ -117,7 +148,7 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
             channelId,
             location,
         });
-    }, [channelId, location, quotedPostId]);
+    }, [channelId, files, location, quotedPostId, serverUrl, theme]);
 
     debugLog('QUOTED_PREVIEW', `rendering: quotedPostId=${quotedPostId}, plain=${plain}, hasPost=${Boolean(post)}, hasAuthor=${Boolean(author)}`);
 
@@ -177,12 +208,13 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         }
 
         // Show file icon for non-media files or media without thumbnail
+        const {iconName, color: iconColor} = getFileIconInfo(firstFile);
         return (
             <>
                 <CompassIcon
-                    name='file-outline'
+                    name={iconName}
                     size={18}
-                    color={theme.centerChannelColor}
+                    color={iconColor}
                     style={style.fileIcon}
                 />
                 <Text

@@ -92,4 +92,18 @@ const FileIcon = ({
     );
 };
 
+/**
+ * Get the icon name and color for a file based on its type.
+ * Exported for reuse in quoted post previews and other components.
+ */
+export function getFileIconInfo(file?: FileInfo | ExtractedFileInfo): {iconName: string; color: string} {
+    if (file) {
+        const fileType = getFileType(file);
+        const [iconName, color] = ICON_NAME_AND_COLOR_FROM_FILE_TYPE[fileType] || ICON_NAME_AND_COLOR_FROM_FILE_TYPE.other;
+        return {iconName, color};
+    }
+    const [iconName, color] = ICON_NAME_AND_COLOR_FROM_FILE_TYPE.other;
+    return {iconName, color};
+}
+
 export default FileIcon;

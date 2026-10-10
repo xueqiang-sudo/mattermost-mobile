@@ -609,12 +609,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             flexDirection: 'row',
             alignItems: 'center',
             backgroundColor: inputShellBg,
-            borderRadius: 6,
+            borderRadius: 20,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: shellBorder,
             marginHorizontal: 2,
             marginBottom: 2,
-            minHeight: 40,
+            minHeight: 36,
             overflow: 'hidden',
         },
         weChatInputInner: {
@@ -1149,16 +1149,24 @@ function DraftInput({
                         type='opacity'
                         testID={voiceMode ? `${quickActionsTestID}.keyboard.button` : `${quickActionsTestID}.voice.button`}
                     >
-                        <View style={{justifyContent: 'center', alignItems: 'center'}}>
+                        <View style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            borderWidth: 1.5,
+                            borderColor: isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }}>
                             {voiceMode ? (
                                 <WeChatKeyboardIcon
-                                    size={28}
+                                    size={18}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             ) : (
                                 <CompassIcon
                                     name='microphone'
-                                    size={28}
+                                    size={15}
                                     color={isModeButtonDisabled ? changeOpacity(weChatFooterIconColor, 0.3) : weChatFooterIconColor}
                                 />
                             )}
@@ -1208,9 +1216,9 @@ function DraftInput({
                     type='opacity'
                 >
                     <View style={[style.weChatSideIconHit, {
-                        width: 34,
-                        height: 34,
-                        borderRadius: 17,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
                         borderWidth: 1.5,
                         borderColor: weChatFooterIconColor,
                         justifyContent: 'center',
@@ -1220,14 +1228,14 @@ function DraftInput({
                     }]}>
                         {emojiPanelOpen ? (
                             <WeChatKeyboardIcon
-                                size={22}
+                                size={18}
                                 color={weChatFooterIconColor}
                             />
                         ) : (
                             <CompassIcon
                                 color={weChatFooterIconColor}
                                 name='emoticon-happy-outline'
-                                size={18}
+                                size={15}
                             />
                         )}
                     </View>
@@ -1242,9 +1250,9 @@ function DraftInput({
                     testID={`${quickActionsTestID}.more.button`}
                 >
                     <View style={[style.weChatSideIconHit, {
-                        width: 34,
-                        height: 34,
-                        borderRadius: 17,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
                         borderWidth: 1.5,
                         borderColor: weChatFooterIconColor,
                         justifyContent: 'center',
@@ -1254,7 +1262,7 @@ function DraftInput({
                         <CompassIcon
                             color={weChatFooterIconColor}
                             name='plus'
-                            size={18}
+                            size={15}
                         />
                     </View>
                 </TouchableWithFeedback>
