@@ -26,6 +26,7 @@ import {fileMaxWarning, fileSizeWarning, getExtensionFromMime, uploadDisabledWar
 import {generateId} from '@utils/general';
 import {logError} from '@utils/log';
 import {showSnackBar} from '@utils/snack_bar';
+import {debugLog} from '@store/debug_log';
 
 import SendHandler from '../send_handler';
 
@@ -123,17 +124,21 @@ export default function DraftHandler(props: Props) {
         // Optimistic UI: create posts immediately, upload files in background
         void (async () => {
             try {
+                debugLog('DRAFT', `addFiles: start, count=${newFiles.length}`);
                 // Filter out video processing files
                 const filesToUpload = newFiles.filter(file => !isDraftVideoLocalProcessingFile(file));
 
                 if (filesToUpload.length === 0) {
+                    debugLog('DRAFT', `addFiles: no files to upload after filtering`);
                     return;
                 }
 
                 // Generate batch ID for grouping these posts (only for multiple files)
                 const batchId = filesToUpload.length > 1 ? `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
+                debugLog('DRAFT', `addFiles: batchId=${batchId || 'none'}`);
 
                 // Phase 1: Prepare all files with dimensions in parallel
+                debugLog('DRAFT', `addFiles: Phase 1 - preparing files`);
                 const filesWithPostData = await Promise.all(
                     filesToUpload.map(async (file) => {
                         const pendingFileId = `pending_${generateId()}`;
@@ -199,6 +204,7 @@ export default function DraftHandler(props: Props) {
 
                 // Phase 2: Batch create all pending posts in a single DB write
                 // This triggers observe() only once instead of N times
+                debugLog('DRAFT', `addFiles: Phase 2 - batch create pending posts`);
                 const batchResult = await createBatchPendingPosts(
                     serverUrl,
                     filesWithPostData.map(({localFile, post}) => ({
@@ -208,10 +214,12 @@ export default function DraftHandler(props: Props) {
                 );
 
                 if (batchResult.error) {
+                    debugLog('DRAFT', `addFiles: Phase 2 ERROR - ${batchResult.error}`);
                     throw batchResult.error;
                 }
 
                 const batchData = batchResult.data!;
+                debugLog('DRAFT', `addFiles: Phase 2 complete, created ${batchData.length} posts`);
                 const pendingPosts: Array<{postId: string; file: FileInfo}> = [];
 
                 for (let i = 0; i < batchData.length; i++) {
@@ -222,8 +230,10 @@ export default function DraftHandler(props: Props) {
                 }
 
                 // Phase 3: Call server API for each post (pending posts already in DB)
+                debugLog('DRAFT', `addFiles: Phase 3 - calling server API for ${batchData.length} posts`);
                 for (let i = 0; i < batchData.length; i++) {
                     const {pendingPostId, post, files} = batchData[i];
+                    debugLog('DRAFT', `addFiles: Phase 3 - API call ${i + 1}/${batchData.length}`);
 
                     try {
                         const result = await createPost(
@@ -234,14 +244,17 @@ export default function DraftHandler(props: Props) {
                         );
 
                         if (result.error) {
+                            debugLog('DRAFT', `addFiles: Phase 3 ERROR - ${result.error}`);
                             throw result.error;
                         }
 
                         if (result.data?.postId) {
                             pendingPosts[i].postId = result.data.postId;
+                            debugLog('DRAFT', `addFiles: Phase 3 - post ${i + 1} created, id=${result.data.postId}`);
                         }
                     } catch (err) {
                         logError('[addFiles createPost]', err);
+                        debugLog('DRAFT', `addFiles: Phase 3 exception - ${err}`);
                         // Continue with other posts
                     }
                 }
@@ -260,7 +273,9 @@ export default function DraftHandler(props: Props) {
                 }
 
                 // Upload files in background and update posts
+                debugLog('DRAFT', `addFiles: background upload - ${pendingPosts.length} files`);
                 for (const {postId, file} of pendingPosts) {
+                    debugLog('DRAFT', `addFiles: uploading file ${file.name}`);
 
                     try {
                         const uploadedFile = await new Promise<FileInfo>((resolve, reject) => {
@@ -307,14 +322,18 @@ export default function DraftHandler(props: Props) {
                         });
 
                         // Update post with real file ID
+                        debugLog('DRAFT', `addFiles: upload complete, updating post ${postId}`);
                         await updatePostFileIds(serverUrl, postId, [uploadedFile]);
+                        debugLog('DRAFT', `addFiles: post ${postId} updated with real file ID`);
 
                     } catch (uploadErr) {
                         logError('[addFiles background upload]', uploadErr);
+                        debugLog('DRAFT', `addFiles: upload ERROR - ${uploadErr}`);
                         // Mark post as failed (don't throw, continue with other files)
                         await markPostUploadFailed(serverUrl, postId, file.name);
                     }
                 }
+                debugLog('DRAFT', `addFiles: all uploads complete`);
 
 
             } catch (err) {

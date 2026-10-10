@@ -18,6 +18,7 @@ import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {debugLog} from '@store/debug_log';
 import {getDateForDateLine, getTimeForTimeLine, preparePostList} from '@utils/post_list';
 import {changeOpacity, getChatListBackdropColor} from '@utils/theme';
 
@@ -154,21 +155,47 @@ const PostList = ({
 
     // Debounce posts updates to merge rapid DB changes (e.g., API responses arriving close together)
     const [debouncedPosts, setDebouncedPosts] = useState(posts);
+    const debouncedPostsLengthRef = useRef(posts.length);
+
     useEffect(() => {
+        const lengthDiff = Math.abs(posts.length - debouncedPostsLengthRef.current);
+        debugLog('POST_LIST', `debounce: posts=${posts.length}, prevLen=${debouncedPostsLengthRef.current}, diff=${lengthDiff}`);
+
         // Immediate update on large changes (e.g., channel switch)
-        if (Math.abs(posts.length - debouncedPosts.length) > 5) {
+        if (lengthDiff > 5) {
+            debugLog('POST_LIST', `debounce: immediate update (large change)`);
             setDebouncedPosts(posts);
+            debouncedPostsLengthRef.current = posts.length;
             return;
         }
-        const timer = setTimeout(() => setDebouncedPosts(posts), 150);
+        debugLog('POST_LIST', `debounce: scheduled update (150ms delay)`);
+        const timer = setTimeout(() => {
+            debugLog('POST_LIST', `debounce: timer fired, updating posts`);
+            setDebouncedPosts(posts);
+            debouncedPostsLengthRef.current = posts.length;
+        }, 150);
         return () => clearTimeout(timer);
-    }, [posts]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [posts]);
 
     const orderedPosts = useMemo(() => {
-        const isThreadView = Boolean(rootId);
-        const useWeChatMode = location === Screens.CHANNEL || location === Screens.PERMALINK;
-        return preparePostList(debouncedPosts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds, useWeChatMode);
-    }, [debouncedPosts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds, location]);
+        debugLog('POST_LIST', `preparePostList: start, posts=${debouncedPosts.length}`);
+        try {
+            const isThreadView = Boolean(rootId);
+            const useWeChatMode = location === Screens.CHANNEL || location === Screens.PERMALINK;
+            const result = preparePostList(debouncedPosts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds, useWeChatMode);
+            debugLog('POST_LIST', `preparePostList: success, items=${result.length}`);
+            return result;
+        } catch (error) {
+            console.error('[PostList] preparePostList error:', error, {
+                postsCount: debouncedPosts.length,
+                lastViewedAt,
+                channelId,
+            });
+            debugLog('POST_LIST', `preparePostList: ERROR - ${error}`);
+            // Return empty array on error to prevent crash
+            return [];
+        }
+    }, [debouncedPosts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds, location, channelId]);
 
     const orderedPostsRef = useRef(orderedPosts);
     orderedPostsRef.current = orderedPosts;
@@ -396,33 +423,45 @@ const PostList = ({
                     />);
             }
             default: {
-                const post = item.value.currentPost;
-                const {isSaved, nextPost, previousPost} = item.value;
-                const skipSaveddHeader = false;
-                const postProps = {
-                    appsEnabled,
-                    customEmojiNames,
-                    isCRTEnabled,
-                    isPostAcknowledgementEnabled,
-                    highlight: effectiveHighlightedId === post.id,
-                    highlightPinnedOrSaved,
-                    isSaved,
-                    location,
-                    nextPost,
-                    post,
-                    previousPost,
-                    rootId,
-                    shouldRenderReplyButton,
-                    skipSaveddHeader,
-                    testID: `${testID}.post`,
-                };
+                try {
+                    const post = item.value?.currentPost;
+                    if (!post) {
+                        console.warn('[PostList] renderItem: missing post data', item);
+                        debugLog('POST_LIST', `renderItem: WARNING - missing post data, type=${item.type}`);
+                        return null;
+                    }
+                    debugLog('POST_LIST', `renderItem: post id=${post.id}, type=${post.type}`);
+                    const {isSaved, nextPost, previousPost} = item.value;
+                    const skipSaveddHeader = false;
+                    const postProps = {
+                        appsEnabled,
+                        customEmojiNames,
+                        isCRTEnabled,
+                        isPostAcknowledgementEnabled,
+                        highlight: effectiveHighlightedId === post.id,
+                        highlightPinnedOrSaved,
+                        isSaved,
+                        location,
+                        nextPost,
+                        post,
+                        previousPost,
+                        rootId,
+                        shouldRenderReplyButton,
+                        skipSaveddHeader,
+                        testID: `${testID}.post`,
+                    };
 
-                return (
-                    <Post
-                        {...postProps}
-                        key={post.id}
-                    />
-                );
+                    return (
+                        <Post
+                            {...postProps}
+                            key={post.id}
+                        />
+                    );
+                } catch (error) {
+                    console.error('[PostList] renderItem error:', error, item);
+                    debugLog('POST_LIST', `renderItem: ERROR - ${error}`);
+                    return null;
+                }
             }
         }
     }, [appsEnabled, currentTimezone, currentUsername, customEmojiNames, highlightPinnedOrSaved, effectiveHighlightedId, isCRTEnabled, isPostAcknowledgementEnabled, location, rootId, shouldRenderReplyButton, shouldShowJoinLeaveMessages, testID, theme]);
