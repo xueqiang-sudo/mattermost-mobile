@@ -22,8 +22,9 @@ import {getErrorMessage} from '@utils/errors';
 import {scheduledPostFromPost} from '@utils/post';
 import {canPostDraftInChannelOrThread} from '@utils/scheduled_post';
 import {showSnackBar} from '@utils/snack_bar';
+import {debugLog} from '@store/debug_log';
 import type CustomEmojiModel from '@typings/database/models/servers/custom_emoji';
-import { logDebug, logError } from '@utils/log';
+import { logError } from '@utils/log';
 
 export type CreateResponse = {
     data?: boolean;
@@ -254,40 +255,64 @@ export const useHandleSendMessage = ({
 
     const sendVoiceAsr = useCallback(async (voiceFiles: FileInfo[], onError?: (message: string) => void) => {
         if (!voiceFiles.length) {
+            debugLog('VOICE', '[sendVoiceAsr] 没有语音文件，跳过');
             return;
         }
-        logDebug('[sendVoiceAsr] 开始上传语音文件');
+        debugLog('VOICE', '[sendVoiceAsr] ========== 开始语音转文本流程 ==========');
+        debugLog('VOICE', `[sendVoiceAsr] 语音文件数量: ${voiceFiles.length}`);
+        voiceFiles.forEach((file, idx) => {
+            debugLog('VOICE', `[sendVoiceAsr] 文件 ${idx + 1}: clientId=${file.clientId}, name=${file.name}, size=${file.size}, path=${file.localPath}`);
+        });
+
         setSendingMessage(true);
         try {
+            // 步骤 1: 上传语音文件
+            debugLog('VOICE', '[sendVoiceAsr] 步骤 1: 开始上传语音文件');
             const uploadedFiles: FileInfo[] = [];
-            for (const file of voiceFiles) {
-                logDebug(`[sendVoiceAsr] 开始上传语音文件 ${file.clientId}, 大小 ${file.size}, 路径 ${file.localPath}`);
+            for (let i = 0; i < voiceFiles.length; i++) {
+                const file = voiceFiles[i];
+                debugLog('VOICE', `[sendVoiceAsr] 上传文件 ${i + 1}/${voiceFiles.length}: ${file.name}`);
+
                 const uploaded = await new Promise<FileInfo>((resolve, reject) => {
                     const {error, cancel} = uploadFile(
                         serverUrl,
                         file,
                         channelId,
-                        () => {/* progress */},
+                        (progress) => {
+                            debugLog('VOICE', `[sendVoiceAsr] 上传进度: ${progress}%`);
+                        },
                         (response) => {
+                            debugLog('VOICE', `[sendVoiceAsr] 上传响应: code=${response.code}, hasFiles=${Boolean(response.data?.file_infos?.length)}`);
                             if (response.code !== 201 || !response.data?.file_infos?.length) {
-                                reject(new Error((response.data?.message as string) || 'Failed to upload voice'));
+                                const errorMsg = (response.data?.message as string) || 'Failed to upload voice';
+                                debugLog('VOICE', `[sendVoiceAsr] 上传失败: ${errorMsg}`);
+                                reject(new Error(errorMsg));
                                 return;
                             }
                             const fi = response.data.file_infos[0] as FileInfo;
                             fi.clientId = file.clientId;
                             fi.localPath = file.localPath;
+                            debugLog('VOICE', `[sendVoiceAsr] 上传成功: fileId=${fi.id}, name=${fi.name}`);
                             resolve(fi);
                         },
-                        (err) => reject(new Error(err?.message || 'Upload failed')),
+                        (err) => {
+                            debugLog('VOICE', `[sendVoiceAsr] 上传错误: ${err?.message || 'Unknown error'}`);
+                            reject(new Error(err?.message || 'Upload failed'));
+                        },
                     );
                     if (error) {
+                        debugLog('VOICE', `[sendVoiceAsr] uploadFile 返回错误: ${error}`);
                         reject(error);
                     }
                 });
                 uploadedFiles.push(uploaded);
+                debugLog('VOICE', `[sendVoiceAsr] 文件 ${i + 1} 上传完成`);
             }
 
-            // Server should create a separate normal post with transcript; this post stays hidden in the list (see selectOrderedPosts).
+            debugLog('VOICE', `[sendVoiceAsr] 所有文件上传完成，共 ${uploadedFiles.length} 个`);
+
+            // 步骤 2: 创建 ASR 帖子
+            debugLog('VOICE', '[sendVoiceAsr] 步骤 2: 创建 ASR 帖子');
             const post = {
                 user_id: currentUserId,
                 channel_id: channelId,
@@ -295,7 +320,7 @@ export const useHandleSendMessage = ({
                 message: '',
                 type: PostTypes.CUSTOM_VOICE_ASR,
             } as Post;
-            
+
             // 添加优先级信息
             if (!rootId && (
                 postPriority.priority ||
@@ -307,18 +332,35 @@ export const useHandleSendMessage = ({
                 };
             }
 
-            logDebug('[[sendVoiceAsr] 开始创建帖子');
-            await createPost(serverUrl, post, uploadedFiles);
-            logDebug('[[sendVoiceAsr] 帖子创建完成');
+            debugLog('VOICE', `[sendVoiceAsr] 帖子数据: channelId=${channelId}, rootId=${rootId}, type=${post.type}, fileCount=${uploadedFiles.length}`);
+            debugLog('VOICE', '[sendVoiceAsr] 调用 createPost...');
+
+            const createResult = await createPost(serverUrl, post, uploadedFiles);
+
+            if (createResult.error) {
+                debugLog('VOICE', `[sendVoiceAsr] createPost 返回错误: ${createResult.error}`);
+                throw createResult.error;
+            }
+
+            debugLog('VOICE', `[sendVoiceAsr] createPost 成功: postId=${createResult.data?.postId}`);
+
+            // 步骤 3: 发送事件
+            debugLog('VOICE', '[sendVoiceAsr] 步骤 3: 发送滚动和清理事件');
             DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
             DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
             DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
+
+            debugLog('VOICE', '[sendVoiceAsr] ========== 语音转文本流程完成 ==========');
+            debugLog('VOICE', '[sendVoiceAsr] 等待服务器处理语音转文本...');
         } catch (err) {
-            logError('[[sendVoiceAsr] 创建帖子失败]', err);
+            logError('[sendVoiceAsr] 流程失败', err);
+            debugLog('VOICE', `[sendVoiceAsr] 错误详情: ${err instanceof Error ? err.message : String(err)}`);
             const errorMessage = getErrorMessage(err);
             if (onError) {
+                debugLog('VOICE', `[sendVoiceAsr] 调用 onError 回调: ${errorMessage}`);
                 onError(errorMessage as string);
             } else {
+                debugLog('VOICE', `[sendVoiceAsr] 显示错误提示: ${errorMessage}`);
                 showSnackBar({
                     barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
                     customMessage: errorMessage as string,
@@ -326,6 +368,7 @@ export const useHandleSendMessage = ({
                 });
             }
         } finally {
+            debugLog('VOICE', '[sendVoiceAsr] 设置 sendingMessage=false');
             setSendingMessage(false);
         }
     }, [serverUrl, channelId, rootId, currentUserId, postPriority, createPost, showSnackBar]);

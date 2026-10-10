@@ -9,6 +9,7 @@ import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {useGalleryItem} from '@hooks/gallery';
 import {useDownloadFileAndPreview} from '@hooks/files';
+import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -145,12 +146,16 @@ const File = ({
     }, [onLongPress]);
 
     const handlePreviewPress = useCallback(() => {
+        debugLog('FILE', `handlePreviewPress called: hasDocumentRef=${Boolean(document.current)}`);
         if (longPressTriggered.current) {
+            debugLog('FILE', 'handlePreviewPress: long press triggered, ignoring');
             return;
         }
         if (document.current) {
+            debugLog('FILE', 'handlePreviewPress: calling document.current.handlePreviewPress()');
             document.current.handlePreviewPress();
         } else {
+            debugLog('FILE', `handlePreviewPress: calling onPress(${index})`);
             onPress(index);
         }
     }, [index, onPress]);
@@ -163,8 +168,11 @@ const File = ({
 
     // 智能文件路由：根据文件类型决定是直接打开还是显示对话框
     const handleShowFileActions = useCallback(() => {
+        debugLog('FILE', `handleShowFileActions called: name=${file.name}, ext=${file.extension}`);
+
         // 长按后释放，不执行打开操作
         if (longPressTriggered.current) {
+            debugLog('FILE', 'handleShowFileActions: long press triggered, ignoring');
             return;
         }
 
@@ -181,30 +189,35 @@ const File = ({
 
         // PDF 文件：直接打开
         if (isPdf(file)) {
+            debugLog('FILE', 'handleShowFileActions: is PDF, calling handlePreviewPress');
             handlePreviewPress();
             return;
         }
 
         // Office 文件已转换为 PDF：直接打开
         if (hasPdfPreview(file)) {
+            debugLog('FILE', `handleShowFileActions: has PDF preview (pdf_preview_id=${file.pdf_preview_id}), calling handlePreviewPress`);
             handlePreviewPress();
             return;
         }
 
         // 文本文件（.md, .json, .txt, .csv 等）：直接打开
         if (isTextFile(file)) {
+            debugLog('FILE', 'handleShowFileActions: is text file, calling handlePreviewPress');
             handlePreviewPress();
             return;
         }
 
         // Office 文件未转换：显示对话框（带轮询）
         if (isDocument(file) && !isPdf(file)) {
+            debugLog('FILE', 'handleShowFileActions: is document without PDF preview, showing action dialog');
             console.log('[File] Setting showActionDialog to true');
             setShowActionDialog(true);
             return;
         }
 
         // 不可识别的文件：显示对话框（用其他应用打开）
+        debugLog('FILE', 'handleShowFileActions: unrecognized file type, showing action dialog');
         console.log('[File] Unrecognized file type, setting showActionDialog to true');
         setShowActionDialog(true);
     }, [file, handlePreviewPress]);
