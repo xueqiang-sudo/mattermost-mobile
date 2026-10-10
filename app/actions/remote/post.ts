@@ -65,7 +65,7 @@ type AuthorsRequest = {
     error?: unknown;
 }
 
-export async function createPost(serverUrl: string, post: Partial<Post>, files: FileInfo[] = []): Promise<{data?: {postId?: string}; error?: unknown}> {
+export async function createPost(serverUrl: string, post: Partial<Post>, files: FileInfo[] = [], skipPendingPostCreation = false): Promise<{data?: {postId?: string}; error?: unknown}> {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
         return {error: `${serverUrl} database not found`};
@@ -83,9 +83,11 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     const timestamp = Date.now();
     const pendingPostId = post.pending_post_id || `${currentUserId}:${timestamp}`;
 
-    const existing = await getPostById(database, pendingPostId);
-    if (existing && !existing.props?.failed) {
-        return {data: {postId: existing.id}};
+    if (!skipPendingPostCreation) {
+        const existing = await getPostById(database, pendingPostId);
+        if (existing && !existing.props?.failed) {
+            return {data: {postId: existing.id}};
+        }
     }
 
     let newPost = {
@@ -138,7 +140,9 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         initialPostModels.push(...reactionModels);
     }
 
-    await operator.batchRecords(initialPostModels, 'createPost - initial');
+    if (!skipPendingPostCreation) {
+        await operator.batchRecords(initialPostModels, 'createPost - initial');
+    }
 
     const isCRTEnabled = await getIsCRTEnabled(database);
 
@@ -236,6 +240,119 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     newPost = created;
 
     return {data: {postId: created.id}};
+}
+
+/**
+ * Create multiple pending posts in a single database transaction.
+ * This minimizes observe() triggers from N to 1, preventing UI jitter
+ * when uploading multiple files via the "+" button.
+ */
+export async function createBatchPendingPosts(
+    serverUrl: string,
+    postsWithFiles: Array<{
+        post: Partial<Post>;
+        files: FileInfo[];
+    }>,
+): Promise<{
+    data?: Array<{
+        pendingPostId: string;
+        post: Post;
+        files: FileInfo[];
+    }>;
+    error?: unknown;
+}> {
+    const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
+    if (!operator) {
+        return {error: `${serverUrl} database not found`};
+    }
+    const {database} = operator;
+
+    const currentUserId = await getCurrentUserId(database);
+    const allModels: Model[] = [];
+    const results: Array<{
+        pendingPostId: string;
+        post: Post;
+        files: FileInfo[];
+    }> = [];
+
+    const baseTimestamp = Date.now();
+
+    for (let i = 0; i < postsWithFiles.length; i++) {
+        const {post, files} = postsWithFiles[i];
+        const timestamp = baseTimestamp + i; // Ensure unique timestamps
+        const pendingPostId = post.pending_post_id || `${currentUserId}:${timestamp}`;
+
+        // Check for existing post
+        const existing = await getPostById(database, pendingPostId);
+        if (existing && !existing.props?.failed) {
+            results.push({
+                pendingPostId: existing.id,
+                post: existing as unknown as Post,
+                files: [],
+            });
+            continue;
+        }
+
+        const newPost = {
+            ...post,
+            id: '',
+            pending_post_id: pendingPostId,
+            create_at: timestamp,
+            update_at: timestamp,
+            delete_at: 0,
+        } as Post;
+
+        const databasePost = {
+            ...newPost,
+            id: pendingPostId,
+        };
+
+        // Add file_ids to databasePost for local storage
+        if (files.length) {
+            const fileIds = files.map((file) => file.id);
+            databasePost.file_ids = fileIds;
+        }
+
+        // Prepare file models
+        if (files.length) {
+            for (const f of files) {
+                f.post_id = pendingPostId;
+            }
+            const filesModels = await operator.handleFiles({files, prepareRecordsOnly: true});
+            allModels.push(...filesModels);
+        }
+
+        // Prepare post model
+        const postModels = await operator.handlePosts({
+            actionType: ActionType.POSTS.RECEIVED_NEW,
+            order: [databasePost.id],
+            posts: [databasePost],
+            prepareRecordsOnly: true,
+        });
+        allModels.push(...postModels);
+
+        results.push({
+            pendingPostId,
+            post: newPost,
+            files,
+        });
+    }
+
+    // Handle recent reactions once for the first post
+    if (results.length > 0) {
+        const firstPost = results[0].post;
+        const customEmojis = await queryAllCustomEmojis(database).fetch();
+        const emojisInMessage = matchEmoticons(firstPost.message);
+        const reactionModels = await addRecentReaction(serverUrl, getValidEmojis(emojisInMessage, customEmojis), true);
+        if (!('error' in reactionModels) && reactionModels.length) {
+            allModels.push(...reactionModels);
+        }
+    }
+
+    // Single batch write for ALL pending posts → triggers observe() only once
+    await operator.batchRecords(allModels, 'createBatchPendingPosts');
+
+    return {data: results};
 }
 
 /**

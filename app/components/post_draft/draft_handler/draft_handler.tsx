@@ -7,7 +7,7 @@ import {DeviceEventEmitter, Image} from 'react-native';
 
 import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
-import {createPost, updatePostFileIds, markPostUploadFailed} from '@actions/remote/post';
+import {createPost, createBatchPendingPosts, updatePostFileIds, markPostUploadFailed} from '@actions/remote/post';
 import DatabaseManager from '@database/manager';
 import {Events, Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
@@ -133,97 +133,116 @@ export default function DraftHandler(props: Props) {
                 // Generate batch ID for grouping these posts (only for multiple files)
                 const batchId = filesToUpload.length > 1 ? `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
 
-                // Create posts immediately with local file references (optimistic UI)
+                // Phase 1: Prepare all files with dimensions in parallel
+                const filesWithPostData = await Promise.all(
+                    filesToUpload.map(async (file) => {
+                        const pendingFileId = `pending_${generateId()}`;
+                        const pendingPostId = `${currentUserId}:${Date.now()}_${generateId()}`;
+
+                        const fileName = file.name || '';
+                        const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+
+                        const isImageFile = file.mime_type?.startsWith('image/') || extension.match(/^(jpg|jpeg|png|gif|webp|heic|heif)$/i);
+                        const hasPreviewImage = Boolean(isImageFile);
+
+                        let fileWidth = file.width;
+                        let fileHeight = file.height;
+
+                        if (isImageFile && (!fileWidth || !fileHeight)) {
+                            const imageUri = file.localPath || file.uri || '';
+                            if (imageUri) {
+                                const dimensions = await getImageDimensions(imageUri);
+                                fileWidth = dimensions.width;
+                                fileHeight = dimensions.height;
+                            }
+                        }
+
+                        fileWidth = fileWidth || (isImageFile ? 800 : 100);
+                        fileHeight = fileHeight || (isImageFile ? 600 : 100);
+
+                        const localFile: FileInfo = {
+                            ...file,
+                            id: pendingFileId,
+                            post_id: '',
+                            user_id: currentUserId,
+                            name: fileName,
+                            extension,
+                            size: file.size || 0,
+                            mime_type: file.mime_type || 'application/octet-stream',
+                            has_preview_image: hasPreviewImage,
+                            height: fileHeight,
+                            width: fileWidth,
+                            localPath: file.localPath || file.uri || '',
+                            uri: file.uri || '',
+                            create_at: Date.now(),
+                            update_at: Date.now(),
+                        };
+
+                        const post = {
+                            pending_post_id: pendingPostId,
+                            user_id: currentUserId,
+                            channel_id: channelId,
+                            root_id: rootId,
+                            message: '',
+                            props: batchId ? {
+                                batch_id: batchId,
+                                batch_size: filesToUpload.length,
+                                upload_status: 'uploading',
+                            } : {
+                                upload_status: 'uploading',
+                            },
+                        } as Post;
+
+                        return {localFile, post, pendingPostId};
+                    }),
+                );
+
+                // Phase 2: Batch create all pending posts in a single DB write
+                // This triggers observe() only once instead of N times
+                const batchResult = await createBatchPendingPosts(
+                    serverUrl,
+                    filesWithPostData.map(({localFile, post}) => ({
+                        post,
+                        files: [localFile],
+                    })),
+                );
+
+                if (batchResult.error) {
+                    throw batchResult.error;
+                }
+
+                const batchData = batchResult.data!;
                 const pendingPosts: Array<{postId: string; file: FileInfo}> = [];
 
-                for (const file of filesToUpload) {
-                    // Generate pending ID for the file (not uploaded yet)
-                    const pendingFileId = `pending_${generateId()}`;
+                for (let i = 0; i < batchData.length; i++) {
+                    pendingPosts.push({
+                        postId: batchData[i].pendingPostId,
+                        file: filesWithPostData[i].localFile,
+                    });
+                }
 
-                    // Generate pending post ID so we can track it for updates
-                    const timestamp = Date.now();
-                    const pendingPostId = `${currentUserId}:${timestamp}`;
+                // Phase 3: Call server API for each post (pending posts already in DB)
+                for (let i = 0; i < batchData.length; i++) {
+                    const {pendingPostId, post, files} = batchData[i];
 
-                    // Extract extension from filename
-                    const fileName = file.name || '';
-                    const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+                    try {
+                        const result = await createPost(
+                            serverUrl,
+                            {...post, pending_post_id: pendingPostId},
+                            files,
+                            true, // Skip pending post creation (already done in batch)
+                        );
 
-
-                    // Determine if this is an image and set has_preview_image accordingly
-                    // This prevents layout shifts when the post is updated after upload
-                    const isImageFile = file.mime_type?.startsWith('image/') || extension.match(/^(jpg|jpeg|png|gif|webp|heic|heif)$/i);
-                    const hasPreviewImage = Boolean(isImageFile);
-
-                    // Get actual dimensions from file picker or read from image file
-                    let fileWidth = file.width;
-                    let fileHeight = file.height;
-
-                    if (isImageFile && (!fileWidth || !fileHeight)) {
-                        // Try to get dimensions from the image file
-                        const imageUri = file.localPath || file.uri || '';
-                        if (imageUri) {
-                            const dimensions = await getImageDimensions(imageUri);
-                            fileWidth = dimensions.width;
-                            fileHeight = dimensions.height;
+                        if (result.error) {
+                            throw result.error;
                         }
-                    }
 
-                    // Use defaults if still not available
-                    fileWidth = fileWidth || (isImageFile ? 800 : 100);
-                    fileHeight = fileHeight || (isImageFile ? 600 : 100);
-
-                    // Ensure FileInfo has all required fields for database storage
-                    // Important: Set required fields explicitly, don't rely on spread
-                    const localFile: FileInfo = {
-                        ...file, // Spread original file first to preserve any fields
-                        id: pendingFileId,
-                        post_id: '', // Will be set by createPost
-                        user_id: currentUserId,
-                        name: fileName,
-                        extension,
-                        size: file.size || 0,
-                        mime_type: file.mime_type || 'application/octet-stream',
-                        has_preview_image: hasPreviewImage, // Set correctly from the start to avoid layout shifts
-                        height: fileHeight,
-                        width: fileWidth,
-                        localPath: file.localPath || file.uri || '',
-                        uri: file.uri || '',
-                        create_at: Date.now(),
-                        update_at: Date.now(),
-                    };
-
-
-                    const post = {
-                        pending_post_id: pendingPostId, // Provide the pending ID so we know what it is
-                        user_id: currentUserId,
-                        channel_id: channelId,
-                        root_id: rootId,
-                        message: '',
-                        props: batchId ? {
-                            batch_id: batchId,
-                            batch_size: filesToUpload.length,
-                            upload_status: 'uploading', // Mark as uploading
-                        } : {
-                            upload_status: 'uploading', // Mark as uploading
-                        },
-                    } as Post;
-
-                    const result = await createPost(serverUrl, post, [localFile]);
-                    if (result.error) {
-                        throw result.error;
-                    }
-
-                    if (result.data?.postId) {
-                        const realPostId = result.data.postId;
-                        pendingPosts.push({
-                            postId: realPostId,
-                            file: localFile,
-                        });
-                    } else {
-                        pendingPosts.push({
-                            postId: pendingPostId,
-                            file: localFile,
-                        });
+                        if (result.data?.postId) {
+                            pendingPosts[i].postId = result.data.postId;
+                        }
+                    } catch (err) {
+                        logError('[addFiles createPost]', err);
+                        // Continue with other posts
                     }
                 }
 

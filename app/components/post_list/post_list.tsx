@@ -129,6 +129,14 @@ const PostList = ({
     const [refreshing, setRefreshing] = useState(false);
     const [showScrollToEndBtn, setShowScrollToEndBtn] = useState(false);
     const [lastPostId, setLastPostId] = useState<string | undefined>(firstIdInPosts);
+    const isAtBottomRef = useRef(true);
+
+    // Sync lastPostId during render when user is at bottom,
+    // preventing "new message" badge from appearing for user's own posts
+    if (isAtBottomRef.current && firstIdInPosts && firstIdInPosts !== lastPostId) {
+        setLastPostId(firstIdInPosts);
+    }
+
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const listContentStyle = useMemo(() => {
@@ -143,11 +151,24 @@ const PostList = ({
         }
         return {...base, flexGrow: 1};
     }, [location, theme]);
+
+    // Debounce posts updates to merge rapid DB changes (e.g., API responses arriving close together)
+    const [debouncedPosts, setDebouncedPosts] = useState(posts);
+    useEffect(() => {
+        // Immediate update on large changes (e.g., channel switch)
+        if (Math.abs(posts.length - debouncedPosts.length) > 5) {
+            setDebouncedPosts(posts);
+            return;
+        }
+        const timer = setTimeout(() => setDebouncedPosts(posts), 150);
+        return () => clearTimeout(timer);
+    }, [posts]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const orderedPosts = useMemo(() => {
         const isThreadView = Boolean(rootId);
         const useWeChatMode = location === Screens.CHANNEL || location === Screens.PERMALINK;
-        return preparePostList(posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds, useWeChatMode);
-    }, [posts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds, location]);
+        return preparePostList(debouncedPosts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds, useWeChatMode);
+    }, [debouncedPosts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, rootId, savedPostIds, location]);
 
     const orderedPostsRef = useRef(orderedPosts);
     orderedPostsRef.current = orderedPosts;
@@ -243,13 +264,15 @@ const PostList = ({
 
     const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const {y} = event.nativeEvent.contentOffset;
+        const atBottom = y <= 5;
+        isAtBottomRef.current = atBottom;
         const isThresholdReached = y > CONTENT_OFFSET_THRESHOLD;
 
         if (isThresholdReached !== showScrollToEndBtn) {
             setShowScrollToEndBtn(isThresholdReached);
         }
 
-        if (!y && lastPostId !== firstIdInPosts) {
+        if (atBottom && lastPostId !== firstIdInPosts) {
             setLastPostId(firstIdInPosts);
         }
     }, [firstIdInPosts, lastPostId, showScrollToEndBtn]);
@@ -453,6 +476,8 @@ const PostList = ({
                 inverted={true}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
+                windowSize={5}
+                updateCellsBatchingPeriod={100}
             />
             {location !== Screens.PERMALINK &&
             <ScrollToEndView

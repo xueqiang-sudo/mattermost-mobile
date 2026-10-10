@@ -119,17 +119,27 @@ const File = ({
     const style = getStyleSheet(theme);
     const [showActionDialog, setShowActionDialog] = useState(false);
     const [isPressed, setIsPressed] = useState(false);
+    const longPressTriggered = useRef(false);
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     const handlePressIn = useCallback(() => {
         setIsPressed(true);
+        longPressTriggered.current = false;
     }, []);
 
     const handlePressOut = useCallback(() => {
         setIsPressed(false);
     }, []);
 
+    const handleLongPress = useCallback((event?: GestureResponderEvent) => {
+        longPressTriggered.current = true;
+        onLongPress?.(event);
+    }, [onLongPress]);
+
     const handlePreviewPress = useCallback(() => {
+        if (longPressTriggered.current) {
+            return;
+        }
         if (document.current) {
             document.current.handlePreviewPress();
         } else {
@@ -145,6 +155,11 @@ const File = ({
 
     // 智能文件路由：根据文件类型决定是直接打开还是显示对话框
     const handleShowFileActions = useCallback(() => {
+        // 长按后释放，不执行打开操作
+        if (longPressTriggered.current) {
+            return;
+        }
+
         console.log('[File] handleShowFileActions called:', {
             name: file.name,
             mime: file.mime_type,
@@ -237,7 +252,7 @@ const File = ({
     const touchableWithPreview = (
         <TouchableWithFeedback
             onPress={handlePreviewPress}
-            onLongPress={onLongPress}
+            onLongPress={handleLongPress}
             delayLongPress={200}
             disabled={isPressDisabled}
             type={'opacity'}
@@ -256,7 +271,7 @@ const File = ({
                 onPress={onGestureEvent}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                onLongPress={onLongPress}
+                onLongPress={handleLongPress}
                 delayLongPress={200}
             >
                 <Animated.View style={[styles, asCard ? style.imageVideo : null]}>
@@ -287,7 +302,7 @@ const File = ({
                 onPress={onGestureEvent}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                onLongPress={onLongPress}
+                onLongPress={handleLongPress}
                 delayLongPress={200}
                 disabled={isPressDisabled}
             >
@@ -329,7 +344,7 @@ const File = ({
                 onPress={() => {
                     handleShowFileActions();
                 }}
-                onLongPress={onLongPress}
+                onLongPress={handleLongPress}
                 delayLongPress={200}
                 disabled={isPressDisabled}
                 type={'opacity'}
@@ -350,7 +365,7 @@ const File = ({
                     onPress={handleShowFileActions}
                     onPressIn={handlePressIn}
                     onPressOut={handlePressOut}
-                    onLongPress={onLongPress}
+                    onLongPress={handleLongPress}
                     delayLongPress={200}
                     disabled={isPressDisabled}
                     type={'opacity'}
