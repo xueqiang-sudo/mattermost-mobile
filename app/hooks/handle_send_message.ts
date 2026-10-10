@@ -319,6 +319,7 @@ export const useHandleSendMessage = ({
                 root_id: rootId,
                 message: '',
                 type: PostTypes.CUSTOM_VOICE_ASR,
+                file_ids: uploadedFiles.map(f => f.id),  // ← 关键：添加文件 ID
             } as Post;
 
             // 添加优先级信息
