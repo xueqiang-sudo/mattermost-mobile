@@ -153,29 +153,63 @@ const PostList = ({
         return {...base, flexGrow: 1};
     }, [location, theme]);
 
-    // Debounce posts updates to merge rapid DB changes (e.g., API responses arriving close together)
-    const [debouncedPosts, setDebouncedPosts] = useState(posts);
-    const debouncedPostsLengthRef = useRef(posts.length);
+    // Batch posts updates to merge rapid DB changes (e.g., API responses, file uploads)
+    // This simulates Redux's batch processing to reduce re-renders from 11 to 1-2
+    const [batchedPosts, setBatchedPosts] = useState(posts);
+    const pendingPostsRef = useRef(posts);
+    const batchTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastAppliedLengthRef = useRef(posts.length);
 
     useEffect(() => {
-        const lengthDiff = Math.abs(posts.length - debouncedPostsLengthRef.current);
-        debugLog('POST_LIST', `debounce: posts=${posts.length}, prevLen=${debouncedPostsLengthRef.current}, diff=${lengthDiff}`);
+        const lengthDiff = Math.abs(posts.length - lastAppliedLengthRef.current);
+        debugLog('POST_LIST', `batch: posts=${posts.length}, lastApplied=${lastAppliedLengthRef.current}, diff=${lengthDiff}`);
 
-        // Immediate update on large changes (e.g., channel switch)
+        // Immediate update for large changes (e.g., channel switch, initial load)
         if (lengthDiff > 5) {
-            debugLog('POST_LIST', `debounce: immediate update (large change)`);
-            setDebouncedPosts(posts);
-            debouncedPostsLengthRef.current = posts.length;
+            debugLog('POST_LIST', `batch: immediate update (large change, diff=${lengthDiff})`);
+            if (batchTimerRef.current) {
+                clearTimeout(batchTimerRef.current);
+                batchTimerRef.current = null;
+            }
+            setBatchedPosts(posts);
+            lastAppliedLengthRef.current = posts.length;
+            pendingPostsRef.current = posts;
             return;
         }
-        debugLog('POST_LIST', `debounce: scheduled update (150ms delay)`);
-        const timer = setTimeout(() => {
-            debugLog('POST_LIST', `debounce: timer fired, updating posts`);
-            setDebouncedPosts(posts);
-            debouncedPostsLengthRef.current = posts.length;
-        }, 150);
-        return () => clearTimeout(timer);
+
+        // For small incremental changes (API responses, file uploads), batch them
+        // Store the latest posts in ref
+        pendingPostsRef.current = posts;
+
+        // Only start timer if not already running
+        if (!batchTimerRef.current) {
+            debugLog('POST_LIST', `batch: starting 500ms batch timer`);
+            batchTimerRef.current = setTimeout(() => {
+                debugLog('POST_LIST', `batch: timer fired, applying ${pendingPostsRef.current.length} posts`);
+                setBatchedPosts(pendingPostsRef.current);
+                lastAppliedLengthRef.current = pendingPostsRef.current.length;
+                batchTimerRef.current = null;
+            }, 500);
+        }
+
+        return () => {
+            // Don't clear timer on cleanup - let it complete
+            // This ensures batched updates are always applied
+        };
     }, [posts]);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (batchTimerRef.current) {
+                clearTimeout(batchTimerRef.current);
+                batchTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    // Use batchedPosts instead of posts for all downstream processing
+    const debouncedPosts = batchedPosts;
 
     const orderedPosts = useMemo(() => {
         debugLog('POST_LIST', `preparePostList: start, posts=${debouncedPosts.length}`);
@@ -515,8 +549,8 @@ const PostList = ({
                 inverted={true}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                windowSize={5}
-                updateCellsBatchingPeriod={100}
+                windowSize={11}
+                updateCellsBatchingPeriod={300}
             />
             {location !== Screens.PERMALINK &&
             <ScrollToEndView
