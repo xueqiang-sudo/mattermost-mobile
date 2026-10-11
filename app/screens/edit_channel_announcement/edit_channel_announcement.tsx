@@ -9,6 +9,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {patchChannel as handlePatchChannel} from '@actions/remote/channel';
 import Loading from '@components/loading';
 import {General} from '@constants';
+import NetworkManager from '@managers/network_manager';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -83,9 +84,25 @@ const EditChannelAnnouncement = ({
         setSaving(true);
         Keyboard.dismiss();
         await handlePatchChannel(serverUrl, channel.id, {header: text});
+
+        // GM 频道：发送公告通知帖（与 Webapp 对齐）
+        if (channel.type === General.GM_CHANNEL && text.trim()) {
+            try {
+                const noticeText = `📢 ${intl.formatMessage({id: 'channel_info_rhs.gm.announcement', defaultMessage: 'Group Announcement'})}\n\n${text}`;
+                const client = NetworkManager.getClient(serverUrl);
+                await client.createPost({
+                    channel_id: channel.id,
+                    message: noticeText,
+                    type: 'system_generic',
+                });
+            } catch (e) {
+                // fire-and-forget: 不影响保存流程
+            }
+        }
+
         setSaving(false);
         popTopScreen(componentId);
-    }, [channel, canEdit, componentId, serverUrl, text]);
+    }, [channel, canEdit, componentId, serverUrl, text, intl]);
 
     useNavButtonPressed('cancel-edit-announcement', componentId, handleClose, [handleClose]);
     useNavButtonPressed('confirm-edit-announcement', componentId, handleDone, [handleDone]);

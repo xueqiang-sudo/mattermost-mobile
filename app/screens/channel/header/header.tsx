@@ -16,6 +16,7 @@ import {type PlusMenuEntry, usePlusMenu} from '@context/plus_menu';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
+import useHeaderHeight from '@hooks/header';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {fetchPlaybookRunsForChannel} from '@playbooks/actions/remote/runs';
 import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@playbooks/screens/navigation';
@@ -59,6 +60,7 @@ type ChannelProps = {
     isTabletView?: boolean;
     shouldRenderBookmarks: boolean;
     shouldRenderChannelBanner: boolean;
+    onAnnouncementBarHeightChange?: (height: number) => void;
     hasPlaybookRuns: boolean;
     playbooksActiveRuns: number;
     isPlaybooksEnabled: boolean;
@@ -116,6 +118,7 @@ const ChannelHeader = ({
     isTabletView,
     shouldRenderBookmarks,
     shouldRenderChannelBanner,
+    onAnnouncementBarHeightChange,
     playbooksActiveRuns,
     hasPlaybookRuns,
     isPlaybooksEnabled,
@@ -126,6 +129,7 @@ const ChannelHeader = ({
     const theme = useTheme();
     const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
+    const {defaultHeight} = useHeaderHeight();
 
     const callsConfig = getCallsConfig(serverUrl);
 
@@ -477,12 +481,17 @@ const ChannelHeader = ({
                 />
             }
             {(channelType === General.PRIVATE_CHANNEL || channelType === General.DM_CHANNEL || channelType === General.GM_CHANNEL) && Boolean(announcementMarkdown.trim()) &&
-                <ChannelAnnouncementBar
-                    canEditAnnouncement={canEditAnnouncement}
-                    channelId={channelId}
-                    channelType={channelType}
-                    headerMarkdown={announcementMarkdown}
-                />
+                <View
+                    style={{paddingTop: defaultHeight}}
+                    onLayout={(e) => onAnnouncementBarHeightChange?.(e.nativeEvent.layout.height)}
+                >
+                    <ChannelAnnouncementBar
+                        canEditAnnouncement={canEditAnnouncement}
+                        channelId={channelId}
+                        channelType={channelType}
+                        headerMarkdown={announcementMarkdown}
+                    />
+                </View>
             }
         </>
     );

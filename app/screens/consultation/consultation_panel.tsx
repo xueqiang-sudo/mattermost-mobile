@@ -8,6 +8,7 @@ import {
     DeviceEventEmitter,
     FlatList,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -40,7 +41,9 @@ import {
     getConsultationResponses,
     replyToConsultation,
     forwardResponseToCustomer,
+    forwardMultipleResponsesToCustomer,
     closeConsultation,
+    injectConsultationSummary,
     type ConsultationInfo,
     type ConsultationResponse,
 } from '@screens/channel/ai_actions/ai_api';
@@ -359,6 +362,8 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     const [activeTab, setActiveTab] = useState<TargetType>('member');
     const [users, setUsers] = useState<UserModel[]>([]);
     const [channels, setChannels] = useState<ChannelModel[]>([]);
+    const [followUpMode, setFollowUpMode] = useState(false);
+    const [followUpConsultation, setFollowUpConsultation] = useState<ConsultationInfo | null>(null);
 
     // Compose state
     const [selectedTargetId, setSelectedTargetId] = useState('');
@@ -378,6 +383,13 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     const [forwarding, setForwarding] = useState(false);
     const [memberDropdownOpen, setMemberDropdownOpen] = useState(false);
     const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
+
+    // Forward edit modal state
+    const [forwardEditVisible, setForwardEditVisible] = useState(false);
+    const [forwardEditResponse, setForwardEditResponse] = useState<ConsultationResponse | null>(null);
+    const [forwardEditText, setForwardEditText] = useState('');
+    const [forwardBatchEditVisible, setForwardBatchEditVisible] = useState(false);
+    const [forwardBatchTexts, setForwardBatchTexts] = useState<Map<string, string>>(new Map());
 
     // Load current user ID
     useEffect(() => {
@@ -419,7 +431,14 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     // Load existing consultations
     useEffect(() => {
         listConsultations(serverUrl, channelId).then((result) => {
-            setConsultations(result.consultations || []);
+            const list = result.consultations || [];
+            setConsultations(list);
+            // Auto-detect follow-up mode: if there's an open consultation, enter follow-up mode
+            const openConsult = list.find((c) => c.status !== 'closed');
+            if (openConsult) {
+                setFollowUpMode(true);
+                setFollowUpConsultation(openConsult);
+            }
         }).catch(() => {
             setConsultations([]);
         });
@@ -453,10 +472,31 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
 
     const handleClose = useCallback(() => {
         if (selectedConsultation && selectedConsultation.status !== 'closed') {
+            // Fire-and-forget: send consultation data to fact-extractor for AI summarization
+            const expertResponses = responses
+                .filter((r) => !r.is_requester)
+                .map((r) => ({
+                    author_name: r.author_name,
+                    message: r.message.length > 500 ? r.message.slice(0, 500) + '...' : r.message,
+                    forwarded: r.forwarded,
+                }));
+            const forwardedCount = expertResponses.filter((r) => r.forwarded).length;
+
+            injectConsultationSummary(serverUrl, {
+                consultation_id: selectedConsultation.id,
+                source_channel_id: selectedConsultation.source_channel_id,
+                target_display_name: selectedConsultation.target_display_name || selectedConsultation.target_username,
+                is_group_consult: selectedConsultation.is_group_consult,
+                expert_group_name: selectedConsultation.expert_group_name,
+                question: selectedConsultation.question,
+                responses: expertResponses,
+                forwarded_count: forwardedCount,
+            }).catch(() => {});
+
             closeConsultation(serverUrl, selectedConsultation.id).catch(() => {});
         }
         dismissModal({componentId});
-    }, [componentId, selectedConsultation, serverUrl]);
+    }, [componentId, selectedConsultation, serverUrl, responses]);
 
     useNavButtonPressed('close-consultation-panel', componentId, handleClose, [handleClose]);
 
@@ -477,28 +517,40 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     }, [activeTab]);
 
     const handleSend = usePreventDoubleTap(useCallback(async () => {
-        if (!questionText.trim() || !selectedTargetId || submitting) {
+        if (!questionText.trim() || submitting) {
+            return;
+        }
+        if (!followUpMode && !selectedTargetId) {
             return;
         }
         setSubmitting(true);
         try {
-            await createConsultation(serverUrl, {
-                source_channel_id: channelId,
-                team_id: teamId,
-                target_user_id: isGroupTarget ? undefined : selectedTargetId,
-                expert_group_id: isGroupTarget ? selectedTargetId : undefined,
-                question: questionText.trim(),
-            });
-            setQuestionText('');
-            setSelectedTargetId('');
-            setSelectedTargetName('');
-            // Reload consultations
-            const result = await listConsultations(serverUrl, channelId);
-            setConsultations(result.consultations || []);
-            Alert.alert(
-                intl.formatMessage({id: 'consultation.submit_success', defaultMessage: 'Success'}),
-                intl.formatMessage({id: 'consultation.submit_success_message', defaultMessage: 'Consultation sent successfully.'}),
-            );
+            if (followUpMode && followUpConsultation) {
+                // Follow-up mode: reply to existing consultation
+                await replyToConsultation(serverUrl, followUpConsultation.id, questionText.trim());
+                setQuestionText('');
+                // Auto-open the consultation to see the reply
+                handleSelectConsultation(followUpConsultation);
+            } else {
+                // New consultation
+                await createConsultation(serverUrl, {
+                    source_channel_id: channelId,
+                    team_id: teamId,
+                    target_user_id: isGroupTarget ? undefined : selectedTargetId,
+                    expert_group_id: isGroupTarget ? selectedTargetId : undefined,
+                    question: questionText.trim(),
+                });
+                setQuestionText('');
+                setSelectedTargetId('');
+                setSelectedTargetName('');
+                // Reload consultations
+                const result = await listConsultations(serverUrl, channelId);
+                setConsultations(result.consultations || []);
+                Alert.alert(
+                    intl.formatMessage({id: 'consultation.submit_success', defaultMessage: 'Success'}),
+                    intl.formatMessage({id: 'consultation.submit_success_message', defaultMessage: 'Consultation sent successfully.'}),
+                );
+            }
         } catch {
             Alert.alert(
                 intl.formatMessage({id: 'consultation.error', defaultMessage: 'Error'}),
@@ -507,7 +559,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         } finally {
             setSubmitting(false);
         }
-    }, [channelId, isGroupTarget, questionText, selectedTargetId, serverUrl, submitting, teamId, intl]));
+    }, [channelId, isGroupTarget, questionText, selectedTargetId, serverUrl, submitting, teamId, intl, followUpMode, followUpConsultation, handleSelectConsultation]));
 
     const handleSelectConsultation = useCallback(async (c: ConsultationInfo) => {
         setSelectedConsultation(c);
@@ -537,17 +589,25 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         }
     }, [replyText, selectedConsultation, serverUrl]));
 
-    const handleForward = usePreventDoubleTap(useCallback(async (response: ConsultationResponse) => {
-        if (!selectedConsultation) {
+    const handleForward = usePreventDoubleTap(useCallback((response: ConsultationResponse) => {
+        setForwardEditResponse(response);
+        setForwardEditText(response.message);
+        setForwardEditVisible(true);
+    }, []));
+
+    const confirmForwardEdit = usePreventDoubleTap(useCallback(async () => {
+        if (!selectedConsultation || !forwardEditResponse) {
             return;
         }
         try {
-            await forwardResponseToCustomer(serverUrl, selectedConsultation.id, response.post_id);
+            await forwardResponseToCustomer(serverUrl, selectedConsultation.id, forwardEditResponse.post_id, forwardEditText.trim());
             setResponses((prev) =>
                 prev.map((r) =>
-                    r.post_id === response.post_id ? {...r, forwarded: true} : r,
+                    r.post_id === forwardEditResponse.post_id ? {...r, forwarded: true} : r,
                 ),
             );
+            setForwardEditVisible(false);
+            setForwardEditResponse(null);
             Alert.alert(
                 intl.formatMessage({id: 'consultation.forward_success', defaultMessage: 'Success'}),
                 intl.formatMessage({id: 'consultation.forward_success_message', defaultMessage: 'Response forwarded to customer.'}),
@@ -558,7 +618,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                 intl.formatMessage({id: 'consultation.forward_failed', defaultMessage: 'Failed to forward response.'}),
             );
         }
-    }, [selectedConsultation, serverUrl, intl]));
+    }, [selectedConsultation, forwardEditResponse, forwardEditText, serverUrl, intl]));
 
     const toggleResponseSelection = useCallback((postId: string) => {
         setSelectedResponseIds((prev) => {
@@ -572,28 +632,45 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         });
     }, []);
 
-    const handleBatchForward = usePreventDoubleTap(useCallback(async () => {
-        if (!selectedConsultation || selectedResponseIds.size === 0 || forwarding) {
+    const handleBatchForward = usePreventDoubleTap(useCallback(() => {
+        if (!selectedConsultation || selectedResponseIds.size === 0) {
+            return;
+        }
+        // Open batch edit modal
+        const selectedResponses = responses.filter((r) => selectedResponseIds.has(r.post_id));
+        const texts = new Map<string, string>();
+        for (const r of selectedResponses) {
+            texts.set(r.post_id, r.message);
+        }
+        setForwardBatchTexts(texts);
+        setForwardBatchEditVisible(true);
+    }, [selectedConsultation, selectedResponseIds, responses]));
+
+    const confirmBatchForward = usePreventDoubleTap(useCallback(async () => {
+        if (!selectedConsultation || forwarding) {
             return;
         }
         setForwarding(true);
         try {
-            const ids = Array.from(selectedResponseIds);
-            for (const postId of ids) {
-                await forwardResponseToCustomer(serverUrl, selectedConsultation.id, postId);
-            }
+            const items = Array.from(forwardBatchTexts.entries()).map(([postId, message]) => ({
+                responseId: postId,
+                message: message.trim(),
+            }));
+            await forwardMultipleResponsesToCustomer(serverUrl, selectedConsultation.id, items);
+            const forwardedIds = new Set(forwardBatchTexts.keys());
             setResponses((prev) =>
                 prev.map((r) =>
-                    selectedResponseIds.has(r.post_id) ? {...r, forwarded: true} : r,
+                    forwardedIds.has(r.post_id) ? {...r, forwarded: true} : r,
                 ),
             );
             setSelectedResponseIds(new Set());
             setSelectMode(false);
+            setForwardBatchEditVisible(false);
             Alert.alert(
                 intl.formatMessage({id: 'consultation.forward_success', defaultMessage: 'Success'}),
                 intl.formatMessage(
                     {id: 'consultation.forward_batch_success', defaultMessage: '{count} response(s) forwarded to customer.'},
-                    {count: ids.length},
+                    {count: items.length},
                 ),
             );
         } catch {
@@ -604,9 +681,9 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         } finally {
             setForwarding(false);
         }
-    }, [selectedConsultation, selectedResponseIds, forwarding, serverUrl, intl]));
+    }, [selectedConsultation, forwardBatchTexts, forwarding, serverUrl, intl]));
 
-    const canSend = questionText.trim().length > 0 && selectedTargetId.length > 0 && !submitting;
+    const canSend = questionText.trim().length > 0 && !submitting && (followUpMode || selectedTargetId.length > 0);
 
     // ── Detail view (thread) ──
     if (activeView === 'detail' && selectedConsultation) {
@@ -786,6 +863,29 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 110 : 0}
             >
+                {followUpMode && followUpConsultation ? (
+                    // Follow-up mode indicator
+                    <View style={[styles.forwardToolbar, {marginBottom: 0}]}>
+                        <CompassIcon name='message-reply-outline' size={18} color={theme.buttonBg}/>
+                        <Text style={[styles.forwardToolbarText, {marginLeft: 8, flex: 1}]}>
+                            {intl.formatMessage(
+                                {id: 'consultation.followup_to', defaultMessage: 'Follow up @{name}'},
+                                {name: followUpConsultation.target_display_name || followUpConsultation.target_username},
+                            )}
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setFollowUpMode(false);
+                                setFollowUpConsultation(null);
+                            }}
+                        >
+                            <Text style={styles.selectButtonText}>
+                                {intl.formatMessage({id: 'consultation.new_consultation', defaultMessage: 'New'})}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <>
                 {/* Tabs */}
                 <View style={styles.tabs}>
                 <TouchableOpacity
@@ -858,6 +958,8 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     )}
                 </TouchableOpacity>
             </View>
+                    </>
+                )}
 
             {/* Scrollable area: dropdown list + history */}
             <ScrollView style={styles.flex} keyboardShouldPersistTaps='handled'>
@@ -933,15 +1035,17 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     style={styles.inputField}
                     value={questionText}
                     onChangeText={setQuestionText}
-                    placeholder={selectedTargetName
-                        ? intl.formatMessage(
-                            {id: 'consultation.question_to', defaultMessage: 'Ask {name}...'},
-                            {name: selectedTargetName},
-                        )
-                        : intl.formatMessage({id: 'consultation.question_placeholder', defaultMessage: 'Type your question...'})
+                    placeholder={followUpMode
+                        ? intl.formatMessage({id: 'consultation.followup_placeholder', defaultMessage: 'Type your follow-up...'})
+                        : selectedTargetName
+                            ? intl.formatMessage(
+                                {id: 'consultation.question_to', defaultMessage: 'Ask {name}...'},
+                                {name: selectedTargetName},
+                            )
+                            : intl.formatMessage({id: 'consultation.question_placeholder', defaultMessage: 'Type your question...'})
                     }
                     multiline={true}
-                    editable={Boolean(selectedTargetId)}
+                    editable={Boolean(followUpMode || selectedTargetId)}
                 />
                 <TouchableOpacity
                     style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
@@ -955,8 +1059,186 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                 </TouchableOpacity>
             </View>
             </KeyboardAvoidingView>
+
+            {/* Forward Edit Modal (single) */}
+            <Modal visible={forwardEditVisible} transparent={true} animationType='fade'>
+                <View style={modalStyles.overlay}>
+                    <View style={modalStyles.container}>
+                        <Text style={modalStyles.title}>
+                            {intl.formatMessage({id: 'consultation.forward.title', defaultMessage: 'Forward to Customer'})}
+                        </Text>
+                        <View style={modalStyles.blockquote}>
+                            <Text style={modalStyles.blockquoteText}>
+                                {forwardEditResponse?.message}
+                            </Text>
+                        </View>
+                        <Text style={modalStyles.notice}>
+                            {intl.formatMessage({id: 'consultation.forward.notice', defaultMessage: 'Please review and edit the content, removing any information not suitable for the customer.'})}
+                        </Text>
+                        <TextInput
+                            style={modalStyles.textarea}
+                            value={forwardEditText}
+                            onChangeText={setForwardEditText}
+                            multiline={true}
+                        />
+                        <View style={modalStyles.buttons}>
+                            <TouchableOpacity
+                                style={modalStyles.cancelButton}
+                                onPress={() => {
+                                    setForwardEditVisible(false);
+                                    setForwardEditResponse(null);
+                                }}
+                            >
+                                <Text style={modalStyles.cancelButtonText}>
+                                    {intl.formatMessage({id: 'consultation.cancel', defaultMessage: 'Cancel'})}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={modalStyles.confirmButton}
+                                onPress={confirmForwardEdit}
+                            >
+                                <Text style={modalStyles.confirmButtonText}>
+                                    {intl.formatMessage({id: 'consultation.forward_confirm', defaultMessage: 'Forward'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Forward Edit Modal (batch) */}
+            <Modal visible={forwardBatchEditVisible} transparent={true} animationType='fade'>
+                <View style={modalStyles.overlay}>
+                    <View style={modalStyles.container}>
+                        <Text style={modalStyles.title}>
+                            {intl.formatMessage(
+                                {id: 'consultation.forward_multi.title', defaultMessage: 'Batch Forward to Customer ({count} items)'},
+                                {count: forwardBatchTexts.size},
+                            )}
+                        </Text>
+                        <ScrollView style={modalStyles.batchScroll} nestedScrollEnabled={true}>
+                            {Array.from(forwardBatchTexts.entries()).map(([postId, text]) => (
+                                <View key={postId} style={modalStyles.batchItem}>
+                                    <TextInput
+                                        style={modalStyles.textarea}
+                                        value={text}
+                                        onChangeText={(val) => {
+                                            setForwardBatchTexts((prev) => {
+                                                const next = new Map(prev);
+                                                next.set(postId, val);
+                                                return next;
+                                            });
+                                        }}
+                                        multiline={true}
+                                    />
+                                </View>
+                            ))}
+                        </ScrollView>
+                        <View style={modalStyles.buttons}>
+                            <TouchableOpacity
+                                style={modalStyles.cancelButton}
+                                onPress={() => setForwardBatchEditVisible(false)}
+                            >
+                                <Text style={modalStyles.cancelButtonText}>
+                                    {intl.formatMessage({id: 'consultation.cancel', defaultMessage: 'Cancel'})}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={modalStyles.confirmButton}
+                                onPress={confirmBatchForward}
+                                disabled={forwarding}
+                            >
+                                <Text style={modalStyles.confirmButtonText}>
+                                    {forwarding
+                                        ? intl.formatMessage({id: 'consultation.forwarding', defaultMessage: 'Forwarding...'})
+                                        : intl.formatMessage({id: 'consultation.forward_confirm', defaultMessage: 'Forward'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
+
+const modalStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+    },
+    container: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 20,
+        maxHeight: '80%',
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 12,
+    },
+    blockquote: {
+        borderLeftWidth: 3,
+        borderLeftColor: '#ccc',
+        paddingLeft: 12,
+        marginBottom: 12,
+        backgroundColor: '#f5f5f5',
+        paddingVertical: 8,
+        borderRadius: 4,
+    },
+    blockquoteText: {
+        fontSize: 14,
+        color: '#666',
+    },
+    notice: {
+        fontSize: 12,
+        color: '#999',
+        marginBottom: 8,
+    },
+    textarea: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 14,
+        minHeight: 80,
+        textAlignVertical: 'top',
+    },
+    batchScroll: {
+        maxHeight: 300,
+        marginBottom: 12,
+    },
+    batchItem: {
+        marginBottom: 12,
+    },
+    buttons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginTop: 16,
+        gap: 12,
+    },
+    cancelButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    cancelButtonText: {
+        fontSize: 14,
+        color: '#666',
+    },
+    confirmButton: {
+        backgroundColor: '#166DE0',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    confirmButtonText: {
+        fontSize: 14,
+        color: '#fff',
+        fontWeight: '600',
+    },
+});
 
 export default ConsultationPanel;

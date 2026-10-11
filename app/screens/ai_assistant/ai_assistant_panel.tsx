@@ -1,12 +1,13 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     FlatList,
     KeyboardAvoidingView,
     Platform,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -16,6 +17,8 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
+import Markdown from '@components/markdown';
+import {Screens as ScreenConstants} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -25,6 +28,8 @@ import {typography} from '@utils/typography';
 
 import {
     queryAIAssistant,
+    getQueryResult,
+    graduateMemory,
     askKnowledgeBase,
     type AISearchResult,
 } from '@screens/channel/ai_actions/ai_api';
@@ -127,6 +132,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.buttonColor,
         ...typography('Body', 100, 'SemiBold'),
     },
+    answerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 4,
+    },
+    answerTitle: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
     answerContainer: {
         padding: 16,
         backgroundColor: changeOpacity(theme.linkColor, 0.08),
@@ -151,6 +168,39 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 24,
         alignItems: 'center',
     },
+    datePicker: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    datePickerButton: {
+        padding: 8,
+    },
+    datePickerText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginHorizontal: 16,
+    },
+    graduateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        alignSelf: 'flex-end',
+    },
+    graduateButtonText: {
+        ...typography('Body', 50),
+        color: theme.linkColor,
+        marginLeft: 4,
+    },
+    graduateButtonDone: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+    },
 }));
 
 const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props) => {
@@ -165,21 +215,43 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [answer, setAnswer] = useState<string | null>(null);
+    const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [graduatedPaths, setGraduatedPaths] = useState<Set<string>>(new Set());
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
     }, [componentId]);
 
-    const loadTabData = useCallback(async (tab: ActiveTab) => {
+    const loadTabData = useCallback(async (tab: ActiveTab, date?: string) => {
         setLoading(true);
         setAnswer(null);
         try {
-            const result = await queryAIAssistant(serverUrl, {
+            const mode = tab === 'latest' ? 'channel_latest' : tab === 'history' ? 'channel_history' : 'channel_active';
+            const params: any = {
                 team_id: teamId,
-                mode: tab === 'latest' ? 'channel_latest' : tab === 'history' ? 'channel_history' : 'channel_active',
+                mode,
                 channel_id: channelId,
-            });
-            setResults(result.results || []);
+            };
+            if (date) {
+                params.date = date;
+            }
+            const result = await queryAIAssistant(serverUrl, params);
+
+            // If response has query_id, poll for async result
+            if (result.query_id) {
+                let pollResults: AISearchResult[] = [];
+                for (let i = 0; i < 30; i++) {
+                    await new Promise((r) => setTimeout(r, 1000));
+                    const pollResult = await getQueryResult(serverUrl, result.query_id);
+                    if (pollResult.status === 'complete') {
+                        pollResults = pollResult.results || [];
+                        break;
+                    }
+                }
+                setResults(pollResults);
+            } else {
+                setResults(result.results || []);
+            }
         } catch {
             setResults([]);
         } finally {
@@ -189,8 +261,38 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
 
     const handleTabChange = useCallback((tab: ActiveTab) => {
         setActiveTab(tab);
-        loadTabData(tab);
-    }, [loadTabData]);
+        if (tab === 'history') {
+            loadTabData(tab, selectedDate);
+        } else {
+            loadTabData(tab);
+        }
+    }, [loadTabData, selectedDate]);
+
+    // Auto-load latest summary on mount
+    useEffect(() => {
+        loadTabData('latest');
+    }, []);
+
+    // Date navigation helpers
+    const shiftDate = useCallback((days: number) => {
+        const d = new Date(selectedDate);
+        d.setDate(d.getDate() + days);
+        const newDate = d.toISOString().split('T')[0];
+        setSelectedDate(newDate);
+        loadTabData('history', newDate);
+    }, [selectedDate, loadTabData]);
+
+    const handleGraduate = useCallback(async (memoryPath: string) => {
+        if (!memoryPath || graduatedPaths.has(memoryPath)) {
+            return;
+        }
+        try {
+            await graduateMemory(serverUrl, teamId, memoryPath);
+            setGraduatedPaths((prev) => new Set(prev).add(memoryPath));
+        } catch {
+            // ignore
+        }
+    }, [serverUrl, teamId, graduatedPaths]);
 
     const handleSearch = usePreventDoubleTap(useCallback(async () => {
         if (!searchQuery.trim() || searching) {
@@ -231,7 +333,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                 onPress={() => handleTabChange('active')}
             >
                 <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
-                    {intl.formatMessage({id: 'ai_assistant.tab_active', defaultMessage: 'Action Items'})}
+                    {intl.formatMessage({id: 'ai_assistant.tab_todo', defaultMessage: 'Todo'})}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -247,32 +349,123 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
         }
 
         if (results.length === 0) {
+            const emptyMessages: Record<ActiveTab, {icon: string; text: string; id: string}> = {
+                latest: {
+                    icon: 'star-outline',
+                    text: intl.formatMessage({id: 'ai_assistant.empty_latest', defaultMessage: 'No summary yet. When enough messages accumulate, the system will automatically generate a summary.'}),
+                    id: 'ai_assistant.empty_latest',
+                },
+                history: {
+                    icon: 'calendar-outline',
+                    text: intl.formatMessage({id: 'ai_assistant.empty_history', defaultMessage: 'No summary for this date.'}),
+                    id: 'ai_assistant.empty_history',
+                },
+                active: {
+                    icon: 'checkbox-marked-circle-outline',
+                    text: intl.formatMessage({id: 'ai_assistant.empty_todo', defaultMessage: 'No todo items.'}),
+                    id: 'ai_assistant.empty_todo',
+                },
+            };
+            const msg = emptyMessages[activeTab];
             return (
                 <View style={styles.emptyState}>
-                    <CompassIcon name='robot' size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
-                    <Text style={styles.emptyText}>
-                        {intl.formatMessage({id: 'ai_assistant.empty', defaultMessage: 'No results available'})}
-                    </Text>
+                    <CompassIcon name={msg.icon} size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
+                    <Text style={styles.emptyText}>{msg.text}</Text>
                 </View>
             );
         }
+
+        // Latest tab: show first result as full summary (Webapp behavior)
+        if (activeTab === 'latest' && results.length > 0 && results[0]) {
+            const summary = results[0];
+            return (
+                <FlatList
+                    data={[summary]}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.content}
+                    renderItem={({item}) => (
+                        <View style={styles.resultCard}>
+                            <Markdown
+                                baseTextStyle={styles.resultMemory}
+                                enableLatex={false}
+                                enableInlineLatex={false}
+                                location={ScreenConstants.AI_ASSISTANT_PANEL}
+                                maxNodes={5000}
+                                theme={theme}
+                                value={item.memory}
+                            />
+                            {item.date && (
+                                <Text style={styles.resultMeta}>
+                                    {item.date}
+                                    {item.channel_name && ` · ${item.channel_name}`}
+                                </Text>
+                            )}
+                        </View>
+                    )}
+                />
+            );
+        }
+
+        // History tab: date picker + list with graduate buttons
+        const showDatePicker = activeTab === 'history';
+        const showGraduate = activeTab === 'history' || activeTab === 'active';
 
         return (
             <FlatList
                 data={results}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.content}
-                renderItem={({item}) => (
-                    <View style={styles.resultCard}>
-                        <Text style={styles.resultMemory}>{item.memory}</Text>
-                        {item.date && (
-                            <Text style={styles.resultMeta}>
-                                {item.date}
-                                {item.channel_name && ` · ${item.channel_name}`}
-                            </Text>
-                        )}
+                ListHeaderComponent={showDatePicker ? (
+                    <View style={styles.datePicker}>
+                        <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(-1)}>
+                            <CompassIcon name='chevron-left' size={20} color={theme.centerChannelColor}/>
+                        </TouchableOpacity>
+                        <Text style={styles.datePickerText}>{selectedDate}</Text>
+                        <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(1)}>
+                            <CompassIcon name='chevron-right' size={20} color={theme.centerChannelColor}/>
+                        </TouchableOpacity>
                     </View>
-                )}
+                ) : undefined}
+                renderItem={({item}) => {
+                    const isGraduated = graduatedPaths.has(item.path || '');
+                    return (
+                        <View style={styles.resultCard}>
+                            <Markdown
+                                baseTextStyle={styles.resultMemory}
+                                enableLatex={false}
+                                enableInlineLatex={false}
+                                location={ScreenConstants.AI_ASSISTANT_PANEL}
+                                maxNodes={5000}
+                                theme={theme}
+                                value={item.memory}
+                            />
+                            {item.date && (
+                                <Text style={styles.resultMeta}>
+                                    {item.date}
+                                    {item.channel_name && ` · ${item.channel_name}`}
+                                </Text>
+                            )}
+                            {showGraduate && item.path && (
+                                <TouchableOpacity
+                                    style={styles.graduateButton}
+                                    onPress={() => handleGraduate(item.path!)}
+                                    disabled={isGraduated}
+                                >
+                                    <CompassIcon
+                                        name={isGraduated ? 'check' : 'book-outline'}
+                                        size={14}
+                                        color={isGraduated ? changeOpacity(theme.centerChannelColor, 0.56) : theme.linkColor}
+                                    />
+                                    <Text style={[styles.graduateButtonText, isGraduated && styles.graduateButtonDone]}>
+                                        {isGraduated
+                                            ? intl.formatMessage({id: 'ai_assistant.graduated', defaultMessage: 'Archived'})
+                                            : intl.formatMessage({id: 'ai_assistant.graduate', defaultMessage: 'Archive to KB'})}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    );
+                }}
             />
         );
     };
@@ -294,40 +487,59 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                     <View style={{width: 40}}/>
                 </View>
 
+            {renderTabs()}
+
             <View style={styles.flex}>
-                {answer !== null && (
-                    <View style={styles.answerContainer}>
-                        <Text style={styles.answerText}>{answer}</Text>
+                {answer !== null ? (
+                    // AI Answer view
+                    <View style={styles.flex}>
+                        <View style={styles.answerHeader}>
+                            <Text style={styles.answerTitle}>
+                                {'🤖 ' + intl.formatMessage({id: 'ai_assistant.reasoned_answer', defaultMessage: 'AI Answer'})}
+                            </Text>
+                            <TouchableOpacity onPress={() => setAnswer(null)}>
+                                <CompassIcon name='close' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.answerContainer}>
+                            <Markdown
+                                baseTextStyle={styles.answerText}
+                                enableLatex={false}
+                                enableInlineLatex={false}
+                                location={ScreenConstants.AI_ASSISTANT_PANEL}
+                                maxNodes={5000}
+                                theme={theme}
+                                value={answer}
+                            />
+                        </View>
                     </View>
-                )}
-
-                {answer === null && (
-                    <>
-                        {renderTabs()}
-                        {renderResults()}
-                    </>
+                ) : (
+                    renderResults()
                 )}
             </View>
 
-            <View style={styles.searchContainer}>
-                <TextInput
-                    style={styles.searchInput}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder={intl.formatMessage({id: 'ai_assistant.search_placeholder', defaultMessage: 'Ask AI...'})}
-                />
-                <TouchableOpacity
-                    style={styles.searchButton}
-                    onPress={handleSearch}
-                    disabled={!searchQuery.trim() || searching}
-                >
-                    <Text style={styles.searchButtonText}>
-                        {searching
-                            ? intl.formatMessage({id: 'ai_assistant.searching', defaultMessage: 'Searching...'})
-                            : intl.formatMessage({id: 'ai_assistant.search', defaultMessage: 'Ask'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            {/* Search bar: only in latest tab, below content */}
+            {activeTab === 'latest' && (
+                <View style={styles.searchContainer}>
+                    <TextInput
+                        style={styles.searchInput}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder={intl.formatMessage({id: 'ai_assistant.search_placeholder', defaultMessage: 'Ask AI...'})}
+                    />
+                    <TouchableOpacity
+                        style={styles.searchButton}
+                        onPress={handleSearch}
+                        disabled={!searchQuery.trim() || searching}
+                    >
+                        <Text style={styles.searchButtonText}>
+                            {searching
+                                ? intl.formatMessage({id: 'ai_assistant.searching', defaultMessage: 'Searching...'})
+                                : intl.formatMessage({id: 'ai_assistant.search', defaultMessage: 'Ask'})}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

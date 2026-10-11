@@ -6,6 +6,7 @@ import {DeviceEventEmitter, Dimensions, type GestureResponderEvent, type LayoutC
 import tinyColor from 'tinycolor2';
 
 import {updateDraftMessage} from '@actions/local/draft';
+import CompassIcon from '@components/compass_icon';
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
@@ -511,6 +512,14 @@ const Body = ({
                     />
                 )}
                 {message}
+                {post.message.includes('📋') && post.message.includes('咨询') && !isReplyPost && (
+                    <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 8, padding: 8, backgroundColor: 'rgba(255, 152, 0, 0.08)', borderRadius: 6}}>
+                        <CompassIcon name='information-outline' size={16} color='#f59e0b'/>
+                        <Text style={{fontSize: 12, color: '#92400e', marginLeft: 6, flex: 1}}>
+                            {'💡 请点击回复按钮回复消息，否则咨询者收不到您的回复'}
+                        </Text>
+                    </View>
+                )}
                 {hasContent &&
                 <Content
                     isReplyPost={isReplyPost}

@@ -3,6 +3,7 @@
 
 import {handleAgentPostUpdate} from '@agents/actions/websocket';
 
+import {DeviceEventEmitter} from 'react-native';
 import * as bookmark from '@actions/local/channel_bookmark';
 import {handleBoRPostBurnedEvent, handleBoRPostRevealedEvent} from '@actions/websocket/burn_on_read';
 import * as scheduledPost from '@actions/websocket/scheduled_post';
@@ -309,6 +310,22 @@ export async function handleWebSocketEvent(serverUrl: string, msg: WebSocketMess
         case WebsocketEvents.AGENTS_POST_UPDATE:
             handleAgentPostUpdate(msg);
             break;
+
+        // Consultation (ask-expert plugin)
+        case 'custom_com.mattermost.ask-expert_custom_consultation_response': {
+            const data = msg.data;
+            DeviceEventEmitter.emit('consultation_response', {
+                consultationId: data.consultation_id,
+                response: {
+                    post_id: data.post_id,
+                    message: data.message,
+                    author_id: data.author_id,
+                    author_name: data.author_name,
+                    create_at: data.create_at,
+                },
+            });
+            break;
+        }
 
         // Burn on Read Events
         case WebsocketEvents.BOR_POST_REVEALED:

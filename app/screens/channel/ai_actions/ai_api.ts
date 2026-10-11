@@ -111,8 +111,52 @@ export async function closeConsultation(serverUrl: string, id: string): Promise<
     return apiPost(serverUrl, `${CONSULT_API_BASE}/${encodeURIComponent(id)}/close`, {});
 }
 
-export async function forwardResponseToCustomer(serverUrl: string, consultationId: string, postId: string): Promise<any> {
-    return apiPost(serverUrl, `${CONSULT_API_BASE}/${encodeURIComponent(consultationId)}/forward`, {post_id: postId});
+export async function getConsultation(serverUrl: string, consultationId: string): Promise<ConsultationInfo> {
+    return apiGet(serverUrl, `${CONSULT_API_BASE}/${encodeURIComponent(consultationId)}`);
+}
+
+export async function forwardResponseToCustomer(serverUrl: string, consultationId: string, responseId: string, message?: string): Promise<any> {
+    const body: Record<string, unknown> = {response_id: responseId};
+    if (message) {
+        body.message = message;
+    }
+    return apiPost(serverUrl, `${CONSULT_API_BASE}/${encodeURIComponent(consultationId)}/forward`, body);
+}
+
+export async function forwardMultipleResponsesToCustomer(
+    serverUrl: string,
+    consultationId: string,
+    responses: Array<{responseId: string; message: string}>,
+): Promise<any> {
+    const results: any[] = [];
+    for (const {responseId, message} of responses) {
+        const result = await forwardResponseToCustomer(serverUrl, consultationId, responseId, message);
+        results.push(result);
+    }
+    return results;
+}
+
+// ─── AI Summary (fact-extractor plugin) ───
+
+export async function injectConsultationSummary(serverUrl: string, data: {
+    consultation_id: string;
+    source_channel_id: string;
+    target_display_name: string;
+    is_group_consult: boolean;
+    expert_group_name?: string;
+    question: string;
+    responses: Array<{author_name: string; message: string; forwarded: boolean}>;
+    forwarded_count: number;
+}): Promise<void> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        await client.doFetch(`${AI_API_BASE}/api/consultation-inject`, {
+            method: 'post',
+            body: data,
+        });
+    } catch {
+        // fire-and-forget: 不影响关闭流程
+    }
 }
 
 // ─── AI Assistant (fact-extractor plugin) ───
@@ -136,8 +180,16 @@ export async function queryAIAssistant(serverUrl: string, params: {
     mode: 'channel_latest' | 'channel_history' | 'channel_active';
     channel_id: string;
     date?: string;
-}): Promise<{results: AISearchResult[]}> {
+}): Promise<{results: AISearchResult[]; query_id?: string}> {
     return apiPost(serverUrl, `${AI_API_BASE}/api/query`, params);
+}
+
+export async function getQueryResult(serverUrl: string, queryId: string): Promise<{results: AISearchResult[]; status: string}> {
+    return apiGet(serverUrl, `${AI_API_BASE}/api/query/result/${encodeURIComponent(queryId)}`);
+}
+
+export async function graduateMemory(serverUrl: string, teamId: string, memoryPath: string): Promise<any> {
+    return apiPost(serverUrl, `${AI_API_BASE}/api/kb/graduate`, {team_id: teamId, memoryPath});
 }
 
 export async function askKnowledgeBase(serverUrl: string, teamId: string, query: string): Promise<{answer: string}> {

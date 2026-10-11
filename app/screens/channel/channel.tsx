@@ -89,6 +89,7 @@ const Channel = ({
     const switchingTeam = useTeamSwitch();
     const switchingChannels = useChannelSwitch();
     const defaultHeight = useDefaultHeaderHeight();
+    const [announcementBarHeight, setAnnouncementBarHeight] = useState(0);
     const [containerHeight, setContainerHeight] = useState(0);
 
     /** 与 channelId 同步即可；勿用「首帧 false + rAF 再 true」否则刚进频道会长时间只有顶栏、无消息区与输入栏 */
@@ -119,8 +120,14 @@ const Channel = ({
 
     const serverUrl = useServerUrl();
 
-    /** 消息区从顶栏占位底边开始，避免绝对定位顶栏（zIndex 10）盖住断网条 */
-    const marginTop = defaultHeight;
+    /** 消息区从顶栏+公告栏底部开始，避免绝对定位顶栏（zIndex 10）或公告栏遮住消息 */
+    const marginTop = announcementBarHeight || defaultHeight;
+
+    // 切换频道时重置公告栏高度，避免旧值导致消息区位置错误
+    useEffect(() => {
+        setAnnouncementBarHeight(0);
+    }, [channelId]);
+
     useEffect(() => {
         // Give time to the WS event
         const t = setTimeout(() => {
@@ -170,6 +177,7 @@ const Channel = ({
                     isTabletView={isTabletView}
                     shouldRenderBookmarks={shouldRender}
                     shouldRenderChannelBanner={includeChannelBanner}
+                    onAnnouncementBarHeightChange={setAnnouncementBarHeight}
                 />
                 {shouldRender &&
                 <ExtraKeyboardProvider>
