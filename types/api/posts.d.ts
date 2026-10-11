@@ -33,6 +33,7 @@ type PostType =
     | 'custom_llmbot'
     | 'custom_llm_postback'
     | 'custom_voice_asr'
+    | 'custom_production_update'
     | 'burn_on_read';
 
 type PostEmbedType = 'image' | 'message_attachment' | 'opengraph' | 'permalink';

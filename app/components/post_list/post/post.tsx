@@ -20,7 +20,7 @@ import UnrevealedBurnOnReadPost from '@components/post_list/post/burn_on_read/un
 import SystemAvatar from '@components/system_avatar';
 import SystemHeader from '@components/system_header';
 import {Events, General} from '@constants';
-import {POST_TIME_TO_FAIL, PostPriorityType} from '@constants/post';
+import {POST_TIME_TO_FAIL, PostPriorityType, PostTypes} from '@constants/post';
 import * as Screens from '@constants/screens';
 import {useHideExtraKeyboardIfNeeded} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
@@ -39,6 +39,7 @@ import Header from './header';
 import InvalidEphemeralTip from './invalid_ephemeral_tip';
 import PostOptionsPopover from './post_options_popover';
 import PreHeader from './pre_header';
+import ProductionUpdateCard from './production_update_card';
 import SystemMessage from './system_message';
 import UnreadDot from './unread_dot';
 
@@ -281,6 +282,7 @@ const Post = ({
     const isUnrevealedPost = isUnrevealedBoRPost(post);
     const isOwnPost = Boolean(currentUser && post.userId === currentUser.id);
     const isAgentPostType = isAgentPost(post);
+    const isProductionUpdate = post.type === PostTypes.CUSTOM_PRODUCTION_UPDATE;
     const hasBeenDeleted = (post.deleteAt !== 0);
     const isWebHook = isFromWebhook(post);
     const hasSameRoot = useMemo(() => {
@@ -754,6 +756,13 @@ const Post = ({
                 post={post}
                 currentUserId={currentUser?.id}
                 location={location}
+            />
+        );
+    } else if (isProductionUpdate && !hasBeenDeleted) {
+        body = (
+            <ProductionUpdateCard
+                post={post}
+                theme={theme}
             />
         );
     } else {

@@ -311,9 +311,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     const [activeTab, setActiveTab] = useState<TargetType>('member');
     const [users, setUsers] = useState<UserModel[]>([]);
     const [channels, setChannels] = useState<ChannelModel[]>([]);
-    const [followUpMode, setFollowUpMode] = useState(false);
-    const [followUpConsultation, setFollowUpConsultation] = useState<ConsultationInfo | null>(null);
-
     // Compose state
     const [selectedTargetId, setSelectedTargetId] = useState('');
     const [selectedTargetName, setSelectedTargetName] = useState('');
@@ -374,17 +371,10 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         return () => sub.unsubscribe();
     }, [database, teamId]);
 
-    // Load existing consultations
+    // Load existing consultations (only used for auto-navigate after create)
     useEffect(() => {
         listConsultations(serverUrl, channelId).then((result) => {
-            const list = result.consultations || [];
-            setConsultations(list);
-            // Auto-detect follow-up mode: if there's an open consultation, enter follow-up mode
-            const openConsult = list.find((c) => c.status !== 'closed');
-            if (openConsult) {
-                setFollowUpMode(true);
-                setFollowUpConsultation(openConsult);
-            }
+            setConsultations(result.consultations || []);
         }).catch(() => {
             setConsultations([]);
         });
@@ -466,36 +456,27 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         if (!questionText.trim() || submitting) {
             return;
         }
-        if (!followUpMode && !selectedTargetId) {
+        if (!selectedTargetId) {
             return;
         }
         setSubmitting(true);
         try {
-            if (followUpMode && followUpConsultation) {
-                // Follow-up mode: reply to existing consultation
-                await replyToConsultation(serverUrl, followUpConsultation.id, questionText.trim());
-                setQuestionText('');
-                // Auto-open the consultation to see the reply
-                handleSelectConsultation(followUpConsultation);
-            } else {
-                // New consultation
-                await createConsultation(serverUrl, {
-                    source_channel_id: channelId,
-                    team_id: teamId,
-                    target_user_id: isGroupTarget ? undefined : selectedTargetId,
-                    expert_group_id: isGroupTarget ? selectedTargetId : undefined,
-                    question: questionText.trim(),
-                });
-                setQuestionText('');
-                setSelectedTargetId('');
-                setSelectedTargetName('');
-                // Reload consultations and auto-navigate to the new one
-                const result = await listConsultations(serverUrl, channelId);
-                const newList = result.consultations || [];
-                setConsultations(newList);
-                if (newList.length > 0) {
-                    handleSelectConsultation(newList[0]);
-                }
+            await createConsultation(serverUrl, {
+                source_channel_id: channelId,
+                team_id: teamId,
+                target_user_id: isGroupTarget ? undefined : selectedTargetId,
+                expert_group_id: isGroupTarget ? selectedTargetId : undefined,
+                question: questionText.trim(),
+            });
+            setQuestionText('');
+            setSelectedTargetId('');
+            setSelectedTargetName('');
+            // Reload consultations and auto-navigate to the new one
+            const result = await listConsultations(serverUrl, channelId);
+            const newList = result.consultations || [];
+            setConsultations(newList);
+            if (newList.length > 0) {
+                handleSelectConsultation(newList[0]);
             }
         } catch {
             Alert.alert(
@@ -505,7 +486,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         } finally {
             setSubmitting(false);
         }
-    }, [channelId, isGroupTarget, questionText, selectedTargetId, serverUrl, submitting, teamId, intl, followUpMode, followUpConsultation, handleSelectConsultation]));
+    }, [channelId, isGroupTarget, questionText, selectedTargetId, serverUrl, submitting, teamId, intl, handleSelectConsultation]));
 
     const handleSelectConsultation = useCallback(async (c: ConsultationInfo) => {
         setSelectedConsultation(c);
@@ -591,15 +572,19 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         }
     }, [selectedConsultation, forwardBatchTexts, forwarding, serverUrl, intl]));
 
-    const canSend = questionText.trim().length > 0 && !submitting && (followUpMode || selectedTargetId.length > 0);
+    const canSend = questionText.trim().length > 0 && !submitting && selectedTargetId.length > 0;
 
     // ── Detail view (thread) ──
-    if (activeView === 'detail' && selectedConsultation) {
-        const isOpen = selectedConsultation.status !== 'closed';
-        const hasUnforwardedExpertResponses = responses.some((r) => !r.is_requester && !r.forwarded);
+    const isDetailView = activeView === 'detail' && selectedConsultation;
+    const isOpen = selectedConsultation?.status !== 'closed';
+    const hasUnforwardedExpertResponses = responses.some((r) => !r.is_requester && !r.forwarded);
 
-        return (
-            <SafeAreaView style={styles.flex} testID='consultation.panel'>
+    // ── Compose view (main) ──
+    const isDropdownOpen = activeTab === 'member' ? memberDropdownOpen : groupDropdownOpen;
+
+    return (
+        <SafeAreaView style={styles.flex} testID='consultation.panel'>
+            {isDetailView ? (
                 <KeyboardAvoidingView
                     style={styles.flex}
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -695,11 +680,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                             <View style={styles.loadingContainer}>
                                 <Loading color={theme.centerChannelColor} size='small'/>
                             </View>
-                        ) : (
-                            <Text style={styles.emptyText}>
-                                {intl.formatMessage({id: 'consultation.no_responses', defaultMessage: 'No responses yet'})}
-                            </Text>
-                        )
+                        ) : null
                     }
                 />
                 {selectMode && (
@@ -742,43 +723,12 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     </View>
                 )}
                 </KeyboardAvoidingView>
-            </SafeAreaView>
-        );
-    }
-
-    // ── Compose view (main) ──
-    const isDropdownOpen = activeTab === 'member' ? memberDropdownOpen : groupDropdownOpen;
-
-    return (
-        <SafeAreaView style={styles.flex} testID='consultation.panel'>
+            ) : (
             <KeyboardAvoidingView
                 style={styles.flex}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 110 : 0}
             >
-                {followUpMode && followUpConsultation ? (
-                    // Follow-up mode indicator
-                    <View style={[styles.forwardToolbar, {marginBottom: 0}]}>
-                        <CompassIcon name='message-reply-outline' size={18} color={theme.buttonBg}/>
-                        <Text style={[styles.forwardToolbarText, {marginLeft: 8, flex: 1}]}>
-                            {intl.formatMessage(
-                                {id: 'consultation.followup_to', defaultMessage: 'Follow up @{name}'},
-                                {name: followUpConsultation.target_display_name || followUpConsultation.target_username},
-                            )}
-                        </Text>
-                        <TouchableOpacity
-                            onPress={() => {
-                                setFollowUpMode(false);
-                                setFollowUpConsultation(null);
-                            }}
-                        >
-                            <Text style={styles.selectButtonText}>
-                                {intl.formatMessage({id: 'consultation.new_consultation', defaultMessage: 'New'})}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <>
                 {/* Tabs */}
                 <View style={styles.tabs}>
                 <TouchableOpacity
@@ -851,8 +801,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     )}
                 </TouchableOpacity>
             </View>
-                    </>
-                )}
 
             {/* Scrollable area: dropdown list + history */}
             <ScrollView style={styles.flex} keyboardShouldPersistTaps='handled'>
@@ -896,17 +844,15 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     style={styles.inputField}
                     value={questionText}
                     onChangeText={setQuestionText}
-                    placeholder={followUpMode
-                        ? intl.formatMessage({id: 'consultation.followup_placeholder', defaultMessage: 'Type your follow-up...'})
-                        : selectedTargetName
-                            ? intl.formatMessage(
-                                {id: 'consultation.question_to', defaultMessage: 'Ask {name}...'},
-                                {name: selectedTargetName},
-                            )
-                            : intl.formatMessage({id: 'consultation.question_placeholder', defaultMessage: 'Type your question...'})
+                    placeholder={selectedTargetName
+                        ? intl.formatMessage(
+                            {id: 'consultation.question_to', defaultMessage: 'Ask {name}...'},
+                            {name: selectedTargetName},
+                        )
+                        : intl.formatMessage({id: 'consultation.question_placeholder', defaultMessage: 'Type your question...'})
                     }
                     multiline={true}
-                    editable={Boolean(followUpMode || selectedTargetId)}
+                    editable={Boolean(selectedTargetId)}
                 />
                 <TouchableOpacity
                     style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
@@ -920,6 +866,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                 </TouchableOpacity>
             </View>
             </KeyboardAvoidingView>
+            )}
 
             {/* Forward Edit Modal (batch) */}
             <Modal visible={forwardBatchEditVisible} transparent={true} animationType='fade'>

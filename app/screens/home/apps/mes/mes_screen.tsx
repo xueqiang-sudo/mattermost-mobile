@@ -48,8 +48,8 @@ import {
 // ---- Constants ----
 
 const STEP_ICONS: Record<number, string> = {
-    1: '🧵', 2: '🔵', 3: '🟡', 4: '🟢',
-    5: '🔴', 6: '🟣', 7: '🟠', 8: '⚪',
+    1: '⚙️', 2: '🔍', 3: '🧵', 4: '👁️',
+    5: '🅿️', 6: '📦', 7: '✅', 8: '📊',
 };
 
 const SPEC_OPTIONS = [
@@ -414,6 +414,49 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75),
         paddingVertical: 4,
     },
+    // Dropdown (inline, matches conversations_screen pattern)
+    selectBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.02),
+    },
+    selectText: {
+        ...typography('Body', 100),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    selectPlaceholder: {
+        ...typography('Body', 100),
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        flex: 1,
+    },
+    dropdown: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 200,
+        backgroundColor: theme.centerChannelBg,
+    },
+    dropdownItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    dropdownItemText: {
+        ...typography('Body', 100),
+        color: theme.centerChannelColor,
+    },
+    dropdownItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+    },
 }));
 
 // ---- PlanForm Component ----
@@ -429,90 +472,215 @@ type PlanFormProps = {
 
 const PlanForm = ({initial, lines, isEdit, onSave, onCancel, style}: PlanFormProps) => {
     const intl = useIntl();
+    const theme = useTheme();
     const [form, setForm] = useState<MESPlanInput>(initial);
+    const [lineDropdownOpen, setLineDropdownOpen] = useState(false);
+    const [positionsDropdownOpen, setPositionsDropdownOpen] = useState(false);
+    const [specDropdownOpen, setSpecDropdownOpen] = useState(false);
 
     const set = (key: keyof MESPlanInput, val: string) => {
         setForm((prev) => ({...prev, [key]: val}));
     };
 
+    const handleLineChange = useCallback((lineId: string) => {
+        const line = lines.find((l) => l.id === lineId);
+        setForm((prev) => ({
+            ...prev,
+            line_id: lineId,
+            positions: line ? String(line.positions) : prev.positions,
+            spec: prev.spec || '150/36',
+        }));
+        setLineDropdownOpen(false);
+    }, [lines]);
+
     const selectedLine = lines.find((l) => l.id === form.line_id);
+    const maxPositions = selectedLine?.positions || 8;
+    const positionOptions = useMemo(() => Array.from({length: maxPositions}, (_, i) => String(i + 1)), [maxPositions]);
+
+    const specOptions = useMemo(() => {
+        const set = new Set(SPEC_OPTIONS);
+        if (form.spec) {
+            set.add(form.spec);
+        }
+        return Array.from(set).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+    }, [form.spec]);
+
+    const closeAllDropdowns = useCallback(() => {
+        setLineDropdownOpen(false);
+        setPositionsDropdownOpen(false);
+        setSpecDropdownOpen(false);
+    }, []);
+
+    const toggleDropdown = useCallback((target: 'line' | 'positions' | 'spec') => {
+        closeAllDropdowns();
+        if (target === 'line') {
+            setLineDropdownOpen((v) => !v);
+        } else if (target === 'positions') {
+            setPositionsDropdownOpen((v) => !v);
+        } else {
+            setSpecDropdownOpen((v) => !v);
+        }
+    }, [closeAllDropdowns]);
 
     return (
-        <ScrollView style={style.formOverlay} contentContainerStyle={style.formContainer}>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_line', defaultMessage: 'Line'})}</Text>
-                {lines.length > 0 ? (
-                    <ScrollView style={{maxHeight: 150}}>
-                        {lines.map((l) => (
+        <View style={style.formOverlay}>
+            {/* Click-outside overlay */}
+            {(lineDropdownOpen || positionsDropdownOpen || specDropdownOpen) && (
+                <TouchableOpacity
+                    style={StyleSheet.absoluteFill}
+                    activeOpacity={1}
+                    onPress={closeAllDropdowns}
+                />
+            )}
+            <ScrollView contentContainerStyle={style.formContainer}>
+                {/* 产线 (Production Line) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_line', defaultMessage: '产线'})}</Text>
+                    {lines.length > 0 ? (
+                        <>
                             <TouchableOpacity
-                                key={l.id}
-                                onPress={() => set('line_id', l.id)}
-                                style={{paddingVertical: 8, paddingHorizontal: 12, borderRadius: 4, backgroundColor: form.line_id === l.id ? changeOpacity(style.formLabel?.color || '#000', 0.08) : 'transparent'}}
+                                style={style.selectBtn}
+                                onPress={() => toggleDropdown('line')}
                             >
-                                <Text style={[style.formInput, {borderWidth: 0, padding: 0, backgroundColor: 'transparent'}]}>
-                                    {l.id} ({l.positions}pos/{l.spindles}sp)
+                                <Text style={form.line_id ? style.selectText : style.selectPlaceholder}>
+                                    {form.line_id
+                                        ? `${form.line_id} (${selectedLine ? `${selectedLine.positions}${intl.formatMessage({id: 'mes.pos_unit', defaultMessage: '工位'})}/${selectedLine.spindles}${intl.formatMessage({id: 'mes.spindle_unit', defaultMessage: '锭'})}` : ''})`
+                                        : intl.formatMessage({id: 'mes.select_line', defaultMessage: '选择产线'})}
                                 </Text>
+                                <CompassIcon
+                                    name={lineDropdownOpen ? 'menu-up' : 'menu-down'}
+                                    size={20}
+                                    color={changeOpacity(theme.centerChannelColor, 0.56)}
+                                />
                             </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                ) : (
-                    <TextInput
-                        style={style.formInput}
-                        value={form.line_id}
-                        onChangeText={(v) => set('line_id', v)}
-                        placeholder='A1'
-                    />
-                )}
-            </View>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_positions', defaultMessage: 'Positions'})}</Text>
-                <TextInput style={style.formInput} value={form.positions} onChangeText={(v) => set('positions', v)} keyboardType='numeric'/>
-            </View>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: 'Product'})}</Text>
-                <TextInput style={style.formInput} value={form.current_product} onChangeText={(v) => set('current_product', v)}/>
-            </View>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: 'Spec'})}</Text>
-                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
-                    <View style={{flexDirection: 'row', gap: 6}}>
-                        {SPEC_OPTIONS.map((s) => (
-                            <TouchableOpacity
-                                key={s}
-                                onPress={() => set('spec', s)}
-                                style={{paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: form.spec === s ? '#000' : '#ccc', backgroundColor: form.spec === s ? '#eee' : '#fff'}}
-                            >
-                                <Text style={{fontSize: 12}}>{s}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </ScrollView>
-            </View>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: 'Start Time'})}</Text>
-                <TextInput style={style.formInput} value={form.start_time} onChangeText={(v) => set('start_time', v)} placeholder='YYYY-MM-DD HH:mm'/>
-            </View>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: 'Planned End Time'})}</Text>
-                <TextInput style={style.formInput} value={form.planned_end_time} onChangeText={(v) => set('planned_end_time', v)} placeholder='YYYY-MM-DD HH:mm'/>
-            </View>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_schedule', defaultMessage: 'Schedule'})}</Text>
-                <TextInput style={style.formInput} value={form.schedule} onChangeText={(v) => set('schedule', v)}/>
-            </View>
-            <View style={style.formField}>
-                <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_remarks', defaultMessage: 'Remarks'})}</Text>
-                <TextInput style={style.formInput} value={form.remarks} onChangeText={(v) => set('remarks', v)}/>
-            </View>
-            <View style={style.formActions}>
-                <TouchableOpacity style={style.btnSecondary} onPress={onCancel}>
-                    <Text style={style.btnSecondaryText}>{intl.formatMessage({id: 'mes.cancel', defaultMessage: 'Cancel'})}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={style.addBtn} onPress={() => onSave(form)}>
-                    <Text style={style.addBtnText}>{intl.formatMessage({id: 'mes.save', defaultMessage: 'Save'})}</Text>
-                </TouchableOpacity>
-            </View>
-        </ScrollView>
+                            {lineDropdownOpen && (
+                                <ScrollView style={style.dropdown}>
+                                    {lines.map((l) => (
+                                        <TouchableOpacity
+                                            key={l.id}
+                                            style={[style.dropdownItem, form.line_id === l.id && style.dropdownItemSelected]}
+                                            onPress={() => handleLineChange(l.id)}
+                                        >
+                                            <Text style={style.dropdownItemText}>
+                                                {l.id} ({l.positions}{intl.formatMessage({id: 'mes.pos_unit', defaultMessage: '工位'})}/{l.spindles}{intl.formatMessage({id: 'mes.spindle_unit', defaultMessage: '锭'})})
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            )}
+                        </>
+                    ) : (
+                        <TextInput
+                            style={style.formInput}
+                            value={form.line_id}
+                            onChangeText={(v) => set('line_id', v)}
+                            placeholder='A1'
+                        />
+                    )}
+                </View>
+
+                {/* 工位 (Positions) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_positions', defaultMessage: '工位'})}</Text>
+                    <TouchableOpacity
+                        style={style.selectBtn}
+                        onPress={() => toggleDropdown('positions')}
+                    >
+                        <Text style={form.positions ? style.selectText : style.selectPlaceholder}>
+                            {form.positions || intl.formatMessage({id: 'mes.select_positions', defaultMessage: '选择工位'})}
+                        </Text>
+                        <CompassIcon
+                            name={positionsDropdownOpen ? 'menu-up' : 'menu-down'}
+                            size={20}
+                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                        />
+                    </TouchableOpacity>
+                    {positionsDropdownOpen && (
+                        <ScrollView style={style.dropdown}>
+                            {positionOptions.map((p) => (
+                                <TouchableOpacity
+                                    key={p}
+                                    style={[style.dropdownItem, form.positions === p && style.dropdownItemSelected]}
+                                    onPress={() => { set('positions', p); setPositionsDropdownOpen(false); }}
+                                >
+                                    <Text style={style.dropdownItemText}>{p}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    )}
+                </View>
+
+                {/* 产品 (Product) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: '产品'})}</Text>
+                    <TextInput style={style.formInput} value={form.current_product} onChangeText={(v) => set('current_product', v)}/>
+                </View>
+
+                {/* 规格 (Spec) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
+                    <TouchableOpacity
+                        style={style.selectBtn}
+                        onPress={() => toggleDropdown('spec')}
+                    >
+                        <Text style={form.spec ? style.selectText : style.selectPlaceholder}>
+                            {form.spec || intl.formatMessage({id: 'mes.select_spec', defaultMessage: '选择规格'})}
+                        </Text>
+                        <CompassIcon
+                            name={specDropdownOpen ? 'menu-up' : 'menu-down'}
+                            size={20}
+                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                        />
+                    </TouchableOpacity>
+                    {specDropdownOpen && (
+                        <ScrollView style={style.dropdown}>
+                            {specOptions.map((s) => (
+                                <TouchableOpacity
+                                    key={s}
+                                    style={[style.dropdownItem, form.spec === s && style.dropdownItemSelected]}
+                                    onPress={() => { set('spec', s); setSpecDropdownOpen(false); }}
+                                >
+                                    <Text style={style.dropdownItemText}>{s}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    )}
+                </View>
+
+                {/* 开始时间 (Start Time) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始时间'})}</Text>
+                    <TextInput style={style.formInput} value={form.start_time} onChangeText={(v) => set('start_time', v)} placeholder='YYYY-MM-DD HH:mm'/>
+                </View>
+
+                {/* 计划结束时间 (Planned End Time) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '计划结束时间'})}</Text>
+                    <TextInput style={style.formInput} value={form.planned_end_time} onChangeText={(v) => set('planned_end_time', v)} placeholder='YYYY-MM-DD HH:mm'/>
+                </View>
+
+                {/* 排程 (Schedule) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_schedule', defaultMessage: '排程'})}</Text>
+                    <TextInput style={style.formInput} value={form.schedule} onChangeText={(v) => set('schedule', v)}/>
+                </View>
+
+                {/* 备注 (Remarks) */}
+                <View style={style.formField}>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_remarks', defaultMessage: '备注'})}</Text>
+                    <TextInput style={style.formInput} value={form.remarks} onChangeText={(v) => set('remarks', v)}/>
+                </View>
+
+                <View style={style.formActions}>
+                    <TouchableOpacity style={style.btnSecondary} onPress={onCancel}>
+                        <Text style={style.btnSecondaryText}>{intl.formatMessage({id: 'mes.cancel', defaultMessage: '取消'})}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={style.addBtn} onPress={() => onSave(form)}>
+                        <Text style={style.addBtnText}>{intl.formatMessage({id: 'mes.save', defaultMessage: '保存'})}</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </View>
     );
 };
 
@@ -649,12 +817,12 @@ const MesScreen = () => {
 
     const handleDeletePlan = useCallback((plan: MESPlan) => {
         Alert.alert(
-            intl.formatMessage({id: 'mes.delete_confirm', defaultMessage: 'Delete this plan?'}),
+            intl.formatMessage({id: 'mes.delete_confirm', defaultMessage: '删除此计划？'}),
             '',
             [
-                {text: intl.formatMessage({id: 'mes.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
+                {text: intl.formatMessage({id: 'mes.cancel', defaultMessage: '取消'}), style: 'cancel'},
                 {
-                    text: intl.formatMessage({id: 'mobile.post.delete_confirm', defaultMessage: 'Delete'}),
+                    text: intl.formatMessage({id: 'mobile.post.delete_confirm', defaultMessage: '删除'}),
                     style: 'destructive',
                     onPress: async () => {
                         await deleteMESPlan(serverUrl, teamId, plan.id);
@@ -667,7 +835,7 @@ const MesScreen = () => {
 
     const handleSavePlan = useCallback(async (formPlan: MESPlanInput) => {
         if (!formPlan.line_id) {
-            Alert.alert('', intl.formatMessage({id: 'mes.select_line', defaultMessage: 'Select Line'}));
+            Alert.alert('', intl.formatMessage({id: 'mes.select_line', defaultMessage: '选择产线'}));
             return;
         }
         try {
@@ -680,7 +848,7 @@ const MesScreen = () => {
             setEditingPlanId(-1);
             loadData();
         } catch (err) {
-            Alert.alert('', `${intl.formatMessage({id: 'mes.save_failed', defaultMessage: 'Save failed'})}: ${err instanceof Error ? err.message : String(err)}`);
+            Alert.alert('', `${intl.formatMessage({id: 'mes.save_failed', defaultMessage: '保存失败'})}: ${err instanceof Error ? err.message : String(err)}`);
         }
     }, [serverUrl, teamId, editingPlanId, intl, loadData]);
 
@@ -725,9 +893,9 @@ const MesScreen = () => {
         setLineInfoMsg(null);
         try {
             await updateLineInfo(serverUrl, teamId, lineInfoContent);
-            setLineInfoMsg({type: 'success', text: intl.formatMessage({id: 'mes.save_success', defaultMessage: 'Saved successfully'})});
+            setLineInfoMsg({type: 'success', text: intl.formatMessage({id: 'mes.save_success', defaultMessage: '保存成功'})});
         } catch (err) {
-            setLineInfoMsg({type: 'error', text: `${intl.formatMessage({id: 'mes.save_failed', defaultMessage: 'Save failed'})}: ${err instanceof Error ? err.message : String(err)}`});
+            setLineInfoMsg({type: 'error', text: `${intl.formatMessage({id: 'mes.save_failed', defaultMessage: '保存失败'})}: ${err instanceof Error ? err.message : String(err)}`});
         } finally {
             setLineInfoSaving(false);
             setTimeout(() => setLineInfoMsg(null), 3000);
@@ -743,26 +911,26 @@ const MesScreen = () => {
                 <Text style={style.planValue}>{plan.current_product || '-'}</Text>
             </View>
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: 'Spec'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
                 <Text style={style.planValue}>{plan.spec || '-'} | {plan.positions || '-'} pos</Text>
             </View>
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: 'Start'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始'})}</Text>
                 <Text style={style.planValue}>{formatDateTime(plan.start_time)}</Text>
             </View>
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: 'End'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '结束'})}</Text>
                 <Text style={style.planValue}>{formatDateTime(plan.planned_end_time)}</Text>
             </View>
             {plan.schedule ? (
                 <View style={style.planRow}>
-                    <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_schedule', defaultMessage: 'Schedule'})}</Text>
+                    <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_schedule', defaultMessage: '排程'})}</Text>
                     <Text style={style.planValue} numberOfLines={2}>{plan.schedule}</Text>
                 </View>
             ) : null}
             {plan.remarks ? (
                 <View style={style.planRow}>
-                    <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_remarks', defaultMessage: 'Remarks'})}</Text>
+                    <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_remarks', defaultMessage: '备注'})}</Text>
                     <Text style={style.planValue}>{plan.remarks}</Text>
                 </View>
             ) : null}
@@ -788,27 +956,27 @@ const MesScreen = () => {
                 </View>
             </View>
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: 'Product'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: '产品'})}</Text>
                 <Text style={style.planValue}>{record.product || '-'} | {record.spec || '-'}</Text>
             </View>
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_operator', defaultMessage: 'Operator'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_operator', defaultMessage: '操作员'})}</Text>
                 <Text style={style.planValue}>{record.operator || '-'}</Text>
             </View>
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: 'Start'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始'})}</Text>
                 <Text style={style.planValue}>{record.start_time || '-'}</Text>
             </View>
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_allocated', defaultMessage: 'Alloc(kg)'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_allocated', defaultMessage: '分配量(kg)'})}</Text>
                 <Text style={style.planValue}>{record.allocated_kg > 0 ? `${record.allocated_kg} kg` : '-'} | {record.roll_count > 0 ? `${record.roll_count} rolls` : '-'}</Text>
             </View>
             <View style={style.planActions}>
                 <TouchableOpacity style={style.actionBtn} onPress={() => handleDetail(record.id)}>
-                    <Text style={style.actionBtnText}>{intl.formatMessage({id: 'mes.detail', defaultMessage: 'Details'})}</Text>
+                    <Text style={style.actionBtnText}>{intl.formatMessage({id: 'mes.detail', defaultMessage: '详情'})}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={style.actionBtn} onPress={() => handleSummary(record.id)}>
-                    <Text style={style.actionBtnText}>{intl.formatMessage({id: 'mes.summary', defaultMessage: 'Summary'})}</Text>
+                    <Text style={style.actionBtnText}>{intl.formatMessage({id: 'mes.summary', defaultMessage: '汇总'})}</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -846,9 +1014,13 @@ const MesScreen = () => {
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
+                    <TouchableOpacity style={style.refreshBtn} onPress={() => { setShowForm(false); setEditingPlanId(-1); }}>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                    </TouchableOpacity>
                     <Text style={style.headerTitle}>
-                        {editingPlanId >= 0 ? intl.formatMessage({id: 'mes.edit_plan', defaultMessage: 'Edit Plan'}) : intl.formatMessage({id: 'mes.add_plan', defaultMessage: 'Add Plan'})}
+                        {editingPlanId >= 0 ? intl.formatMessage({id: 'mes.edit_plan', defaultMessage: '编辑计划'}) : intl.formatMessage({id: 'mes.add_plan', defaultMessage: '新增计划'})}
                     </Text>
+                    <View style={style.refreshBtn}/>
                 </View>
                 <PlanForm
                     initial={initialForm}
@@ -885,7 +1057,7 @@ const MesScreen = () => {
                         onPress={() => setActiveTab('plan')}
                     >
                         <Text style={[style.tabText, activeTab === 'plan' && style.tabTextActive]}>
-                            {intl.formatMessage({id: 'mes.production_plan', defaultMessage: 'Production Plan'})}
+                            {intl.formatMessage({id: 'mes.production_plan', defaultMessage: '排产计划'})}
                             {filteredPlans.length > 0 && <Text style={style.tabCount}> ({filteredPlans.length})</Text>}
                         </Text>
                     </TouchableOpacity>
@@ -895,7 +1067,7 @@ const MesScreen = () => {
                     onPress={() => setActiveTab('records')}
                 >
                     <Text style={[style.tabText, activeTab === 'records' && style.tabTextActive]}>
-                        {intl.formatMessage({id: 'mes.production_records', defaultMessage: 'Records'})}
+                        {intl.formatMessage({id: 'mes.production_records', defaultMessage: '生产记录'})}
                         {sortedRecords.length > 0 && <Text style={style.tabCount}> ({sortedRecords.length})</Text>}
                     </Text>
                 </TouchableOpacity>
@@ -905,7 +1077,7 @@ const MesScreen = () => {
                         onPress={() => setActiveTab('lines')}
                     >
                         <Text style={[style.tabText, activeTab === 'lines' && style.tabTextActive]}>
-                            {intl.formatMessage({id: 'mes.line_info', defaultMessage: 'Line Info'})}
+                            {intl.formatMessage({id: 'mes.line_info', defaultMessage: '产线信息'})}
                         </Text>
                     </TouchableOpacity>
                 )}
@@ -930,7 +1102,7 @@ const MesScreen = () => {
                         <View style={{flex: 1}}/>
                         {activeTab === 'plan' && mesPerms.canCreatePlan && !showForm && (
                             <TouchableOpacity style={style.addBtn} onPress={handleAddPlan}>
-                                <Text style={style.addBtnText}>+ {intl.formatMessage({id: 'mes.add_plan', defaultMessage: 'Add Plan'})}</Text>
+                                <Text style={style.addBtnText}>+ {intl.formatMessage({id: 'mes.add_plan', defaultMessage: '新增计划'})}</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -942,8 +1114,8 @@ const MesScreen = () => {
                         {filteredPlans.length === 0 ? (
                             <Text style={style.emptyText}>
                                 {filterDate
-                                    ? intl.formatMessage({id: 'mes.no_plans_for_date', defaultMessage: 'No plans for this date.'})
-                                    : intl.formatMessage({id: 'mes.no_plan_records', defaultMessage: 'No plans yet.'})}
+                                    ? intl.formatMessage({id: 'mes.no_plans_for_date', defaultMessage: '该日期暂无计划。'})
+                                    : intl.formatMessage({id: 'mes.no_plan_records', defaultMessage: '暂无计划。'})}
                             </Text>
                         ) : (
                             filteredPlans.map(renderPlanCard)
@@ -957,8 +1129,8 @@ const MesScreen = () => {
                         {sortedRecords.length === 0 ? (
                             <Text style={style.emptyText}>
                                 {filterDate
-                                    ? intl.formatMessage({id: 'mes.no_records_for_date', defaultMessage: 'No records for this date.'})
-                                    : intl.formatMessage({id: 'mes.no_records', defaultMessage: 'No records yet.'})}
+                                    ? intl.formatMessage({id: 'mes.no_records_for_date', defaultMessage: '该日期暂无记录。'})
+                                    : intl.formatMessage({id: 'mes.no_records', defaultMessage: '暂无记录。'})}
                             </Text>
                         ) : (
                             sortedRecords.map(renderRecordCard)
@@ -973,7 +1145,7 @@ const MesScreen = () => {
                             <View style={{flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12}}>
                                 <TouchableOpacity style={style.addBtn} onPress={handleSaveLineInfo} disabled={lineInfoSaving}>
                                     <Text style={style.addBtnText}>
-                                        {lineInfoSaving ? '...' : '💾'} {intl.formatMessage({id: 'mes.save', defaultMessage: 'Save'})}
+                                        {lineInfoSaving ? '...' : '💾'} {intl.formatMessage({id: 'mes.save', defaultMessage: '保存'})}
                                     </Text>
                                 </TouchableOpacity>
                                 {lineInfoMsg && (
@@ -989,7 +1161,7 @@ const MesScreen = () => {
                             onChangeText={setLineInfoContent}
                             editable={mesPerms.canCreateLineInfo}
                             multiline={true}
-                            placeholder={intl.formatMessage({id: 'mes.line_info_placeholder', defaultMessage: 'Enter line info...'})}
+                            placeholder={intl.formatMessage({id: 'mes.line_info_placeholder', defaultMessage: '输入产线信息...'})}
                         />
                     </ScrollView>
                 )}
@@ -1001,7 +1173,7 @@ const MesScreen = () => {
                     <View style={style.modalContent}>
                         <View style={style.modalHeader}>
                             <Text style={style.modalTitle}>
-                                {detailRecord?.line_id} / {detailRecord?.product} — {intl.formatMessage({id: 'mes.detail', defaultMessage: 'Details'})}
+                                {detailRecord?.line_id} / {detailRecord?.product} — {intl.formatMessage({id: 'mes.detail', defaultMessage: '详情'})}
                             </Text>
                             <TouchableOpacity style={style.modalCloseBtn} onPress={() => setDetailRecord(null)}>
                                 <CompassIcon name='close' size={20} color={theme.centerChannelColor}/>
@@ -1010,10 +1182,10 @@ const MesScreen = () => {
                         <ScrollView style={style.modalBody}>
                             {/* Step table header */}
                             <View style={[style.stepRow, {borderBottomWidth: 1}]}>
-                                <Text style={[style.stepCol, {fontWeight: 'bold'}]}>{intl.formatMessage({id: 'mes.plan_step', defaultMessage: 'Step'})}</Text>
-                                <Text style={style.stepCol}>{intl.formatMessage({id: 'mes.plan_operator', defaultMessage: 'Operator'})}</Text>
-                                <Text style={style.stepColSmall}>{intl.formatMessage({id: 'mes.plan_time', defaultMessage: 'Time'})}</Text>
-                                <Text style={style.stepCol}>{intl.formatMessage({id: 'mes.plan_notes', defaultMessage: 'Notes'})}</Text>
+                                <Text style={[style.stepCol, {fontWeight: 'bold'}]}>{intl.formatMessage({id: 'mes.plan_step', defaultMessage: '步骤'})}</Text>
+                                <Text style={style.stepCol}>{intl.formatMessage({id: 'mes.plan_operator', defaultMessage: '操作员'})}</Text>
+                                <Text style={style.stepColSmall}>{intl.formatMessage({id: 'mes.plan_time', defaultMessage: '时间'})}</Text>
+                                <Text style={style.stepCol}>{intl.formatMessage({id: 'mes.plan_notes', defaultMessage: '备注'})}</Text>
                             </View>
                             {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => {
                                 const stepEntry = detailRecord?.steps?.find((st) => st.step === s);
@@ -1053,7 +1225,7 @@ const MesScreen = () => {
                     <View style={style.modalContent}>
                         <View style={style.modalHeader}>
                             <Text style={style.modalTitle}>
-                                {summaryRecord?.line_id} / {summaryRecord?.product} — {intl.formatMessage({id: 'mes.summary', defaultMessage: 'Summary'})}
+                                {summaryRecord?.line_id} / {summaryRecord?.product} — {intl.formatMessage({id: 'mes.summary', defaultMessage: '汇总'})}
                             </Text>
                             <TouchableOpacity style={style.modalCloseBtn} onPress={() => setSummaryRecord(null)}>
                                 <CompassIcon name='close' size={20} color={theme.centerChannelColor}/>
@@ -1064,22 +1236,22 @@ const MesScreen = () => {
                                 <>
                                     {/* Basic Info */}
                                     <View style={style.summarySection}>
-                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_basic', defaultMessage: 'Basic Info'})}</Text>
+                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_basic', defaultMessage: '基本信息'})}</Text>
                                         <View style={style.summaryGrid}>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_line', defaultMessage: 'Line'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_line', defaultMessage: '产线'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.line_id}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: 'Product'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: '产品'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.product || '-'}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: 'Spec'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.spec || '-'}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_positions', defaultMessage: 'Positions'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_positions', defaultMessage: '工位'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.positions || '-'}</Text>
                                             </View>
                                         </View>
@@ -1087,22 +1259,22 @@ const MesScreen = () => {
 
                                     {/* Time */}
                                     <View style={style.summarySection}>
-                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_time', defaultMessage: 'Time'})}</Text>
+                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_time', defaultMessage: '时间'})}</Text>
                                         <View style={style.summaryGrid}>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: 'Start'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始'})}</Text>
                                                 <Text style={style.summaryValue}>{formatTimeStr(summaryRecord.start_time)}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_planned_end', defaultMessage: 'Planned End'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_planned_end', defaultMessage: '计划结束'})}</Text>
                                                 <Text style={style.summaryValue}>{formatTimeStr(summaryPlannedEnd)}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_estimated_end', defaultMessage: 'Estimated End'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_estimated_end', defaultMessage: '预计结束'})}</Text>
                                                 <Text style={style.summaryValue}>{formatTimeStr(summaryRecord.estimated_end_time)}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_duration', defaultMessage: 'Duration'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_duration', defaultMessage: '用时'})}</Text>
                                                 <Text style={style.summaryValue}>{calcDuration(summaryRecord.start_time, summaryRecord.end_time)}</Text>
                                             </View>
                                         </View>
@@ -1110,47 +1282,51 @@ const MesScreen = () => {
 
                                     {/* Output */}
                                     <View style={style.summarySection}>
-                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_output', defaultMessage: 'Output'})}</Text>
+                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_output', defaultMessage: '产出'})}</Text>
                                         <View style={style.summaryGrid}>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_allocated', defaultMessage: 'Alloc(kg)'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_allocated', defaultMessage: '分配量(kg)'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.allocated_kg > 0 ? `${summaryRecord.allocated_kg} kg` : '-'}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_actual_output', defaultMessage: 'Actual Output'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_actual_output', defaultMessage: '实际产出'})}</Text>
                                                 <Text style={style.summaryValue}>
                                                     {summaryRecord.actual_output_kg > 0 ? `${summaryRecord.actual_output_kg} kg` : (summaryRecord.qc_qualified_kg > 0 ? `${summaryRecord.qc_qualified_kg} kg` : '-')}
                                                 </Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_rolls', defaultMessage: 'Rolls'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.plan_rolls', defaultMessage: '丝饼数'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.roll_count > 0 ? `${summaryRecord.roll_count}` : '-'}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_waste', defaultMessage: 'Waste'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_waste', defaultMessage: '废料'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.waste_kg > 0 ? `${summaryRecord.waste_kg} kg` : '-'}</Text>
+                                            </View>
+                                            <View style={style.summaryItem}>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_transition', defaultMessage: '过渡丝'})}</Text>
+                                                <Text style={style.summaryValue}>{summaryRecord.qc_transition_kg > 0 ? `${summaryRecord.qc_transition_kg} kg` : '-'}</Text>
                                             </View>
                                         </View>
                                     </View>
 
                                     {/* Quality */}
                                     <View style={style.summarySection}>
-                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_quality', defaultMessage: 'Quality'})}</Text>
+                                        <Text style={style.summarySectionTitle}>{intl.formatMessage({id: 'mes.summary_quality', defaultMessage: '质量'})}</Text>
                                         <View style={style.summaryGrid}>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_breakage', defaultMessage: 'Breakage'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_breakage', defaultMessage: '断头数'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.breakage_count > 0 ? `${summaryRecord.breakage_count}` : '-'}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_small_roll', defaultMessage: 'Small Rolls'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_small_roll', defaultMessage: '小卷数'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.small_roll_count > 0 ? `${summaryRecord.small_roll_count}` : '-'}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_fuzz', defaultMessage: 'Fuzz Defects'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_fuzz', defaultMessage: '毛丝缺陷'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.fuzz_defect_count > 0 ? `${summaryRecord.fuzz_defect_count}` : '-'}</Text>
                                             </View>
                                             <View style={style.summaryItem}>
-                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_color_uneven', defaultMessage: 'Color Uneven'})}</Text>
+                                                <Text style={style.summaryLabel}>{intl.formatMessage({id: 'mes.summary_color_uneven', defaultMessage: '色差'})}</Text>
                                                 <Text style={style.summaryValue}>{summaryRecord.color_uneven_count > 0 ? `${summaryRecord.color_uneven_count}` : '-'}</Text>
                                             </View>
                                         </View>

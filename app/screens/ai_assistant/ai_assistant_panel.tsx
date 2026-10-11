@@ -379,13 +379,16 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
         setSearchEntries((prev) => [...prev, {query, answer: ''}]);
         try {
             const resp = await askKnowledgeBase(serverUrl, teamId, query);
-            const answerText = resp?.data?.answer || resp?.answer || '';
+            console.log('[AI Assistant] askKnowledgeBase response:', JSON.stringify(resp));
+            const answerText = resp?.data?.answer || resp?.answer || (resp as any)?.data || '';
+            console.log('[AI Assistant] extracted answerText:', answerText?.substring(0, 100));
             setSearchEntries((prev) => {
                 const next = [...prev];
                 next[next.length - 1] = {query, answer: answerText};
                 return next;
             });
         } catch (error) {
+            console.error('[AI Assistant] search error:', error);
             setSearchEntries((prev) => {
                 const next = [...prev];
                 next[next.length - 1] = {query, answer: intl.formatMessage({id: 'ai_assistant.search_error', defaultMessage: 'Failed to get an answer. Please try again.'})};
