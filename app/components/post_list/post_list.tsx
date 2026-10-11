@@ -18,7 +18,6 @@ import {Events, Screens} from '@constants';
 import {PostTypes} from '@constants/post';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {debugLog} from '@store/debug_log';
 import {getDateForDateLine, getTimeForTimeLine, preparePostList} from '@utils/post_list';
 import {changeOpacity, getChatListBackdropColor} from '@utils/theme';
 
@@ -162,11 +161,9 @@ const PostList = ({
 
     useEffect(() => {
         const lengthDiff = Math.abs(posts.length - lastAppliedLengthRef.current);
-        debugLog('POST_LIST', `batch: posts=${posts.length}, lastApplied=${lastAppliedLengthRef.current}, diff=${lengthDiff}`);
 
         // Immediate update for large changes (e.g., channel switch, initial load)
         if (lengthDiff > 5) {
-            debugLog('POST_LIST', `batch: immediate update (large change, diff=${lengthDiff})`);
             if (batchTimerRef.current) {
                 clearTimeout(batchTimerRef.current);
                 batchTimerRef.current = null;
@@ -183,9 +180,7 @@ const PostList = ({
 
         // Only start timer if not already running
         if (!batchTimerRef.current) {
-            debugLog('POST_LIST', `batch: starting 500ms batch timer`);
             batchTimerRef.current = setTimeout(() => {
-                debugLog('POST_LIST', `batch: timer fired, applying ${pendingPostsRef.current.length} posts`);
                 setBatchedPosts(pendingPostsRef.current);
                 lastAppliedLengthRef.current = pendingPostsRef.current.length;
                 batchTimerRef.current = null;
@@ -212,12 +207,10 @@ const PostList = ({
     const debouncedPosts = batchedPosts;
 
     const orderedPosts = useMemo(() => {
-        debugLog('POST_LIST', `preparePostList: start, posts=${debouncedPosts.length}`);
         try {
             const isThreadView = Boolean(rootId);
             const useWeChatMode = location === Screens.CHANNEL || location === Screens.PERMALINK;
             const result = preparePostList(debouncedPosts, lastViewedAt, showNewMessageLine, currentUserId, currentUsername, shouldShowJoinLeaveMessages, currentTimezone, isThreadView, savedPostIds, useWeChatMode);
-            debugLog('POST_LIST', `preparePostList: success, items=${result.length}`);
             return result;
         } catch (error) {
             console.error('[PostList] preparePostList error:', error, {
@@ -225,7 +218,6 @@ const PostList = ({
                 lastViewedAt,
                 channelId,
             });
-            debugLog('POST_LIST', `preparePostList: ERROR - ${error}`);
             // Return empty array on error to prevent crash
             return [];
         }
@@ -461,10 +453,8 @@ const PostList = ({
                     const post = item.value?.currentPost;
                     if (!post) {
                         console.warn('[PostList] renderItem: missing post data', item);
-                        debugLog('POST_LIST', `renderItem: WARNING - missing post data, type=${item.type}`);
                         return null;
                     }
-                    debugLog('POST_LIST', `renderItem: post id=${post.id}, type=${post.type}`);
                     const {isSaved, nextPost, previousPost} = item.value;
                     const skipSaveddHeader = false;
                     const postProps = {
@@ -493,7 +483,6 @@ const PostList = ({
                     );
                 } catch (error) {
                     console.error('[PostList] renderItem error:', error, item);
-                    debugLog('POST_LIST', `renderItem: ERROR - ${error}`);
                     return null;
                 }
             }

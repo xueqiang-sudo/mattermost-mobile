@@ -184,6 +184,14 @@ export function useVoiceRecorder(
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 原生录音启动失败（含重试）');
                 startingTsRef.current = null;
                 await safeResetRecordingState();
+
+                // 权限弹窗可能中断了触摸事件，如果用户已松开则静默取消（类似微信行为）
+                const stillHolding = optionsRef.current?.shouldProceedAfterPermission?.() ?? true;
+                if (!stillHolding) {
+                    debugLog('VOICE', '[useVoiceRecorder.startRecording] 启动失败但用户已松开，静默取消');
+                    return;
+                }
+
                 onError?.('record_failed');
                 return;
             }

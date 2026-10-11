@@ -237,14 +237,10 @@ const SmoothWaveformStrip = React.memo(({
 
 /** 微信式中央 HUD：Modal 根层 pointerEvents=none 不挡底部按住条 */
 const VoiceRecordingHud = React.memo(({inCancelZone, slideToCancelHint, releaseToCancelHint, visible}: VoiceRecordingHudProps) => {
-    // 不渲染时直接返回 null，避免 Modal 干扰其他 UI
-    if (!visible) {
-        return null;
-    }
     return (
         <Modal
             key='voice-recording-hud'
-            visible={true}
+            visible={visible}
             transparent={true}
             animationType={'fade'}
             statusBarTranslucent={true}
@@ -253,45 +249,47 @@ const VoiceRecordingHud = React.memo(({inCancelZone, slideToCancelHint, releaseT
                 style={voiceHudStyles.overlayRoot}
                 pointerEvents={'none'}
             >
-                <View style={voiceHudStyles.card}>
-                    {!inCancelZone ? (
-                        <>
-                            <CompassIcon
-                                name={'microphone'}
-                                size={40}
-                                color={'#FFFFFF'}
-                            />
-                            <View style={voiceHudStyles.meterRow}>
-                                <SmoothWaveformStrip
-                                    barColor={'rgba(255,255,255,0.92)'}
-                                    barWidth={5}
-                                    gap={4}
-                                    maxBarHeightPx={28}
+                {visible && (
+                    <View style={voiceHudStyles.card}>
+                        {!inCancelZone ? (
+                            <>
+                                <CompassIcon
+                                    name={'microphone'}
+                                    size={40}
+                                    color={'#FFFFFF'}
                                 />
-                            </View>
-                            <Text style={voiceHudStyles.hudCaption}>{slideToCancelHint}</Text>
-                        </>
-                    ) : (
-                        <>
-                            <CompassIcon
-                                name={'reply-outline'}
-                                size={44}
-                                color={'#FFFFFF'}
-                            />
-                            <View style={voiceHudStyles.meterRow}>
-                                <SmoothWaveformStrip
-                                    barColor={'rgba(255,255,255,0.85)'}
-                                    barWidth={5}
-                                    gap={4}
-                                    maxBarHeightPx={28}
+                                <View style={voiceHudStyles.meterRow}>
+                                    <SmoothWaveformStrip
+                                        barColor={'rgba(255,255,255,0.92)'}
+                                        barWidth={5}
+                                        gap={4}
+                                        maxBarHeightPx={28}
+                                    />
+                                </View>
+                                <Text style={voiceHudStyles.hudCaption}>{slideToCancelHint}</Text>
+                            </>
+                        ) : (
+                            <>
+                                <CompassIcon
+                                    name={'reply-outline'}
+                                    size={44}
+                                    color={'#FFFFFF'}
                                 />
-                            </View>
-                            <View style={voiceHudStyles.cancelPill}>
-                                <Text style={voiceHudStyles.cancelPillText}>{releaseToCancelHint}</Text>
-                            </View>
-                        </>
-                    )}
-                </View>
+                                <View style={voiceHudStyles.meterRow}>
+                                    <SmoothWaveformStrip
+                                        barColor={'rgba(255,255,255,0.85)'}
+                                        barWidth={5}
+                                        gap={4}
+                                        maxBarHeightPx={28}
+                                    />
+                                </View>
+                                <View style={voiceHudStyles.cancelPill}>
+                                    <Text style={voiceHudStyles.cancelPillText}>{releaseToCancelHint}</Text>
+                                </View>
+                            </>
+                        )}
+                    </View>
+                )}
             </View>
         </Modal>
     );
