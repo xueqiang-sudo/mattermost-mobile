@@ -12,19 +12,14 @@ import {handleTeamChange} from '@actions/remote/team';
 
 
 import CompassIcon from '@components/compass_icon';
-import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
-import {Preferences, Screens} from '@constants';
+import {Preferences} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {usePreventDoubleTap} from '@hooks/utils';
 import {queryPreferencesByCategoryAndName} from '@queries/servers/preference';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams, queryMyTeams, observeTeam} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
-import {showModalWithBackButton, bottomSheet, dismissBottomSheet} from '@screens/navigation';
-import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
-import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -39,59 +34,10 @@ type DrawerContentProps = {
     myOrderedTeams: MyTeamModel[];
 };
 
-const CLOSE_CREATE_TEAM = 'close-left-drawer-create-team';
-const CLOSE_JOIN_TEAM_QR = 'close-left-drawer-join-team-qr';
 function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerContentProps) {
     const theme = useTheme();
     const intl = useIntl();
-    const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
-
-    const openCreateOrJoinSheet = usePreventDoubleTap(useCallback(() => {
-        const renderContent = () => (
-            <>
-                <SlideUpPanelItem
-                    leftIcon='plus-box-outline'
-                    text={intl.formatMessage({id: 'plus_menu.create_enterprise.title', defaultMessage: 'Create Enterprise'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        showModalWithBackButton(
-                            Screens.CREATE_TEAM,
-                            intl.formatMessage({id: 'create_team.title', defaultMessage: 'Create Enterprise'}),
-                            CLOSE_CREATE_TEAM,
-                            {serverUrl, nickname: currentUser?.nickname || '', userId: currentUser?.id || ''},
-                        );
-                    }}
-                    testID='left_drawer.create_enterprise'
-                />
-                <SlideUpPanelItem
-                    leftIcon='account-multiple-plus-outline'
-                    text={intl.formatMessage({id: 'plus_menu.join_enterprise.title', defaultMessage: 'Join Enterprise'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        showModalWithBackButton(
-                            Screens.JOIN_TEAM_QR,
-                            intl.formatMessage({id: 'join_team_qr.title', defaultMessage: 'Join Enterprise'}),
-                            CLOSE_JOIN_TEAM_QR,
-                            {serverUrl, nickname: currentUser?.nickname || '', userId: currentUser?.id || ''},
-                        );
-                    }}
-                    testID='left_drawer.join_enterprise'
-                />
-            </>
-        );
-        bottomSheet({
-            closeButtonId: 'close-left-drawer-create-join',
-            renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT)],
-            theme,
-            title: intl.formatMessage({id: 'left_drawer.create_join_enterprise.title', defaultMessage: 'Create / Join Enterprise'}),
-        });
-    }, [intl, serverUrl, currentUser, theme]));
-
-    const openScanQRCode = usePreventDoubleTap(useCallback(() => {
-        showQrScannerModal(intl);
-    }, [intl]));
 
     if (!currentUser) {
         return null;
@@ -120,40 +66,6 @@ function DrawerContentInner({onClose, currentUser, myOrderedTeams}: DrawerConten
                         bounces={false}
                     />
                 )}
-            </View>
-
-            <View style={styles.bottomSection}>
-                <View style={styles.divider}/>
-                <TouchableWithFeedback
-                    onPress={openCreateOrJoinSheet}
-                    type='opacity'
-                    style={styles.menuRow}
-                    testID='left_drawer.create_join_enterprise'
-                >
-                    <CompassIcon
-                        name='sitemap'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                    <Text style={styles.menuLabel}>
-                        {intl.formatMessage({id: 'left_drawer.create_join_enterprise.title', defaultMessage: 'Create / Join Enterprise'})}
-                    </Text>
-                </TouchableWithFeedback>
-                <TouchableWithFeedback
-                    onPress={openScanQRCode}
-                    type='opacity'
-                    style={styles.menuRow}
-                    testID='left_drawer.scan_qr_code'
-                >
-                    <CompassIcon
-                        name='camera-outline'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                    <Text style={styles.menuLabel}>
-                        {intl.formatMessage({id: 'plus_menu.scan_qr_code.title', defaultMessage: 'Scan QR Code'})}
-                    </Text>
-                </TouchableWithFeedback>
             </View>
         </View>
     );
@@ -245,11 +157,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     teamSeparator: {
         height: 8,
     },
-    bottomSection: {
-        flexShrink: 0,
-        paddingTop: 4,
-        paddingBottom: 20,
-    },
     emptyTeams: {
         color: changeOpacity(theme.sidebarText, 0.64),
         ...typography('Body', 100),
@@ -289,23 +196,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     teamNameSelected: {
         color: theme.sidebarText,
         ...typography('Body', 200, 'SemiBold'),
-    },
-    divider: {
-        height: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
-        marginVertical: 8,
-        marginHorizontal: 16,
-    },
-    menuRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-    },
-    menuLabel: {
-        color: theme.sidebarText,
-        ...typography('Body', 200),
-        marginLeft: 12,
     },
 }));
 

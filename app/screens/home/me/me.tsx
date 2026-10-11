@@ -152,11 +152,6 @@ const MeScreen = ({currentUser}: Props) => {
         );
     }, [intl]));
 
-    const openMyEnterprise = usePreventDoubleTap(useCallback(() => {
-        const title = intl.formatMessage({id: 'me.my_enterprise', defaultMessage: 'My Enterprise'});
-        goToScreen(Screens.MANAGE_ENTERPRISE, title);
-    }, [intl]));
-
     const openAbout = usePreventDoubleTap(useCallback(() => {
         const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About'});
         goToScreen(Screens.ABOUT, title);
@@ -254,28 +249,6 @@ const MeScreen = ({currentUser}: Props) => {
                             />
                             <Text style={styles.menuLabel}>
                                 {intl.formatMessage({id: 'account.settings', defaultMessage: 'Settings'})}
-                            </Text>
-                            <CompassIcon
-                                name='chevron-right'
-                                size={20}
-                                style={styles.menuChevron}
-                            />
-                        </TouchableOpacity>
-                        <View style={styles.divider}/>
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={openMyEnterprise}
-                            activeOpacity={0.7}
-                            testID='me.my_enterprise'
-                        >
-                            <CompassIcon
-                                name='sitemap'
-                                size={24}
-                                color={theme.centerChannelColor}
-                                style={styles.menuIcon}
-                            />
-                            <Text style={styles.menuLabel}>
-                                {intl.formatMessage({id: 'me.my_enterprise', defaultMessage: 'My Enterprise'})}
                             </Text>
                             <CompassIcon
                                 name='chevron-right'
