@@ -6,6 +6,7 @@ import {Clipboard, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'r
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getDebugEntries, clearDebugLog} from '@store/debug_log';
+import {resetToHome} from '@screens/navigation';
 
 const DebugScreen = () => {
     const [refreshKey, setRefreshKey] = useState(0);
@@ -21,11 +22,18 @@ const DebugScreen = () => {
         setRefreshKey((k) => k + 1);
     }, []);
 
+    const handleClose = useCallback(() => {
+        resetToHome();
+    }, []);
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
                 <Text style={styles.title}>🔍 Debug Log ({entries.length})</Text>
                 <View style={styles.buttons}>
+                    <TouchableOpacity style={[styles.button, styles.closeButton]} onPress={handleClose}>
+                        <Text style={styles.buttonText}>✕ Close</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.button} onPress={handleCopy}>
                         <Text style={styles.buttonText}>Copy</Text>
                     </TouchableOpacity>
@@ -90,6 +98,9 @@ const styles = StyleSheet.create({
     },
     refreshButton: {
         paddingHorizontal: 10,
+    },
+    closeButton: {
+        backgroundColor: '#e94560',
     },
     buttonText: {
         color: '#ffffff',
