@@ -31,7 +31,11 @@ import {
     getQueryResult,
     graduateMemory,
     askKnowledgeBase,
+    listConsultations,
+    getConsultationResponses,
     type AISearchResult,
+    type ConsultationInfo,
+    type ConsultationResponse,
 } from '@screens/channel/ai_actions/ai_api';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -44,6 +48,14 @@ type Props = {
 };
 
 type ActiveTab = 'latest' | 'history' | 'active';
+
+type ConsultationQA = {
+    question: string;
+    questioner: string;
+    target: string;
+    date: string;
+    responses: Array<{author: string; message: string}>;
+};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {flex: 1},
@@ -132,28 +144,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.buttonColor,
         ...typography('Body', 100, 'SemiBold'),
     },
-    answerHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 4,
-    },
-    answerTitle: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.centerChannelColor,
-    },
-    answerContainer: {
-        padding: 16,
-        backgroundColor: changeOpacity(theme.linkColor, 0.08),
-        borderRadius: 8,
-        margin: 16,
-    },
-    answerText: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-    },
     emptyState: {
         alignItems: 'center',
         justifyContent: 'center',
@@ -201,6 +191,52 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     graduateButtonDone: {
         color: changeOpacity(theme.centerChannelColor, 0.56),
     },
+    qaSection: {
+        marginTop: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
+        paddingTop: 8,
+    },
+    qaHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+    },
+    qaHeaderText: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    qaItem: {
+        marginTop: 8,
+        padding: 10,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    qaQuestion: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    qaMeta: {
+        ...typography('Body', 50),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: 2,
+    },
+    qaResponse: {
+        marginTop: 6,
+        paddingLeft: 10,
+        borderLeftWidth: 2,
+        borderLeftColor: changeOpacity(theme.linkColor, 0.4),
+    },
+    qaResponseAuthor: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+    },
+    qaResponseText: {
+        ...typography('Body', 75),
+        color: theme.centerChannelColor,
+        marginTop: 2,
+    },
 }));
 
 const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props) => {
@@ -214,9 +250,44 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
-    const [answer, setAnswer] = useState<string | null>(null);
+    const [searchEntries, setSearchEntries] = useState<Array<{query: string; answer: string}>>([]);
+    const [expandedQA, setExpandedQA] = useState(false);
+    const [consultationQA, setConsultationQA] = useState<ConsultationQA[]>([]);
     const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [graduatedPaths, setGraduatedPaths] = useState<Set<string>>(new Set());
+
+    // Fetch consultations for this channel
+    useEffect(() => {
+        (async () => {
+            try {
+                const result = await listConsultations(serverUrl, channelId);
+                const consultations = result.consultations || [];
+                const qaList: ConsultationQA[] = [];
+                for (const c of consultations) {
+                    try {
+                        const resp = await getConsultationResponses(serverUrl, c.id);
+                        const responses = (resp.responses || [])
+                            .filter((r: ConsultationResponse) => !r.is_requester)
+                            .map((r: ConsultationResponse) => ({author: r.author_name, message: r.message}));
+                        if (responses.length > 0) {
+                            qaList.push({
+                                question: c.question,
+                                questioner: c.target_display_name || c.target_username,
+                                target: c.target_display_name || c.target_username,
+                                date: c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : '',
+                                responses,
+                            });
+                        }
+                    } catch {
+                        // skip failed consultation
+                    }
+                }
+                setConsultationQA(qaList);
+            } catch {
+                setConsultationQA([]);
+            }
+        })();
+    }, [serverUrl, channelId]);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -224,7 +295,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
 
     const loadTabData = useCallback(async (tab: ActiveTab, date?: string) => {
         setLoading(true);
-        setAnswer(null);
+        setSearchEntries([]);
         try {
             const mode = tab === 'latest' ? 'channel_latest' : tab === 'history' ? 'channel_history' : 'channel_active';
             const params: any = {
@@ -294,21 +365,36 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
         }
     }, [serverUrl, teamId, graduatedPaths]);
 
+    const toggleQA = useCallback(() => {
+        setExpandedQA((prev) => !prev);
+    }, []);
+
     const handleSearch = usePreventDoubleTap(useCallback(async () => {
         if (!searchQuery.trim() || searching) {
             return;
         }
+        const query = searchQuery.trim();
+        setSearchQuery('');
         setSearching(true);
-        setAnswer(null);
+        setSearchEntries((prev) => [...prev, {query, answer: ''}]);
         try {
-            const result = await askKnowledgeBase(serverUrl, teamId, searchQuery.trim());
-            setAnswer(result.answer || '');
+            const resp = await askKnowledgeBase(serverUrl, teamId, query);
+            const answerText = resp?.data?.answer || resp?.answer || '';
+            setSearchEntries((prev) => {
+                const next = [...prev];
+                next[next.length - 1] = {query, answer: answerText};
+                return next;
+            });
         } catch (error) {
-            setAnswer(null);
+            setSearchEntries((prev) => {
+                const next = [...prev];
+                next[next.length - 1] = {query, answer: intl.formatMessage({id: 'ai_assistant.search_error', defaultMessage: 'Failed to get an answer. Please try again.'})};
+                return next;
+            });
         } finally {
             setSearching(false);
         }
-    }, [searchQuery, searching, serverUrl, teamId]));
+    }, [searchQuery, searching, serverUrl, teamId, intl]));
 
     const renderTabs = () => (
         <View style={styles.tabs}>
@@ -402,6 +488,77 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                             )}
                         </View>
                     )}
+                    ListFooterComponent={
+                        <View>
+                            {consultationQA.length > 0 && (
+                                <View style={[styles.resultCard, {marginTop: 0}]}>
+                                    <TouchableOpacity
+                                        style={styles.qaHeader}
+                                        onPress={toggleQA}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={styles.qaHeaderText}>
+                                            {'💬 ' + intl.formatMessage(
+                                                {id: 'ai_assistant.consultation_qa', defaultMessage: 'Consultation Q&A ({count})'},
+                                                {count: consultationQA.length},
+                                            )}
+                                        </Text>
+                                        <CompassIcon
+                                            name={expandedQA ? 'menu-up' : 'menu-down'}
+                                            size={20}
+                                            color={theme.centerChannelColor}
+                                        />
+                                    </TouchableOpacity>
+                                    {expandedQA && consultationQA.map((qa, idx) => (
+                                        <View key={idx} style={styles.qaItem}>
+                                            <Text style={styles.qaQuestion}>
+                                                {'❓ ' + qa.question}
+                                            </Text>
+                                            <Text style={styles.qaMeta}>
+                                                {qa.target || ''}
+                                                {qa.date ? ` · ${qa.date}` : ''}
+                                            </Text>
+                                            {qa.responses?.map((resp, rIdx) => (
+                                                <View key={rIdx} style={styles.qaResponse}>
+                                                    <Text style={styles.qaResponseAuthor}>{resp.author}</Text>
+                                                    <Text style={styles.qaResponseText}>{resp.message}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                            {searchEntries.map((entry, i) => (
+                                <View key={i} style={[styles.resultCard, {marginTop: 0}]}>
+                                    <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
+                                        <Text>{'🔍 '}</Text>
+                                        <Text style={[styles.resultMemory, {marginBottom: 0}]}>{entry.query}</Text>
+                                    </View>
+                                    {entry.answer ? (
+                                        <View>
+                                            <Text style={[styles.qaHeaderText, {marginBottom: 4}]}>
+                                                {'🤖 ' + intl.formatMessage({id: 'ai_assistant.reasoned_answer', defaultMessage: 'AI Answer'})}
+                                            </Text>
+                                            <Markdown
+                                                baseTextStyle={styles.resultMemory}
+                                                enableLatex={false}
+                                                enableInlineLatex={false}
+                                                location={ScreenConstants.AI_ASSISTANT_PANEL}
+                                                maxNodes={5000}
+                                                theme={theme}
+                                                value={entry.answer}
+                                            />
+                                        </View>
+                                    ) : searching && i === searchEntries.length - 1 ? (
+                                        <Text style={styles.resultMeta}>
+                                            {intl.formatMessage({id: 'ai_assistant.searching', defaultMessage: 'Searching...'})}
+                                        </Text>
+                                    ) : null}
+                                </View>
+                            ))}
+                        </View>
+                    }
+                    }}
                 />
             );
         }
@@ -490,32 +647,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             {renderTabs()}
 
             <View style={styles.flex}>
-                {answer !== null ? (
-                    // AI Answer view
-                    <View style={styles.flex}>
-                        <View style={styles.answerHeader}>
-                            <Text style={styles.answerTitle}>
-                                {'🤖 ' + intl.formatMessage({id: 'ai_assistant.reasoned_answer', defaultMessage: 'AI Answer'})}
-                            </Text>
-                            <TouchableOpacity onPress={() => setAnswer(null)}>
-                                <CompassIcon name='close' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.answerContainer}>
-                            <Markdown
-                                baseTextStyle={styles.answerText}
-                                enableLatex={false}
-                                enableInlineLatex={false}
-                                location={ScreenConstants.AI_ASSISTANT_PANEL}
-                                maxNodes={5000}
-                                theme={theme}
-                                value={answer}
-                            />
-                        </View>
-                    </View>
-                ) : (
-                    renderResults()
-                )}
+                {renderResults()}
             </View>
 
             {/* Search bar: only in latest tab, below content */}

@@ -40,7 +40,6 @@ import {
     listConsultations,
     getConsultationResponses,
     replyToConsultation,
-    forwardResponseToCustomer,
     forwardMultipleResponsesToCustomer,
     closeConsultation,
     injectConsultationSummary,
@@ -173,22 +172,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     messageTextOwn: {
         color: theme.buttonColor,
     },
-    messageActions: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginTop: 4,
-    },
-    forwardButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-    },
-    forwardButtonText: {
-        ...typography('Body', 50),
-        color: theme.linkColor,
-        marginLeft: 4,
-    },
     replyInput: {
         flex: 1,
         borderWidth: 1,
@@ -203,40 +186,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     loadingContainer: {
         paddingVertical: 24,
         alignItems: 'center',
-    },
-    historySection: {
-        paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: 4,
-    },
-    historyTitle: {
-        ...typography('Body', 50, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        textTransform: 'uppercase',
-    },
-    historyCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
-    },
-    historyCardText: {
-        flex: 1,
-    },
-    historyQuestion: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-    },
-    historyMeta: {
-        ...typography('Body', 50),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 2,
-    },
-    historyStatus: {
-        ...typography('Body', 50, 'SemiBold'),
-        color: theme.linkColor,
     },
     selectButton: {
         paddingHorizontal: 12,
@@ -385,9 +334,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
     const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
 
     // Forward edit modal state
-    const [forwardEditVisible, setForwardEditVisible] = useState(false);
-    const [forwardEditResponse, setForwardEditResponse] = useState<ConsultationResponse | null>(null);
-    const [forwardEditText, setForwardEditText] = useState('');
     const [forwardBatchEditVisible, setForwardBatchEditVisible] = useState(false);
     const [forwardBatchTexts, setForwardBatchTexts] = useState<Map<string, string>>(new Map());
 
@@ -543,13 +489,13 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                 setQuestionText('');
                 setSelectedTargetId('');
                 setSelectedTargetName('');
-                // Reload consultations
+                // Reload consultations and auto-navigate to the new one
                 const result = await listConsultations(serverUrl, channelId);
-                setConsultations(result.consultations || []);
-                Alert.alert(
-                    intl.formatMessage({id: 'consultation.submit_success', defaultMessage: 'Success'}),
-                    intl.formatMessage({id: 'consultation.submit_success_message', defaultMessage: 'Consultation sent successfully.'}),
-                );
+                const newList = result.consultations || [];
+                setConsultations(newList);
+                if (newList.length > 0) {
+                    handleSelectConsultation(newList[0]);
+                }
             }
         } catch {
             Alert.alert(
@@ -588,37 +534,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
             // ignore
         }
     }, [replyText, selectedConsultation, serverUrl]));
-
-    const handleForward = usePreventDoubleTap(useCallback((response: ConsultationResponse) => {
-        setForwardEditResponse(response);
-        setForwardEditText(response.message);
-        setForwardEditVisible(true);
-    }, []));
-
-    const confirmForwardEdit = usePreventDoubleTap(useCallback(async () => {
-        if (!selectedConsultation || !forwardEditResponse) {
-            return;
-        }
-        try {
-            await forwardResponseToCustomer(serverUrl, selectedConsultation.id, forwardEditResponse.post_id, forwardEditText.trim());
-            setResponses((prev) =>
-                prev.map((r) =>
-                    r.post_id === forwardEditResponse.post_id ? {...r, forwarded: true} : r,
-                ),
-            );
-            setForwardEditVisible(false);
-            setForwardEditResponse(null);
-            Alert.alert(
-                intl.formatMessage({id: 'consultation.forward_success', defaultMessage: 'Success'}),
-                intl.formatMessage({id: 'consultation.forward_success_message', defaultMessage: 'Response forwarded to customer.'}),
-            );
-        } catch {
-            Alert.alert(
-                intl.formatMessage({id: 'consultation.error', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'consultation.forward_failed', defaultMessage: 'Failed to forward response.'}),
-            );
-        }
-    }, [selectedConsultation, forwardEditResponse, forwardEditText, serverUrl, intl]));
 
     const toggleResponseSelection = useCallback((postId: string) => {
         setSelectedResponseIds((prev) => {
@@ -666,13 +581,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
             setSelectedResponseIds(new Set());
             setSelectMode(false);
             setForwardBatchEditVisible(false);
-            Alert.alert(
-                intl.formatMessage({id: 'consultation.forward_success', defaultMessage: 'Success'}),
-                intl.formatMessage(
-                    {id: 'consultation.forward_batch_success', defaultMessage: '{count} response(s) forwarded to customer.'},
-                    {count: items.length},
-                ),
-            );
         } catch {
             Alert.alert(
                 intl.formatMessage({id: 'consultation.error', defaultMessage: 'Error'}),
@@ -692,6 +600,11 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
 
         return (
             <SafeAreaView style={styles.flex} testID='consultation.panel'>
+                <KeyboardAvoidingView
+                    style={styles.flex}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 110 : 0}
+                >
                 <View style={styles.detailHeader}>
                     <TouchableOpacity
                         style={styles.detailHeaderButton}
@@ -755,27 +668,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                                 <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
                                     {item.message}
                                 </Text>
-                                {!selectMode && !isOwn && !item.forwarded && isOpen && (
-                                    <View style={styles.messageActions}>
-                                        <TouchableOpacity
-                                            style={styles.forwardButton}
-                                            onPress={() => handleForward(item)}
-                                        >
-                                            <CompassIcon name='share-variant' size={14} color={theme.linkColor}/>
-                                            <Text style={styles.forwardButtonText}>
-                                                {intl.formatMessage({id: 'consultation.forward_to_customer', defaultMessage: 'Forward'})}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                                {!isOwn && item.forwarded && (
-                                    <View style={styles.messageActions}>
-                                        <CompassIcon name='check' size={14} color={theme.linkColor}/>
-                                        <Text style={styles.forwardButtonText}>
-                                            {intl.formatMessage({id: 'consultation.forwarded', defaultMessage: 'Forwarded'})}
-                                        </Text>
-                                    </View>
-                                )}
                             </View>
                         );
 
@@ -849,6 +741,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                         </TouchableOpacity>
                     </View>
                 )}
+                </KeyboardAvoidingView>
             </SafeAreaView>
         );
     }
@@ -995,38 +888,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                     </ScrollView>
                 )}
 
-                {/* History section */}
-                {consultations.length > 0 && (
-                    <View>
-                        <View style={styles.historySection}>
-                            <Text style={styles.historyTitle}>
-                                {intl.formatMessage({id: 'consultation.history', defaultMessage: 'History'})}
-                            </Text>
-                        </View>
-                        {consultations.slice(0, 3).map((item) => (
-                            <TouchableOpacity
-                                key={item.id}
-                                style={styles.historyCard}
-                                onPress={() => handleSelectConsultation(item)}
-                                activeOpacity={0.7}
-                            >
-                                <View style={styles.historyCardText}>
-                                    <Text style={styles.historyQuestion} numberOfLines={1}>
-                                        {item.question}
-                                    </Text>
-                                    <Text style={styles.historyMeta}>
-                                        {item.target_display_name || item.target_username}
-                                    </Text>
-                                </View>
-                                <Text style={styles.historyStatus}>
-                                    {item.status === 'closed'
-                                        ? intl.formatMessage({id: 'consultation.status.closed', defaultMessage: 'Closed'})
-                                        : intl.formatMessage({id: 'consultation.status.open', defaultMessage: 'Open'})}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
             </ScrollView>
 
             {/* Bottom input bar */}
@@ -1059,52 +920,6 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
                 </TouchableOpacity>
             </View>
             </KeyboardAvoidingView>
-
-            {/* Forward Edit Modal (single) */}
-            <Modal visible={forwardEditVisible} transparent={true} animationType='fade'>
-                <View style={modalStyles.overlay}>
-                    <View style={modalStyles.container}>
-                        <Text style={modalStyles.title}>
-                            {intl.formatMessage({id: 'consultation.forward.title', defaultMessage: 'Forward to Customer'})}
-                        </Text>
-                        <View style={modalStyles.blockquote}>
-                            <Text style={modalStyles.blockquoteText}>
-                                {forwardEditResponse?.message}
-                            </Text>
-                        </View>
-                        <Text style={modalStyles.notice}>
-                            {intl.formatMessage({id: 'consultation.forward.notice', defaultMessage: 'Please review and edit the content, removing any information not suitable for the customer.'})}
-                        </Text>
-                        <TextInput
-                            style={modalStyles.textarea}
-                            value={forwardEditText}
-                            onChangeText={setForwardEditText}
-                            multiline={true}
-                        />
-                        <View style={modalStyles.buttons}>
-                            <TouchableOpacity
-                                style={modalStyles.cancelButton}
-                                onPress={() => {
-                                    setForwardEditVisible(false);
-                                    setForwardEditResponse(null);
-                                }}
-                            >
-                                <Text style={modalStyles.cancelButtonText}>
-                                    {intl.formatMessage({id: 'consultation.cancel', defaultMessage: 'Cancel'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={modalStyles.confirmButton}
-                                onPress={confirmForwardEdit}
-                            >
-                                <Text style={modalStyles.confirmButtonText}>
-                                    {intl.formatMessage({id: 'consultation.forward_confirm', defaultMessage: 'Forward'})}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
 
             {/* Forward Edit Modal (batch) */}
             <Modal visible={forwardBatchEditVisible} transparent={true} animationType='fade'>
@@ -1179,24 +994,6 @@ const modalStyles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         marginBottom: 12,
-    },
-    blockquote: {
-        borderLeftWidth: 3,
-        borderLeftColor: '#ccc',
-        paddingLeft: 12,
-        marginBottom: 12,
-        backgroundColor: '#f5f5f5',
-        paddingVertical: 8,
-        borderRadius: 4,
-    },
-    blockquoteText: {
-        fontSize: 14,
-        color: '#666',
-    },
-    notice: {
-        fontSize: 12,
-        color: '#999',
-        marginBottom: 8,
     },
     textarea: {
         borderWidth: 1,

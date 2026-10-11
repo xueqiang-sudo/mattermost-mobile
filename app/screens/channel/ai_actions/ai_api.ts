@@ -192,6 +192,6 @@ export async function graduateMemory(serverUrl: string, teamId: string, memoryPa
     return apiPost(serverUrl, `${AI_API_BASE}/api/kb/graduate`, {team_id: teamId, memoryPath});
 }
 
-export async function askKnowledgeBase(serverUrl: string, teamId: string, query: string): Promise<{answer: string}> {
+export async function askKnowledgeBase(serverUrl: string, teamId: string, query: string): Promise<{answer?: string; data?: {answer?: string; sources?: any[]}; sources?: any[]}> {
     return apiPost(serverUrl, `${AI_API_BASE}/api/kb/ask?team_id=${encodeURIComponent(teamId)}`, {query});
 }
