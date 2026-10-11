@@ -189,13 +189,13 @@ export default class FilePickerUtil {
         draftVideoContext?: DraftVideoPrepareContext,
         compressChatVideos = false,
     ) => {
-        // 添加超时机制：如果 InteractionManager 超过 5 秒未响应，继续执行
+        // 等待动画完成，超时 300ms（避免录音等操作后 InteractionManager 长时间阻塞）
         await Promise.race([
             new Promise<void>((resolve) => {
                 InteractionManager.runAfterInteractions(() => resolve());
             }),
             new Promise<void>((resolve) => {
-                setTimeout(() => resolve(), 5000);
+                setTimeout(() => resolve(), 300);
             }),
         ]);
 
@@ -298,7 +298,7 @@ export default class FilePickerUtil {
                 return;
             }
 
-            debugLog('FILE', '[prepareFileUpload] waiting for InteractionManager (timeout: 5s)...');
+            debugLog('FILE', '[prepareFileUpload] waiting for InteractionManager (timeout: 300ms)...');
             await Promise.race([
                 new Promise<void>((resolve) => {
                     InteractionManager.runAfterInteractions(() => resolve());
@@ -307,7 +307,7 @@ export default class FilePickerUtil {
                     setTimeout(() => {
                         debugLog('FILE', '[prepareFileUpload] InteractionManager timeout, continuing...');
                         resolve();
-                    }, 5000);
+                    }, 300);
                 }),
             ]);
             debugLog('FILE', `[prepareFileUpload] calling extractFileInfo for ${filesToExtract.length} files`);
