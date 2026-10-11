@@ -334,12 +334,38 @@ const ContactsExternalAddScreen = () => {
                             <View style={styles.resultGrid}>
                                 <View style={styles.resultRow}>
                                     <Text style={styles.resultLabel}>
+                                        {intl.formatMessage({id: 'contacts.phone', defaultMessage: 'Phone'})}
+                                    </Text>
+                                    <Text style={styles.resultValue}>
+                                        {searchResult.employee.phone || '-'}
+                                    </Text>
+                                </View>
+                                <View style={styles.resultRow}>
+                                    <Text style={styles.resultLabel}>
                                         {intl.formatMessage({id: 'address_book.email', defaultMessage: 'Email'})}
                                     </Text>
                                     <Text style={styles.resultValue}>
                                         {searchResult.employee.email || '-'}
                                     </Text>
                                 </View>
+                                <View style={styles.resultRow}>
+                                    <Text style={styles.resultLabel}>
+                                        {intl.formatMessage({id: 'channel_info.position', defaultMessage: 'Position'})}
+                                    </Text>
+                                    <Text style={styles.resultValue}>
+                                        {searchResult.employee.position || '-'}
+                                    </Text>
+                                </View>
+                                {searchResult.employee.gender && (
+                                    <View style={styles.resultRow}>
+                                        <Text style={styles.resultLabel}>
+                                            {intl.formatMessage({id: 'contacts.gender', defaultMessage: 'Gender'})}
+                                        </Text>
+                                        <Text style={styles.resultValue}>
+                                            {searchResult.employee.gender}
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
 
                             {/* Editable fields */}

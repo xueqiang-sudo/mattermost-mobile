@@ -2,15 +2,15 @@
 // See LICENSE.txt for license information.
 
 import {useIsFocused, useNavigation} from '@react-navigation/native';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
 import {
     Alert,
     DeviceEventEmitter,
-    FlatList,
     type GestureResponderEvent,
     RefreshControl,
+    SectionList,
     Text,
     TouchableOpacity,
     View,
@@ -127,11 +127,36 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 24,
         alignItems: 'center',
     },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 8,
+        backgroundColor: theme.centerChannelBg,
+    },
+    sectionHeaderIcon: {
+        marginRight: 8,
+    },
+    sectionHeaderTitle: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    sectionHeaderCount: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+    },
 }));
 
 function getContactDisplayName(detail: MMEmployeeContactSimple): string {
     return getContactDisplayNameUtil(detail.remark, detail.contact);
 }
+
+type CompanySection = {
+    title: string;
+    data: MMEmployeeContactSimple[];
+};
 
 type RowProps = {
     item: MMEmployeeContactSimple;
@@ -346,6 +371,37 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
         return () => sub.remove();
     }, [loadData, ownerId]);
 
+    // ---- Group contacts by company ----
+    const sections = useMemo<CompanySection[]>(() => {
+        const groups: Record<string, MMEmployeeContactSimple[]> = {};
+        const uncategorized: MMEmployeeContactSimple[] = [];
+
+        for (const item of items) {
+            const company = item.company?.trim();
+            if (company) {
+                if (!groups[company]) {
+                    groups[company] = [];
+                }
+                groups[company].push(item);
+            } else {
+                uncategorized.push(item);
+            }
+        }
+
+        const result: CompanySection[] = Object.entries(groups)
+            .sort(([a], [b]) => a.localeCompare(b, 'zh-Hans-CN'))
+            .map(([title, data]) => ({title, data}));
+
+        if (uncategorized.length > 0) {
+            result.push({
+                title: intl.formatMessage({id: 'contacts.external.uncategorized', defaultMessage: 'Uncategorized'}),
+                data: uncategorized,
+            });
+        }
+
+        return result;
+    }, [items, intl]);
+
     // ---- Delete ----
     const handleDeleteId = usePreventDoubleTap(
         useCallback(
@@ -496,10 +552,10 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
     }), []);
 
     const renderItem = useCallback(
-        ({item, index}: {item: MMEmployeeContactSimple; index: number}) => (
+        ({item, index, section}: {item: MMEmployeeContactSimple; index: number; section: CompanySection}) => (
             <ExternalContactRow
                 item={item}
-                isLast={index === items.length - 1}
+                isLast={index === section.data.length - 1}
                 theme={theme}
                 styles={styles}
                 contactEdit={contactEdit}
@@ -508,7 +564,23 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                 onEdit={handleEdit}
             />
         ),
-        [handleDeleteId, handleViewDetails, handleEdit, items.length, styles, theme, contactEdit],
+        [handleDeleteId, handleViewDetails, handleEdit, styles, theme, contactEdit],
+    );
+
+    const renderSectionHeader = useCallback(
+        ({section}: {section: CompanySection}) => (
+            <View style={styles.sectionHeader}>
+                <CompassIcon
+                    name='office-building'
+                    size={18}
+                    color={theme.centerChannelColor}
+                    style={styles.sectionHeaderIcon}
+                />
+                <Text style={styles.sectionHeaderTitle}>{section.title}</Text>
+                <Text style={styles.sectionHeaderCount}>({section.data.length})</Text>
+            </View>
+        ),
+        [styles, theme],
     );
 
     const keyExtractor = useCallback((item: MMEmployeeContactSimple) => item.contact.id, []);
@@ -563,16 +635,17 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                             />
                         </View>
                     ) : (
-                        <FlatList
+                        <SectionList
                             style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                             contentContainerStyle={[
                                 styles.listContent,
                                 {paddingBottom: 24},
                                 items.length === 0 ? {flexGrow: 1} : undefined,
                             ]}
-                            data={items}
+                            sections={sections}
                             keyExtractor={keyExtractor}
                             renderItem={renderItem}
+                            renderSectionHeader={renderSectionHeader}
                             refreshControl={
                                 <RefreshControl
                                     refreshing={refreshing}
@@ -585,7 +658,8 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                                     <Text style={styles.emptyMessage}>{emptyMessage}</Text>
                                 )
                             }
-                            testID='external_contacts.flatlist'
+                            testID='external_contacts.sectionlist'
+                            stickySectionHeadersEnabled={false}
                         />
                     )}
                 </Animated.View>

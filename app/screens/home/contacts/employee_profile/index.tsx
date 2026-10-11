@@ -353,6 +353,8 @@ const ContactsEmployeeProfile = ({
     const [companyManagerIds, setCompanyManagerIds] = useState<Set<string> | undefined>();
     const remarkEditInput = useCustomInputModal();
     const relationDescriptionEditInput = useCustomInputModal();
+    const companyEditInput = useCustomInputModal();
+    const [editingCompany, setEditingCompany] = useState(() => contactCompany?.trim() ?? '');
 
     useEffect(() => {
         setRelationDescription(description ?? '');
@@ -361,6 +363,10 @@ const ContactsEmployeeProfile = ({
     useEffect(() => {
         setRelationRemark(remark?.trim() ?? '');
     }, [remark]);
+
+    useEffect(() => {
+        setEditingCompany(contactCompany?.trim() ?? '');
+    }, [contactCompany]);
 
     useEffect(() => {
         let cancelled = false;
@@ -478,13 +484,14 @@ const ContactsEmployeeProfile = ({
     const isErpRelation = relationSource === 'erp';
     const canEditRelationFields = Boolean(relationType && currentUserId && !isErpRelation);
 
-    const updateRelationFields = useCallback(async (nextRemark: string, nextDescription: string) => {
+    const updateRelationFields = useCallback(async (nextRemark: string, nextDescription: string, nextCompany?: string) => {
         if (!relationType || !currentUserId) {
             return false;
         }
         const result = await updateEmployeeContact(serverUrl, currentUserId, employee.id, relationType as MMEmployeeContactType, {
             remark: nextRemark.trim() || undefined,
             description: nextDescription.trim() || undefined,
+            company: nextCompany !== undefined ? (nextCompany.trim() || undefined) : undefined,
         });
         if (result.error) {
             Alert.alert(
@@ -495,6 +502,9 @@ const ContactsEmployeeProfile = ({
         }
         setRelationRemark(nextRemark.trim());
         setRelationDescription(nextDescription.trim());
+        if (nextCompany !== undefined) {
+            setEditingCompany(nextCompany.trim());
+        }
         DeviceEventEmitter.emit(Events.EXTERNAL_CONTACTS_CHANGED, {contactType: relationType});
         return true;
     }, [currentUserId, employee.id, intl, relationType, serverUrl]);
@@ -528,6 +538,21 @@ const ContactsEmployeeProfile = ({
         }
         await updateRelationFields(relationRemark, nextValue);
     }, [canEditRelationFields, intl, relationDescription, relationDescriptionEditInput, relationRemark, updateRelationFields]));
+
+    const handleEditCompany = usePreventDoubleTap(useCallback(async () => {
+        if (!canEditRelationFields) {
+            return;
+        }
+        const nextValue = await companyEditInput.showModal({
+            title: intl.formatMessage({id: 'contacts.enterprise_name', defaultMessage: '企业名称'}),
+            placeholder: intl.formatMessage({id: 'contacts.external.company_placeholder', defaultMessage: 'e.g. ACME Corporation'}),
+            defaultValue: editingCompany,
+        });
+        if (nextValue === null || nextValue.trim() === editingCompany.trim()) {
+            return;
+        }
+        await updateRelationFields(relationRemark, relationDescription, nextValue);
+    }, [canEditRelationFields, editingCompany, intl, companyEditInput, relationRemark, relationDescription, updateRelationFields]));
 
     const resolveMattermostUserId = useCallback(async (): Promise<string | null> => {
         if (!serverUrl) {
@@ -933,9 +958,47 @@ const ContactsEmployeeProfile = ({
                         <Text style={styles.detailLabel}>
                             {intl.formatMessage({id: 'contacts.enterprise_name', defaultMessage: '企业名称'})}
                         </Text>
-                        <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
-                            {contactCompany || '-'}
+                        <TouchableOpacity
+                            style={{flex: 1}}
+                            onPress={canEditRelationFields ? handleEditCompany : undefined}
+                            disabled={!canEditRelationFields}
+                        >
+                            <Text style={[styles.detailValue, canEditRelationFields && {color: theme.linkColor}]} numberOfLines={2}>
+                                {editingCompany || '-'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    )}
+                    {isExternalContact && (
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'})}
                         </Text>
+                        <TouchableOpacity
+                            style={{flex: 1}}
+                            onPress={canEditRelationFields ? handleEditRemark : undefined}
+                            disabled={!canEditRelationFields}
+                        >
+                            <Text style={[styles.detailValue, canEditRelationFields && {color: theme.linkColor}]} numberOfLines={2}>
+                                {relationRemark || '-'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    )}
+                    {isExternalContact && (
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>
+                            {intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'})}
+                        </Text>
+                        <TouchableOpacity
+                            style={{flex: 1}}
+                            onPress={canEditRelationFields ? handleEditRelationDescription : undefined}
+                            disabled={!canEditRelationFields}
+                        >
+                            <Text style={[styles.detailValue, canEditRelationFields && {color: theme.linkColor}]} numberOfLines={3}>
+                                {relationDescription || '-'}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                     )}
                     {fromManage && (
@@ -1025,6 +1088,17 @@ const ContactsEmployeeProfile = ({
                 cancelContent={relationDescriptionEditInput.options.cancelContent}
                 onConfirm={relationDescriptionEditInput.handleConfirm}
                 onCancel={relationDescriptionEditInput.handleCancel}
+            />
+            <CustomInputModal
+                visible={companyEditInput.visible}
+                title={companyEditInput.options.title}
+                placeholder={companyEditInput.options.placeholder}
+                defaultValue={companyEditInput.options.defaultValue}
+                confirmContent={companyEditInput.options.confirmContent}
+                showCancelButton={companyEditInput.options.showCancelButton}
+                cancelContent={companyEditInput.options.cancelContent}
+                onConfirm={companyEditInput.handleConfirm}
+                onCancel={companyEditInput.handleCancel}
             />
             <Modal
                 visible={showRoleModal}
