@@ -12,7 +12,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal, goToScreen, resetToDebug, setButtons} from '@screens/navigation';
+import {dismissModal, goToScreen, setButtons} from '@screens/navigation';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -57,17 +57,6 @@ const Settings = ({componentId}: SettingsProps) => {
         goToScreen(screen, title);
     }, [intl]));
 
-    const goToRoleManagement = usePreventDoubleTap(useCallback(() => {
-        const screen = Screens.ROLE_LIST;
-        const title = intl.formatMessage({id: 'settings.role_management', defaultMessage: 'Role Management'});
-
-        goToScreen(screen, title);
-    }, [intl]));
-
-    const goToDebugScreen = usePreventDoubleTap(useCallback(() => {
-        resetToDebug();
-    }, []));
-
     return (
         <SettingContainer testID='settings'>
             <SettingItem
@@ -79,16 +68,6 @@ const Settings = ({componentId}: SettingsProps) => {
                 onPress={goToDisplaySettings}
                 optionName='display'
                 testID='settings.display.option'
-            />
-            <SettingItem
-                onPress={goToRoleManagement}
-                optionName='role_management'
-                testID='settings.role_management.option'
-            />
-            <SettingItem
-                onPress={goToDebugScreen}
-                optionName='debug'
-                testID='settings.debug.option'
             />
         </SettingContainer>
     );
