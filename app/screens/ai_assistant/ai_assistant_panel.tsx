@@ -558,7 +558,6 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                             ))}
                         </View>
                     }
-                    }}
                 />
             );
         }
