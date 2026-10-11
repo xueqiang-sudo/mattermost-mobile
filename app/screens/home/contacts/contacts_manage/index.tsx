@@ -21,6 +21,7 @@ import ContactDirectoryList from '@components/contact_directory_list';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TeamManagerModal from '@components/team_manager_modal';
+import TransferOwnershipModal from '@components/transfer_ownership_modal';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -628,72 +629,6 @@ const ContactsManage = ({
 
     // ---- Transfer Enterprise Ownership ----
     const [showTransferModal, setShowTransferModal] = useState(false);
-    const [transferMembers, setTransferMembers] = useState<UserProfile[]>([]);
-    const [transferSearch, setTransferSearch] = useState('');
-    const [transferConfirmUser, setTransferConfirmUser] = useState<UserProfile | null>(null);
-    const [transferring, setTransferring] = useState(false);
-
-    const handleTransferOwnership = usePreventDoubleTap(useCallback(async () => {
-        if (!serverUrl || !companyId) {
-            return;
-        }
-        setShowTransferModal(true);
-        setTransferSearch('');
-        setTransferConfirmUser(null);
-        // Load team members
-        try {
-            const client = NetworkManager.getClient(serverUrl);
-            const members = await client.getTeamMembers(companyId, 0, 200);
-            // Get user profiles for members, excluding current user
-            const userIds = members.map((m: TeamMembership) => m.user_id).filter((id: string) => id !== currentUserId);
-            if (userIds.length > 0) {
-                const users = await client.getProfilesByIds(userIds);
-                setTransferMembers(users);
-            }
-        } catch {
-            setTransferMembers([]);
-        }
-    }, [serverUrl, companyId, currentUserId]));
-
-    const handleTransferConfirm = usePreventDoubleTap(useCallback(async () => {
-        if (!serverUrl || !companyId || !transferConfirmUser) {
-            return;
-        }
-        setTransferring(true);
-        try {
-            const client = NetworkManager.getClient(serverUrl);
-            await client.transferTeamOwnership(companyId, transferConfirmUser.id);
-            setShowTransferModal(false);
-            setTransferConfirmUser(null);
-            setTransferMembers([]);
-            showSnackBar({
-                barType: SNACK_BAR_TYPE.INFO_COPIED,
-                type: MESSAGE_TYPE.SUCCESS,
-                message: intl.formatMessage({id: 'contacts.transfer_ownership_success', defaultMessage: 'Ownership transferred successfully'}),
-            });
-            refetch();
-        } catch {
-            Alert.alert(
-                intl.formatMessage({id: 'contacts.transfer_ownership_failed', defaultMessage: 'Failed to transfer ownership. Please try again.'}),
-            );
-        } finally {
-            setTransferring(false);
-        }
-    }, [serverUrl, companyId, transferConfirmUser, intl, refetch]));
-
-    const filteredTransferMembers = useMemo(() => {
-        const term = transferSearch.trim().toLowerCase();
-        if (!term) {
-            return transferMembers;
-        }
-        return transferMembers.filter((u) =>
-            u.username?.toLowerCase().includes(term) ||
-            u.nickname?.toLowerCase().includes(term) ||
-            u.email?.toLowerCase().includes(term) ||
-            u.first_name?.toLowerCase().includes(term) ||
-            u.last_name?.toLowerCase().includes(term),
-        );
-    }, [transferMembers, transferSearch]);
 
     // ---- Dissolve Enterprise ----
     const handleDissolveEnterprise = usePreventDoubleTap(useCallback(async () => {
@@ -702,15 +637,15 @@ const ContactsManage = ({
         }
         const ok = await new Promise<boolean>((resolve) => {
             Alert.alert(
-                intl.formatMessage({id: 'contacts.dissolve_enterprise', defaultMessage: 'Dissolve enterprise'}),
+                intl.formatMessage({id: 'contacts.dissolve_enterprise', defaultMessage: '解散企业'}),
                 intl.formatMessage({
                     id: 'contacts.dissolve_confirm',
-                    defaultMessage: 'This will permanently delete this enterprise team and all of its data. This action cannot be undone. Continue?',
+                    defaultMessage: '这将永久删除该企业团队及其所有数据。此操作无法撤销，是否继续？',
                 }),
                 [
                     {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel', onPress: () => resolve(false)},
                     {
-                        text: intl.formatMessage({id: 'contacts.dissolve', defaultMessage: 'Dissolve'}),
+                        text: intl.formatMessage({id: 'contacts.dissolve', defaultMessage: '解散'}),
                         style: 'destructive',
                         onPress: () => resolve(true),
                     },
@@ -735,7 +670,7 @@ const ContactsManage = ({
             }
         } catch (e) {
             Alert.alert(
-                intl.formatMessage({id: 'contacts.dissolve_failed', defaultMessage: 'Failed to dissolve enterprise. Please try again.'}),
+                intl.formatMessage({id: 'contacts.dissolve_failed', defaultMessage: '解散企业失败，请重试。'}),
             );
         }
     }, [serverUrl, companyId, intl]));
@@ -851,10 +786,10 @@ const ContactsManage = ({
                 {isCurrentUserOwner && currentDepartmentId == null && (
                     <SlideUpPanelItem
                         leftIcon='account-outline'
-                        text={intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: 'Transfer ownership'})}
+                        text={intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: '转移控制权'})}
                         onPress={async () => {
                             await dismissBottomSheet();
-                            handleTransferOwnership();
+                            setShowTransferModal(true);
                         }}
                         testID='contacts.manage.more.transfer_ownership'
                     />
@@ -862,7 +797,7 @@ const ContactsManage = ({
                 {isCurrentUserOwner && currentDepartmentId == null && (
                     <SlideUpPanelItem
                         leftIcon='close-circle-outline'
-                        text={intl.formatMessage({id: 'contacts.dissolve_enterprise', defaultMessage: 'Dissolve enterprise'})}
+                        text={intl.formatMessage({id: 'contacts.dissolve_enterprise', defaultMessage: '解散企业'})}
                         onPress={async () => {
                             await dismissBottomSheet();
                             handleDissolveEnterprise();
@@ -891,7 +826,7 @@ const ContactsManage = ({
             theme,
             title: intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'}),
         });
-    }, [companyId, currentDepartmentId, currentDepartmentName, intl, isCurrentUserOwner, memberCount, refetch, serverUrl, theme, handleBack, handleModifyDepartmentName, handleModifyEnterpriseName, openManagerModal, handleTransferOwnership, handleDissolveEnterprise]));
+    }, [companyId, currentDepartmentId, currentDepartmentName, intl, isCurrentUserOwner, memberCount, refetch, serverUrl, theme, handleBack, handleModifyDepartmentName, handleModifyEnterpriseName, openManagerModal, handleDissolveEnterprise]));
 
     return (
         <SafeAreaView
@@ -1121,102 +1056,13 @@ const ContactsManage = ({
                 </View>
             </Modal>
 
-            {/* Transfer Ownership Modal */}
-            <Modal
+            <TransferOwnershipModal
                 visible={showTransferModal}
-                transparent={true}
-                animationType='slide'
-                onRequestClose={() => setShowTransferModal(false)}
-            >
-                <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}}>
-                    <View style={{backgroundColor: theme.centerChannelBg, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '80%'}}>
-                        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1)}}>
-                            <TouchableOpacity onPress={() => { setShowTransferModal(false); setTransferConfirmUser(null); }}>
-                                <Text style={{color: theme.linkColor, ...typography('Body', 100)}}>
-                                    {intl.formatMessage({id: 'mobile.components.select_theme_view.cancel', defaultMessage: 'Cancel'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <Text style={{...typography('Heading', 400, 'SemiBold'), color: theme.centerChannelColor}}>
-                                {transferConfirmUser
-                                    ? intl.formatMessage({id: 'contacts.transfer_confirm', defaultMessage: 'Confirm transfer'})
-                                    : intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: 'Transfer ownership'})
-                                }
-                            </Text>
-                            <View style={{width: 50}}/>
-                        </View>
-                        {transferConfirmUser ? (
-                            <View style={{padding: 16}}>
-                                <Text style={{...typography('Body', 200), color: theme.centerChannelColor, marginBottom: 16}}>
-                                    {intl.formatMessage(
-                                        {id: 'contacts.transfer_confirm_message', defaultMessage: 'Make {name} the new owner of this enterprise?'},
-                                        {name: transferConfirmUser.nickname || transferConfirmUser.username},
-                                    )}
-                                </Text>
-                                <View style={{flexDirection: 'row', gap: 12}}>
-                                    <TouchableOpacity
-                                        style={{flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: changeOpacity(theme.centerChannelColor, 0.16), alignItems: 'center'}}
-                                        onPress={() => setTransferConfirmUser(null)}
-                                    >
-                                        <Text style={{...typography('Body', 200, 'SemiBold'), color: theme.centerChannelColor}}>
-                                            {intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={{flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: theme.errorTextColor, alignItems: 'center'}}
-                                        onPress={handleTransferConfirm}
-                                        disabled={transferring}
-                                    >
-                                        <Text style={{...typography('Body', 200, 'SemiBold'), color: '#ffffff'}}>
-                                            {transferring
-                                                ? intl.formatMessage({id: 'mobile.post.saving', defaultMessage: 'Saving...'})
-                                                : intl.formatMessage({id: 'contacts.transfer', defaultMessage: 'Transfer'})
-                                            }
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        ) : (
-                            <View>
-                                <View style={{paddingHorizontal: 16, paddingVertical: 8}}>
-                                    <TextInput
-                                        style={{borderWidth: StyleSheet.hairlineWidth, borderColor: changeOpacity(theme.centerChannelColor, 0.16), borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: theme.centerChannelColor, ...typography('Body', 100)}}
-                                        value={transferSearch}
-                                        onChangeText={setTransferSearch}
-                                        placeholder={intl.formatMessage({id: 'contacts.transfer_search_placeholder', defaultMessage: 'Search by username, nickname or email...'})}
-                                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                                        autoFocus={true}
-                                    />
-                                </View>
-                                <FlatList
-                                    data={filteredTransferMembers}
-                                    keyExtractor={(item) => item.id}
-                                    style={{maxHeight: 400}}
-                                    renderItem={({item}) => {
-                                        const displayName = item.nickname || `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username;
-                                        return (
-                                            <TouchableOpacity
-                                                style={{flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06)}}
-                                                onPress={() => setTransferConfirmUser(item)}
-                                            >
-                                                <ContactAvatar employee={item} size={36}/>
-                                                <View style={{flex: 1, marginLeft: 12}}>
-                                                    <Text style={{...typography('Body', 200, 'SemiBold'), color: theme.centerChannelColor}} numberOfLines={1}>{displayName}</Text>
-                                                    <Text style={{...typography('Body', 75), color: changeOpacity(theme.centerChannelColor, 0.56)}} numberOfLines={1}>@{item.username}{item.email ? ` · ${item.email}` : ''}</Text>
-                                                </View>
-                                            </TouchableOpacity>
-                                        );
-                                    }}
-                                    ListEmptyComponent={
-                                        <Text style={{...typography('Body', 200), color: changeOpacity(theme.centerChannelColor, 0.56), textAlign: 'center', paddingVertical: 24}}>
-                                            {intl.formatMessage({id: 'contacts.transfer_no_members', defaultMessage: 'No matching members'})}
-                                        </Text>
-                                    }
-                                />
-                            </View>
-                        )}
-                    </View>
-                </View>
-            </Modal>
+                companyId={companyId}
+                onClose={() => setShowTransferModal(false)}
+                onSuccess={refetch}
+                testIDPrefix='contacts.manage.transfer'
+            />
         </SafeAreaView>
     );
 };

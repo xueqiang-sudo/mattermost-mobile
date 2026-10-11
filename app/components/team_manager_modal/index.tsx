@@ -3,8 +3,8 @@
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, FlatList, Modal, Platform, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {searchContactEmployees} from '@actions/remote/contact_new';
 import {fetchTeamManagers, setTeamManagerRole} from '@actions/remote/team';
@@ -19,6 +19,8 @@ import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/ente
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
+
 type Props = {
     visible: boolean;
     companyId: string;
@@ -29,32 +31,30 @@ type Props = {
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
-    modalBackdrop: {
+    container: {
         flex: 1,
-        backgroundColor: changeOpacity('#000000', 0.45),
-        justifyContent: 'flex-end',
-    },
-    flex: {flex: 1},
-    sheet: {
-        width: '100%',
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
         backgroundColor: theme.centerChannelBg,
-        maxHeight: '78%',
-        overflow: 'hidden',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        paddingVertical: 12,
+        backgroundColor: theme.sidebarBg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.sidebarText, 0.1),
     },
-    title: {
+    backBtn: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerTitle: {
+        flex: 1,
         ...typography('Heading', 300, 'SemiBold'),
-        color: theme.centerChannelColor,
+        color: theme.sidebarText,
+        textAlign: 'center',
     },
     searchWrap: {
         paddingHorizontal: 16,
@@ -158,7 +158,6 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
-    const insets = useSafeAreaInsets();
     const styles = getStyleSheet(theme);
 
     const [managers, setManagers] = useState<UserProfile[]>([]);
@@ -248,7 +247,7 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
                                 style={[styles.tag, styles.ownerTag]}
                             >
                                 <Text style={[styles.tagText, styles.ownerTagText]}>
-                                    {intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: 'Owner'})}
+                                    {intl.formatMessage({id: 'contacts.owner_tag', defaultMessage: '所有者'})}
                                 </Text>
                             </View>
                         );
@@ -260,7 +259,7 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
                                 style={[styles.tag, styles.selfTag]}
                             >
                                 <Text style={[styles.tagText, styles.selfTagText]}>
-                                    {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: 'Self'})}
+                                    {intl.formatMessage({id: 'contacts.self_tag', defaultMessage: '自己'})}
                                 </Text>
                             </View>
                         );
@@ -271,7 +270,7 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
                             style={styles.tag}
                         >
                             <Text style={styles.tagText}>
-                                {intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: 'Manager'})}
+                                {intl.formatMessage({id: 'contacts.manager_tag', defaultMessage: '管理员'})}
                             </Text>
                         </View>
                     );
@@ -333,8 +332,8 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
         if (result.error) {
             setUpdatingUserId(null);
             Alert.alert(
-                intl.formatMessage({id: 'contacts.manager_management', defaultMessage: 'Manager management'}),
-                intl.formatMessage({id: 'contacts.manager_update_failed', defaultMessage: 'Failed to update manager role. Please try again.'}),
+                intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}),
+                intl.formatMessage({id: 'contacts.manager_update_failed', defaultMessage: '更新管理员角色失败，请重试。'}),
             );
             return;
         }
@@ -356,23 +355,23 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
 
     const handleSetManager = useCallback((user: UserProfile, isManager: boolean) => {
         const actionLabel = isManager ?
-            intl.formatMessage({id: 'common.add', defaultMessage: 'Add'}) :
-            intl.formatMessage({id: 'common.remove', defaultMessage: 'Remove'});
+            intl.formatMessage({id: 'common.add', defaultMessage: '添加'}) :
+            intl.formatMessage({id: 'common.remove', defaultMessage: '移除'});
         const message = isManager ?
             intl.formatMessage(
-                {id: 'contacts.manager_add_confirm', defaultMessage: 'Add {name} as an admin?'},
+                {id: 'contacts.manager_add_confirm', defaultMessage: '将 {name} 添加为管理员？'},
                 {name: getContactListDisplayName(user)},
             ) :
             intl.formatMessage(
-                {id: 'contacts.manager_remove_confirm', defaultMessage: 'Remove admin role from {name}?'},
+                {id: 'contacts.manager_remove_confirm', defaultMessage: '移除 {name} 的管理员角色？'},
                 {name: getContactListDisplayName(user)},
             );
         Alert.alert(
-            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: 'Manager management'}),
+            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}),
             message,
             [
                 {
-                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
                     style: 'cancel',
                 },
                 {
@@ -388,157 +387,152 @@ const TeamManagerModal = ({visible, companyId, onClose, onChanged, excludeUserId
         <Modal
             visible={visible}
             animationType='slide'
-            transparent={true}
+            transparent={false}
             onRequestClose={onClose}
         >
-            <View style={styles.modalBackdrop}>
-                <TouchableOpacity
-                    style={styles.flex}
-                    activeOpacity={1}
-                    onPress={onClose}
-                />
-                <View style={[styles.sheet, {paddingBottom: insets.bottom + 8}]}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>
-                            {isCurrentUserOwner ?
-                                intl.formatMessage({id: 'contacts.manager_management', defaultMessage: 'Manager management'}) :
-                                intl.formatMessage({id: 'contacts.manager_list', defaultMessage: 'Manager list'})
-                            }
-                        </Text>
-                        <TouchableOpacity
-                            onPress={onClose}
-                            testID={`${testIDPrefix}.close`}
-                        >
-                            <CompassIcon
-                                name='close'
-                                size={22}
-                                color={theme.centerChannelColor}
-                            />
-                        </TouchableOpacity>
-                    </View>
-
-                    {isCurrentUserOwner ? (
-                        <View style={styles.searchWrap}>
-                            <TextInput
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                placeholder={intl.formatMessage({id: 'contacts.manager_search.placeholder', defaultMessage: 'Search users to add as manager'})}
-                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.54)}
-                                style={styles.searchInput}
-                                autoCorrect={false}
-                                autoCapitalize='none'
-                                returnKeyType='search'
-                                clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
-                                testID={`${testIDPrefix}.search`}
-                            />
-                        </View>
-                    ) : null}
-
-                    <Text style={styles.sectionTitle}>
-                        {intl.formatMessage({id: 'contacts.current_managers', defaultMessage: 'Current managers'})}
+            <SafeAreaView edges={SAFE_AREA_EDGES} style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.backBtn}
+                        onPress={onClose}
+                        testID={`${testIDPrefix}.back`}
+                    >
+                        <CompassIcon
+                            name='arrow-left'
+                            size={24}
+                            color={theme.sidebarText}
+                        />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle} numberOfLines={1}>
+                        {isCurrentUserOwner ?
+                            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}) :
+                            intl.formatMessage({id: 'contacts.manager_list', defaultMessage: '管理员列表'})
+                        }
                     </Text>
-                    {managersLoading && managers.length === 0 ? (
-                        <View style={{paddingVertical: 24, alignItems: 'center'}}>
-                            <Loading
-                                color={theme.centerChannelColor}
-                                size='small'
-                            />
-                        </View>
-                    ) : managers.length === 0 ? (
-                        <Text style={styles.hint}>
-                            {intl.formatMessage({id: 'contacts.current_managers_empty', defaultMessage: 'No managers yet'})}
-                        </Text>
-                    ) : (
-                        <FlatList<UserProfile>
-                            data={managers}
-                            keyExtractor={(item: UserProfile) => item.id}
-                            keyboardShouldPersistTaps='handled'
-                            renderItem={({item}: {item: UserProfile}) => (
-                                <View style={styles.row}>
-                                    <ContactAvatar
-                                        employee={item}
-                                        size={36}
-                                    />
-                                    <Text
-                                        style={styles.name}
-                                        numberOfLines={1}
+                    <View style={styles.backBtn}/>
+                </View>
+
+                {isCurrentUserOwner ? (
+                    <View style={styles.searchWrap}>
+                        <TextInput
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder={intl.formatMessage({id: 'contacts.manager_search.placeholder', defaultMessage: '搜索用户添加为管理员'})}
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.54)}
+                            style={styles.searchInput}
+                            autoCorrect={false}
+                            autoCapitalize='none'
+                            returnKeyType='search'
+                            clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
+                            testID={`${testIDPrefix}.search`}
+                        />
+                    </View>
+                ) : null}
+
+                <Text style={styles.sectionTitle}>
+                    {intl.formatMessage({id: 'contacts.current_managers', defaultMessage: '当前管理员'})}
+                </Text>
+                {managersLoading && managers.length === 0 ? (
+                    <View style={{paddingVertical: 24, alignItems: 'center'}}>
+                        <Loading
+                            color={theme.centerChannelColor}
+                            size='small'
+                        />
+                    </View>
+                ) : managers.length === 0 ? (
+                    <Text style={styles.hint}>
+                        {intl.formatMessage({id: 'contacts.current_managers_empty', defaultMessage: '暂无管理员'})}
+                    </Text>
+                ) : (
+                    <FlatList<UserProfile>
+                        data={managers}
+                        keyExtractor={(item: UserProfile) => item.id}
+                        keyboardShouldPersistTaps='handled'
+                        renderItem={({item}: {item: UserProfile}) => (
+                            <View style={styles.row}>
+                                <ContactAvatar
+                                    employee={item}
+                                    size={36}
+                                />
+                                <Text
+                                    style={styles.name}
+                                    numberOfLines={1}
+                                >
+                                    {getContactListDisplayName(item)}
+                                </Text>
+                                {renderTags(item.id)}
+                                {isCurrentUserOwner && item.id !== ownerId ? (
+                                    <TouchableOpacity
+                                        style={[styles.action, styles.removeAction]}
+                                        onPress={() => handleSetManager(item, false)}
+                                        disabled={Boolean((excludeUserId && item.id === excludeUserId) || updatingUserId === item.id)}
+                                        testID={`${testIDPrefix}.remove.${item.id}`}
                                     >
-                                        {getContactListDisplayName(item)}
-                                    </Text>
-                                    {renderTags(item.id)}
-                                    {isCurrentUserOwner && item.id !== ownerId ? (
-                                        <TouchableOpacity
-                                            style={[styles.action, styles.removeAction]}
-                                            onPress={() => handleSetManager(item, false)}
-                                            disabled={Boolean((excludeUserId && item.id === excludeUserId) || updatingUserId === item.id)}
-                                            testID={`${testIDPrefix}.remove.${item.id}`}
+                                        <Text style={styles.removeActionText}>
+                                            {intl.formatMessage({id: 'common.remove', defaultMessage: '移除'})}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                        )}
+                    />
+                )}
+
+                {isCurrentUserOwner ? (
+                    <>
+                        <Text style={styles.sectionTitle}>
+                            {intl.formatMessage({id: 'contacts.search_result', defaultMessage: '搜索结果'})}
+                        </Text>
+                        {searchQuery.trim() && searchPending ? (
+                            <View style={{paddingVertical: 24, alignItems: 'center'}}>
+                                <Loading
+                                    color={theme.centerChannelColor}
+                                    size='small'
+                                />
+                            </View>
+                        ) : !searchQuery.trim() ? (
+                            <Text style={styles.hint}>
+                                {intl.formatMessage({id: 'contacts.manager_search_hint', defaultMessage: '输入姓名、邮箱或手机号搜索用户'})}
+                            </Text>
+                        ) : managerEntries.length === 0 ? (
+                            <Text style={styles.hint}>
+                                {intl.formatMessage({id: 'contacts.manager_search_empty', defaultMessage: '没有可添加的用户'})}
+                            </Text>
+                        ) : (
+                            <FlatList<UserProfile>
+                                data={managerEntries}
+                                keyExtractor={(entry: UserProfile) => `manager-search-${entry.id}`}
+                                keyboardShouldPersistTaps='handled'
+                                renderItem={({item}: {item: UserProfile}) => (
+                                    <View style={styles.row}>
+                                        <ContactAvatar
+                                            employee={item}
+                                            size={36}
+                                        />
+                                        <Text
+                                            style={styles.name}
+                                            numberOfLines={1}
                                         >
-                                            <Text style={styles.removeActionText}>
-                                                {intl.formatMessage({id: 'common.remove', defaultMessage: 'Remove'})}
+                                            {getContactListDisplayName(item)}
+                                        </Text>
+                                        {renderTags(item.id)}
+                                        <TouchableOpacity
+                                            style={[styles.action, styles.addAction]}
+                                            onPress={() => handleSetManager(item, true)}
+                                            disabled={updatingUserId === item.id}
+                                            testID={`${testIDPrefix}.add.${item.id}`}
+                                        >
+                                            <Text style={styles.addActionText}>
+                                                {intl.formatMessage({id: 'common.add', defaultMessage: '添加'})}
                                             </Text>
                                         </TouchableOpacity>
-                                    ) : null}
-                                </View>
-                            )}
-                        />
-                    )}
-
-                    {isCurrentUserOwner ? (
-                        <>
-                            <Text style={styles.sectionTitle}>
-                                {intl.formatMessage({id: 'contacts.search_result', defaultMessage: 'Search result'})}
-                            </Text>
-                            {searchQuery.trim() && searchPending ? (
-                                <View style={{paddingVertical: 24, alignItems: 'center'}}>
-                                    <Loading
-                                        color={theme.centerChannelColor}
-                                        size='small'
-                                    />
-                                </View>
-                            ) : !searchQuery.trim() ? (
-                                <Text style={styles.hint}>
-                                    {intl.formatMessage({id: 'contacts.manager_search_hint', defaultMessage: 'Type a name, email, or phone to search users'})}
-                                </Text>
-                            ) : managerEntries.length === 0 ? (
-                                <Text style={styles.hint}>
-                                    {intl.formatMessage({id: 'contacts.manager_search_empty', defaultMessage: 'No users available to add'})}
-                                </Text>
-                            ) : (
-                                <FlatList<UserProfile>
-                                    data={managerEntries}
-                                    keyExtractor={(entry: UserProfile) => `manager-search-${entry.id}`}
-                                    keyboardShouldPersistTaps='handled'
-                                    renderItem={({item}: {item: UserProfile}) => (
-                                        <View style={styles.row}>
-                                            <ContactAvatar
-                                                employee={item}
-                                                size={36}
-                                            />
-                                            <Text
-                                                style={styles.name}
-                                                numberOfLines={1}
-                                            >
-                                                {getContactListDisplayName(item)}
-                                            </Text>
-                                            {renderTags(item.id)}
-                                            <TouchableOpacity
-                                                style={[styles.action, styles.addAction]}
-                                                onPress={() => handleSetManager(item, true)}
-                                                disabled={updatingUserId === item.id}
-                                                testID={`${testIDPrefix}.add.${item.id}`}
-                                            >
-                                                <Text style={styles.addActionText}>
-                                                    {intl.formatMessage({id: 'common.add', defaultMessage: 'Add'})}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                />
-                            )}
-                        </>
-                    ) : null}
-                </View>
-            </View>
+                                    </View>
+                                )}
+                            />
+                        )}
+                    </>
+                ) : null}
+            </SafeAreaView>
         </Modal>
     );
 };

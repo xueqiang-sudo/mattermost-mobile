@@ -1,12 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Platform,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -104,6 +107,52 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         textAlign: 'center',
         paddingVertical: 32,
         paddingHorizontal: 24,
+    },
+    inviteCard: {
+        marginTop: 16,
+        marginHorizontal: 16,
+        padding: 16,
+        borderRadius: 12,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.06),
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.buttonBg, 0.2),
+    },
+    inviteTitle: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    inviteDesc: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    inviteUrlRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    inviteUrl: {
+        flex: 1,
+        ...typography('Body', 75),
+        color: theme.linkColor,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 6,
+        overflow: 'hidden',
+    },
+    copyBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 6,
+        backgroundColor: theme.buttonBg,
+    },
+    copyBtnText: {
+        color: theme.buttonColor,
+        ...typography('Body', 75, 'SemiBold'),
     },
 }));
 
@@ -249,13 +298,24 @@ const ContactsSearchContent = ({
         );
     }, [companyId, companyName, currentUserId, defaultDepartmentLabel, departmentName, intl]);
 
+    const inviteUrl = `${serverUrl}/invite?invited_by=${currentUserId}`;
+
+    const handleCopyInviteUrl = useCallback(() => {
+        Clipboard.setString(inviteUrl);
+        Alert.alert(
+            intl.formatMessage({id: 'mobile.link.copied', defaultMessage: '已复制'}),
+        );
+    }, [inviteUrl, intl]);
+
+    const showInviteCard = query.trim() && searched && !loading && results.length === 0;
+
     let emptyMessage: string | null = null;
     if (query.trim()) {
-        if (searched && !loading) {
-            emptyMessage = intl.formatMessage({id: 'contacts.search.no_results', defaultMessage: 'No matching contacts'});
+        if (searched && !loading && !showInviteCard) {
+            emptyMessage = intl.formatMessage({id: 'contacts.search.no_results', defaultMessage: '未找到匹配的联系人'});
         }
     } else {
-        emptyMessage = intl.formatMessage({id: 'contacts.search.hint', defaultMessage: 'Enter a nickname, email, or phone number to search'});
+        emptyMessage = intl.formatMessage({id: 'contacts.search.hint', defaultMessage: '输入昵称、邮箱或手机号搜索'});
     }
 
     const renderItem = useCallback(
@@ -337,7 +397,7 @@ const ContactsSearchContent = ({
                     onChangeText={setQuery}
                     placeholder={intl.formatMessage({
                         id: 'contacts.search.placeholder',
-                        defaultMessage: 'Nickname, email, phone number…',
+                        defaultMessage: '昵称、邮箱、手机号…',
                     })}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.48)}
                     style={styles.searchInput}
@@ -365,8 +425,27 @@ const ContactsSearchContent = ({
                     ) : null
                 }
                 ListEmptyComponent={
-                    emptyMessage && !loading ? (
-                        <Text style={styles.empty}>{emptyMessage}</Text>
+                    !loading ? (
+                        showInviteCard ? (
+                            <View style={styles.inviteCard}>
+                                <Text style={styles.inviteTitle}>
+                                    {intl.formatMessage({id: 'contacts.search.no_results', defaultMessage: '未找到该成员'})}
+                                </Text>
+                                <Text style={styles.inviteDesc}>
+                                    {intl.formatMessage({id: 'contacts.search.invite_desc', defaultMessage: '您可以复制邀请链接发送给对方，邀请其加入企业。'})}
+                                </Text>
+                                <View style={styles.inviteUrlRow}>
+                                    <Text style={styles.inviteUrl} numberOfLines={1}>{inviteUrl}</Text>
+                                    <TouchableOpacity style={styles.copyBtn} onPress={handleCopyInviteUrl}>
+                                        <Text style={styles.copyBtnText}>
+                                            {intl.formatMessage({id: 'contacts.external.add.copy', defaultMessage: '复制'})}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ) : emptyMessage ? (
+                            <Text style={styles.empty}>{emptyMessage}</Text>
+                        ) : null
                     ) : null
                 }
                 keyboardShouldPersistTaps='handled'
