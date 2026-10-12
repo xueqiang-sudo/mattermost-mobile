@@ -25,8 +25,6 @@ import ContactAvatar from '@components/contact_avatar';
 import {CustomInputModal, useCustomInputModal} from '@components/custom_input_modal';
 import Loading from '@components/loading';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
-import TeamManagerModal from '@components/team_manager_modal';
-import TransferOwnershipModal from '@components/transfer_ownership_modal';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -375,7 +373,6 @@ const ContactsDepartmentDetail = ({
     const subDeptInput = useCustomInputModal();
     const modifyDeptNameInput = useCustomInputModal();
     const modifyEnterpriseNameInput = useCustomInputModal();
-    const [managerVisible, setManagerVisible] = useState(false);
     const [enterpriseDisplayName, setEnterpriseDisplayName] = useState<string | undefined>(companyName);
 
     const baseBreadcrumb = React.useMemo(
@@ -629,8 +626,17 @@ const ContactsDepartmentDetail = ({
 
     const openManagerModal = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
-        setManagerVisible(true);
-    }, []));
+        const title = isCurrentUserOwner ?
+            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}) :
+            intl.formatMessage({id: 'contacts.manager_list', defaultMessage: '管理员列表'});
+        showModalWithBackButton(
+            Screens.TEAM_MANAGER,
+            title,
+            'close-team-manager',
+            {companyId},
+            {useBackIcon: true},
+        );
+    }, [companyId, intl, isCurrentUserOwner]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
         if (onAddMember) {
@@ -729,9 +735,6 @@ const ContactsDepartmentDetail = ({
             );
         }
     }, [companyId, intl, modifyEnterpriseNameInput, fetchData, enterpriseDisplayName, companyName, departmentId, serverUrl]);
-
-    // ---- Transfer Enterprise Ownership ----
-    const [showTransferModal, setShowTransferModal] = useState(false);
 
     // ---- Dissolve Enterprise ----
     const handleDissolveEnterprise = usePreventDoubleTap(useCallback(async () => {
@@ -887,7 +890,16 @@ const ContactsDepartmentDetail = ({
                         text={intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: '转移控制权'})}
                         onPress={async () => {
                             await dismissBottomSheet();
-                            setShowTransferModal(true);
+                            const title = intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: '转移控制权'});
+                            showModalWithBackButton(
+                                Screens.TRANSFER_OWNERSHIP,
+                                title,
+                                'close-transfer-ownership',
+                                {
+                                    companyId,
+                                },
+                                {useBackIcon: true},
+                            );
                         }}
                         testID='contacts.department_detail.manage.more.transfer_ownership'
                     />
@@ -1434,21 +1446,6 @@ const ContactsDepartmentDetail = ({
                 cancelContent={modifyEnterpriseNameInput.options.cancelContent}
                 onConfirm={modifyEnterpriseNameInput.handleConfirm}
                 onCancel={modifyEnterpriseNameInput.handleCancel}
-            />
-            <TeamManagerModal
-                visible={managerVisible}
-                companyId={companyId}
-                onClose={() => setManagerVisible(false)}
-                onChanged={fetchData}
-                testIDPrefix='contacts.department_detail.manager_modal'
-            />
-
-            <TransferOwnershipModal
-                visible={showTransferModal}
-                companyId={companyId}
-                onClose={() => setShowTransferModal(false)}
-                onSuccess={fetchData}
-                testIDPrefix='contacts.department_detail.transfer'
             />
         </SafeAreaView>
     );

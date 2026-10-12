@@ -221,6 +221,7 @@ const TransferOwnershipModal = ({visible, companyId, onClose, onSuccess, testIDP
             animationType='slide'
             transparent={false}
             onRequestClose={handleClose}
+            statusBarTranslucent={true}
         >
             <SafeAreaView edges={SAFE_AREA_EDGES} style={styles.container}>
                 <View style={styles.header}>

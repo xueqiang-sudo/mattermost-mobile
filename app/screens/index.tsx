@@ -147,6 +147,12 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.INTERNAL_MEMBER_ADD:
             screen = withServerDatabase(require('@screens/home/contacts/internal_member_add').default);
             break;
+        case Screens.TRANSFER_OWNERSHIP:
+            screen = withServerDatabase(require('@screens/transfer_ownership').default);
+            break;
+        case Screens.TEAM_MANAGER:
+            screen = withServerDatabase(require('@screens/team_manager').default);
+            break;
         case Screens.CREATE_OR_EDIT_CHANNEL:
             screen = withServerDatabase(require('@screens/create_or_edit_channel').default);
             break;

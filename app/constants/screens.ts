@@ -43,6 +43,8 @@ export const CONTACTS_BATCH_MOVE_MEMBERS = 'ContactsBatchMoveMembers';
 export const CONTACTS_EXTERNAL = 'ContactsExternal';
 export const CONTACTS_EXTERNAL_ADD = 'ContactsExternalAdd';
 export const INTERNAL_MEMBER_ADD = 'InternalMemberAdd';
+export const TRANSFER_OWNERSHIP = 'TransferOwnership';
+export const TEAM_MANAGER = 'TeamManager';
 export const CONSULTATION_PANEL = 'ConsultationPanel';
 export const AI_ASSISTANT_PANEL = 'AIAssistantPanel';
 export const ROLE_LIST = 'RoleList';
@@ -191,6 +193,8 @@ export default {
     CONTACTS_EXTERNAL,
     CONTACTS_EXTERNAL_ADD,
     INTERNAL_MEMBER_ADD,
+    TRANSFER_OWNERSHIP,
+    TEAM_MANAGER,
     CONSULTATION_PANEL,
     AI_ASSISTANT_PANEL,
     ROLE_LIST,
