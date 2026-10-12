@@ -930,7 +930,12 @@ const MesScreen = () => {
         return records.filter((r) => {
             if (!r.create_at) return false;
             const d = new Date(r.create_at);
-            return d.toISOString().startsWith(filterDate);
+            // Use local date formatting instead of toISOString() (which is UTC)
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const localDateStr = `${yyyy}-${mm}-${dd}`;
+            return localDateStr === filterDate;
         });
     }, [records, filterDate]);
 
