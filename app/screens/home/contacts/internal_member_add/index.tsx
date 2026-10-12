@@ -2,8 +2,6 @@
 // See LICENSE.txt for license information.
 
 import Clipboard from '@react-native-clipboard/clipboard';
-import {useNavigation, useRoute} from '@react-navigation/native';
-import type {RouteProp} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -33,11 +31,12 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getLastPictureUpdate} from '@utils/user';
 
-import type {ContactsStackParamList} from '../contacts_stack_param_list';
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 const edges: Edge[] = ['top', 'bottom', 'left', 'right'];
 
@@ -212,16 +211,29 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 
 type ContactsInternalMemberAddScreenRouteProp = RouteProp<ContactsStackParamList, typeof import('@constants').Screens.INTERNAL_MEMBER_ADD>;
 
-const ContactsInternalMemberAddScreen = () => {
+type Props = {
+    componentId?: AvailableScreens;
+    ownerId: string;
+    companyId: string;
+    companyName?: string;
+    onBack?: () => void;
+};
+
+const ContactsInternalMemberAddScreen = ({componentId, ownerId, companyId, companyName, onBack}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute<ContactsInternalMemberAddScreenRouteProp>();
     const styles = getStyleSheet(theme);
 
-    const {ownerId, companyId, companyName} = route.params;
     const kind = MMEmployeeContactTypes.External;
+
+    const handleGoBack = useCallback(() => {
+        if (onBack) {
+            onBack();
+        } else {
+            dismissModal({componentId});
+        }
+    }, [onBack, componentId]);
 
     const [phone, setPhone] = useState('');
     const [searching, setSearching] = useState(false);
@@ -329,13 +341,13 @@ const ContactsInternalMemberAddScreen = () => {
                 // Even if adding to department fails, user is already in team
             }
 
-            navigation.goBack();
+            handleGoBack();
         } catch {
             setError(intl.formatMessage({id: 'contacts.add_member_failed', defaultMessage: '添加成员失败'}));
         } finally {
             setSaving(false);
         }
-    }, [searchResult, companyId, serverUrl, intl, navigation]));
+    }, [searchResult, companyId, serverUrl, intl, handleGoBack]));
 
     const handlePhoneChange = useCallback((text: string) => {
         setPhone(text);
@@ -365,7 +377,7 @@ const ContactsInternalMemberAddScreen = () => {
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.headerBack}
-                    onPress={() => navigation.goBack()}
+                    onPress={handleGoBack}
                     hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                     testID='internal_member_add.back'
                 >

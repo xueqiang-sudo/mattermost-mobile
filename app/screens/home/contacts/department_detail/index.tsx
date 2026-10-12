@@ -95,6 +95,9 @@ type Props = {
     /** 通讯录栈内：由 Wrapper 传入，打开通讯录搜索屏 */
     onSearchPress?: () => void;
 
+    /** 通讯录栈内：由 Wrapper 传入，打开添加成员屏 */
+    onAddMember?: () => void;
+
     /** 通讯录 Tab 所在 RNN Home；关管理弹窗后 Home willAppear，栈内部门页据此刷新 */
     rnnHomeComponentId?: string;
 
@@ -338,6 +341,7 @@ const ContactsDepartmentDetail = ({
     onBreadcrumbPress,
     fromEmployeeProfile = false,
     onSearchPress,
+    onAddMember,
     rnnHomeComponentId,
     managerIds,
     ownerId,
@@ -629,12 +633,10 @@ const ContactsDepartmentDetail = ({
     }, []));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
-        navigation.navigate(Screens.INTERNAL_MEMBER_ADD, {
-            ownerId: resolvedOwnerId || '',
-            companyId,
-            companyName,
-        });
-    }, [companyId, companyName, resolvedOwnerId, navigation]));
+        if (onAddMember) {
+            onAddMember();
+        }
+    }, [onAddMember]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
         const name = await subDeptInput.showModal({

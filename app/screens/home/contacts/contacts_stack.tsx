@@ -14,6 +14,7 @@ import {type ContactsStackParamList} from './contacts_stack_param_list';
 import ContactsDepartmentDetail from './department_detail';
 import ExternalContactsScreen from './external_contacts';
 import ContactsExternalAddScreen from './external_contacts_add';
+import ContactsInternalMemberAddScreen from './internal_member_add';
 
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
@@ -80,6 +81,13 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
                     currentUserId,
                 });
             }}
+            onAddMember={() => {
+                navigation.navigate(Screens.INTERNAL_MEMBER_ADD, {
+                    ownerId: params.ownerId || '',
+                    companyId: params.companyId,
+                    companyName: params.companyName,
+                });
+            }}
             onBreadcrumbPress={(toDismiss) => {
                 if (toDismiss <= 0) {
                     return;
@@ -108,6 +116,23 @@ function ContactsSearchWrapper({currentUserId}: {currentUserId?: string}) {
             departmentName={params.departmentName}
             departmentBreadcrumb={params.departmentBreadcrumb}
             currentUserId={params.currentUserId ?? currentUserId}
+            onBack={() => navigation.goBack()}
+        />
+    );
+}
+
+function InternalMemberAddWrapper() {
+    const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.INTERNAL_MEMBER_ADD>>();
+    const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.INTERNAL_MEMBER_ADD>>();
+    const params = route.params;
+    if (!params) {
+        return null;
+    }
+    return (
+        <ContactsInternalMemberAddScreen
+            ownerId={params.ownerId}
+            companyId={params.companyId}
+            companyName={params.companyName}
             onBack={() => navigation.goBack()}
         />
     );
@@ -145,6 +170,9 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
                     )}
                 </Stack.Screen>
                 <Stack.Screen name={Screens.CONTACTS_EXTERNAL_ADD} component={ContactsExternalAddScreen}/>
+                <Stack.Screen name={Screens.INTERNAL_MEMBER_ADD}>
+                    {() => <InternalMemberAddWrapper/>}
+                </Stack.Screen>
             </Stack.Navigator>
         </ContactsRnnHomeComponentIdContext.Provider>
     );

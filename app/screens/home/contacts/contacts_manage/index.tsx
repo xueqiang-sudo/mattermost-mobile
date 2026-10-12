@@ -480,12 +480,19 @@ const ContactsManage = ({
     }, [companyId, companyName, currentDepartmentId, currentDepartmentName, currentLevel?.breadcrumb, currentUserId, intl]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
-        navigation.navigate(Screens.INTERNAL_MEMBER_ADD, {
-            ownerId,
-            companyId,
-            companyName,
-        });
-    }, [companyId, companyName, ownerId, navigation]));
+        const title = intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});
+        showModalWithBackButton(
+            Screens.INTERNAL_MEMBER_ADD,
+            title,
+            'close-internal-member-add',
+            {
+                ownerId,
+                companyId,
+                companyName,
+            },
+            {useBackIcon: true},
+        );
+    }, [companyId, companyName, intl, ownerId]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
         const name = await subDeptInput.showModal({
