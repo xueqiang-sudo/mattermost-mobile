@@ -24,7 +24,7 @@ const messages = defineMessages({
     },
     enterPhoneOrEmail: {
         id: 'login.phoneOrEmail',
-        defaultMessage: 'Phone Number or Email',
+        defaultMessage: 'Phone Number',
     },
     close: {
         id: 'phoneInput.close',

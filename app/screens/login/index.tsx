@@ -173,8 +173,6 @@ const LoginOptions = ({
                     <View
                         style={[styles.centered, {flex: 1}]}
                     >
-                        {title}
-                        {description}
                         <PhoneLoginForm
                             extra={extra}
                             keyboardAwareRef={keyboardAwareRef}
