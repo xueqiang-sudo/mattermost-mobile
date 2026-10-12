@@ -219,6 +219,10 @@ export async function deleteMESPlan(serverUrl: string, teamId: string, planId: n
     await apiFetch(serverUrl, `/api/v4/teams/${teamId}/mes/plans/${planId}`, {method: 'delete'});
 }
 
+export async function fetchRecordsByTeam(serverUrl: string, teamId: string, limit = 200): Promise<MESRecord[]> {
+    return apiFetch(serverUrl, `/api/v4/teams/${teamId}/mes/records?limit=${limit}`, {method: 'get'});
+}
+
 export async function fetchRecordsByChannel(serverUrl: string, teamId: string, channelId: string, limit = 200): Promise<MESRecord[]> {
     return apiFetch(serverUrl, `/api/v4/teams/${teamId}/mes/records/channel/${channelId}?limit=${limit}`, {method: 'get'});
 }

@@ -23,7 +23,7 @@ import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
-import {getCurrentChannelId, getCurrentTeamId} from '@queries/servers/system';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -33,7 +33,7 @@ import {
     createMESPlan,
     updateMESPlan,
     deleteMESPlan,
-    fetchRecordsByChannel,
+    fetchRecordsByTeam,
     fetchRecordWithSteps,
     fetchLineInfo,
     updateLineInfo,
@@ -817,7 +817,6 @@ const MesScreen = () => {
     const style = getStyleSheet(theme);
 
     const [teamId, setTeamId] = useState('');
-    const [channelId, setChannelId] = useState('');
     const [loading, setLoading] = useState(true);
 
     // Permissions
@@ -861,16 +860,15 @@ const MesScreen = () => {
     const [summaryPlannedEnd, setSummaryPlannedEnd] = useState('');
     const [summaryLoading, setSummaryLoading] = useState(false);
 
-    // Init: load team/channel IDs
+    // Init: load team ID
     useEffect(() => {
         const init = async () => {
             try {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const [tid, cid] = await Promise.all([getCurrentTeamId(database), getCurrentChannelId(database)]);
+                const tid = await getCurrentTeamId(database);
                 setTeamId(tid);
-                setChannelId(cid);
-            } catch {
-                // ignore
+            } catch (e) {
+                console.error('[MES] Init error:', e);
             }
         };
         init();
@@ -897,23 +895,24 @@ const MesScreen = () => {
         if (!teamId) return;
         setLoading(true);
         try {
-            const [linesData, plansData, lineInfoData] = await Promise.all([
+            const [linesData, plansData, lineInfoData, recordsData] = await Promise.all([
                 fetchProductionLines(serverUrl).catch(() => [] as ProductionLine[]),
                 fetchMESPlans(serverUrl, teamId).catch(() => [] as MESPlan[]),
                 fetchLineInfo(serverUrl, teamId).catch(() => ({content: ''})),
+                fetchRecordsByTeam(serverUrl, teamId).catch((e) => {
+                    console.warn('[MES] fetchRecordsByTeam error:', e);
+                    return [] as MESRecord[];
+                }),
             ]);
             setLines(linesData);
             setPlans(plansData);
             setLineInfoContent(lineInfoData.content || '');
-
-            if (channelId) {
-                const recordsData = await fetchRecordsByChannel(serverUrl, teamId, channelId).catch(() => [] as MESRecord[]);
-                setRecords(recordsData);
-            }
+            console.log('[MES] Loaded records:', recordsData.length);
+            setRecords(recordsData);
         } finally {
             setLoading(false);
         }
-    }, [serverUrl, teamId, channelId]);
+    }, [serverUrl, teamId]);
 
     useEffect(() => {
         loadData();
@@ -927,7 +926,7 @@ const MesScreen = () => {
 
     const filteredRecords = useMemo(() => {
         if (!filterDate) return records;
-        return records.filter((r) => {
+        const filtered = records.filter((r) => {
             if (!r.create_at) return false;
             const d = new Date(r.create_at);
             // Use local date formatting instead of toISOString() (which is UTC)
@@ -937,6 +936,8 @@ const MesScreen = () => {
             const localDateStr = `${yyyy}-${mm}-${dd}`;
             return localDateStr === filterDate;
         });
+        console.log('[MES] Filter records:', records.length, '->', filtered.length, 'filterDate:', filterDate);
+        return filtered;
     }, [records, filterDate]);
 
     // Sort records by create_at desc
