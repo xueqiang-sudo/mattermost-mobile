@@ -63,11 +63,12 @@ function formatDateTime(val: string): string {
     if (!val) return '-';
     const d = new Date(val);
     if (isNaN(d.getTime())) return val;
+    const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     const hh = String(d.getHours()).padStart(2, '0');
     const mi = String(d.getMinutes()).padStart(2, '0');
-    return `${mm}-${dd} ${hh}:${mi}`;
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
 function formatTimeStr(timeStr: string): string {
@@ -211,45 +212,67 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     // Plan table
     planCard: {
         marginHorizontal: 12,
-        marginVertical: 4,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.02),
-        borderRadius: 8,
+        marginVertical: 6,
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 10,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
-        padding: 12,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        padding: 14,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 1},
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
     },
-    planRow: {
+    planCardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: 2,
+        alignItems: 'center',
+        paddingBottom: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        marginBottom: 8,
     },
-    planLabel: {
-        ...typography('Body', 50),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        width: 60,
-    },
-    planValue: {
-        ...typography('Body', 75),
-        color: theme.centerChannelColor,
+    planHeaderLeft: {
         flex: 1,
     },
     planLineId: {
         ...typography('Heading', 400, 'Bold'),
         color: theme.buttonBg,
     },
+    planProduct: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginTop: 2,
+    },
+    planRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 3,
+    },
+    planLabel: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        width: 80,
+    },
+    planValue: {
+        ...typography('Body', 75),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
     planActions: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
         gap: 8,
-        paddingTop: 8,
+        paddingTop: 10,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
-        marginTop: 8,
+        marginTop: 10,
     },
     actionBtn: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 4,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
     },
@@ -257,7 +280,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: theme.errorTextColor,
     },
     actionBtnText: {
-        ...typography('Body', 50),
+        ...typography('Body', 75),
         color: theme.centerChannelColor,
     },
     actionBtnDangerText: {
@@ -711,8 +734,8 @@ const MesScreen = () => {
     // Tab
     const [activeTab, setActiveTab] = useState<'plan' | 'records' | 'lines'>('records');
 
-    // Date filter
-    const [filterDate, setFilterDate] = useState(getTodayStr);
+    // Date filter (default: no filter, show all plans/records)
+    const [filterDate, setFilterDate] = useState('');
 
     // Plan form
     const [showForm, setShowForm] = useState(false);
@@ -906,41 +929,72 @@ const MesScreen = () => {
 
     const renderPlanCard = (plan: MESPlan) => (
         <View key={`${plan.line_id}-${plan.id}`} style={style.planCard}>
-            <View style={style.planRow}>
-                <Text style={style.planLineId}>{plan.line_id}</Text>
-                <Text style={style.planValue}>{plan.current_product || '-'}</Text>
+            {/* Header: Line + Product */}
+            <View style={style.planCardHeader}>
+                <View style={style.planHeaderLeft}>
+                    <Text style={style.planLineId}>{plan.line_id || '-'}</Text>
+                    <Text style={style.planProduct} numberOfLines={1}>
+                        {plan.current_product || intl.formatMessage({id: 'mes.plan_no_product', defaultMessage: '未设置产品'})}
+                    </Text>
+                </View>
             </View>
+
+            {/* Spec */}
             <View style={style.planRow}>
                 <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
-                <Text style={style.planValue}>{plan.spec || '-'} | {plan.positions || '-'} pos</Text>
+                <Text style={style.planValue}>{plan.spec || '-'}</Text>
             </View>
+
+            {/* Positions */}
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_positions', defaultMessage: '工位'})}</Text>
+                <Text style={style.planValue}>{plan.positions || '-'}</Text>
+            </View>
+
+            {/* Start time */}
+            <View style={style.planRow}>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始时间'})}</Text>
                 <Text style={style.planValue}>{formatDateTime(plan.start_time)}</Text>
             </View>
+
+            {/* End time */}
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '结束'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '计划结束时间'})}</Text>
                 <Text style={style.planValue}>{formatDateTime(plan.planned_end_time)}</Text>
             </View>
+
+            {/* Duration */}
+            {(plan.start_time && plan.planned_end_time) ? (
+                <View style={style.planRow}>
+                    <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_duration', defaultMessage: '计划时长'})}</Text>
+                    <Text style={style.planValue}>{calcDuration(plan.start_time, plan.planned_end_time)}</Text>
+                </View>
+            ) : null}
+
+            {/* Schedule */}
             {plan.schedule ? (
                 <View style={style.planRow}>
                     <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_schedule', defaultMessage: '排程'})}</Text>
                     <Text style={style.planValue} numberOfLines={2}>{plan.schedule}</Text>
                 </View>
             ) : null}
+
+            {/* Remarks */}
             {plan.remarks ? (
                 <View style={style.planRow}>
                     <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_remarks', defaultMessage: '备注'})}</Text>
-                    <Text style={style.planValue}>{plan.remarks}</Text>
+                    <Text style={style.planValue} numberOfLines={3}>{plan.remarks}</Text>
                 </View>
             ) : null}
+
+            {/* Actions */}
             {mesPerms.canCreatePlan && (
                 <View style={style.planActions}>
                     <TouchableOpacity style={style.actionBtn} onPress={() => handleEditPlan(plan)}>
-                        <Text style={style.actionBtnText}>✏️</Text>
+                        <Text style={style.actionBtnText}>✏️ {intl.formatMessage({id: 'mes.edit', defaultMessage: '编辑'})}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[style.actionBtn, style.actionBtnDanger]} onPress={() => handleDeletePlan(plan)}>
-                        <Text style={style.actionBtnDangerText}>🗑️</Text>
+                        <Text style={style.actionBtnDangerText}>🗑️ {intl.formatMessage({id: 'mes.delete', defaultMessage: '删除'})}</Text>
                     </TouchableOpacity>
                 </View>
             )}
