@@ -39,4 +39,9 @@ export type ContactsStackParamList = {
         companyId: string;
         companyName?: string;
     };
+    [Screens.INTERNAL_MEMBER_ADD]: {
+        ownerId: string;
+        companyId: string;
+        companyName?: string;
+    };
 };

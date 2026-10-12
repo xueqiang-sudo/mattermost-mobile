@@ -37,6 +37,7 @@ import {typography} from '@utils/typography';
 
 import {
     createConsultation,
+    getConsultation,
     listConsultations,
     getConsultationResponses,
     replyToConsultation,
@@ -461,32 +462,69 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
         }
         setSubmitting(true);
         try {
-            await createConsultation(serverUrl, {
+            const result = await createConsultation(serverUrl, {
                 source_channel_id: channelId,
                 team_id: teamId,
                 target_user_id: isGroupTarget ? undefined : selectedTargetId,
                 expert_group_id: isGroupTarget ? selectedTargetId : undefined,
                 question: questionText.trim(),
             });
+            const newConsultationId = result?.consultation_id;
+            const savedTargetId = selectedTargetId;
+            const savedTargetName = selectedTargetName;
+            const savedQuestion = questionText.trim();
             setQuestionText('');
             setSelectedTargetId('');
             setSelectedTargetName('');
-            // Reload consultations and auto-navigate to the new one
-            const result = await listConsultations(serverUrl, channelId);
-            const newList = result.consultations || [];
-            setConsultations(newList);
-            if (newList.length > 0) {
-                handleSelectConsultation(newList[0]);
-            }
+
+            // Clear responses before navigating to new consultation
+            setResponses([]);
+
+            // Switch to detail view immediately with the new consultation info
+            const newConsultation: ConsultationInfo = {
+                id: newConsultationId || '',
+                source_channel_id: channelId,
+                target_user_id: savedTargetId,
+                target_username: savedTargetName,
+                target_display_name: savedTargetName,
+                question: savedQuestion,
+                status: 'open',
+                created_at: Date.now(),
+                expert_group_id: isGroupTarget ? savedTargetId : '',
+                expert_group_name: isGroupTarget ? savedTargetName : '',
+                is_group_consult: isGroupTarget,
+            };
+            setSelectedConsultation(newConsultation);
+            setActiveView('detail');
+            setLoadingResponses(true);
+
+            // Reload consultations list
+            const listResult = await listConsultations(serverUrl, channelId);
+            setConsultations(listResult.consultations || []);
+
+            // Delay fetching responses to allow server to process (like webapp)
+            setTimeout(async () => {
+                try {
+                    if (newConsultationId) {
+                        const responsesResult = await getConsultationResponses(serverUrl, newConsultationId);
+                        setResponses(responsesResult.responses || []);
+                    }
+                } catch {
+                    setResponses([]);
+                } finally {
+                    setLoadingResponses(false);
+                }
+            }, 2000);
         } catch {
             Alert.alert(
                 intl.formatMessage({id: 'consultation.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'consultation.submit_failed', defaultMessage: 'Failed to send consultation.'}),
             );
-        } finally {
             setSubmitting(false);
+            return;
         }
-    }, [channelId, isGroupTarget, questionText, selectedTargetId, serverUrl, submitting, teamId, intl, handleSelectConsultation]));
+        setSubmitting(false);
+    }, [channelId, isGroupTarget, questionText, selectedTargetId, selectedTargetName, serverUrl, submitting, teamId, intl]));
 
     const handleSelectConsultation = useCallback(async (c: ConsultationInfo) => {
         setSelectedConsultation(c);

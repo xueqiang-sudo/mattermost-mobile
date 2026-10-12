@@ -7,6 +7,7 @@ import {
     FlatList,
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -441,26 +442,56 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             const emptyMessages: Record<ActiveTab, {icon: string; text: string; id: string}> = {
                 latest: {
                     icon: 'star-outline',
-                    text: intl.formatMessage({id: 'ai_assistant.empty_latest', defaultMessage: 'No summary yet. When enough messages accumulate, the system will automatically generate a summary.'}),
+                    text: intl.formatMessage({id: 'ai_assistant.empty_latest', defaultMessage: '暂无摘要。当消息积累到一定数量时，系统会自动生成摘要。'}),
                     id: 'ai_assistant.empty_latest',
                 },
                 history: {
                     icon: 'calendar-outline',
-                    text: intl.formatMessage({id: 'ai_assistant.empty_history', defaultMessage: 'No summary for this date.'}),
+                    text: intl.formatMessage({id: 'ai_assistant.empty_history', defaultMessage: '该日期暂无摘要。'}),
                     id: 'ai_assistant.empty_history',
                 },
                 active: {
                     icon: 'checkbox-marked-circle-outline',
-                    text: intl.formatMessage({id: 'ai_assistant.empty_todo', defaultMessage: 'No todo items.'}),
+                    text: intl.formatMessage({id: 'ai_assistant.empty_todo', defaultMessage: '暂无待办事项。'}),
                     id: 'ai_assistant.empty_todo',
                 },
             };
             const msg = emptyMessages[activeTab];
             return (
-                <View style={styles.emptyState}>
-                    <CompassIcon name={msg.icon} size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
-                    <Text style={styles.emptyText}>{msg.text}</Text>
-                </View>
+                <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+                    <View style={styles.emptyState}>
+                        <CompassIcon name={msg.icon} size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
+                        <Text style={styles.emptyText}>{msg.text}</Text>
+                    </View>
+                    {searchEntries.map((entry, i) => (
+                        <View key={i} style={[styles.resultCard, {marginTop: 0}]}>
+                            <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
+                                <Text>{'🔍 '}</Text>
+                                <Text style={[styles.resultMemory, {marginBottom: 0}]}>{entry.query}</Text>
+                            </View>
+                            {entry.answer ? (
+                                <View>
+                                    <Text style={[styles.qaHeaderText, {marginBottom: 4}]}>
+                                        {'🤖 ' + intl.formatMessage({id: 'ai_assistant.reasoned_answer', defaultMessage: 'AI 回答'})}
+                                    </Text>
+                                    <Markdown
+                                        baseTextStyle={styles.resultMemory}
+                                        enableLatex={false}
+                                        enableInlineLatex={false}
+                                        location={ScreenConstants.AI_ASSISTANT_PANEL}
+                                        maxNodes={5000}
+                                        theme={theme}
+                                        value={entry.answer}
+                                    />
+                                </View>
+                            ) : searching && i === searchEntries.length - 1 ? (
+                                <Text style={styles.resultMeta}>
+                                    {intl.formatMessage({id: 'ai_assistant.searching', defaultMessage: '搜索中...'})}
+                                </Text>
+                            ) : null}
+                        </View>
+                    ))}
+                </ScrollView>
             );
         }
 

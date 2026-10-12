@@ -144,6 +144,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CONTACTS_BATCH_MOVE_MEMBERS:
             screen = withServerDatabase(require('@screens/home/contacts/batch_move_members').default);
             break;
+        case Screens.INTERNAL_MEMBER_ADD:
+            screen = withServerDatabase(require('@screens/home/contacts/internal_member_add').default);
+            break;
         case Screens.CREATE_OR_EDIT_CHANNEL:
             screen = withServerDatabase(require('@screens/create_or_edit_channel').default);
             break;

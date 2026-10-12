@@ -480,48 +480,12 @@ const ContactsManage = ({
     }, [companyId, companyName, currentDepartmentId, currentDepartmentName, currentLevel?.breadcrumb, currentUserId, intl]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
-        const targetDepartmentId: number | null = currentDepartmentId ?? null;
-        const renderContent = () => (
-            <>
-                <SlideUpPanelItem
-                    leftIcon='camera-outline'
-                    text={intl.formatMessage({id: 'contacts.add_member_scan_qr', defaultMessage: 'Scan QR code'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        showQrScannerModal(intl, {
-                            scanContext: QR_SCAN_CONTEXT_JOIN_ENTERPRISE,
-                            extra: {
-                                contactTargetDepartmentId: targetDepartmentId,
-                            },
-                        });
-                    }}
-                    testID='contacts.manage.add_member.scan_qr'
-                />
-                <SlideUpPanelItem
-                    leftIcon='account-plus-outline'
-                    text={intl.formatMessage({id: 'contacts.add_member_invite', defaultMessage: 'Invite to join'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        showModal(
-                            Screens.INVITE,
-                            intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
-                            {
-                                contactTargetDepartmentId: targetDepartmentId,
-                            },
-                        );
-                    }}
-                    testID='contacts.manage.add_member.invite'
-                />
-            </>
-        );
-        bottomSheet({
-            closeButtonId: 'close-contacts-manage-add-member',
-            renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT)],
-            theme,
-            title: intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'}),
+        navigation.navigate(Screens.INTERNAL_MEMBER_ADD, {
+            ownerId,
+            companyId,
+            companyName,
         });
-    }, [currentDepartmentId, intl, theme]));
+    }, [companyId, companyName, ownerId, navigation]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
         const name = await subDeptInput.showModal({

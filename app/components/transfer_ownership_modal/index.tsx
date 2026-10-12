@@ -282,9 +282,8 @@ const TransferOwnershipModal = ({visible, companyId, onClose, onSuccess, testIDP
                                 style={styles.searchInput}
                                 value={transferSearch}
                                 onChangeText={setTransferSearch}
-                                placeholder={intl.formatMessage({id: 'contacts.transfer_search_placeholder', defaultMessage: '搜索用户名、昵称或邮箱...'})}
+                                placeholder={intl.formatMessage({id: 'contacts.transfer_search_placeholder', defaultMessage: '输入手机号,昵称...'})}
                                 placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                                autoFocus={true}
                                 testID={`${testIDPrefix}.search`}
                             />
                         </View>

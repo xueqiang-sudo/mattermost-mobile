@@ -156,17 +156,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
-    resultAvatarSection: {
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    resultName: {
-        ...typography('Heading', 300, 'SemiBold'),
-        color: theme.centerChannelColor,
-        marginTop: 8,
-    },
     resultGrid: {
         paddingVertical: 8,
+    },
+    nicknameValueRow: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    nicknameAvatar: {
+        marginRight: 8,
     },
     resultRow: {
         flexDirection: 'row',
@@ -313,7 +312,24 @@ const ContactsExternalAddScreen = () => {
     // Multi-company state
     const [userTeams, setUserTeams] = useState<Team[]>([]);
     const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-    const [showTeamDropdown, setShowTeamDropdown] = useState(false);
+    const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+
+    // Gender i18n helper
+    const getGenderLabel = useCallback((gender: string): string => {
+        switch (gender.toLowerCase()) {
+            case 'male':
+            case '男':
+                return intl.formatMessage({id: 'contacts.gender.male', defaultMessage: '男'});
+            case 'female':
+            case '女':
+                return intl.formatMessage({id: 'contacts.gender.female', defaultMessage: '女'});
+            case 'other':
+            case '其他':
+                return intl.formatMessage({id: 'contacts.gender.other', defaultMessage: '其他'});
+            default:
+                return gender;
+        }
+    }, [intl]);
 
     const inviteUrl = `${serverUrl}/invite?invited_by=${ownerId}`;
 
@@ -387,6 +403,7 @@ const ContactsExternalAddScreen = () => {
             setUserTeams([]);
             setSelectedTeamId(null);
             setCompany('');
+            setTeamDropdownOpen(false);
         }
     }, [searchResult, searchError, notFound]);
 
@@ -399,7 +416,7 @@ const ContactsExternalAddScreen = () => {
 
     const handleTeamSelect = useCallback((teamId: string | null) => {
         setSelectedTeamId(teamId);
-        setShowTeamDropdown(false);
+        setTeamDropdownOpen(false);
         if (teamId) {
             const team = userTeams.find((t) => t.id === teamId);
             setCompany(team?.display_name || '');
@@ -422,14 +439,39 @@ const ContactsExternalAddScreen = () => {
                     </Text>
                     <TouchableOpacity
                         style={styles.companyDropdownBtn}
-                        onPress={() => setShowTeamDropdown(true)}
+                        onPress={() => setTeamDropdownOpen(!teamDropdownOpen)}
                         disabled={saving}
                     >
                         <Text style={[styles.companyDropdownText, !selectedTeam && styles.companyDropdownPlaceholder]}>
                             {selectedTeam?.display_name || intl.formatMessage({id: 'contacts.external.add.company_select', defaultMessage: '请选择企业'})}
                         </Text>
-                        <CompassIcon name='chevron-down' size={18} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
+                        <CompassIcon
+                            name={teamDropdownOpen ? 'menu-up' : 'menu-down'}
+                            size={20}
+                            color={changeOpacity(theme.centerChannelColor, 0.56)}
+                        />
                     </TouchableOpacity>
+                    {teamDropdownOpen && (
+                        <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                            <TouchableOpacity
+                                style={[styles.dropdownItem, !selectedTeamId && styles.dropdownItemSelected]}
+                                onPress={() => handleTeamSelect(null)}
+                            >
+                                <Text style={styles.dropdownItemText}>
+                                    {intl.formatMessage({id: 'contacts.external.add.no_company', defaultMessage: '无（个人客户）'})}
+                                </Text>
+                            </TouchableOpacity>
+                            {userTeams.map((team) => (
+                                <TouchableOpacity
+                                    key={team.id}
+                                    style={[styles.dropdownItem, selectedTeamId === team.id && styles.dropdownItemSelected]}
+                                    onPress={() => handleTeamSelect(team.id)}
+                                >
+                                    <Text style={styles.dropdownItemText}>{team.display_name}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    )}
                 </View>
             );
         }
@@ -564,16 +606,23 @@ const ContactsExternalAddScreen = () => {
                     {searchResult && !searchResult.alreadyAdded && (
                         <View style={styles.resultSection}>
                             {/* User info (read-only) */}
-                            <View style={styles.resultAvatarSection}>
-                                <ContactAvatar
-                                    employee={getLastPictureUpdate(searchResult.employee) > 0 ? searchResult.employee : undefined}
-                                    size={64}
-                                />
-                                <Text style={styles.resultName}>
-                                    {searchResult.employee.nickname || searchResult.employee.first_name || searchResult.employee.username}
-                                </Text>
-                            </View>
                             <View style={styles.resultGrid}>
+                                <View style={styles.resultRow}>
+                                    <Text style={styles.resultLabel}>
+                                        {intl.formatMessage({id: 'contacts.nickname', defaultMessage: '昵称'})}
+                                    </Text>
+                                    <View style={styles.nicknameValueRow}>
+                                        <View style={styles.nicknameAvatar}>
+                                            <ContactAvatar
+                                                employee={getLastPictureUpdate(searchResult.employee) > 0 ? searchResult.employee : undefined}
+                                                size={32}
+                                            />
+                                        </View>
+                                        <Text style={styles.resultValue}>
+                                            {searchResult.employee.nickname || searchResult.employee.first_name || searchResult.employee.username}
+                                        </Text>
+                                    </View>
+                                </View>
                                 <View style={styles.resultRow}>
                                     <Text style={styles.resultLabel}>
                                         {intl.formatMessage({id: 'contacts.phone', defaultMessage: '手机号'})}
@@ -604,7 +653,7 @@ const ContactsExternalAddScreen = () => {
                                             {intl.formatMessage({id: 'contacts.gender', defaultMessage: '性别'})}
                                         </Text>
                                         <Text style={styles.resultValue}>
-                                            {searchResult.employee.gender}
+                                            {getGenderLabel(searchResult.employee.gender)}
                                         </Text>
                                     </View>
                                 )}
@@ -664,39 +713,6 @@ const ContactsExternalAddScreen = () => {
                     )}
                 </ScrollView>
             </KeyboardAvoidingView>
-
-            {/* Team dropdown modal */}
-            <Modal
-                visible={showTeamDropdown}
-                transparent={true}
-                animationType='fade'
-                onRequestClose={() => setShowTeamDropdown(false)}
-            >
-                <TouchableOpacity
-                    style={styles.dropdownOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowTeamDropdown(false)}
-                />
-                <View style={styles.dropdown}>
-                    <TouchableOpacity
-                        style={[styles.dropdownItem, !selectedTeamId && styles.dropdownItemSelected]}
-                        onPress={() => handleTeamSelect(null)}
-                    >
-                        <Text style={styles.dropdownItemText}>
-                            {intl.formatMessage({id: 'contacts.external.add.no_company', defaultMessage: '无（个人客户）'})}
-                        </Text>
-                    </TouchableOpacity>
-                    {userTeams.map((team) => (
-                        <TouchableOpacity
-                            key={team.id}
-                            style={[styles.dropdownItem, selectedTeamId === team.id && styles.dropdownItemSelected]}
-                            onPress={() => handleTeamSelect(team.id)}
-                        >
-                            <Text style={styles.dropdownItemText}>{team.display_name}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </Modal>
         </SafeAreaView>
     );
 };
