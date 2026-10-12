@@ -16,6 +16,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import DateTimePicker, {type DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
@@ -183,24 +184,24 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     addBtn: {
         backgroundColor: theme.buttonBg,
-        borderRadius: 4,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        borderRadius: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
     },
     addBtnText: {
         color: theme.buttonColor,
-        ...typography('Body', 75, 'SemiBold'),
+        ...typography('Body', 100, 'SemiBold'),
     },
     btnSecondary: {
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
-        borderRadius: 4,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        borderRadius: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
     },
     btnSecondaryText: {
         color: theme.centerChannelColor,
-        ...typography('Body', 75),
+        ...typography('Body', 100),
     },
     emptyText: {
         ...typography('Body', 200),
@@ -224,26 +225,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         shadowRadius: 2,
         elevation: 1,
     },
-    planCardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: 10,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
-        marginBottom: 8,
-    },
-    planHeaderLeft: {
-        flex: 1,
-    },
     planLineId: {
         ...typography('Heading', 400, 'Bold'),
         color: theme.buttonBg,
-    },
-    planProduct: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.centerChannelColor,
-        marginTop: 2,
     },
     planRow: {
         flexDirection: 'row',
@@ -293,6 +277,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     formContainer: {
         padding: 16,
+        paddingBottom: 40,
     },
     formField: {
         marginBottom: 12,
@@ -316,6 +301,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'flex-end',
         gap: 12,
         paddingTop: 16,
+    },
+    dateTimePickerDone: {
+        alignSelf: 'flex-end',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        marginTop: 4,
+    },
+    dateTimePickerDoneText: {
+        color: theme.buttonBg,
+        ...typography('Body', 100, 'SemiBold'),
     },
     // Record row
     recordCard: {
@@ -500,6 +495,48 @@ const PlanForm = ({initial, lines, isEdit, onSave, onCancel, style}: PlanFormPro
     const [lineDropdownOpen, setLineDropdownOpen] = useState(false);
     const [positionsDropdownOpen, setPositionsDropdownOpen] = useState(false);
     const [specDropdownOpen, setSpecDropdownOpen] = useState(false);
+    const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+    const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+    const formatDate = (dateStr: string): string => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+    };
+
+    const handleStartDateChange = (_: DateTimePickerEvent, selectedDate?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowStartDatePicker(false);
+        }
+        if (selectedDate) {
+            const yyyy = selectedDate.getFullYear();
+            const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(selectedDate.getDate()).padStart(2, '0');
+            const hh = String(selectedDate.getHours()).padStart(2, '0');
+            const mi = String(selectedDate.getMinutes()).padStart(2, '0');
+            set('start_time', `${yyyy}-${mm}-${dd} ${hh}:${mi}`);
+        }
+    };
+
+    const handleEndDateChange = (_: DateTimePickerEvent, selectedDate?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowEndDatePicker(false);
+        }
+        if (selectedDate) {
+            const yyyy = selectedDate.getFullYear();
+            const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(selectedDate.getDate()).padStart(2, '0');
+            const hh = String(selectedDate.getHours()).padStart(2, '0');
+            const mi = String(selectedDate.getMinutes()).padStart(2, '0');
+            set('planned_end_time', `${yyyy}-${mm}-${dd} ${hh}:${mi}`);
+        }
+    };
 
     const set = (key: keyof MESPlanInput, val: string) => {
         setForm((prev) => ({...prev, [key]: val}));
@@ -672,14 +709,58 @@ const PlanForm = ({initial, lines, isEdit, onSave, onCancel, style}: PlanFormPro
 
                 {/* 开始时间 (Start Time) */}
                 <View style={style.formField}>
-                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始时间'})}</Text>
-                    <TextInput style={style.formInput} value={form.start_time} onChangeText={(v) => set('start_time', v)} placeholder='YYYY-MM-DD HH:mm'/>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始'})}</Text>
+                    <TouchableOpacity
+                        style={style.selectBtn}
+                        onPress={() => setShowStartDatePicker((v) => !v)}
+                    >
+                        <Text style={form.start_time ? style.selectText : style.selectPlaceholder}>
+                            {form.start_time ? formatDate(form.start_time) : intl.formatMessage({id: 'mes.select_start_time', defaultMessage: '选择开始时间'})}
+                        </Text>
+                        <CompassIcon name='calendar' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
+                    </TouchableOpacity>
+                    {showStartDatePicker && (
+                        <DateTimePicker
+                            value={form.start_time ? new Date(form.start_time) : new Date()}
+                            mode='datetime'
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={handleStartDateChange}
+                            locale={intl.locale}
+                        />
+                    )}
+                    {Platform.OS === 'ios' && showStartDatePicker && (
+                        <TouchableOpacity style={style.dateTimePickerDone} onPress={() => setShowStartDatePicker(false)}>
+                            <Text style={style.dateTimePickerDoneText}>{intl.formatMessage({id: 'common.done', defaultMessage: '完成'})}</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* 计划结束时间 (Planned End Time) */}
                 <View style={style.formField}>
-                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '计划结束时间'})}</Text>
-                    <TextInput style={style.formInput} value={form.planned_end_time} onChangeText={(v) => set('planned_end_time', v)} placeholder='YYYY-MM-DD HH:mm'/>
+                    <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '结束'})}</Text>
+                    <TouchableOpacity
+                        style={style.selectBtn}
+                        onPress={() => setShowEndDatePicker((v) => !v)}
+                    >
+                        <Text style={form.planned_end_time ? style.selectText : style.selectPlaceholder}>
+                            {form.planned_end_time ? formatDate(form.planned_end_time) : intl.formatMessage({id: 'mes.select_end_time', defaultMessage: '选择结束时间'})}
+                        </Text>
+                        <CompassIcon name='calendar' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
+                    </TouchableOpacity>
+                    {showEndDatePicker && (
+                        <DateTimePicker
+                            value={form.planned_end_time ? new Date(form.planned_end_time) : new Date()}
+                            mode='datetime'
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={handleEndDateChange}
+                            locale={intl.locale}
+                        />
+                    )}
+                    {Platform.OS === 'ios' && showEndDatePicker && (
+                        <TouchableOpacity style={style.dateTimePickerDone} onPress={() => setShowEndDatePicker(false)}>
+                            <Text style={style.dateTimePickerDoneText}>{intl.formatMessage({id: 'common.done', defaultMessage: '完成'})}</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* 排程 (Schedule) */}
@@ -929,49 +1010,43 @@ const MesScreen = () => {
 
     const renderPlanCard = (plan: MESPlan) => (
         <View key={`${plan.line_id}-${plan.id}`} style={style.planCard}>
-            {/* Header: Line + Product */}
-            <View style={style.planCardHeader}>
-                <View style={style.planHeaderLeft}>
-                    <Text style={style.planLineId}>{plan.line_id || '-'}</Text>
-                    <Text style={style.planProduct} numberOfLines={1}>
-                        {plan.current_product || intl.formatMessage({id: 'mes.plan_no_product', defaultMessage: '未设置产品'})}
-                    </Text>
-                </View>
-            </View>
-
-            {/* Spec */}
+            {/* 产线 */}
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
-                <Text style={style.planValue}>{plan.spec || '-'}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_line', defaultMessage: '产线'})}</Text>
+                <Text style={style.planValue}>{plan.line_id || '-'}</Text>
             </View>
 
-            {/* Positions */}
+            {/* 工位 */}
             <View style={style.planRow}>
                 <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_positions', defaultMessage: '工位'})}</Text>
                 <Text style={style.planValue}>{plan.positions || '-'}</Text>
             </View>
 
-            {/* Start time */}
+            {/* 产品 */}
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始时间'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: '产品'})}</Text>
+                <Text style={style.planValue}>{plan.current_product || '-'}</Text>
+            </View>
+
+            {/* 规格 */}
+            <View style={style.planRow}>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
+                <Text style={style.planValue}>{plan.spec || '-'}</Text>
+            </View>
+
+            {/* 开始 */}
+            <View style={style.planRow}>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始'})}</Text>
                 <Text style={style.planValue}>{formatDateTime(plan.start_time)}</Text>
             </View>
 
-            {/* End time */}
+            {/* 结束 */}
             <View style={style.planRow}>
-                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '计划结束时间'})}</Text>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '结束'})}</Text>
                 <Text style={style.planValue}>{formatDateTime(plan.planned_end_time)}</Text>
             </View>
 
-            {/* Duration */}
-            {(plan.start_time && plan.planned_end_time) ? (
-                <View style={style.planRow}>
-                    <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_duration', defaultMessage: '计划时长'})}</Text>
-                    <Text style={style.planValue}>{calcDuration(plan.start_time, plan.planned_end_time)}</Text>
-                </View>
-            ) : null}
-
-            {/* Schedule */}
+            {/* 排程 */}
             {plan.schedule ? (
                 <View style={style.planRow}>
                     <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_schedule', defaultMessage: '排程'})}</Text>
@@ -979,7 +1054,7 @@ const MesScreen = () => {
                 </View>
             ) : null}
 
-            {/* Remarks */}
+            {/* 备注 */}
             {plan.remarks ? (
                 <View style={style.planRow}>
                     <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_remarks', defaultMessage: '备注'})}</Text>
