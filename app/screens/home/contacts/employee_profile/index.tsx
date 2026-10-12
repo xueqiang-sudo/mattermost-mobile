@@ -4,10 +4,11 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeGroupChannel} from '@actions/remote/channel';
+import {fetchDepartmentsByTeam, moveContactEmployeeToDepartment} from '@actions/remote/contact_new';
 import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
 import {fetchTeamById, getTeamMembersByIds, removeUserFromTeam} from '@actions/remote/team';
 import Button from '@components/button';
@@ -34,7 +35,7 @@ import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import type {MMEmployeeContactType, TeamBusinessRole, BusinessRoleDef} from '@client/rest/team_department';
+import type {MMDepartment, MMEmployeeContactType, TeamBusinessRole, BusinessRoleDef} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-employee-profile';
@@ -279,6 +280,79 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     deleteButton: {
         marginTop: 0,
     },
+    selectBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: theme.centerChannelBg,
+        minHeight: 36,
+    },
+    selectText: {
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    dropdown: {
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        backgroundColor: theme.centerChannelBg,
+        marginTop: 4,
+        maxHeight: 200,
+    },
+    dropdownItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    dropdownItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+    },
+    dropdownItemText: {
+        ...typography('Body', 200),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    dropdownEmpty: {
+        ...typography('Body', 200),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        textAlign: 'center',
+        paddingVertical: 16,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
+        backgroundColor: 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxSelected: {
+        borderColor: theme.buttonBg,
+        backgroundColor: theme.buttonBg,
+    },
+    dropdownConfirmBtn: {
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    dropdownConfirmText: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.buttonBg,
+        textAlign: 'center',
+    },
 }));
 
 const ContactsEmployeeProfile = ({
@@ -318,9 +392,14 @@ const ContactsEmployeeProfile = ({
     // 业务角色状态
     const [businessRoles, setBusinessRoles] = useState<TeamBusinessRole[]>([]);
     const [roleDefs, setRoleDefs] = useState<BusinessRoleDef[]>([]);
-    const [showRoleModal, setShowRoleModal] = useState(false);
     const [selectedRoleKeys, setSelectedRoleKeys] = useState<Set<string>>(new Set());
     const [savingRoles, setSavingRoles] = useState(false);
+    const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+
+    // 部门下拉状态
+    const [departments, setDepartments] = useState<MMDepartment[]>([]);
+    const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
+    const [selectedDeptId, setSelectedDeptId] = useState<number | undefined>(departmentId);
 
     const handleSaveProfile = usePreventDoubleTap(useCallback(async () => {
         if (!serverUrl || saving) {
@@ -336,6 +415,16 @@ const ContactsEmployeeProfile = ({
                 phone: editPhone,
                 position: editPosition,
             });
+
+            // 处理部门变更
+            if (fromManage && companyIdProp && selectedDeptId !== undefined && selectedDeptId !== departmentId) {
+                if (departmentId !== undefined) {
+                    // 从旧部门移到新部门
+                    await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee.id, departmentId, selectedDeptId);
+                }
+                // 如果原来没有部门（departmentId为undefined），则只记录变更但不移动（需要用户手动添加到部门）
+            }
+
             dismissModal({componentId});
         } catch (e) {
             Alert.alert(
@@ -344,7 +433,7 @@ const ContactsEmployeeProfile = ({
         } finally {
             setSaving(false);
         }
-    }, [serverUrl, saving, employee.id, editNickname, editEmail, editPhone, editPosition, intl, componentId]));
+    }, [serverUrl, saving, employee.id, editNickname, editEmail, editPhone, editPosition, intl, componentId, fromManage, companyIdProp, selectedDeptId, departmentId]));
 
     /** 企业所有者 ID（用于标签计算） */
     const [companyOwnerId, setCompanyOwnerId] = useState<string | undefined>();
@@ -402,9 +491,9 @@ const ContactsEmployeeProfile = ({
         };
     }, [companyIdProp, employee.id, serverUrl]);
 
-    // 加载业务角色
+    // 加载业务角色（详情页和编辑页都需要）
     useEffect(() => {
-        if (!companyIdProp || !serverUrl || !fromManage) {
+        if (!companyIdProp || !serverUrl) {
             return;
         }
 
@@ -413,14 +502,18 @@ const ContactsEmployeeProfile = ({
         const loadRoles = async () => {
             try {
                 const client = NetworkManager.getClient(serverUrl);
-                const [roles, defs] = await Promise.all([
-                    client.fetchBusinessRoles(companyIdProp),
-                    client.fetchBusinessRoleDefs(companyIdProp),
-                ]);
+                const roles = await client.fetchBusinessRoles(companyIdProp);
+                const userRoles = roles.filter((r) => r.user_id === employee.id);
                 if (!cancelled) {
-                    setBusinessRoles(roles.filter((r) => r.user_id === employee.id));
-                    setRoleDefs(defs);
-                    setSelectedRoleKeys(new Set(roles.filter((r) => r.user_id === employee.id).map((r) => r.role_key)));
+                    setBusinessRoles(userRoles);
+                    setSelectedRoleKeys(new Set(userRoles.map((r) => r.role_key)));
+                }
+                // 只在编辑模式下加载角色定义（用于下拉选择）
+                if (fromManage && !cancelled) {
+                    const defs = await client.fetchBusinessRoleDefs(companyIdProp);
+                    if (!cancelled) {
+                        setRoleDefs(defs);
+                    }
                 }
             } catch (e) {
                 // 静默失败，不阻塞主流程
@@ -434,8 +527,39 @@ const ContactsEmployeeProfile = ({
         };
     }, [companyIdProp, employee.id, serverUrl, fromManage]);
 
-    // 保存业务角色
-    const handleSaveRoles = usePreventDoubleTap(useCallback(async () => {
+    // 加载部门列表（编辑模式）
+    useEffect(() => {
+        if (!companyIdProp || !serverUrl || !fromManage) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadDepartments = async () => {
+            try {
+                const res = await fetchDepartmentsByTeam(serverUrl, companyIdProp, {perPage: 10000});
+                if (!cancelled && res.data) {
+                    setDepartments(res.data);
+                }
+            } catch (e) {
+                // 静默失败
+            }
+        };
+
+        loadDepartments();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [companyIdProp, serverUrl, fromManage]);
+
+    // 同步 departmentId prop 到 selectedDeptId
+    useEffect(() => {
+        setSelectedDeptId(departmentId);
+    }, [departmentId]);
+
+    // 保存业务角色（内联下拉关闭时自动保存）
+    const handleSaveRoles = useCallback(async () => {
         if (!companyIdProp || !serverUrl) {
             return;
         }
@@ -459,7 +583,6 @@ const ContactsEmployeeProfile = ({
             // 刷新角色列表
             const updatedRoles = await client.fetchBusinessRoles(companyIdProp);
             setBusinessRoles(updatedRoles.filter((r) => r.user_id === employee.id));
-            setShowRoleModal(false);
             showSnackBar({
                 barType: SNACK_BAR_TYPE.INFO_COPIED,
                 type: MESSAGE_TYPE.SUCCESS,
@@ -472,7 +595,7 @@ const ContactsEmployeeProfile = ({
         } finally {
             setSavingRoles(false);
         }
-    }, [companyIdProp, employee.id, serverUrl, businessRoles, selectedRoleKeys, intl]));
+    }, [companyIdProp, employee.id, serverUrl, businessRoles, selectedRoleKeys, intl]);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -944,13 +1067,61 @@ const ContactsEmployeeProfile = ({
                         )}
                     </View>
                     {!isExternalContact && (
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>
-                            {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
-                        </Text>
-                        <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
-                            {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
-                        </Text>
+                    <View>
+                        <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>
+                                {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
+                            </Text>
+                            {fromManage ? (
+                                <View style={{flex: 1}}>
+                                    <TouchableOpacity
+                                        style={styles.selectBtn}
+                                        onPress={() => {
+                                            setRoleDropdownOpen(false);
+                                            setDeptDropdownOpen(!deptDropdownOpen);
+                                        }}
+                                    >
+                                        <Text style={styles.selectText}>
+                                            {(() => {
+                                                const dept = departments.find((d) => d.id === selectedDeptId);
+                                                if (dept) {
+                                                    return dept.name === 'FORCE_TEAM_DEFAULT_DEPARTMENT' ? (companyName || '-') : dept.name;
+                                                }
+                                                return (departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-');
+                                            })()}
+                                        </Text>
+                                        <CompassIcon name={deptDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                                    </TouchableOpacity>
+                                    {deptDropdownOpen && (
+                                        <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                                            {departments.map((dept) => (
+                                                <TouchableOpacity
+                                                    key={dept.id}
+                                                    style={[styles.dropdownItem, selectedDeptId === dept.id && styles.dropdownItemSelected]}
+                                                    onPress={() => {
+                                                        setSelectedDeptId(dept.id);
+                                                        setDeptDropdownOpen(false);
+                                                    }}
+                                                >
+                                                    <Text style={styles.dropdownItemText}>
+                                                        {dept.name === 'FORCE_TEAM_DEFAULT_DEPARTMENT' ? (companyName || '-') : dept.name}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                            {departments.length === 0 && (
+                                                <Text style={styles.dropdownEmpty}>
+                                                    {intl.formatMessage({id: 'contacts.no_departments', defaultMessage: '暂无部门'})}
+                                                </Text>
+                                            )}
+                                        </ScrollView>
+                                    )}
+                                </View>
+                            ) : (
+                                <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
+                                    {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
+                                </Text>
+                            )}
+                        </View>
                     </View>
                     )}
                     {isExternalContact && (
@@ -1001,27 +1172,90 @@ const ContactsEmployeeProfile = ({
                         </TouchableOpacity>
                     </View>
                     )}
-                    {fromManage && (
+                    {!isExternalContact && (
+                    <View>
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>
-                                {intl.formatMessage({id: 'contacts.business_roles', defaultMessage: '业务角色'})}
+                                {intl.formatMessage({id: 'contacts.roles', defaultMessage: '角色'})}
                             </Text>
-                            <TouchableOpacity
-                                style={{flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}
-                                onPress={() => setShowRoleModal(true)}
-                            >
-                                <Text style={styles.detailValue} numberOfLines={2}>
+                            {fromManage ? (
+                                <View style={{flex: 1}}>
+                                    <TouchableOpacity
+                                        style={styles.selectBtn}
+                                        onPress={() => {
+                                            setDeptDropdownOpen(false);
+                                            setRoleDropdownOpen(!roleDropdownOpen);
+                                        }}
+                                    >
+                                        <Text style={styles.selectText}>
+                                            {businessRoles.length > 0
+                                                ? businessRoles.map((r) => r.role_name).join(', ')
+                                                : intl.formatMessage({id: 'contacts.select_roles', defaultMessage: '选择角色'})}
+                                        </Text>
+                                        <CompassIcon name={roleDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                                    </TouchableOpacity>
+                                    {roleDropdownOpen && (
+                                        <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                                            {roleDefs.map((def) => {
+                                                const isSelected = selectedRoleKeys.has(def.role_key);
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={def.id}
+                                                        style={[styles.dropdownItem, isSelected && styles.dropdownItemSelected]}
+                                                        onPress={() => {
+                                                            setSelectedRoleKeys((prev) => {
+                                                                const next = new Set(prev);
+                                                                if (isSelected) {
+                                                                    next.delete(def.role_key);
+                                                                } else {
+                                                                    next.add(def.role_key);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        }}
+                                                    >
+                                                        <Text style={styles.dropdownItemText}>{def.role_name}</Text>
+                                                        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                                                            {isSelected && (
+                                                                <CompassIcon name='check' size={16} color={theme.buttonColor}/>
+                                                            )}
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                            {roleDefs.length === 0 && (
+                                                <Text style={styles.dropdownEmpty}>
+                                                    {intl.formatMessage({id: 'contacts.no_roles', defaultMessage: '暂无角色'})}
+                                                </Text>
+                                            )}
+                                            {roleDefs.length > 0 && (
+                                                <TouchableOpacity
+                                                    style={styles.dropdownConfirmBtn}
+                                                    onPress={() => {
+                                                        setRoleDropdownOpen(false);
+                                                        handleSaveRoles();
+                                                    }}
+                                                    disabled={savingRoles}
+                                                >
+                                                    <Text style={styles.dropdownConfirmText}>
+                                                        {savingRoles
+                                                            ? intl.formatMessage({id: 'mobile.post.saving', defaultMessage: '保存中...'})
+                                                            : intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: '保存'})}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </ScrollView>
+                                    )}
+                                </View>
+                            ) : (
+                                <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
                                     {businessRoles.length > 0
                                         ? businessRoles.map((r) => r.role_name).join(', ')
                                         : intl.formatMessage({id: 'contacts.no_roles', defaultMessage: '未分配角色'})}
                                 </Text>
-                                <CompassIcon
-                                    name='chevron-right'
-                                    size={20}
-                                    color={changeOpacity(theme.centerChannelColor, 0.32)}
-                                />
-                            </TouchableOpacity>
+                            )}
                         </View>
+                    </View>
                     )}
                 </View>
 
@@ -1100,68 +1334,6 @@ const ContactsEmployeeProfile = ({
                 onConfirm={companyEditInput.handleConfirm}
                 onCancel={companyEditInput.handleCancel}
             />
-            <Modal
-                visible={showRoleModal}
-                transparent={true}
-                animationType='slide'
-                onRequestClose={() => setShowRoleModal(false)}
-            >
-                <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}}>
-                    <View style={{backgroundColor: theme.centerChannelBg, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '80%'}}>
-                        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1)}}>
-                            <TouchableOpacity onPress={() => setShowRoleModal(false)}>
-                                <Text style={{color: theme.linkColor, ...typography('Body', 100)}}>
-                                    {intl.formatMessage({id: 'mobile.components.select_theme_view.cancel', defaultMessage: 'Cancel'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <Text style={{...typography('Heading', 400, 'SemiBold'), color: theme.centerChannelColor}}>
-                                {intl.formatMessage({id: 'contacts.set_roles', defaultMessage: '设置角色'})}
-                            </Text>
-                            <TouchableOpacity onPress={handleSaveRoles} disabled={savingRoles}>
-                                <Text style={{color: savingRoles ? changeOpacity(theme.linkColor, 0.5) : theme.linkColor, ...typography('Body', 100, 'SemiBold')}}>
-                                    {savingRoles ? intl.formatMessage({id: 'mobile.post.saving', defaultMessage: 'Saving...'}) : intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: 'Save'})}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView style={{padding: 16}}>
-                            {roleDefs.map((def) => {
-                                const isSelected = selectedRoleKeys.has(def.role_key);
-                                return (
-                                    <TouchableOpacity
-                                        key={def.id}
-                                        style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06)}}
-                                        onPress={() => {
-                                            setSelectedRoleKeys((prev) => {
-                                                const next = new Set(prev);
-                                                if (isSelected) {
-                                                    next.delete(def.role_key);
-                                                } else {
-                                                    next.add(def.role_key);
-                                                }
-                                                return next;
-                                            });
-                                        }}
-                                    >
-                                        <Text style={{...typography('Body', 200), color: theme.centerChannelColor, flex: 1}}>
-                                            {def.role_name}
-                                        </Text>
-                                        <View style={{width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: isSelected ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.32), backgroundColor: isSelected ? theme.buttonBg : 'transparent', alignItems: 'center', justifyContent: 'center'}}>
-                                            {isSelected && (
-                                                <CompassIcon name='check' size={16} color={theme.buttonColor}/>
-                                            )}
-                                        </View>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                            {roleDefs.length === 0 && (
-                                <Text style={{...typography('Body', 200), color: changeOpacity(theme.centerChannelColor, 0.56), textAlign: 'center', paddingVertical: 24}}>
-                                    {intl.formatMessage({id: 'contacts.no_roles', defaultMessage: '未分配角色'})}
-                                </Text>
-                            )}
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
         </SafeAreaView>
     );
 };

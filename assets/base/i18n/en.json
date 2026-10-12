@@ -2556,6 +2556,8 @@
   "contacts.role.sales": "Sales",
   "contacts.set_roles": "Set Roles",
   "contacts.business_roles": "Business Roles",
+  "contacts.roles": "Roles",
+  "contacts.select_roles": "Select Roles",
   "contacts.department_roles": "Department Roles",
   "contacts.set_department_roles": "Set Department Roles",
   "contacts.no_roles": "No roles assigned",

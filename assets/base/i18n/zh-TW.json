@@ -2499,6 +2499,8 @@
   "contacts.role.sales": "銷售",
   "contacts.set_roles": "設置角色",
   "contacts.business_roles": "業務角色",
+  "contacts.roles": "角色",
+  "contacts.select_roles": "選擇角色",
   "contacts.department_roles": "部門角色",
   "contacts.set_department_roles": "設置部門角色",
   "contacts.no_roles": "未分配角色",
