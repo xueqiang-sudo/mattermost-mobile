@@ -634,7 +634,7 @@ const ContactsDepartmentDetail = ({
             title,
             'close-team-manager',
             {companyId},
-            {useBackIcon: true},
+            {useBackIcon: true, topBar: {visible: false}},
         );
     }, [companyId, intl, isCurrentUserOwner]));
 
@@ -898,7 +898,7 @@ const ContactsDepartmentDetail = ({
                                 {
                                     companyId,
                                 },
-                                {useBackIcon: true},
+                                {useBackIcon: true, topBar: {visible: false}},
                             );
                         }}
                         testID='contacts.department_detail.manage.more.transfer_ownership'

@@ -19,6 +19,7 @@ import {dismissModal} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {debugLog} from '@store/debug_log';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -186,10 +187,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUserId, testIDPrefix = 'team_manager'}: Props) => {
+    debugLog('TeamManager', `Component rendering with props: componentId=${componentId}, companyId=${companyId}`);
+
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
+
+    debugLog('TeamManager', `serverUrl=${serverUrl || '(empty)'}, theme=${theme?.centerChannelBg ? 'loaded' : 'missing'}`);
 
     const [allMembers, setAllMembers] = useState<UserProfile[]>([]);
     const [membersLoading, setMembersLoading] = useState(false);
@@ -199,6 +204,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
     const [searchPending, setSearchPending] = useState(false);
     const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
     const [saving, setSaving] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const searchSeq = useRef(0);
     const [ownerId, setOwnerId] = useState<string | undefined>();
     const [currentUserId, setCurrentUserId] = useState<string | undefined>();
@@ -232,15 +238,22 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
 
     const loadAllMembers = useCallback(async () => {
         if (!serverUrl || !companyId) {
+            debugLog('TeamManager', `loadAllMembers: missing serverUrl=${serverUrl} or companyId=${companyId}`);
+            setLoadError('Missing server URL or company ID');
             return;
         }
         setMembersLoading(true);
+        setLoadError(null);
         try {
             const client = NetworkManager.getClient(serverUrl);
+            debugLog('TeamManager', `Loading members for company: ${companyId}`);
             const [managersResult, members] = await Promise.all([
                 fetchTeamManagers(serverUrl, companyId),
                 client.getTeamMembers(companyId, 0, 500),
             ]);
+
+            debugLog('TeamManager', `Managers: error=${managersResult.error}, count=${managersResult.data?.length || 0}`);
+            debugLog('TeamManager', `Members count: ${members?.length || 0}`);
 
             const managerIds = new Set<string>();
             if (!managersResult.error && managersResult.data) {
@@ -257,10 +270,13 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
                 users = users.filter((u) => u.id !== excludeUserId);
             }
 
+            debugLog('TeamManager', `Loaded users: ${users.length}, managerIds: ${managerIds.size}`);
             setAllMembers(users);
             setSelectedManagerIds(managerIds);
             setInitialManagerIds(new Set(managerIds));
-        } catch {
+        } catch (err) {
+            debugLog('TeamManager', `Load error: ${err instanceof Error ? err.message : String(err)}`);
+            setLoadError(err instanceof Error ? err.message : String(err));
             setAllMembers([]);
             setSelectedManagerIds(new Set());
             setInitialManagerIds(new Set());
@@ -581,24 +597,26 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
                 )}
             </View>
 
-            {isCurrentUserOwner ? (
-                <View style={styles.searchWrap}>
-                    <TextInput
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder={intl.formatMessage({id: 'contacts.transfer_search_placeholder', defaultMessage: '输入手机号,昵称...'})}
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.54)}
-                        style={styles.searchInput}
-                        autoCorrect={false}
-                        autoCapitalize='none'
-                        returnKeyType='search'
-                        clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
-                        testID={`${testIDPrefix}.search`}
-                    />
-                </View>
-            ) : null}
+            <View style={styles.searchWrap}>
+                <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder={intl.formatMessage({id: 'contacts.transfer_search_placeholder', defaultMessage: '输入手机号,昵称...'})}
+                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.54)}
+                    style={styles.searchInput}
+                    autoCorrect={false}
+                    autoCapitalize='none'
+                    returnKeyType='search'
+                    clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
+                    testID={`${testIDPrefix}.search`}
+                />
+            </View>
 
-            {membersLoading && allMembers.length === 0 ? (
+            {loadError ? (
+                <Text style={styles.hint}>
+                    {intl.formatMessage({id: 'contacts.load_error', defaultMessage: '加载失败: '})}{loadError}
+                </Text>
+            ) : membersLoading && allMembers.length === 0 ? (
                 <View style={{paddingVertical: 24, alignItems: 'center'}}>
                     <Loading
                         color={theme.centerChannelColor}

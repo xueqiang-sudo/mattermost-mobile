@@ -2450,6 +2450,7 @@
   "mes.plan_duration": "Duration",
   "mes.edit": "Edit",
   "mes.delete": "Delete",
+  "contacts.load_error": "Load failed: ",
   "promotion.stats": "Statistics",
   "promotion.stats.invited": "Invited",
   "promotion.stats.accepted": "Registered",

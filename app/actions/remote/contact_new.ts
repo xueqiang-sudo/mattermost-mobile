@@ -234,22 +234,46 @@ export const searchContactEmployees = async (
     }
 };
 
+/** 获取不属于任何部门的成员 */
+const fetchMembersWithoutDepartment = async (serverUrl: string, teamId: string): Promise<UserProfile[]> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const res = await client.getDepartmentWithoutMembers(teamId, {perPage: 10000});
+        return res.members || [];
+    } catch (error) {
+        logDebug('[fetchMembersWithoutDepartment] error', getFullErrorMessage(error));
+        return [];
+    }
+};
+
 /** 统一获取通讯录目录内容：根目录或子目录返回相同结构，调用层不区分层级 */
 export const fetchContactDirectoryContent = async (serverUrl: string, teamId: string, departmentId?: number): Promise<FetchRemoteResult<ContactDirectoryContent>> => {
     try {
         if (departmentId === undefined) {
-            const [deptRes, empRes, countRes] = await Promise.all([
+            const [deptRes, empRes, countRes, withoutDeptMembers] = await Promise.all([
                 fetchDepartmentsByTeam(serverUrl, teamId, {parentId: -1, perPage: 10000}),
                 fetchEmployeesOfDefaultDepartment(serverUrl, teamId),
                 fetchEmployeeCountOfTeam(serverUrl, teamId),
+                fetchMembersWithoutDepartment(serverUrl, teamId),
             ]);
             if (deptRes.error) {
                 throw deptRes.error;
             }
             const departments = (deptRes.data || []).filter((d) => d.name !== DEFAULT_TEAM_DEPARTMENT_NAME);
-            const employees = empRes.data ?? [];
+
+            // Merge default department members with members not in any department (dedup by user ID)
+            const defaultEmployees = empRes.data ?? [];
+            const existingIds = new Set(defaultEmployees.map((e) => e.id));
+            const mergedEmployees = [...defaultEmployees];
+            for (const user of withoutDeptMembers) {
+                if (!existingIds.has(user.id)) {
+                    mergedEmployees.push(user);
+                    existingIds.add(user.id);
+                }
+            }
+
             const memberCount = countRes.error ? 0 : (countRes.data ?? 0);
-            return {data: {departments, employees, memberCount}};
+            return {data: {departments, employees: mergedEmployees, memberCount}};
         }
         const [detailRes, countRes] = await Promise.all([
             fetchDepartmentDetail(serverUrl, teamId, departmentId),

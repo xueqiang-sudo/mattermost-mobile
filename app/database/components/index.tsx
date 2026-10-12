@@ -10,6 +10,7 @@ import ThemeProvider from '@context/theme';
 import UserLocaleProvider from '@context/user_locale';
 import DatabaseManager from '@database/manager';
 import {subscribeActiveServers} from '@database/subscription/servers';
+import {debugLog} from '@store/debug_log';
 import {secureGetFromRecord} from '@utils/types';
 
 import type {Database} from '@nozbe/watermelondb';
@@ -22,10 +23,13 @@ type State = {
 };
 
 export function withServerDatabase<T extends JSX.IntrinsicAttributes>(Component: ComponentType<T>): ComponentType<T> {
+    const componentName = Component.displayName || Component.name || 'Unknown';
+
     return function ServerDatabaseComponent(props: T) {
         const [state, setState] = useState<State | undefined>();
 
         const observer = (servers: ServersModel[]) => {
+            debugLog('withServerDatabase', `[${componentName}] observer called with ${servers?.length || 0} servers`);
             const server = servers?.length ? servers.reduce((a, b) =>
                 (b.lastActiveAt > a.lastActiveAt ? b : a),
             ) : undefined;
@@ -35,18 +39,23 @@ export function withServerDatabase<T extends JSX.IntrinsicAttributes>(Component:
                     secureGetFromRecord(DatabaseManager.serverDatabases, server.url)?.database;
 
                 if (database) {
+                    debugLog('withServerDatabase', `[${componentName}] database ready for ${server.url}`);
                     setState({
                         database,
                         serverUrl: server.url,
                         serverDisplayName: server.displayName,
                     });
+                } else {
+                    debugLog('withServerDatabase', `[${componentName}] database NOT found for ${server.url}`);
                 }
             } else {
+                debugLog('withServerDatabase', `[${componentName}] no active server found`);
                 setState(undefined);
             }
         };
 
         useEffect(() => {
+            debugLog('withServerDatabase', `[${componentName}] subscribing to active servers`);
             const subscription = subscribeActiveServers(observer);
 
             return () => {
@@ -55,6 +64,7 @@ export function withServerDatabase<T extends JSX.IntrinsicAttributes>(Component:
         }, []);
 
         if (!state?.database) {
+            debugLog('withServerDatabase', `[${componentName}] returning null - no database yet`);
             return null;
         }
 

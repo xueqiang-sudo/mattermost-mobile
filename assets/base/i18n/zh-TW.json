@@ -2393,6 +2393,7 @@
   "mes.plan_duration": "計劃時長",
   "mes.edit": "編輯",
   "mes.delete": "刪除",
+  "contacts.load_error": "載入失敗: ",
   "promotion.stats": "統計",
   "promotion.stats.invited": "已邀請",
   "promotion.stats.accepted": "已註冊",

@@ -2448,6 +2448,7 @@
   "mes.plan_duration": "计划时长",
   "mes.edit": "编辑",
   "mes.delete": "删除",
+  "contacts.load_error": "加载失败: ",
   "promotion.stats": "统计",
   "promotion.stats.invited": "已邀请",
   "promotion.stats.accepted": "已注册",

@@ -441,7 +441,7 @@ const ContactsManage = ({
             title,
             'close-team-manager',
             {companyId},
-            {useBackIcon: true},
+            {useBackIcon: true, topBar: {visible: false}},
         );
     }, [companyId, intl, isCurrentUserOwner]));
 
@@ -771,7 +771,7 @@ const ContactsManage = ({
                                 {
                                     companyId,
                                 },
-                                {useBackIcon: true},
+                                {useBackIcon: true, topBar: {visible: false}},
                             );
                         }}
                         testID='contacts.manage.more.transfer_ownership'
