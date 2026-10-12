@@ -2373,6 +2373,7 @@
   "mes.select_line": "選擇產線",
   "mes.select_positions": "選擇工位",
   "mes.select_spec": "選擇規格",
+  "mes.select_date": "選擇日期",
   "mes.select_start_time": "選擇開始時間",
   "mes.select_end_time": "選擇結束時間",
   "mes.line_info_placeholder": "輸入產線信息...",

@@ -2428,6 +2428,7 @@
   "mes.select_line": "选择产线",
   "mes.select_positions": "选择工位",
   "mes.select_spec": "选择规格",
+  "mes.select_date": "选择日期",
   "mes.select_start_time": "选择开始时间",
   "mes.select_end_time": "选择结束时间",
   "mes.line_info_placeholder": "输入产线信息...",

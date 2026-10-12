@@ -3,6 +3,7 @@
 
 import {DatabaseProvider} from '@nozbe/watermelondb/react';
 import React, {type ComponentType, useEffect, useState} from 'react';
+import {ActivityIndicator, View} from 'react-native';
 
 import DeviceInfoProvider from '@context/device';
 import ServerProvider from '@context/server';
@@ -64,8 +65,12 @@ export function withServerDatabase<T extends JSX.IntrinsicAttributes>(Component:
         }, []);
 
         if (!state?.database) {
-            debugLog('withServerDatabase', `[${componentName}] returning null - no database yet`);
-            return null;
+            debugLog('withServerDatabase', `[${componentName}] returning loading - no database yet`);
+            return (
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff'}}>
+                    <ActivityIndicator size='large' color='#2071f7'/>
+                </View>
+            );
         }
 
         return (

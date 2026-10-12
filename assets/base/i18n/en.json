@@ -2430,6 +2430,7 @@
   "mes.select_line": "Select Line",
   "mes.select_positions": "Select Positions",
   "mes.select_spec": "Select Spec",
+  "mes.select_date": "Select Date",
   "mes.select_start_time": "Select Start Time",
   "mes.select_end_time": "Select End Time",
   "mes.line_info_placeholder": "Enter line info...",

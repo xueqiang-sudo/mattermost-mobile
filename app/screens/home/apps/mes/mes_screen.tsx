@@ -179,6 +179,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         ...typography('Body', 75),
     },
+    dateInputBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        gap: 6,
+    },
+    dateInputText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 75),
+    },
     clearBtn: {
         padding: 6,
     },
@@ -572,15 +586,20 @@ const PlanForm = ({initial, lines, isEdit, onSave, onCancel, style}: PlanFormPro
     }, []);
 
     const toggleDropdown = useCallback((target: 'line' | 'positions' | 'spec') => {
+        // Check current state before closing all
+        const isOpen = target === 'line' ? lineDropdownOpen :
+            target === 'positions' ? positionsDropdownOpen : specDropdownOpen;
         closeAllDropdowns();
-        if (target === 'line') {
-            setLineDropdownOpen((v) => !v);
-        } else if (target === 'positions') {
-            setPositionsDropdownOpen((v) => !v);
-        } else {
-            setSpecDropdownOpen((v) => !v);
+        if (!isOpen) {
+            if (target === 'line') {
+                setLineDropdownOpen(true);
+            } else if (target === 'positions') {
+                setPositionsDropdownOpen(true);
+            } else {
+                setSpecDropdownOpen(true);
+            }
         }
-    }, [closeAllDropdowns]);
+    }, [closeAllDropdowns, lineDropdownOpen, positionsDropdownOpen, specDropdownOpen]);
 
     return (
         <View style={style.formOverlay}>
@@ -815,8 +834,21 @@ const MesScreen = () => {
     // Tab
     const [activeTab, setActiveTab] = useState<'plan' | 'records' | 'lines'>('records');
 
-    // Date filter (default: no filter, show all plans/records)
-    const [filterDate, setFilterDate] = useState('');
+    // Date filter (default: today)
+    const [filterDate, setFilterDate] = useState(getTodayStr());
+    const [showFilterDatePicker, setShowFilterDatePicker] = useState(false);
+
+    const handleFilterDateChange = useCallback((_: DateTimePickerEvent, selectedDate?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowFilterDatePicker(false);
+        }
+        if (selectedDate) {
+            const yyyy = selectedDate.getFullYear();
+            const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(selectedDate.getDate()).padStart(2, '0');
+            setFilterDate(`${yyyy}-${mm}-${dd}`);
+        }
+    }, []);
 
     // Plan form
     const [showForm, setShowForm] = useState(false);
@@ -1217,12 +1249,29 @@ const MesScreen = () => {
                 {/* Plan or Records toolbar */}
                 {(activeTab === 'plan' || activeTab === 'records') && (
                     <View style={style.toolbar}>
-                        <TextInput
-                            style={style.dateInput}
-                            value={filterDate}
-                            onChangeText={setFilterDate}
-                            placeholder='YYYY-MM-DD'
-                        />
+                        <TouchableOpacity
+                            style={style.dateInputBtn}
+                            onPress={() => setShowFilterDatePicker((v) => !v)}
+                        >
+                            <CompassIcon name='calendar-outline' size={18} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
+                            <Text style={style.dateInputText}>
+                                {filterDate || intl.formatMessage({id: 'mes.select_date', defaultMessage: '选择日期'})}
+                            </Text>
+                        </TouchableOpacity>
+                        {showFilterDatePicker && (
+                            <DateTimePicker
+                                value={filterDate ? new Date(filterDate + 'T00:00:00') : new Date()}
+                                mode='date'
+                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                onChange={handleFilterDateChange}
+                                locale={intl.locale}
+                            />
+                        )}
+                        {Platform.OS === 'ios' && showFilterDatePicker && (
+                            <TouchableOpacity style={style.dateTimePickerDone} onPress={() => setShowFilterDatePicker(false)}>
+                                <Text style={style.dateTimePickerDoneText}>{intl.formatMessage({id: 'common.done', defaultMessage: '完成'})}</Text>
+                            </TouchableOpacity>
+                        )}
                         {filterDate ? (
                             <TouchableOpacity style={style.clearBtn} onPress={() => setFilterDate('')}>
                                 <CompassIcon name='close-circle-outline' size={18} color={changeOpacity(theme.centerChannelColor, 0.4)}/>
