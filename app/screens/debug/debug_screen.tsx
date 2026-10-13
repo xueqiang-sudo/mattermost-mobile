@@ -6,7 +6,7 @@ import {Clipboard, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'r
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {getDebugEntries, clearDebugLog} from '@store/debug_log';
+import {getDebugEntries, clearDebugLog, readPersistedLog} from '@store/debug_log';
 import {resetToHome} from '@screens/navigation';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -17,12 +17,24 @@ type Props = {
 
 const DebugScreen = ({componentId}: Props) => {
     const [refreshKey, setRefreshKey] = useState(0);
+    const [showFileLog, setShowFileLog] = useState(false);
+    const [fileLogContent, setFileLogContent] = useState('');
     const entries = getDebugEntries();
 
     const handleCopy = useCallback(() => {
         const text = entries.map((e) => `[${e.time}] [${e.tag}] ${e.message}`).join('\n');
         Clipboard.setString(text);
     }, [entries]);
+
+    const handleShowFileLog = useCallback(async () => {
+        const content = await readPersistedLog();
+        setFileLogContent(content || '(文件日志为空)');
+        setShowFileLog(true);
+    }, []);
+
+    const handleCopyFileLog = useCallback(() => {
+        Clipboard.setString(fileLogContent);
+    }, [fileLogContent]);
 
     const handleClear = useCallback(() => {
         clearDebugLog();
@@ -43,6 +55,9 @@ const DebugScreen = ({componentId}: Props) => {
                     <TouchableOpacity style={[styles.button, styles.closeButton]} onPress={handleClose}>
                         <Text style={styles.buttonText}>✕ Close</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity style={styles.button} onPress={handleShowFileLog}>
+                        <Text style={styles.buttonText}>文件日志</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.button} onPress={handleCopy}>
                         <Text style={styles.buttonText}>Copy</Text>
                     </TouchableOpacity>
@@ -57,6 +72,24 @@ const DebugScreen = ({componentId}: Props) => {
                     </TouchableOpacity>
                 </View>
             </View>
+            {showFileLog && (
+                <View style={styles.fileLogOverlay}>
+                    <View style={styles.fileLogHeader}>
+                        <Text style={styles.fileLogTitle}>📁 文件日志（持久化）</Text>
+                        <View style={styles.buttons}>
+                            <TouchableOpacity style={styles.button} onPress={handleCopyFileLog}>
+                                <Text style={styles.buttonText}>复制</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.button, styles.closeButton]} onPress={() => setShowFileLog(false)}>
+                                <Text style={styles.buttonText}>关闭</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <ScrollView style={styles.scroll}>
+                        <Text style={styles.message}>{fileLogContent}</Text>
+                    </ScrollView>
+                </View>
+            )}
             <ScrollView style={styles.scroll} key={refreshKey}>
                 {entries.length === 0 && (
                     <Text style={styles.empty}>No debug entries yet.</Text>
@@ -157,6 +190,30 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontFamily: 'monospace',
         flex: 1,
+        fontWeight: 'bold',
+    },
+    fileLogOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#1a1a2e',
+        zIndex: 10,
+    },
+    fileLogHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: '#16213e',
+        borderBottomWidth: 1,
+        borderBottomColor: '#0f3460',
+    },
+    fileLogTitle: {
+        color: '#07C160',
+        fontSize: 16,
         fontWeight: 'bold',
     },
 });

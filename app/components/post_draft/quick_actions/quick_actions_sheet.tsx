@@ -16,6 +16,7 @@ import {fileMaxWarning} from '@utils/file';
 import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
 import PickerUtil from '@utils/file/file_picker';
 import {bottomSheetSnapPoint} from '@utils/helpers';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import CameraType from './camera_quick_action/camera_type';
@@ -143,6 +144,7 @@ export default function QuickActionsSheet({
     }, [onDismiss]);
 
     const handleFilePress = useCallback(() => {
+        debugLog('filePicker', 'handleFilePress: file button pressed');
         if (maxFilesReached) {
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
@@ -150,7 +152,9 @@ export default function QuickActionsSheet({
             );
             return;
         }
+        debugLog('filePicker', 'handleFilePress: calling showFilePickerModal');
         showFilePickerModal((files) => {
+            debugLog('filePicker', `handleFilePress: onSend callback with ${files.length} files`);
             addFiles(files);
         });
     }, [addFiles, intl, maxFilesReached, maxFileCount]);

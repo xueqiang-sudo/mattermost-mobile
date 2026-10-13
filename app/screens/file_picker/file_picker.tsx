@@ -7,6 +7,7 @@ import {Alert, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useTheme} from '@context/theme';
 import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
 
 import {FilePickerProvider, useFilePicker} from './context/file_picker_context';
@@ -104,6 +105,7 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
     const theme = useTheme();
     const {getSelectedFiles, getSelectedCount, state} = useFilePicker();
     const [activeTab, setActiveTab] = useState<TabKey>('group_files');
+    debugLog('filePicker', `FilePickerContent rendering, activeTab=${activeTab}`);
 
     const handleClose = useCallback(() => {
         dismissModal();
@@ -176,7 +178,10 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
                         <TouchableOpacity
                             key={tab.key}
                             style={styles.tabItem}
-                            onPress={() => setActiveTab(tab.key)}
+                            onPress={() => {
+                                debugLog('filePicker', `Tab changed to: ${tab.key}`);
+                                setActiveTab(tab.key);
+                            }}
                         >
                             <Text style={[
                                 styles.tabLabel,
@@ -231,6 +236,7 @@ type FilePickerProps = {
 };
 
 export default function FilePicker({onSend}: FilePickerProps) {
+    debugLog('filePicker', 'FilePicker component rendering');
     return (
         <FilePickerProvider maxSelection={9}>
             <FilePickerContent onSend={onSend}/>

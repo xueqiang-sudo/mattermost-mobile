@@ -20,6 +20,8 @@ import {useIsTablet} from '@hooks/device';
 import {useTeamsLoading} from '@hooks/teams_loading';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import WebsocketManager from '@managers/websocket_manager';
+import {queryMyTeams} from '@queries/servers/team';
+import DatabaseManager from '@database/manager';
 import {resetToTeams, resetToDebug, openToS} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {isMainActivity} from '@utils/helpers';
@@ -138,18 +140,35 @@ const ChannelListScreen = (props: ChannelProps) => {
     }, [isFocused, params]);
 
     useEffect(() => {
-        if (props.hasTeams || teamsLoading) {
+        if (teamsLoading) {
             return undefined;
         }
 
-        const timer = setTimeout(() => {
-            if (!hasTeamsRef.current && !teamsLoadingRef.current) {
-                resetToDebug();
+        const checkTeams = async () => {
+            const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+            let teamCount = 0;
+            if (database) {
+                teamCount = await queryMyTeams(database).fetchCount();
             }
-        }, RESET_TO_TEAMS_DELAY_MS);
 
-        return () => clearTimeout(timer);
-    }, [props.hasTeams, teamsLoading]);
+            if (teamCount > 0 || teamsLoadingRef.current) {
+                return;
+            }
+
+            // 等待后再次检查
+            await new Promise((resolve) => setTimeout(resolve, RESET_TO_TEAMS_DELAY_MS));
+
+            if (!teamsLoadingRef.current) {
+                const db = DatabaseManager.serverDatabases[serverUrl]?.database;
+                const finalCount = db ? await queryMyTeams(db).fetchCount() : 0;
+                if (finalCount === 0) {
+                    resetToDebug();
+                }
+            }
+        };
+
+        checkTeams();
+    }, [teamsLoading, serverUrl]);
 
     useEffect(() => {
         const back = BackHandler.addEventListener('hardwareBackPress', handleBackPress);

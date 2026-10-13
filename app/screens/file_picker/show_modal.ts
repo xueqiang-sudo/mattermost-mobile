@@ -9,7 +9,10 @@ import {Screens} from '@constants';
 
 import type {FileInfo} from '@mattermost/types/files';
 
+import {debugLog} from '@store/debug_log';
+
 export const showFilePickerModal = (onSend: (files: FileInfo[]) => void) => {
+    debugLog('filePicker', 'showFilePickerModal called');
     const passProps = {
         onSend,
     };
@@ -21,4 +24,5 @@ export const showFilePickerModal = (onSend: (files: FileInfo[]) => void) => {
     };
 
     showModalOverCurrentContext(Screens.FILE_PICKER, passProps, options);
+    debugLog('filePicker', 'showFilePickerModal: showModalOverCurrentContext called');
 };

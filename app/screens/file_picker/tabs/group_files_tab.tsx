@@ -11,6 +11,7 @@ import {queryMediaFilesForChannel} from '@queries/servers/file';
 import {getCurrentChannelId} from '@queries/servers/system';
 import DatabaseManager from '@database/manager';
 import {useServerUrl} from '@context/server';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
 
 import {useFilePicker} from '../context/file_picker_context';
@@ -48,21 +49,37 @@ export default function GroupFilesTab() {
 
     useEffect(() => {
         const loadFiles = async () => {
+            debugLog('filePicker', 'GroupFilesTab: starting to load files');
+            console.warn('[FILE_PICKER] GroupFilesTab: starting to load files');
             try {
                 const database = DatabaseManager.serverDatabases[serverUrl]?.database;
                 if (!database) {
+                    debugLog('filePicker', 'GroupFilesTab: no database found');
+                    console.warn('[FILE_PICKER] GroupFilesTab: no database found');
                     return;
                 }
 
                 const channelId = await getCurrentChannelId(database);
                 if (!channelId) {
+                    debugLog('filePicker', 'GroupFilesTab: no channelId found');
+                    console.warn('[FILE_PICKER] GroupFilesTab: no channelId found');
                     return;
                 }
 
+                debugLog('filePicker', `GroupFilesTab: querying files for channel ${channelId}`);
+                console.warn(`[FILE_PICKER] GroupFilesTab: querying files for channel ${channelId}`);
+                const startTime = Date.now();
                 const query = queryMediaFilesForChannel(database, channelId);
+                console.warn('[FILE_PICKER] GroupFilesTab: query created, calling fetch()...');
                 const allFiles = await query.fetch();
+                const elapsed = Date.now() - startTime;
+                debugLog('filePicker', `GroupFilesTab: loaded ${allFiles.length} files in ${elapsed}ms`);
+                console.warn(`[FILE_PICKER] GroupFilesTab: loaded ${allFiles.length} files in ${elapsed}ms`);
                 setFiles(allFiles);
+                console.warn('[FILE_PICKER] GroupFilesTab: setFiles called, rendering...');
             } catch (error) {
+                debugLog('filePicker', `GroupFilesTab: error loading files: ${error instanceof Error ? error.message : String(error)}`);
+                console.warn(`[FILE_PICKER] GroupFilesTab: ERROR: ${error instanceof Error ? error.message : String(error)}`);
                 console.error('Failed to load channel files:', error);
             }
         };
