@@ -1,20 +1,17 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React from 'react';
-
-import FilePicker from './file_picker';
-import {showModalOverCurrentContext} from '@screens/navigation';
+import {goToScreen} from '@screens/navigation';
 import {Screens} from '@constants';
+import {debugLog} from '@store/debug_log';
 
 import type {FileInfo} from '@mattermost/types/files';
 
-import {debugLog} from '@store/debug_log';
-
-export const showFilePickerModal = (onSend: (files: FileInfo[]) => void) => {
-    debugLog('filePicker', 'showFilePickerModal called');
+export const showFilePickerScreen = (channelId: string, onSend: (files: FileInfo[]) => void) => {
+    debugLog('filePicker', `showFilePickerScreen called, channelId=${channelId}`);
     const passProps = {
         onSend,
+        channelId,
     };
 
     const options = {
@@ -23,6 +20,5 @@ export const showFilePickerModal = (onSend: (files: FileInfo[]) => void) => {
         },
     };
 
-    showModalOverCurrentContext(Screens.FILE_PICKER, passProps, options);
-    debugLog('filePicker', 'showFilePickerModal: showModalOverCurrentContext called');
+    goToScreen(Screens.FILE_PICKER, '', passProps, options);
 };

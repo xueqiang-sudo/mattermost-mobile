@@ -2676,5 +2676,15 @@
   "workbench.tab.notebook": "記事本",
   "workbench.tab.price_list": "價格表",
   "workbench.tab.sales": "銷售統計",
-  "your.servers": "您的服務器"
+  "your.servers": "您的服務器",
+  "file_picker.title": "選擇檔案",
+  "file_picker.tab.group_files": "群組檔案",
+  "file_picker.tab.photo_album": "相簿",
+  "file_picker.tab.files": "檔案",
+  "file_picker.send": "傳送",
+  "file_picker.selected_count": "已選 {count}/{max}",
+  "file_picker.group_files.empty": "暫無檔案",
+  "file_picker.group_files.loading": "載入檔案中...",
+  "file_picker.no_files_selected": "請至少選擇一個檔案",
+  "file_picker.no_channel": "未選擇頻道"
 }

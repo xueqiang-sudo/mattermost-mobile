@@ -6,7 +6,7 @@ import {useIntl} from 'react-intl';
 import {Alert, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useTheme} from '@context/theme';
 import CompassIcon from '@components/compass_icon';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
 
@@ -98,17 +98,18 @@ const styles = StyleSheet.create({
 
 type FilePickerContentProps = {
     onSend: (files: FileInfo[]) => void;
+    channelId: string;
 };
 
-function FilePickerContent({onSend}: FilePickerContentProps) {
+function FilePickerContent({onSend, channelId}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
     const {getSelectedFiles, getSelectedCount, state} = useFilePicker();
     const [activeTab, setActiveTab] = useState<TabKey>('group_files');
-    debugLog('filePicker', `FilePickerContent rendering, activeTab=${activeTab}`);
+    debugLog('filePicker', `FilePickerContent rendering, activeTab=${activeTab}, channelId=${channelId}`);
 
     const handleClose = useCallback(() => {
-        dismissModal();
+        popTopScreen();
     }, []);
 
     const handleSend = useCallback(() => {
@@ -125,7 +126,7 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
         }
 
         onSend(files);
-        dismissModal();
+        popTopScreen();
     }, [getSelectedFiles, onSend, intl]);
 
     const selectedCount = getSelectedCount();
@@ -141,7 +142,7 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
     const renderTabContent = () => {
         switch (activeTab) {
             case 'group_files':
-                return <GroupFilesTab/>;
+                return <GroupFilesTab channelId={channelId}/>;
             case 'photo_album':
                 return <PhotoAlbumTab/>;
             case 'files':
@@ -233,13 +234,14 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
 
 type FilePickerProps = {
     onSend: (files: FileInfo[]) => void;
+    channelId: string;
 };
 
-export default function FilePicker({onSend}: FilePickerProps) {
-    debugLog('filePicker', 'FilePicker component rendering');
+export default function FilePicker({onSend, channelId}: FilePickerProps) {
+    debugLog('filePicker', `FilePicker component rendering, channelId=${channelId}`);
     return (
         <FilePickerProvider maxSelection={9}>
-            <FilePickerContent onSend={onSend}/>
+            <FilePickerContent onSend={onSend} channelId={channelId}/>
         </FilePickerProvider>
     );
 }

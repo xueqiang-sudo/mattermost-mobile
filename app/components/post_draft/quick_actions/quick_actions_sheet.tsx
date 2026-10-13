@@ -20,7 +20,7 @@ import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import CameraType from './camera_quick_action/camera_type';
-import {showFilePickerModal} from '@screens/file_picker/show_modal';
+import {showFilePickerScreen} from '@screens/file_picker/show_modal';
 import {showCloudDrivePickerModal} from '@screens/cloud_drive_picker/show_modal';
 import {useServerUrl} from '@context/server';
 import DatabaseManager from '@database/manager';
@@ -144,7 +144,7 @@ export default function QuickActionsSheet({
     }, [onDismiss]);
 
     const handleFilePress = useCallback(() => {
-        debugLog('filePicker', 'handleFilePress: file button pressed');
+        debugLog('filePicker', `handleFilePress: file button pressed, channelId=${channelId}`);
         if (maxFilesReached) {
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
@@ -152,12 +152,12 @@ export default function QuickActionsSheet({
             );
             return;
         }
-        debugLog('filePicker', 'handleFilePress: calling showFilePickerModal');
-        showFilePickerModal((files) => {
+        debugLog('filePicker', 'handleFilePress: calling showFilePickerScreen');
+        showFilePickerScreen(channelId, (files) => {
             debugLog('filePicker', `handleFilePress: onSend callback with ${files.length} files`);
             addFiles(files);
         });
-    }, [addFiles, intl, maxFilesReached, maxFileCount]);
+    }, [addFiles, channelId, intl, maxFilesReached, maxFileCount]);
 
     const handleCloudDrivePress = useCallback(async () => {
         if (maxFilesReached) {

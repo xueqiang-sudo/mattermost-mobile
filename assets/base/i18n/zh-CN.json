@@ -2675,5 +2675,15 @@
   "workbench.tab.notebook": "记事本",
   "workbench.tab.price_list": "价格表",
   "workbench.tab.sales": "销售统计",
-  "your.servers": "您的服务器"
+  "your.servers": "您的服务器",
+  "file_picker.title": "选择文件",
+  "file_picker.tab.group_files": "群组文件",
+  "file_picker.tab.photo_album": "相册",
+  "file_picker.tab.files": "文件",
+  "file_picker.send": "发送",
+  "file_picker.selected_count": "已选 {count}/{max}",
+  "file_picker.group_files.empty": "暂无文件",
+  "file_picker.group_files.loading": "加载文件中...",
+  "file_picker.no_files_selected": "请至少选择一个文件",
+  "file_picker.no_channel": "未选择频道"
 }

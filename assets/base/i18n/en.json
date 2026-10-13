@@ -2676,5 +2676,15 @@
   "batch_undo.title": "Recall Message",
   "batch_undo.recall_single": "Recall this message",
   "batch_undo.recall_all": "Recall all messages sent this time",
-  "batch_undo.cancel": "Cancel"
+  "batch_undo.cancel": "Cancel",
+  "file_picker.title": "Select Files",
+  "file_picker.tab.group_files": "Group Files",
+  "file_picker.tab.photo_album": "Photos",
+  "file_picker.tab.files": "Files",
+  "file_picker.send": "Send",
+  "file_picker.selected_count": "{count}/{max} selected",
+  "file_picker.group_files.empty": "No files yet",
+  "file_picker.group_files.loading": "Loading files...",
+  "file_picker.no_files_selected": "Please select at least one file to send.",
+  "file_picker.no_channel": "No channel selected"
 }
