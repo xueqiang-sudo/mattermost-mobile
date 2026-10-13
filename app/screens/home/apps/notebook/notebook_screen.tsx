@@ -231,10 +231,11 @@ const NotebookScreen = () => {
             } else {
                 loadNotes();
             }
-        } catch {
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
             Alert.alert(
                 intl.formatMessage({id: 'workbench.notebook.error', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'workbench.notebook.add_failed', defaultMessage: 'Failed to add note.'}),
+                `${intl.formatMessage({id: 'workbench.notebook.add_failed', defaultMessage: 'Failed to add note.'})}: ${errorMsg}`,
             );
         } finally {
             setAddLoading(false);
@@ -319,7 +320,7 @@ const NotebookScreen = () => {
                     onPress={toggleScope}
                 >
                     <CompassIcon
-                        name='globe-outline'
+                        name='globe'
                         size={16}
                         color={scope === 'public' ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.56)}
                     />

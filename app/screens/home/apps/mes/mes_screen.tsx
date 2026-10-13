@@ -7,6 +7,7 @@ import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
     Alert,
+    KeyboardAvoidingView,
     Modal,
     Platform,
     ScrollView,
@@ -296,10 +297,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     formField: {
         marginBottom: 12,
     },
+    formFieldRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
     formLabel: {
-        ...typography('Body', 50),
+        ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.64),
-        marginBottom: 4,
+        width: 60,
+    },
+    formFieldInput: {
+        flex: 1,
     },
     formInput: {
         borderWidth: StyleSheet.hairlineWidth,
@@ -602,7 +611,11 @@ const PlanForm = ({initial, lines, isEdit, onSave, onCancel, style}: PlanFormPro
     }, [closeAllDropdowns, lineDropdownOpen, positionsDropdownOpen, specDropdownOpen]);
 
     return (
-        <View style={style.formOverlay}>
+        <KeyboardAvoidingView
+            style={style.formOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={0}
+        >
             {/* Click-outside overlay */}
             {(lineDropdownOpen || positionsDropdownOpen || specDropdownOpen) && (
                 <TouchableOpacity
@@ -611,187 +624,207 @@ const PlanForm = ({initial, lines, isEdit, onSave, onCancel, style}: PlanFormPro
                     onPress={closeAllDropdowns}
                 />
             )}
-            <ScrollView contentContainerStyle={style.formContainer}>
+            <ScrollView
+                contentContainerStyle={style.formContainer}
+                keyboardShouldPersistTaps='handled'
+                keyboardDismissMode='on-drag'
+            >
                 {/* 产线 (Production Line) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_line', defaultMessage: '产线'})}</Text>
-                    {lines.length > 0 ? (
-                        <>
-                            <TouchableOpacity
-                                style={style.selectBtn}
-                                onPress={() => toggleDropdown('line')}
-                            >
-                                <Text style={form.line_id ? style.selectText : style.selectPlaceholder}>
-                                    {form.line_id
-                                        ? `${form.line_id} (${selectedLine ? `${selectedLine.positions}${intl.formatMessage({id: 'mes.pos_unit', defaultMessage: '工位'})}/${selectedLine.spindles}${intl.formatMessage({id: 'mes.spindle_unit', defaultMessage: '锭'})}` : ''})`
-                                        : intl.formatMessage({id: 'mes.select_line', defaultMessage: '选择产线'})}
-                                </Text>
-                                <CompassIcon
-                                    name={lineDropdownOpen ? 'menu-up' : 'menu-down'}
-                                    size={20}
-                                    color={changeOpacity(theme.centerChannelColor, 0.56)}
-                                />
-                            </TouchableOpacity>
-                            {lineDropdownOpen && (
-                                <ScrollView style={style.dropdown}>
-                                    {lines.map((l) => (
-                                        <TouchableOpacity
-                                            key={l.id}
-                                            style={[style.dropdownItem, form.line_id === l.id && style.dropdownItemSelected]}
-                                            onPress={() => handleLineChange(l.id)}
-                                        >
-                                            <Text style={style.dropdownItemText}>
-                                                {l.id} ({l.positions}{intl.formatMessage({id: 'mes.pos_unit', defaultMessage: '工位'})}/{l.spindles}{intl.formatMessage({id: 'mes.spindle_unit', defaultMessage: '锭'})})
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            )}
-                        </>
-                    ) : (
-                        <TextInput
-                            style={style.formInput}
-                            value={form.line_id}
-                            onChangeText={(v) => set('line_id', v)}
-                            placeholder='A1'
-                        />
-                    )}
+                    <View style={style.formFieldInput}>
+                        {lines.length > 0 ? (
+                            <>
+                                <TouchableOpacity
+                                    style={style.selectBtn}
+                                    onPress={() => toggleDropdown('line')}
+                                >
+                                    <Text style={form.line_id ? style.selectText : style.selectPlaceholder}>
+                                        {form.line_id
+                                            ? `${form.line_id} (${selectedLine ? `${selectedLine.positions}${intl.formatMessage({id: 'mes.pos_unit', defaultMessage: '工位'})}/${selectedLine.spindles}${intl.formatMessage({id: 'mes.spindle_unit', defaultMessage: '锭'})}` : ''})`
+                                            : intl.formatMessage({id: 'mes.select_line', defaultMessage: '选择产线'})}
+                                    </Text>
+                                    <CompassIcon
+                                        name={lineDropdownOpen ? 'menu-up' : 'menu-down'}
+                                        size={20}
+                                        color={changeOpacity(theme.centerChannelColor, 0.56)}
+                                    />
+                                </TouchableOpacity>
+                                {lineDropdownOpen && (
+                                    <ScrollView style={style.dropdown}>
+                                        {lines.map((l) => (
+                                            <TouchableOpacity
+                                                key={l.id}
+                                                style={[style.dropdownItem, form.line_id === l.id && style.dropdownItemSelected]}
+                                                onPress={() => handleLineChange(l.id)}
+                                            >
+                                                <Text style={style.dropdownItemText}>
+                                                    {l.id} ({l.positions}{intl.formatMessage({id: 'mes.pos_unit', defaultMessage: '工位'})}/{l.spindles}{intl.formatMessage({id: 'mes.spindle_unit', defaultMessage: '锭'})})
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                )}
+                            </>
+                        ) : (
+                            <TextInput
+                                style={style.formInput}
+                                value={form.line_id}
+                                onChangeText={(v) => set('line_id', v)}
+                                placeholder='A1'
+                            />
+                        )}
+                    </View>
                 </View>
 
                 {/* 工位 (Positions) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_positions', defaultMessage: '工位'})}</Text>
-                    <TouchableOpacity
-                        style={style.selectBtn}
-                        onPress={() => toggleDropdown('positions')}
-                    >
-                        <Text style={form.positions ? style.selectText : style.selectPlaceholder}>
-                            {form.positions || intl.formatMessage({id: 'mes.select_positions', defaultMessage: '选择工位'})}
-                        </Text>
-                        <CompassIcon
-                            name={positionsDropdownOpen ? 'menu-up' : 'menu-down'}
-                            size={20}
-                            color={changeOpacity(theme.centerChannelColor, 0.56)}
-                        />
-                    </TouchableOpacity>
-                    {positionsDropdownOpen && (
-                        <ScrollView style={style.dropdown}>
-                            {positionOptions.map((p) => (
-                                <TouchableOpacity
-                                    key={p}
-                                    style={[style.dropdownItem, form.positions === p && style.dropdownItemSelected]}
-                                    onPress={() => { set('positions', p); setPositionsDropdownOpen(false); }}
-                                >
-                                    <Text style={style.dropdownItemText}>{p}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    )}
+                    <View style={style.formFieldInput}>
+                        <TouchableOpacity
+                            style={style.selectBtn}
+                            onPress={() => toggleDropdown('positions')}
+                        >
+                            <Text style={form.positions ? style.selectText : style.selectPlaceholder}>
+                                {form.positions || intl.formatMessage({id: 'mes.select_positions', defaultMessage: '选择工位'})}
+                            </Text>
+                            <CompassIcon
+                                name={positionsDropdownOpen ? 'menu-up' : 'menu-down'}
+                                size={20}
+                                color={changeOpacity(theme.centerChannelColor, 0.56)}
+                            />
+                        </TouchableOpacity>
+                        {positionsDropdownOpen && (
+                            <ScrollView style={style.dropdown}>
+                                {positionOptions.map((p) => (
+                                    <TouchableOpacity
+                                        key={p}
+                                        style={[style.dropdownItem, form.positions === p && style.dropdownItemSelected]}
+                                        onPress={() => { set('positions', p); setPositionsDropdownOpen(false); }}
+                                    >
+                                        <Text style={style.dropdownItemText}>{p}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        )}
+                    </View>
                 </View>
 
                 {/* 产品 (Product) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: '产品'})}</Text>
-                    <TextInput style={style.formInput} value={form.current_product} onChangeText={(v) => set('current_product', v)}/>
+                    <View style={style.formFieldInput}>
+                        <TextInput style={style.formInput} value={form.current_product} onChangeText={(v) => set('current_product', v)}/>
+                    </View>
                 </View>
 
                 {/* 规格 (Spec) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
-                    <TouchableOpacity
-                        style={style.selectBtn}
-                        onPress={() => toggleDropdown('spec')}
-                    >
-                        <Text style={form.spec ? style.selectText : style.selectPlaceholder}>
-                            {form.spec || intl.formatMessage({id: 'mes.select_spec', defaultMessage: '选择规格'})}
-                        </Text>
-                        <CompassIcon
-                            name={specDropdownOpen ? 'menu-up' : 'menu-down'}
-                            size={20}
-                            color={changeOpacity(theme.centerChannelColor, 0.56)}
-                        />
-                    </TouchableOpacity>
-                    {specDropdownOpen && (
-                        <ScrollView style={style.dropdown}>
-                            {specOptions.map((s) => (
-                                <TouchableOpacity
-                                    key={s}
-                                    style={[style.dropdownItem, form.spec === s && style.dropdownItemSelected]}
-                                    onPress={() => { set('spec', s); setSpecDropdownOpen(false); }}
-                                >
-                                    <Text style={style.dropdownItemText}>{s}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    )}
+                    <View style={style.formFieldInput}>
+                        <TouchableOpacity
+                            style={style.selectBtn}
+                            onPress={() => toggleDropdown('spec')}
+                        >
+                            <Text style={form.spec ? style.selectText : style.selectPlaceholder}>
+                                {form.spec || intl.formatMessage({id: 'mes.select_spec', defaultMessage: '选择规格'})}
+                            </Text>
+                            <CompassIcon
+                                name={specDropdownOpen ? 'menu-up' : 'menu-down'}
+                                size={20}
+                                color={changeOpacity(theme.centerChannelColor, 0.56)}
+                            />
+                        </TouchableOpacity>
+                        {specDropdownOpen && (
+                            <ScrollView style={style.dropdown}>
+                                {specOptions.map((s) => (
+                                    <TouchableOpacity
+                                        key={s}
+                                        style={[style.dropdownItem, form.spec === s && style.dropdownItemSelected]}
+                                        onPress={() => { set('spec', s); setSpecDropdownOpen(false); }}
+                                    >
+                                        <Text style={style.dropdownItemText}>{s}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        )}
+                    </View>
                 </View>
 
                 {/* 开始时间 (Start Time) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_start_time', defaultMessage: '开始'})}</Text>
-                    <TouchableOpacity
-                        style={style.selectBtn}
-                        onPress={() => setShowStartDatePicker((v) => !v)}
-                    >
-                        <Text style={form.start_time ? style.selectText : style.selectPlaceholder}>
-                            {form.start_time ? formatDate(form.start_time) : intl.formatMessage({id: 'mes.select_start_time', defaultMessage: '选择开始时间'})}
-                        </Text>
-                        <CompassIcon name='calendar' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
-                    </TouchableOpacity>
-                    {showStartDatePicker && (
-                        <DateTimePicker
-                            value={form.start_time ? new Date(form.start_time) : new Date()}
-                            mode='datetime'
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={handleStartDateChange}
-                            locale={intl.locale}
-                        />
-                    )}
-                    {Platform.OS === 'ios' && showStartDatePicker && (
-                        <TouchableOpacity style={style.dateTimePickerDone} onPress={() => setShowStartDatePicker(false)}>
-                            <Text style={style.dateTimePickerDoneText}>{intl.formatMessage({id: 'common.done', defaultMessage: '完成'})}</Text>
+                    <View style={style.formFieldInput}>
+                        <TouchableOpacity
+                            style={style.selectBtn}
+                            onPress={() => setShowStartDatePicker((v) => !v)}
+                        >
+                            <Text style={form.start_time ? style.selectText : style.selectPlaceholder}>
+                                {form.start_time ? formatDate(form.start_time) : intl.formatMessage({id: 'mes.select_start_time', defaultMessage: '选择开始时间'})}
+                            </Text>
+                            <CompassIcon name='calendar' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
                         </TouchableOpacity>
-                    )}
+                        {showStartDatePicker && (
+                            <DateTimePicker
+                                value={form.start_time ? new Date(form.start_time) : new Date()}
+                                mode='datetime'
+                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                onChange={handleStartDateChange}
+                                locale={intl.locale}
+                            />
+                        )}
+                        {Platform.OS === 'ios' && showStartDatePicker && (
+                            <TouchableOpacity style={style.dateTimePickerDone} onPress={() => setShowStartDatePicker(false)}>
+                                <Text style={style.dateTimePickerDoneText}>{intl.formatMessage({id: 'common.done', defaultMessage: '完成'})}</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
 
                 {/* 计划结束时间 (Planned End Time) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_end_time', defaultMessage: '结束'})}</Text>
-                    <TouchableOpacity
-                        style={style.selectBtn}
-                        onPress={() => setShowEndDatePicker((v) => !v)}
-                    >
-                        <Text style={form.planned_end_time ? style.selectText : style.selectPlaceholder}>
-                            {form.planned_end_time ? formatDate(form.planned_end_time) : intl.formatMessage({id: 'mes.select_end_time', defaultMessage: '选择结束时间'})}
-                        </Text>
-                        <CompassIcon name='calendar' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
-                    </TouchableOpacity>
-                    {showEndDatePicker && (
-                        <DateTimePicker
-                            value={form.planned_end_time ? new Date(form.planned_end_time) : new Date()}
-                            mode='datetime'
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={handleEndDateChange}
-                            locale={intl.locale}
-                        />
-                    )}
-                    {Platform.OS === 'ios' && showEndDatePicker && (
-                        <TouchableOpacity style={style.dateTimePickerDone} onPress={() => setShowEndDatePicker(false)}>
-                            <Text style={style.dateTimePickerDoneText}>{intl.formatMessage({id: 'common.done', defaultMessage: '完成'})}</Text>
+                    <View style={style.formFieldInput}>
+                        <TouchableOpacity
+                            style={style.selectBtn}
+                            onPress={() => setShowEndDatePicker((v) => !v)}
+                        >
+                            <Text style={form.planned_end_time ? style.selectText : style.selectPlaceholder}>
+                                {form.planned_end_time ? formatDate(form.planned_end_time) : intl.formatMessage({id: 'mes.select_end_time', defaultMessage: '选择结束时间'})}
+                            </Text>
+                            <CompassIcon name='calendar' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
                         </TouchableOpacity>
-                    )}
+                        {showEndDatePicker && (
+                            <DateTimePicker
+                                value={form.planned_end_time ? new Date(form.planned_end_time) : new Date()}
+                                mode='datetime'
+                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                onChange={handleEndDateChange}
+                                locale={intl.locale}
+                            />
+                        )}
+                        {Platform.OS === 'ios' && showEndDatePicker && (
+                            <TouchableOpacity style={style.dateTimePickerDone} onPress={() => setShowEndDatePicker(false)}>
+                                <Text style={style.dateTimePickerDoneText}>{intl.formatMessage({id: 'common.done', defaultMessage: '完成'})}</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
 
                 {/* 排程 (Schedule) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_schedule', defaultMessage: '排程'})}</Text>
-                    <TextInput style={style.formInput} value={form.schedule} onChangeText={(v) => set('schedule', v)}/>
+                    <View style={style.formFieldInput}>
+                        <TextInput style={style.formInput} value={form.schedule} onChangeText={(v) => set('schedule', v)}/>
+                    </View>
                 </View>
 
                 {/* 备注 (Remarks) */}
-                <View style={style.formField}>
+                <View style={style.formFieldRow}>
                     <Text style={style.formLabel}>{intl.formatMessage({id: 'mes.plan_remarks', defaultMessage: '备注'})}</Text>
-                    <TextInput style={style.formInput} value={form.remarks} onChangeText={(v) => set('remarks', v)}/>
+                    <View style={style.formFieldInput}>
+                        <TextInput style={style.formInput} value={form.remarks} onChangeText={(v) => set('remarks', v)}/>
+                    </View>
                 </View>
 
                 <View style={style.formActions}>
@@ -803,7 +836,7 @@ const PlanForm = ({initial, lines, isEdit, onSave, onCancel, style}: PlanFormPro
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
     );
 };
 
@@ -976,8 +1009,25 @@ const MesScreen = () => {
     }, [serverUrl, teamId, intl, loadData]);
 
     const handleSavePlan = useCallback(async (formPlan: MESPlanInput) => {
+        // Validate all required fields
         if (!formPlan.line_id) {
             Alert.alert('', intl.formatMessage({id: 'mes.select_line', defaultMessage: '选择产线'}));
+            return;
+        }
+        if (!formPlan.positions) {
+            Alert.alert('', intl.formatMessage({id: 'mes.select_positions', defaultMessage: '选择工位'}));
+            return;
+        }
+        if (!formPlan.spec) {
+            Alert.alert('', intl.formatMessage({id: 'mes.select_spec', defaultMessage: '选择规格'}));
+            return;
+        }
+        if (!formPlan.start_time) {
+            Alert.alert('', intl.formatMessage({id: 'mes.select_start_time', defaultMessage: '选择开始时间'}));
+            return;
+        }
+        if (!formPlan.planned_end_time) {
+            Alert.alert('', intl.formatMessage({id: 'mes.select_end_time', defaultMessage: '选择结束时间'}));
             return;
         }
         try {
