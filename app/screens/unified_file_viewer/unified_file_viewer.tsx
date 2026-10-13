@@ -19,7 +19,7 @@ import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {popTopScreen} from '@screens/navigation';
 import TextViewer from '@screens/text_viewer/text_viewer';
-import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
+import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAppleDocument, isAudio, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {logDebug, logError} from '@utils/log';
 import {bottomSheet} from '@screens/navigation';
@@ -44,7 +44,7 @@ type Props = {
     fileInfo: FileInfo;
 };
 
-const OFFICE_EXTENSIONS = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+const OFFICE_EXTENSIONS = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pages', 'numbers', 'keynote'];
 const MAX_POLLING_ATTEMPTS = 30;
 
 const styles = StyleSheet.create({
@@ -65,7 +65,7 @@ const isOfficeFile = (file: FileInfo): boolean => {
 };
 
 const isViewableFile = (file: FileInfo): boolean => {
-    return isPdf(file) || isTextFile(file) || isImage(file) || isVideo(file) || isAudio(file) || hasPdfPreview(file);
+    return isPdf(file) || isTextFile(file) || isImage(file) || isVideo(file) || isAudio(file) || hasPdfPreview(file) || isAppleDocument(file);
 };
 
 const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
@@ -284,6 +284,17 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             // PDF and text files are rendered inline, no need to open external viewers
             if (isPdf(fileToDownload)) {
             } else if (isTextFile(fileToDownload)) {
+            } else if (isAppleDocument(fileToDownload)) {
+                // iOS: Open with native QuickLook via FileViewer
+                try {
+                    await FileViewer.open(pathWithoutPrefix, {
+                        displayName: fileToDownload.name,
+                        showAppsSuggestions: true,
+                        showOpenWithDialog: true,
+                    });
+                } catch (err) {
+                    logError('Error opening Apple document', err);
+                }
             } else {
                 // For images/videos/audio, we'll embed them later
                 // For now, just store the path
@@ -303,7 +314,14 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
     const determineFileState = useCallback(() => {
 
-        // Check if Office file is being converted
+        // iOS: Apple documents use native QuickLook, no PDF conversion needed
+        if (isAppleDocument(fileInfo)) {
+            setFileState('viewable');
+            downloadAndShowFile(fileInfo);
+            return;
+        }
+
+        // Check if Office file is being converted (Android: Apple docs go through this path)
         if (isOfficeFile(fileInfo) && !fileInfo.pdf_preview_id) {
             setFileState('converting');
             startPolling();
@@ -463,6 +481,11 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     onClose={handleClose}
                 />
             );
+        }
+
+        // Apple documents: opened via FileViewer (QuickLook), show minimal UI
+        if (fileState === 'viewable' && isAppleDocument(currentFileInfo)) {
+            return <UnsupportedView fileInfo={currentFileInfo} onDownload={handleDownload} onOpenWith={handleOpenWith}/>;
         }
 
         switch (fileState) {

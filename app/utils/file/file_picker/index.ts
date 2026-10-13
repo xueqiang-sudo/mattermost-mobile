@@ -13,12 +13,9 @@ import {debugLog} from '@store/debug_log';
 import {ENABLE_IMAGE_COMPRESS, ENABLE_VIDEO_COMPRESS} from '@constants/media_processing';
 import {showDraftVideoRecorderModal} from '@screens/draft_video_recorder/show_modal';
 import {dismissBottomSheet} from '@screens/navigation';
-import {extractFileInfo, getExtensionFromMime, lookupMimeType} from '@utils/file';
+import {extractFileInfo, lookupMimeType} from '@utils/file';
 import {
-    buildDraftMediaPlaceholderFile,
-    clearDraftVideoProcessingAborted,
     isDraftVideoProcessingAborted,
-    patchDraftVideoPlaceholder,
     type DraftVideoProcessingBridge,
 } from '@utils/file/draft_video_local_processing';
 import {compressChatImageAsset} from '@utils/file/compress_chat_image';
@@ -27,7 +24,6 @@ import {
     hideVideoCompressOverlay,
     showVideoCompressOverlay,
 } from '@utils/file/video_compress_overlay';
-import {generateId} from '@utils/general';
 import {logError, logWarning} from '@utils/log';
 import {safeDecodeURIComponent} from '@utils/url';
 
@@ -523,28 +519,6 @@ export default class FilePickerUtil {
         };
     };
 
-    private buildPlaceholderFromAsset = (
-        asset: Asset,
-        clientId: string,
-        userId: string,
-        preparingLabel: string,
-    ): FileInfo => {
-        const rawUri = asset.uri || '';
-        const mime = asset.type || lookupMimeType(rawUri) || 'application/octet-stream';
-        const fromName = asset.fileName?.split('.').pop()?.toLowerCase();
-        const ext = fromName || getExtensionFromMime(mime) || 'jpg';
-        return buildDraftMediaPlaceholderFile({
-            clientId,
-            userId,
-            name: preparingLabel,
-            stage: 'resolving',
-            progress: 0,
-            mime_type: mime,
-            extension: ext,
-            uri: rawUri || undefined,
-        });
-    };
-
     private visionVideoToAsset = (video: VideoFile): Asset => {
         const path = video.path;
         const uri = path.startsWith('file://') ? path : `file://${path}`;
@@ -560,114 +534,11 @@ export default class FilePickerUtil {
         };
     };
 
-    private advanceDraftVideoToCompressingAndUpload = async (
-        clientId: string,
-        initialPlaceholder: FileInfo,
-        files: Asset[],
-        compressChatVideos: boolean,
-    ): Promise<void> => {
-        if (!this.draftVideoBridge) {
-            return;
-        }
-        let placeholderSnapshot = initialPlaceholder;
-        const {exporting, preparing} = this.mediaExportMessages();
-        const willCompressVideo = ENABLE_VIDEO_COMPRESS && compressChatVideos && files.some((f) => this.fileLooksLikeVideo(f));
-        const willCompressImage = ENABLE_IMAGE_COMPRESS && files.some((f) => this.fileLooksLikeImage(f));
-        const busyCompressing = willCompressVideo || willCompressImage;
-        placeholderSnapshot = patchDraftVideoPlaceholder(placeholderSnapshot, {
-            stage: busyCompressing ? 'compressing' : 'resolving',
-            progress: 0,
-            name: busyCompressing ? exporting : preparing,
-        });
-        await this.draftVideoBridge.updateVideoPlaceholder(clientId, placeholderSnapshot);
-
-        let lastProgressEmitAt = 0;
-        let lastProgressValue = -1;
-        const onCompressProgress = (p: number) => {
-            const clamped = Math.min(1, Math.max(0, p));
-            const now = Date.now();
-            const isFinal = clamped >= 0.99;
-            if (
-                !isFinal &&
-                now - lastProgressEmitAt < 170 &&
-                Math.abs(clamped - lastProgressValue) < 0.05
-            ) {
-                return;
-            }
-            lastProgressEmitAt = now;
-            lastProgressValue = clamped;
-            placeholderSnapshot = patchDraftVideoPlaceholder(placeholderSnapshot, {
-                stage: busyCompressing ? 'compressing' : 'resolving',
-                progress: clamped,
-            });
-            this.draftVideoBridge!.updateVideoPlaceholder(clientId, placeholderSnapshot).catch(() => undefined);
-        };
-        await this.prepareFileUpload(files, {
-            clientId,
-            bridge: this.draftVideoBridge,
-            onCompressProgress,
-        }, compressChatVideos);
-    };
-
-    /**
-     * Adds all placeholders immediately so the draft row updates without waiting for prior
-     * extract/compress work; processing still runs sequentially per item.
-     */
-    private processPickedAssetsWithDraftBridge = async (picked: Asset[]): Promise<void> => {
-        if (!this.draftVideoBridge || !picked.length) {
-            return;
-        }
-        const preparingLabel = this.mediaExportMessages().preparing;
-        const jobs: {clientId: string; placeholderSnapshot: FileInfo; asset: Asset}[] = [];
-        for (const asset of picked) {
-            const clientId = generateId();
-            clearDraftVideoProcessingAborted(clientId);
-            const placeholderSnapshot = this.buildPlaceholderFromAsset(
-                asset,
-                clientId,
-                this.draftVideoBridge.currentUserId,
-                preparingLabel,
-            );
-            jobs.push({clientId, placeholderSnapshot, asset});
-        }
-        for (const {placeholderSnapshot} of jobs) {
-            this.draftVideoBridge.addVideoPlaceholder(placeholderSnapshot);
-        }
-        for (const {clientId, placeholderSnapshot, asset} of jobs) {
-            if (isDraftVideoProcessingAborted(clientId)) {
-                return;
-            }
-            // eslint-disable-next-line no-await-in-loop
-            await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, [asset], false);
-        }
-    };
-
     private handleVisionCameraVideoRecorded = async (video: VideoFile) => {
         const asset = this.visionVideoToAsset(video);
 
-        if (!this.draftVideoBridge) {
-            await this.prepareFileUpload([asset], undefined, true);
-            return;
-        }
-
-        const clientId = generateId();
-        clearDraftVideoProcessingAborted(clientId);
-        const preparingLabel = this.mediaExportMessages().preparing;
-        const placeholderSnapshot = buildDraftMediaPlaceholderFile({
-            clientId,
-            userId: this.draftVideoBridge.currentUserId,
-            name: preparingLabel,
-            stage: 'resolving',
-            progress: 0,
-            mime_type: asset.type || 'video/mp4',
-            extension: Platform.OS === 'ios' ? 'mov' : 'mp4',
-            uri: asset.uri,
-        });
-        this.draftVideoBridge.addVideoPlaceholder(placeholderSnapshot);
-        if (isDraftVideoProcessingAborted(clientId)) {
-            return;
-        }
-        await this.advanceDraftVideoToCompressingAndUpload(clientId, placeholderSnapshot, [asset], true);
+        // Always direct upload (auto-send), same as photo capture
+        await this.prepareFileUpload([asset], undefined, true);
     };
 
     /**
@@ -791,33 +662,10 @@ export default class FilePickerUtil {
                     return;
                 }
 
-                // Split files: images go direct upload, videos go through draft bridge
-                const imageFiles: Asset[] = [];
-                const videoFiles: Asset[] = [];
-                for (const f of files) {
-                    if (this.fileLooksLikeVideo(f)) {
-                        videoFiles.push(f);
-                    } else {
-                        imageFiles.push(f);
-                    }
-                }
-
-                // Images: direct upload (auto-send)
-                if (imageFiles.length > 0) {
-                    debugLog('FILE', `[attachFileFromPhotoGallery] preparing ${imageFiles.length} image files for upload`);
-                    await this.prepareFileUpload(imageFiles);
-                    debugLog('FILE', '[attachFileFromPhotoGallery] image files prepared');
-                }
-
-                // Videos: draft bridge for processing
-                if (videoFiles.length > 0 && this.draftVideoBridge) {
-                    debugLog('FILE', `[attachFileFromPhotoGallery] processing ${videoFiles.length} video files with draft bridge`);
-                    await this.processPickedAssetsWithDraftBridge(videoFiles);
-                } else if (videoFiles.length > 0) {
-                    debugLog('FILE', `[attachFileFromPhotoGallery] preparing ${videoFiles.length} video files for upload`);
-                    await this.prepareFileUpload(videoFiles);
-                    debugLog('FILE', '[attachFileFromPhotoGallery] video files prepared');
-                }
+                // All files (images and videos): direct upload (auto-send)
+                debugLog('FILE', `[attachFileFromPhotoGallery] preparing ${files.length} files for upload`);
+                await this.prepareFileUpload(files);
+                debugLog('FILE', '[attachFileFromPhotoGallery] files prepared');
             });
         }
     };

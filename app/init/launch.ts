@@ -309,8 +309,18 @@ export const launchToHome = async (props: LaunchProps) => {
         }
     }
 
-    if (nTeams) {
-        logInfo('Launch app in Home screen');
+    // Check if user has valid session (logged in)
+    let hasValidSession = false;
+    if (props.serverUrl) {
+        const database = DatabaseManager.serverDatabases[props.serverUrl]?.database;
+        if (database) {
+            const currentUserId = await getCurrentUserId(database);
+            hasValidSession = Boolean(currentUserId);
+        }
+    }
+
+    if (nTeams || hasValidSession) {
+        logInfo('Launch app in Home screen', {nTeams, hasValidSession});
         const homeResult = await resetToHome(props);
         const pending = EphemeralStore.getPendingJPushNotification();
         if (pending) {
@@ -322,7 +332,7 @@ export const launchToHome = async (props: LaunchProps) => {
         return homeResult;
     }
 
-    logInfo('Launch app in Debug screen (no teams loaded)');
+    logInfo('Launch app in Debug screen (no teams loaded and no valid session)');
     return resetToDebug();
 };
 

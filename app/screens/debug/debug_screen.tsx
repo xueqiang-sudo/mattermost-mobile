@@ -5,10 +5,17 @@ import React, {useCallback, useState} from 'react';
 import {Clipboard, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {getDebugEntries, clearDebugLog} from '@store/debug_log';
 import {resetToHome} from '@screens/navigation';
 
-const DebugScreen = () => {
+import type {AvailableScreens} from '@typings/screens/navigation';
+
+type Props = {
+    componentId: AvailableScreens;
+};
+
+const DebugScreen = ({componentId}: Props) => {
     const [refreshKey, setRefreshKey] = useState(0);
     const entries = getDebugEntries();
 
@@ -25,6 +32,8 @@ const DebugScreen = () => {
     const handleClose = useCallback(() => {
         resetToHome();
     }, []);
+
+    useAndroidHardwareBackHandler(componentId, handleClose);
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>

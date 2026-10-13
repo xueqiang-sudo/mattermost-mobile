@@ -377,6 +377,16 @@ export const isJsonFile = (fileName: string, mimeType: string): boolean => {
     return ext === 'json' || mimeType === 'application/json';
 };
 
+export const APPLE_EXTENSIONS = ['pages', 'numbers', 'keynote'];
+
+export const isAppleDocument = (file?: FileInfo | FileModel): boolean => {
+    if (!file || Platform.OS !== 'ios') {
+        return false;
+    }
+    const ext = ('extension' in file ? file.extension : undefined)?.toLowerCase() || file.name.split('.').pop()?.toLowerCase() || '';
+    return APPLE_EXTENSIONS.includes(ext);
+};
+
 export const isVideo = (file?: FileInfo | FileModel) => {
     if (!file) {
         return false;

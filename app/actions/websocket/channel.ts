@@ -10,7 +10,7 @@ import {storePostsForChannel} from '@actions/local/post';
 import {fetchMissingDirectChannelsInfo, fetchMyChannel, fetchChannelStats, fetchChannelById, handleKickFromChannel} from '@actions/remote/channel';
 import {fetchPostsForChannel} from '@actions/remote/post';
 import {fetchRolesIfNeeded} from '@actions/remote/role';
-import {fetchUsersByIds, updateUsersNoLongerVisible} from '@actions/remote/user';
+import {fetchProfilesInGroupChannels, fetchUsersByIds, updateUsersNoLongerVisible} from '@actions/remote/user';
 import {loadCallForChannel, leaveCall} from '@calls/actions/calls';
 import {userLeftChannelErr, userRemovedFromChannelErr} from '@calls/errors';
 import {getCurrentCall} from '@calls/state';
@@ -347,6 +347,12 @@ export async function handleUserAddedToChannelEvent(serverUrl: string, msg: any)
             await operator.batchRecords(models, 'handleUserAddedToChannelEvent');
         }
 
+        // GM 频道：刷新完整成员列表以确保一致性
+        const channel = await getChannelById(database, channelId);
+        if (channel && channel.type === General.GM_CHANNEL) {
+            await fetchProfilesInGroupChannels(serverUrl, [channelId]);
+        }
+
         await fetchChannelStats(serverUrl, channelId, false);
     } catch {
         // Do nothing
@@ -401,6 +407,15 @@ export async function handleUserRemovedFromChannelEvent(serverUrl: string, msg: 
         }
 
         operator.batchRecords(models, 'handleUserRemovedFromChannelEvent');
+
+        // GM 频道：刷新完整成员列表以确保一致性
+        const user = await getCurrentUser(database);
+        if (user && user.id !== userId) {
+            const channel = await getChannelById(database, channelId);
+            if (channel && channel.type === General.GM_CHANNEL) {
+                await fetchProfilesInGroupChannels(serverUrl, [channelId]);
+            }
+        }
     } catch (error) {
         logDebug('cannot handle user removed from channel websocket event', error);
     }

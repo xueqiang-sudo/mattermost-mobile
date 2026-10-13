@@ -10,7 +10,7 @@ import {useTheme} from '@context/theme';
 import {useGalleryItem} from '@hooks/gallery';
 import {useDownloadFileAndPreview} from '@hooks/files';
 import {debugLog} from '@store/debug_log';
-import {hasPdfPreview, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
+import {hasPdfPreview, isAppleDocument, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import DocumentFile from './document_file';
@@ -204,6 +204,13 @@ const File = ({
         // 文本文件（.md, .json, .txt, .csv 等）：直接打开
         if (isTextFile(file)) {
             debugLog('FILE', 'handleShowFileActions: is text file, calling handlePreviewPress');
+            handlePreviewPress();
+            return;
+        }
+
+        // iOS: Apple 文档（.pages, .numbers, .keynote）使用原生 QuickLook 预览
+        if (isAppleDocument(file)) {
+            debugLog('FILE', 'handleShowFileActions: is Apple document (iOS), calling handlePreviewPress');
             handlePreviewPress();
             return;
         }
