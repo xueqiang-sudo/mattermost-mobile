@@ -18,14 +18,18 @@ async function apiFetch(serverUrl: string, path: string, options: {method: strin
         const resp = await client.doFetch(path, {method: options.method, ...(body ? {body} : {}), ...(options.headers ? {headers: options.headers} : {})});
         return resp;
     } catch (err: any) {
-        // Extract error message from response if available
+        // Build detailed error message including server error info
+        const parts: string[] = [];
         if (err?.message) {
-            throw new Error(err.message);
+            parts.push(err.message);
         }
-        if (err?.status) {
-            throw new Error(`HTTP ${err.status}`);
+        if (err?.details?.message) {
+            parts.push(err.details.message);
         }
-        throw new Error('Network request failed');
+        if (err?.status_code) {
+            parts.push(`(status ${err.status_code})`);
+        }
+        throw new Error(parts.length > 0 ? parts.join(' | ') : 'Network request failed');
     }
 }
 
@@ -389,10 +393,9 @@ export async function getNoteEntry(serverUrl: string, teamId: string, entryId: s
 }
 
 export async function addNoteEntry(serverUrl: string, teamId: string, scope: string, content: string) {
-    return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/add?team_id=${teamId}`, {
+    return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/add?team_id=${encodeURIComponent(teamId)}`, {
         method: 'post',
         body: {teamId, scope, content},
-        headers: {'Content-Type': 'application/json'},
     });
 }
 

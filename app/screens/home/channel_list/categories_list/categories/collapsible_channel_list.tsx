@@ -27,6 +27,7 @@ import {getLocalizedMessage} from '@i18n';
 import {buildGmMemberMap, classifyChannel} from '@utils/channel_classification';
 import {isDMorGM} from '@utils/channel';
 import {getUserIdFromChannelName} from '@utils/user';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {showSnackBar} from '@utils/snack_bar';
@@ -351,6 +352,18 @@ const enhanced = withObservables(
                     const notInCustom = !customIds.has(ch.id);
                     return isInTeam && notInCustom;
                 });
+
+                // Debug: log filtering results
+                const totalDmGm = channels.filter(ch => ch.type === 'D' || ch.type === 'G');
+                const dmGmInBuiltIn = totalDmGm.filter(ch => builtInIds.has(ch.id));
+                const dmGmNotInBuiltIn = totalDmGm.filter(ch => !builtInIds.has(ch.id));
+                debugLog('sidebar', `Team filter: total=${channels.length}, passed=${filtered.length}, teamId=${teamId}`);
+                debugLog('sidebar', `  DM/GM total=${totalDmGm.length}, inBuiltInCategory=${dmGmInBuiltIn.length}, NOT in builtIn=${dmGmNotInBuiltIn.length}`);
+                if (dmGmNotInBuiltIn.length > 0) {
+                    const details = dmGmNotInBuiltIn.map(ch => `${ch.id.substring(0, 8)}(${ch.type})`).join(', ');
+                    debugLog('sidebar', `  DM/GM excluded (not in category): ${details}`);
+                }
+
                 return filtered.map(ch => ch.id);
             }),
         );
@@ -450,6 +463,9 @@ const enhanced = withObservables(
                 const internal: ChannelModel[] = [];
                 const external: ChannelModel[] = [];
 
+                // Debug: log data availability
+                debugLog('sidebar', `Classify input: channels=${chs.length}, teamMembers=${teamMembers.size}, gmMembers=${gmMembers.size}, bots=${bots.size}, hidden=${hidden.size}`);
+
                 // 检查数据是否完全加载：如果有 GM 频道但 gmMembers 为空，说明数据还在加载
                 const hasGmChannels = chs.some(c => c.type === 'G' || c.type === 'P');
                 const isDataReady = !hasGmChannels || gmMembers.size > 0 || chs.every(c => {
@@ -462,6 +478,7 @@ const enhanced = withObservables(
 
                 // 如果数据未就绪，所有 GM 频道暂时归类为 external（避免错误分类）
                 if (!isDataReady) {
+                    debugLog('sidebar', `Data NOT ready - classifying all ${chs.length} as external (hasGmChannels=${hasGmChannels}, gmMembers.size=${gmMembers.size})`);
                     return {internal: [], external: chs};
                 }
 
@@ -470,10 +487,12 @@ const enhanced = withObservables(
                     if (channel.type === 'D') {
                         const otherUserId = getUserIdFromChannelName(userId, channel.name);
                         if (hidden.has(`dm_user:${otherUserId}`)) {
+                            debugLog('sidebar', `Hidden DM: ${channel.id.substring(0, 8)} (otherUser=${otherUserId})`);
                             continue;
                         }
                     } else if (channel.type === 'G') {
                         if (hidden.has(channel.id)) {
+                            debugLog('sidebar', `Hidden GM: ${channel.id.substring(0, 8)}`);
                             continue;
                         }
                     }
@@ -485,6 +504,12 @@ const enhanced = withObservables(
                     } else {
                         external.push(channel);
                     }
+                }
+
+                debugLog('sidebar', `Classify result: internal=${internal.length}, external=${external.length}`);
+                if (external.length > 0) {
+                    const extDetails = external.map(ch => `${ch.id.substring(0, 8)}(${ch.type},${ch.display_name || ch.name?.substring(0, 15)})`).join(', ');
+                    debugLog('sidebar', `External channels: ${extDetails}`);
                 }
 
                 // Sort internal channels: public first, then favorited, then others

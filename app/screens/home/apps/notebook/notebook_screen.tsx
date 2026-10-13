@@ -22,6 +22,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -222,8 +223,10 @@ const NotebookScreen = () => {
     const onAddNote = useCallback(async () => {
         if (!addContent.trim()) return;
         setAddLoading(true);
+        debugLog('notebook', `Adding note - teamId: ${teamId}, scope: ${scope}, contentLength: ${addContent.trim().length}`);
         try {
             const resp = await addNoteEntry(serverUrl, teamId, scope, addContent.trim());
+            debugLog('notebook', `Add note response: ${JSON.stringify(resp)}`);
             if (resp?.ok === false) {
                 throw new Error(resp?.error || 'Unknown error');
             }
@@ -236,6 +239,7 @@ const NotebookScreen = () => {
             }
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
+            debugLog('notebook', `Add note failed: ${errorMsg}`);
             Alert.alert(
                 intl.formatMessage({id: 'workbench.notebook.error', defaultMessage: 'Error'}),
                 `${intl.formatMessage({id: 'workbench.notebook.add_failed', defaultMessage: 'Failed to add note.'})}: ${errorMsg}`,

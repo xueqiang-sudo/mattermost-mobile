@@ -19,6 +19,7 @@ import {addTeamToTeamHistory, prepareDeleteTeam, prepareMyTeams, getNthLastChann
 import {getIsCRTEnabled} from '@queries/servers/thread';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
+import {debugLog} from '@store/debug_log';
 import {setTeamLoading} from '@store/team_load_store';
 import {getFullErrorMessage} from '@utils/errors';
 import {isTablet} from '@utils/helpers';
@@ -233,8 +234,11 @@ export async function fetchTeamMembersForClassification(serverUrl: string, teamI
         // Fetch all team members (paginated, up to 500 per page)
         const members = await client.getTeamMembers(teamId, 0, 500);
         if (!members?.length) {
+            debugLog('teamMembers', `No team members returned for team ${teamId}`);
             return;
         }
+
+        debugLog('teamMembers', `Fetched ${members.length} members for team ${teamId} (max 500 per page)`);
 
         const records = await operator.handleTeamMemberships({
             teamMemberships: members,
@@ -243,6 +247,7 @@ export async function fetchTeamMembersForClassification(serverUrl: string, teamI
 
         if (records.length > 0) {
             await operator.batchRecords(records, 'fetchTeamMembersForClassification');
+            debugLog('teamMembers', `Stored ${records.length} team membership records`);
         }
     } catch (error) {
         logDebug('error on fetchTeamMembersForClassification', getFullErrorMessage(error));

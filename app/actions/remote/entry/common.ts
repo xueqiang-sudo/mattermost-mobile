@@ -10,6 +10,7 @@ import {fetchConfigAndLicense, fetchDataRetentionPolicy} from '@actions/remote/s
 import {fetchMyTeams, fetchTeamMembersForClassification, handleKickFromTeam, type MyTeamsRequest} from '@actions/remote/team';
 import {fetchMe, type MyUserRequest} from '@actions/remote/user';
 import {setTeamSyncInfo} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 import {General, Preferences, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import {PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
@@ -182,6 +183,19 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         };
         if (initialTeamId) {
             chData = await fetchMyChannelsForTeam(serverUrl, initialTeamId, false, lastDisconnectedAt, true, false, isCRTEnabled, groupLabel);
+
+            // Debug: log channel fetch results
+            const allChannels = chData?.channels || [];
+            const dmGm = allChannels.filter(c => c.type === 'D' || c.type === 'G');
+            const teamChannels = allChannels.filter(c => c.team_id === initialTeamId);
+            const crossTeamDmGm = allChannels.filter(c => (c.type === 'D' || c.type === 'G') && c.team_id === '');
+            debugLog('entryCommon', `fetchMyChannelsForTeam returned ${allChannels.length} channels total`);
+            debugLog('entryCommon', `  teamChannels: ${teamChannels.length}, DM/GM: ${dmGm.length}, crossTeamDM/GM: ${crossTeamDmGm.length}`);
+            debugLog('entryCommon', `  memberships: ${chData?.memberships?.length || 0}, categories: ${chData?.categories?.length || 0}`);
+            if (dmGm.length > 0) {
+                const dmGmInfo = dmGm.map(c => `${c.id.substring(0, 8)}(type=${c.type},team='${c.team_id}',name='${c.display_name || c.name?.substring(0, 20)}')`).join(', ');
+                debugLog('entryCommon', `  DM/GM details: ${dmGmInfo}`);
+            }
         }
 
         initialChannelId = await entryInitialChannelId(database, initialChannelId, teamId, initialTeamId, meData?.user?.locale || '', chData?.channels, chData?.memberships);

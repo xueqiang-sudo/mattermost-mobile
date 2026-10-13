@@ -17,6 +17,7 @@ import {getTeamSyncInfo, setTeamSyncInfo} from '@queries/servers/system';
 import {isDMorGM} from '@utils/channel';
 import {logError} from '@utils/log';
 import {processIsCRTEnabled} from '@utils/thread';
+import {debugLog} from '@store/debug_log';
 
 export async function deferredAppEntryActions(
     serverUrl: string,
@@ -101,8 +102,14 @@ export async function restDeferredAppEntryActions(
                         teamSince = syncInfo.lastFullSync;
                     }
 
+                    debugLog('deferred', `Fetching channels for team ${team.id} (${team.display_name || team.name}), since=${teamSince}, fullySynced=${syncInfo.fullySynced}`);
+
                     /* eslint-disable-next-line no-await-in-loop */
                     data = await fetchMyChannelsForTeam(serverUrl, team.id, false, teamSince, true, false, isCRTEnabled, requestLabel);
+
+                    const fetchedChannels = data?.channels || [];
+                    const fetchedDmGm = fetchedChannels.filter(c => c.type === 'D' || c.type === 'G');
+                    debugLog('deferred', `Team ${team.display_name || team.name}: fetched ${fetchedChannels.length} channels, DM/GM=${fetchedDmGm.length}, members=${data?.memberships?.length || 0}, categories=${data?.categories?.length || 0}`);
 
                     combineChannelsData(combinedChannelsData, data);
 
@@ -116,6 +123,7 @@ export async function restDeferredAppEntryActions(
 
                 } catch (error) {
                     logError('Error fetching channels for team', groupLabel, error);
+                    debugLog('deferred', `Error fetching channels for team ${team.display_name || team.name}: ${error instanceof Error ? error.message : String(error)}`);
                     // Don't mark as synced if there was an error
                 }
 
