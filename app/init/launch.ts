@@ -332,8 +332,10 @@ export const launchToHome = async (props: LaunchProps) => {
         return homeResult;
     }
 
-    logInfo('Launch app in Debug screen (no teams loaded and no valid session)');
-    return resetToDebug();
+    // 没有团队数据且没有有效会话，可能是首次安装或数据未同步
+    // 不应该显示调试页面，而是重新进入登录流程让用户重新登录
+    logInfo('Launch app: no teams and no valid session, routing to login', {serverUrl: props.serverUrl});
+    return resetToLogin(props);
 };
 
 export const relaunchApp = (props: LaunchProps) => {

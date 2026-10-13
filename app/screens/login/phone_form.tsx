@@ -5,6 +5,7 @@ import React, {useCallback, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
+import {appEntry} from '@actions/remote/entry';
 import {doPing} from '@actions/remote/general';
 import {sendAccountCode, verifyAccountCode} from '@actions/remote/plugin_gateway';
 import {retryInitialTeamAndChannel} from '@actions/remote/retry';
@@ -214,6 +215,8 @@ const PhoneLoginForm = ({
     const goToHome = useCallback(async (loginError?: unknown) => {
         const hasError = launchError || Boolean(loginError);
         await prepareJPushAfterLogin(serverUrl);
+        // 先同步服务器数据（打开 WebSocket、获取配置等），再进入 Home
+        await appEntry(serverUrl);
         resetToHome({extra, launchError: hasError, launchType, serverUrl});
     }, [extra, launchError, launchType, serverUrl]);
 
