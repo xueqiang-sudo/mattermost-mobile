@@ -36,6 +36,7 @@ import EphemeralStore from '@store/ephemeral_store';
 import {getLaunchPropsFromDeepLink, handleDeepLink} from '@utils/deep_link';
 import {syncNotifyPushWithSystemSettings} from '@utils/notification/push_system_sync';
 import {logError, logInfo} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 import {getNotificationProps} from '@utils/user';
 import {removeProtocol} from '@utils/url';
 
@@ -308,6 +309,7 @@ export const launchToHome = async (props: LaunchProps) => {
             nTeams = await queryMyTeams(database).fetchCount();
         }
     }
+    debugLog('launch', `launchToHome: nTeams=${nTeams}, serverUrl=${props.serverUrl}`);
 
     // Check if user has valid session (logged in)
     let hasValidSession = false;
@@ -318,8 +320,10 @@ export const launchToHome = async (props: LaunchProps) => {
             hasValidSession = Boolean(currentUserId);
         }
     }
+    debugLog('launch', `launchToHome: hasValidSession=${hasValidSession}`);
 
     if (nTeams || hasValidSession) {
+        debugLog('launch', `launchToHome: going to Home screen (nTeams=${nTeams}, hasValidSession=${hasValidSession})`);
         logInfo('Launch app in Home screen', {nTeams, hasValidSession});
         const homeResult = await resetToHome(props);
         const pending = EphemeralStore.getPendingJPushNotification();
@@ -334,6 +338,7 @@ export const launchToHome = async (props: LaunchProps) => {
 
     // 没有团队数据且没有有效会话，可能是首次安装或数据未同步
     // 不应该显示调试页面，而是重新进入登录流程让用户重新登录
+    debugLog('launch', `launchToHome: NO teams and NO valid session, routing to login`);
     logInfo('Launch app: no teams and no valid session, routing to login', {serverUrl: props.serverUrl});
     return resetToLogin(props);
 };
