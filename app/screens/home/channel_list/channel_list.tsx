@@ -3,9 +3,9 @@
 
 // import {useManagedConfig} from '@mattermost/react-native-emm';
 import {useFocusEffect, useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
-import React, {useCallback, useEffect, useRef} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {BackHandler, DeviceEventEmitter, Platform, StyleSheet, ToastAndroid, View} from 'react-native';
+import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
@@ -22,9 +22,12 @@ import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {queryMyTeams} from '@queries/servers/team';
 import DatabaseManager from '@database/manager';
-import {resetToTeams, resetToDebug, openToS} from '@screens/navigation';
+import {resetToDebug, openToS} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import NavigationStore from '@store/navigation_store';
+import {useObservable} from 'rxjs-hooks';
+import {of as of$} from 'rxjs';
+import {switchMap, map, distinctUntilChanged, catchError} from 'rxjs/operators';
 import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
@@ -72,8 +75,6 @@ let backPressTimeout: NodeJS.Timeout|undefined;
 // servers.
 let hasRendered = false;
 
-/** 等待团队数据稳定后再跳转，避免同步窗口内瞬时 hasTeams=false 误跳 */
-const RESET_TO_TEAMS_DELAY_MS = Platform.OS === 'android' ? 2000 : 500;
 
 const ChannelListScreen = (props: ChannelProps) => {
     const theme = useTheme();
@@ -140,61 +141,64 @@ const ChannelListScreen = (props: ChannelProps) => {
         };
     }, [isFocused, params]);
 
+    // 响应式观察团队数量变化（替代定时器轮询）
+    const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+    const teamCount = useObservable(
+        () => {
+            if (!database) {
+                return of$(0);
+            }
+            return queryMyTeams(database).observe().pipe(
+                map((teams) => teams.length),
+                distinctUntilChanged(),
+                catchError(() => of$(0)),
+            );
+        },
+        0,
+        [database],
+    );
+
+    // 仅在团队数量持续为 0 且不在加载中时，才跳转调试页面
+    const noTeamsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
-        if (teamsLoading) {
-            debugLog('CHANNEL_LIST', `teamsLoading=true, skip check`);
+        debugLog('CHANNEL_LIST', `teamCount changed: ${teamCount}, teamsLoading=${teamsLoading}`);
+
+        if (teamCount > 0 || teamsLoading) {
+            // 团队已加载或正在加载，清除超时
+            if (noTeamsTimeoutRef.current) {
+                debugLog('CHANNEL_LIST', `cleared no-teams timeout (teamCount=${teamCount}, loading=${teamsLoading})`);
+                clearTimeout(noTeamsTimeoutRef.current);
+                noTeamsTimeoutRef.current = null;
+            }
             return undefined;
         }
 
-        const checkTeams = async () => {
-            debugLog('CHANNEL_LIST', `checkTeams started, serverUrl=${serverUrl}`);
-            const database = DatabaseManager.serverDatabases[serverUrl]?.database;
-
-            if (!database) {
-                debugLog('CHANNEL_LIST', `ERROR: database not found for ${serverUrl}`);
-                debugLog('CHANNEL_LIST', `available databases: ${Object.keys(DatabaseManager.serverDatabases).join(', ')}`);
-            }
-
-            let teamCount = 0;
-            try {
-                if (database) {
-                    teamCount = await queryMyTeams(database).fetchCount();
-                    debugLog('CHANNEL_LIST', `first check: teamCount=${teamCount}`);
-                }
-            } catch (e) {
-                debugLog('CHANNEL_LIST', `ERROR querying teams: ${e instanceof Error ? e.message : String(e)}`);
-            }
-
-            if (teamCount > 0 || teamsLoadingRef.current) {
-                debugLog('CHANNEL_LIST', `OK: teamCount=${teamCount}, teamsLoading=${teamsLoadingRef.current}`);
-                return;
-            }
-
-            debugLog('CHANNEL_LIST', `teamCount=0, waiting ${RESET_TO_TEAMS_DELAY_MS}ms...`);
-            await new Promise((resolve) => setTimeout(resolve, RESET_TO_TEAMS_DELAY_MS));
-
-            if (!teamsLoadingRef.current) {
-                const db = DatabaseManager.serverDatabases[serverUrl]?.database;
-                let finalCount = 0;
-                try {
-                    finalCount = db ? await queryMyTeams(db).fetchCount() : 0;
-                } catch (e) {
-                    debugLog('CHANNEL_LIST', `ERROR on second query: ${e instanceof Error ? e.message : String(e)}`);
-                }
-                debugLog('CHANNEL_LIST', `second check: finalCount=${finalCount}`);
-                if (finalCount === 0) {
-                    debugLog('CHANNEL_LIST', `ERROR: still 0 teams after ${RESET_TO_TEAMS_DELAY_MS}ms, going to debug screen`);
+        // teamCount=0 且不在加载，启动较长超时等待 WebSocket 加载
+        if (!noTeamsTimeoutRef.current) {
+            debugLog('CHANNEL_LIST', `teamCount=0, starting 15s timeout`);
+            noTeamsTimeoutRef.current = setTimeout(() => {
+                noTeamsTimeoutRef.current = null;
+                if (!teamsLoadingRef.current) {
+                    debugLog('CHANNEL_LIST', `15s timeout fired, still no teams → debug screen`);
                     resetToDebug();
                 } else {
-                    debugLog('CHANNEL_LIST', `OK: teams loaded (${finalCount}), staying on home`);
+                    debugLog('CHANNEL_LIST', `15s timeout fired but teamsLoading=true, skip redirect`);
                 }
-            } else {
-                debugLog('CHANNEL_LIST', `teamsLoading became true, skip redirect`);
+            }, 15000);
+        }
+
+        return () => {};
+    }, [teamCount, teamsLoading]);
+
+    // 组件卸载时清除超时
+    useEffect(() => {
+        return () => {
+            if (noTeamsTimeoutRef.current) {
+                clearTimeout(noTeamsTimeoutRef.current);
             }
         };
-
-        checkTeams();
-    }, [teamsLoading, serverUrl]);
+    }, []);
 
     useEffect(() => {
         const back = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
