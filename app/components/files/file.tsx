@@ -1,14 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {View, TouchableWithoutFeedback, StyleSheet, Animated as RNAnimated, type GestureResponderEvent} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
+import {useServerUrl} from '@context/server';
 import {useGalleryItem} from '@hooks/gallery';
 import {useDownloadFileAndPreview} from '@hooks/files';
+import fileTransferManager from '@managers/file_transfer_manager';
 import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isAppleDocument, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -43,6 +45,7 @@ type FileProps = {
     updateFileForGallery: (idx: number, file: FileInfo) => void;
     asCard?: boolean;
     isPressDisabled?: boolean;
+    uploadStatus?: string;
 
     /** false：卡片宽度随内容收缩（微信样式非图附件）；true：铺满父级宽度 */
     expandCardToParentWidth?: boolean;
@@ -114,14 +117,23 @@ const File = ({
     wrapperWidth = 300,
     isPressDisabled = false,
     expandCardToParentWidth = true,
+    uploadStatus,
 }: FileProps) => {
     const document = useRef<DocumentRef>(null);
     const theme = useTheme();
+    const serverUrl = useServerUrl();
     const style = getStyleSheet(theme);
     const [showActionDialog, setShowActionDialog] = useState(false);
     const pressOpacity = useRef(new RNAnimated.Value(0)).current;
     const longPressTriggered = useRef(false);
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
+
+    // 自动下载：文件进入视口时触发下载
+    useEffect(() => {
+        if (inViewPort && file.id && !file.localPath) {
+            fileTransferManager.startDownload(serverUrl, file);
+        }
+    }, [inViewPort, file.id, file.localPath, serverUrl, file]);
 
     const handlePressIn = useCallback(() => {
         RNAnimated.timing(pressOpacity, {
@@ -362,6 +374,7 @@ const File = ({
                         isSingleImage={isSingleImage}
                         contentFit={'cover'}
                         wrapperWidth={wrapperWidth}
+                        uploadStatus={uploadStatus}
                     />
                     {Boolean(nonVisibleImagesCount) &&
                     <ImageFileOverlay
@@ -396,6 +409,7 @@ const File = ({
                 disabled={isPressDisabled}
                 enableSecureFilePreview={enableSecureFilePreview}
                 file={file}
+                uploadStatus={uploadStatus}
             />
         );
 

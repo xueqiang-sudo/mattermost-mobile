@@ -124,11 +124,7 @@ export async function handleWebSocketEvent(serverUrl: string, msg: WebSocketMess
             break;
         case WebsocketEvents.DIRECT_ADDED:
         case WebsocketEvents.GROUP_ADDED:
-            debugLog('[WS Event] Received DIRECT_ADDED/GROUP_ADDED:', {
-                event: msg.event,
-                channel_id: msg.broadcast?.channel_id,
-                user_id: msg.broadcast?.user_id,
-            });
+            debugLog('WS Event', `DIRECT_ADDED/GROUP_ADDED channel_id=${msg.broadcast?.channel_id} user_id=${msg.broadcast?.user_id}`);
             channel.handleDirectAddedEvent(serverUrl, msg);
             break;
 

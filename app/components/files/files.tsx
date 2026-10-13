@@ -255,6 +255,7 @@ const Files = ({
                         updateFileForGallery={updateFileForGallery}
                         wrapperWidth={wrapperWidth}
                         inViewPort={inViewPort}
+                        uploadStatus={postProps?.upload_status as string}
                     />
                 </View>
             );
@@ -340,6 +341,7 @@ const Files = ({
                                 updateFileForGallery={updateFileForGallery}
                                 wrapperWidth={cellW}
                                 inViewPort={inViewPort}
+                                uploadStatus={postProps?.upload_status as string}
                             />
                         </View>
                     );

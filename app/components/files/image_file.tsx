@@ -3,11 +3,13 @@
 
 import {LinearGradient, type LinearGradientProps} from 'expo-linear-gradient';
 import React, {useCallback, useMemo, useState} from 'react';
-import {StyleSheet, useWindowDimensions, View} from 'react-native';
+import {StyleSheet, Text, useWindowDimensions, View} from 'react-native';
 
 import {buildFilePreviewUrl, buildFileThumbnailUrl, buildFileUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
+import ProgressBar from '@components/progress_bar';
 import ProgressiveImage from '@components/progressive_image';
+import {useFileDownloadStatus} from '@hooks/file_transfer_status';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {isGif as isGifImage} from '@utils/file';
@@ -26,6 +28,7 @@ type ImageFileProps = {
     isSingleImage?: boolean;
     contentFit?: ImageContentFit;
     wrapperWidth?: number;
+    uploadStatus?: string;
 }
 
 const SMALL_IMAGE_MAX_HEIGHT = 48;
@@ -65,11 +68,33 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         height: SMALL_IMAGE_MAX_HEIGHT,
         width: SMALL_IMAGE_MAX_WIDTH,
     },
+    downloadOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    downloadText: {
+        color: '#FFF',
+        fontSize: 12,
+        marginTop: 4,
+    },
+    uploadOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    uploadText: {
+        color: '#FFF',
+        fontSize: 12,
+        fontWeight: '500',
+    },
 }));
 
 const ImageFile = ({
     backgroundColor, file, forwardRef, inViewPort, isSingleImage,
-    contentFit = 'cover', wrapperWidth,
+    contentFit = 'cover', wrapperWidth, uploadStatus,
 }: ImageFileProps) => {
     const dimensions = useWindowDimensions();
     const theme = useTheme();
@@ -77,6 +102,9 @@ const ImageFile = ({
     const isGif = useMemo(() => isGifImage(file), [file]);
     const [failed, setFailed] = useState(false);
     const style = getStyleSheet(theme);
+    const downloadStatus = useFileDownloadStatus(file.id);
+    const isDownloading = downloadStatus?.status === 'downloading';
+    const isUploading = uploadStatus === 'uploading';
     let image;
 
     const getImageDimensions = () => {
@@ -117,8 +145,17 @@ const ImageFile = ({
     }, [file, inViewPort, serverUrl]);
 
     let imageDimensions = getImageDimensions();
-    if (isSingleImage && (!imageDimensions || (imageDimensions?.height === 0 && imageDimensions?.width === 0))) {
-        imageDimensions = style.singleSmallImageWrapper;
+    if (!imageDimensions || (imageDimensions?.height === 0 && imageDimensions?.width === 0)) {
+        if (isSingleImage) {
+            imageDimensions = style.singleSmallImageWrapper;
+        } else {
+            // 多图场景：使用默认尺寸避免空白块
+            const cellWidth = Math.floor((wrapperWidth ?? 200) / 2);
+            imageDimensions = {
+                width: cellWidth,
+                height: cellWidth,
+            };
+        }
     }
 
     image = (
@@ -175,6 +212,22 @@ const ImageFile = ({
             {!isSingleImage && <View style={style.boxPlaceholder}/>}
             {image}
             {gifIndicator}
+            {isDownloading && (
+                <View style={style.downloadOverlay}>
+                    <ProgressBar
+                        progress={downloadStatus?.progress || 0}
+                        color={theme.buttonBg}
+                    />
+                    <Text style={style.downloadText}>
+                        {Math.round((downloadStatus?.progress || 0) * 100)}%
+                    </Text>
+                </View>
+            )}
+            {isUploading && (
+                <View style={style.uploadOverlay}>
+                    <Text style={style.uploadText}>发送中...</Text>
+                </View>
+            )}
         </View>
     );
 };
