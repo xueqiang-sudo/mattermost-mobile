@@ -454,6 +454,20 @@ const ChannelItem = ({
 
     const showIconBadge = isOnHome && (mentionsCount > 0 || (isUnread && !isMuted));
 
+    // 调试日志：检查未读徽章相关数据
+    if (isOnHome && (mentionsCount > 0 || isUnread)) {
+        console.log('[ChannelItem] Badge debug:', {
+            channelId: channel.id,
+            channelName: 'displayName' in channel ? channel.displayName : channel.display_name,
+            isOnHome,
+            mentionsCount,
+            isUnread,
+            isMuted,
+            messageCount,
+            showIconBadge,
+        });
+    }
+
     // 传入实际数量，Badge 组件会在 >99 时显示 "99+"
     const badgeValue = mentionsCount > 0 ? mentionsCount : (isUnread && messageCount > 0 ? messageCount : -1);
     const homePreviewSource = useMemo(() => {

@@ -19,6 +19,7 @@ import DatabaseManager from '@database/manager';
 import {deleteChannelMembership, getChannelById, prepareMyChannelsForTeam, getCurrentChannel} from '@queries/servers/channel';
 import {getConfig, getCurrentChannelId, getCurrentTeamId, setCurrentTeamId} from '@queries/servers/system';
 import {getCurrentUser, getTeammateNameDisplay, getUserById} from '@queries/servers/user';
+import {debugLog} from '@store/debug_log';
 import EphemeralStore from '@store/ephemeral_store';
 import MyChannelModel from '@typings/database/models/servers/my_channel';
 import {logDebug} from '@utils/log';
@@ -217,6 +218,15 @@ export async function handleChannelMemberUpdatedEvent(serverUrl: string, msg: an
 }
 
 export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMessage) {
+    // 调试日志：记录收到的事件
+    debugLog('[WS] handleDirectAddedEvent received:', {
+        event: msg.event || msg.seq,
+        channel_id: msg.broadcast?.channel_id,
+        user_id: msg.broadcast?.user_id,
+        has_teammate_ids: 'teammate_ids' in msg.data,
+        has_teammate_id: 'teammate_id' in msg.data,
+    });
+
     if (EphemeralStore.creatingDMorGMTeammates.length) {
         let userList: string[] | undefined;
         if ('teammate_ids' in msg.data) { // GM
@@ -231,6 +241,7 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
         if (userList?.length === EphemeralStore.creatingDMorGMTeammates.length) {
             const usersSet = new Set(userList);
             if (EphemeralStore.creatingDMorGMTeammates.every((v) => usersSet.has(v))) {
+                debugLog('[WS] handleDirectAddedEvent: skipping, we are creating this channel');
                 return; // We are adding this channel
             }
         }
@@ -240,8 +251,10 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
         const {channel_id: channelId} = msg.broadcast;
+        debugLog('[WS] handleDirectAddedEvent: checking channel', channelId);
         const channel = await getChannelById(database, channelId);
         if (channel) {
+            debugLog('[WS] handleDirectAddedEvent: channel already exists');
             return; // We already have this channel
         }
         const {channels, memberships} = await fetchMyChannel(serverUrl, '', channelId, true);
@@ -275,9 +288,14 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
             models.push(...userModels);
         }
 
+        debugLog('[WS] handleDirectAddedEvent: successfully stored channel', channelId);
         operator.batchRecords(models, 'handleDirectAddedEvent');
-    } catch {
-        // do nothing
+    } catch (error) {
+        debugLog('[WS] handleDirectAddedEvent failed:', {
+            channel_id: msg.broadcast?.channel_id,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        });
     }
 }
 
@@ -409,7 +427,6 @@ export async function handleUserRemovedFromChannelEvent(serverUrl: string, msg: 
         operator.batchRecords(models, 'handleUserRemovedFromChannelEvent');
 
         // GM 频道：刷新完整成员列表以确保一致性
-        const user = await getCurrentUser(database);
         if (user && user.id !== userId) {
             const channel = await getChannelById(database, channelId);
             if (channel && channel.type === General.GM_CHANNEL) {

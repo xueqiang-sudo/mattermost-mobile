@@ -10,6 +10,7 @@ import * as scheduledPost from '@actions/websocket/scheduled_post';
 import * as calls from '@calls/connection/websocket_event_handlers';
 import {WebsocketEvents} from '@constants';
 import {handlePlaybookEvents} from '@playbooks/actions/websocket/events';
+import {debugLog} from '@store/debug_log';
 
 import * as category from './category';
 import * as channel from './channel';
@@ -123,6 +124,11 @@ export async function handleWebSocketEvent(serverUrl: string, msg: WebSocketMess
             break;
         case WebsocketEvents.DIRECT_ADDED:
         case WebsocketEvents.GROUP_ADDED:
+            debugLog('[WS Event] Received DIRECT_ADDED/GROUP_ADDED:', {
+                event: msg.event,
+                channel_id: msg.broadcast?.channel_id,
+                user_id: msg.broadcast?.user_id,
+            });
             channel.handleDirectAddedEvent(serverUrl, msg);
             break;
 
