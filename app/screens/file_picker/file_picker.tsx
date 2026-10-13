@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import {useTheme} from '@context/theme';
 import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
@@ -17,7 +16,7 @@ import FilesTab from './tabs/files_tab';
 
 import type {FileInfo} from '@mattermost/types/files';
 
-const Tab = createMaterialTopTabNavigator();
+type TabKey = 'group_files' | 'photo_album' | 'files';
 
 const styles = StyleSheet.create({
     container: {
@@ -42,14 +41,29 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     tabBar: {
-        elevation: 0,
-        shadowOpacity: 0,
+        flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#E5E5E5',
     },
-    tabBarLabel: {
+    tabItem: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 12,
+        position: 'relative',
+    },
+    tabLabel: {
         fontSize: 15,
         fontWeight: '500',
+    },
+    tabIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        height: 3,
+        width: '60%',
+        borderRadius: 1.5,
+    },
+    tabContent: {
+        flex: 1,
     },
     actionBar: {
         flexDirection: 'row',
@@ -89,6 +103,7 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
     const {getSelectedFiles, getSelectedCount, state} = useFilePicker();
+    const [activeTab, setActiveTab] = useState<TabKey>('group_files');
 
     const handleClose = useCallback(() => {
         dismissModal();
@@ -115,17 +130,22 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
     const maxSelection = state.maxSelection;
     const canSend = selectedCount > 0;
 
-    const tabBarOptions = useMemo(() => ({
-        tabBarIndicatorStyle: {
-            backgroundColor: theme.buttonBg,
-            height: 3,
-        },
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: theme.buttonBg,
-        tabBarInactiveTintColor: changeOpacity(theme.centerChannelColor, 0.6),
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarPressColor: changeOpacity(theme.buttonBg, 0.1),
-    }), [theme]);
+    const tabs: {key: TabKey; label: string}[] = [
+        {key: 'group_files', label: intl.formatMessage({id: 'file_picker.tab.group_files', defaultMessage: 'Group Files'})},
+        {key: 'photo_album', label: intl.formatMessage({id: 'file_picker.tab.photo_album', defaultMessage: 'Photos'})},
+        {key: 'files', label: intl.formatMessage({id: 'file_picker.tab.files', defaultMessage: 'Files'})},
+    ];
+
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case 'group_files':
+                return <GroupFilesTab/>;
+            case 'photo_album':
+                return <PhotoAlbumTab/>;
+            case 'files':
+                return <FilesTab/>;
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -149,41 +169,32 @@ function FilePickerContent({onSend}: FilePickerContentProps) {
                 <View style={{width: 32}}/>
             </View>
 
-            <Tab.Navigator
-                screenOptions={tabBarOptions}
-                sceneContainerStyle={{backgroundColor: '#fff'}}
-            >
-                <Tab.Screen
-                    name='GroupFiles'
-                    component={GroupFilesTab}
-                    options={{
-                        tabBarLabel: intl.formatMessage({
-                            id: 'file_picker.tab.group_files',
-                            defaultMessage: 'Group Files',
-                        }),
-                    }}
-                />
-                <Tab.Screen
-                    name='PhotoAlbum'
-                    component={PhotoAlbumTab}
-                    options={{
-                        tabBarLabel: intl.formatMessage({
-                            id: 'file_picker.tab.photo_album',
-                            defaultMessage: 'Photos',
-                        }),
-                    }}
-                />
-                <Tab.Screen
-                    name='Files'
-                    component={FilesTab}
-                    options={{
-                        tabBarLabel: intl.formatMessage({
-                            id: 'file_picker.tab.files',
-                            defaultMessage: 'Files',
-                        }),
-                    }}
-                />
-            </Tab.Navigator>
+            <View style={styles.tabBar}>
+                {tabs.map((tab) => {
+                    const isActive = activeTab === tab.key;
+                    return (
+                        <TouchableOpacity
+                            key={tab.key}
+                            style={styles.tabItem}
+                            onPress={() => setActiveTab(tab.key)}
+                        >
+                            <Text style={[
+                                styles.tabLabel,
+                                {color: isActive ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.6)},
+                            ]}>
+                                {tab.label}
+                            </Text>
+                            {isActive && (
+                                <View style={[styles.tabIndicator, {backgroundColor: theme.buttonBg}]}/>
+                            )}
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+
+            <View style={styles.tabContent}>
+                {renderTabContent()}
+            </View>
 
             <View style={styles.actionBar}>
                 <Text style={styles.selectedCount}>

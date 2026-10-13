@@ -9,14 +9,16 @@ import {getFormattedFileSize} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-// 工具函数：智能截断文件名，保留扩展名
+// 工具函数：智能截断文件名，保留扩展名，中间省略
 const truncateFileName = (fileName: string, maxLength: number = 20): {name: string, ext: string} => {
     const lastDotIndex = fileName.lastIndexOf('.');
 
     // 没有扩展名或扩展名在开头（如 .gitignore）
     if (lastDotIndex <= 0) {
         if (fileName.length > maxLength) {
-            return {name: fileName.slice(0, maxLength - 3) + '...', ext: ''};
+            const headLen = Math.ceil((maxLength - 3) / 2);
+            const tailLen = maxLength - 3 - headLen;
+            return {name: fileName.slice(0, headLen) + '...' + (tailLen > 0 ? fileName.slice(-tailLen) : ''), ext: ''};
         }
         return {name: fileName, ext: ''};
     }
@@ -28,7 +30,10 @@ const truncateFileName = (fileName: string, maxLength: number = 20): {name: stri
     const availableLength = maxLength - 3 - ext.length - 1;
 
     if (name.length > availableLength) {
-        return {name: name.slice(0, availableLength) + '...', ext};
+        // 中间截断：保留前半部分和后半部分
+        const headLen = Math.ceil(availableLength / 2);
+        const tailLen = availableLength - headLen;
+        return {name: name.slice(0, headLen) + '...' + (tailLen > 0 ? name.slice(-tailLen) : ''), ext};
     }
 
     return {name, ext};

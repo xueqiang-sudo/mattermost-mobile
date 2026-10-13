@@ -5,7 +5,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
-import {moveChannelToCategory, toggleFavoriteChannel} from '@actions/remote/category';
+import {moveChannelToCategory} from '@actions/remote/category';
 import {deleteCategory} from '../../../../apps/workbench_api';
 import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
@@ -197,19 +197,14 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
     }, [category.teamId, intl, serverUrl, theme]);
 
     const handleLongPress = useCallback(async (channel: ChannelModel | Channel) => {
-        // Only show options for non-DM/GM channels
-        if (isDMorGM(channel)) {
+        // Only show move option for DM/GM channels
+        if (!isDMorGM(channel)) {
             return;
         }
 
         const optionStyles = getOptionStyles(theme);
 
         const renderContent = () => {
-            const handleFavorite = async () => {
-                await dismissBottomSheet();
-                toggleFavoriteChannel(serverUrl, channel.id, true);
-            };
-
             const handleMoveToCategory = () => {
                 dismissBottomSheet().then(() => {
                     setTimeout(() => showCategoryPicker(channel), 200);
@@ -218,16 +213,6 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
 
             return (
                 <View>
-                    <TouchableOpacity
-                        onPress={handleFavorite}
-                        style={optionStyles.optionRow}
-                    >
-                        <CompassIcon name='star-outline' style={optionStyles.optionIcon}/>
-                        <Text style={optionStyles.optionText}>
-                            {intl.formatMessage({id: 'channel_info.favorite', defaultMessage: 'Favorite'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <View style={optionStyles.divider}/>
                     <TouchableOpacity
                         onPress={handleMoveToCategory}
                         style={optionStyles.optionRow}
@@ -244,11 +229,11 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
         bottomSheet({
             closeButtonId: 'close-channel-options',
             renderContent,
-            snapPoints: [200],
+            snapPoints: [130],
             theme,
             title: ('displayName' in channel ? channel.displayName : channel.display_name) || channel.name,
         });
-    }, [intl, serverUrl, showCategoryPicker, theme]);
+    }, [intl, showCategoryPicker, theme]);
 
     const handleDeleteCategory = useCallback(async () => {
         try {
