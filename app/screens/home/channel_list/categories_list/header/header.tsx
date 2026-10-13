@@ -22,7 +22,7 @@ import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import WebsocketManager from '@managers/websocket_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {findChannels, showModal} from '@screens/navigation';
+import {findChannels, showModal, showModalWithBackButton} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import {alertServerLogout} from '@utils/server';
@@ -378,10 +378,12 @@ const ChannelListHeader = ({
         if (!teamId) {
             return;
         }
-        showModal(
+        showModalWithBackButton(
             Screens.CREATE_CATEGORY,
             intl.formatMessage({id: 'create_category_modal.title', defaultMessage: 'Create Category'}),
+            `close-${Screens.CREATE_CATEGORY}`,
             {teamId},
+            {useBackIcon: true},
         );
     }, [currentTeam, intl]);
 

@@ -125,8 +125,8 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
             const isRemoteUrl = uri.startsWith('http://') || uri.startsWith('https://');
 
             if (isRemoteUrl) {
-                // Extract file ID from URL (pattern: /api/v4/file/{fileId})
-                const fileIdMatch = uri.match(/\/api\/v4\/file\/([a-z0-9]+)/i);
+                // Extract file ID from URL (pattern: /api/v4/files/{fileId})
+                const fileIdMatch = uri.match(/\/api\/v4\/files\/([a-z0-9]+)/i);
                 if (!fileIdMatch || !fileIdMatch[1]) {
                     throw new Error('Cannot extract file ID from URL');
                 }
@@ -179,8 +179,8 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
             const isRemoteUrl = uri.startsWith('http://') || uri.startsWith('https://');
 
             if (isRemoteUrl) {
-                // Extract file ID from URL (pattern: /api/v4/file/{fileId})
-                const fileIdMatch = uri.match(/\/api\/v4\/file\/([a-z0-9]+)/i);
+                // Extract file ID from URL (pattern: /api/v4/files/{fileId})
+                const fileIdMatch = uri.match(/\/api\/v4\/files\/([a-z0-9]+)/i);
                 if (!fileIdMatch || !fileIdMatch[1]) {
                     throw new Error('Cannot extract file ID from URL');
                 }
@@ -267,7 +267,7 @@ const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProp
                         {saving ? (
                             <ActivityIndicator color='#fff' size='small'/>
                         ) : (
-                            <CompassIcon name='arrow-collapse-down' size={24} color='#fff'/>
+                            <CompassIcon name='download-outline' size={24} color='#fff'/>
                         )}
                         <Text style={styles.toolLabel}>
                             {intl.formatMessage({id: 'gallery.save', defaultMessage: 'Save'})}

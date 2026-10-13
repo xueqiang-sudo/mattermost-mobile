@@ -19,6 +19,11 @@ import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import CameraType from './camera_quick_action/camera_type';
+import {showFilePickerModal} from '@screens/file_picker/show_modal';
+import {showCloudDrivePickerModal} from '@screens/cloud_drive_picker/show_modal';
+import {useServerUrl} from '@context/server';
+import DatabaseManager from '@database/manager';
+import {getCurrentTeamId} from '@queries/servers/system';
 
 const GRID_COLUMNS = 3;
 const ICON_LABEL_GAP = 8;
@@ -95,6 +100,7 @@ function SheetItem({iconName, labelId, labelDefault, disabled, onPress, testID}:
 type Props = {
     testID?: string;
     canUploadFiles: boolean;
+    channelId: string;
     fileCount: number;
     isPostPriorityEnabled: boolean;
     canShowPostPriority?: boolean;
@@ -112,6 +118,7 @@ type Props = {
 export default function QuickActionsSheet({
     testID,
     canUploadFiles,
+    channelId,
     fileCount,
     maxFileCount,
     addFiles,
@@ -120,6 +127,7 @@ export default function QuickActionsSheet({
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
+    const serverUrl = useServerUrl();
     const maxFilesReached = fileCount >= maxFileCount;
 
     const wrapWithDismiss = useCallback((fn: () => void) => {
@@ -142,9 +150,25 @@ export default function QuickActionsSheet({
             );
             return;
         }
-        const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
-        picker.attachFileFromFiles(undefined, true);
-    }, [intl, addFiles, draftVideoProcessingBridge, maxFilesReached, maxFileCount]);
+        showFilePickerModal((files) => {
+            addFiles(files);
+        });
+    }, [addFiles, intl, maxFilesReached, maxFileCount]);
+
+    const handleCloudDrivePress = useCallback(async () => {
+        if (maxFilesReached) {
+            Alert.alert(
+                intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                fileMaxWarning(intl, maxFileCount),
+            );
+            return;
+        }
+        const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+        if (!database) return;
+        const teamId = await getCurrentTeamId(database);
+        if (!teamId) return;
+        showCloudDrivePickerModal(channelId, teamId);
+    }, [channelId, intl, maxFilesReached, maxFileCount, serverUrl]);
 
     const handleGalleryPress = useCallback(() => {
         if (maxFilesReached) {
@@ -225,6 +249,15 @@ export default function QuickActionsSheet({
             disabled: fileDisabled,
             onPress: wrapWithDismiss(handleFilePress),
             testID: `${baseTestID}.file_action`,
+        },
+        {
+            key: 'cloud_drive',
+            icon: 'folder-outline',
+            labelId: 'post_draft.quick_action.cloud_drive',
+            labelDefault: 'Cloud Drive',
+            disabled: fileDisabled,
+            onPress: wrapWithDismiss(handleCloudDrivePress),
+            testID: `${baseTestID}.cloud_drive_action`,
         },
     ];
 

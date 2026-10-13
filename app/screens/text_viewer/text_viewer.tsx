@@ -9,6 +9,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import Markdown from '@components/markdown';
 import Highlighter from '@components/syntax_highlight';
+import {Files} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
@@ -77,9 +78,8 @@ const isJsonFile = (fileName: string, mimeType: string): boolean => {
 
 const isCodeFile = (fileName: string, mimeType: string): boolean => {
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
-    const codeExtensions = ['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'css', 'html', 'xml', 'yaml', 'yml', 'sh', 'bash'];
-    const codeMimeTypes = ['application/xml', 'text/xml', 'text/yaml'];
-    return codeExtensions.includes(ext) || codeMimeTypes.includes(mimeType);
+    const codeMimeTypes = ['application/xml', 'text/xml', 'text/yaml', 'application/javascript', 'text/javascript'];
+    return Files.CODE_TYPES.includes(ext) || codeMimeTypes.includes(mimeType);
 };
 
 const TextViewer = ({componentId, closeButtonId, filePath, fileName, mimeType, onDismiss}: Props) => {

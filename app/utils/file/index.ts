@@ -350,8 +350,14 @@ export const isTextFile = (file?: FileInfo | FileModel): boolean => {
         'text/x-markdown',
         'text/csv',
         'text/xml',
+        'text/html',
+        'text/css',
+        'text/javascript',
         'application/json',
         'application/xml',
+        'application/javascript',
+        'application/x-sh',
+        'application/x-yaml',
     ];
 
     let mime = 'mime_type' in file ? file.mime_type : file.mimeType;
@@ -359,12 +365,15 @@ export const isTextFile = (file?: FileInfo | FileModel): boolean => {
         mime = mime.split(';')[0];
     }
 
-    const result = textMimeTypes.includes(mime);
-    if (__DEV__) {
-        // Only log in debug mode to avoid performance impact
-        const {debugLog} = require('@store/debug_log');
+    if (textMimeTypes.includes(mime)) {
+        return true;
     }
-    return result;
+
+    // Also treat all code and text extension files as viewable text files
+    const ext = extractExtension(
+        ('extension' in file ? file.extension : undefined) || file.name,
+    );
+    return Files.CODE_TYPES.includes(ext) || Files.TEXT_TYPES.includes(ext);
 };
 
 export const isMarkdownFile = (fileName: string): boolean => {

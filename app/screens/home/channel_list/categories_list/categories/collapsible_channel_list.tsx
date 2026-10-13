@@ -207,7 +207,7 @@ const CollapsibleChannelListRenderer = ({
                             style={[styles.trashIcon, !canDelete && styles.trashIconDisabled]}
                         >
                             <CompassIcon
-                                name='delete-outline'
+                                name='trash-can-outline'
                                 size={18}
                                 color={canDelete ? theme.errorTextColor : changeOpacity(theme.centerChannelColor, 0.3)}
                             />

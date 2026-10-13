@@ -110,6 +110,13 @@ export function getDriveDownloadUrl(serverUrl: string, teamId: string, fileId: s
     return `${serverUrl}/api/v4/teams/${teamId}/drive/files/${fileId}/download`;
 }
 
+export async function copyDriveFileToChannel(serverUrl: string, teamId: string, fileId: string, channelId: string): Promise<any> {
+    return apiFetch(serverUrl, `/api/v4/teams/${teamId}/drive/files/${fileId}/copy-to-channel`, {
+        method: 'post',
+        body: {channel_id: channelId},
+    });
+}
+
 // ── Conversations ──
 
 export type ConversationChannel = {

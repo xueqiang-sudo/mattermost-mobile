@@ -5,7 +5,7 @@
 import {useFocusEffect, useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
+import {BackHandler, DeviceEventEmitter, Platform, StyleSheet, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
@@ -70,7 +70,7 @@ let backPressTimeout: NodeJS.Timeout|undefined;
 let hasRendered = false;
 
 /** 等待团队数据稳定后再跳转，避免同步窗口内瞬时 hasTeams=false 误跳 */
-const RESET_TO_TEAMS_DELAY_MS = 500;
+const RESET_TO_TEAMS_DELAY_MS = Platform.OS === 'android' ? 2000 : 500;
 
 const ChannelListScreen = (props: ChannelProps) => {
     const theme = useTheme();

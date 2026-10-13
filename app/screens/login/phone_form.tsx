@@ -17,7 +17,9 @@ import FloatingTextInput from '@components/floating_input/floating_text_input_la
 import {useAvoidKeyboard} from '@hooks/device';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {prepareJPushAfterLogin} from '@init/launch';
+import DatabaseManager from '@database/manager';
 import {getAutoClient, NetworkManager} from '@managers/network_manager';
+import {queryMyTeams} from '@queries/servers/team';
 import {resetToHome} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
@@ -378,9 +380,22 @@ const PhoneLoginForm = ({
             try {
                 setTeamLoading(serverUrl, true);
                 const retryResult = await retryInitialTeamAndChannel(serverUrl);
-                setTeamLoading(serverUrl, false);
                 if (retryResult.error) {
                     logInfo('signInWithCode: retryInitialTeamAndChannel failed', getFullErrorMessage(retryResult.error));
+                    setTeamLoading(serverUrl, false);
+                } else {
+                    // Wait for database observable to propagate team data
+                    // before clearing loading state. On Android, WatermelonDB
+                    // writes can take longer to propagate to observers.
+                    const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+                    if (database) {
+                        for (let i = 0; i < 10; i++) {
+                            const count = await queryMyTeams(database).fetchCount();
+                            if (count > 0) break;
+                            await new Promise((r) => setTimeout(r, 200));
+                        }
+                    }
+                    setTeamLoading(serverUrl, false);
                 }
             } catch (retryErr) {
                 setTeamLoading(serverUrl, false);

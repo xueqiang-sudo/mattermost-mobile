@@ -1167,14 +1167,22 @@ const MesScreen = () => {
     const renderRecordCard = (record: MESRecord) => (
         <View key={record.id} style={style.recordCard}>
             <View style={style.planRow}>
-                <Text style={style.planLineId}>{record.line_id}</Text>
+                <Text style={style.planLineId}>{record.line_id || '-'}</Text>
                 <View style={style.stepBadge}>
                     <Text style={{color: theme.buttonBg, ...typography('Body', 50, 'SemiBold')}}>{record.last_step_name || '-'}</Text>
                 </View>
             </View>
             <View style={style.planRow}>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_line', defaultMessage: '产线'})}</Text>
+                <Text style={style.planValue}>{record.line_id || '-'}</Text>
+            </View>
+            <View style={style.planRow}>
                 <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_current_product', defaultMessage: '产品'})}</Text>
-                <Text style={style.planValue}>{record.product || '-'} | {record.spec || '-'}</Text>
+                <Text style={style.planValue}>{record.product || '-'}</Text>
+            </View>
+            <View style={style.planRow}>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_spec', defaultMessage: '规格'})}</Text>
+                <Text style={style.planValue}>{record.spec || '-'}</Text>
             </View>
             <View style={style.planRow}>
                 <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_operator', defaultMessage: '操作员'})}</Text>
@@ -1186,7 +1194,11 @@ const MesScreen = () => {
             </View>
             <View style={style.planRow}>
                 <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_allocated', defaultMessage: '分配量(kg)'})}</Text>
-                <Text style={style.planValue}>{record.allocated_kg > 0 ? `${record.allocated_kg} kg` : '-'} | {record.roll_count > 0 ? `${record.roll_count} rolls` : '-'}</Text>
+                <Text style={style.planValue}>{record.allocated_kg > 0 ? `${record.allocated_kg} kg` : '-'}</Text>
+            </View>
+            <View style={style.planRow}>
+                <Text style={style.planLabel}>{intl.formatMessage({id: 'mes.plan_rolls', defaultMessage: '丝饼数'})}</Text>
+                <Text style={style.planValue}>{record.roll_count > 0 ? `${record.roll_count}` : '-'}</Text>
             </View>
             <View style={style.planActions}>
                 <TouchableOpacity style={style.actionBtn} onPress={() => handleDetail(record.id)}>

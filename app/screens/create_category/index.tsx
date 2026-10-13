@@ -3,11 +3,9 @@
 
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {createCategory} from '@actions/remote/category';
-import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
@@ -30,22 +28,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        backgroundColor: theme.sidebarBg,
-    },
-    backButton: {
-        padding: 8,
-    },
-    headerTitle: {
-        ...typography('Heading', 200, 'SemiBold'),
-        color: theme.sidebarText,
-        flex: 1,
-        marginRight: 40,
     },
     content: {
         paddingHorizontal: 20,
@@ -118,7 +100,6 @@ export default function CreateCategory({componentId, teamId}: Props) {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const insets = useSafeAreaInsets();
     const [categoryName, setCategoryName] = useState('');
     const [error, setError] = useState('');
     const [creating, setCreating] = useState(false);
@@ -151,10 +132,7 @@ export default function CreateCategory({componentId, teamId}: Props) {
         const {error: err} = await createCategory(serverUrl, teamId, name);
         if (err) {
             logDebug('createCategory error', getFullErrorMessage(err));
-            Alert.alert(
-                intl.formatMessage({id: 'create_category.error.title', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'create_category.error.message', defaultMessage: 'Failed to create category. Please try again.'}),
-            );
+            setError(intl.formatMessage({id: 'create_category.error.message', defaultMessage: 'Failed to create category. Please try again.'}));
             setCreating(false);
             return;
         }
@@ -166,18 +144,6 @@ export default function CreateCategory({componentId, teamId}: Props) {
 
     return (
         <View style={style.container} testID='create_category.screen'>
-            <View style={[style.header, {paddingTop: insets.top}]}>
-                <TouchableOpacity
-                    style={style.backButton}
-                    onPress={handleCancel}
-                    testID='create_category.back.button'
-                >
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'create_category_modal.title', defaultMessage: 'Create Category'})}
-                </Text>
-            </View>
             <View style={style.content}>
                 <Text style={style.helpText}>
                     {intl.formatMessage({

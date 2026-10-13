@@ -1004,6 +1004,7 @@ function DraftInput({
         <QuickActionsSheet
             testID={`${quickActionsTestID}.more_sheet`}
             addFiles={addFiles}
+            channelId={channelId}
             draftVideoProcessingBridge={draftVideoProcessingBridge}
             canShowPostPriority={canShowPostPriority}
             fileCount={files.length}
@@ -1014,7 +1015,7 @@ function DraftInput({
             value={value}
             onDismiss={() => dismissBottomSheet()}
         />
-    ), [addFiles, canShowPostPriority, draftVideoProcessingBridge, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value]);
+    ), [addFiles, channelId, canShowPostPriority, draftVideoProcessingBridge, files.length, focus, postPriority, quickActionsTestID, updatePostPriority, updateValue, value]);
 
     const openDraftMoreSheet = usePreventDoubleTap(useCallback(() => {
         Keyboard.dismiss();
