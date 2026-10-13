@@ -385,6 +385,7 @@ export async function addNoteEntry(serverUrl: string, teamId: string, scope: str
     return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/add?team_id=${teamId}`, {
         method: 'post',
         body: {teamId, scope, content},
+        headers: {'Content-Type': 'application/json'},
     });
 }
 

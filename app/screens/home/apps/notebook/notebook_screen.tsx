@@ -223,7 +223,10 @@ const NotebookScreen = () => {
         if (!addContent.trim()) return;
         setAddLoading(true);
         try {
-            await addNoteEntry(serverUrl, teamId, scope, addContent.trim());
+            const resp = await addNoteEntry(serverUrl, teamId, scope, addContent.trim());
+            if (resp?.ok === false) {
+                throw new Error(resp?.error || 'Unknown error');
+            }
             setAddContent('');
             setAddVisible(false);
             if (searchQuery.trim()) {
