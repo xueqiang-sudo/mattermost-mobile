@@ -8,6 +8,7 @@ import IntuneManager from '@managers/intune_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import SecurityManager from '@managers/security_manager';
 import WebsocketManager from '@managers/websocket_manager';
+import {debugLog} from '@store/debug_log';
 
 type AfterLoginArgs = {
     serverUrl: string;
@@ -28,10 +29,12 @@ export async function loginEntry({serverUrl}: AfterLoginArgs): Promise<{error?: 
     PerformanceMetricsManager.startTimeToInteraction();
 
     try {
-        const clData = await fetchConfigAndLicense(serverUrl, false);
+        // Use maxRetries=2 to ensure DiagnosticId is fetched reliably
+        const clData = await fetchConfigAndLicense(serverUrl, false, undefined, 2);
         if (clData.error) {
             return {error: clData.error};
         }
+        debugLog('loginEntry', `Config and license fetched - hasDiagnosticId: ${Boolean(clData.config?.DiagnosticId)}`);
 
         const credentials = await getServerCredentials(serverUrl);
         if (credentials?.token) {

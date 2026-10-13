@@ -57,6 +57,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 50, 'SemiBold'),
         color: changeOpacity(theme.centerChannelColor, 0.64),
     },
+    addButton: {
+        marginLeft: 12,
+        padding: 4,
+    },
     trashIcon: {
         marginLeft: 12,
         padding: 4,
@@ -77,6 +81,8 @@ type Props = {
     showTrash?: boolean;
     canDelete?: boolean;
     onDelete?: () => void;
+    showAddButton?: boolean;
+    onAddChannels?: () => void;
     itemHeight?: number; // Height per item in pixels
 };
 
@@ -88,6 +94,8 @@ const CollapsibleGroup = ({
     showTrash = false,
     canDelete = false,
     onDelete,
+    showAddButton = false,
+    onAddChannels,
     itemHeight = 40,
 }: Props) => {
     const theme = useTheme();
@@ -135,6 +143,18 @@ const CollapsibleGroup = ({
                     <View style={styles.badge}>
                         <Text style={styles.badgeText}>{count}</Text>
                     </View>
+                    {showAddButton && (
+                        <TouchableOpacity
+                            onPress={onAddChannels}
+                            style={styles.addButton}
+                        >
+                            <CompassIcon
+                                name='account-plus-outline'
+                                size={18}
+                                color={theme.centerChannelColor}
+                            />
+                        </TouchableOpacity>
+                    )}
                     {showTrash && (
                         <TouchableOpacity
                             onPress={handleDelete}

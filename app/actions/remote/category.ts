@@ -23,9 +23,13 @@ export type CategoriesRequest = {
 export const createCategory = async (serverUrl: string, teamId: string, displayName: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const currentUserId = await getCurrentUserId(database);
+
         const newCategory = await client.createChannelCategory('me', teamId, {
+            user_id: currentUserId,
+            team_id: teamId,
             display_name: displayName,
-            type: 'custom',
             channel_ids: [],
         } as Partial<Category>);
 

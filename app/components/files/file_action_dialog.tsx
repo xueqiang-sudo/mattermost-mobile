@@ -2,7 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Modal, Pressable, StyleSheet, Text, View, ActivityIndicator} from 'react-native';
+import {ActivityIndicator, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {useIntl} from 'react-intl';
 
 import CompassIcon from '@components/compass_icon';
@@ -23,96 +24,111 @@ type FileActionDialogProps = {
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     container: {
+        flex: 1,
         backgroundColor: theme.centerChannelBg,
-        borderRadius: 12,
-        padding: 20,
-        minWidth: 300,
-        maxWidth: 400,
-        marginHorizontal: 20,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.16),
     },
-    fileIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 8,
+    headerTitle: {
+        flex: 1,
+        fontSize: 17,
+        fontWeight: '600',
+        color: theme.centerChannelColor,
+        textAlign: 'center',
+    },
+    headerButton: {
+        padding: 8,
+    },
+    content: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 32,
+    },
+    fileIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 16,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
-    },
-    fileInfo: {
-        flex: 1,
+        marginBottom: 20,
     },
     fileName: {
-        ...typography('Body', 100, 'SemiBold'),
+        ...typography('Body', 200, 'SemiBold'),
         color: theme.centerChannelColor,
-        marginBottom: 4,
+        textAlign: 'center',
+        marginBottom: 8,
     },
     fileSize: {
-        ...typography('Body', 75, 'Regular'),
+        ...typography('Body', 100, 'Regular'),
         color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginBottom: 32,
     },
-    closeButton: {
-        padding: 4,
+    spinnerContainer: {
+        alignItems: 'center',
+        marginBottom: 16,
     },
-    divider: {
-        height: StyleSheet.hairlineWidth,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.16),
-        marginVertical: 16,
-    },
-    message: {
+    statusText: {
         ...typography('Body', 100, 'Regular'),
         color: changeOpacity(theme.centerChannelColor, 0.72),
         textAlign: 'center',
-        marginBottom: 16,
+        marginBottom: 24,
+    },
+    progressBar: {
+        width: '80%',
+        height: 4,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.12),
+        borderRadius: 2,
+        overflow: 'hidden',
+        marginBottom: 12,
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: theme.buttonBg,
+        borderRadius: 2,
     },
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
+        marginTop: 16,
     },
     button: {
-        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingHorizontal: 32,
         borderRadius: 8,
-        marginHorizontal: 4,
-    },
-    buttonPrimary: {
         backgroundColor: theme.buttonBg,
+        minWidth: 160,
     },
     buttonText: {
         ...typography('Body', 100, 'SemiBold'),
-    },
-    buttonTextPrimary: {
         color: theme.buttonColor,
     },
-    pollingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 20,
-    },
-    pollingText: {
-        ...typography('Body', 100, 'Regular'),
-        color: changeOpacity(theme.centerChannelColor, 0.72),
+    retryButton: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.24),
         marginLeft: 12,
+    },
+    retryButtonText: {
+        color: theme.centerChannelColor,
+    },
+    timeoutText: {
+        ...typography('Body', 75, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        marginTop: 8,
     },
 }));
 
-// Office文件类型
 const OFFICE_FILE_TYPES = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
 
 const FileActionDialog = ({
@@ -127,9 +143,11 @@ const FileActionDialog = ({
     const styles = getStyleSheet(theme);
     const serverUrl = useServerUrl();
     const [isPolling, setIsPolling] = useState(false);
+    const [isTimeout, setIsTimeout] = useState(false);
+    const [progress, setProgress] = useState(0);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const pollingCountRef = useRef(0);
-    const MAX_POLLING_ATTEMPTS = 30; // 最多轮询30次，每次2秒，共60秒
+    const MAX_POLLING_ATTEMPTS = 30;
 
     const getFileExtension = (fileName: string): string => {
         const parts = fileName.split('.');
@@ -141,7 +159,6 @@ const FileActionDialog = ({
         return OFFICE_FILE_TYPES.includes(ext);
     };
 
-    // 清理轮询
     const stopPolling = useCallback(() => {
         if (pollingRef.current) {
             clearInterval(pollingRef.current);
@@ -151,26 +168,77 @@ const FileActionDialog = ({
         setIsPolling(false);
     }, []);
 
-    // 轮询检查PDF转换状态
     const startPolling = useCallback(async (fileInfo: FileInfo) => {
         if (!fileInfo.id) return;
 
         setIsPolling(true);
+        setIsTimeout(false);
+        setProgress(0);
         pollingCountRef.current = 0;
 
+        // Trigger conversion and check server response
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            const result = await client.triggerPdfConversion(fileInfo.id);
+
+            // If preview is already complete, open immediately
+            if (result.status === 'complete' && result.pdf_preview_id) {
+                setProgress(100);
+
+                // Fetch latest file info to get pdf_preview_id
+                const updatedFileInfo = await client.getFileInfo(fileInfo.id);
+                if (updatedFileInfo.pdf_preview_id) {
+                    // Save to database
+                    try {
+                        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                        await operator.handleFiles({
+                            files: [{...updatedFileInfo, id: fileInfo.id}],
+                            prepareRecordsOnly: false,
+                        });
+                    } catch (dbError) {
+                        // Continue even if DB save fails
+                    }
+
+                    // Open preview
+                    setTimeout(() => {
+                        onPreview?.({...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id});
+                        onClose();
+                    }, 500);
+                    return;
+                }
+            }
+
+            // If status is 'converting' or 'queued', start polling
+            if (result.status === 'converting' || result.status === 'queued') {
+                // Continue to polling
+            } else if (result.status === 'failed') {
+                // Conversion failed
+                setIsPolling(false);
+                setIsTimeout(true);
+                return;
+            }
+        } catch (error) {
+            // Continue to polling even if trigger fails
+        }
+
+        // Start polling for conversion completion
         pollingRef.current = setInterval(async () => {
             pollingCountRef.current += 1;
 
+            // Update progress (0 to 90%, never reaches 100 until done)
+            const pct = Math.min(90, Math.round((pollingCountRef.current / MAX_POLLING_ATTEMPTS) * 90));
+            setProgress(pct);
+
             try {
-                // 从服务器获取最新的文件信息（不是本地数据库）
                 const client = NetworkManager.getClient(serverUrl);
                 const updatedFileInfo = await client.getFileInfo(fileInfo.id!);
 
-                // 检查是否已转换完成
+                // Conversion complete
                 if (updatedFileInfo.pdf_preview_id) {
                     stopPolling();
+                    setProgress(100);
 
-                    // 保存 pdf_preview_id 到本地数据库，以便下次直接打开
+                    // Save pdf_preview_id to local database
                     try {
                         const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                         const fileWithPdfId = {
@@ -182,195 +250,169 @@ const FileActionDialog = ({
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        console.error('Failed to save pdf_preview_id to database:', dbError);
-                        // 继续打开预览，不影响用户体验
+                        // Continue to preview even if DB save fails
                     }
 
-                    // 转换完成，直接打开预览
-                    onPreview?.({...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id});
-                    onClose();
+                    // Auto-open preview after short delay for UX
+                    setTimeout(() => {
+                        onPreview?.({...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id});
+                        onClose();
+                    }, 500);
                     return;
                 }
 
-                // 超过最大轮询次数
+                // Timeout
                 if (pollingCountRef.current >= MAX_POLLING_ATTEMPTS) {
                     stopPolling();
-                    // 显示提示，让用户选择用其他应用打开
+                    setIsTimeout(true);
                 }
             } catch (error) {
-                console.error('Polling error:', error);
                 stopPolling();
+                setIsTimeout(true);
             }
-        }, 2000); // 每2秒轮询一次
+        }, 2000);
     }, [serverUrl, onPreview, onClose, stopPolling]);
 
-    // 处理预览按钮点击
-    const handlePreview = useCallback(() => {
-        if (!file) return;
-
-        const ext = getFileExtension(file.name);
-        const isOffice = isOfficeFile(file.name);
-
-        // Office文件且未转换
-        if (isOffice && !file.pdf_preview_id) {
+    // Auto-start polling when dialog opens for Office files
+    useEffect(() => {
+        if (visible && file && isOfficeFile(file.name) && !file.pdf_preview_id) {
             startPolling(file);
-            return;
         }
+        return () => {
+            stopPolling();
+        };
+    }, [visible, file]);
 
-        // 其他情况直接预览
-        onPreview?.(file);
-        onClose();
-    }, [file, startPolling, onPreview, onClose]);
+    const handleRetry = useCallback(() => {
+        if (file) {
+            startPolling(file);
+        }
+    }, [file, startPolling]);
 
-    // 处理用其他应用打开
     const handleOpenWithOtherApp = useCallback(() => {
         if (!file || !onOpenWithOtherApp) return;
         onOpenWithOtherApp(file);
         onClose();
     }, [file, onOpenWithOtherApp, onClose]);
 
-    // 组件卸载时清理轮询
-    useEffect(() => {
-        return () => {
-            stopPolling();
-        };
-    }, [stopPolling]);
-
-    // 对话框关闭时清理轮询
-    useEffect(() => {
-        if (!visible) {
-            stopPolling();
-        }
-    }, [visible, stopPolling]);
-
     if (!file) {
-        console.log('[FileActionDialog] no file, returning null');
         return null;
     }
 
-    console.log('[FileActionDialog] rendering:', {
-        visible,
-        fileName: file.name,
-        isPolling,
-        hasPdfPreviewId: Boolean(file.pdf_preview_id),
-    });
-
     const fileName = file.name || 'Unknown';
     const fileSize = getFormattedFileSize(file.size);
-    const ext = getFileExtension(fileName);
     const isOffice = isOfficeFile(fileName);
-    const hasConverted = Boolean(file.pdf_preview_id);
 
-    console.log('[FileActionDialog] file details:', {
-        fileName,
-        ext,
-        isOffice,
-        hasConverted,
-        fileSize,
-    });
-
-    // 确定显示内容
-    let content;
-    if (isPolling) {
-        // 轮询中：显示等待状态
-        content = (
-            <View style={styles.pollingContainer}>
-                <ActivityIndicator size='small' color={theme.buttonBg}/>
-                <Text style={styles.pollingText}>
-                    {intl.formatMessage({
-                        id: 'file.converting',
-                        defaultMessage: 'Converting document, please wait...',
-                    })}
-                </Text>
-            </View>
-        );
-    } else if (isOffice && !hasConverted) {
-        // Office文件未转换：显示预览按钮
-        content = (
-            <>
-                <Text style={styles.message}>
-                    {intl.formatMessage({
-                        id: 'file.conversion_pending_message',
-                        defaultMessage: 'This document is being converted to PDF for preview. Please try again in a moment.',
-                    })}
-                </Text>
-                <View style={styles.buttonContainer}>
-                    <Pressable
-                        style={[styles.button, styles.buttonPrimary]}
-                        onPress={handlePreview}
-                    >
-                        <Text style={[styles.buttonText, styles.buttonTextPrimary]}>
-                            {intl.formatMessage({id: 'file.preview', defaultMessage: 'Preview'})}
-                        </Text>
-                    </Pressable>
-                </View>
-            </>
-        );
+    let statusMessage: string;
+    if (isTimeout) {
+        statusMessage = intl.formatMessage({
+            id: 'file.conversion_timeout',
+            defaultMessage: 'Conversion is taking longer than expected. You can retry or open with another app.',
+        });
+    } else if (isPolling) {
+        statusMessage = intl.formatMessage({
+            id: 'file.converting',
+            defaultMessage: 'Converting document to PDF...',
+        });
     } else {
-        // 不可识别的文件：只显示用其他应用打开
-        content = (
-            <>
-                <Text style={styles.message}>
-                    {intl.formatMessage({
-                        id: 'file.unrecognized_message',
-                        defaultMessage: 'This file type cannot be opened. You can download it to view with other apps.',
-                    })}
-                </Text>
-                <View style={styles.buttonContainer}>
-                    <Pressable
-                        style={[styles.button, styles.buttonPrimary]}
-                        onPress={handleOpenWithOtherApp}
-                    >
-                        <Text style={[styles.buttonText, styles.buttonTextPrimary]}>
-                            {intl.formatMessage({id: 'file.open_with_other', defaultMessage: 'Open with Other App'})}
-                        </Text>
-                    </Pressable>
-                </View>
-            </>
-        );
+        statusMessage = intl.formatMessage({
+            id: 'file.unrecognized_message',
+            defaultMessage: 'This file type cannot be opened directly. You can download it to view with other apps.',
+        });
     }
 
     return (
         <Modal
             visible={visible}
-            transparent={true}
-            animationType='fade'
+            animationType='slide'
+            presentationStyle='fullScreen'
             onRequestClose={onClose}
         >
-            <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={styles.container} onPress={(e) => e.stopPropagation()}>
-                    {/* Header with file info */}
-                    <View style={styles.header}>
-                        <View style={styles.fileIcon}>
-                            <CompassIcon
-                                name='file-document-outline'
-                                size={28}
-                                color={theme.centerChannelColor}
-                            />
-                        </View>
-                        <View style={styles.fileInfo}>
-                            <Text style={styles.fileName} numberOfLines={2}>
-                                {fileName}
-                            </Text>
-                            <Text style={styles.fileSize}>
-                                {fileSize}
-                            </Text>
-                        </View>
-                        <Pressable style={styles.closeButton} onPress={onClose}>
-                            <CompassIcon
-                                name='close'
-                                size={24}
-                                color={changeOpacity(theme.centerChannelColor, 0.56)}
-                            />
-                        </Pressable>
+            <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+                <View style={styles.header}>
+                    <Pressable style={styles.headerButton} onPress={onClose}>
+                        <CompassIcon
+                            name='close'
+                            size={24}
+                            color={theme.centerChannelColor}
+                        />
+                    </Pressable>
+                    <Text style={styles.headerTitle}>
+                        {intl.formatMessage({id: 'file.document_preview', defaultMessage: 'Document Preview'})}
+                    </Text>
+                    <View style={{width: 40}}/>
+                </View>
+
+                <View style={styles.content}>
+                    <View style={styles.fileIconContainer}>
+                        <CompassIcon
+                            name='file-document-outline'
+                            size={40}
+                            color={theme.centerChannelColor}
+                        />
                     </View>
 
-                    <View style={styles.divider}/>
+                    <Text style={styles.fileName} numberOfLines={2}>
+                        {fileName}
+                    </Text>
+                    <Text style={styles.fileSize}>
+                        {fileSize}
+                    </Text>
 
-                    {/* Content */}
-                    {content}
-                </Pressable>
-            </Pressable>
+                    {(isPolling || (isOffice && !isTimeout)) && (
+                        <>
+                            <View style={styles.spinnerContainer}>
+                                {isPolling && (
+                                    <ActivityIndicator size='large' color={theme.buttonBg}/>
+                                )}
+                            </View>
+                            {isPolling && (
+                                <View style={styles.progressBar}>
+                                    <View style={[styles.progressFill, {width: `${progress}%`}]}/>
+                                </View>
+                            )}
+                        </>
+                    )}
+
+                    <Text style={styles.statusText}>
+                        {statusMessage}
+                    </Text>
+
+                    {isTimeout && (
+                        <View style={styles.buttonContainer}>
+                            <Pressable style={styles.button} onPress={handleRetry}>
+                                <Text style={styles.buttonText}>
+                                    {intl.formatMessage({id: 'file.retry', defaultMessage: 'Retry'})}
+                                </Text>
+                            </Pressable>
+                            <Pressable style={[styles.button, styles.retryButton]} onPress={handleOpenWithOtherApp}>
+                                <Text style={[styles.buttonText, styles.retryButtonText]}>
+                                    {intl.formatMessage({id: 'file.open_with_other', defaultMessage: 'Other App'})}
+                                </Text>
+                            </Pressable>
+                        </View>
+                    )}
+
+                    {!isOffice && !isPolling && (
+                        <View style={styles.buttonContainer}>
+                            <Pressable style={styles.button} onPress={handleOpenWithOtherApp}>
+                                <Text style={styles.buttonText}>
+                                    {intl.formatMessage({id: 'file.open_with_other', defaultMessage: 'Open with Other App'})}
+                                </Text>
+                            </Pressable>
+                        </View>
+                    )}
+
+                    {isPolling && (
+                        <Text style={styles.timeoutText}>
+                            {intl.formatMessage({
+                                id: 'file.converting_countdown',
+                                defaultMessage: 'Checking... ({count}/{max})',
+                            }, {count: pollingCountRef.current, max: MAX_POLLING_ATTEMPTS})}
+                        </Text>
+                    )}
+                </View>
+            </SafeAreaView>
         </Modal>
     );
 };

@@ -12,6 +12,7 @@ export interface ClientFilesMix {
     getFilePreviewUrl: (fileId: string, timestamp: number) => string;
     getFilePublicLink: (fileId: string) => Promise<{link: string}>;
     getFileInfo: (fileId: string) => Promise<FileInfo>;
+    triggerPdfConversion: (fileId: string) => Promise<{status: 'ready' | 'converting' | 'error'}>;
     uploadAttachment: (
         file: FileInfo | ExtractedFileInfo,
         channelId: string,
@@ -66,6 +67,20 @@ const ClientFiles = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
             `${this.getFileRoute(fileId)}/info`,
             {method: 'get'},
         );
+    };
+
+    triggerPdfConversion = async (fileId: string) => {
+        // POST /api/v4/files/{file_id}/convert triggers server-side PDF conversion
+        // Response status codes:
+        // - 200: Conversion complete, returns {status: 'complete', pdf_preview_id: 'xxx'}
+        // - 202: Conversion started, returns {status: 'converting', message: '...'}
+        // - 409: Conversion already in progress, returns {status: 'converting', message: '...'}
+        // - 400: Not an Office file or other error
+        const response = await this.doFetch(
+            `${this.getFileRoute(fileId)}/convert`,
+            {method: 'post'},
+        );
+        return response;
     };
 
     uploadAttachment = (

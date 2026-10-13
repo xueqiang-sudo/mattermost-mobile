@@ -16,9 +16,8 @@ import {initialize} from '@init/app';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {getStoredDarkModeSetting} from '@queries/app/global';
 import {parseStoredDarkModeSetting} from '@utils/theme/dark_mode';
-import {extractStartLink, isValidUrl} from '@utils/url';
+import {extractFirstLink, isValidUrl} from '@utils/url';
 
-import ChannelsScreen from './screens/channels';
 import ServersScreen from './screens/servers';
 import ShareScreen from './screens/share';
 
@@ -54,10 +53,12 @@ const ShareExtension = () => {
         let text = data?.filter((i) => i.isString)[0]?.value;
         let link;
         if (text) {
-            const first = extractStartLink(text);
+            const first = extractFirstLink(text);
             if (first && isValidUrl(first)) {
                 link = first;
-                text = text.replace(first, '');
+                text = text.replace(first, '').trim();
+                // Clean common share prefixes from Chinese apps
+                text = text.replace(/^(分享一个作品给你和?|看看这个|推荐一个|分享给你)/i, '').trim();
             }
         }
 
@@ -119,7 +120,7 @@ const ShareExtension = () => {
                     initialRouteName='Share'
                     screenOptions={defaultNavigationOptions}
                 >
-                    <Stack.Screen name='Share'>
+                    <Stack.Screen name='Share' options={{headerShown: false}}>
                         {() => (
                             <ShareScreen
                                 files={files}
@@ -132,11 +133,6 @@ const ShareExtension = () => {
                     <Stack.Screen name='Servers'>
                         {() => (
                             <ServersScreen theme={theme}/>
-                        )}
-                    </Stack.Screen>
-                    <Stack.Screen name='Channels'>
-                        {() => (
-                            <ChannelsScreen theme={theme}/>
                         )}
                     </Stack.Screen>
                 </Stack.Navigator>

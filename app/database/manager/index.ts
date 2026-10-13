@@ -63,6 +63,30 @@ class DatabaseManagerSingleton {
     * @returns {Promise<void>}
     */
     public init = async (serverUrls: string[]): Promise<void> => {
+        // Android-specific: Ensure database directory is created before initializing databases
+        // This is critical because Android requires the directory to exist before creating database files
+        if (Platform.OS === 'android') {
+            try {
+                logDebug('DatabaseManager.init', 'Creating Android database directory');
+                await makeDirectoryAsync(this.databaseDirectory!, {intermediates: true});
+                // Wait briefly for filesystem sync to ensure directory is fully created
+                await new Promise((resolve) => setTimeout(resolve, 200));
+                logDebug('DatabaseManager.init', 'Android database directory created successfully');
+            } catch (e) {
+                logError('Failed to create database directory on Android', e);
+                // Retry once with longer delay
+                try {
+                    logDebug('DatabaseManager.init', 'Retrying Android database directory creation');
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    await makeDirectoryAsync(this.databaseDirectory!, {intermediates: true});
+                    logDebug('DatabaseManager.init', 'Android database directory created on retry');
+                } catch (retryError) {
+                    logError('Retry failed to create database directory', retryError);
+                    throw retryError;
+                }
+            }
+        }
+
         await this.createAppDatabase();
         const buildNumber = nativeBuildVersion;
         const versionNumber = nativeApplicationVersion;
@@ -198,6 +222,10 @@ class DatabaseManagerSingleton {
             if (appDatabase) {
                 const serverModel = await getServer(serverUrl);
 
+                // Fix for Android: if identifier is empty (e.g., DiagnosticId not available),
+                // use serverUrl as fallback to ensure server is marked as active
+                const finalIdentifier = identifier || serverUrl;
+
                 if (!serverModel) {
                     await appDatabase.write(async () => {
                         const serversCollection = appDatabase.collections.get(SERVERS);
@@ -205,7 +233,7 @@ class DatabaseManagerSingleton {
                             server.dbPath = databaseFilePath;
                             server.displayName = displayName;
                             server.url = serverUrl;
-                            server.identifier = identifier;
+                            server.identifier = finalIdentifier;
                             server.lastActiveAt = 0;
                         });
                     });
@@ -215,8 +243,8 @@ class DatabaseManagerSingleton {
                             s.dbPath = databaseFilePath;
                         });
                     });
-                } else if (identifier) {
-                    await this.updateServerIdentifier(serverUrl, identifier, displayName);
+                } else if (finalIdentifier) {
+                    await this.updateServerIdentifier(serverUrl, finalIdentifier, displayName);
                 }
             }
         } catch (e) {

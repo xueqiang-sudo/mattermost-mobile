@@ -26,6 +26,7 @@ export const CONVERT_GM_TO_CHANNEL = 'ConvertGMToChannel';
 export const CREATE_DIRECT_MESSAGE = 'CreateDirectMessage';
 export const CREATE_OR_EDIT_CHANNEL = 'CreateOrEditChannel';
 export const CREATE_CATEGORY = 'CreateCategory';
+export const CATEGORY_CHANNEL_PICKER = 'CategoryChannelPicker';
 export const CREATE_TEAM = 'CreateTeam';
 export const JOIN_TEAM_QR = 'JoinTeamQR';
 export const INVITE_USER_JOIN_TEAM = 'InviteUserJoinTeam';
@@ -209,6 +210,7 @@ export default {
     CREATE_DIRECT_MESSAGE,
     CREATE_OR_EDIT_CHANNEL,
     CREATE_CATEGORY,
+    CATEGORY_CHANNEL_PICKER,
     CREATE_TEAM,
     JOIN_TEAM_QR,
     INVITE_USER_JOIN_TEAM,
@@ -233,6 +235,8 @@ export default {
     EXTERNAL_PROFILE_CARD_EXTERNAL_INFO,
     EXTERNAL_PROFILE_CARD_STYLE,
     FIND_CHANNELS,
+    FILE_PICKER,
+    CLOUD_DRIVE_PICKER,
     JOINED_CHANNELS_AND_GROUPS,
     FORGOT_PASSWORD,
     FORWARD_MESSAGE,

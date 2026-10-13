@@ -4,13 +4,14 @@
 import React from 'react';
 
 import {isMessageAttachmentArray} from '@utils/message_attachment';
-import {isYoutubeLink} from '@utils/url';
+import {isVideoPlatformLink, isYoutubeLink} from '@utils/url';
 
 import EmbeddedBindings from './embedded_bindings';
 import ImagePreview from './image_preview';
 import MessageAttachments from './message_attachments';
 import Opengraph from './opengraph';
 import PermalinkPreview from './permalink_preview';
+import VideoLink from './video_link/video_link';
 import YouTube from './youtube';
 
 import type PostModel from '@typings/database/models/servers/post';
@@ -72,6 +73,17 @@ const Content = ({isReplyPost, layoutWidth, location, onLongPress, post, theme, 
                         isReplyPost={isReplyPost}
                         layoutWidth={layoutWidth}
                         metadata={post.metadata}
+                    />
+                );
+            }
+
+            if (isVideoPlatformLink(post.metadata!.embeds![0].url)) {
+                return (
+                    <VideoLink
+                        isReplyPost={isReplyPost}
+                        layoutWidth={layoutWidth}
+                        metadata={post.metadata}
+                        theme={theme}
                     />
                 );
             }

@@ -159,6 +159,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CREATE_CATEGORY:
             screen = withServerDatabase(require('@screens/create_category').default);
             break;
+        case Screens.CATEGORY_CHANNEL_PICKER:
+            screen = withServerDatabase(require('@screens/category_channel_picker').default);
+            break;
         case Screens.COMPONENT_LIBRARY:
             screen = withServerDatabase(require('@screens/component_library').default);
             break;

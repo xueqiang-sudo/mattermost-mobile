@@ -27,6 +27,7 @@ import {getCSRFFromCookie} from '@utils/security';
 import {getServerUrlAfterRedirect} from '@utils/url';
 
 import {loginEntry} from './entry';
+import {debugLog} from '@store/debug_log';
 
 import type {Client} from '@client/rest';
 import type {LoginArgs} from '@typings/database/database';
@@ -132,11 +133,17 @@ export const login = async (serverUrl: string, {ldapOnly = false, loginId, mfaTo
             user = await userPwdLoginAPI(serverUrl, {ldapOnly, loginId, mfaToken, password});
         }
 
+        // Use DiagnosticId if available, otherwise use serverUrl as fallback
+        const diagnosticId = config.DiagnosticId;
+        const finalIdentifier = diagnosticId || serverUrl;
+
+        debugLog('login', `Creating server database - serverUrl: ${serverUrl}, hasDiagnosticId: ${Boolean(diagnosticId)}, identifier: ${finalIdentifier}, identifierSource: ${diagnosticId ? 'server' : 'fallback'}`);
+
         const server = await DatabaseManager.createServerDatabase({
             config: {
                 dbName: serverUrl,
                 serverUrl,
-                identifier: config.DiagnosticId,
+                identifier: finalIdentifier,
                 displayName: serverDisplayName,
             },
         });
@@ -151,6 +158,12 @@ export const login = async (serverUrl: string, {ldapOnly = false, loginId, mfaTo
         });
         const csrfToken = await getCSRFFromCookie(serverUrl);
         client.setCSRFToken(csrfToken);
+
+        // If we used fallback, schedule background update
+        if (!diagnosticId) {
+            debugLog('login', 'Scheduled background identifier update (DiagnosticId was empty)');
+            scheduleIdentifierUpdate(serverUrl, finalIdentifier, serverDisplayName);
+        }
     } catch (error) {
         logDebug('error on login', getFullErrorMessage(error));
         return {error, failed: true};
@@ -163,6 +176,37 @@ export const login = async (serverUrl: string, {ldapOnly = false, loginId, mfaTo
         return {error, failed: false};
     } catch (error) {
         return {error, failed: false};
+    }
+};
+
+/**
+ * Schedule a background update of the server identifier when DiagnosticId was not available at login time.
+ * This function waits 5 seconds, then attempts to fetch the DiagnosticId and update it if found.
+ */
+const scheduleIdentifierUpdate = async (serverUrl: string, currentIdentifier: string, serverDisplayName: string): Promise<void> => {
+    try {
+        debugLog('scheduleIdentifierUpdate', `Will retry DiagnosticId fetch in 5 seconds for ${serverUrl}`);
+
+        // Wait 5 seconds before retrying
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        debugLog('scheduleIdentifierUpdate', `Attempting to fetch DiagnosticId for ${serverUrl}`);
+
+        const client = NetworkManager.getClient(serverUrl);
+        const config = await client.getClientConfigOld();
+
+        if (config?.DiagnosticId && config.DiagnosticId.trim() !== '' && config.DiagnosticId !== currentIdentifier) {
+            debugLog('scheduleIdentifierUpdate', `Found DiagnosticId: ${config.DiagnosticId}, updating from ${currentIdentifier}`);
+
+            await DatabaseManager.updateServerIdentifier(serverUrl, config.DiagnosticId, serverDisplayName);
+
+            debugLog('scheduleIdentifierUpdate', `Successfully updated identifier from ${currentIdentifier} to ${config.DiagnosticId}`);
+        } else {
+            debugLog('scheduleIdentifierUpdate', `DiagnosticId still not available or unchanged - hasDiagnosticId: ${Boolean(config?.DiagnosticId)}, diagnosticId: ${config?.DiagnosticId || 'EMPTY'}, currentIdentifier: ${currentIdentifier}`);
+        }
+    } catch (error) {
+        debugLog('scheduleIdentifierUpdate', `Failed to update identifier for ${serverUrl}: ${getFullErrorMessage(error)}`);
+        // Don't throw - this is a background task
     }
 };
 

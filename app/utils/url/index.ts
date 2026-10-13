@@ -129,6 +129,22 @@ export function isYoutubeLink(link: string) {
     return link.trim().match(ytRegex);
 }
 
+export function isKuaishouLink(link: string) {
+    return /(?:v\.kuaishou\.com|kuaishou\.com)/i.test(link);
+}
+
+export function isDouyinLink(link: string) {
+    return /(?:douyin\.com|iesdouyin\.com)/i.test(link);
+}
+
+export function isBilibiliLink(link: string) {
+    return /(?:bilibili\.com|b23\.tv)/i.test(link);
+}
+
+export function isVideoPlatformLink(link: string) {
+    return Boolean(isYoutubeLink(link)) || isKuaishouLink(link) || isDouyinLink(link) || isBilibiliLink(link);
+}
+
 export function isImageLink(link: string) {
     let linkWithoutQuery = link;
     if (link.indexOf('?') !== -1) {

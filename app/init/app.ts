@@ -116,9 +116,9 @@ export async function start() {
         showLaunchAgreement();
     }
 
-    // Show debug panel overlay after RNN has rendered the initial screen.
-    // The 1500ms delay gives RNN time to complete its first layout before we push an overlay.
-    if (__DEBUG_PANEL__) {
-        setTimeout(showDebugPanelOverlay, 1500);
-    }
+    // Debug panel overlay is NOT shown automatically at startup.
+    // Users can open it manually when needed to avoid covering error messages.
+    // if (__DEBUG_PANEL__) {
+    //     setTimeout(showDebugPanelOverlay, 1500);
+    // }
 }

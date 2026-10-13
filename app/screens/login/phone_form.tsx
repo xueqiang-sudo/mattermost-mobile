@@ -23,6 +23,7 @@ import {queryMyTeams} from '@queries/servers/team';
 import {resetToHome} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
+import {debugLog} from '@store/debug_log';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -301,10 +302,12 @@ const PhoneLoginForm = ({
                 throw pingResult.error;
             }
             canReceiveNotifications(serverUrl, pingResult.canReceiveNotifications as string, intl);
-            const cfgLicenseData = await fetchConfigAndLicense(serverUrl, true);
+            // Use maxRetries=2 to ensure DiagnosticId is fetched reliably, especially on Android
+            const cfgLicenseData = await fetchConfigAndLicense(serverUrl, true, undefined, 2);
             if (cfgLicenseData.error) {
                 throw cfgLicenseData.error;
             }
+            debugLog('signInWithCode', `Config fetched - hasDiagnosticId: ${Boolean(cfgLicenseData.config?.DiagnosticId)}, diagnosticId: ${cfgLicenseData.config?.DiagnosticId || 'EMPTY'}`);
 
             // 3. 登录前先获取 username
             let isNeedTryReg = true;

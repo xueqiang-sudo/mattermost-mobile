@@ -105,6 +105,48 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const startPolling = useCallback(async () => {
         pollingCountRef.current = 0;
 
+        // Trigger conversion and check server response
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            const result = await client.triggerPdfConversion(fileId);
+
+            // If preview is already complete, use it immediately
+            if (result.status === 'complete' && result.pdf_preview_id) {
+                const updatedFileInfo = await client.getFileInfo(fileId);
+                if (updatedFileInfo.pdf_preview_id) {
+                    // Save to database
+                    try {
+                        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                        await operator.handleFiles({
+                            files: [{...updatedFileInfo, id: fileId}],
+                            prepareRecordsOnly: false,
+                        });
+                    } catch (dbError) {
+                        logDebug('Failed to save pdf_preview_id to database:', dbError);
+                    }
+
+                    // Update state and show PDF
+                    const newFileInfo = {...currentFileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id};
+                    setCurrentFileInfo(newFileInfo);
+                    setFileState('viewable');
+                    downloadAndShowFile(newFileInfo);
+                    return;
+                }
+            }
+
+            // If status is 'converting' or 'queued', start polling
+            if (result.status === 'converting' || result.status === 'queued') {
+                // Continue to polling
+            } else if (result.status === 'failed') {
+                // Conversion failed
+                setFileState('unsupported');
+                return;
+            }
+        } catch (error) {
+            // Continue to polling even if trigger fails
+        }
+
+        // Start polling for conversion completion
         pollingRef.current = setInterval(async () => {
             pollingCountRef.current += 1;
 
@@ -112,8 +154,8 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 const client = NetworkManager.getClient(serverUrl);
                 const updatedFileInfo = await client.getFileInfo(fileId);
 
+                // Conversion complete
                 if (updatedFileInfo.pdf_preview_id) {
-                    // Conversion complete
                     if (pollingRef.current) {
                         clearInterval(pollingRef.current);
                         pollingRef.current = null;

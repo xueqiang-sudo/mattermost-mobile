@@ -142,14 +142,32 @@ const CollapsibleChannelListRenderer = ({
         });
     }, []);
 
-    const handleDeleteCategory = useCallback(async (categoryId: string, categoryName: string, teamId: string) => {
+    const handleDeleteCategory = useCallback(async (categoryId: string, categoryName: string, teamId: string, channelCount: number) => {
+        // If category has channels, show error message
+        if (channelCount > 0) {
+            Alert.alert(
+                intl.formatMessage({id: 'category.delete_title', defaultMessage: 'Cannot Delete Category'}),
+                intl.formatMessage(
+                    {id: 'category.delete_has_channels', defaultMessage: 'Please remove all channels from this category before deleting it.'},
+                ),
+                [
+                    {text: intl.formatMessage({id: 'category.ok', defaultMessage: 'OK'})},
+                ],
+            );
+            return;
+        }
+
+        // If category is empty, show confirmation and delete
         Alert.alert(
-            '删除分类',
-            `确定要删除"${categoryName}"分类吗？`,
+            intl.formatMessage({id: 'category.delete_title', defaultMessage: 'Delete this category?'}),
+            intl.formatMessage(
+                {id: 'category.delete_empty', defaultMessage: 'Are you sure you want to delete the category "{name}"?'},
+                {name: categoryName},
+            ),
             [
-                {text: '取消', style: 'cancel'},
+                {text: intl.formatMessage({id: 'category.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
                 {
-                    text: '删除',
+                    text: intl.formatMessage({id: 'category.delete', defaultMessage: 'Delete'}),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -177,7 +195,7 @@ const CollapsibleChannelListRenderer = ({
 
     const renderSectionHeader = useCallback(({section}: {section: Section}) => {
         const isExpanded = expandedSections.has(section.key);
-        const canDelete = section.isCustomCategory && section.data.length === 0;
+        const canDelete = section.isCustomCategory; // Always allow clicking delete to show appropriate message
 
         return (
             <TouchableOpacity
@@ -202,7 +220,7 @@ const CollapsibleChannelListRenderer = ({
                     </View>
                     {section.isCustomCategory && (
                         <TouchableOpacity
-                            onPress={() => canDelete && handleDeleteCategory(section.categoryId!, section.title, section.teamId!)}
+                            onPress={() => handleDeleteCategory(section.categoryId!, section.title, section.teamId!, section.actualCount)}
                             disabled={!canDelete}
                             style={[styles.trashIcon, !canDelete && styles.trashIconDisabled]}
                         >

@@ -49,7 +49,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
 
         // Fetch in parallel server config & license / user preferences / teams / team membership
         const promises: [Promise<ConfigAndLicenseRequest>, Promise<MyPreferencesRequest>, Promise<MyTeamsRequest>] = [
-            fetchConfigAndLicense(serverUrl, true),
+            fetchConfigAndLicense(serverUrl, true, undefined, 2), // Use maxRetries=2 for reliability
             fetchMyPreferences(serverUrl, true),
             fetchMyTeams(serverUrl, true),
         ];

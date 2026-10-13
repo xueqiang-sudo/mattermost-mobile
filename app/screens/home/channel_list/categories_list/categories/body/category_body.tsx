@@ -12,13 +12,14 @@ import ChannelItem from '@components/channel_item';
 import CompassIcon from '@components/compass_icon';
 import {Events} from '@constants';
 import {CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY} from '@constants/categories';
-import {DRAFT, THREAD} from '@constants/screens';
+import {CATEGORY_CHANNEL_PICKER, DRAFT, THREAD} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {getChannelCategory} from '@queries/servers/categories';
+import {queryMyChannelsByTeam} from '@queries/servers/channel';
 import DatabaseManager from '@database/manager';
-import {bottomSheet, dismissBottomSheet} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, showModal} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
 import {isDMorGM} from '@utils/channel';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -236,24 +237,81 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
     }, [intl, showCategoryPicker, theme]);
 
     const handleDeleteCategory = useCallback(async () => {
-        try {
-            await deleteCategory(serverUrl, category.teamId, category.id);
-            showSnackBar({
-                barType: 'FAVORITE_CHANNEL' as any,
-                customMessage: intl.formatMessage(
-                    {id: 'category.deleted', defaultMessage: 'Category "{name}" deleted'},
-                    {name: category.displayName},
+        const channelCount = ids.length;
+
+        // If category has channels, show error message
+        if (channelCount > 0) {
+            Alert.alert(
+                intl.formatMessage({id: 'category.delete_title', defaultMessage: 'Cannot Delete Category'}),
+                intl.formatMessage(
+                    {id: 'category.delete_has_channels', defaultMessage: 'Please remove all channels from this category before deleting it.'},
                 ),
-            });
-        } catch (error) {
-            showSnackBar({
-                barType: 'UNFAVORITE_CHANNEL' as any,
-                customMessage: intl.formatMessage(
-                    {id: 'category.delete_error', defaultMessage: 'Failed to delete category'},
-                ),
-            });
+                [
+                    {text: intl.formatMessage({id: 'category.ok', defaultMessage: 'OK'})},
+                ],
+            );
+            return;
         }
-    }, [serverUrl, category, intl]);
+
+        // If category is empty, show confirmation and delete
+        Alert.alert(
+            intl.formatMessage({id: 'category.delete_title', defaultMessage: 'Delete this category?'}),
+            intl.formatMessage(
+                {id: 'category.delete_empty', defaultMessage: 'Are you sure you want to delete the category "{name}"?'},
+                {name: category.displayName},
+            ),
+            [
+                {text: intl.formatMessage({id: 'category.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
+                {
+                    text: intl.formatMessage({id: 'category.delete', defaultMessage: 'Delete'}),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteCategory(serverUrl, category.teamId, category.id);
+                            showSnackBar({
+                                barType: 'FAVORITE_CHANNEL' as any,
+                                customMessage: intl.formatMessage(
+                                    {id: 'category.deleted', defaultMessage: 'Category "{name}" deleted'},
+                                    {name: category.displayName},
+                                ),
+                            });
+                        } catch (error) {
+                            showSnackBar({
+                                barType: 'UNFAVORITE_CHANNEL' as any,
+                                customMessage: intl.formatMessage(
+                                    {id: 'category.delete_error', defaultMessage: 'Failed to delete category'},
+                                ),
+                            });
+                        }
+                    },
+                },
+            ],
+        );
+    }, [serverUrl, category, intl, ids]);
+
+    const handleAddChannels = useCallback(async () => {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const teamId = category.teamId;
+
+        // Get all channels for the team
+        const allMyChannels = await queryMyChannelsByTeam(database, teamId).fetch();
+
+        // Get current channel IDs in this category
+        const categoryWithChannels = await category.toCategoryWithChannels();
+        const currentChannelIds = categoryWithChannels.channel_ids || [];
+
+        showModal(
+            CATEGORY_CHANNEL_PICKER,
+            category.displayName,
+            {
+                categoryId: category.id,
+                categoryName: category.displayName,
+                teamId,
+                allChannels: allMyChannels,
+                currentChannelIds,
+            },
+        );
+    }, [serverUrl, category]);
 
     const renderItem = useCallback(({item}: {item: ChannelModel}) => {
         return (
@@ -277,7 +335,7 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
     }, [directChannels.length]);
 
     const isCustomCategory = category.type === 'custom';
-    const canDelete = ids.length === 0;
+    const canDelete = true; // Allow deletion even if category has channels
     const containerHeight = ids.length * 40; // CHANNEL_ROW_HEIGHT
 
     return (
@@ -287,6 +345,8 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
             showTrash={isCustomCategory}
             canDelete={canDelete}
             onDelete={handleDeleteCategory}
+            showAddButton={isCustomCategory}
+            onAddChannels={handleAddChannels}
         >
             <View style={{height: containerHeight}}>
                 <FlatList
