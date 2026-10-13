@@ -23,6 +23,7 @@ import WebsocketManager from '@managers/websocket_manager';
 import {queryMyTeams} from '@queries/servers/team';
 import DatabaseManager from '@database/manager';
 import {resetToTeams, resetToDebug, openToS} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import NavigationStore from '@store/navigation_store';
 import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
@@ -141,29 +142,54 @@ const ChannelListScreen = (props: ChannelProps) => {
 
     useEffect(() => {
         if (teamsLoading) {
+            debugLog('CHANNEL_LIST', `teamsLoading=true, skip check`);
             return undefined;
         }
 
         const checkTeams = async () => {
+            debugLog('CHANNEL_LIST', `checkTeams started, serverUrl=${serverUrl}`);
             const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+
+            if (!database) {
+                debugLog('CHANNEL_LIST', `ERROR: database not found for ${serverUrl}`);
+                debugLog('CHANNEL_LIST', `available databases: ${Object.keys(DatabaseManager.serverDatabases).join(', ')}`);
+            }
+
             let teamCount = 0;
-            if (database) {
-                teamCount = await queryMyTeams(database).fetchCount();
+            try {
+                if (database) {
+                    teamCount = await queryMyTeams(database).fetchCount();
+                    debugLog('CHANNEL_LIST', `first check: teamCount=${teamCount}`);
+                }
+            } catch (e) {
+                debugLog('CHANNEL_LIST', `ERROR querying teams: ${e instanceof Error ? e.message : String(e)}`);
             }
 
             if (teamCount > 0 || teamsLoadingRef.current) {
+                debugLog('CHANNEL_LIST', `OK: teamCount=${teamCount}, teamsLoading=${teamsLoadingRef.current}`);
                 return;
             }
 
-            // 等待后再次检查
+            debugLog('CHANNEL_LIST', `teamCount=0, waiting ${RESET_TO_TEAMS_DELAY_MS}ms...`);
             await new Promise((resolve) => setTimeout(resolve, RESET_TO_TEAMS_DELAY_MS));
 
             if (!teamsLoadingRef.current) {
                 const db = DatabaseManager.serverDatabases[serverUrl]?.database;
-                const finalCount = db ? await queryMyTeams(db).fetchCount() : 0;
-                if (finalCount === 0) {
-                    resetToDebug();
+                let finalCount = 0;
+                try {
+                    finalCount = db ? await queryMyTeams(db).fetchCount() : 0;
+                } catch (e) {
+                    debugLog('CHANNEL_LIST', `ERROR on second query: ${e instanceof Error ? e.message : String(e)}`);
                 }
+                debugLog('CHANNEL_LIST', `second check: finalCount=${finalCount}`);
+                if (finalCount === 0) {
+                    debugLog('CHANNEL_LIST', `ERROR: still 0 teams after ${RESET_TO_TEAMS_DELAY_MS}ms, going to debug screen`);
+                    resetToDebug();
+                } else {
+                    debugLog('CHANNEL_LIST', `OK: teams loaded (${finalCount}), staying on home`);
+                }
+            } else {
+                debugLog('CHANNEL_LIST', `teamsLoading became true, skip redirect`);
             }
         };
 

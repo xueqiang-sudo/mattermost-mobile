@@ -107,6 +107,7 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         }
 
         // let's start fetching in parallel all we can
+        debugLog('entry', `fetching teams and user data...`);
         const promises: [Promise<MyTeamsRequest>, Promise<MyUserRequest>] = [
             fetchMyTeams(serverUrl, true, groupLabel),
             fetchMe(serverUrl, true, groupLabel),
@@ -114,11 +115,15 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
 
         const [teamData, meData] = await Promise.all(promises);
 
+        debugLog('entry', `fetchMyTeams result: teams=${teamData.teams?.length || 0}, memberships=${teamData.memberships?.length || 0}, error=${teamData.error ? 'YES' : 'NO'}`);
+        debugLog('entry', `fetchMe result: user=${meData.user?.id || 'NONE'}, error=${meData.error ? 'YES' : 'NO'}`);
+
         // Only fail on critical errors (teams/me). Non-critical failures
         // (config/preferences) are logged but tolerated — aligned with webapp
         // loadMe() which silently ignores partial failures.
         const criticalError = teamData.error || meData.error;
         if (criticalError) {
+            debugLog('entry', `CRITICAL ERROR: ${criticalError instanceof Error ? criticalError.message : String(criticalError)}`);
             logError('entry: critical error during team/me fetch', teamData.error || meData.error);
             return {error: criticalError};
         }
@@ -157,15 +162,18 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         }
 
         if (!teamData.error && teamData.teams?.length === 0) {
+            debugLog('entry', `WARNING: teams array is EMPTY (no error but no teams returned)`);
             initialTeamId = '';
         }
 
         const inTeam = teamData.teams?.find((t) => t.id === initialTeamId);
         if (initialTeamId && !inTeam && !teamData.error) {
+            debugLog('entry', `WARNING: initialTeamId=${initialTeamId} not found in teams list, resetting`);
             initialTeamId = '';
         }
 
         if (!initialTeamId && teamData.teams?.length && teamData.memberships?.length) {
+            debugLog('entry', `no initialTeamId, selecting default team from ${teamData.teams.length} teams`);
             // If no initial team was set in the database but got teams in the response
             const teamOrderPreference = getPreferenceValue<string>(prefData.preferences || [], Preferences.CATEGORIES.TEAMS_ORDER, '', '');
             const teamMembers = new Set(teamData.memberships.filter((m) => m.delete_at === 0).map((m) => m.team_id));
@@ -173,6 +181,9 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
             const defaultTeam = selectDefaultTeam(myTeams, meData.user?.locale || DEFAULT_LOCALE, teamOrderPreference, confResp.config?.ExperimentalPrimaryTeam);
             if (defaultTeam?.id) {
                 initialTeamId = defaultTeam.id;
+                debugLog('entry', `selected default team: ${defaultTeam.display_name || defaultTeam.name} (${defaultTeam.id})`);
+            } else {
+                debugLog('entry', `WARNING: selectDefaultTeam returned no team! myTeams=${myTeams.length}`);
             }
         }
 

@@ -17,6 +17,7 @@ import {loadConfigAndCalls} from '@calls/actions/calls';
 import {isSupportedServerCalls} from '@calls/utils';
 import {Screens} from '@constants';
 import DatabaseManager from '@database/manager';
+import {debugLog} from '@store/debug_log';
 import AppsManager from '@managers/apps_manager';
 import {handlePlaybookReconnect} from '@playbooks/actions/websocket/reconnect';
 import {getActiveServerUrl} from '@queries/app/servers';
@@ -65,11 +66,14 @@ async function doReconnect(serverUrl: string, groupLabel?: BaseRequestGroupLabel
     const currentChannelId = await getCurrentChannelId(database);
 
     setTeamLoading(serverUrl, true);
+    debugLog('websocket', `calling entry() serverUrl=${serverUrl}, teamId=${currentTeamId}, channelId=${currentChannelId}`);
     const entryData = await entry(serverUrl, currentTeamId, currentChannelId, lastFullSync, groupLabel);
     if ('error' in entryData) {
+        debugLog('websocket', `ERROR: entry() failed: ${entryData.error instanceof Error ? entryData.error.message : String(entryData.error)}`);
         setTeamLoading(serverUrl, false);
         return entryData.error;
     }
+    debugLog('websocket', `entry() OK: models=${entryData.models?.length || 0}, teamId=${entryData.initialTeamId}, channelId=${entryData.initialChannelId}`);
     const {models, initialTeamId, initialChannelId, prefData, teamData, chData, meData, gmConverted} = entryData;
 
     await handleEntryAfterLoadNavigation(serverUrl, teamData.memberships || [], chData?.memberships || [], currentTeamId || '', currentChannelId || '', initialTeamId, initialChannelId, gmConverted);
