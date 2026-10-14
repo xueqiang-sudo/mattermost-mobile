@@ -1,31 +1,81 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {ActivityIndicator, FlatList, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import DatabaseManager from '@database/manager';
 import {useServerUrl} from '@context/server';
+import {useTheme} from '@context/theme';
 import {debugLog} from '@store/debug_log';
 import {MM_TABLES} from '@constants/database';
 import {Q} from '@nozbe/watermelondb';
+import CompassIcon from '@components/compass_icon';
+import TouchableWithFeedback from '@components/touchable_with_feedback';
+import {changeOpacity} from '@utils/theme';
+import {openUnifiedFileViewer} from '@utils/navigation';
 
 import {useFilePicker} from '../context/file_picker_context';
-import FileItem from '../components/file_item';
 
 import type FileModel from '@typings/database/models/servers/file';
+import type PostModel from '@typings/database/models/servers/post';
+import type UserModel from '@typings/database/models/servers/user';
 
 type GroupFilesTabProps = {
     channelId: string;
 };
 
-const NUM_COLUMNS = 3;
 const PAGE_SIZE = 30;
+const ONE_DAY = 24 * 60 * 60 * 1000;
+
+type FileEntry = {
+    file: FileModel;
+    post: PostModel;
+    senderName: string;
+    timeStr: string;
+    groupLabel: string;
+};
+
+type Section = {
+    type: 'header' | 'file';
+    groupLabel?: string;
+    data?: FileEntry;
+    key: string;
+};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: '#F5F5F5',
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#E5E5E5',
+    },
+    searchInputWrapper: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: '#E5E5E5',
+    },
+    searchIcon: {
+        marginRight: 6,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 15,
+        color: '#333',
+        paddingVertical: 0,
     },
     emptyContainer: {
         flex: 1,
@@ -38,9 +88,6 @@ const styles = StyleSheet.create({
         color: '#999',
         marginTop: 16,
     },
-    list: {
-        padding: 8,
-    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -51,47 +98,205 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         alignItems: 'center',
     },
+    sectionHeader: {
+        backgroundColor: '#F5F5F5',
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+    },
+    sectionHeaderText: {
+        fontSize: 13,
+        color: '#999',
+        fontWeight: '500',
+    },
+    fileRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#F0F0F0',
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 4,
+        borderWidth: 2,
+        borderColor: '#D9D9D9',
+        marginRight: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxChecked: {
+        width: 22,
+        height: 22,
+        borderRadius: 4,
+        backgroundColor: '#07C160',
+        marginRight: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    fileIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 4,
+        backgroundColor: '#F5F5F5',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+    },
+    fileInfo: {
+        flex: 1,
+    },
+    fileName: {
+        fontSize: 15,
+        color: '#333',
+        fontWeight: '500',
+    },
+    fileSize: {
+        fontSize: 12,
+        color: '#999',
+        marginTop: 2,
+    },
+    moreButton: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#F0F0F0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 8,
+    },
 });
+
+function getFileIcon(ext: string): string {
+    const e = (ext || '').toLowerCase();
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+    const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv'];
+    const audioExts = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a'];
+    const docExts = ['doc', 'docx', 'pdf', 'txt', 'rtf', 'odt'];
+    const sheetExts = ['xls', 'xlsx', 'csv', 'ods'];
+    const zipExts = ['zip', 'rar', '7z', 'tar', 'gz'];
+    if (imageExts.includes(e)) return 'image-outline';
+    if (videoExts.includes(e)) return 'video-outline';
+    if (audioExts.includes(e)) return 'music-note';
+    if (docExts.includes(e)) return 'file-document-outline';
+    if (sheetExts.includes(e)) return 'file-excel-outline';
+    if (zipExts.includes(e)) return 'folder-zip-outline';
+    return 'file-outline';
+}
+
+function formatFileSize(bytes: number): string {
+    if (!bytes || bytes <= 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatTime(ts: number): string {
+    const d = new Date(ts);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function getGroupLabel(ts: number, now: number, intl: any): string {
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const yesterdayStart = todayStart.getTime() - ONE_DAY;
+    const weekStart = todayStart.getTime() - 6 * ONE_DAY;
+
+    if (ts >= todayStart.getTime()) {
+        return intl.formatMessage({id: 'file_picker.time.today', defaultMessage: 'Today'});
+    }
+    if (ts >= yesterdayStart) {
+        return intl.formatMessage({id: 'file_picker.time.yesterday', defaultMessage: 'Yesterday'});
+    }
+    if (ts >= weekStart) {
+        return intl.formatMessage({id: 'file_picker.time.this_week', defaultMessage: 'This Week'});
+    }
+    return intl.formatMessage({id: 'file_picker.time.earlier', defaultMessage: 'Earlier'});
+}
 
 export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
     const intl = useIntl();
     const serverUrl = useServerUrl();
+    const theme = useTheme();
     const {dispatch, isFileSelected, canSelectMore} = useFilePicker();
-    const [files, setFiles] = useState<FileModel[]>([]);
+    const [entries, setEntries] = useState<FileEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [searchText, setSearchText] = useState('');
     const offsetRef = useRef(0);
     const hasMoreRef = useRef(true);
 
-    const loadPage = useCallback(async (offset: number): Promise<FileModel[]> => {
+    const loadPage = useCallback(async (offset: number): Promise<FileEntry[]> => {
         const database = DatabaseManager.serverDatabases[serverUrl]?.database;
         if (!database) {
             return [];
         }
 
-        const {FILE, POST} = MM_TABLES.SERVER;
-        const page = await database.get<FileModel>(FILE).query(
-            Q.experimentalJoinTables([POST]),
-            Q.on(POST, Q.where('delete_at', Q.eq(0))),
-            Q.sortBy('created_at', Q.desc),
+        const {FILE, POST, USER} = MM_TABLES.SERVER;
+
+        const posts = await database.get<PostModel>(POST).query(
+            Q.where('delete_at', Q.eq(0)),
+            Q.sortBy('create_at', Q.desc),
             Q.skip(offset),
             Q.take(PAGE_SIZE),
         ).fetch();
 
-        return page;
-    }, [serverUrl]);
+        if (posts.length === 0) {
+            return [];
+        }
 
-    // 首次加载
+        const postIds = posts.map(p => p.id);
+        const postMap = new Map(posts.map(p => [p.id, p]));
+
+        const files = await database.get<FileModel>(FILE).query(
+            Q.where('post_id', Q.oneOf(postIds)),
+        ).fetch();
+
+        if (files.length === 0) {
+            return [];
+        }
+
+        const userIds = [...new Set(posts.map(p => p.userId))];
+        let userMap = new Map<string, string>();
+        if (userIds.length > 0) {
+            try {
+                const users = await database.get<UserModel>(USER).query(
+                    Q.where('id', Q.oneOf(userIds)),
+                ).fetch();
+                userMap = new Map(users.map(u => [u.id, u.username || u.nickname || u.firstName || '']));
+            } catch {
+                // user fetch is optional
+            }
+        }
+
+        const now = Date.now();
+        const result: FileEntry[] = files.map(f => {
+            const post = postMap.get(f.postId)!;
+            return {
+                file: f,
+                post,
+                senderName: userMap.get(post.userId) || '',
+                timeStr: formatTime(post.createAt),
+                groupLabel: getGroupLabel(post.createAt, now, intl),
+            };
+        });
+
+        result.sort((a, b) => b.post.createAt - a.post.createAt);
+
+        return result;
+    }, [serverUrl, intl]);
+
     useEffect(() => {
         const loadInitial = async () => {
             debugLog('filePicker', 'GroupFilesTab: loading first page');
             setLoading(true);
             try {
                 const firstPage = await loadPage(0);
-                debugLog('filePicker', `GroupFilesTab: loaded ${firstPage.length} files`);
-                setFiles(firstPage);
-                offsetRef.current = firstPage.length;
-                hasMoreRef.current = firstPage.length >= PAGE_SIZE;
+                debugLog('filePicker', `GroupFilesTab: loaded ${firstPage.length} file entries`);
+                setEntries(firstPage);
+                offsetRef.current = PAGE_SIZE;
+                hasMoreRef.current = firstPage.length > 0;
             } catch (error) {
                 debugLog('filePicker', `GroupFilesTab: error: ${error instanceof Error ? error.message : String(error)}`);
             } finally {
@@ -102,7 +307,6 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
         loadInitial();
     }, [loadPage]);
 
-    // 加载更多
     const handleEndReached = useCallback(async () => {
         if (loadingMore || !hasMoreRef.current) {
             return;
@@ -111,12 +315,12 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
         setLoadingMore(true);
         try {
             const nextPage = await loadPage(offsetRef.current);
-            debugLog('filePicker', `GroupFilesTab: loaded ${nextPage.length} more files (offset=${offsetRef.current})`);
+            debugLog('filePicker', `GroupFilesTab: loaded ${nextPage.length} more entries (offset=${offsetRef.current})`);
             if (nextPage.length > 0) {
-                setFiles((prev) => [...prev, ...nextPage]);
-                offsetRef.current += nextPage.length;
-                hasMoreRef.current = nextPage.length >= PAGE_SIZE;
-            } else {
+                setEntries(prev => [...prev, ...nextPage]);
+                offsetRef.current += PAGE_SIZE;
+            }
+            if (nextPage.length === 0) {
                 hasMoreRef.current = false;
             }
         } catch (error) {
@@ -126,42 +330,110 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
         }
     }, [loadingMore, loadPage]);
 
-    const handleFilePress = useCallback(async (file: FileModel) => {
-        const fileId = file.id;
+    const handleFilePress = useCallback((entry: FileEntry) => {
+        const fileId = entry.file.id;
 
         if (isFileSelected(fileId)) {
             dispatch({type: 'REMOVE_FILE', fileId});
         } else if (canSelectMore()) {
-            let authorId = '';
-            try {
-                const post = await file.post;
-                authorId = post?.userId || '';
-            } catch {
-                // post relation may not be available
-            }
             dispatch({
                 type: 'ADD_FILE',
                 file: {
-                    ...file.toFileInfo(authorId),
+                    ...entry.file.toFileInfo(entry.post.userId),
                     source: 'channel',
                 },
             });
         }
     }, [dispatch, isFileSelected, canSelectMore]);
 
-    const renderFile = useCallback(({item}: {item: FileModel}) => {
-        const isSelected = isFileSelected(item.id);
+    const handleMorePress = useCallback((entry: FileEntry) => {
+        const fileInfo = entry.file.toFileInfo(entry.post.userId);
+        openUnifiedFileViewer(fileInfo, theme);
+    }, [theme]);
+
+    // Filter by search text
+    const filteredEntries = useMemo(() => {
+        if (!searchText.trim()) {
+            return entries;
+        }
+        const query = searchText.toLowerCase();
+        return entries.filter(e => e.file.name.toLowerCase().includes(query));
+    }, [entries, searchText]);
+
+    const buildSections = useCallback((): Section[] => {
+        const sections: Section[] = [];
+        let lastGroup = '';
+
+        for (const entry of filteredEntries) {
+            if (entry.groupLabel !== lastGroup) {
+                lastGroup = entry.groupLabel;
+                sections.push({type: 'header', groupLabel: entry.groupLabel, key: `header-${entry.groupLabel}`});
+            }
+            sections.push({type: 'file', data: entry, key: `file-${entry.file.id}`});
+        }
+
+        return sections;
+    }, [filteredEntries]);
+
+    const renderSectionItem = useCallback(({item}: {item: Section}) => {
+        if (item.type === 'header') {
+            return (
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionHeaderText}>{item.groupLabel}</Text>
+                </View>
+            );
+        }
+
+        const entry = item.data!;
+        const fileId = entry.file.id;
+        const isSelected = isFileSelected(fileId);
         const canSelect = canSelectMore() || isSelected;
 
         return (
-            <FileItem
-                file={item}
-                isSelected={isSelected}
-                canSelect={canSelect}
-                onPress={handleFilePress}
-            />
+            <TouchableWithFeedback
+                onPress={() => handleFilePress(entry)}
+                style={styles.fileRow}
+                type='opacity'
+            >
+                <>
+                    {isSelected ? (
+                        <View style={styles.checkboxChecked}>
+                            <CompassIcon name='check' size={14} color='#fff'/>
+                        </View>
+                    ) : (
+                        <View style={[styles.checkbox, !canSelect && {opacity: 0.4}]}/>
+                    )}
+                    <View style={styles.fileIcon}>
+                        <CompassIcon
+                            name={getFileIcon(entry.file.extension)}
+                            size={22}
+                            color={changeOpacity('#000', 0.45)}
+                        />
+                    </View>
+                    <View style={styles.fileInfo}>
+                        <Text style={styles.fileName} numberOfLines={1}>
+                            {entry.file.name}
+                        </Text>
+                        <Text style={styles.fileSize}>
+                            {formatFileSize(entry.file.size)}
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => handleMorePress(entry)}
+                        style={styles.moreButton}
+                    >
+                        <CompassIcon
+                            name='dots-horizontal'
+                            size={18}
+                            color='#666'
+                        />
+                    </TouchableOpacity>
+                </>
+            </TouchableWithFeedback>
         );
-    }, [handleFilePress, isFileSelected, canSelectMore]);
+    }, [handleFilePress, handleMorePress, isFileSelected, canSelectMore]);
+
+    const sections = buildSections();
 
     const renderFooter = useCallback(() => {
         if (!loadingMore) {
@@ -173,6 +445,30 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
             </View>
         );
     }, [loadingMore]);
+
+    const renderSearchBar = useCallback(() => (
+        <View style={styles.searchContainer}>
+            <View style={styles.searchInputWrapper}>
+                <CompassIcon
+                    name='magnify'
+                    size={18}
+                    color='#999'
+                    style={styles.searchIcon}
+                />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder={intl.formatMessage({
+                        id: 'file_picker.search.placeholder',
+                        defaultMessage: 'Search files',
+                    })}
+                    placeholderTextColor='#999'
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    returnKeyType='search'
+                />
+            </View>
+        </View>
+    ), [searchText, intl]);
 
     if (loading) {
         return (
@@ -188,31 +484,41 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
         );
     }
 
-    if (files.length === 0) {
+    if (entries.length === 0) {
         return (
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                    {intl.formatMessage({
-                        id: 'file_picker.group_files.empty',
-                        defaultMessage: 'No files yet',
-                    })}
-                </Text>
+            <View style={styles.container}>
+                {renderSearchBar()}
+                <View style={styles.emptyContainer}>
+                    <CompassIcon
+                        name='file-document-outline'
+                        size={56}
+                        color={changeOpacity('#000', 0.25)}
+                    />
+                    <Text style={styles.emptyText}>
+                        {intl.formatMessage({
+                            id: 'file_picker.group_files.empty',
+                            defaultMessage: 'No files yet',
+                        })}
+                    </Text>
+                </View>
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
+            {renderSearchBar()}
             <FlatList
-                data={files}
-                renderItem={renderFile}
-                keyExtractor={(item) => item.id}
-                numColumns={NUM_COLUMNS}
-                contentContainerStyle={styles.list}
-                showsVerticalScrollIndicator={false}
+                data={sections}
+                renderItem={renderSectionItem}
+                keyExtractor={(item) => item.key}
                 onEndReached={handleEndReached}
                 onEndReachedThreshold={0.5}
                 ListFooterComponent={renderFooter}
+                showsVerticalScrollIndicator={false}
+                stickyHeaderIndices={sections
+                    .map((s, i) => s.type === 'header' ? i : -1)
+                    .filter(i => i >= 0)}
             />
         </View>
     );

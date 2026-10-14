@@ -8,7 +8,7 @@ import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {getChannelCategory, queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {getChannelById} from '@queries/servers/channel';
-import {getCurrentTeamId} from '@queries/servers/system';
+import {getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
 import {showFavoriteChannelSnackbar} from '@utils/snack_bar';

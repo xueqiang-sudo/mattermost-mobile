@@ -194,8 +194,7 @@ const FRAPPE_PRODUCTION_BASE = '/plugins/com.mattermost.frappe-sync/api/producti
 
 async function apiFetch(serverUrl: string, path: string, options: {method: string; body?: any}): Promise<any> {
     const client = NetworkManager.getClient(serverUrl);
-    const body = options.body ? JSON.stringify(options.body) : undefined;
-    return client.doFetch(path, {method: options.method, ...(body ? {body} : {})});
+    return client.doFetch(path, {method: options.method, ...(options.body ? {body: options.body} : {})});
 }
 
 export async function fetchProductionLines(serverUrl: string): Promise<ProductionLine[]> {

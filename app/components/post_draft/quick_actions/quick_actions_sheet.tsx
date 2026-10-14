@@ -148,10 +148,11 @@ export default function QuickActionsSheet({
             return;
         }
         debugLog('filePicker', 'handleFilePress: calling showFilePickerScreen');
+        const title = intl.formatMessage({id: 'file_picker.title', defaultMessage: 'Select Files'});
         showFilePickerScreen(channelId, (files) => {
             debugLog('filePicker', `handleFilePress: onSend callback with ${files.length} files`);
             addFiles(files);
-        });
+        }, title);
     }, [addFiles, channelId, intl, maxFilesReached, maxFileCount]);
 
     const handleCloudDrivePress = useCallback(async () => {

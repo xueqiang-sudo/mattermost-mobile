@@ -45,7 +45,20 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 4,
     },
-    checkmark: {
+    circleEmpty: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.8)',
+        backgroundColor: 'rgba(0,0,0,0.15)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    circleSelected: {
         position: 'absolute',
         top: 4,
         right: 4,
@@ -186,14 +199,16 @@ export default function PhotoAlbumTab() {
                         resizeMode='cover'
                     />
 
-                    {isSelected && (
-                        <View style={styles.checkmark}>
+                    {isSelected ? (
+                        <View style={styles.circleSelected}>
                             <CompassIcon
                                 name='check'
                                 size={16}
                                 color='#fff'
                             />
                         </View>
+                    ) : (
+                        <View style={styles.circleEmpty}/>
                     )}
 
                     {!canSelect && !isSelected && (

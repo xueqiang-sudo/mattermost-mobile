@@ -33,8 +33,10 @@ import {
     deleteBusinessRoleDef,
     getWorkbenchPermissions,
     saveRolePermission,
+    getDashboardAccess,
     type BusinessRoleDef,
     type WorkbenchPermissions,
+    type DashboardAccess,
 } from '../api';
 
 // ---- Permission Config Items ----
@@ -45,14 +47,15 @@ type ConfigItem = {
     defaultLabel: string;
     isFlag?: boolean;
     parentFlag?: string;
+    erpOnly?: boolean;
 };
 
 const CONFIG_ITEMS: ConfigItem[] = [
-    {key: 'hotproducts', labelId: 'workbench.tab.hot_products', defaultLabel: '热销榜'},
-    {key: 'approvals', labelId: 'workbench.tab.approvals', defaultLabel: '审批清单'},
-    {key: 'finance', labelId: 'workbench.tab.finance', defaultLabel: '流水账'},
-    {key: 'sales', labelId: 'workbench.tab.sales', defaultLabel: '销售统计'},
-    {key: 'inventory', labelId: 'workbench.tab.inventory', defaultLabel: '库存分析'},
+    {key: 'hotproducts', labelId: 'workbench.tab.hot_products', defaultLabel: '热销榜', erpOnly: true},
+    {key: 'approvals', labelId: 'workbench.tab.approvals', defaultLabel: '审批清单', erpOnly: true},
+    {key: 'finance', labelId: 'workbench.tab.finance', defaultLabel: '流水账', erpOnly: true},
+    {key: 'sales', labelId: 'workbench.tab.sales', defaultLabel: '销售统计', erpOnly: true},
+    {key: 'inventory', labelId: 'workbench.tab.inventory', defaultLabel: '库存分析', erpOnly: true},
     {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询'},
     {key: 'price_list', labelId: 'workbench.tab.price_list', defaultLabel: '价格表'},
     {key: 'mes_enabled', labelId: 'workbench.flag.mes_enabled', defaultLabel: '启动MES功能', isFlag: true},
@@ -330,6 +333,7 @@ const RoleManagementScreen = () => {
 
     const [teamId, setTeamId] = useState('');
     const [loading, setLoading] = useState(true);
+    const [dashboardAccess, setDashboardAccess] = useState<DashboardAccess | null>(null);
 
     // Tab
     const [activeTab, setActiveTab] = useState<'roles' | 'permissions'>('roles');
@@ -360,6 +364,10 @@ const RoleManagementScreen = () => {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                 const tid = await getCurrentTeamId(database);
                 setTeamId(tid);
+
+                // Fetch team configuration (ERP, MES, etc.)
+                const access = await getDashboardAccess(serverUrl, tid);
+                setDashboardAccess(access);
             } catch {
                 // ignore
             }
@@ -427,6 +435,36 @@ const RoleManagementScreen = () => {
 
     const isAdminRole = selectedRole?.role_key === 'admin' || selectedRole?.source === 'system';
 
+    // Filter CONFIG_ITEMS based on team configuration
+    const filteredConfigItems = useMemo(() => {
+        if (!dashboardAccess) {
+            return CONFIG_ITEMS;
+        }
+
+        const isErpTeam = Boolean(dashboardAccess.erp_address);
+        const teamMesEnabled = Boolean(dashboardAccess.team_mes_enabled);
+        const teamConversationsEnabled = Boolean(dashboardAccess.conversations_enabled);
+
+        return CONFIG_ITEMS.filter((item) => {
+            // Filter out ERP-only items if team doesn't have ERP
+            if (item.erpOnly && !isErpTeam) {
+                return false;
+            }
+
+            // Filter out MES items if team doesn't have MES enabled
+            if ((item.key === 'mes_enabled' || item.parentFlag === 'mes_enabled') && !teamMesEnabled) {
+                return false;
+            }
+
+            // Filter out conversations if not enabled
+            if (item.key === 'conversations' && !teamConversationsEnabled) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [dashboardAccess]);
+
     // Load role permissions into editing state
     useEffect(() => {
         if (!selectedRole || !perms) return;
@@ -437,7 +475,7 @@ const RoleManagementScreen = () => {
         } else if (isAdminRole) {
             const allTabs = new Set<string>();
             const allFlags: Record<string, boolean> = {};
-            for (const item of CONFIG_ITEMS) {
+            for (const item of filteredConfigItems) {
                 if (item.isFlag) {
                     allFlags[item.key] = true;
                 } else {
@@ -561,13 +599,13 @@ const RoleManagementScreen = () => {
 
     const isPermissionDisabled = useCallback((item: ConfigItem): boolean => {
         if (item.parentFlag) {
-            const parent = CONFIG_ITEMS.find((c) => c.key === item.parentFlag);
+            const parent = filteredConfigItems.find((c) => c.key === item.parentFlag);
             if (parent && !isPermissionEnabled(parent)) {
                 return true;
             }
         }
         return false;
-    }, [isPermissionEnabled]);
+    }, [isPermissionEnabled, filteredConfigItems]);
 
     const handleSavePermissions = useCallback(async () => {
         if (!selectedRoleKey) return;
@@ -776,7 +814,7 @@ const RoleManagementScreen = () => {
                         {/* Permission list */}
                         {selectedRole && (
                             <ScrollView style={style.permList}>
-                                {CONFIG_ITEMS.map((item) => {
+                                {filteredConfigItems.map((item) => {
                                     const enabled = isPermissionEnabled(item);
                                     const disabled = isPermissionDisabled(item);
                                     const isChild = Boolean(item.parentFlag);

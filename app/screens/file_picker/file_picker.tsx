@@ -3,10 +3,10 @@
 
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useTheme} from '@context/theme';
 import CompassIcon from '@components/compass_icon';
-import {popTopScreen} from '@screens/navigation';
+import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
 
@@ -15,31 +15,15 @@ import GroupFilesTab from './tabs/group_files_tab';
 import PhotoAlbumTab from './tabs/photo_album_tab';
 import FilesTab from './tabs/files_tab';
 
+import type {AvailableScreens} from '@typings/screens/navigation';
 import type {FileInfo} from '@mattermost/types/files';
 
-type TabKey = 'group_files' | 'photo_album' | 'files';
+type TabKey = 'chat' | 'photo_album' | 'files';
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E5E5',
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#333',
-    },
-    closeButton: {
-        padding: 4,
     },
     tabBar: {
         flexDirection: 'row',
@@ -67,52 +51,105 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     actionBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
         borderTopWidth: 1,
         borderTopColor: '#E5E5E5',
         backgroundColor: '#fff',
     },
+    actionBarRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    foldButton: {
+        padding: 4,
+    },
     selectedCount: {
         fontSize: 14,
         color: '#666',
+        flex: 1,
+        textAlign: 'center',
     },
     sendButton: {
         backgroundColor: '#07C160',
         borderRadius: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 24,
+        paddingVertical: 8,
+        paddingHorizontal: 20,
     },
     sendButtonDisabled: {
         backgroundColor: '#C7C7C7',
     },
     sendButtonText: {
         color: '#fff',
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
+    },
+    fileList: {
+        maxHeight: 200,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+    },
+    fileListEmpty: {
+        paddingVertical: 8,
+    },
+    fileItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#F0F0F0',
+    },
+    fileItemIcon: {
+        marginRight: 10,
+    },
+    fileItemName: {
+        flex: 1,
+        fontSize: 14,
+        color: '#333',
+    },
+    removeButton: {
+        padding: 4,
+    },
+    removeText: {
+        fontSize: 13,
+        color: '#FF4D4F',
     },
 });
 
 type FilePickerContentProps = {
+    componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
 };
 
-function FilePickerContent({onSend, channelId}: FilePickerContentProps) {
+function getFileIcon(name: string): string {
+    const ext = (name || '').split('.').pop()?.toLowerCase() || '';
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+    const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv'];
+    const audioExts = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a'];
+    const docExts = ['doc', 'docx', 'pdf', 'txt', 'rtf', 'odt'];
+    const sheetExts = ['xls', 'xlsx', 'csv', 'ods'];
+    const zipExts = ['zip', 'rar', '7z', 'tar', 'gz'];
+
+    if (imageExts.includes(ext)) return 'image-outline';
+    if (videoExts.includes(ext)) return 'video-outline';
+    if (audioExts.includes(ext)) return 'music-note';
+    if (docExts.includes(ext)) return 'file-document-outline';
+    if (sheetExts.includes(ext)) return 'file-excel-outline';
+    if (zipExts.includes(ext)) return 'folder-zip-outline';
+    return 'file-outline';
+}
+
+function FilePickerContent({componentId, onSend, channelId}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
-    const {getSelectedFiles, getSelectedCount, state} = useFilePicker();
-    const [activeTab, setActiveTab] = useState<TabKey>('group_files');
-    debugLog('filePicker', `FilePickerContent rendering, activeTab=${activeTab}, channelId=${channelId}`);
+    const {getSelectedFiles, getSelectedCount, state, dispatch} = useFilePicker();
+    const [activeTab, setActiveTab] = useState<TabKey>('chat');
+    const [expanded, setExpanded] = useState(false);
 
-    const handleClose = useCallback(() => {
-        popTopScreen();
-    }, []);
-
-    const handleSend = useCallback(() => {
+    const handleSend = useCallback(async () => {
         const files = getSelectedFiles();
         if (files.length === 0) {
             Alert.alert(
@@ -126,22 +163,22 @@ function FilePickerContent({onSend, channelId}: FilePickerContentProps) {
         }
 
         onSend(files);
-        popTopScreen();
-    }, [getSelectedFiles, onSend, intl]);
+        await dismissModal({componentId});
+    }, [componentId, getSelectedFiles, onSend, intl]);
 
     const selectedCount = getSelectedCount();
-    const maxSelection = state.maxSelection;
     const canSend = selectedCount > 0;
+    const selectedFilesList = getSelectedFiles();
 
     const tabs: {key: TabKey; label: string}[] = [
-        {key: 'group_files', label: intl.formatMessage({id: 'file_picker.tab.group_files', defaultMessage: 'Group Files'})},
+        {key: 'chat', label: intl.formatMessage({id: 'file_picker.tab.chat', defaultMessage: 'Chat'})},
         {key: 'photo_album', label: intl.formatMessage({id: 'file_picker.tab.photo_album', defaultMessage: 'Photos'})},
-        {key: 'files', label: intl.formatMessage({id: 'file_picker.tab.files', defaultMessage: 'Files'})},
+        {key: 'files', label: intl.formatMessage({id: 'file_picker.tab.phone_files', defaultMessage: 'Phone Files'})},
     ];
 
     const renderTabContent = () => {
         switch (activeTab) {
-            case 'group_files':
+            case 'chat':
                 return <GroupFilesTab channelId={channelId}/>;
             case 'photo_album':
                 return <PhotoAlbumTab/>;
@@ -150,28 +187,30 @@ function FilePickerContent({onSend, channelId}: FilePickerContentProps) {
         }
     };
 
+    const renderFileItem = ({item}: {item: any}) => (
+        <View style={styles.fileItem}>
+            <CompassIcon
+                name={getFileIcon(item.name)}
+                size={24}
+                color={changeOpacity('#000', 0.4)}
+                style={styles.fileItemIcon}
+            />
+            <Text style={styles.fileItemName} numberOfLines={1}>
+                {item.name || 'Unknown'}
+            </Text>
+            <TouchableOpacity
+                onPress={() => dispatch({type: 'REMOVE_FILE', fileId: item.id || item.clientId})}
+                style={styles.removeButton}
+            >
+                <Text style={styles.removeText}>
+                    {intl.formatMessage({id: 'file_picker.remove', defaultMessage: 'Remove'})}
+                </Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={handleClose}
-                    style={styles.closeButton}
-                >
-                    <CompassIcon
-                        name='close'
-                        size={24}
-                        color={theme.centerChannelColor}
-                    />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({
-                        id: 'file_picker.title',
-                        defaultMessage: 'Select Files',
-                    })}
-                </Text>
-                <View style={{width: 32}}/>
-            </View>
-
             <View style={styles.tabBar}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.key;
@@ -203,45 +242,67 @@ function FilePickerContent({onSend, channelId}: FilePickerContentProps) {
             </View>
 
             <View style={styles.actionBar}>
-                <Text style={styles.selectedCount}>
-                    {intl.formatMessage(
-                        {
-                            id: 'file_picker.selected_count',
-                            defaultMessage: '{count}/{max} selected',
-                        },
-                        {
-                            count: selectedCount,
-                            max: maxSelection,
-                        },
-                    )}
-                </Text>
-                <TouchableOpacity
-                    onPress={handleSend}
-                    style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-                    disabled={!canSend}
-                >
-                    <Text style={styles.sendButtonText}>
-                        {intl.formatMessage({
-                            id: 'file_picker.send',
-                            defaultMessage: 'Send',
-                        })}
+                <View style={styles.actionBarRow}>
+                    <TouchableOpacity
+                        onPress={() => setExpanded(!expanded)}
+                        style={styles.foldButton}
+                        disabled={selectedCount === 0}
+                    >
+                        <CompassIcon
+                            name={expanded ? 'chevron-down' : 'chevron-up'}
+                            size={20}
+                            color={selectedCount > 0 ? theme.centerChannelColor : changeOpacity(theme.centerChannelColor, 0.3)}
+                        />
+                    </TouchableOpacity>
+                    <Text style={styles.selectedCount}>
+                        {intl.formatMessage(
+                            {
+                                id: 'file_picker.selected_count_center',
+                                defaultMessage: '{count} files selected',
+                            },
+                            {count: selectedCount},
+                        )}
                     </Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={handleSend}
+                        style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                        disabled={!canSend}
+                    >
+                        <Text style={styles.sendButtonText}>
+                            {intl.formatMessage({
+                                id: 'file_picker.send',
+                                defaultMessage: 'Send',
+                            })}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {expanded && selectedCount > 0 && (
+                    <FlatList
+                        data={selectedFilesList}
+                        renderItem={renderFileItem}
+                        keyExtractor={(item) => item.id || item.clientId || String(Math.random())}
+                        style={styles.fileList}
+                        contentContainerStyle={selectedFilesList.length === 0 ? styles.fileListEmpty : undefined}
+                        showsVerticalScrollIndicator={false}
+                    />
+                )}
             </View>
         </View>
     );
 }
 
 type FilePickerProps = {
+    componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
 };
 
-export default function FilePicker({onSend, channelId}: FilePickerProps) {
+export default function FilePicker({componentId, onSend, channelId}: FilePickerProps) {
     debugLog('filePicker', `FilePicker component rendering, channelId=${channelId}`);
     return (
         <FilePickerProvider maxSelection={9}>
-            <FilePickerContent onSend={onSend} channelId={channelId}/>
+            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId}/>
         </FilePickerProvider>
     );
 }

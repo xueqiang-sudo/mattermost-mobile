@@ -621,25 +621,30 @@ export async function fetchMissingDirectChannelsInfo(
                     }
                 }
             });
+        }
 
-            // 仅更新 DM 频道的显示名称，群聊使用服务器返回的原始名称
-            dms.forEach((c) => {
-                const displayName = displayNameByChannel[c.id];
-                if (displayName) {
-                    c.display_name = displayName;
-                    c.fake = true;
-                    updatedChannels.add(c);
-                }
-            });
-
-            if (currentUserId) {
-                const ownDirectChannel = dms.find((dm) => dm.name === getDirectChannelName(currentUserId, currentUserId));
-                if (ownDirectChannel) {
-                    ownDirectChannel.display_name = username2Nickname(currentUser, {locale, useFallbackUsername: false});
-                    ownDirectChannel.fake = true;
-                    updatedChannels.add(ownDirectChannel);
-                }
+        // 更新 DM 频道的显示名称
+        dms.forEach((c) => {
+            const displayName = displayNameByChannel[c.id];
+            if (displayName) {
+                c.display_name = displayName;
+                c.fake = true;
+                updatedChannels.add(c);
             }
+        });
+
+        if (currentUserId) {
+            const ownDirectChannel = dms.find((dm) => dm.name === getDirectChannelName(currentUserId, currentUserId));
+            if (ownDirectChannel) {
+                ownDirectChannel.display_name = username2Nickname(currentUser, {locale, useFallbackUsername: false});
+                ownDirectChannel.fake = true;
+                updatedChannels.add(ownDirectChannel);
+            }
+        }
+
+        // GM 频道使用服务器返回的原始 display_name，直接加入更新列表
+        for (const gm of gms) {
+            updatedChannels.add(gm);
         }
 
         const updatedChannelsArray = Array.from(updatedChannels);
