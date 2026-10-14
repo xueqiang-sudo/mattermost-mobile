@@ -15,6 +15,7 @@ import {General, Preferences, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import {PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import DatabaseManager from '@database/manager';
+import EphemeralStore from '@store/ephemeral_store';
 import {getPreferenceValue} from '@helpers/api/preference';
 import {selectDefaultTeam} from '@helpers/api/team';
 import {DEFAULT_LOCALE} from '@i18n';
@@ -33,6 +34,7 @@ import {logDebug, logError} from '@utils/log';
 import {processIsCRTEnabled} from '@utils/thread';
 
 import type {Database, Model} from '@nozbe/watermelondb';
+import type {Team} from '@typings/api/teams';
 
 export type AppEntryData = {
     initialTeamId: string;
@@ -162,7 +164,71 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         }
 
         if (!teamData.error && teamData.teams?.length === 0) {
-            debugLog('entry', `WARNING: teams array is EMPTY (no error but no teams returned)`);
+            debugLog('entry', `WARNING: teams array is EMPTY (no error but no teams returned), creating default team`);
+
+            // 新用户没有团队时，自动创建默认团队（类似 webapp 第一个管理员的流程）
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const currentUser = meData.user;
+                const nickname = currentUser?.nickname || currentUser?.username || '';
+
+                // 根据语言生成团队名称（支持多语言）
+                const locale = currentUser?.locale || EphemeralStore.currentLocale || 'en';
+                let teamDisplayName: string;
+                let teamName: string;
+
+                if (locale.startsWith('zh')) {
+                    // 中文："{昵称}的空间" 或 "我的空间"
+                    teamDisplayName = nickname ? `${nickname}的空间` : '我的空间';
+                    teamName = nickname ? `${nickname}-space` : 'my-space';
+                } else {
+                    // 英文及其他语言："{Nickname}'s Space" 或 "My Space"
+                    teamDisplayName = nickname ? `${nickname}'s Space` : 'My Space';
+                    teamName = nickname ? `${nickname.toLowerCase()}-space` : 'my-space';
+                }
+
+                // 清理 URL 名称中的非法字符
+                teamName = teamName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'my-space';
+
+                const defaultTeam: Team = {
+                    id: '',
+                    create_at: 0,
+                    update_at: 0,
+                    delete_at: 0,
+                    display_name: teamDisplayName,
+                    name: teamName,
+                    description: '',
+                    email: '',
+                    type: 'O',
+                    company_name: '',
+                    allowed_domains: '',
+                    invite_id: '',
+                    allow_open_invite: false,
+                    scheme_id: '',
+                    group_constrained: false,
+                    last_team_icon_update: 0,
+                };
+
+                debugLog('entry', `Creating default team: name="${teamDisplayName}", url="${teamName}"`);
+                const createdTeam = await client.createTeam(defaultTeam);
+                debugLog('entry', `Default team created successfully: id=${createdTeam.id}, name=${createdTeam.display_name}`);
+
+                // 重新获取团队和成员信息
+                const [newTeams, newMemberships] = await Promise.all([
+                    client.getMyTeams(groupLabel),
+                    client.getMyTeamMembers(groupLabel),
+                ]);
+
+                debugLog('entry', `After team creation: teams=${newTeams.length}, memberships=${newMemberships.length}`);
+
+                // 更新 teamData
+                teamData.teams = newTeams;
+                teamData.memberships = newMemberships;
+            } catch (createError) {
+                debugLog('entry', `Failed to create default team: ${createError instanceof Error ? createError.message : String(createError)}`);
+                // 创建失败不阻塞，继续正常流程
+            }
+
             initialTeamId = '';
         }
 
