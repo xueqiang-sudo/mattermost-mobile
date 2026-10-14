@@ -250,7 +250,7 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
             return; // We already have this channel
         }
         const {channels, memberships} = await fetchMyChannel(serverUrl, '', channelId, true);
-        if (!channels || !memberhips) {
+        if (!channels || !memberships) {
             debugLog('WS', `handleDirectAddedEvent: fetchMyChannel returned null for ${channelId}`);
             return;
         }
