@@ -25,9 +25,6 @@ import DatabaseManager from '@database/manager';
 import {resetToDebug, openToS} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import NavigationStore from '@store/navigation_store';
-import {useObservable} from 'rxjs-hooks';
-import {of as of$} from 'rxjs';
-import {switchMap, map, distinctUntilChanged, catchError} from 'rxjs/operators';
 import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
@@ -143,20 +140,19 @@ const ChannelListScreen = (props: ChannelProps) => {
 
     // 响应式观察团队数量变化（替代定时器轮询）
     const database = DatabaseManager.serverDatabases[serverUrl]?.database;
-    const teamCount = useObservable(
-        () => {
-            if (!database) {
-                return of$(0);
-            }
-            return queryMyTeams(database).observe().pipe(
-                map((teams) => teams.length),
-                distinctUntilChanged(),
-                catchError(() => of$(0)),
-            );
-        },
-        0,
-        [database],
-    );
+    const [teamCount, setTeamCount] = useState(0);
+
+    useEffect(() => {
+        if (!database) {
+            setTeamCount(0);
+            return;
+        }
+        const subscription = queryMyTeams(database).observe().subscribe(
+            (teams) => setTeamCount(teams.length),
+            () => setTeamCount(0),
+        );
+        return () => subscription.unsubscribe();
+    }, [database]);
 
     // 仅在团队数量持续为 0 且不在加载中时，才跳转调试页面
     const noTeamsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
