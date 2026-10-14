@@ -7,19 +7,14 @@ import {Alert, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
-import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
-import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
-import {bottomSheet} from '@screens/navigation';
 import {fileMaxWarning} from '@utils/file';
 import type {DraftVideoProcessingBridge} from '@utils/file/draft_video_local_processing';
 import PickerUtil from '@utils/file/file_picker';
-import {bottomSheetSnapPoint} from '@utils/helpers';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import CameraType from './camera_quick_action/camera_type';
 import {showFilePickerScreen} from '@screens/file_picker/show_modal';
 import {showCloudDrivePickerModal} from '@screens/cloud_drive_picker/show_modal';
 import {useServerUrl} from '@context/server';
@@ -224,26 +219,22 @@ export default function QuickActionsSheet({
             testID: `${baseTestID}.image_action`,
         },
         {
-            key: 'camera',
+            key: 'camera_photo',
             icon: 'camera-outline',
-            labelId: 'post_draft.quick_action.camera',
-            labelDefault: 'Camera',
+            labelId: 'camera_type.photo.option',
+            labelDefault: 'Capture Photo',
             disabled: fileDisabled,
-            onPress: wrapWithDismiss(() => {
-                bottomSheet({
-                    title: intl.formatMessage({id: 'mobile.camera_type.title', defaultMessage: 'Camera options'}),
-                    renderContent: () => (
-                        <CameraType
-                            onPress={handleCameraPress}
-                            onVisionVideoPress={handleVisionVideoPress}
-                        />
-                    ),
-                    snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT) + TITLE_HEIGHT],
-                    theme,
-                    closeButtonId: 'camera-close-sheet',
-                });
-            }),
-            testID: `${baseTestID}.camera_action`,
+            onPress: wrapWithDismiss(() => handleCameraPress({type: 'photo'})),
+            testID: `${baseTestID}.camera_photo_action`,
+        },
+        {
+            key: 'camera_video',
+            icon: 'video-outline',
+            labelId: 'camera_type.video.option',
+            labelDefault: 'Record Video',
+            disabled: fileDisabled,
+            onPress: wrapWithDismiss(handleVisionVideoPress),
+            testID: `${baseTestID}.camera_video_action`,
         },
         {
             key: 'file',

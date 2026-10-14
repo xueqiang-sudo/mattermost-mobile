@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {ActivityIndicator, FlatList, StyleSheet, Text, View} from 'react-native';
-import {useFocusEffect} from '@react-navigation/native';
 
 import DatabaseManager from '@database/manager';
 import {useServerUrl} from '@context/server';
@@ -83,7 +82,7 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
     }, [serverUrl]);
 
     // 首次加载
-    useFocusEffect(useCallback(() => {
+    useEffect(() => {
         const loadInitial = async () => {
             debugLog('filePicker', 'GroupFilesTab: loading first page');
             setLoading(true);
@@ -101,7 +100,7 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
         };
 
         loadInitial();
-    }, [loadPage]));
+    }, [loadPage]);
 
     // 加载更多
     const handleEndReached = useCallback(async () => {

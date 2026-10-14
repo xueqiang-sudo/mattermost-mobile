@@ -73,7 +73,7 @@ export async function restDeferredAppEntryActions(
         updateAllUsersSince(serverUrl, since, false, requestLabel);
         updateCanJoinTeams(serverUrl);
 
-        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const {operator, database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const teamMap = new Map(teamData.teams?.map((t) => [t.id, t]) || []);
         let mySortedTeams: Team[] = [];
         let myOtherSortedTeams: Team[] = [];
