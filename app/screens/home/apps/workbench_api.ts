@@ -26,8 +26,14 @@ async function apiFetch(serverUrl: string, path: string, options: {method: strin
         if (err?.details?.message) {
             parts.push(err.details.message);
         }
+        if (err?.server_error_id) {
+            parts.push(`(server_error_id: ${err.server_error_id})`);
+        }
         if (err?.status_code) {
             parts.push(`(status ${err.status_code})`);
+        }
+        if (err?.details?.data) {
+            parts.push(`(data: ${JSON.stringify(err.details.data)})`);
         }
         throw new Error(parts.length > 0 ? parts.join(' | ') : 'Network request failed');
     }
@@ -396,6 +402,7 @@ export async function addNoteEntry(serverUrl: string, teamId: string, scope: str
     return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/add?team_id=${encodeURIComponent(teamId)}`, {
         method: 'post',
         body: {teamId, scope, content},
+        headers: {'Content-Type': 'application/json'},
     });
 }
 
