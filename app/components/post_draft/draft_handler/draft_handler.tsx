@@ -99,6 +99,20 @@ export default function DraftHandler(props: Props) {
 
     const addFiles = useCallback((newFiles: FileInfo[]) => {
         debugLog('DRAFT', `[addFiles] called with ${newFiles.length} files`);
+        debugLog('DRAFT', `[addFiles] file details:`, newFiles.map((f, i) => ({
+            index: i,
+            name: f.name,
+            id: f.id,
+            clientId: f.clientId,
+            uri: f.uri,
+            localPath: f.localPath,
+            extension: f.extension,
+            mime_type: f.mime_type,
+            size: f.size,
+            width: f.width,
+            height: f.height,
+        })));
+
         if (!newFiles.length) {
             debugLog('DRAFT', '[addFiles] no files provided, exiting');
             return;
@@ -132,7 +146,9 @@ export default function DraftHandler(props: Props) {
             try {
                 debugLog('DRAFT', `addFiles: start, count=${newFiles.length}`);
                 // Filter out video processing files
+                debugLog('DRAFT', `addFiles: filtering files`);
                 const filesToUpload = newFiles.filter(file => !isDraftVideoLocalProcessingFile(file));
+                debugLog('DRAFT', `addFiles: after filter, count=${filesToUpload.length}`);
 
                 if (filesToUpload.length === 0) {
                     debugLog('DRAFT', `addFiles: no files to upload after filtering`);
@@ -145,8 +161,10 @@ export default function DraftHandler(props: Props) {
 
                 // Phase 1: Prepare all files with dimensions in parallel
                 debugLog('DRAFT', `addFiles: Phase 1 - preparing files`);
+                debugLog('DRAFT', `addFiles: Phase 1 - starting Promise.all for ${filesToUpload.length} files`);
                 const filesWithPostData = await Promise.all(
-                    filesToUpload.map(async (file) => {
+                    filesToUpload.map(async (file, index) => {
+                        debugLog('DRAFT', `addFiles: Phase 1 - processing file ${index + 1}/${filesToUpload.length}: ${file.name}`);
                         const pendingFileId = `pending_${generateId()}`;
                         const pendingPostId = `${currentUserId}:${Date.now()}_${generateId()}`;
 
@@ -156,20 +174,31 @@ export default function DraftHandler(props: Props) {
                         const isImageFile = file.mime_type?.startsWith('image/') || extension.match(/^(jpg|jpeg|png|gif|webp|heic|heif)$/i);
                         const hasPreviewImage = Boolean(isImageFile);
 
+                        debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: isImage=${isImageFile}, extension=${extension}`);
+
                         let fileWidth = file.width;
                         let fileHeight = file.height;
 
                         if (isImageFile && (!fileWidth || !fileHeight)) {
                             const imageUri = file.localPath || file.uri || '';
+                            debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: fetching dimensions for URI: ${imageUri}`);
                             if (imageUri) {
-                                const dimensions = await getImageDimensions(imageUri);
-                                fileWidth = dimensions.width;
-                                fileHeight = dimensions.height;
+                                try {
+                                    const dimensions = await getImageDimensions(imageUri);
+                                    fileWidth = dimensions.width;
+                                    fileHeight = dimensions.height;
+                                    debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: got dimensions ${fileWidth}x${fileHeight}`);
+                                } catch (dimError) {
+                                    debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: ERROR getting dimensions: ${dimError instanceof Error ? dimError.message : String(dimError)}`);
+                                    // Continue with defaults
+                                }
                             }
                         }
 
                         fileWidth = fileWidth || (isImageFile ? 800 : 100);
                         fileHeight = fileHeight || (isImageFile ? 600 : 100);
+
+                        debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: final dimensions ${fileWidth}x${fileHeight}`);
 
                         const localFile: FileInfo = {
                             ...file,
@@ -189,6 +218,17 @@ export default function DraftHandler(props: Props) {
                             update_at: Date.now(),
                         };
 
+                        debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: localFile prepared`, {
+                            id: localFile.id,
+                            name: localFile.name,
+                            localPath: localFile.localPath,
+                            uri: localFile.uri,
+                            extension: localFile.extension,
+                            mime_type: localFile.mime_type,
+                            width: localFile.width,
+                            height: localFile.height,
+                        });
+
                         const post = {
                             pending_post_id: pendingPostId,
                             user_id: currentUserId,
@@ -204,9 +244,16 @@ export default function DraftHandler(props: Props) {
                             },
                         } as Post;
 
+                        debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: post prepared`, {
+                            pending_post_id: post.pending_post_id,
+                            channel_id: post.channel_id,
+                        });
+
                         return {localFile, post, pendingPostId};
                     }),
                 );
+
+                debugLog('DRAFT', `addFiles: Phase 1 COMPLETE, prepared ${filesWithPostData.length} files`);
 
                 // Phase 2: Batch create all pending posts in a single DB write
                 // This triggers observe() only once instead of N times
@@ -280,22 +327,39 @@ export default function DraftHandler(props: Props) {
 
                 // Upload files in background and update posts
                 debugLog('DRAFT', `addFiles: background upload - ${pendingPosts.length} files`);
-                for (const {postId, file} of pendingPosts) {
-                    debugLog('DRAFT', `addFiles: uploading file ${file.name}`);
+                debugLog('DRAFT', `addFiles: starting upload loop`);
+                for (let uploadIndex = 0; uploadIndex < pendingPosts.length; uploadIndex++) {
+                    const {postId, file} = pendingPosts[uploadIndex];
+                    debugLog('DRAFT', `addFiles: uploading file ${uploadIndex + 1}/${pendingPosts.length}: ${file.name}`, {
+                        postId,
+                        fileId: file.id,
+                        localPath: file.localPath,
+                        uri: file.uri,
+                        extension: file.extension,
+                        mime_type: file.mime_type,
+                    });
 
                     try {
+                        debugLog('DRAFT', `addFiles: creating upload promise for file ${uploadIndex + 1}`);
                         const uploadedFile = await new Promise<FileInfo>((resolve, reject) => {
+                            debugLog('DRAFT', `addFiles: calling uploadFile for ${file.name}`);
                             const {error} = uploadFile(
                                 serverUrl,
                                 file,
                                 channelId,
                                 () => {/* progress */},
                                 (response) => {
+                                    debugLog('DRAFT', `addFiles: upload callback for ${file.name}`, {
+                                        code: response.code,
+                                        hasFileInfos: Boolean(response.data?.file_infos?.length),
+                                    });
                                     if (response.code !== 201 || !response.data?.file_infos?.length) {
                                         const errorMsg = (response.data?.message as string) || intl.formatMessage({id: 'mobile.post.upload_failed', defaultMessage: 'Failed to upload file'});
+                                        debugLog('DRAFT', `addFiles: upload failed for ${file.name}: ${errorMsg}`);
                                         reject(new Error(errorMsg));
                                         return;
                                     }
+                                    debugLog('DRAFT', `addFiles: upload successful for ${file.name}`);
                                     const fi = response.data.file_infos[0] as FileInfo;
                                     fi.clientId = file.clientId;
                                     fi.localPath = file.localPath;
@@ -328,15 +392,31 @@ export default function DraftHandler(props: Props) {
                         });
 
                         // Update post with real file ID
-                        debugLog('DRAFT', `addFiles: upload complete, updating post ${postId}`);
+                        debugLog('DRAFT', `addFiles: upload complete for file ${uploadIndex + 1}, updating post ${postId}`);
+                        debugLog('DRAFT', `addFiles: uploaded file details`, {
+                            id: uploadedFile.id,
+                            name: uploadedFile.name,
+                            clientId: uploadedFile.clientId,
+                            localPath: uploadedFile.localPath,
+                        });
                         await updatePostFileIds(serverUrl, postId, [uploadedFile]);
                         debugLog('DRAFT', `addFiles: post ${postId} updated with real file ID`);
 
                     } catch (uploadErr) {
                         logError('[addFiles background upload]', uploadErr);
-                        debugLog('DRAFT', `addFiles: upload ERROR - ${uploadErr}`);
+                        debugLog('DRAFT', `addFiles: upload ERROR for file ${uploadIndex + 1} (${file.name})`, {
+                            error: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
+                            stack: uploadErr instanceof Error ? uploadErr.stack : 'N/A',
+                            postId,
+                            fileId: file.id,
+                        });
                         // Mark post as failed (don't throw, continue with other files)
-                        await markPostUploadFailed(serverUrl, postId, file.name);
+                        try {
+                            await markPostUploadFailed(serverUrl, postId, file.name);
+                            debugLog('DRAFT', `addFiles: post ${postId} marked as failed`);
+                        } catch (markErr) {
+                            debugLog('DRAFT', `addFiles: ERROR marking post as failed: ${markErr instanceof Error ? markErr.message : String(markErr)}`);
+                        }
                     }
                 }
                 debugLog('DRAFT', `addFiles: all uploads complete`);
@@ -344,6 +424,11 @@ export default function DraftHandler(props: Props) {
 
             } catch (err) {
                 logError('[addFiles optimistic]', err);
+                debugLog('DRAFT', `addFiles: CRITICAL ERROR in upload process`, {
+                    error: err instanceof Error ? err.message : String(err),
+                    stack: err instanceof Error ? err.stack : 'N/A',
+                    fileCount: newFiles.length,
+                });
                 showSnackBar({
                     barType: SNACK_BAR_TYPE.CREATE_POST_ERROR,
                     customMessage: getErrorMessage(err),

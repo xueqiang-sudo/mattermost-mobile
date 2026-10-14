@@ -29,7 +29,11 @@ import type {Model} from '@nozbe/watermelondb';
 // Received when current user created a channel in a different client
 export async function handleChannelCreatedEvent(serverUrl: string, msg: any) {
     const {team_id: teamId, channel_id: channelId} = msg.data;
+
+    debugLog('WS', `handleChannelCreatedEvent: channel_id=${channelId}, team_id=${teamId}`);
+
     if (EphemeralStore.creatingChannel) {
+        debugLog('WS', 'handleChannelCreatedEvent: skipping, we are creating this channel');
         return; // We probably don't need to handle this WS because we provoked it
     }
 
@@ -38,12 +42,24 @@ export async function handleChannelCreatedEvent(serverUrl: string, msg: any) {
 
         const channel = await getChannelById(database, channelId);
         if (channel) {
+            debugLog('WS', `handleChannelCreatedEvent: channel ${channelId} already exists`);
             return; // We already have this channel
         }
 
+        debugLog('WS', `handleChannelCreatedEvent: fetching channel ${channelId} for team ${teamId}`);
         const models: Model[] = [];
         const {channels, memberships} = await fetchMyChannel(serverUrl, teamId, channelId, true);
-        if (channels && memberships) {
+
+        if (channels && memberships && channels[0]) {
+            const fetchedChannel = channels[0];
+            debugLog('WS', `handleChannelCreatedEvent: fetched channel details`, {
+                channelId: fetchedChannel.id,
+                displayName: fetchedChannel.display_name,
+                type: fetchedChannel.type,
+                teamId: fetchedChannel.team_id,
+                shared: fetchedChannel.shared,
+            });
+
             const prepare = await prepareMyChannelsForTeam(operator, teamId, channels, memberships);
             if (prepare.length) {
                 const prepareModels = await Promise.all(prepare);
@@ -56,10 +72,16 @@ export async function handleChannelCreatedEvent(serverUrl: string, msg: any) {
                     models.push(...categoryModels.models);
                 }
             }
+
+            debugLog('WS', `handleChannelCreatedEvent: storing ${models.length} models for channel ${channelId}`);
+        } else {
+            debugLog('WS', `handleChannelCreatedEvent: fetchMyChannel returned null for ${channelId}`);
         }
+
         operator.batchRecords(models, 'handleChannelCreatedEvent');
-    } catch {
-        // do nothing
+        debugLog('WS', `handleChannelCreatedEvent: completed for channel ${channelId}`);
+    } catch (error) {
+        debugLog('WS', `handleChannelCreatedEvent failed: channel_id=${channelId} error=${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

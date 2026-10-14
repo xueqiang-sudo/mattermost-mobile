@@ -7,6 +7,7 @@ import {FlatList, Image, StyleSheet, Text, View, PermissionsAndroid, Platform} f
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
 
 import {useFilePicker, type SelectedFile} from '../context/file_picker_context';
@@ -157,15 +158,30 @@ export default function PhotoAlbumTab() {
     }, [hasPermission]);
 
     const handlePhotoPress = useCallback((photo: PhotoAsset) => {
+        debugLog('PhotoAlbumTab', 'handlePhotoPress called');
         const photoUri = photo.node.image.uri;
+        debugLog('PhotoAlbumTab', `Photo URI: ${photoUri}`);
+        debugLog('PhotoAlbumTab', `Photo node:`, {
+            uri: photo.node.image.uri,
+            filename: photo.node.image.filename,
+            width: photo.node.image.width,
+            height: photo.node.image.height,
+            timestamp: photo.node.timestamp,
+        });
+
         const isSelected = isFileSelected(photoUri);
+        debugLog('PhotoAlbumTab', `Photo is selected: ${isSelected}`);
 
         if (isSelected) {
+            debugLog('PhotoAlbumTab', `Removing photo: ${photoUri}`);
             dispatch({type: 'REMOVE_FILE', fileId: photoUri});
         } else if (canSelectMore()) {
             // Extract filename from URI if not provided
             const filename = photo.node.image.filename || photoUri.split('/').pop() || 'photo.jpg';
+            debugLog('PhotoAlbumTab', `Filename: ${filename}`);
+
             const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
+            debugLog('PhotoAlbumTab', `Extension: ${extension}`);
 
             const selectedFile: SelectedFile = {
                 id: photoUri,
@@ -177,7 +193,18 @@ export default function PhotoAlbumTab() {
                 source: 'album',
                 extension,
             };
+
+            debugLog('PhotoAlbumTab', 'Adding photo to selection:', {
+                id: selectedFile.id,
+                name: selectedFile.name,
+                uri: selectedFile.uri,
+                extension: selectedFile.extension,
+                mime_type: selectedFile.mime_type,
+            });
+
             dispatch({type: 'ADD_FILE', file: selectedFile});
+        } else {
+            debugLog('PhotoAlbumTab', 'Cannot select more files: max selection reached');
         }
     }, [dispatch, isFileSelected, canSelectMore]);
 
