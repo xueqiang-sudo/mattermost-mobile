@@ -13,16 +13,13 @@ struct ShareUIView: View {
   @State var attachments: [AttachmentModel] = []
   @State var linkPreviewUrl: String = ""
   @State var message: String = ""
-  
+
   var body: some View {
-    NavigationView {
-      InitialView(
-        attachments: $attachments,
-        linkPreviewUrl: $linkPreviewUrl,
-        message: $message
-      )
-    }
-    .navigationViewStyle(StackNavigationViewStyle())
+    InitialView(
+      attachments: $attachments,
+      linkPreviewUrl: $linkPreviewUrl,
+      message: $message
+    )
     .environmentObject(shareViewModel)
   }
 }

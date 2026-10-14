@@ -11,6 +11,7 @@ import Foundation
 public enum CompassIconsCode: String, CaseIterable {
   case alert = "\u{f002a}"
   case back = "\u{e811}"
+  case check = "\u{f012c}"
   case close = "\u{f0156}"
   case send = "\u{f048a}"
   case brokenImage = "\u{e90c}"

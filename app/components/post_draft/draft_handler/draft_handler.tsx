@@ -9,6 +9,7 @@ import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@a
 import {uploadFile} from '@actions/remote/file';
 import {createPost, createBatchPendingPosts, updatePostFileIds, markPostUploadFailed} from '@actions/remote/post';
 import DatabaseManager from '@database/manager';
+import NetworkManager from '@managers/network_manager';
 import {Events, Screens} from '@constants';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
@@ -159,13 +160,53 @@ export default function DraftHandler(props: Props) {
                 const batchId = filesToUpload.length > 1 ? `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
                 debugLog('DRAFT', `addFiles: batchId=${batchId || 'none'}`);
 
+                // Phase 0: Copy existing server files to get new file IDs (like webapp's forward)
+                debugLog('DRAFT', `addFiles: Phase 0 - detecting existing server files`);
+                const existingServerFiles = filesToUpload.filter(file =>
+                    Boolean(file.post_id) && Boolean(file.id) && !file.id.startsWith('pending_')
+                );
+                const oldToNewIdMap: Record<string, string> = {};
+
+                if (existingServerFiles.length > 0) {
+                    debugLog('DRAFT', `addFiles: Phase 0 - copying ${existingServerFiles.length} existing server files`);
+                    try {
+                        const client = NetworkManager.getClient(serverUrl);
+                        const originalFileIds = existingServerFiles.map(f => f.id!);
+                        const copyResult = await client.copyFiles(originalFileIds);
+                        const newIds = copyResult.file_ids;
+
+                        // Map old IDs to new IDs
+                        originalFileIds.forEach((oldId, index) => {
+                            const newId = newIds[index];
+                            if (newId) {
+                                oldToNewIdMap[oldId] = newId;
+                                debugLog('DRAFT', `addFiles: Phase 0 - mapped ${oldId} -> ${newId}`);
+                            }
+                        });
+                    } catch (copyError) {
+                        debugLog('DRAFT', `addFiles: Phase 0 ERROR - ${copyError instanceof Error ? copyError.message : String(copyError)}`);
+                        throw copyError;
+                    }
+                } else {
+                    debugLog('DRAFT', `addFiles: Phase 0 - no existing server files to copy`);
+                }
+
                 // Phase 1: Prepare all files with dimensions in parallel
                 debugLog('DRAFT', `addFiles: Phase 1 - preparing files`);
                 debugLog('DRAFT', `addFiles: Phase 1 - starting Promise.all for ${filesToUpload.length} files`);
                 const filesWithPostData = await Promise.all(
                     filesToUpload.map(async (file, index) => {
                         debugLog('DRAFT', `addFiles: Phase 1 - processing file ${index + 1}/${filesToUpload.length}: ${file.name}`);
-                        const pendingFileId = `pending_${generateId()}`;
+
+                        // Detect existing server files (from group files tab) - they have a real server ID and post_id
+                        const isExistingServerFile = Boolean(file.post_id) && Boolean(file.id) && !file.id.startsWith('pending_');
+
+                        if (isExistingServerFile) {
+                            debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: existing server file, id=${file.id}`);
+                        }
+
+                        // Use the new copied file ID for existing server files, or generate pending ID for new files
+                        const pendingFileId = isExistingServerFile ? (oldToNewIdMap[file.id!] || file.id!) : `pending_${generateId()}`;
                         const pendingPostId = `${currentUserId}:${Date.now()}_${generateId()}`;
 
                         const fileName = file.name || '';
@@ -174,7 +215,7 @@ export default function DraftHandler(props: Props) {
                         const isImageFile = file.mime_type?.startsWith('image/') || extension.match(/^(jpg|jpeg|png|gif|webp|heic|heif)$/i);
                         const hasPreviewImage = Boolean(isImageFile);
 
-                        debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: isImage=${isImageFile}, extension=${extension}`);
+                        debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: isImage=${isImageFile}, extension=${extension}, isExisting=${isExistingServerFile}`);
 
                         let fileWidth = file.width;
                         let fileHeight = file.height;
@@ -235,21 +276,23 @@ export default function DraftHandler(props: Props) {
                             channel_id: channelId,
                             root_id: rootId,
                             message: '',
+                            // file_ids will be set by createBatchPendingPosts from the files array
                             props: batchId ? {
                                 batch_id: batchId,
                                 batch_size: filesToUpload.length,
-                                upload_status: 'uploading',
+                                upload_status: isExistingServerFile ? 'complete' : 'uploading',
                             } : {
-                                upload_status: 'uploading',
+                                upload_status: isExistingServerFile ? 'complete' : 'uploading',
                             },
                         } as Post;
 
                         debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: post prepared`, {
                             pending_post_id: post.pending_post_id,
                             channel_id: post.channel_id,
+                            file_ids: post.file_ids,
                         });
 
-                        return {localFile, post, pendingPostId};
+                        return {localFile, post, pendingPostId, isExistingServerFile};
                     }),
                 );
 
@@ -262,6 +305,7 @@ export default function DraftHandler(props: Props) {
                     serverUrl,
                     filesWithPostData.map(({localFile, post}) => ({
                         post,
+                        // All files now have new IDs (either copied or pending), safe to create File models
                         files: [localFile],
                     })),
                 );
@@ -273,12 +317,13 @@ export default function DraftHandler(props: Props) {
 
                 const batchData = batchResult.data!;
                 debugLog('DRAFT', `addFiles: Phase 2 complete, created ${batchData.length} posts`);
-                const pendingPosts: Array<{postId: string; file: FileInfo}> = [];
+                const pendingPosts: Array<{postId: string; file: FileInfo; isExistingServerFile: boolean}> = [];
 
                 for (let i = 0; i < batchData.length; i++) {
                     pendingPosts.push({
                         postId: batchData[i].pendingPostId,
                         file: filesWithPostData[i].localFile,
+                        isExistingServerFile: filesWithPostData[i].isExistingServerFile,
                     });
                 }
 
@@ -329,7 +374,14 @@ export default function DraftHandler(props: Props) {
                 debugLog('DRAFT', `addFiles: background upload - ${pendingPosts.length} files`);
                 debugLog('DRAFT', `addFiles: starting upload loop`);
                 for (let uploadIndex = 0; uploadIndex < pendingPosts.length; uploadIndex++) {
-                    const {postId, file} = pendingPosts[uploadIndex];
+                    const {postId, file, isExistingServerFile} = pendingPosts[uploadIndex];
+
+                    // Skip upload for existing server files - they already have valid file IDs
+                    if (isExistingServerFile) {
+                        debugLog('DRAFT', `addFiles: skipping upload for existing server file ${file.name} (id=${file.id})`);
+                        continue;
+                    }
+
                     debugLog('DRAFT', `addFiles: uploading file ${uploadIndex + 1}/${pendingPosts.length}: ${file.name}`, {
                         postId,
                         fileId: file.id,

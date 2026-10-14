@@ -13,9 +13,8 @@ const FRAPPE_SYNC_BASE = '/plugins/com.mattermost.frappe-sync';
 
 async function apiFetch(serverUrl: string, path: string, options: {method: string; body?: any; headers?: Record<string, string>}): Promise<any> {
     const client = NetworkManager.getClient(serverUrl);
-    const body = options.body ? JSON.stringify(options.body) : undefined;
     try {
-        const resp = await client.doFetch(path, {method: options.method, ...(body ? {body} : {}), ...(options.headers ? {headers: options.headers} : {})});
+        const resp = await client.doFetch(path, {method: options.method, ...(options.body ? {body: options.body} : {}), ...(options.headers ? {headers: options.headers} : {})});
         return resp;
     } catch (err: any) {
         // Build detailed error message including server error info
@@ -399,10 +398,9 @@ export async function getNoteEntry(serverUrl: string, teamId: string, entryId: s
 }
 
 export async function addNoteEntry(serverUrl: string, teamId: string, scope: string, content: string) {
-    return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/add?team_id=${encodeURIComponent(teamId)}`, {
+    return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/add?team_id=${teamId}`, {
         method: 'post',
         body: {teamId, scope, content},
-        headers: {'Content-Type': 'application/json'},
     });
 }
 

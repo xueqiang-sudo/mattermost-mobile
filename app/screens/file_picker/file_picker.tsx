@@ -149,10 +149,15 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
     const [activeTab, setActiveTab] = useState<TabKey>('chat');
     const [expanded, setExpanded] = useState(false);
 
+    const selectedCount = state.selectedFiles.size;
+    const canSend = selectedCount > 0;
+
+    debugLog('filePicker', `Render: selectedCount=${selectedCount}, canSend=${canSend}`);
+
     const handleSend = useCallback(async () => {
         try {
             debugLog('filePicker', 'handleSend started');
-            const files = getSelectedFiles();
+            const files = Array.from(state.selectedFiles.values());
             debugLog('filePicker', `handleSend called with ${files.length} files`);
 
             if (files.length === 0) {
@@ -226,17 +231,17 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                 }),
             );
         }
-    }, [componentId, getSelectedFiles, onSend, intl]);
+    }, [componentId, state.selectedFiles, onSend, intl]);
 
-    const selectedCount = getSelectedCount();
-    const canSend = selectedCount > 0;
-    const selectedFilesList = getSelectedFiles();
+    const selectedFilesList = Array.from(state.selectedFiles.values());
 
     const tabs: {key: TabKey; label: string}[] = [
         {key: 'chat', label: intl.formatMessage({id: 'file_picker.tab.chat', defaultMessage: 'Chat'})},
         {key: 'photo_album', label: intl.formatMessage({id: 'file_picker.tab.photo_album', defaultMessage: 'Photos'})},
         {key: 'files', label: intl.formatMessage({id: 'file_picker.tab.phone_files', defaultMessage: 'Phone Files'})},
     ];
+
+    debugLog('filePicker', `Rendering ${tabs.length} tabs:`, tabs.map(t => ({key: t.key, label: t.label})));
 
     const renderTabContent = () => {
         switch (activeTab) {
