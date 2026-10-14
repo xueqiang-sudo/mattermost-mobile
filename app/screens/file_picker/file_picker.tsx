@@ -150,20 +150,68 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
     const [expanded, setExpanded] = useState(false);
 
     const handleSend = useCallback(async () => {
-        const files = getSelectedFiles();
-        if (files.length === 0) {
+        try {
+            debugLog('filePicker', 'handleSend started');
+            const files = getSelectedFiles();
+            debugLog('filePicker', `handleSend called with ${files.length} files`);
+
+            if (files.length === 0) {
+                Alert.alert(
+                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                    intl.formatMessage({
+                        id: 'file_picker.no_files_selected',
+                        defaultMessage: 'Please select at least one file to send.',
+                    }),
+                );
+                return;
+            }
+
+            files.forEach((file, index) => {
+                debugLog('filePicker', `File ${index + 1} to send:`, {
+                    name: file.name,
+                    uri: file.uri,
+                    id: file.id,
+                    clientId: file.clientId,
+                    mime_type: file.mime_type,
+                    size: file.size,
+                });
+            });
+
+            debugLog('filePicker', 'Calling onSend callback');
+            try {
+                onSend(files);
+                debugLog('filePicker', 'onSend callback completed successfully');
+            } catch (sendError) {
+                debugLog('filePicker', `onSend callback error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+                debugLog('filePicker', `Error stack: ${sendError instanceof Error ? sendError.stack : 'N/A'}`);
+                Alert.alert(
+                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                    intl.formatMessage({
+                        id: 'file_picker.send_error',
+                        defaultMessage: 'Failed to send files. Please try again.',
+                    }),
+                );
+                return;
+            }
+
+            debugLog('filePicker', 'Dismissing modal');
+            try {
+                await dismissModal({componentId});
+                debugLog('filePicker', 'Modal dismissed successfully');
+            } catch (dismissError) {
+                debugLog('filePicker', `Dismiss modal error: ${dismissError instanceof Error ? dismissError.message : String(dismissError)}`);
+            }
+        } catch (error) {
+            debugLog('filePicker', `handleSend unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+            debugLog('filePicker', `Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 intl.formatMessage({
-                    id: 'file_picker.no_files_selected',
-                    defaultMessage: 'Please select at least one file to send.',
+                    id: 'file_picker.unexpected_error',
+                    defaultMessage: 'An unexpected error occurred. Please try again.',
                 }),
             );
-            return;
         }
-
-        onSend(files);
-        await dismissModal({componentId});
     }, [componentId, getSelectedFiles, onSend, intl]);
 
     const selectedCount = getSelectedCount();

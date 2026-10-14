@@ -413,8 +413,9 @@ export async function searchNoteEntries(serverUrl: string, teamId: string, scope
 
 export async function deleteCategory(
     serverUrl: string,
+    userId: string,
     teamId: string,
     categoryId: string,
 ): Promise<void> {
-    await apiFetch(serverUrl, `/api/v4/channels/${teamId}/categories/${categoryId}`, {method: 'delete'});
+    await apiFetch(serverUrl, `/api/v4/users/${userId}/teams/${teamId}/channels/categories/${categoryId}`, {method: 'delete'});
 }

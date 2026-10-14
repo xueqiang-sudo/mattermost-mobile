@@ -7,6 +7,7 @@ import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
     Alert,
+    Keyboard,
     Modal,
     ScrollView,
     StyleSheet,
@@ -494,6 +495,7 @@ const RoleManagementScreen = () => {
     // ---- Role Management handlers ----
 
     const handleCreateRole = useCallback(async () => {
+        Keyboard.dismiss();
         const name = newRoleName.trim();
         if (!name) return;
         if (roles.some((r) => r.role_name.toLowerCase() === name.toLowerCase())) {
@@ -683,7 +685,7 @@ const RoleManagementScreen = () => {
                 {error && <Text style={style.errorText}>{error}</Text>}
 
                 {activeTab === 'roles' && (
-                    <ScrollView>
+                    <ScrollView keyboardShouldPersistTaps='handled'>
                         {/* Create box */}
                         <View style={style.createBox}>
                             <TextInput

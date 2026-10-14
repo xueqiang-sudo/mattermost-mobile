@@ -354,7 +354,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         }
     }, [serverUrl, theme, intl, handleClose]);
 
-    const determineFileState = useCallback(() => {
+    const determineFileState = useCallback(async () => {
 
         // iOS: Apple documents use native QuickLook, no PDF conversion needed
         if (isAppleDocument(fileInfo)) {
@@ -363,8 +363,36 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             return;
         }
 
-        // Check if Office file is being converted (Android: Apple docs go through this path)
-        if (isOfficeFile(fileInfo) && !fileInfo.pdf_preview_id) {
+        // Check if Office file - fetch latest info from server to check if PDF preview exists
+        if (isOfficeFile(fileInfo)) {
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const updatedFileInfo = await client.getFileInfo(fileId);
+
+                // If server has PDF preview, use it
+                if (updatedFileInfo.pdf_preview_id) {
+                    // Save to database
+                    try {
+                        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                        await operator.handleFiles({
+                            files: [{...updatedFileInfo, id: fileId}],
+                            prepareRecordsOnly: false,
+                        });
+                    } catch (dbError) {
+                        logDebug('Failed to save pdf_preview_id to database:', dbError);
+                    }
+
+                    const newFileInfo = {...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id};
+                    setCurrentFileInfo(newFileInfo);
+                    setFileState('viewable');
+                    downloadAndShowFile(newFileInfo);
+                    return;
+                }
+            } catch (error) {
+                logDebug('Failed to fetch file info from server:', error);
+            }
+
+            // No PDF preview yet, start conversion
             setFileState('converting');
             startPolling();
             return;
@@ -379,7 +407,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
         // Unsupported file
         setFileState('unsupported');
-    }, [fileInfo, startPolling, downloadAndShowFile]);
+    }, [fileInfo, fileId, serverUrl, startPolling, downloadAndShowFile]);
 
     useEffect(() => {
         determineFileState();

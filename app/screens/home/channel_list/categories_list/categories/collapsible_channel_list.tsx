@@ -67,6 +67,7 @@ type RenderProps = {
     sections: Section[];
     locale: string;
     isTablet: boolean;
+    currentUserId: string;
     onChannelSwitch: (channel: Channel | ChannelModel) => void;
 };
 
@@ -122,6 +123,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
 
 const CollapsibleChannelListRenderer = ({
     sections,
+    currentUserId,
     onChannelSwitch,
 }: RenderProps) => {
     const theme = useTheme();
@@ -172,7 +174,7 @@ const CollapsibleChannelListRenderer = ({
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await deleteCategory(serverUrl, teamId, categoryId);
+                            await deleteCategory(serverUrl, currentUserId, teamId, categoryId);
                             showSnackBar({
                                 barType: 'FAVORITE_CHANNEL' as any,
                                 customMessage: intl.formatMessage(
@@ -310,20 +312,21 @@ const enhanced = withObservables(
         );
 
         // Get channel IDs from built-in categories (DM/GM channels are placed here by the server per team)
-        const builtInCategoryChannelIds = of$(builtInCategories).pipe(
-            switchMap((cats) => {
-                return from((async () => {
+        // Observe CategoryChannel table reactively so new channels added to categories trigger updates
+        const builtInCategoryIds = builtInCategories.map(cat => cat.id);
+        const builtInCategoryChannelIds = builtInCategoryIds.length > 0
+            ? database.get(MM_TABLES.SERVER.CATEGORY_CHANNEL).query(
+                Q.where('category_id', Q.oneOf(builtInCategoryIds)),
+            ).observe().pipe(
+                switchMap((categoryChannels) => {
                     const ids = new Set<string>();
-                    for (const cat of cats) {
-                        const cc = await cat.categoryChannels.fetch();
-                        for (const c of cc) {
-                            ids.add(c.channelId);
-                        }
+                    for (const cc of categoryChannels) {
+                        ids.add(cc.channelId);
                     }
-                    return ids;
-                })());
-            }),
-        );
+                    return of$(ids);
+                }),
+            )
+            : of$(new Set<string>());
 
         // Get ALL channels the user is a member of
         const allUserChannels = database.get<MyChannelModel>(MY_CHANNEL)
@@ -646,6 +649,7 @@ const enhanced = withObservables(
             sections,
             locale: of$(locale),
             isTablet: of$(isTablet),
+            currentUserId: of$(currentUserId),
             onChannelSwitch: of$(onChannelSwitch),
         };
     },

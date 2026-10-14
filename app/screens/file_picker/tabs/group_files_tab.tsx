@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     checkbox: {
         width: 22,
         height: 22,
-        borderRadius: 4,
+        borderRadius: 11,
         borderWidth: 2,
         borderColor: '#D9D9D9',
         marginRight: 10,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     checkboxChecked: {
         width: 22,
         height: 22,
-        borderRadius: 4,
+        borderRadius: 11,
         backgroundColor: '#07C160',
         marginRight: 10,
         alignItems: 'center',
@@ -170,18 +170,22 @@ const styles = StyleSheet.create({
 
 function getFileIcon(ext: string): string {
     const e = (ext || '').toLowerCase();
-    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
-    const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv'];
-    const audioExts = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a'];
-    const docExts = ['doc', 'docx', 'pdf', 'txt', 'rtf', 'odt'];
-    const sheetExts = ['xls', 'xlsx', 'csv', 'ods'];
-    const zipExts = ['zip', 'rar', '7z', 'tar', 'gz'];
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'heic', 'heif'];
+    const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v', 'webm'];
+    const audioExts = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma'];
+    const docExts = ['doc', 'docx', 'pdf', 'txt', 'rtf', 'odt', 'pages', 'md', 'tex'];
+    const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
+    const slideExts = ['ppt', 'pptx', 'key', 'odp'];
+    const zipExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
+    const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml', 'sql', 'sh', 'bash'];
     if (imageExts.includes(e)) return 'image-outline';
     if (videoExts.includes(e)) return 'video-outline';
     if (audioExts.includes(e)) return 'music-note';
     if (docExts.includes(e)) return 'file-document-outline';
     if (sheetExts.includes(e)) return 'file-excel-outline';
+    if (slideExts.includes(e)) return 'file-powerpoint-outline';
     if (zipExts.includes(e)) return 'folder-zip-outline';
+    if (codeExts.includes(e)) return 'file-code-outline';
     return 'file-outline';
 }
 
@@ -271,16 +275,24 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
         }
 
         const now = Date.now();
-        const result: FileEntry[] = files.map(f => {
-            const post = postMap.get(f.postId)!;
-            return {
-                file: f,
-                post,
-                senderName: userMap.get(post.userId) || '',
-                timeStr: formatTime(post.createAt),
-                groupLabel: getGroupLabel(post.createAt, now, intl),
-            };
-        });
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'heic', 'heif'];
+        const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v', 'webm'];
+
+        const result: FileEntry[] = files
+            .filter(f => {
+                const ext = (f.extension || '').toLowerCase();
+                return !imageExts.includes(ext) && !videoExts.includes(ext);
+            })
+            .map(f => {
+                const post = postMap.get(f.postId)!;
+                return {
+                    file: f,
+                    post,
+                    senderName: userMap.get(post.userId) || '',
+                    timeStr: formatTime(post.createAt),
+                    groupLabel: getGroupLabel(post.createAt, now, intl),
+                };
+            });
 
         result.sort((a, b) => b.post.createAt - a.post.createAt);
 
@@ -411,7 +423,7 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
                         />
                     </View>
                     <View style={styles.fileInfo}>
-                        <Text style={styles.fileName} numberOfLines={1}>
+                        <Text style={styles.fileName}>
                             {entry.file.name}
                         </Text>
                         <Text style={styles.fileSize}>

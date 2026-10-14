@@ -738,6 +738,14 @@
   "create_category.error.empty": "請輸入分類名稱",
   "create_category.error.message": "建立分類失敗，請重試。",
   "create_category.error.title": "錯誤",
+  "category.delete_title": "刪除分類？",
+  "category.delete_empty": "確定要刪除分類「{name}」嗎？",
+  "category.delete_has_channels": "請先移除該分類下的所有群組，然後再刪除。",
+  "category.delete_error": "刪除分類失敗",
+  "category.delete": "刪除",
+  "category.cancel": "取消",
+  "category.ok": "確定",
+  "category.deleted": "已刪除分類「{name}」",
   "create_category_modal.create": "建立",
   "create_category_modal.title": "建立分類",
   "create_direct_message.chat_button": "聊天",
@@ -2699,5 +2707,12 @@
   "file_picker.group_files.empty": "暫無檔案",
   "file_picker.group_files.loading": "載入檔案中...",
   "file_picker.no_files_selected": "請至少選擇一個檔案",
-  "file_picker.no_channel": "未選擇頻道"
+  "file_picker.no_channel": "未選擇頻道",
+  "file_picker.pick_error": "選取檔案失敗，請重試。",
+  "file_picker.permission_error": "無法存取檔案，請檢查「檔案」應用程式設定後重試。",
+  "file_picker.file_not_found": "找不到所選檔案，檔案可能已被移動或刪除。",
+  "file_picker.send_error": "傳送檔案失敗，請重試。",
+  "file_picker.add_files_error": "新增檔案失敗，請重試。",
+  "file_picker.unexpected_error": "發生意外錯誤，請重試。",
+  "file_picker.max_selection": "已達到可選擇的最大檔案數量。"
 }

@@ -129,6 +129,7 @@ const enhanced = withObservables([], ({category, currentUserId, database, isTabl
 
     return {
         category,
+        currentUserId: of$(currentUserId),
         sortedChannels,
         unreadIds,
         unreadsOnTop,

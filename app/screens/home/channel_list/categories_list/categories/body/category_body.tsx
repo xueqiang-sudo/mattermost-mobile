@@ -33,6 +33,7 @@ import type ChannelModel from '@typings/database/models/servers/channel';
 type Props = {
     sortedChannels: ChannelModel[];
     category: CategoryModel;
+    currentUserId: string;
     onChannelSwitch: (channel: Channel | ChannelModel) => void;
     unreadIds: Set<string>;
     unreadsOnTop: boolean;
@@ -89,7 +90,7 @@ const getOptionStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChannelSwitch}: Props) => {
+const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, currentUserId, onChannelSwitch}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -267,7 +268,7 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, onChan
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await deleteCategory(serverUrl, category.teamId, category.id);
+                            await deleteCategory(serverUrl, currentUserId, category.teamId, category.id);
                             showSnackBar({
                                 barType: 'FAVORITE_CHANNEL' as any,
                                 customMessage: intl.formatMessage(

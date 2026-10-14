@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, StyleSheet, Text, View} from 'react-native';
+import {Alert, Platform, StyleSheet, Text, View} from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
@@ -18,9 +18,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    hintIcon: {
-        marginBottom: 16,
     },
     hintText: {
         fontSize: 15,
@@ -63,49 +60,93 @@ export default function FilesTab() {
         }
 
         try {
-            const result = await DocumentPicker.pick({
+            debugLog('filePicker', `Starting file picker on ${Platform.OS}`);
+
+            const options = {
                 type: [DocumentPicker.types.allFiles],
                 allowMultiSelection: true,
-            });
+                // On iOS, copyTo helps with file access, especially for iCloud and Files app
+                ...(Platform.OS === 'ios' ? {copyTo: 'cachesDirectory' as const} : {copyTo: 'cachesDirectory' as const}),
+            };
 
-            result.forEach((file) => {
+            debugLog('filePicker', `DocumentPicker options: ${JSON.stringify(options)}`);
+
+            const result = await DocumentPicker.pick(options);
+
+            debugLog('filePicker', `DocumentPicker returned ${result.length} files`);
+
+            result.forEach((file, index) => {
+                debugLog('filePicker', `Processing file ${index + 1}:`);
+                debugLog('filePicker', `  Name: ${file.name}`);
+                debugLog('filePicker', `  URI: ${file.uri}`);
+                debugLog('filePicker', `  FileCopyUri: ${file.fileCopyUri}`);
+                debugLog('filePicker', `  Type: ${file.type}`);
+                debugLog('filePicker', `  Size: ${file.size}`);
+
                 if (canSelectMore()) {
+                    // Use fileCopyUri if available (from copyTo option), otherwise use original uri
+                    const fileUri = file.fileCopyUri || file.uri;
+                    debugLog('filePicker', `  Using URI: ${fileUri}`);
+
                     const selectedFile: SelectedFile = {
-                        id: file.uri,
-                        clientId: file.uri,
+                        id: fileUri,
+                        clientId: fileUri,
                         name: file.name || 'unknown',
-                        uri: file.uri,
+                        uri: fileUri,
                         mime_type: file.type || 'application/octet-stream',
                         size: file.size || 0,
                         source: 'device',
                         extension: getFileExtension(file.name || '') || '',
                     };
 
+                    debugLog('filePicker', `  Dispatching ADD_FILE action`);
                     dispatch({type: 'ADD_FILE', file: selectedFile});
+                    debugLog('filePicker', `  File added successfully`);
+                } else {
+                    debugLog('filePicker', `  Skipped: cannot select more files`);
                 }
             });
+
+            debugLog('filePicker', `All files processed successfully`);
         } catch (error) {
-            if (!DocumentPicker.isCancel(error)) {
-                debugLog('filePicker', `FilesTab pick error: ${error instanceof Error ? error.message : String(error)}`);
-                Alert.alert(
-                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
-                    intl.formatMessage({
-                        id: 'file_picker.pick_error',
-                        defaultMessage: 'Failed to pick files. Please try again.',
-                    }),
-                );
+            if (DocumentPicker.isCancel(error)) {
+                debugLog('filePicker', 'User cancelled file picker');
+                return;
             }
+
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorCode = (error as any)?.code;
+            const errorStack = error instanceof Error ? error.stack : '';
+
+            debugLog('filePicker', `FilesTab pick error on ${Platform.OS}:`);
+            debugLog('filePicker', `  Message: ${errorMsg}`);
+            debugLog('filePicker', `  Code: ${errorCode}`);
+            debugLog('filePicker', `  Stack: ${errorStack}`);
+            debugLog('filePicker', `  Full error: ${JSON.stringify(error, null, 2)}`);
+
+            // Provide more specific error messages based on error type
+            let errorId = 'file_picker.pick_error';
+            let defaultMessage = 'Failed to pick files. Please try again.';
+
+            if (errorMsg.includes('permission') || errorMsg.includes('Permission')) {
+                errorId = 'file_picker.permission_error';
+                defaultMessage = Platform.OS === 'ios'
+                    ? 'Unable to access files. Please check your Files app settings and try again.'
+                    : 'Unable to access files. Please grant storage permission and try again.';
+            } else if (errorMsg.includes('not found') || errorMsg.includes('ENOENT')) {
+                errorId = 'file_picker.file_not_found';
+                defaultMessage = 'Selected file could not be found. It may have been moved or deleted.';
+            }
+
+            Alert.alert(
+                intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                intl.formatMessage({id: errorId, defaultMessage}),
+            );
         }
     }, [dispatch, canSelectMore, intl]);
 
     return (
         <View style={styles.container}>
-            <CompassIcon
-                name='file-document-outline'
-                size={56}
-                color={changeOpacity('#000', 0.25)}
-                style={styles.hintIcon}
-            />
             <Text style={styles.hintText}>
                 {intl.formatMessage({
                     id: 'file_picker.files.hint',

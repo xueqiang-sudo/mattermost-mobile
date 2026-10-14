@@ -151,7 +151,27 @@ export default function QuickActionsSheet({
         const title = intl.formatMessage({id: 'file_picker.title', defaultMessage: 'Select Files'});
         showFilePickerScreen(channelId, (files) => {
             debugLog('filePicker', `handleFilePress: onSend callback with ${files.length} files`);
-            addFiles(files);
+            try {
+                files.forEach((file, index) => {
+                    debugLog('filePicker', `Processing file ${index + 1} in addFiles:`, {
+                        name: file.name,
+                        uri: file.uri,
+                        id: file.id,
+                    });
+                });
+                addFiles(files);
+                debugLog('filePicker', 'addFiles completed successfully');
+            } catch (error) {
+                debugLog('filePicker', `addFiles error: ${error instanceof Error ? error.message : String(error)}`);
+                debugLog('filePicker', `Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+                Alert.alert(
+                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                    intl.formatMessage({
+                        id: 'file_picker.add_files_error',
+                        defaultMessage: 'Failed to add files. Please try again.',
+                    }),
+                );
+            }
         }, title);
     }, [addFiles, channelId, intl, maxFilesReached, maxFileCount]);
 

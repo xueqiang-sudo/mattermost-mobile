@@ -737,6 +737,14 @@
   "create_category.error.empty": "请输入分类名称",
   "create_category.error.message": "创建分类失败，请重试。",
   "create_category.error.title": "错误",
+  "category.delete_title": "删除分类？",
+  "category.delete_empty": "确定要删除分类"{name}"吗？",
+  "category.delete_has_channels": "请先移除该分类下的所有群组，然后再删除。",
+  "category.delete_error": "删除分类失败",
+  "category.delete": "删除",
+  "category.cancel": "取消",
+  "category.ok": "确定",
+  "category.deleted": "已删除分类"{name}"",
   "create_category_modal.create": "创建",
   "create_category_modal.title": "创建分类",
   "create_direct_message.chat_button": "聊天",
@@ -2698,5 +2706,12 @@
   "file_picker.group_files.empty": "暂无文件",
   "file_picker.group_files.loading": "加载文件中...",
   "file_picker.no_files_selected": "请至少选择一个文件",
-  "file_picker.no_channel": "未选择频道"
+  "file_picker.no_channel": "未选择频道",
+  "file_picker.pick_error": "选取文件失败，请重试。",
+  "file_picker.permission_error": "无法访问文件，请检查"文件"应用设置后重试。",
+  "file_picker.file_not_found": "找不到所选文件，文件可能已被移动或删除。",
+  "file_picker.send_error": "发送文件失败，请重试。",
+  "file_picker.add_files_error": "添加文件失败，请重试。",
+  "file_picker.unexpected_error": "发生意外错误，请重试。",
+  "file_picker.max_selection": "已达到可选择的最大文件数量。"
 }

@@ -2232,6 +2232,14 @@
   "create_category.error.empty": "Please enter a category name",
   "create_category.error.title": "Error",
   "create_category.error.message": "Failed to create category. Please try again.",
+  "category.delete_title": "Delete this category?",
+  "category.delete_empty": "Are you sure you want to delete the category \"{name}\"?",
+  "category.delete_has_channels": "Please remove all channels from this category before deleting it.",
+  "category.delete_error": "Failed to delete category",
+  "category.delete": "Delete",
+  "category.cancel": "Cancel",
+  "category.ok": "OK",
+  "category.deleted": "Category \"{name}\" deleted",
   "channel_info.move_to_category": "Move to Category",
   "channel_info.select_category": "Select Category",
   "channel_info.moved_to_category": "Moved to {categoryName}",
@@ -2699,5 +2707,12 @@
   "file_picker.group_files.empty": "No files yet",
   "file_picker.group_files.loading": "Loading files...",
   "file_picker.no_files_selected": "Please select at least one file to send.",
-  "file_picker.no_channel": "No channel selected"
+  "file_picker.no_channel": "No channel selected",
+  "file_picker.pick_error": "Failed to pick files. Please try again.",
+  "file_picker.permission_error": "Unable to access files. Please check your Files app settings and try again.",
+  "file_picker.file_not_found": "Selected file could not be found. It may have been moved or deleted.",
+  "file_picker.send_error": "Failed to send files. Please try again.",
+  "file_picker.add_files_error": "Failed to add files. Please try again.",
+  "file_picker.unexpected_error": "An unexpected error occurred. Please try again.",
+  "file_picker.max_selection": "You have reached the maximum number of files you can select."
 }
