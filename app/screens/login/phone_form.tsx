@@ -321,14 +321,14 @@ const PhoneLoginForm = ({
             }
             logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} username: ${username}`);
 
-            // 4. 尝试自动创建用户
+            // 4. 尝试自动创建用户（使用 personal 端点，服务端自动创建团队）
             if (isNeedTryReg) {
                 try {
-                    logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} try to auto register user, user: ${normalizedLoginId}`);
-                    await apiClient.autoRegisterUser(normalizedLoginId, token);
+                    logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} try to auto register user (personal), user: ${normalizedLoginId}`);
+                    await apiClient.autoRegisterUserPersonal(normalizedLoginId, token);
 
-                    // 成功创建用户
-                    logInfo('user created successfully, user: ', normalizedLoginId);
+                    // 成功创建用户（服务端自动创建个人团队）
+                    logInfo('user created successfully with personal team, user: ', normalizedLoginId);
                 } catch (createUserError) {
                     if (!((createUserError as ClientError).server_error_id === 'app.user.save.username_exists.app_error')) {
                         throw createUserError;

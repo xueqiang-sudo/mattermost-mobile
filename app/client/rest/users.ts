@@ -11,6 +11,7 @@ import type ClientBase from './base';
 
 export interface ClientUsersMix {
     autoRegisterUser: (phoneOrEmail: string, password: string) => Promise<UserProfile>;
+    autoRegisterUserPersonal: (phoneOrEmail: string, password: string) => Promise<UserProfile>;
     createUser: (user: UserProfile, token: string, inviteId: string) => Promise<UserProfile>;
     patchMe: (userPatch: Partial<UserProfile>, groupLabel?: RequestGroupLabel) => Promise<UserProfile>;
     patchUser: (userPatch: Partial<UserProfile> & {id: string}) => Promise<UserProfile>;
@@ -68,6 +69,24 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         }
         return this.doFetch(
             this.getUsersRoute(),
+            {
+                method: 'post',
+                body: bodyData,
+            },
+        );
+    };
+
+    autoRegisterUserPersonal = (phoneOrEmail: string, password: string) => {
+        const isPhone = isPhoneNumber(phoneOrEmail);
+        const email = isPhone ? `${formatPhone(phoneOrEmail, true)}@auto.register` : phoneOrEmail;
+        const username = isPhone ? formatPhone(phoneOrEmail, true) : emailFormatUsername(phoneOrEmail);
+        const bodyData: Record<string, string> = {email, username, password};
+        if (isPhone) {
+            const [countryCode, phone] = splitPhone(phoneOrEmail, {isDelSymbol: true});
+            Object.assign(bodyData, {phone, country_code: countryCode});
+        }
+        return this.doFetch(
+            `${this.getUsersRoute()}/personal`,
             {
                 method: 'post',
                 body: bodyData,
