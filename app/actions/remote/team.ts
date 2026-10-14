@@ -16,6 +16,7 @@ import {prepareCategoriesAndCategoriesChannels} from '@queries/servers/categorie
 import {prepareMyChannelsForTeam, getDefaultChannelForTeam} from '@queries/servers/channel';
 import {prepareCommonSystemValues, getCurrentTeamId, getCurrentUserId, getTeamSyncInfo, setTeamSyncInfo} from '@queries/servers/system';
 import {addTeamToTeamHistory, prepareDeleteTeam, prepareMyTeams, getNthLastChannelFromTeam, queryTeamsById, getLastTeam, getTeamById, removeTeamFromTeamHistory, queryMyTeams} from '@queries/servers/team';
+import {getCurrentUser} from '@queries/servers/user';
 import {getIsCRTEnabled} from '@queries/servers/thread';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
@@ -179,10 +180,69 @@ export async function fetchMyTeams(serverUrl: string, fetchOnly = false, groupLa
         const client = NetworkManager.getClient(serverUrl);
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-        const [teams, memberships]: [Team[], TeamMembership[]] = await Promise.all([
+        let [teams, memberships]: [Team[], TeamMembership[]] = await Promise.all([
             client.getMyTeams(groupLabel),
             client.getMyTeamMembers(groupLabel),
         ]);
+
+        // 新用户没有团队时，自动创建默认团队（类似 webapp 第一个管理员的流程）
+        if (teams.length === 0 && !fetchOnly) {
+            debugLog('fetchMyTeams', 'No teams found, creating default team for new user');
+            try {
+                // 获取当前用户昵称，用于生成团队名称
+                const currentUser = await getCurrentUser(database);
+                const nickname = currentUser?.nickname || currentUser?.username || '';
+
+                // 根据语言生成团队名称（支持多语言）
+                const locale = EphemeralStore.currentLocale || 'en';
+                let teamDisplayName: string;
+                let teamName: string;
+
+                if (locale.startsWith('zh')) {
+                    // 中文："{昵称}的空间" 或 "我的空间"
+                    teamDisplayName = nickname ? `${nickname}的空间` : '我的空间';
+                    teamName = nickname ? `${nickname}-space` : 'my-space';
+                } else {
+                    // 英文及其他语言："{Nickname}'s Space" 或 "My Space"
+                    teamDisplayName = nickname ? `${nickname}'s Space` : 'My Space';
+                    teamName = nickname ? `${nickname.toLowerCase()}-space` : 'my-space';
+                }
+
+                // 清理 URL 名称中的非法字符
+                teamName = teamName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'my-space';
+
+                const defaultTeam: Team = {
+                    id: '',
+                    create_at: 0,
+                    update_at: 0,
+                    delete_at: 0,
+                    display_name: teamDisplayName,
+                    name: teamName,
+                    description: '',
+                    email: '',
+                    type: 'O',
+                    company_name: '',
+                    allowed_domains: '',
+                    invite_id: '',
+                    allow_open_invite: false,
+                    scheme_id: '',
+                    group_constrained: false,
+                    last_team_icon_update: 0,
+                };
+                const createdTeam = await client.createTeam(defaultTeam);
+                debugLog('fetchMyTeams', `Default team created: id=${createdTeam.id}, name=${createdTeam.display_name}`);
+
+                // 重新获取团队和成员信息
+                [teams, memberships] = await Promise.all([
+                    client.getMyTeams(groupLabel),
+                    client.getMyTeamMembers(groupLabel),
+                ]);
+                debugLog('fetchMyTeams', `After re-fetch: teams=${teams.length}, memberships=${memberships.length}`);
+            } catch (createError) {
+                debugLog('fetchMyTeams', `Failed to create default team: ${getFullErrorMessage(createError)}`);
+                // 创建失败不阻塞，继续正常流程
+            }
+        }
 
         if (!fetchOnly) {
             const modelPromises: Array<Promise<Model[]>> = [];
