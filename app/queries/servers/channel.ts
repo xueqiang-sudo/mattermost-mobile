@@ -12,6 +12,7 @@ import {General, Permissions, Preferences} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
 import EphemeralStore from '@store/ephemeral_store';
+import {debugLog} from '@store/debug_log';
 import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
 import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
