@@ -32,13 +32,18 @@ const enhance = withObservables(['post'], ({database, post}: EnhanceProps) => {
         )),
     );
 
+    // 观察 post 的 props 变化，确保 upload_status 更新时 UI 能响应
+    const postProps = post.observe().pipe(
+        switchMap((p) => of$(p.props)),
+    );
+
     return {
         canDownloadFiles: observeCanDownloadFiles(database),
         enableSecureFilePreview: observeEnableSecureFilePreview(database),
         postId: of$(post.id),
         channelId: of$(post.channelId),
         message: of$(post.message),
-        postProps: of$(post.props),
+        postProps,
         publicLinkEnabled,
         filesInfo,
         channelMediaFiles,

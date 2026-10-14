@@ -210,6 +210,28 @@ export function lookupMimeType(filename: string) {
     return types[ext!] || 'application/octet-stream';
 }
 
+/**
+ * Extract file extension from filename
+ * @param filename - The filename to extract extension from
+ * @returns The extension without the dot, or empty string if no extension
+ * @example
+ * getFileExtension('document.pdf') // returns 'pdf'
+ * getFileExtension('image.PNG') // returns 'PNG'
+ * getFileExtension('noextension') // returns ''
+ */
+export function getFileExtension(filename: string): string {
+    if (!filename || typeof filename !== 'string') {
+        return '';
+    }
+
+    const lastDotIndex = filename.lastIndexOf('.');
+    if (lastDotIndex <= 0 || lastDotIndex === filename.length - 1) {
+        return '';
+    }
+
+    return filename.substring(lastDotIndex + 1);
+}
+
 export function getExtensionFromMime(type: string) {
     if (!Object.keys(extensions).length) {
         populateMaps();

@@ -166,20 +166,34 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                 return;
             }
 
-            files.forEach((file, index) => {
-                debugLog('filePicker', `File ${index + 1} to send:`, {
+            // Validate and normalize files before sending
+            const normalizedFiles = files.map((file, index) => {
+                debugLog('filePicker', `Processing file ${index + 1}:`, {
                     name: file.name,
                     uri: file.uri,
                     id: file.id,
                     clientId: file.clientId,
                     mime_type: file.mime_type,
                     size: file.size,
+                    extension: file.extension,
                 });
+
+                // Ensure all required fields are present
+                return {
+                    ...file,
+                    id: file.id || file.clientId || `file_${index}_${Date.now()}`,
+                    clientId: file.clientId || file.id || `client_${index}_${Date.now()}`,
+                    name: file.name || 'unknown',
+                    uri: file.uri || '',
+                    mime_type: file.mime_type || 'application/octet-stream',
+                    size: file.size || 0,
+                    extension: file.extension || file.name?.split('.').pop() || '',
+                };
             });
 
             debugLog('filePicker', 'Calling onSend callback');
             try {
-                onSend(files);
+                onSend(normalizedFiles);
                 debugLog('filePicker', 'onSend callback completed successfully');
             } catch (sendError) {
                 debugLog('filePicker', `onSend callback error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);

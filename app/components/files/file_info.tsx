@@ -6,38 +6,9 @@ import {Text, TouchableOpacity, View} from 'react-native';
 
 import {useTheme} from '@context/theme';
 import {getFormattedFileSize} from '@utils/file';
+import {truncateFileName} from '@utils/file_name_truncate';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-
-// 工具函数：智能截断文件名，保留扩展名，中间省略
-const truncateFileName = (fileName: string, maxLength: number = 20): {name: string, ext: string} => {
-    const lastDotIndex = fileName.lastIndexOf('.');
-
-    // 没有扩展名或扩展名在开头（如 .gitignore）
-    if (lastDotIndex <= 0) {
-        if (fileName.length > maxLength) {
-            const headLen = Math.ceil((maxLength - 3) / 2);
-            const tailLen = maxLength - 3 - headLen;
-            return {name: fileName.slice(0, headLen) + '...' + (tailLen > 0 ? fileName.slice(-tailLen) : ''), ext: ''};
-        }
-        return {name: fileName, ext: ''};
-    }
-
-    const name = fileName.slice(0, lastDotIndex);
-    const ext = fileName.slice(lastDotIndex + 1);
-
-    // 计算可用长度（总长度 - "..." - 扩展名 - "."）
-    const availableLength = maxLength - 3 - ext.length - 1;
-
-    if (name.length > availableLength) {
-        // 中间截断：保留前半部分和后半部分
-        const headLen = Math.ceil(availableLength / 2);
-        const tailLen = availableLength - headLen;
-        return {name: name.slice(0, headLen) + '...' + (tailLen > 0 ? name.slice(-tailLen) : ''), ext};
-    }
-
-    return {name, ext};
-};
 
 type FileInfoProps = {
     disabled?: boolean;
@@ -98,8 +69,8 @@ const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDat
     const theme = useTheme();
     const style = getStyleSheet(theme);
 
-    // 智能截断文件名，保留扩展名
-    const {name, ext} = truncateFileName(file.name.trim(), 25);
+    // 智能截断文件名，保留扩展名（微信风格：中间省略，保留前后关键部分）
+    const {name, ext} = truncateFileName(file.name.trim(), 30);
 
     const content = (
         <>

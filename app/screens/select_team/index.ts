@@ -2,9 +2,10 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import {of as of$} from 'rxjs';
+import {combineLatest, of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
+import {getCurrentTeamId} from '@queries/servers/system';
 import {queryMyTeams} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
 
@@ -22,7 +23,22 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 
     const myTeams = queryMyTeams(database).observe();
     const nTeams = myTeams.pipe(switchMap((mm) => of$(mm.length)));
-    const firstTeamId = myTeams.pipe(switchMap((mm) => of$(mm[0]?.id)));
+
+    // 优先使用上次选择的团队，如果没有则使用第一个团队
+    const firstTeamId = combineLatest([
+        myTeams,
+        of$(getCurrentTeamId(database)),
+    ]).pipe(
+        switchMap(([teams, currentTeamId]) => {
+            // 如果当前团队ID存在且在用户团队列表中，使用它
+            if (currentTeamId && teams.some((t) => t.id === currentTeamId)) {
+                return of$(currentTeamId);
+            }
+            // 否则使用第一个团队
+            return of$(teams[0]?.id);
+        }),
+    );
+
     return {
         nTeams,
         firstTeamId,

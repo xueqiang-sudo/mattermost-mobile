@@ -163,15 +163,19 @@ export default function PhotoAlbumTab() {
         if (isSelected) {
             dispatch({type: 'REMOVE_FILE', fileId: photoUri});
         } else if (canSelectMore()) {
+            // Extract filename from URI if not provided
+            const filename = photo.node.image.filename || photoUri.split('/').pop() || 'photo.jpg';
+            const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
+
             const selectedFile: SelectedFile = {
                 id: photoUri,
                 clientId: photoUri,
-                name: photo.node.image.filename,
+                name: filename,
                 uri: photoUri,
-                mime_type: 'image/jpeg',
+                mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
                 size: 0,
                 source: 'album',
-                extension: photo.node.image.filename.split('.').pop() || 'jpg',
+                extension,
             };
             dispatch({type: 'ADD_FILE', file: selectedFile});
         }

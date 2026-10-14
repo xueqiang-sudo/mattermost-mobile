@@ -835,6 +835,16 @@ export function channelBelongsToTeamScopedConversations(
     if (channel.type === General.GM_CHANNEL && boundTeam === '') {
         return true;
     }
+
+    // 支持外部群组（shared channels）：属于其他团队但用户已加入的频道
+    // 外部群组通常有 shared=true 标记，或者 team_id 不为空但用户是成员
+    // 检查频道是否为共享频道或跨团队频道
+    if (channel.shared || (boundTeam !== '' && boundTeam !== teamId)) {
+        // 对于跨团队频道，只要用户是成员就应该显示
+        // 这里假设如果频道存在于 MyChannel 表中，用户就是成员
+        return true;
+    }
+
     return false;
 }
 

@@ -18,6 +18,7 @@ import {observeFilesForPost} from '@queries/servers/file';
 import {observePost, observePostAuthor} from '@queries/servers/post';
 import {debugLog} from '@store/debug_log';
 import {isAudio, isImage, isVideo} from '@utils/file';
+import {truncateFileName} from '@utils/file_name_truncate';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -184,9 +185,9 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         const firstFile = files[0];
         const fileIsImage = firstFile && isImage(firstFile);
         const fileIsVideo = firstFile && isVideo(firstFile);
-        const fileName = firstFile?.name || 'File';
+        const rawFileName = firstFile?.name || 'File';
 
-        debugLog('QUOTED_PREVIEW', `file: name=${fileName}, id=${firstFile?.id}, localPath=${firstFile?.localPath}, isImage=${fileIsImage}, isVideo=${fileIsVideo}`);
+        debugLog('QUOTED_PREVIEW', `file: name=${rawFileName}, id=${firstFile?.id}, localPath=${firstFile?.localPath}, isImage=${fileIsImage}, isVideo=${fileIsVideo}`);
 
         if (fileIsImage || fileIsVideo) {
             // Show thumbnail for images/videos
@@ -208,6 +209,10 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         }
 
         // Show file icon for non-media files or media without thumbnail
+        // 智能截断文件名，保留扩展名（微信风格：中间省略）
+        const {name, ext} = truncateFileName(rawFileName, 25);
+        const displayName = ext ? `${name}.${ext}` : name;
+
         const {iconName, color: iconColor} = getFileIconInfo(firstFile);
         return (
             <>
@@ -221,7 +226,7 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
                     numberOfLines={1}
                     style={plain ? style.plainText : style.text}
                 >
-                    {fileName}
+                    {displayName}
                 </Text>
             </>
         );
