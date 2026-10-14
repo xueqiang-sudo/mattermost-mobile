@@ -171,22 +171,27 @@ const styles = StyleSheet.create({
 function getFileIcon(ext: string): string {
     const e = (ext || '').toLowerCase();
     const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'heic', 'heif'];
-    const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v', 'webm'];
+    const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v', 'webm', 'mpg', 'mpeg', 'ogm'];
     const audioExts = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma'];
-    const docExts = ['doc', 'docx', 'pdf', 'txt', 'rtf', 'odt', 'pages', 'md', 'tex'];
-    const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
-    const slideExts = ['ppt', 'pptx', 'key', 'odp'];
+    const pdfExts = ['pdf'];
+    const wordExts = ['doc', 'docx', 'odt'];
+    const textExts = ['txt', 'rtf'];
+    const sheetExts = ['xls', 'xlsx', 'csv', 'ods'];
+    const slideExts = ['ppt', 'pptx', 'odp'];
     const zipExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
     const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml', 'sql', 'sh', 'bash'];
-    if (imageExts.includes(e)) return 'image-outline';
-    if (videoExts.includes(e)) return 'video-outline';
-    if (audioExts.includes(e)) return 'music-note';
-    if (docExts.includes(e)) return 'file-document-outline';
+
+    if (imageExts.includes(e)) return 'file-image-outline';
+    if (videoExts.includes(e)) return 'file-video-outline';
+    if (audioExts.includes(e)) return 'file-audio-outline';
+    if (pdfExts.includes(e)) return 'file-pdf-outline';
+    if (wordExts.includes(e)) return 'file-word-outline';
+    if (textExts.includes(e)) return 'file-text-outline';
     if (sheetExts.includes(e)) return 'file-excel-outline';
     if (slideExts.includes(e)) return 'file-powerpoint-outline';
-    if (zipExts.includes(e)) return 'folder-zip-outline';
+    if (zipExts.includes(e)) return 'file-zip-outline';
     if (codeExts.includes(e)) return 'file-code-outline';
-    return 'file-outline';
+    return 'file-generic-outline';
 }
 
 function formatFileSize(bytes: number): string {
