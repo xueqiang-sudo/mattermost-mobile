@@ -7,6 +7,8 @@
 //
 
 import SwiftUI
+import Foundation
+import Gekidou
 
 /// 群组消息头像网格组件（类似微信群头像）
 /// 最多显示 9 个成员头像，根据人数自动调整布局
@@ -119,7 +121,7 @@ struct GmAvatarGrid: View {
   private func getInitial(userId: String) -> String {
     // Try to get user's display name from database
     if let displayName = try? Gekidou.Database.default.queryUserDisplayName(for: userId, forServerUrl: serverUrl) {
-      let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+      let trimmed = displayName.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
       if !trimmed.isEmpty {
         // For Chinese names, use the first character
         // For English names, use the first letter

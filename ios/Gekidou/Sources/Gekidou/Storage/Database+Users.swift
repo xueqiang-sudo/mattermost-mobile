@@ -78,6 +78,40 @@ extension Database {
         return updateAt
     }
 
+    public func queryUserDisplayName(for userId: String, forServerUrl serverUrl: String) throws -> String? {
+        let db = try getDatabaseForServer(serverUrl)
+
+        let idCol = Expression<String>("id")
+        let firstNameCol = Expression<String>("first_name")
+        let lastNameCol = Expression<String>("last_name")
+        let nicknameCol = Expression<String>("nickname")
+        let usernameCol = Expression<String>("username")
+
+        let query = userTable.where(idCol == userId)
+
+        if let user = try db.pluck(query) {
+            // Try nickname first
+            if let nickname = try? user.get(nicknameCol), !nickname.isEmpty {
+                return nickname
+            }
+
+            // Then try first name + last name
+            let firstName = (try? user.get(firstNameCol)) ?? ""
+            let lastName = (try? user.get(lastNameCol)) ?? ""
+
+            if !firstName.isEmpty || !lastName.isEmpty {
+                return "\(firstName) \(lastName)".trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            }
+
+            // Fallback to username
+            if let username = try? user.get(usernameCol), !username.isEmpty {
+                return username
+            }
+        }
+
+        return nil
+    }
+
     public func queryUsers(byIds userIds: Set<String>, forServerUrl serverUrl: String) -> Set<String> {
         var result: Set<String> = Set()
         if let db = try? getDatabaseForServer(serverUrl) {

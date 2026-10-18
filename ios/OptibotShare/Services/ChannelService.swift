@@ -35,15 +35,16 @@ class ChannelService: ObservableObject {
   }
   
   func getChannels() {
-    channels = Gekidou.Database.default.getChannelsWithTeam(self.serverUrl)
-      .filter { channel in
+    let allChannels = Array(Gekidou.Database.default.getChannelsWithTeam(self.serverUrl))
+    channels = allChannels
+      .filter { (channel: ChannelModel) in
         if let deactivated = channel.deactivated {
           return !deactivated || (deactivated && channel.type != "D")
         }
 
         return true
       }
-      .map { channel in
+      .map { (channel: ChannelModel) -> ChannelModel in
         // 公共频道显示团队名称，而不是频道名称
         if channel.type == "O" && channel.teamName != nil && !channel.teamName!.isEmpty {
           var modifiedChannel = channel
@@ -67,15 +68,16 @@ class ChannelService: ObservableObject {
     let directChannelsMatch: [ChannelModel] = Gekidou.Database.default.searchDirectChannels(serverUrl, term: term, matchStart: false)
     let channelsMatch = (joinedChannelsMatch + directChannelsMatch).sorted { ($0.lastViewedAt ?? 0) > ($1.lastViewedAt ?? 0)}
 
-    return (channelsMatchStart + channelsMatch)
-      .filter { channel in
+    let allChannels = channelsMatchStart + channelsMatch
+    return allChannels
+      .filter { (channel: ChannelModel) in
         if let deactivated = channel.deactivated {
           return !deactivated || (deactivated && channel.type != "D")
         }
 
         return true
       }
-      .map { channel in
+      .map { (channel: ChannelModel) -> ChannelModel in
         // 公共频道显示团队名称，而不是频道名称
         if channel.type == "O" && channel.teamName != nil && !channel.teamName!.isEmpty {
           var modifiedChannel = channel
