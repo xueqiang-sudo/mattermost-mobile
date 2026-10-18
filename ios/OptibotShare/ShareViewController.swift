@@ -99,11 +99,19 @@ class ShareViewController: UIViewController {
      
      
       var message = text
-      if linkPreviewUrl != nil && !linkPreviewUrl!.isEmpty {
-        if text.isEmpty {
-          message = linkPreviewUrl!
+      if let url = linkPreviewUrl, !url.isEmpty {
+        // Extract title from text for better link preview
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmedText.isEmpty {
+          // No text, just use the URL
+          message = url
+        } else if trimmedText == "分享一个作品给你" || trimmedText.lowercased().contains("share") {
+          // Generic share text - just use the URL for better preview
+          message = url
         } else {
-          message = "\(text)\n\n\(linkPreviewUrl!)"
+          // Meaningful text + URL - format with proper spacing for link preview
+          message = "\(trimmedText)\n\n\(url)"
         }
       }
       

@@ -417,11 +417,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         };
     }, [determineFileState]);
 
-    const handleMenuPress = useCallback(() => {
-        // Directly open with system dialog (WeChat-style)
-        handleOpenWith();
-    }, [handleOpenWith]);
-
     const handleDownload = useCallback(async () => {
         try {
             const path = getLocalFilePathFromFile(serverUrl, currentFileInfo);
@@ -459,6 +454,11 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             });
         }
     }, [filePath, currentFileInfo, handleDownload]);
+
+    const handleMenuPress = useCallback(() => {
+        // Directly open with system dialog (WeChat-style)
+        handleOpenWith();
+    }, [handleOpenWith]);
 
     const renderContent = () => {
 

@@ -1,7 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {createContext, useContext, useReducer, type ReactNode} from 'react';
+import React, {createContext, useContext, useReducer, useEffect, type ReactNode} from 'react';
+import {deleteAsync} from 'expo-file-system';
 import {debugLog} from '@store/debug_log';
 
 import type {FileInfo} from '@mattermost/types/files';
@@ -58,14 +59,34 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
             debugLog('FilePickerContext', `REMOVE_FILE: ${action.fileId}`, {
                 currentCount: state.selectedFiles.size,
             });
+            const file = state.selectedFiles.get(action.fileId);
             const newMap = new Map(state.selectedFiles);
             newMap.delete(action.fileId);
             debugLog('FilePickerContext', `REMOVE_FILE success: new count = ${newMap.size}`);
+
+            // Clean up cached file if it was from album
+            if (file?.source === 'album' && file.uri?.includes('cache')) {
+                deleteAsync(file.uri).catch((err) => {
+                    debugLog('FilePickerContext', `Failed to delete cached file: ${err instanceof Error ? err.message : String(err)}`);
+                });
+            }
+
             return {...state, selectedFiles: newMap};
         }
-        case 'CLEAR_SELECTION':
+        case 'CLEAR_SELECTION': {
             debugLog('FilePickerContext', 'CLEAR_SELECTION');
+
+            // Clean up all cached album files
+            state.selectedFiles.forEach((file) => {
+                if (file.source === 'album' && file.uri?.includes('cache')) {
+                    deleteAsync(file.uri).catch((err) => {
+                        debugLog('FilePickerContext', `Failed to delete cached file: ${err instanceof Error ? err.message : String(err)}`);
+                    });
+                }
+            });
+
             return {...state, selectedFiles: new Map()};
+        }
         case 'SET_MAX_SELECTION':
             debugLog('FilePickerContext', `SET_MAX_SELECTION: ${action.max}`);
             return {...state, maxSelection: action.max};
@@ -87,6 +108,20 @@ export function FilePickerProvider({children, maxSelection = 9}: FilePickerProvi
         ...initialState,
         maxSelection,
     });
+
+    // Cleanup cached files when component unmounts
+    useEffect(() => {
+        return () => {
+            debugLog('FilePickerContext', 'Component unmounting, cleaning up cached files');
+            state.selectedFiles.forEach((file) => {
+                if (file.source === 'album' && file.uri?.includes('cache')) {
+                    deleteAsync(file.uri).catch((err) => {
+                        debugLog('FilePickerContext', `Failed to delete cached file on unmount: ${err instanceof Error ? err.message : String(err)}`);
+                    });
+                }
+            });
+        };
+    }, [state.selectedFiles]);
 
     const isFileSelected = (fileId: string): boolean => {
         return state.selectedFiles.has(fileId);

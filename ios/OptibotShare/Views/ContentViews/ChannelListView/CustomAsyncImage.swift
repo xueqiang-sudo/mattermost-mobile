@@ -35,7 +35,13 @@ struct CustomAsyncImage<Content: View, Placeholder: View>: View {
     } else {
       placeholder()
         .task {
+          // Attempt to load profile image
           shareViewModel.getProfileImage(serverUrl: self.serverUrl, userId: self.userId, imageBinding: $uiImage)
+
+          // If image is still nil after loading, log for debugging
+          if uiImage == nil {
+            debugPrint("[CustomAsyncImage] Failed to load avatar for userId: \(userId)")
+          }
         }
     }
   }

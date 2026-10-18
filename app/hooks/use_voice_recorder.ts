@@ -4,7 +4,7 @@
 import VoiceRecorder, {VOICE_RECORDER_PERMISSION_DENIED_CODE} from '@mattermost/voice-recorder';
 import {getInfoAsync} from 'expo-file-system';
 import {useCallback, useRef, useState} from 'react';
-import {Platform} from 'react-native';
+import {Alert, Platform} from 'react-native';
 import Permissions from 'react-native-permissions';
 import {useSharedValue} from 'react-native-reanimated';
 
@@ -77,19 +77,49 @@ export function useVoiceRecorder(
     const startingTsRef = useRef<number | null>(null);
     const recordStartTimeRef = useRef<number>(0);
 
-    const requestPermission = useCallback(async (): Promise<boolean> => {
+    const requestPermission = useCallback(async (): Promise<'granted' | 'denied' | 'blocked'> => {
         debugLog('VOICE', 'requestPermission: requesting microphone permission');
-        const permissions = [
+
+        // First check current permission status
+        const checkPermissions = [
             Permissions.PERMISSIONS.IOS.MICROPHONE,
             Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO,
         ];
+        debugLog('VOICE', 'requestPermission: checking current permission status');
+        const checkResult = await Permissions.checkMultiple(checkPermissions);
+        debugLog('VOICE', `requestPermission: checkResult=${JSON.stringify(checkResult)}`);
+
+        const currentStatus = checkResult[Permissions.PERMISSIONS.IOS.MICROPHONE] ?? checkResult[Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO];
+
+        // If already granted, return immediately
+        if (currentStatus === Permissions.RESULTS.GRANTED) {
+            debugLog('VOICE', 'requestPermission: already granted');
+            return 'granted';
+        }
+
+        // If blocked (permanently denied), return blocked without asking again
+        if (currentStatus === Permissions.RESULTS.BLOCKED) {
+            debugLog('VOICE', 'requestPermission: permission is blocked (permanently denied)');
+            return 'blocked';
+        }
+
+        // If denied or unavailable, request permission
         debugLog('VOICE', 'requestPermission: calling Permissions.requestMultiple');
-        const result = await Permissions.requestMultiple(permissions);
+        const result = await Permissions.requestMultiple(checkPermissions);
         debugLog('VOICE', `requestPermission: result=${JSON.stringify(result)}`);
+
         const microphoneStatus = result[Permissions.PERMISSIONS.IOS.MICROPHONE] ?? result[Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO];
-        const granted = microphoneStatus === Permissions.RESULTS.GRANTED;
-        debugLog('VOICE', `requestPermission: granted=${granted}, status=${microphoneStatus}`);
-        return granted;
+
+        if (microphoneStatus === Permissions.RESULTS.GRANTED) {
+            debugLog('VOICE', `requestPermission: granted`);
+            return 'granted';
+        } else if (microphoneStatus === Permissions.RESULTS.BLOCKED) {
+            debugLog('VOICE', `requestPermission: blocked (user permanently denied)`);
+            return 'blocked';
+        } else {
+            debugLog('VOICE', `requestPermission: denied (user denied this time)`);
+            return 'denied';
+        }
     }, []);
 
     const startRecording = useCallback(async () => {
@@ -113,15 +143,43 @@ export function useVoiceRecorder(
 
         try {
             debugLog('VOICE', '[useVoiceRecorder.startRecording] 步骤1：请求麦克风权限');
-            const hasPermission = await requestPermission();
-            if (!hasPermission) {
-                debugLog('VOICE', '[useVoiceRecorder.startRecording] 麦克风权限被拒绝');
+            const permissionResult = await requestPermission();
+
+            if (permissionResult === 'blocked') {
+                // Permission permanently denied - show alert to guide user to settings
+                debugLog('VOICE', '[useVoiceRecorder.startRecording] 麦克风权限被永久拒绝，显示设置引导');
                 startingTsRef.current = null;
-                setState('idle');  // Trigger cleanup in parent component
+                setState('idle');
+                await safeResetRecordingState();
+
+                Alert.alert(
+                    '需要麦克风权限',
+                    '请在设置中允许 Mattermost 访问麦克风以使用语音功能',
+                    [
+                        {text: '取消', style: 'cancel'},
+                        {
+                            text: '去设置',
+                            onPress: () => {
+                                Permissions.openSettings().catch(() => {
+                                    debugLog('VOICE', '无法打开设置');
+                                });
+                            },
+                        },
+                    ],
+                );
+                return;
+            }
+
+            if (permissionResult === 'denied') {
+                // Permission denied this time - show error and do nothing
+                debugLog('VOICE', '[useVoiceRecorder.startRecording] 麦克风权限被拒绝（本次）');
+                startingTsRef.current = null;
+                setState('idle');
                 await safeResetRecordingState();
                 onError?.('permission_denied');
                 return;
             }
+
             debugLog('VOICE', '[useVoiceRecorder.startRecording] 麦克风权限获取成功');
 
             if (startingTsRef.current !== startingTs) {

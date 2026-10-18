@@ -40,10 +40,19 @@ class ChannelService: ObservableObject {
         if let deactivated = channel.deactivated {
           return !deactivated || (deactivated && channel.type != "D")
         }
-        
+
         return true
       }
-    
+      .map { channel in
+        // 公共频道显示团队名称，而不是频道名称
+        if channel.type == "O" && channel.teamName != nil && !channel.teamName!.isEmpty {
+          var modifiedChannel = channel
+          modifiedChannel.displayName = channel.teamName!
+          return modifiedChannel
+        }
+        return channel
+      }
+
     if selected == nil || ((selected!.deactivated ?? false) && selected?.type == "D") {
       selected = channels.first
     }
@@ -53,18 +62,27 @@ class ChannelService: ObservableObject {
     let joinedChannelsMatchStart: [ChannelModel] = Gekidou.Database.default.searchJoinedChannels(serverUrl, term: term)
     let directChannelsMatchStart: [ChannelModel] = Gekidou.Database.default.searchDirectChannels(serverUrl, term: term)
     let channelsMatchStart = (joinedChannelsMatchStart + directChannelsMatchStart).sorted { ($0.lastViewedAt ?? 0) > ($1.lastViewedAt ?? 0)}
-    
+
     let joinedChannelsMatch: [ChannelModel] = Gekidou.Database.default.searchJoinedChannels(serverUrl, term: term, matchStart: false)
     let directChannelsMatch: [ChannelModel] = Gekidou.Database.default.searchDirectChannels(serverUrl, term: term, matchStart: false)
     let channelsMatch = (joinedChannelsMatch + directChannelsMatch).sorted { ($0.lastViewedAt ?? 0) > ($1.lastViewedAt ?? 0)}
-    
+
     return (channelsMatchStart + channelsMatch)
       .filter { channel in
         if let deactivated = channel.deactivated {
           return !deactivated || (deactivated && channel.type != "D")
         }
-        
+
         return true
+      }
+      .map { channel in
+        // 公共频道显示团队名称，而不是频道名称
+        if channel.type == "O" && channel.teamName != nil && !channel.teamName!.isEmpty {
+          var modifiedChannel = channel
+          modifiedChannel.displayName = channel.teamName!
+          return modifiedChannel
+        }
+        return channel
       }
   }
 }

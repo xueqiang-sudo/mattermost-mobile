@@ -233,6 +233,32 @@ export async function graduateMemory(
     });
 }
 
+export async function fetchActiveDates(
+    serverUrl: string,
+    teamId: string,
+    channelIds: string[],
+    year: number,
+    month: number,
+): Promise<Map<string, string[]>> {
+    const data = await apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/query/active-dates`, {
+        method: 'post',
+        body: {
+            team_id: teamId,
+            channel_ids: channelIds,
+            year,
+            month,
+        },
+    });
+
+    const result = new Map<string, string[]>();
+    if (data?.active_dates) {
+        for (const [channelId, dates] of Object.entries(data.active_dates)) {
+            result.set(channelId, dates as string[]);
+        }
+    }
+    return result;
+}
+
 // ── Knowledge Base ──
 
 export type KBDoc = {

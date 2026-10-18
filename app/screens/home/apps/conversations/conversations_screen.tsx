@@ -30,6 +30,7 @@ import {typography} from '@utils/typography';
 import {
     listConversations,
     fetchFactQuery,
+    fetchActiveDates,
     graduateMemory,
     type ConversationChannel,
     type FactQueryResult,
@@ -594,6 +595,7 @@ const ConversationsScreen = () => {
     const [graduateMsg, setGraduateMsg] = useState<{path: string; text: string; isError: boolean} | null>(null);
     const [loadingChannels, setLoadingChannels] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [activeDates, setActiveDates] = useState<Map<string, string[]>>(new Map()); // channel_id -> [date1, date2, ...]
     const monthDays = useMemo(() => getMonthDays(viewYear, viewMonth), [viewYear, viewMonth]);
 
     // Init: load teamId
@@ -773,17 +775,24 @@ const ConversationsScreen = () => {
         }
     }, [serverUrl, teamId, intl]);
 
-    // ---- Load summaries when month changes ----
+    // ---- Load active dates and summaries when month changes ----
     useEffect(() => {
         if (view !== 'dashboard' || conversations.length === 0) return;
-        for (const ch of conversations) {
-            for (const day of monthDays) {
-                const chMap = summaries.get(ch.id);
-                if (!chMap?.get(day)) {
-                    fetchDaySummary(ch.id, day);
-                }
+
+        const loadMonthData = async () => {
+            // Fetch active dates for the new month
+            try {
+                const channelIds = conversations.map(ch => ch.id);
+                const activeDatesMap = await fetchActiveDates(serverUrl, teamId, channelIds, viewYear, viewMonth + 1);
+                setActiveDates(activeDatesMap);
+            } catch (err) {
+                console.warn('Failed to fetch active dates for month:', err);
             }
-        }
+
+            // Don't pre-load summaries - they will be loaded on-demand when user clicks dates
+        };
+
+        loadMonthData();
     }, [viewYear, viewMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ---- Resolve channel display name ----
@@ -872,12 +881,12 @@ const ConversationsScreen = () => {
         setSummaries(new Map());
         setExpandedRaw(new Set());
         setActiveDay(new Map());
+        setActiveDates(new Map());
         setError(null);
 
         const n = new Date();
         setViewYear(n.getFullYear());
         setViewMonth(n.getMonth());
-        const days = getMonthDays(n.getFullYear(), n.getMonth());
         const today = localDayKey(n);
 
         try {
@@ -918,6 +927,16 @@ const ConversationsScreen = () => {
 
             setLoadingChannels(false);
 
+            // ③ Fetch active dates for current month (which dates have data)
+            try {
+                const channelIds = chs.map(ch => ch.id);
+                const activeDatesMap = await fetchActiveDates(serverUrl, teamId, channelIds, n.getFullYear(), n.getMonth() + 1);
+                setActiveDates(activeDatesMap);
+            } catch (err) {
+                console.warn('Failed to fetch active dates:', err);
+                // Non-critical: continue without active dates filter
+            }
+
             // Set default active day to today
             const defaultActive = new Map<string, string>();
             for (const ch of chs) {
@@ -925,18 +944,25 @@ const ConversationsScreen = () => {
             }
             setActiveDay(defaultActive);
 
-            // ③ Phase 1: fetch today for all channels (fast feedback)
-            for (const ch of chs) {
-                fetchDaySummary(ch.id, today);
-            }
+            // ④ Only fetch today's summary for all channels (fast initial load)
+            // Add concurrency control: max 5 concurrent requests
+            const CONCURRENCY_LIMIT = 5;
+            const fetchQueue = chs.slice();
+            const fetchPromises: Promise<void>[] = [];
 
-            // ④ Phase 2: fetch other days in background
-            const otherDays = days.filter((d) => d !== today);
-            for (const ch of chs) {
-                for (const day of otherDays) {
-                    fetchDaySummary(ch.id, day);
-                }
+            const fetchNext = async (): Promise<void> => {
+                if (fetchQueue.length === 0) return;
+                const ch = fetchQueue.shift()!;
+                await fetchDaySummary(ch.id, today);
+                return fetchNext();
+            };
+
+            for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, chs.length); i++) {
+                fetchPromises.push(fetchNext());
             }
+            // Don't await - let them run in background
+
+            // ⑤ Other dates will be loaded on-demand when user clicks them
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to load conversations';
             setError(message);
@@ -952,6 +978,7 @@ const ConversationsScreen = () => {
         setSummaries(new Map());
         setExpandedRaw(new Set());
         setActiveDay(new Map());
+        setActiveDates(new Map());
         setError(null);
         setView('setup');
     }, []);
@@ -1140,6 +1167,18 @@ const ConversationsScreen = () => {
                     )}
                 </View>
 
+                {/* Helper message for active dates filter */}
+                {activeDates.size > 0 && (
+                    <View style={{paddingHorizontal: 16, paddingVertical: 6, backgroundColor: changeOpacity(theme.buttonBg, 0.05)}}>
+                        <Text style={{...typography('Body', 50, 'Regular'), color: changeOpacity(theme.centerChannelColor, 0.64)}}>
+                            {intl.formatMessage({
+                                id: 'workbench.conversations.active_dates_hint',
+                                defaultMessage: '只显示有会话的日期，点击日期加载详情',
+                            })}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Month navigation */}
                 <View style={style.monthNav}>
                     <TouchableOpacity style={style.monthBtn} onPress={prevMonth}>
@@ -1184,32 +1223,61 @@ const ConversationsScreen = () => {
                                     {memberNames(ch)}
                                 </Text>
 
-                                {/* Day pills */}
+                                {/* Day pills - only show dates with data */}
                                 <View style={style.dayPillRow}>
-                                    {monthDays.map((day) => {
-                                        const ds = chDayMap.get(day);
-                                        const isActive = day === currentDay;
-                                        const hasData = ds?.hasData || false;
-                                        const isLoading = ds?.loading || false;
+                                    {(() => {
+                                        const channelActiveDates = activeDates.get(ch.id) || [];
+                                        const today = localDayKey(new Date());
+                                        const isCurrentMonth = viewYear === new Date().getFullYear() && viewMonth === new Date().getMonth();
 
-                                        let dotStyle = style.dayDotEmpty;
-                                        if (isLoading) {
-                                            dotStyle = style.dayDotLoading;
-                                        } else if (hasData) {
-                                            dotStyle = style.dayDotFilled;
+                                        // Determine which dates to show
+                                        let datesToShow: string[];
+                                        if (channelActiveDates.length > 0) {
+                                            // Only show dates that have data
+                                            datesToShow = channelActiveDates;
+                                            // Always include today for current month even if no data yet
+                                            if (isCurrentMonth && !datesToShow.includes(today)) {
+                                                datesToShow = [today, ...datesToShow];
+                                            }
+                                        } else {
+                                            // Fallback: show all days if active dates not available
+                                            datesToShow = monthDays;
                                         }
 
-                                        return (
-                                            <TouchableOpacity
-                                                key={day}
-                                                style={[style.dayPill, isActive && style.dayPillActive]}
-                                                onPress={() => switchDay(ch.id, day)}
-                                            >
-                                                <Text style={style.dayLabel}>{dayPillLabel(day)}</Text>
-                                                <View style={[style.dayDot, dotStyle]}/>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
+                                        return datesToShow.map((day) => {
+                                            const ds = chDayMap.get(day);
+                                            const isActive = day === currentDay;
+                                            const hasData = ds?.hasData || false;
+                                            const isLoading = ds?.loading || false;
+                                            const isLoaded = ds !== undefined;
+
+                                            let dotStyle = style.dayDotEmpty;
+                                            if (isLoading) {
+                                                dotStyle = style.dayDotLoading;
+                                            } else if (hasData) {
+                                                dotStyle = style.dayDotFilled;
+                                            }
+
+                                            const handleDayPress = () => {
+                                                switchDay(ch.id, day);
+                                                // Load on-demand if not already loaded
+                                                if (!isLoaded) {
+                                                    fetchDaySummary(ch.id, day);
+                                                }
+                                            };
+
+                                            return (
+                                                <TouchableOpacity
+                                                    key={day}
+                                                    style={[style.dayPill, isActive && style.dayPillActive]}
+                                                    onPress={handleDayPress}
+                                                >
+                                                    <Text style={style.dayLabel}>{dayPillLabel(day)}</Text>
+                                                    <View style={[style.dayDot, dotStyle]}/>
+                                                </TouchableOpacity>
+                                            );
+                                        });
+                                    })()}
                                 </View>
 
                                 {/* Summary content for active day */}

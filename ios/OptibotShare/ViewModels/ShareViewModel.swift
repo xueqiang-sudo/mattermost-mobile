@@ -78,16 +78,20 @@ class ShareViewModel: ObservableObject {
   }
   
   func getProfileImage(serverUrl: String, userId: String, imageBinding: Binding<UIImage?>) {
+    // Gekidou ImageCache 现在支持磁盘缓存（共享容器），类似微信的实现
     var lastUpdateAt: Double = 0
     if let updateAt = Gekidou.Database.default.getUserLastPictureAt(for: userId, forServerUrl: serverUrl) {
       lastUpdateAt = updateAt
     }
-    
+
+    // 1. 尝试从缓存读取（内存 + 磁盘）
     if let data = Gekidou.ImageCache.default.image(for: userId, updatedAt: lastUpdateAt, forServer: serverUrl) {
       imageBinding.wrappedValue = UIImage(data: data)
-    } else {
-      downloadProfileImage(serverUrl: serverUrl, userId: userId, lastUpdateAt: lastUpdateAt, imageBinding: imageBinding)
+      return
     }
+
+    // 2. 缓存未命中，从网络下载
+    downloadProfileImage(serverUrl: serverUrl, userId: userId, lastUpdateAt: lastUpdateAt, imageBinding: imageBinding)
   }
   
   func downloadProfileImage(serverUrl: String, userId: String, lastUpdateAt: Double, imageBinding: Binding<UIImage?>) {

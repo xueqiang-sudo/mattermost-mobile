@@ -283,6 +283,7 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                     message: '',
                     title: '',
                     url: pathWithPrefix('file://', path),
+                    type: item.mime_type || 'application/octet-stream',
                     showAppsToView: true,
                 }).catch(() => {
                     // do nothing

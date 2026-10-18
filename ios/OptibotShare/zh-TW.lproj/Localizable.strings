@@ -1,0 +1,44 @@
+/* iOS Share Extension - Chinese Traditional Localization */
+
+/* Main UI */
+"share_extension.forward_title" = "轉發";
+"share_extension.send_button" = "發送";
+"share_extension.server_label" = "伺服器";
+"share_extension.servers_screen.title" = "選擇伺服器";
+
+/* Error screens */
+"share_extension.error_screen.label" = "發生錯誤";
+"share_extension.error_screen.description" = "嘗試將內容分享到 {applicationName} 時發生錯誤。";
+"share_extension.error_screen.reason" = "原因：{reason}";
+
+/* Channel errors */
+"share_extension.channel_error" = "您不是所選伺服器中任何團隊的成員。請選擇其他伺服器或打開 Optibot 加入團隊。";
+
+/* File limits */
+"share_extension.upload_disabled" = "所選伺服器已禁用檔案上傳";
+"share_extension.file_limit.single" = "檔案必須小於 {size}";
+"share_extension.file_limit.multiple" = "每個檔案必須小於 {size}";
+"share_extension.max_resolution" = "圖片超出最大尺寸 7680 x 4320 像素";
+
+/* Attachments */
+"share_extension.multiple_label" = "{count, number} 個附件";
+
+/* Search */
+"share_extension.search_placeholder" = "搜尋群組...";
+
+/* Team membership */
+"share_extension.no_membership.title" = "尚未加入任何團隊";
+"share_extension.no_membership.description" = "要分享內容，您需要成為 Optibot 伺服器上團隊的成員。";
+
+/* No servers */
+"share_extension.no_servers.title" = "未連接到任何伺服器";
+"share_extension.no_servers.description" = "要分享內容，您需要登入到 Optibot 伺服器。";
+
+/* Retry button */
+"mobile.post.failed_retry" = "重試";
+
+/* Recent channels */
+"mobile.channel_list.recent" = "最近";
+
+/* Message too long */
+"share_extension.message_too_long" = "當前訊息太長。當前字元數：{count}/{max}";

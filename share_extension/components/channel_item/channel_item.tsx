@@ -99,6 +99,9 @@ const ChannelListItem = ({
     let displayName = channel.displayName;
     if (isOwnDirectMessage) {
         displayName = formatMessage({id: 'channel_header.directchannel.you', defaultMessage: '{displayName} (you)'}, {displayName});
+    } else if (channel.type === General.OPEN_CHANNEL && teamDisplayName) {
+        // 公共频道显示团队名称，而不是频道名称（类似微信）
+        displayName = teamDisplayName;
     }
 
     return (

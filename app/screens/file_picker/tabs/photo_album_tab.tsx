@@ -5,7 +5,7 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {FlatList, Image, StyleSheet, Text, View, PermissionsAndroid, Platform} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
-import {getInfoAsync} from 'expo-file-system';
+import {getInfoAsync, copyAsync, cacheDirectory} from 'expo-file-system';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {debugLog} from '@store/debug_log';
@@ -184,23 +184,51 @@ export default function PhotoAlbumTab() {
             const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
             debugLog('PhotoAlbumTab', `Extension: ${extension}`);
 
-            // Get actual file size from filesystem
+            // Copy photo to cache directory to get a file:// URI that can be uploaded
+            let fileUri = photoUri;
             let fileSize = 0;
             try {
-                const fileInfo = await getInfoAsync(photoUri, {size: true});
+                // Create a unique filename for the cache directory
+                const cacheFileName = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
+                const cacheUri = cacheDirectory + cacheFileName;
+
+                debugLog('PhotoAlbumTab', `Copying photo to cache: ${photoUri} -> ${cacheUri}`);
+
+                await copyAsync({
+                    from: photoUri,
+                    to: cacheUri,
+                });
+
+                debugLog('PhotoAlbumTab', `Photo copied successfully to: ${cacheUri}`);
+
+                // Use the cached file URI
+                fileUri = cacheUri;
+
+                // Get file size from the cached file
+                const fileInfo = await getInfoAsync(cacheUri, {size: true});
                 if ('size' in fileInfo) {
                     fileSize = fileInfo.size || 0;
                 }
-                debugLog('PhotoAlbumTab', `File size: ${fileSize}`);
+                debugLog('PhotoAlbumTab', `Cached file size: ${fileSize}`);
             } catch (error) {
-                debugLog('PhotoAlbumTab', `Error getting file size: ${error instanceof Error ? error.message : String(error)}`);
+                debugLog('PhotoAlbumTab', `Error copying photo to cache: ${error instanceof Error ? error.message : String(error)}`);
+                // Fallback: try to get size from original URI
+                try {
+                    const fileInfo = await getInfoAsync(photoUri, {size: true});
+                    if ('size' in fileInfo) {
+                        fileSize = fileInfo.size || 0;
+                    }
+                    debugLog('PhotoAlbumTab', `Original file size: ${fileSize}`);
+                } catch (sizeError) {
+                    debugLog('PhotoAlbumTab', `Error getting file size: ${sizeError instanceof Error ? sizeError.message : String(sizeError)}`);
+                }
             }
 
             const selectedFile: SelectedFile = {
-                id: photoUri,
-                clientId: photoUri,
+                id: fileUri,
+                clientId: fileUri,
                 name: filename,
-                uri: photoUri,
+                uri: fileUri,
                 mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
                 size: fileSize,
                 source: 'album',

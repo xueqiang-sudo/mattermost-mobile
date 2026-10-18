@@ -117,6 +117,17 @@ struct GmAvatarGrid: View {
 
   /// 获取用户名的首字母（用于占位符）
   private func getInitial(userId: String) -> String {
+    // Try to get user's display name from database
+    if let displayName = try? Gekidou.Database.default.queryUserDisplayName(for: userId, forServerUrl: serverUrl) {
+      let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !trimmed.isEmpty {
+        // For Chinese names, use the first character
+        // For English names, use the first letter
+        return String(trimmed.prefix(1)).uppercased()
+      }
+    }
+
+    // Fallback: use first character of userId
     let firstChar = userId.first.map { String($0) } ?? "?"
     return firstChar.uppercased()
   }
