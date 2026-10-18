@@ -22,7 +22,8 @@ setup_permissions([
   "Camera",
   "Microphone",
   "Notifications",
-  "PhotoLibrary"
+  "PhotoLibrary",
+  "PhotoLibraryAdd"
 ])
 
 # Conditional Intune MAM support

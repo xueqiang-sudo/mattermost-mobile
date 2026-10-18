@@ -10,6 +10,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
 import FileViewer from 'react-native-file-viewer';
+import Share from 'react-native-share';
 
 import {downloadFile} from '@actions/remote/file';
 import {useServerUrl} from '@context/server';
@@ -19,7 +20,7 @@ import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {popTopScreen} from '@screens/navigation';
 import TextViewer from '@screens/text_viewer/text_viewer';
-import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAppleDocument, isAudio, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
+import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAppleDocument, isAudio, isImage, isPdf, isTextFile, isVideo, pathWithPrefix} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {logDebug, logError} from '@utils/log';
 
@@ -456,9 +457,29 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [filePath, currentFileInfo, handleDownload]);
 
     const handleMenuPress = useCallback(() => {
-        // Directly open with system dialog (WeChat-style)
-        handleOpenWith();
-    }, [handleOpenWith]);
+        // Share file (same as image fullscreen share behavior)
+        if (!filePath) {
+            handleDownload().then(() => {
+                if (filePath) {
+                    Share.open({
+                        url: pathWithPrefix('file://', filePath),
+                        type: currentFileInfo.mime_type || 'application/octet-stream',
+                        showAppsToView: true,
+                    }).catch(() => {
+                        // do nothing
+                    });
+                }
+            });
+        } else {
+            Share.open({
+                url: pathWithPrefix('file://', filePath),
+                type: currentFileInfo.mime_type || 'application/octet-stream',
+                showAppsToView: true,
+            }).catch(() => {
+                // do nothing
+            });
+        }
+    }, [filePath, currentFileInfo, handleDownload]);
 
     const renderContent = () => {
 

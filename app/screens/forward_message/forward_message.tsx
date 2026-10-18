@@ -1,16 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useMemo, useState} from 'react';
 import {Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useIntl} from 'react-intl';
-import {of} from 'rxjs';
-import {switchMap} from 'rxjs/operators';
 
 import {createPost} from '@actions/remote/post';
 import CompassIcon from '@components/compass_icon';
+import ChannelIcon from '@components/channel_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {dismissModal} from '@screens/navigation';
@@ -19,7 +17,6 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type ChannelModel from '@typings/database/models/servers/channel';
-import type {WithDatabaseArgs} from '@typings/database/database';
 
 type ForwardMessageProps = {
     componentId: AvailableScreens;
@@ -78,20 +75,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     channelItemSelected: {
         backgroundColor: changeOpacity(theme.buttonBg, 0.08),
-    },
-    checkbox: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    checkboxSelected: {
-        backgroundColor: theme.buttonBg,
-        borderColor: theme.buttonBg,
     },
     channelInfo: {
         flex: 1,
@@ -293,20 +276,33 @@ const ForwardMessage = ({
                 style={[styles.channelItem, isSelected && styles.channelItemSelected]}
                 onPress={() => handleSelectChannel(channel)}
             >
-                <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected && (
-                        <CompassIcon
-                            name='check'
-                            size={16}
-                            color='#fff'
-                        />
-                    )}
+                <View style={{marginRight: 12}}>
+                    <ChannelIcon
+                        channelId={channel.id}
+                        name={channel.name}
+                        type={channel.type}
+                        size={40}
+                        isActive={false}
+                        isArchived={false}
+                        isOnCenterBg={false}
+                        isOnHome={false}
+                        isUnread={false}
+                        shared={channel.shared}
+                        hasDraft={false}
+                    />
                 </View>
                 <View style={styles.channelInfo}>
                     <Text style={styles.channelName} numberOfLines={1}>
                         {channel.displayName || channel.name}
                     </Text>
                 </View>
+                {isSelected && (
+                    <CompassIcon
+                        name='check'
+                        size={24}
+                        color={theme.buttonBg}
+                    />
+                )}
             </Pressable>
         );
     }, [selectedChannelIds, handleSelectChannel, styles, theme]);

@@ -677,13 +677,15 @@ export const hasWriteStoragePermission = async (intl: IntlShape) => {
 
 export const hasPhotoLibraryWritePermission = async (intl: IntlShape) => {
     if (Platform.OS === 'ios') {
-        const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
+        // Use PHOTO_LIBRARY_ADD_ONLY for saving photos (iOS 14+)
+        // This is the write-only permission which is less intrusive
+        const permission = PERMISSIONS.IOS.PHOTO_LIBRARY_ADD_ONLY;
         let permissionRequest;
         const hasPermission = await Permissions.check(permission);
         switch (hasPermission) {
             case Permissions.RESULTS.DENIED:
                 permissionRequest = await Permissions.request(permission);
-                return permissionRequest === Permissions.RESULTS.GRANTED || permissionRequest === Permissions.RESULTS.LIMITED;
+                return permissionRequest === Permissions.RESULTS.GRANTED;
             case Permissions.RESULTS.BLOCKED: {
                 const title = intl.formatMessage(
                     {
