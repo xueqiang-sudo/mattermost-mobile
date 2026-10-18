@@ -207,7 +207,7 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.64),
     },
     subtitle: {
-        ...typography('Body', 75),
+        ...typography('Body', 100),
         color: changeOpacity(theme.sidebarText, 0.64),
         marginTop: 2,
     },
@@ -220,7 +220,7 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginLeft: 8,
     },
     subtitleHome: {
-        ...typography('Body', 75),
+        ...typography('Body', 100),
         color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
         marginTop: 2,
     },
@@ -279,8 +279,8 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 export const textStyle = StyleSheet.create({
-    bold: typography('Body', 200, 'SemiBold'),
-    regular: typography('Body', 200, 'Regular'),
+    bold: typography('Body', 300, 'SemiBold'),
+    regular: typography('Body', 300, 'Regular'),
 });
 
 const ChannelItem = ({

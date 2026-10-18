@@ -40,7 +40,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             flexShrink: 1,
         },
         channelName: {
-            ...typography('Body', 200),
+            ...typography('Body', 300),
             color: changeOpacity(theme.centerChannelColor, 0.64),
         },
         customStatus: {

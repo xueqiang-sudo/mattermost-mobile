@@ -612,7 +612,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
             borderColor: shellBorder,
             marginHorizontal: 2,
             marginBottom: 2,
-            minHeight: 36,
+            minHeight: 40,
             overflow: 'hidden',
         },
         weChatInputInner: {
