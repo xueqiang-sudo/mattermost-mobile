@@ -35,7 +35,7 @@ class ChannelService: ObservableObject {
   }
   
   func getChannels() {
-    let allChannels = Array(Gekidou.Database.default.getChannelsWithTeam(self.serverUrl))
+    let allChannels: [ChannelModel] = Gekidou.Database.default.getChannelsWithTeam(self.serverUrl)
     channels = allChannels
       .filter { (channel: ChannelModel) in
         if let deactivated = channel.deactivated {
