@@ -57,8 +57,8 @@ const ShareExtension = () => {
             if (first && isValidUrl(first)) {
                 link = first;
                 text = text.replace(first, '').trim();
-                // Clean common share prefixes from Chinese apps
-                text = text.replace(/^(分享一个作品给你和?|看看这个|推荐一个|分享给你)/i, '').trim();
+                // Clean common share prefixes from Chinese apps (Kuaishou, Douyin, etc.)
+                text = text.replace(/^(分享一个作品给你和?|看看这个|推荐一个|分享给你|我在快手发现了一个好作品|快手|抖音|分享)/i, '').trim();
             }
         }
 
@@ -66,8 +66,32 @@ const ShareExtension = () => {
     }, [data]);
 
     const files = useMemo(() => {
-        return data?.filter((i) => !i.isString) || [];
-    }, [data]);
+        const allFiles = data?.filter((i) => !i.isString) || [];
+
+        // When sharing a link with a small thumbnail (typical for video shares from Kuaishou/Douyin),
+        // filter out the thumbnail to avoid duplicate display. The server will fetch the proper
+        // OpenGraph image from the URL, so we don't need to upload the thumbnail separately.
+        if (linkPreviewUrl && allFiles.length > 0) {
+            return allFiles.filter((file) => {
+                // Keep non-image files
+                if (!file.type?.startsWith('image/')) {
+                    return true;
+                }
+
+                // Filter out small images (< 100KB) which are likely thumbnails
+                // Real photos are typically > 500KB
+                const isThumbnail = file.size && file.size < 100 * 1024;
+                if (isThumbnail) {
+                    console.log('[ShareExtension] Filtering out thumbnail:', file.filename, 'size:', file.size);
+                    return false;
+                }
+
+                return true;
+            });
+        }
+
+        return allFiles;
+    }, [data, linkPreviewUrl]);
 
     useEffect(() => {
         // Since the share functionality inits the app, the init mark gets set

@@ -158,7 +158,7 @@ export default function PhotoAlbumTab() {
         loadPhotos();
     }, [hasPermission]);
 
-    const handlePhotoPress = useCallback((photo: PhotoAsset) => {
+    const handlePhotoPress = useCallback(async (photo: PhotoAsset) => {
         debugLog('PhotoAlbumTab', 'handlePhotoPress called');
         const photoUri = photo.node.image.uri;
         debugLog('PhotoAlbumTab', `Photo URI: ${photoUri}`);
