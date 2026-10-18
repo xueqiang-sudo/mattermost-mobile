@@ -322,6 +322,29 @@ const Body = ({
     const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
     let displayMessage = (post.message || post.messageSource).replace(FILE_MARKER_RE, '').trim();
 
+    // Strip video platform URLs that are rendered as VideoLink cards
+    // This prevents showing the raw URL in the message text when a card is displayed
+    const embeds = post.metadata?.embeds;
+    if (embeds && embeds.length > 0) {
+        const embedUrl = embeds[0]?.url;
+        if (embedUrl && embeds[0]?.type === 'opengraph') {
+            // Check if it's a video platform link
+            const videoPlatformPattern = /(?:kuaishou\.com|douyin\.com|iesdouyin\.com|bilibili\.com|b23\.tv|youtube\.com|youtu\.be)/i;
+            if (videoPlatformPattern.test(embedUrl)) {
+                // Remove the URL from the message text
+                // Handle both plain URL and markdown link formats
+                const escapedUrl = embedUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const urlPatterns = [
+                    new RegExp(`\\[([^\\]]*)\\]\\(${escapedUrl}\\)\\s*`, 'g'),  // Markdown link [text](url)
+                    new RegExp(`${escapedUrl}\\s*`, 'g'),  // Plain URL
+                ];
+                for (const pattern of urlPatterns) {
+                    displayMessage = displayMessage.replace(pattern, '').trim();
+                }
+            }
+        }
+    }
+
     // Strip @bot mention prefix in bot GM channels (aligned with webapp post_message_view.tsx).
     // The server prepends @bot_username to messages in 2-member bot GM channels
     // so that bots can detect the mention. We hide this from the user.

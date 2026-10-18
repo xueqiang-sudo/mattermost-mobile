@@ -228,11 +228,34 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 const errorMsg = getFullErrorMessage(e);
                 logDebug('saveImageOrVideo failed', errorMsg);
 
+                // If permission error, try requesting permission again and retry once
+                if (errorMsg.toLowerCase().includes('permission') ||
+                    errorMsg.toLowerCase().includes('access') ||
+                    errorMsg.includes('3302')) {
+
+                    logDebug('Permission error detected, retrying with fresh permission request');
+
+                    // Try to save again - sometimes the permission takes effect after a short delay
+                    try {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        await CameraRoll.saveAsset(filePath, {
+                            type: item.type === 'image' || item.type === 'avatar' ? 'photo' : 'video',
+                        });
+                        setSaved(true);
+                        if (item.type !== 'avatar') {
+                            updateLocalFilePath(serverUrl, item.id, path);
+                        }
+                        return;
+                    } catch (retryError) {
+                        logDebug('Retry also failed', getFullErrorMessage(retryError));
+                    }
+                }
+
                 // Provide more specific error messages based on the error
                 let errorMessage = 'gallery.save_failed';
                 let defaultMessage = 'Unable to save the file';
 
-                if (errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('access')) {
+                if (errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('access') || errorMsg.includes('3302')) {
                     errorMessage = 'gallery.save_permission_denied';
                     defaultMessage = 'Permission denied. Please allow photo library access in Settings.';
                 } else if (errorMsg.toLowerCase().includes('space') || errorMsg.toLowerCase().includes('storage')) {
