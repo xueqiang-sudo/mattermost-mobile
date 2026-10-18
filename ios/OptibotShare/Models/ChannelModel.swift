@@ -48,12 +48,21 @@ struct ChannelModel: Hashable, Codable, Identifiable {
     self.teamName = teamName
   }
   
+  /// 从频道名称中提取所有用户 ID（用于群组消息）
+  /// GM 频道名称格式: userId1__userId2__userId3...
+  func getMemberIdsFromChannelName() -> [String] {
+    let ids = name.components(separatedBy: "__")
+    // 过滤空字符串
+    return ids.filter { !$0.isEmpty }
+  }
+
+  /// 从频道名称中提取其他用户的 ID（用于直接消息）
   private func getUserIdFromChannelName(name: String, knownId: String) -> String? {
     let ids = name.components(separatedBy: "__")
     if ids.first == knownId {
       return ids.last
     }
-    
+
     return ids.first
   }
   
@@ -69,26 +78,39 @@ struct ChannelModel: Hashable, Codable, Identifiable {
   func icon(serverUrl: String) -> some View {
     switch (type) {
     case "P":
+      // 私有频道：锁图标
       FontIcon.text(
         .compassIcons(code: .lock),
         fontsize: 24,
         color: Color.theme.centerChannelColor.opacity(0.72)
       )
+      .frame(width: 24, height: 24)
     case "O":
+      // 公开频道：地球图标
       FontIcon.text(
         .compassIcons(code: .globe),
         fontsize: 24,
         color: Color.theme.centerChannelColor.opacity(0.72)
       )
+      .frame(width: 24, height: 24)
+    case "G":
+      // 群组消息：成员头像网格
+      GmAvatarGrid(
+        serverUrl: serverUrl,
+        memberIds: getMemberIdsFromChannelName(),
+        size: 40
+      )
+    case "D":
+      // 直接消息：用户头像（由 image 方法处理）
+      EmptyView()
     default:
-      ZStack {
-        RoundedRectangle(cornerRadius: 4)
-          .fill(Color.theme.centerChannelColor.opacity(0.16))
-          .frame(width: 20, height: 20)
-        Text("\(memberCount ?? 0)")
-          .font(Font.custom("OpenSans-SemiBold", size: 12))
-          .foregroundColor(Color.theme.centerChannelColor)
-      }
+      // 其他类型：默认图标
+      FontIcon.text(
+        .compassIcons(code: .globe),
+        fontsize: 24,
+        color: Color.theme.centerChannelColor.opacity(0.72)
+      )
+      .frame(width: 24, height: 24)
     }
   }
   

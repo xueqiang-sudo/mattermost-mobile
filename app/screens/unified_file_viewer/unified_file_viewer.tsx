@@ -22,10 +22,8 @@ import TextViewer from '@screens/text_viewer/text_viewer';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAppleDocument, isAudio, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {logDebug, logError} from '@utils/log';
-import {bottomSheet} from '@screens/navigation';
 
 import ConvertingView from './converting_view';
-import FileMenu from './file_menu';
 import ImagePreview from './image_preview';
 import VideoPreview from './video_preview';
 import AudioPreview from './audio_preview';
@@ -420,23 +418,9 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [determineFileState]);
 
     const handleMenuPress = useCallback(() => {
-        bottomSheet({
-            title: '',
-            renderContent: () => (
-                <FileMenu
-                    fileInfo={currentFileInfo}
-                    onAction={(action) => {
-                        logDebug('Menu action:', action);
-                        // TODO: Implement menu actions
-                    }}
-                    onClose={() => {}}
-                />
-            ),
-            snapPoints: [1, 350],
-            theme,
-            closeButtonId: 'close-file-menu',
-        });
-    }, [currentFileInfo, theme]);
+        // Directly open with system dialog (WeChat-style)
+        handleOpenWith();
+    }, [handleOpenWith]);
 
     const handleDownload = useCallback(async () => {
         try {

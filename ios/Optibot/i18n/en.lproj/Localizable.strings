@@ -2299,3 +2299,25 @@ You can configure this in notification preferences for each discussion group.";
 "conversation_list.swipe.hide_chat_title" = "Hide this chat";
 "conversation_list.swipe.hide_chat_message" = "This chat will be hidden from your list. It will reappear when there are new messages.";
 "conversation_list.swipe.hide_chat_confirm" = "Hide";
+
+/* Share Extension */
+"share_extension.forward_title" = "Forward";
+"share_extension.send_button" = "Send";
+"share_extension.server_label" = "Server";
+"share_extension.servers_screen.title" = "Select server";
+"share_extension.channel_error" = "You are not a member of a team on the selected server. Select another server or open Optibot to join a team.";
+"forward.search_placeholder" = "Search groups...";
+"share_extension.multiple_label" = "%@ attachments";
+"share_extension.upload_disabled" = "File uploads are disabled on this server";
+"share_extension.file_limit.single" = "File exceeds the maximum size of %@";
+"share_extension.file_limit.multiple" = "One or more files exceed the maximum size of %@";
+"share_extension.max_resolution" = "One or more images exceed the maximum resolution of %@";
+"share_extension.error_screen.label" = "An error occurred";
+"share_extension.error_screen.description" = "%@";
+"share_extension.error_screen.reason" = "%@";
+"extension.no_servers.title" = "No Servers";
+"extension.no_servers.description" = "You need to be logged into at least one server to use the share extension.";
+"extension.no_memberships.title" = "No Team Memberships";
+"extension.no_memberships.description" = "You are not a member of any team on any server. Please join a team in the main app first.";
+"mobile.channel_list.recent" = "Recent";
+"mobile.message_length.message" = "Message is too long";

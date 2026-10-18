@@ -95,7 +95,6 @@ struct InitialView: View {
           .foregroundColor(canSend ? Color.theme.buttonBg : Color.theme.buttonBg.opacity(0.4))
         }
         .disabled(!canSend)
-        .frame(width: 40, alignment: .trailing)
       }
       .padding(.horizontal, 12)
       .padding(.vertical, 8)

@@ -32,6 +32,7 @@ interface MediaViewerScreenProps {
     uri: string;
     type?: 'image' | 'video' | 'audio';
     name?: string;
+    serverUrl?: string;
 }
 
 const styles = StyleSheet.create({
@@ -92,10 +93,11 @@ const styles = StyleSheet.create({
     },
 });
 
-const MediaViewerScreen = ({componentId, uri, type, name}: MediaViewerScreenProps) => {
+const MediaViewerScreen = ({componentId, uri, type, name, serverUrl: serverUrlProp}: MediaViewerScreenProps) => {
     const intl = useIntl();
     const insets = useSafeAreaInsets();
-    const serverUrl = useServerUrl();
+    const serverUrlFromContext = useServerUrl();
+    const serverUrl = serverUrlProp || serverUrlFromContext;
     const [saving, setSaving] = useState(false);
     const isVideo = type === 'video';
     const isAudio = type === 'audio';

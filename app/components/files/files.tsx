@@ -6,6 +6,7 @@ import {Dimensions, type GestureResponderEvent, type StyleProp, StyleSheet, View
 import Animated from 'react-native-reanimated';
 
 import {GalleryInit} from '@context/gallery';
+import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import {useImageAttachments} from '@hooks/files';
 import {usePostMediaInViewport} from '@hooks/post_media_in_viewport';
@@ -136,6 +137,7 @@ const Files = ({
     const galleryIdentifier = `${postId}-fileAttachments-${location}`;
     const inViewPort = usePostMediaInViewport(postId, location);
     const isTablet = useIsTablet();
+    const serverUrl = useServerUrl();
 
     const portraitWidth = useMemo(() => {
         const windowW = Dimensions.get('window').width;
@@ -167,7 +169,7 @@ const Files = ({
             if (!tappedFile) {
                 return;
             }
-            showMediaViewer(tappedFile);
+            showMediaViewer(tappedFile, serverUrl);
         } catch (error: any) {
         }
     }, [filesForGallery, channelMediaFiles]));

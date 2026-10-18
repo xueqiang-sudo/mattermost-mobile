@@ -46,8 +46,11 @@ struct ChannelItemView: View {
 
         // Channel icon
         if channel.type == "D" {
+          // 直接消息：显示用户头像
           channel.image(serverUrl: shareViewModel.server!.url)
+            .frame(width: 40, height: 40)
         } else {
+          // 其他频道类型：显示频道图标
           channel.icon(serverUrl: shareViewModel.server!.url)
         }
 

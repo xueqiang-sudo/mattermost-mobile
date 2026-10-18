@@ -38,7 +38,7 @@ let isShowing = false;
 /**
  * 直接预览单个文件。点哪个文件就传哪个文件，不需要构建 items 数组。
  */
-export function showMediaViewer(file: FileInfo) {
+export function showMediaViewer(file: FileInfo, serverUrl?: string) {
     if (isShowing) {
         return;
     }
@@ -66,7 +66,7 @@ export function showMediaViewer(file: FileInfo) {
             RNUtils.unlockOrientation();
         }
 
-        showOverlay(Screens.MEDIA_VIEWER, {uri, type, name: file.name}, options);
+        showOverlay(Screens.MEDIA_VIEWER, {uri, type, name: file.name, serverUrl}, options);
     } catch (error: any) {
     } finally {
         isShowing = false;

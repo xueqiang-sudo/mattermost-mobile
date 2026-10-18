@@ -2296,3 +2296,25 @@
 "conversation_list.swipe.hide_chat_title" = "不显示该聊天";
 "conversation_list.swipe.hide_chat_message" = "该聊天将从列表中隐藏。有新消息时将重新显示。";
 "conversation_list.swipe.hide_chat_confirm" = "不显示";
+
+/* Share Extension */
+"share_extension.forward_title" = "转发";
+"share_extension.send_button" = "发送";
+"share_extension.server_label" = "服务器";
+"share_extension.servers_screen.title" = "选择服务器";
+"share_extension.channel_error" = "您不是所选服务器上任何团队的成员。请选择其他服务器或打开 Optibot 加入团队。";
+"forward.search_placeholder" = "搜索群组...";
+"share_extension.multiple_label" = "%@ 个附件";
+"share_extension.upload_disabled" = "此服务器已禁用文件上传";
+"share_extension.file_limit.single" = "文件超过最大限制 %@";
+"share_extension.file_limit.multiple" = "一个或多个文件超过最大限制 %@";
+"share_extension.max_resolution" = "一个或多个图片超过最大分辨率 %@";
+"share_extension.error_screen.label" = "发生错误";
+"share_extension.error_screen.description" = "%@";
+"share_extension.error_screen.reason" = "%@";
+"extension.no_servers.title" = "无服务器";
+"extension.no_servers.description" = "您需要登录至少一个服务器才能使用分享功能。";
+"extension.no_memberships.title" = "无团队成员身份";
+"extension.no_memberships.description" = "您不是任何服务器上任何团队的成员。请先在主应用中加入团队。";
+"mobile.channel_list.recent" = "最近";
+"mobile.message_length.message" = "消息太长";

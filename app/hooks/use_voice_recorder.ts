@@ -117,6 +117,7 @@ export function useVoiceRecorder(
             if (!hasPermission) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 麦克风权限被拒绝');
                 startingTsRef.current = null;
+                setState('idle');  // Trigger cleanup in parent component
                 await safeResetRecordingState();
                 onError?.('permission_denied');
                 return;
@@ -125,6 +126,7 @@ export function useVoiceRecorder(
 
             if (startingTsRef.current !== startingTs) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 启动标记丢失，忽略此次请求, startingTs:', startingTs);
+                setState('idle');  // Trigger cleanup in parent component
                 return;
             }
 
@@ -135,6 +137,7 @@ export function useVoiceRecorder(
             if (!proceed) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 用户已松开，不继续录音');
                 startingTsRef.current = null;
+                setState('idle');  // Trigger cleanup in parent component
                 await safeResetRecordingState();
                 return;
             }
@@ -142,6 +145,7 @@ export function useVoiceRecorder(
             debugLog('VOICE', '[useVoiceRecorder.startRecording] 检查 startingTsRef 一致性');
             if (startingTsRef.current !== startingTs) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 启动标记丢失，忽略此次请求, startingTs:', startingTs);
+                setState('idle');  // Trigger cleanup in parent component
                 return;
             }
 
@@ -172,6 +176,7 @@ export function useVoiceRecorder(
                 if (!stillProceed) {
                     debugLog('VOICE', '[useVoiceRecorder.startRecording] 重试前用户已松开，不继续');
                     startingTsRef.current = null;
+                    setState('idle');  // Trigger cleanup in parent component
                     await safeResetRecordingState();
                     return;
                 }
@@ -183,6 +188,7 @@ export function useVoiceRecorder(
             if (!success) {
                 debugLog('VOICE', '[useVoiceRecorder.startRecording] 原生录音启动失败（含重试）');
                 startingTsRef.current = null;
+                setState('idle');  // Trigger cleanup in parent component
                 await safeResetRecordingState();
 
                 // 权限弹窗可能中断了触摸事件，如果用户已松开则静默取消（类似微信行为）

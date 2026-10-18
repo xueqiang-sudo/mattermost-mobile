@@ -5,6 +5,7 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {FlatList, Image, StyleSheet, Text, View, PermissionsAndroid, Platform} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
+import {getInfoAsync} from 'expo-file-system';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {debugLog} from '@store/debug_log';
@@ -183,15 +184,29 @@ export default function PhotoAlbumTab() {
             const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
             debugLog('PhotoAlbumTab', `Extension: ${extension}`);
 
+            // Get actual file size from filesystem
+            let fileSize = 0;
+            try {
+                const fileInfo = await getInfoAsync(photoUri, {size: true});
+                if ('size' in fileInfo) {
+                    fileSize = fileInfo.size || 0;
+                }
+                debugLog('PhotoAlbumTab', `File size: ${fileSize}`);
+            } catch (error) {
+                debugLog('PhotoAlbumTab', `Error getting file size: ${error instanceof Error ? error.message : String(error)}`);
+            }
+
             const selectedFile: SelectedFile = {
                 id: photoUri,
                 clientId: photoUri,
                 name: filename,
                 uri: photoUri,
                 mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
-                size: 0,
+                size: fileSize,
                 source: 'album',
                 extension,
+                width: photo.node.image.width,
+                height: photo.node.image.height,
             };
 
             debugLog('PhotoAlbumTab', 'Adding photo to selection:', {
@@ -200,6 +215,9 @@ export default function PhotoAlbumTab() {
                 uri: selectedFile.uri,
                 extension: selectedFile.extension,
                 mime_type: selectedFile.mime_type,
+                size: selectedFile.size,
+                width: selectedFile.width,
+                height: selectedFile.height,
             });
 
             dispatch({type: 'ADD_FILE', file: selectedFile});

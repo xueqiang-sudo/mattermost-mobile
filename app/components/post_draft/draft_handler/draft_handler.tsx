@@ -172,7 +172,9 @@ export default function DraftHandler(props: Props) {
                     try {
                         const client = NetworkManager.getClient(serverUrl);
                         const originalFileIds = existingServerFiles.map(f => f.id!);
+                        debugLog('DRAFT', `addFiles: Phase 0 - calling copyFiles with IDs: ${originalFileIds.join(', ')}`);
                         const copyResult = await client.copyFiles(originalFileIds);
+                        debugLog('DRAFT', `addFiles: Phase 0 - copyFiles returned: ${JSON.stringify(copyResult)}`);
                         const newIds = copyResult.file_ids;
 
                         // Map old IDs to new IDs
@@ -185,7 +187,9 @@ export default function DraftHandler(props: Props) {
                         });
                     } catch (copyError) {
                         debugLog('DRAFT', `addFiles: Phase 0 ERROR - ${copyError instanceof Error ? copyError.message : String(copyError)}`);
-                        throw copyError;
+                        // Don't throw - just log the error and continue with original file IDs
+                        // This allows the upload to proceed even if copy fails
+                        console.warn('[addFiles] Failed to copy files, will use original IDs:', copyError);
                     }
                 } else {
                     debugLog('DRAFT', `addFiles: Phase 0 - no existing server files to copy`);

@@ -9,6 +9,7 @@ import {useIntl} from 'react-intl';
 import {from as from$} from 'rxjs';
 
 import {MM_TABLES} from '@constants/database';
+import ChannelIcon from '@components/channel_icon';
 import CompassIcon from '@components/compass_icon';
 import DatabaseManager from '@database/manager';
 import {getActiveServerUrl} from '@queries/app/servers';
@@ -96,6 +97,11 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.buttonBg,
         borderColor: theme.buttonBg,
     },
+    channelIcon: {
+        width: 40,
+        height: 40,
+        marginRight: 12,
+    },
     channelInfo: {
         flex: 1,
     },
@@ -103,6 +109,11 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 16,
         fontWeight: '500',
         color: theme.centerChannelColor,
+    },
+    teamName: {
+        fontSize: 12,
+        color: changeOpacity(theme.centerChannelColor, 0.64),
+        marginTop: 2,
     },
     emptyState: {
         flex: 1,
@@ -253,14 +264,31 @@ const ShareScreen = ({hasChannelMemberships, initialServerUrl, files, linkPrevie
                         />
                     )}
                 </View>
+                <View style={styles.channelIcon}>
+                    <ChannelIcon
+                        channelId={channel.id}
+                        membersCount={channel.memberCount || 0}
+                        name={channel.name}
+                        shared={channel.shared || false}
+                        size={40}
+                        type={channel.type}
+                        listModalAvatar={true}
+                        isOnCenterBg={true}
+                    />
+                </View>
                 <View style={styles.channelInfo}>
                     <Text style={styles.channelName} numberOfLines={1}>
                         {channel.displayName || channel.name}
                     </Text>
+                    {channel.teamName && (
+                        <Text style={styles.teamName} numberOfLines={1}>
+                            {channel.teamName}
+                        </Text>
+                    )}
                 </View>
             </Pressable>
         );
-    }, [selectedChannelId, handleSelectChannel, styles]);
+    }, [selectedChannelId, handleSelectChannel, styles, theme]);
 
     const renderEmptyState = useCallback(() => (
         <View style={styles.emptyState}>
