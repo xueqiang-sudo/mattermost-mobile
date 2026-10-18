@@ -115,11 +115,29 @@ class LocalFileManager {
     return Int64(cgImage.width * cgImage.height)
   }
   
+  /// Check if URL is a video platform link (Kuaishou, Douyin, Bilibili, YouTube)
+  /// For these links, we don't send the thumbnail image as attachment
+  /// because the server will fetch it via OpenGraph
+  private func isVideoPlatformLink(_ urlString: String) -> Bool {
+    let patterns = [
+      "kuaishou\\.com",
+      "douyin\\.com",
+      "iesdouyin\\.com",
+      "bilibili\\.com",
+      "b23\\.tv",
+      "youtube\\.com",
+      "youtu\\.be"
+    ]
+    let combined = patterns.joined(separator: "|")
+    return urlString.range(of: combined, options: .regularExpression, range: nil, locale: nil) != nil
+  }
+
   public func extractDataFromContext(_ inputItems: [Any], completionHander: @escaping ExtractContentCompletionHandler) -> Void {
     var models: [AttachmentModel] = []
     var linkPreviewUrl: String? = nil
     var message: String? = nil
-    
+    var imageAttachments: [AttachmentModel] = []  // Temporarily store images
+
     for item in inputItems as! [NSExtensionItem] {
       guard let attachments = item.attachments else {continue}
       for itemProvider in attachments {
@@ -134,7 +152,7 @@ class LocalFileManager {
             self?.dispatchGroup.leave()
           })
         }
-        
+
         else if itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
           dispatchGroup.enter()
           itemProvider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil, completionHandler: {[weak self] image, error in
@@ -142,24 +160,24 @@ class LocalFileManager {
               if let url = image as? URL,
                  var attachment = self?.saveAttachment(url: url, type: .image) {
                 attachment.imagePixels = self?.getImagePixels(imageUrl: url)
-                models.append(attachment)
+                imageAttachments.append(attachment)
               } else if let uiImage = image as? UIImage,
                         let data = uiImage.pngData(),
                         var attachment = self?.saveAttachmentImage(data) {
                 attachment.imagePixels = self?.getImagePixels(image: uiImage)
-                models.append(attachment)
+                imageAttachments.append(attachment)
               } else if let data = image as? Data,
                         var attachment = self?.saveAttachmentImage(data),
                         let uiImage = UIImage(data: data)
               {
                 attachment.imagePixels = self?.getImagePixels(image: uiImage)
-                models.append(attachment)
+                imageAttachments.append(attachment)
               }
             }
             self?.dispatchGroup.leave()
           })
         }
-        
+
         else if itemProvider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
           dispatchGroup.enter()
           itemProvider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil, completionHandler: {[weak self] file, error in
@@ -171,7 +189,7 @@ class LocalFileManager {
             self?.dispatchGroup.leave()
           })
         }
-        
+
         else if itemProvider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
           dispatchGroup.enter()
           itemProvider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil, completionHandler: {[weak self] itemURL, error in
@@ -182,7 +200,7 @@ class LocalFileManager {
             self?.dispatchGroup.leave()
           })
         }
-        
+
         else if itemProvider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
           dispatchGroup.enter()
           itemProvider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil, completionHandler: {[weak self] text, error in
@@ -195,8 +213,19 @@ class LocalFileManager {
         }
       }
     }
-    
+
     dispatchGroup.notify(queue: DispatchQueue.main) {
+      // If URL is a video platform link, don't include image attachments
+      // (server will fetch thumbnail via OpenGraph)
+      // Otherwise, include images as attachments
+      if let url = linkPreviewUrl, self.isVideoPlatformLink(url) {
+        // Video platform link - skip image attachments
+        print("Video platform link detected, skipping image attachments")
+      } else {
+        // Regular link or no link - include image attachments
+        models.append(contentsOf: imageAttachments)
+      }
+
       completionHander(
         models,
         linkPreviewUrl,

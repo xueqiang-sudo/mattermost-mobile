@@ -5,7 +5,7 @@ import React, {useCallback} from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
-import {ExpoImageBackground} from '@components/expo_image';
+import {ExpoImage, ExpoImageBackground} from '@components/expo_image';
 import {Screens} from '@constants';
 import {useIsTablet} from '@hooks/device';
 import {showOverlay} from '@screens/navigation';
@@ -28,12 +28,13 @@ const MAX_IMAGE_WIDTH = 500;
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
-        borderRadius: 6,
+        borderRadius: 8,
         marginBottom: 6,
         marginTop: 10,
         overflow: 'hidden',
-        borderWidth: 1,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        backgroundColor: theme.centerChannelBg,
     },
     imageContainer: {
         alignItems: 'center',
@@ -49,18 +50,40 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
     },
     infoContainer: {
-        padding: 10,
+        padding: 12,
         backgroundColor: theme.centerChannelBg,
     },
     title: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
         color: theme.centerChannelColor,
         marginBottom: 4,
+        lineHeight: 20,
+    },
+    description: {
+        fontSize: 13,
+        color: changeOpacity(theme.centerChannelColor, 0.72),
+        marginBottom: 8,
+        lineHeight: 18,
+    },
+    footer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: 8,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     siteName: {
         fontSize: 12,
         color: changeOpacity(theme.centerChannelColor, 0.56),
+        flex: 1,
+    },
+    footerImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 4,
+        marginLeft: 8,
     },
 }));
 
@@ -104,7 +127,11 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
 
     // Get metadata
     const title = data?.title || data?.['og:title'] || '';
+    const description = data?.description || data?.['og:description'] || '';
     const siteName = data?.site_name || data?.['og:site_name'] || '';
+
+    // Get second image for footer (if available - often the site logo)
+    const footerImgUrl = data?.images?.[1]?.url || data?.images?.[0]?.url;
 
     const handlePress = useCallback(() => {
         if (videoUrl) {
@@ -144,17 +171,31 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
                     </View>
                 </ExpoImageBackground>
             </TouchableOpacity>
-            {(title || siteName) && (
+            {(title || description || siteName) && (
                 <TouchableOpacity style={styles.infoContainer} onPress={handlePress}>
                     {title ? (
                         <Text style={styles.title} numberOfLines={2}>
                             {title}
                         </Text>
                     ) : null}
-                    {siteName ? (
-                        <Text style={styles.siteName}>
-                            {siteName}
+                    {description ? (
+                        <Text style={styles.description} numberOfLines={2}>
+                            {description}
                         </Text>
+                    ) : null}
+                    {siteName ? (
+                        <View style={styles.footer}>
+                            <Text style={styles.siteName} numberOfLines={1}>
+                                {siteName}
+                            </Text>
+                            {footerImgUrl && (
+                                <ExpoImage
+                                    source={{uri: footerImgUrl}}
+                                    style={styles.footerImage}
+                                    contentFit='cover'
+                                />
+                            )}
+                        </View>
                     ) : null}
                 </TouchableOpacity>
             )}
