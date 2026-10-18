@@ -4,7 +4,7 @@
 import RNUtils from '@mattermost/rnutils';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import {applicationName} from 'expo-application';
-import {deleteAsync} from 'expo-file-system';
+import {deleteAsync, getInfoAsync} from 'expo-file-system';
 import React, {useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Platform, StyleSheet, Text, View} from 'react-native';
@@ -22,11 +22,11 @@ import Toast from '@components/toast';
 import {GALLERY_FOOTER_HEIGHT} from '@constants/gallery';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {debugLog} from '@store/debug_log';
 import {alertFailedToOpenDocument, alertOnlyPDFSupported} from '@utils/document';
 import {getFullErrorMessage} from '@utils/errors';
 import {fileExists, getLocalFilePathFromFile, hasPhotoLibraryWritePermission, isPdf, pathWithPrefix} from '@utils/file';
 import {galleryItemToFileInfo} from '@utils/gallery';
-import {logDebug} from '@utils/log';
 import {previewPdf} from '@utils/navigation';
 import {typography} from '@utils/typography';
 
@@ -209,16 +209,55 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 const cameraType = item.type === 'avatar' ? 'image' : item.type;
                 const filePath = pathWithPrefix('file://', path);
 
-                logDebug('saveImageOrVideo: attempting to save', {
+                // Check if file exists before attempting to save
+                const exists = await fileExists(path);
+                const fileInfo = exists ? await getInfoAsync(path) : null;
+
+                debugLog('SaveImage', JSON.stringify({
+                    stage: 'attempting',
                     path: filePath,
+                    originalPath: path,
+                    fileExists: exists,
+                    fileSize: fileInfo?.size,
                     type: cameraType,
                     itemType: item.type,
-                });
+                    platform: Platform.OS,
+                    mimeType: item.mime_type,
+                }));
 
-                // Save to default camera roll (without specifying album to avoid iOS issues)
-                await CameraRoll.saveAsset(filePath, {
-                    type: cameraType === 'image' ? 'photo' : 'video',
-                });
+                if (!exists || !fileInfo?.exists) {
+                    throw new Error(`File does not exist at path: ${path}`);
+                }
+
+                if (fileInfo.size === 0) {
+                    throw new Error('File is empty (0 bytes)');
+                }
+
+                // Try saving with file:// prefix first
+                try {
+                    await CameraRoll.saveAsset(filePath, {
+                        type: cameraType === 'image' ? 'photo' : 'video',
+                    });
+                } catch (firstError) {
+                    // On iOS, try without file:// prefix if first attempt fails
+                    if (Platform.OS === 'ios') {
+                        debugLog('SaveImage', JSON.stringify({
+                            stage: 'retrying_without_prefix',
+                            path,
+                            firstError: getFullErrorMessage(firstError),
+                        }));
+                        await CameraRoll.saveAsset(path, {
+                            type: cameraType === 'image' ? 'photo' : 'video',
+                        });
+                    } else {
+                        throw firstError;
+                    }
+                }
+
+                debugLog('SaveImage', JSON.stringify({
+                    stage: 'success',
+                    path: filePath,
+                }));
 
                 setSaved(true);
                 if (item.type !== 'avatar') {
@@ -226,7 +265,14 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 }
             } catch (e) {
                 const errorMsg = getFullErrorMessage(e);
-                logDebug('saveImageOrVideo failed', errorMsg);
+                const errorStack = e instanceof Error ? e.stack : undefined;
+                debugLog('SaveImage', JSON.stringify({
+                    stage: 'failed',
+                    error: errorMsg,
+                    stack: errorStack,
+                    path: filePath,
+                    platform: Platform.OS,
+                }));
 
                 // Provide more specific error messages based on the error
                 let errorMessage = 'gallery.save_failed';
@@ -238,9 +284,15 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 } else if (errorMsg.toLowerCase().includes('space') || errorMsg.toLowerCase().includes('storage')) {
                     errorMessage = 'gallery.save_no_space';
                     defaultMessage = 'Not enough space to save the file.';
-                } else if (errorMsg.toLowerCase().includes('format') || errorMsg.toLowerCase().includes('invalid')) {
+                } else if (errorMsg.toLowerCase().includes('format') || errorMsg.toLowerCase().includes('invalid') || errorMsg.includes('3302')) {
                     errorMessage = 'gallery.save_invalid_format';
                     defaultMessage = 'Invalid file format. The file cannot be saved to photo library.';
+                } else if (errorMsg.toLowerCase().includes('does not exist') || errorMsg.toLowerCase().includes('not found')) {
+                    errorMessage = 'gallery.save_file_not_found';
+                    defaultMessage = 'File not found. Please try downloading again.';
+                } else if (errorMsg.toLowerCase().includes('empty')) {
+                    errorMessage = 'gallery.save_empty_file';
+                    defaultMessage = 'File is empty and cannot be saved.';
                 }
 
                 setError(intl.formatMessage({id: errorMessage, defaultMessage}));
@@ -333,7 +385,10 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 }
             }
         } catch (e) {
-            logDebug('error on startDownload', getFullErrorMessage(e));
+            debugLog('SaveImage', JSON.stringify({
+                stage: 'startDownload_error',
+                error: getFullErrorMessage(e),
+            }));
             setShowToast(false);
         }
     };

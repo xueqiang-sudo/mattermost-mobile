@@ -9,6 +9,7 @@ import {ExpoImageBackground} from '@components/expo_image';
 import {Screens} from '@constants';
 import {useIsTablet} from '@hooks/device';
 import {showOverlay} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {calculateDimensions, getViewPortWidth} from '@utils/images';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {tryOpenURL} from '@utils/url';
@@ -71,6 +72,18 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
     const embed = metadata?.embeds?.[0];
     const link = embed?.url;
     const data = embed?.data as Record<string, any> | undefined;
+
+    // Debug logging for Kuaishou video cards
+    if (link?.includes('kuaishou.com')) {
+        debugLog('VideoLink Debug', JSON.stringify({
+            link,
+            hasData: Boolean(data),
+            dataKeys: data ? Object.keys(data) : [],
+            videoUrl: data?.['og:video:secure_url'] || data?.['og:video:url'] || data?.['og:video'] || data?.video,
+            thumbnail: data?.images?.[0]?.url,
+            title: data?.title || data?.['og:title'],
+        }, null, 2));
+    }
 
     const dimensions = calculateDimensions(
         MAX_IMAGE_HEIGHT,
