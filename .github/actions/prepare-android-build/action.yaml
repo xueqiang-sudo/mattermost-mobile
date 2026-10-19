@@ -12,18 +12,26 @@ runs:
     - name: ci/prepare-mobile-build
       uses: ./.github/actions/prepare-mobile-build
 
+    - name: ci/setup-java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "17"
+
+    - name: ci/build-react-native-gradle-plugin
+      shell: bash
+      run: |
+        echo "::group::Build React Native Gradle Plugin"
+        cd node_modules/@react-native/gradle-plugin
+        ./gradlew :settings-plugin:build :react-native-gradle-plugin:build --no-daemon
+        echo "::endgroup::"
+
     - name: ci/apply-16kb-pagesize-patch
       shell: bash
       run: |
         echo "::group::Apply 16KB page size compatibility patch"
         npm run apply-16kb-pagesize-patch
         echo "::endgroup::"
-
-    - name: ci/setup-java
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: "17"
 
     - name: ci/jetify-android-libraries
       shell: bash
