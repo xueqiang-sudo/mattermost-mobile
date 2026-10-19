@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
@@ -11,6 +11,7 @@ import {useIsTablet} from '@hooks/device';
 import {showOverlay} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {calculateDimensions, getViewPortWidth} from '@utils/images';
+import {fetchKuaishouMetadata, isKuaishouURL, type KuaishouMetadata} from '@utils/kuaishou_metadata';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {tryOpenURL} from '@utils/url';
 import {onOpenLinkError} from '@utils/url/links';
@@ -96,11 +97,34 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
     const link = embed?.url;
     const data = embed?.data as Record<string, any> | undefined;
 
+    // Client-side fallback metadata for Kuaishou
+    const [fallbackMetadata, setFallbackMetadata] = useState<KuaishouMetadata | null>(null);
+
+    // Fetch Kuaishou metadata if server data is incomplete
+    useEffect(() => {
+        if (link && isKuaishouURL(link)) {
+            const hasTitle = Boolean(data?.title || data?.['og:title']);
+            const hasDescription = Boolean(data?.description || data?.['og:description']);
+            const hasImages = Boolean(data?.images?.length);
+
+            // If server data is incomplete, fetch from client
+            if (!hasTitle || !hasDescription || !hasImages) {
+                debugLog('VideoLink', 'Server metadata incomplete, fetching from client');
+                fetchKuaishouMetadata(link).then((metadata) => {
+                    if (metadata) {
+                        setFallbackMetadata(metadata);
+                    }
+                });
+            }
+        }
+    }, [link, data]);
+
     // Debug logging for Kuaishou video cards
     if (link?.includes('kuaishou.com')) {
         debugLog('VideoLink Debug', JSON.stringify({
             link,
             hasData: Boolean(data),
+            hasFallback: Boolean(fallbackMetadata),
             dataKeys: data ? Object.keys(data) : [],
             videoUrl: data?.['og:video:secure_url'] || data?.['og:video:url'] || data?.['og:video'] || data?.video,
             thumbnail: data?.images?.[0]?.url,
@@ -114,10 +138,12 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
         layoutWidth || (getViewPortWidth(isReplyPost, isTablet) - 6),
     );
 
-    // Get thumbnail from OpenGraph images
+    // Get thumbnail from OpenGraph images, fallback to Kuaishou metadata
     let imgUrl: string | undefined;
     if (data?.images?.[0]?.url) {
         imgUrl = data.images[0].url;
+    } else if (fallbackMetadata?.coverUrl) {
+        imgUrl = fallbackMetadata.coverUrl;
     } else if (metadata?.images) {
         imgUrl = Object.keys(metadata.images)[0];
     }
@@ -125,13 +151,13 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
     // Get video URL from OpenGraph og:video
     const videoUrl = data?.['og:video:secure_url'] || data?.['og:video:url'] || data?.['og:video'] || data?.video;
 
-    // Get metadata
-    const title = data?.title || data?.['og:title'] || '';
-    const description = data?.description || data?.['og:description'] || '';
-    const siteName = data?.site_name || data?.['og:site_name'] || '';
+    // Get metadata with fallback priority
+    const title = data?.title || data?.['og:title'] || fallbackMetadata?.title || '';
+    const description = data?.description || data?.['og:description'] || fallbackMetadata?.description || '';
+    const siteName = data?.site_name || data?.['og:site_name'] || fallbackMetadata?.siteName || '';
 
-    // Get second image for footer (if available - often the site logo)
-    const footerImgUrl = data?.images?.[1]?.url || data?.images?.[0]?.url;
+    // Get second image for footer (if available - often the site logo), fallback to avatar
+    const footerImgUrl = data?.images?.[1]?.url || data?.images?.[0]?.url || fallbackMetadata?.avatarUrl;
 
     const handlePress = useCallback(() => {
         if (videoUrl) {
