@@ -19,13 +19,25 @@ const ClientGateway = <TBase extends Constructor<ClientBase>>(superclass: TBase)
         } else {
             bodyData.account = phoneOrEmail;
         }
-        return this.doFetch(
-            this.getAccountSendCodeRoute(),
-            {
-                method: 'post',
-                body: bodyData,
-            },
-        );
+        try {
+            const result = await this.doFetch(
+                this.getAccountSendCodeRoute(),
+                {
+                    method: 'post',
+                    body: bodyData,
+                },
+            );
+            // 确保返回一个有效的对象
+            return result || {};
+        } catch (error) {
+            // 如果是JSON解析错误，返回空对象而不是抛出异常
+            const errMsg = String(error);
+            if (errMsg.includes('INCORRECT_TYPE') || errMsg.includes('JSON')) {
+                console.warn('sendAccountVerifyCode: JSON parse error, returning empty object', errMsg);
+                return {};
+            }
+            throw error;
+        }
     };
 
     verifyAccountCode = async (phoneOrEmail: string, code: string) => {

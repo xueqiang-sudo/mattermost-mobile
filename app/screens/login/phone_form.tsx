@@ -248,7 +248,10 @@ const PhoneLoginForm = ({
             // 调用获取验证码 API
             logInfo('getVerificationCode sendAccountCode:', normalizedLoginId);
             const res = await sendAccountCode(serverUrl, normalizedLoginId);
-            setVerificationCode(res.test_code || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
+            debugLog('getVerificationCode response', JSON.stringify(res));
+            // 安全地访问 test_code 字段
+            const testCode = res && typeof res === 'object' && 'test_code' in res ? res.test_code : '';
+            setVerificationCode(testCode || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
 
             // 模拟成功响应
             setCountdown(60); // 60秒倒计时
@@ -266,14 +269,21 @@ const PhoneLoginForm = ({
             }, 1000);
 
         } catch (loginError) {
+            const errMsg = getFullErrorMessage(loginError);
+            debugLog('getVerificationCode error', JSON.stringify({
+                message: errMsg,
+                errorId: (loginError as ClientError)?.server_error_id,
+                type: typeof loginError,
+                isObject: loginError instanceof Object,
+            }));
             if ((loginError as ClientError).server_error_id === 'com.mattermost.sms-gateway' && (loginError as ClientError).message === 'Too many requests') {
                 setError(intl.formatMessage({
                     id: 'login.error_too_many_requests',
                     defaultMessage: 'Too many requests, please try again later',
                 }));
             } else {
-                logError('error on getVerificationCode', getFullErrorMessage(loginError));
-                setError(getFullErrorMessage(loginError));
+                logError('error on getVerificationCode', errMsg);
+                setError(errMsg);
             }
         } finally {
             setIsGettingCode(false);
