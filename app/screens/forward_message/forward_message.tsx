@@ -8,7 +8,6 @@ import {useIntl} from 'react-intl';
 
 import {createPost} from '@actions/remote/post';
 import CompassIcon from '@components/compass_icon';
-import ChannelIcon from '@components/channel_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {dismissModal} from '@screens/navigation';
@@ -276,19 +275,19 @@ const ForwardMessage = ({
                 style={[styles.channelItem, isSelected && styles.channelItemSelected]}
                 onPress={() => handleSelectChannel(channel)}
             >
-                <View style={{marginRight: 12}}>
-                    <ChannelIcon
-                        channelId={channel.id}
-                        name={channel.name}
-                        type={channel.type}
-                        size={40}
-                        isActive={false}
-                        isArchived={false}
-                        isOnCenterBg={false}
-                        isOnHome={false}
-                        isUnread={false}
-                        shared={channel.shared}
-                        hasDraft={false}
+                <View style={{
+                    marginRight: 12,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 8,
+                    backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                    <CompassIcon
+                        name='account-multiple-outline'
+                        size={24}
+                        color={changeOpacity(theme.centerChannelColor, 0.56)}
                     />
                 </View>
                 <View style={styles.channelInfo}>

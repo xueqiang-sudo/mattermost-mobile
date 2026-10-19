@@ -113,10 +113,10 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
         switch (item.type) {
             case 'image':
             case 'avatar':
-                message = intl.formatMessage({id: 'gallery.image_saved', defaultMessage: 'Image saved'});
+                message = intl.formatMessage({id: 'gallery.image_saved', defaultMessage: 'Image saved to album'});
                 break;
             case 'video':
-                message = intl.formatMessage({id: 'gallery.video_saved', defaultMessage: 'Video saved'});
+                message = intl.formatMessage({id: 'gallery.video_saved', defaultMessage: 'Video saved to album'});
                 break;
         }
     }
@@ -431,7 +431,7 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
         if (error || saved) {
             t = setTimeout(() => {
                 setShowToast(false);
-            }, 3500);
+            }, saved ? 2000 : 3500);
         }
 
         return () => clearTimeout(t);

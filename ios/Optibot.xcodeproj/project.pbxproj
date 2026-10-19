@@ -274,8 +274,8 @@
 		67FEAE132A12614F00DDF4AE /* sv */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = sv; path = Localizable.strings; sourceTree = "<group>"; };
 		67FEAE172A12615900DDF4AE /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = Localizable.strings; sourceTree = "<group>"; };
 		67FEAE1B2A12616500DDF4AE /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = Localizable.strings; sourceTree = "<group>"; };
-		67FEAE1F2A12616F00DDF4AE /* zh-CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-CN"; path = Localizable.strings; sourceTree = "<group>"; };
-		67FEAE232A12618000DDF4AE /* zh-TW */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-TW"; path = Localizable.strings; sourceTree = "<group>"; };
+		67FEAE1F2A12616F00DDF4AE /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Localizable.strings; sourceTree = "<group>"; };
+		67FEAE232A12618000DDF4AE /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = Localizable.strings; sourceTree = "<group>"; };
 		67FEAE272A1261A000DDF4AE /* ro */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ro; path = Localizable.strings; sourceTree = "<group>"; };
 		67FEAE2B2A127C3600DDF4AE /* NumberFormatter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NumberFormatter.swift; sourceTree = "<group>"; };
 		6BAF8296411D4657B5A0E8F8 /* libRNReactNativeDocViewer.a */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = archive.ar; path = libRNReactNativeDocViewer.a; sourceTree = "<group>"; };
@@ -1877,7 +1877,7 @@
 		67FEAE1E2A12616F00DDF4AE /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
-				67FEAE1F2A12616F00DDF4AE /* zh-CN */,
+				67FEAE1F2A12616F00DDF4AE /* zh-Hans */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -1885,7 +1885,7 @@
 		67FEAE222A12618000DDF4AE /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
-				67FEAE232A12618000DDF4AE /* zh-TW */,
+				67FEAE232A12618000DDF4AE /* zh-Hant */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
