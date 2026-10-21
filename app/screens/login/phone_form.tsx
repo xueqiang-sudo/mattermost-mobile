@@ -378,33 +378,50 @@ const PhoneLoginForm = ({
             }
 
             // 登录成功 — 处理邀请链接
-            if (pendingInvite?.inviteId || pendingInvite?.invitedBy) {
+            debugLog('[Login] Checking pending invite info after login');
+            const pendingInviteAfterLogin = EphemeralStore.getPendingInviteInfo();
+            debugLog('[Login] Pending invite info', JSON.stringify({
+                hasPendingInvite: Boolean(pendingInviteAfterLogin),
+                inviteId: pendingInviteAfterLogin?.inviteId || '',
+                invitedBy: pendingInviteAfterLogin?.invitedBy || '',
+                inviteType: pendingInviteAfterLogin?.inviteType || '',
+            }));
+
+            if (pendingInviteAfterLogin?.inviteId || pendingInviteAfterLogin?.invitedBy) {
+                debugLog('[Login] Processing invite after login', JSON.stringify(pendingInviteAfterLogin));
                 try {
                     const client = NetworkManager.getClient(serverUrl);
 
                     // Accept contact invitation if invited_by is present
-                    if (pendingInvite.invitedBy) {
+                    if (pendingInviteAfterLogin.invitedBy) {
                         try {
-                            await client.acceptInvitation(pendingInvite.invitedBy);
-                            logInfo('Successfully accepted contact invitation', {invitedBy: pendingInvite.invitedBy});
+                            debugLog('[Login] Calling acceptInvitation API', JSON.stringify({invitedBy: pendingInviteAfterLogin.invitedBy}));
+                            await client.acceptInvitation(pendingInviteAfterLogin.invitedBy);
+                            debugLog('[Login] Successfully accepted contact invitation', JSON.stringify({invitedBy: pendingInviteAfterLogin.invitedBy}));
                         } catch (acceptErr) {
-                            logError('Failed to accept contact invitation', getFullErrorMessage(acceptErr));
+                            debugLog('[Login] Failed to accept contact invitation', getFullErrorMessage(acceptErr));
+                            logError('[Login] Failed to accept contact invitation', getFullErrorMessage(acceptErr));
                         }
                     }
 
                     // Join team if invite_id is present
-                    if (pendingInvite.inviteId) {
+                    if (pendingInviteAfterLogin.inviteId) {
                         try {
-                            await client.joinTeam(pendingInvite.inviteId, pendingInvite.invitedBy);
-                            logInfo('Successfully joined team via invite link', {inviteId: pendingInvite.inviteId, invitedBy: pendingInvite.invitedBy});
+                            debugLog('[Login] Calling joinTeam API', JSON.stringify({inviteId: pendingInviteAfterLogin.inviteId, invitedBy: pendingInviteAfterLogin.invitedBy}));
+                            await client.joinTeam(pendingInviteAfterLogin.inviteId, pendingInviteAfterLogin.invitedBy);
+                            debugLog('[Login] Successfully joined team via invite link', JSON.stringify({inviteId: pendingInviteAfterLogin.inviteId, invitedBy: pendingInviteAfterLogin.invitedBy}));
                         } catch (joinErr) {
-                            logError('Failed to join team via invite link', getFullErrorMessage(joinErr));
+                            debugLog('[Login] Failed to join team via invite link', getFullErrorMessage(joinErr));
+                            logError('[Login] Failed to join team via invite link', getFullErrorMessage(joinErr));
                         }
                     }
                 } catch (inviteErr) {
-                    logError('Failed to process invite', getFullErrorMessage(inviteErr));
+                    debugLog('[Login] Failed to process invite', getFullErrorMessage(inviteErr));
+                    logError('[Login] Failed to process invite', getFullErrorMessage(inviteErr));
                 }
                 EphemeralStore.clearPendingInviteInfo();
+            } else {
+                debugLog('[Login] No pending invite info found after login');
             }
 
             // Fallback: ensure teams & channels are loaded via REST API

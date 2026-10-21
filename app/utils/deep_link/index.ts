@@ -27,9 +27,10 @@ import {getCurrentUser, queryUsersByUsername} from '@queries/servers/user';
 import {dismissAllModalsAndPopToRoot, resetToLogin} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
+import {debugLog} from '@store/debug_log';
 import {alertErrorWithFallback, errorBadChannel, errorUnkownUser} from '@utils/draft';
 import {getIntlShape} from '@utils/general';
-import {logError} from '@utils/log';
+import {logError, logInfo} from '@utils/log';
 import {escapeRegex} from '@utils/markdown';
 import {removeProtocol, stripTrailingSlashes} from '@utils/url';
 import {
@@ -187,6 +188,13 @@ export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: Int
                 const deepLinkData = deepLink.data as DeepLinkInvite;
                 const {inviteId, inviteType, invitedBy} = deepLinkData;
 
+                debugLog('[DeepLink] Processing invite deep link', JSON.stringify({
+                    inviteId,
+                    inviteType,
+                    invitedBy,
+                    serverUrl: deepLinkData.serverUrl,
+                }));
+
                 // Store invite info for post-login processing
                 EphemeralStore.setPendingInviteInfo({
                     inviteId: inviteId || '',
@@ -194,9 +202,17 @@ export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: Int
                     invitedBy: invitedBy || '',
                 });
 
+                debugLog('[DeepLink] Stored invite info in EphemeralStore', JSON.stringify({
+                    inviteId: inviteId || '',
+                    inviteType: inviteType || '',
+                    invitedBy: invitedBy || '',
+                }));
+
                 // Check if user is logged in
                 const {database: serverDatabase} = DatabaseManager.getServerDatabaseAndOperator(existingServerUrl);
                 const loggedInUser = await getCurrentUser(serverDatabase);
+
+                debugLog('[DeepLink] User login status', JSON.stringify({isLoggedIn: Boolean(loggedInUser)}));
 
                 if (loggedInUser) {
                     // User is logged in, process invite immediately
@@ -455,8 +471,17 @@ export function parseDeepLink(deepLinkUrl: string, asServer = false): DeepLinkWi
             const inviteType = parsedUrl.query.type || '';
             const {params: {serverUrl}} = inviteMatch;
 
+            debugLog('[parseDeepLink] Invite URL detected', JSON.stringify({
+                url: deepLinkUrl,
+                inviteId,
+                invitedBy,
+                inviteType,
+                serverUrl: serverUrl.join('/'),
+            }));
+
             // Only treat as valid invite if we have at least one parameter
             if (inviteId || invitedBy) {
+                debugLog('[parseDeepLink] Returning DeepLink.Invite', JSON.stringify({inviteId, invitedBy}));
                 return {
                     type: DeepLink.Invite,
                     url: deepLinkUrl,
