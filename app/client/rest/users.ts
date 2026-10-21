@@ -10,9 +10,10 @@ import {PER_PAGE_DEFAULT} from './constants';
 import type ClientBase from './base';
 
 export interface ClientUsersMix {
-    autoRegisterUser: (phoneOrEmail: string, password: string) => Promise<UserProfile>;
-    autoRegisterUserPersonal: (phoneOrEmail: string, password: string) => Promise<UserProfile>;
+    autoRegisterUser: (phoneOrEmail: string, password: string, invitedBy?: string) => Promise<UserProfile>;
+    autoRegisterUserPersonal: (phoneOrEmail: string, password: string, invitedBy?: string) => Promise<UserProfile>;
     createUser: (user: UserProfile, token: string, inviteId: string) => Promise<UserProfile>;
+    acceptInvitation: (inviterId: string) => Promise<any>;
     patchMe: (userPatch: Partial<UserProfile>, groupLabel?: RequestGroupLabel) => Promise<UserProfile>;
     patchUser: (userPatch: Partial<UserProfile> & {id: string}) => Promise<UserProfile>;
     updateUser: (user: UserProfile) => Promise<UserProfile>;
@@ -58,7 +59,7 @@ export interface ClientUsersMix {
 }
 
 const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) => class extends superclass {
-    autoRegisterUser = (phoneOrEmail: string, password: string) => {
+    autoRegisterUser = (phoneOrEmail: string, password: string, invitedBy?: string) => {
         const isPhone = isPhoneNumber(phoneOrEmail);
         const email = isPhone ? `${formatPhone(phoneOrEmail, true)}@auto.register` : phoneOrEmail;
         const username = isPhone ? formatPhone(phoneOrEmail, true) : emailFormatUsername(phoneOrEmail);
@@ -67,8 +68,14 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
             const [countryCode, phone] = splitPhone(phoneOrEmail, {isDelSymbol: true});
             Object.assign(bodyData, {phone, country_code: countryCode});
         }
+
+        let url = this.getUsersRoute();
+        if (invitedBy) {
+            url += `?invited_by=${encodeURIComponent(invitedBy)}`;
+        }
+
         return this.doFetch(
-            this.getUsersRoute(),
+            url,
             {
                 method: 'post',
                 body: bodyData,
@@ -76,7 +83,7 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         );
     };
 
-    autoRegisterUserPersonal = (phoneOrEmail: string, password: string) => {
+    autoRegisterUserPersonal = (phoneOrEmail: string, password: string, invitedBy?: string) => {
         const isPhone = isPhoneNumber(phoneOrEmail);
         const email = isPhone ? `${formatPhone(phoneOrEmail, true)}@auto.register` : phoneOrEmail;
         const username = isPhone ? formatPhone(phoneOrEmail, true) : emailFormatUsername(phoneOrEmail);
@@ -85,11 +92,27 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
             const [countryCode, phone] = splitPhone(phoneOrEmail, {isDelSymbol: true});
             Object.assign(bodyData, {phone, country_code: countryCode});
         }
+
+        let url = `${this.getUsersRoute()}/personal`;
+        if (invitedBy) {
+            url += `?invited_by=${encodeURIComponent(invitedBy)}`;
+        }
+
         return this.doFetch(
-            `${this.getUsersRoute()}/personal`,
+            url,
             {
                 method: 'post',
                 body: bodyData,
+            },
+        );
+    };
+
+    acceptInvitation = (inviterId: string) => {
+        return this.doFetch(
+            `${this.getBaseRoute()}/invitations/accept`,
+            {
+                method: 'post',
+                body: {inviter_id: inviterId},
             },
         );
     };

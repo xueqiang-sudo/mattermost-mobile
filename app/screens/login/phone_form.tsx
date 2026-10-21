@@ -332,10 +332,14 @@ const PhoneLoginForm = ({
             logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} username: ${username}`);
 
             // 4. 尝试自动创建用户（使用 personal 端点，服务端自动创建团队）
+            // 检查是否有邀请链接参数
+            const pendingInvite = EphemeralStore.getPendingInviteInfo();
+            const invitedBy = pendingInvite?.invitedBy || '';
+
             if (isNeedTryReg) {
                 try {
-                    logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} try to auto register user (personal), user: ${normalizedLoginId}`);
-                    await apiClient.autoRegisterUserPersonal(normalizedLoginId, token);
+                    logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} try to auto register user (personal), user: ${normalizedLoginId}, invitedBy: ${invitedBy}`);
+                    await apiClient.autoRegisterUserPersonal(normalizedLoginId, token, invitedBy || undefined);
 
                     // 成功创建用户（服务端自动创建个人团队）
                     logInfo('user created successfully with personal team, user: ', normalizedLoginId);
@@ -373,15 +377,32 @@ const PhoneLoginForm = ({
                 throw loginResult.error;
             }
 
-            // 登录成功 — 检查是否有待处理的邀请链接
-            const pendingInvite = EphemeralStore.getPendingInviteInfo();
+            // 登录成功 — 处理邀请链接
             if (pendingInvite?.inviteId || pendingInvite?.invitedBy) {
                 try {
                     const client = NetworkManager.getClient(serverUrl);
-                    await client.joinTeam(pendingInvite.inviteId, pendingInvite.invitedBy);
-                    logInfo('Successfully joined team via invite link', {inviteId: pendingInvite.inviteId, invitedBy: pendingInvite.invitedBy});
-                } catch (joinErr) {
-                    logError('Failed to join team via invite link', getFullErrorMessage(joinErr));
+
+                    // Accept contact invitation if invited_by is present
+                    if (pendingInvite.invitedBy) {
+                        try {
+                            await client.acceptInvitation(pendingInvite.invitedBy);
+                            logInfo('Successfully accepted contact invitation', {invitedBy: pendingInvite.invitedBy});
+                        } catch (acceptErr) {
+                            logError('Failed to accept contact invitation', getFullErrorMessage(acceptErr));
+                        }
+                    }
+
+                    // Join team if invite_id is present
+                    if (pendingInvite.inviteId) {
+                        try {
+                            await client.joinTeam(pendingInvite.inviteId, pendingInvite.invitedBy);
+                            logInfo('Successfully joined team via invite link', {inviteId: pendingInvite.inviteId, invitedBy: pendingInvite.invitedBy});
+                        } catch (joinErr) {
+                            logError('Failed to join team via invite link', getFullErrorMessage(joinErr));
+                        }
+                    }
+                } catch (inviteErr) {
+                    logError('Failed to process invite', getFullErrorMessage(inviteErr));
                 }
                 EphemeralStore.clearPendingInviteInfo();
             }

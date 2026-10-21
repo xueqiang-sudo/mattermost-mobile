@@ -46,12 +46,19 @@ export interface DeepLinkMagicLink extends DeepLink {
     token: string;
 }
 
+export interface DeepLinkInvite extends DeepLink {
+    serverUrl: string;
+    inviteId: string;
+    inviteType: string;
+    invitedBy: string;
+}
+
 export type DeepLinkType = typeof DeepLinkConstant[keyof typeof DeepLinkConstant];
 
 export interface DeepLinkWithData {
     type: DeepLinkType;
     url: string;
-    data?: DeepLinkChannel | DeepLinkDM | DeepLinkGM | DeepLinkPermalink | DeepLinkPlugin | DeepLinkServer | DeepLinkPlaybooks | DeepLinkPlaybookRuns | DeepLinkMagicLink;
+    data?: DeepLinkChannel | DeepLinkDM | DeepLinkGM | DeepLinkPermalink | DeepLinkPlugin | DeepLinkServer | DeepLinkPlaybooks | DeepLinkPlaybookRuns | DeepLinkMagicLink | DeepLinkInvite;
 }
 
 export type LaunchType = typeof Launch[keyof typeof Launch];

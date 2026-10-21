@@ -13,6 +13,7 @@ import {magicLinkLogin} from '@actions/remote/session';
 import {fetchUsersByUsernames} from '@actions/remote/user';
 import {DeepLink, Launch, Screens} from '@constants';
 import DeepLinkType from '@constants/deep_linking';
+import EphemeralStore from '@store/ephemeral_store';
 import {getDefaultThemeByAppearance} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {DEFAULT_LOCALE} from '@i18n';
@@ -24,7 +25,7 @@ import {goToPlaybookRun} from '@playbooks/screens/navigation';
 import {getActiveServerUrl} from '@queries/app/servers';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {getCurrentUser, queryUsersByUsername} from '@queries/servers/user';
-import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
+import {dismissAllModalsAndPopToRoot, resetToLogin} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {alertErrorWithFallback, errorBadChannel, errorUnkownUser} from '@utils/draft';
@@ -39,7 +40,7 @@ import {
     TOKEN_PATH_PATTERN,
 } from '@utils/url/path';
 
-import type {DeepLinkChannel, DeepLinkDM, DeepLinkGM, DeepLinkPermalink, DeepLinkPlaybookRuns, DeepLinkWithData, LaunchProps} from '@typings/launch';
+import type {DeepLinkChannel, DeepLinkDM, DeepLinkGM, DeepLinkInvite, DeepLinkPermalink, DeepLinkPlaybookRuns, DeepLinkWithData, LaunchProps} from '@typings/launch';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const deepLinkScreens: AvailableScreens[] = [Screens.HOME, Screens.CHANNEL];
@@ -183,6 +184,68 @@ export async function handleDeepLink(deepLink: DeepLinkWithData, intlShape?: Int
                 );
                 break;
             }
+            case DeepLink.Invite: {
+                const deepLinkData = deepLink.data as DeepLinkInvite;
+                const {inviteId, inviteType, invitedBy} = deepLinkData;
+
+                // Store invite info for post-login processing
+                EphemeralStore.setPendingInviteInfo({
+                    inviteId: inviteId || '',
+                    inviteType: inviteType || '',
+                    invitedBy: invitedBy || '',
+                });
+
+                // Check if user is logged in
+                const {database: serverDatabase} = DatabaseManager.getServerDatabaseAndOperator(existingServerUrl);
+                const loggedInUser = await getCurrentUser(serverDatabase);
+
+                if (loggedInUser) {
+                    // User is logged in, process invite immediately
+                    try {
+                        const client = DatabaseManager.getServerDatabaseAndOperator(existingServerUrl).operator;
+                        const networkClient = (await import('@managers/network_manager')).default.getClient(existingServerUrl);
+
+                        // Accept contact invitation if invited_by is present
+                        if (invitedBy) {
+                            try {
+                                await networkClient.acceptInvitation(invitedBy);
+                                logInfo('Successfully accepted contact invitation', {invitedBy});
+                            } catch (acceptErr) {
+                                logError('Failed to accept contact invitation', acceptErr);
+                            }
+                        }
+
+                        // Join team if invite_id is present
+                        if (inviteId) {
+                            try {
+                                await networkClient.joinTeam(inviteId, invitedBy);
+                                logInfo('Successfully joined team via invite link', {inviteId, invitedBy});
+                            } catch (joinErr) {
+                                logError('Failed to join team', joinErr);
+                            }
+                        }
+                    } catch (error) {
+                        logError('Failed to process invite', error);
+                    }
+
+                    EphemeralStore.clearPendingInviteInfo();
+
+                    // Navigate to home
+                    if (NavigationStore.hasModalsOpened()) {
+                        await dismissAllModalsAndPopToRoot();
+                    }
+                } else {
+                    // User not logged in, navigate to login screen
+                    // The login flow will process the invite after successful login
+                    await resetToLogin({
+                        launchType: Launch.DeepLink,
+                        coldStart: false,
+                        extra: deepLink,
+                        serverUrl: existingServerUrl,
+                    });
+                }
+                break;
+            }
         }
         return {error: false};
     } catch (error) {
@@ -233,6 +296,13 @@ type MagicLinkPathParams = {
 
 const MAGIC_LINK_PATH = '*serverUrl/login/one_time_link';
 export const matchMagicLinkDeeplink = match<MagicLinkPathParams>(MAGIC_LINK_PATH);
+
+type InvitePathParams = {
+    serverUrl: string[];
+};
+
+const INVITE_PATH = '*serverUrl/invite';
+export const matchInviteDeeplink = match<InvitePathParams>(INVITE_PATH);
 
 type PermalinkPathParams = {
     serverUrl: string[];
@@ -377,6 +447,28 @@ export function parseDeepLink(deepLinkUrl: string, asServer = false): DeepLinkWi
                 return {type: DeepLink.Invalid, url: deepLinkUrl};
             }
             return {type: DeepLink.MagicLink, url: deepLinkUrl, data: {serverUrl: serverUrl.join('/'), token}};
+        }
+
+        const inviteMatch = matchInviteDeeplink(url);
+        if (inviteMatch) {
+            const inviteId = parsedUrl.query.id || parsedUrl.query.invite_id || parsedUrl.query.iid || '';
+            const invitedBy = parsedUrl.query.invited_by || '';
+            const inviteType = parsedUrl.query.type || '';
+            const {params: {serverUrl}} = inviteMatch;
+
+            // Only treat as valid invite if we have at least one parameter
+            if (inviteId || invitedBy) {
+                return {
+                    type: DeepLink.Invite,
+                    url: deepLinkUrl,
+                    data: {
+                        serverUrl: serverUrl.join('/'),
+                        inviteId,
+                        inviteType,
+                        invitedBy,
+                    },
+                };
+            }
         }
 
         if (asServer) {
