@@ -148,11 +148,24 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
         setInputValue(text);
         setShowError(false);
         const result = parseInviteFromUrl(text);
+        debugLog('[InviteLink] Input changed', JSON.stringify({
+            text,
+            textLength: text.length,
+            result,
+            isValid: result !== null && (result.id !== '' || result.invited_by !== ''),
+        }));
         setParsed(result);
     }, []);
 
     const handleConfirm = usePreventDoubleTap(useCallback(async () => {
         Keyboard.dismiss();
+
+        debugLog('[InviteLink] Confirm clicked', JSON.stringify({
+            inputValue,
+            inputValueLength: inputValue?.length,
+            parsed,
+        }));
+
         const result = parseInviteFromUrl(inputValue);
 
         debugLog('[InviteLink] Parsing invite URL', JSON.stringify({
@@ -161,11 +174,13 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
         }));
 
         if (!result) {
+            debugLog('[InviteLink] Parse result is null');
             setShowError(true);
             return;
         }
 
         if (!result.id && !result.invited_by) {
+            debugLog('[InviteLink] Both id and invited_by are empty', JSON.stringify(result));
             setShowError(true);
             return;
         }
