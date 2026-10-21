@@ -266,26 +266,6 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
             testID='invite_link.screen'
         >
             <View style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={handleBack}
-                        testID='invite_link.back'
-                    >
-                        <CompassIcon
-                            name='arrow-left'
-                            size={24}
-                            color={theme.centerChannelColor}
-                        />
-                    </TouchableOpacity>
-                    <Text
-                        style={styles.title}
-                        numberOfLines={1}
-                    >
-                        {intl.formatMessage({id: 'invite_link.title', defaultMessage: 'Join via Invite Link'})}
-                    </Text>
-                </View>
-
                 <View style={styles.icon}>
                     <CompassIcon
                         name='link-variant'
