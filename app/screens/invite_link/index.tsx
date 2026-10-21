@@ -53,27 +53,42 @@ type Props = {
  */
 function parseInviteFromUrl(input: string): {id: string; type: string; invited_by: string} | null {
     const trimmed = input.trim();
+
+    debugLog('[parseInviteFromUrl] Input', JSON.stringify({input, trimmed}));
+
     if (!trimmed) {
+        debugLog('[parseInviteFromUrl] Empty input, returning null');
         return null;
     }
 
     try {
         const urlStr = trimmed.startsWith('http') ? trimmed : `https://placeholder${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
+        debugLog('[parseInviteFromUrl] Parsing URL', JSON.stringify({urlStr}));
+
         const url = new URL(urlStr);
         const id = url.searchParams.get('id') || url.searchParams.get('invite_id') || url.searchParams.get('iid') || '';
         const type = url.searchParams.get('type') || '';
         const invited_by = url.searchParams.get('invited_by') || '';
+
+        debugLog('[parseInviteFromUrl] Extracted params', JSON.stringify({id, type, invited_by}));
+
         if (id || invited_by) {
+            debugLog('[parseInviteFromUrl] Returning valid result', JSON.stringify({id, type, invited_by}));
             return {id, type, invited_by};
         }
-    } catch {
+
+        debugLog('[parseInviteFromUrl] No id or invited_by found');
+    } catch (err) {
+        debugLog('[parseInviteFromUrl] URL parsing failed', JSON.stringify({error: String(err)}));
         // Not a valid URL
     }
 
     if (/^[a-z0-9]+$/i.test(trimmed)) {
+        debugLog('[parseInviteFromUrl] Treating as raw ID', JSON.stringify({id: trimmed}));
         return {id: trimmed, type: '', invited_by: ''};
     }
 
+    debugLog('[parseInviteFromUrl] Returning null');
     return null;
 }
 
@@ -145,12 +160,27 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleInputChange = useCallback((text: string) => {
-        setInputValue(text);
+        // Clean the input: remove invisible characters and normalize whitespace
+        const cleaned = text
+            .replace(/[​-‍﻿]/g, '')  // Remove zero-width characters
+            .replace(/ /g, ' ')                 // Replace non-breaking spaces
+            .replace(/\s+/g, ' ')                    // Normalize whitespace
+            .trim();
+
+        debugLog('[InviteLink] Input changed (before cleaning)', JSON.stringify({
+            originalText: text,
+            originalLength: text.length,
+            cleanedText: cleaned,
+            cleanedLength: cleaned.length,
+            hasChanged: text !== cleaned,
+        }));
+
+        setInputValue(cleaned);
         setShowError(false);
-        const result = parseInviteFromUrl(text);
-        debugLog('[InviteLink] Input changed', JSON.stringify({
-            text,
-            textLength: text.length,
+        const result = parseInviteFromUrl(cleaned);
+        debugLog('[InviteLink] Input changed (after cleaning)', JSON.stringify({
+            text: cleaned,
+            textLength: cleaned.length,
             result,
             isValid: result !== null && (result.id !== '' || result.invited_by !== ''),
         }));
@@ -212,6 +242,16 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
             setIsLoading(false);
         }
     }, [componentId, inputValue, intl]));
+
+    // Test function to quickly set a valid invite link
+    const handleTestInvite = useCallback(() => {
+        const testUrl = 'https://ai.optibot.cn:8065/invite?invited_by=npxp3ccyrbybieqhc535rgmxnw';
+        setInputValue(testUrl);
+        const result = parseInviteFromUrl(testUrl);
+        setParsed(result);
+        setShowError(false);
+        debugLog('[InviteLink] Test invite set', JSON.stringify({testUrl, result}));
+    }, []);
 
     const handleBack = useCallback(() => {
         popTopScreen(componentId);
@@ -296,6 +336,17 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                         testID='invite_link.confirm.button'
                         text={intl.formatMessage({id: 'invite_link.confirm', defaultMessage: 'Confirm'})}
                         showLoader={isLoading}
+                        theme={theme}
+                    />
+                </View>
+
+                {/* Test button for debugging */}
+                <View style={{marginTop: 16}}>
+                    <Button
+                        onPress={handleTestInvite}
+                        size='md'
+                        testID='invite_link.test.button'
+                        text={'🧪 Test Invite Link'}
                         theme={theme}
                     />
                 </View>
