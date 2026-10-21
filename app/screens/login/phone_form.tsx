@@ -390,7 +390,7 @@ const PhoneLoginForm = ({
             if (pendingInviteAfterLogin?.inviteId || pendingInviteAfterLogin?.invitedBy) {
                 debugLog('[Login] Processing invite after login', JSON.stringify(pendingInviteAfterLogin));
                 try {
-                    const client = NetworkManager.getClient(serverUrl);
+                    const client = await getAutoClient(serverUrl);
 
                     // Accept contact invitation if invited_by is present
                     if (pendingInviteAfterLogin.invitedBy) {

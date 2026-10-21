@@ -28,6 +28,7 @@ import {getAutoClient} from '@managers/network_manager';
 import {prepareJPushAfterLogin} from '@init/launch';
 import {resetToHome, popTopScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
+import {debugLog} from '@store/debug_log';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -153,6 +154,12 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
     const handleConfirm = usePreventDoubleTap(useCallback(async () => {
         Keyboard.dismiss();
         const result = parseInviteFromUrl(inputValue);
+
+        debugLog('[InviteLink] Parsing invite URL', JSON.stringify({
+            inputValue,
+            result,
+        }));
+
         if (!result) {
             setShowError(true);
             return;
@@ -171,6 +178,12 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                 inviteType: result.type,
                 invitedBy: result.invited_by,
             });
+
+            debugLog('[InviteLink] Stored invite info', JSON.stringify({
+                inviteId: result.id,
+                inviteType: result.type,
+                invitedBy: result.invited_by,
+            }));
 
             // Go back to login screen
             popTopScreen(componentId);
