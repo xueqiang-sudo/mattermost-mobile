@@ -179,8 +179,15 @@ const ClientTeams = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         );
     };
 
-    joinTeam = async (inviteId: string) => {
-        const query = buildQueryString({invite_id: inviteId});
+    joinTeam = async (inviteId: string, invitedBy?: string) => {
+        const params: Record<string, string> = {};
+        if (inviteId) {
+            params.invite_id = inviteId;
+        }
+        if (invitedBy) {
+            params.invited_by = invitedBy;
+        }
+        const query = buildQueryString(params);
         return this.doFetch(
             `${this.getTeamsRoute()}/members/invite${query}`,
             {method: 'post'},

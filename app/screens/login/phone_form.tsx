@@ -375,11 +375,11 @@ const PhoneLoginForm = ({
 
             // 登录成功 — 检查是否有待处理的邀请链接
             const pendingInvite = EphemeralStore.getPendingInviteInfo();
-            if (pendingInvite?.inviteId) {
+            if (pendingInvite?.inviteId || pendingInvite?.invitedBy) {
                 try {
                     const client = NetworkManager.getClient(serverUrl);
-                    await client.joinTeam(pendingInvite.inviteId);
-                    logInfo('Successfully joined team via invite link', pendingInvite.inviteId);
+                    await client.joinTeam(pendingInvite.inviteId, pendingInvite.invitedBy);
+                    logInfo('Successfully joined team via invite link', {inviteId: pendingInvite.inviteId, invitedBy: pendingInvite.invitedBy});
                 } catch (joinErr) {
                     logError('Failed to join team via invite link', getFullErrorMessage(joinErr));
                 }
