@@ -9,6 +9,7 @@ import {
     Alert,
     FlatList,
     Modal,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -382,7 +383,7 @@ const NotebookScreen = () => {
                     </Text>
                     <View style={style.modalCloseBtn}/>
                 </View>
-                <View style={style.modalBody}>
+                <ScrollView style={style.modalBody} contentContainerStyle={style.modalBodyContent}>
                     {detailLoading ? (
                         <ActivityIndicator size='large' color={theme.buttonBg} style={style.modalLoading}/>
                     ) : detailNote ? (
@@ -394,7 +395,7 @@ const NotebookScreen = () => {
                             {intl.formatMessage({id: 'workbench.notebook.load_failed', defaultMessage: 'Failed to load note.'})}
                         </Text>
                     )}
-                </View>
+                </ScrollView>
             </SafeAreaView>
         </Modal>
     ), [detailVisible, detailLoading, detailNote, style, theme, intl]);
@@ -696,7 +697,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     modalBody: {
         flex: 1,
         paddingHorizontal: 16,
+    },
+    modalBodyContent: {
         paddingTop: 12,
+        paddingBottom: 20,
     },
     modalLoading: {
         flex: 1,
