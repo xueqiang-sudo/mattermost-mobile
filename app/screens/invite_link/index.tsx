@@ -61,6 +61,7 @@ function parseInviteFromUrl(input: string): {id: string; type: string; invited_b
         return null;
     }
 
+    // Try using URL API first
     try {
         const urlStr = trimmed.startsWith('http') ? trimmed : `https://placeholder${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
         debugLog('[parseInviteFromUrl] Parsing URL', JSON.stringify({urlStr}));
@@ -77,12 +78,51 @@ function parseInviteFromUrl(input: string): {id: string; type: string; invited_b
             return {id, type, invited_by};
         }
 
-        debugLog('[parseInviteFromUrl] No id or invited_by found');
+        debugLog('[parseInviteFromUrl] No id or invited_by found via URL API');
     } catch (err) {
         debugLog('[parseInviteFromUrl] URL parsing failed', JSON.stringify({error: String(err)}));
-        // Not a valid URL
     }
 
+    // Fallback: Manual parsing for iOS/Hermes compatibility
+    try {
+        debugLog('[parseInviteFromUrl] Trying fallback manual parsing');
+
+        // Extract query string manually
+        const questionMarkIndex = trimmed.indexOf('?');
+        if (questionMarkIndex !== -1) {
+            const queryString = trimmed.substring(questionMarkIndex + 1);
+            debugLog('[parseInviteFromUrl] Query string', JSON.stringify({queryString}));
+
+            // Parse query parameters manually
+            const params: Record<string, string> = {};
+            const pairs = queryString.split('&');
+            for (const pair of pairs) {
+                const eqIndex = pair.indexOf('=');
+                if (eqIndex !== -1) {
+                    const key = decodeURIComponent(pair.substring(0, eqIndex));
+                    const value = decodeURIComponent(pair.substring(eqIndex + 1));
+                    params[key] = value;
+                }
+            }
+
+            const id = params.id || params.invite_id || params.iid || '';
+            const type = params.type || '';
+            const invited_by = params.invited_by || '';
+
+            debugLog('[parseInviteFromUrl] Manual parsing result', JSON.stringify({id, type, invited_by}));
+
+            if (id || invited_by) {
+                debugLog('[parseInviteFromUrl] Returning manual parsing result');
+                return {id, type, invited_by};
+            }
+        }
+
+        debugLog('[parseInviteFromUrl] No query parameters found in fallback');
+    } catch (err) {
+        debugLog('[parseInviteFromUrl] Manual parsing failed', JSON.stringify({error: String(err)}));
+    }
+
+    // Last resort: treat as raw ID
     if (/^[a-z0-9]+$/i.test(trimmed)) {
         debugLog('[parseInviteFromUrl] Treating as raw ID', JSON.stringify({id: trimmed}));
         return {id: trimmed, type: '', invited_by: ''};
@@ -278,6 +318,56 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
         );
     }, [inputValue]);
 
+    // Debug function to test parsing step by step
+    const handleTestParsing = useCallback(() => {
+        if (!inputValue) {
+            Alert.alert('No input', 'Please paste an invite link first');
+            return;
+        }
+
+        const steps: string[] = [];
+        const trimmed = inputValue.trim();
+        steps.push(`1. Input length: ${inputValue.length}`);
+        steps.push(`2. Trimmed length: ${trimmed.length}`);
+        steps.push(`3. Starts with http: ${trimmed.startsWith('http')}`);
+        steps.push(`4. Contains ?: ${trimmed.includes('?')}`);
+
+        // Try URL API
+        try {
+            const url = new URL(trimmed);
+            steps.push(`5. URL API: ✅ Success`);
+            steps.push(`6. URL href: ${url.href}`);
+            steps.push(`7. URL search: ${url.search}`);
+
+            const invited_by = url.searchParams.get('invited_by');
+            steps.push(`8. invited_by: ${invited_by || '(null)'}`);
+        } catch (err) {
+            steps.push(`5. URL API: ❌ Failed`);
+            steps.push(`   Error: ${String(err)}`);
+        }
+
+        // Try manual parsing
+        const qIndex = trimmed.indexOf('?');
+        steps.push(`9. Manual parsing:`);
+        steps.push(`   ? at index: ${qIndex}`);
+        if (qIndex !== -1) {
+            const query = trimmed.substring(qIndex + 1);
+            steps.push(`   Query: ${query}`);
+            const ibIndex = query.indexOf('invited_by=');
+            steps.push(`   invited_by= at: ${ibIndex}`);
+            if (ibIndex !== -1) {
+                const value = query.substring(ibIndex + 11).split('&')[0];
+                steps.push(`   Value: ${value}`);
+            }
+        }
+
+        Alert.alert(
+            '🔍 Parsing Test',
+            steps.join('\n'),
+            [{text: 'OK'}]
+        );
+    }, [inputValue]);
+
     const handleBack = useCallback(() => {
         popTopScreen(componentId);
     }, [componentId]);
@@ -329,6 +419,9 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                         <Text style={{...styles.errorText, fontSize: 11, marginTop: 4, opacity: 0.8}}>
                             {'Debug: length=' + inputValue.length + ', hasHttp=' + inputValue.includes('http') + ', parsed=' + (parsed ? 'yes' : 'null')}
                         </Text>
+                        <Text style={{...styles.errorText, fontSize: 11, marginTop: 4, opacity: 0.8}}>
+                            {'请尝试点击下方的 "🧪 Test Invite Link" 按钮'}
+                        </Text>
                     </View>
                 )}
 
@@ -344,15 +437,16 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                         <Text style={{fontSize: 11, color: changeOpacity(theme.centerChannelColor, 0.6), fontFamily: 'monospace'}}>
                             {'📊 Debug Info:\n'}
                             {'Input length: ' + inputValue.length + '\n'}
-                            {'Parsed: ' + (parsed ? 'Yes' : 'No') + '\n'}
+                            {'Parsed: ' + (parsed ? 'Yes ✅' : 'No ❌') + '\n'}
                             {parsed ? ('  id: ' + (parsed.id || '(empty)') + '\n') : ''}
                             {parsed ? ('  invited_by: ' + (parsed.invited_by || '(empty)') + '\n') : ''}
                             {parsed ? ('  type: ' + (parsed.type || '(empty)') + '\n') : ''}
-                            {'Valid: ' + isValid + '\n'}
+                            {'Valid: ' + (isValid ? 'Yes ✅' : 'No ❌') + '\n'}
                             {'---\n'}
-                            {'First 20 chars: ' + inputValue.substring(0, 20).split('').map(c => c.charCodeAt(0).toString(16)).join(' ') + '\n'}
-                            {'Contains http: ' + inputValue.includes('http') + '\n'}
-                            {'Starts with http: ' + inputValue.startsWith('http')}
+                            {'Contains "?": ' + inputValue.includes('?') + '\n'}
+                            {'Contains "invited_by": ' + inputValue.includes('invited_by') + '\n'}
+                            {'Contains "=": ' + inputValue.includes('=') + '\n'}
+                            {'First 20 chars: ' + inputValue.substring(0, 20).split('').map(c => c.charCodeAt(0).toString(16)).join(' ')}
                         </Text>
                     </View>
                 )}
@@ -387,6 +481,17 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                         size='md'
                         testID='invite_link.char_analysis.button'
                         text={'🔍 Show Character Analysis'}
+                        theme={theme}
+                    />
+                </View>
+
+                {/* Parsing test button */}
+                <View style={{marginTop: 8}}>
+                    <Button
+                        onPress={handleTestParsing}
+                        size='md'
+                        testID='invite_link.parsing_test.button'
+                        text={'🧪 Test Parsing Steps'}
                         theme={theme}
                     />
                 </View>
