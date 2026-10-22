@@ -211,7 +211,8 @@ const PhoneLoginForm = ({
             title: intl.formatMessage(messages.enterNickname),
             placeholder: intl.formatMessage(messages.nicknamePlaceholder),
             confirmContent: intl.formatMessage(messages.confirm),
-            showCancelButton: false,
+            showCancelButton: true,
+            cancelContent: intl.formatMessage({id: 'login.nickname.cancel', defaultMessage: '取消'}),
         });
     }, [showModal, intl]);
 
