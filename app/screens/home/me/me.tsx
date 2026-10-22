@@ -4,6 +4,7 @@
 import {useIsFocused} from '@react-navigation/native';
 import React, {useCallback, useMemo} from 'react';
 import {Freeze} from 'react-freeze';
+import {Alert} from 'react-native';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -161,6 +162,43 @@ const MeScreen = ({currentUser}: Props) => {
         alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
     }, [intl, serverDisplayName, serverUrl]));
 
+    const handleDeleteAccount = usePreventDoubleTap(useCallback(() => {
+        Alert.alert(
+            intl.formatMessage({
+                id: 'me.delete_account.title',
+                defaultMessage: '注销账号',
+            }),
+            intl.formatMessage({
+                id: 'me.delete_account.message',
+                defaultMessage: '如需注销账号，请联系客服：\n\n邮箱：support@optibot.cn\n\n我们将在 72 小时内处理您的请求。注销后，您的所有数据将被永久删除且无法恢复。',
+            }),
+            [
+                {
+                    text: intl.formatMessage({
+                        id: 'me.delete_account.cancel',
+                        defaultMessage: '取消',
+                    }),
+                    style: 'cancel',
+                },
+                {
+                    text: intl.formatMessage({
+                        id: 'me.delete_account.contact',
+                        defaultMessage: '联系客服',
+                    }),
+                    onPress: () => {
+                        // 可以打开邮件客户端或跳转到联系页面
+                        // 这里简单显示联系方式
+                        Alert.alert(
+                            '客服联系方式',
+                            '邮箱：support@optibot.cn\n\n请在邮件中说明您的账号信息和注销原因，我们将在 72 小时内处理。',
+                            [{text: '确定'}],
+                        );
+                    },
+                },
+            ],
+        );
+    }, [intl]));
+
     return (
         <Freeze freeze={!isFocused}>
             <SafeAreaView
@@ -295,6 +333,22 @@ const MeScreen = ({currentUser}: Props) => {
                             />
                             <Text style={[styles.menuLabel, styles.logoutLabel]}>
                                 {intl.formatMessage({id: 'account.logout', defaultMessage: 'Log out'})}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={handleDeleteAccount}
+                            activeOpacity={0.7}
+                            testID='me.delete_account'
+                        >
+                            <CompassIcon
+                                name='delete'
+                                size={24}
+                                color={theme.errorTextColor}
+                                style={styles.menuIcon}
+                            />
+                            <Text style={[styles.menuLabel, {color: theme.errorTextColor}]}>
+                                {intl.formatMessage({id: 'me.delete_account', defaultMessage: '注销账号'})}
                             </Text>
                         </TouchableOpacity>
                     </View>
