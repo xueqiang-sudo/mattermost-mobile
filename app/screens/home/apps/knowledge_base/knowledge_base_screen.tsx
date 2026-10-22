@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -26,6 +25,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {goToScreen, popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -564,7 +564,6 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [teamId, setTeamId] = useState('');
@@ -700,7 +699,11 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // View document detail (Navigation mode)
     const openDetail = useCallback((docId: string, title?: string) => {
-        navigation.navigate('KBDetail', {
+        const screenTitle = title || intl.formatMessage({
+            id: 'workbench.kb.detail_title',
+            defaultMessage: 'Document Detail',
+        });
+        goToScreen(Screens.KB_DETAIL, screenTitle, {
             docId,
             docTitle: title,
             onDocUpdated: () => {
@@ -712,11 +715,15 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 }
             },
         });
-    }, [navigation, searchQuery, performSearch, loadDocuments]);
+    }, [intl, searchQuery, performSearch, loadDocuments]);
 
     // Edit document (Navigation mode)
     const openEditScreen = useCallback((doc: KBDoc) => {
-        navigation.navigate('KBEdit', {
+        const title = intl.formatMessage({
+            id: 'workbench.kb.edit_title',
+            defaultMessage: 'Edit Document',
+        });
+        goToScreen(Screens.KB_EDIT, title, {
             doc,
             onDocUpdated: () => {
                 // Refresh list after returning from edit
@@ -727,11 +734,15 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 }
             },
         });
-    }, [navigation, searchQuery, performSearch, loadDocuments]);
+    }, [intl, searchQuery, performSearch, loadDocuments]);
 
     // Add document (Navigation mode)
     const openAddScreen = useCallback(() => {
-        navigation.navigate('KBAdd', {
+        const title = intl.formatMessage({
+            id: 'workbench.kb.add_title',
+            defaultMessage: 'Add Document',
+        });
+        goToScreen(Screens.KB_ADD, title, {
             teamId,
             onDocAdded: () => {
                 // Refresh list after returning from add
@@ -742,7 +753,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 }
             },
         });
-    }, [navigation, teamId, searchQuery, performSearch, loadDocuments]);
+    }, [intl, teamId, searchQuery, performSearch, loadDocuments]);
 
     // Ask AI
     const openAskModal = useCallback(() => {
@@ -879,7 +890,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
+                    <TouchableOpacity style={style.backBtn} onPress={() => popTopScreen()}>
                         <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                     </TouchableOpacity>
                     <Text style={style.headerTitle}>
@@ -899,7 +910,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
+                    <TouchableOpacity style={style.backBtn} onPress={() => popTopScreen()}>
                         <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                     </TouchableOpacity>
                     <Text style={style.headerTitle}>
@@ -960,7 +971,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             {/* Header */}
             <View style={style.header}>
-                <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
+                <TouchableOpacity style={style.backBtn} onPress={() => popTopScreen()}>
                     <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                 </TouchableOpacity>
                 <Text style={style.headerTitle}>

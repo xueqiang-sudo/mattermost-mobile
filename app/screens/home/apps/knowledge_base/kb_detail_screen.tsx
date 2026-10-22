@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -20,9 +19,12 @@ import Markdown from '@components/markdown';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 import {
     getKBDoc,
@@ -32,7 +34,8 @@ import {
     type KBDoc,
 } from '../workbench_api';
 
-type KBDetailScreenRouteParams = {
+type Props = {
+    componentId: AvailableScreens;
     docId: string;
     docTitle?: string;
     onDocUpdated?: () => void;
@@ -48,37 +51,15 @@ function formatDate(val: string): string {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-const KBDetailScreen = () => {
+const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute();
     const style = getStyleSheet(theme);
-
-    const {docId, docTitle, onDocUpdated} = (route.params as KBDetailScreenRouteParams) || {};
 
     const [loading, setLoading] = useState(true);
     const [doc, setDoc] = useState<KBDoc | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    // 设置导航栏
-    useEffect(() => {
-        navigation.setOptions({
-            title: docTitle || intl.formatMessage({
-                id: 'workbench.kb.detail_title',
-                defaultMessage: 'Document Detail',
-            }),
-            headerLeft: () => (
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={style.backButton}
-                >
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation, docTitle, intl, theme, style]);
 
     // 加载文档详情
     const loadDetail = useCallback(async () => {
@@ -149,7 +130,7 @@ const KBDetailScreen = () => {
                         try {
                             await deleteKBDoc(serverUrl, doc.docId);
                             onDocUpdated?.();
-                            navigation.goBack();
+                            popTopScreen();
                         } catch (err) {
                             Alert.alert(
                                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
@@ -160,7 +141,7 @@ const KBDetailScreen = () => {
                 },
             ],
         );
-    }, [doc, serverUrl, intl, navigation, onDocUpdated]);
+    }, [doc, serverUrl, intl, onDocUpdated]);
 
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>

@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -17,75 +16,30 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {AvailableScreens} from '@typings/screens/navigation';
+
 import {updateKBDoc, type KBDoc} from '../workbench_api';
 
-type KBEditScreenRouteParams = {
+type Props = {
+    componentId: AvailableScreens;
     doc: KBDoc;
     onDocUpdated?: () => void;
 };
 
-const KBEditScreen = () => {
+const KBEditScreen = ({doc, onDocUpdated}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute();
     const style = getStyleSheet(theme);
-
-    const {doc, onDocUpdated} = (route.params as KBEditScreenRouteParams) || {};
 
     const [title, setTitle] = useState(doc?.title || '');
     const [content, setContent] = useState(doc?.content || '');
     const [loading, setLoading] = useState(false);
-
-    // 设置导航栏
-    useEffect(() => {
-        navigation.setOptions({
-            title: intl.formatMessage({
-                id: 'workbench.kb.edit_title',
-                defaultMessage: 'Edit Document',
-            }),
-            headerLeft: () => (
-                <TouchableOpacity
-                    onPress={() => {
-                        if (loading) return;
-                        navigation.goBack();
-                    }}
-                    style={style.headerButton}
-                    disabled={loading}
-                >
-                    <CompassIcon name='close' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            ),
-            headerRight: () => (
-                <TouchableOpacity
-                    onPress={handleSave}
-                    style={style.headerButton}
-                    disabled={loading || !canSave()}
-                >
-                    {loading ? (
-                        <ActivityIndicator size='small' color={theme.buttonBg}/>
-                    ) : (
-                        <Text
-                            style={[
-                                style.saveButtonText,
-                                !canSave() && style.saveButtonTextDisabled,
-                            ]}
-                        >
-                            {intl.formatMessage({
-                                id: 'workbench.kb.save',
-                                defaultMessage: 'Save',
-                            })}
-                        </Text>
-                    )}
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation, intl, theme, style, loading, title, content]);
 
     // 检查是否可以保存
     const canSave = useCallback(() => {
@@ -128,7 +82,7 @@ const KBEditScreen = () => {
             onDocUpdated?.();
 
             // 返回上一页
-            navigation.goBack();
+            popTopScreen();
         } catch (err) {
             debugLog('[KBEdit] Save failed', {error: String(err)});
             Alert.alert(
@@ -141,7 +95,7 @@ const KBEditScreen = () => {
         } finally {
             setLoading(false);
         }
-    }, [loading, canSave, doc, serverUrl, title, content, onDocUpdated, navigation, intl]);
+    }, [loading, canSave, doc, serverUrl, title, content, onDocUpdated, intl]);
 
     if (!doc) {
         return (

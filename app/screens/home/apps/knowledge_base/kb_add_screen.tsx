@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -18,9 +17,12 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
+import type {AvailableScreens} from '@typings/screens/navigation';
 
 import {
     createKBDocText,
@@ -30,20 +32,17 @@ import {
 
 type AddDocType = 'text' | 'url' | 'file';
 
-type KBAddScreenRouteParams = {
+type Props = {
+    componentId: AvailableScreens;
     teamId: string;
     onDocAdded?: () => void;
 };
 
-const KBAddScreen = () => {
+const KBAddScreen = ({teamId, onDocAdded}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute();
     const style = getStyleSheet(theme);
-
-    const {teamId, onDocAdded} = (route.params as KBAddScreenRouteParams) || {};
 
     const [addType, setAddType] = useState<AddDocType>('text');
     const [title, setTitle] = useState('');
@@ -51,51 +50,6 @@ const KBAddScreen = () => {
     const [url, setUrl] = useState('');
     const [file, setFile] = useState<DocumentPickerResponse | null>(null);
     const [loading, setLoading] = useState(false);
-
-    // 设置导航栏
-    useEffect(() => {
-        navigation.setOptions({
-            title: intl.formatMessage({
-                id: 'workbench.kb.add_title',
-                defaultMessage: 'Add Document',
-            }),
-            headerLeft: () => (
-                <TouchableOpacity
-                    onPress={() => {
-                        if (loading) return;
-                        navigation.goBack();
-                    }}
-                    style={style.headerButton}
-                    disabled={loading}
-                >
-                    <CompassIcon name='close' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            ),
-            headerRight: () => (
-                <TouchableOpacity
-                    onPress={handleSave}
-                    style={style.headerButton}
-                    disabled={loading || !canSave()}
-                >
-                    {loading ? (
-                        <ActivityIndicator size='small' color={theme.buttonBg}/>
-                    ) : (
-                        <Text
-                            style={[
-                                style.saveButtonText,
-                                !canSave() && style.saveButtonTextDisabled,
-                            ]}
-                        >
-                            {intl.formatMessage({
-                                id: 'workbench.kb.save',
-                                defaultMessage: 'Save',
-                            })}
-                        </Text>
-                    )}
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation, intl, theme, style, loading, addType, title, content, url, file]);
 
     // 检查是否可以保存
     const canSave = useCallback(() => {
@@ -171,7 +125,7 @@ const KBAddScreen = () => {
             onDocAdded?.();
 
             // 返回上一页
-            navigation.goBack();
+            popTopScreen();
         } catch (err) {
             debugLog('[KBAdd] Save failed', {error: String(err)});
             Alert.alert(
@@ -184,7 +138,7 @@ const KBAddScreen = () => {
         } finally {
             setLoading(false);
         }
-    }, [loading, canSave, teamId, serverUrl, addType, title, content, url, file, onDocAdded, navigation, intl]);
+    }, [loading, canSave, teamId, serverUrl, addType, title, content, url, file, onDocAdded, intl]);
 
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
