@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -18,10 +17,12 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
+import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {goToScreen, popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -62,7 +63,6 @@ const NotebookScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     // Team
@@ -160,14 +160,18 @@ const NotebookScreen = () => {
         setRefreshing(false);
     }, [searchQuery, doSearch, loadNotes]);
 
-    // ---- Open detail (using navigation instead of Modal) ----
+    // ---- Open detail (using goToScreen) ----
     const openDetail = useCallback((item: NoteListItem) => {
         // 使用导航方式打开笔记详情，避免 iOS Modal 手势冲突
-        navigation.navigate('NoteDetail', {
+        const title = item.title || item.preview || intl.formatMessage({
+            id: 'workbench.notebook.detail_title',
+            defaultMessage: 'Note Detail',
+        });
+        goToScreen(Screens.NOTE_DETAIL, title, {
             noteId: item.noteId,
             noteTitle: item.title || item.preview || '',
         });
-    }, [navigation]);
+    }, [intl]);
 
     // ---- Delete note ----
     const onDeleteNote = useCallback((item: NoteListItem) => {
@@ -202,9 +206,13 @@ const NotebookScreen = () => {
         );
     }, [intl, serverUrl, teamId, scope, searchQuery, doSearch, loadNotes]);
 
-    // ---- Add note (using navigation) ----
+    // ---- Add note (using goToScreen) ----
     const onNavigateToAddNote = useCallback(() => {
-        navigation.navigate('NoteAdd', {
+        const title = intl.formatMessage({
+            id: 'workbench.notebook.add_title',
+            defaultMessage: 'New Note',
+        });
+        goToScreen(Screens.NOTE_ADD, title, {
             teamId,
             scope,
             onNoteAdded: () => {
@@ -216,7 +224,7 @@ const NotebookScreen = () => {
                 }
             },
         });
-    }, [navigation, teamId, scope, searchQuery, doSearch, loadNotes]);
+    }, [intl, teamId, scope, searchQuery, doSearch, loadNotes]);
 
     // ---- Toggle scope ----
     const toggleScope = useCallback(() => {
@@ -337,7 +345,7 @@ const NotebookScreen = () => {
             <View style={style.header}>
                 <TouchableOpacity
                     style={style.backBtn}
-                    onPress={() => navigation.goBack()}
+                    onPress={() => popTopScreen()}
                 >
                     <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
                 </TouchableOpacity>

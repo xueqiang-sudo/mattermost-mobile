@@ -1,11 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation, useRoute} from '@react-navigation/native';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
-    ActivityIndicator,
     Alert,
     Text,
     TextInput,
@@ -23,65 +21,23 @@ import {typography} from '@utils/typography';
 
 import {addNoteEntry} from '../workbench_api';
 
-type NoteAddScreenRouteParams = {
+import type {AvailableScreens} from '@typings/screens/navigation';
+
+type Props = {
+    componentId: AvailableScreens;
     teamId: string;
     scope: 'private' | 'public';
     onNoteAdded?: () => void;
 };
 
-const NoteAddScreen = () => {
+const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute();
     const style = getStyleSheet(theme);
-
-    const {teamId, scope} = (route.params as NoteAddScreenRouteParams) || {};
 
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // 设置导航栏标题和保存按钮
-    useEffect(() => {
-        navigation.setOptions({
-            title: intl.formatMessage({
-                id: 'workbench.notebook.add_title',
-                defaultMessage: 'New Note',
-            }),
-            headerLeft: () => (
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={style.backButton}
-                >
-                    <CompassIcon name='close' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            ),
-            headerRight: () => (
-                <TouchableOpacity
-                    onPress={handleSave}
-                    disabled={loading || !content.trim()}
-                    style={style.saveButton}
-                >
-                    {loading ? (
-                        <ActivityIndicator size='small' color={theme.buttonBg}/>
-                    ) : (
-                        <Text
-                            style={[
-                                style.saveButtonText,
-                                !content.trim() && style.saveButtonTextDisabled,
-                            ]}
-                        >
-                            {intl.formatMessage({
-                                id: 'workbench.notebook.save',
-                                defaultMessage: 'Save',
-                            })}
-                        </Text>
-                    )}
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation, intl, theme, style, loading, content]);
 
     // 保存笔记
     const handleSave = useCallback(async () => {

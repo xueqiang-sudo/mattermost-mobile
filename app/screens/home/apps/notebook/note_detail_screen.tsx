@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -22,42 +21,23 @@ import {typography} from '@utils/typography';
 
 import {getNoteEntry, type NoteDetail} from '../workbench_api';
 
-type NoteDetailScreenRouteParams = {
+import type {AvailableScreens} from '@typings/screens/navigation';
+
+type Props = {
+    componentId: AvailableScreens;
     noteId: string;
     noteTitle?: string;
 };
 
-const NoteDetailScreen = () => {
+const NoteDetailScreen = ({noteId, noteTitle}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute();
     const style = getStyleSheet(theme);
-
-    const {noteId, noteTitle} = (route.params as NoteDetailScreenRouteParams) || {};
 
     const [loading, setLoading] = useState(true);
     const [note, setNote] = useState<NoteDetail | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    // 设置导航栏标题
-    useEffect(() => {
-        navigation.setOptions({
-            title: noteTitle || intl.formatMessage({
-                id: 'workbench.notebook.detail_title',
-                defaultMessage: 'Note Detail',
-            }),
-            headerLeft: () => (
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={style.backButton}
-                >
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation, noteTitle, intl, theme, style]);
 
     // 加载笔记详情
     const loadNoteDetail = useCallback(async () => {
