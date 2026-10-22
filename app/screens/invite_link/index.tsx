@@ -28,7 +28,6 @@ import {getAutoClient} from '@managers/network_manager';
 import {prepareJPushAfterLogin} from '@init/launch';
 import {resetToHome, popTopScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
-import {debugLog} from '@store/debug_log';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -54,44 +53,32 @@ type Props = {
 function parseInviteFromUrl(input: string): {id: string; type: string; invited_by: string} | null {
     const trimmed = input.trim();
 
-    debugLog('[parseInviteFromUrl] Input', JSON.stringify({input, trimmed}));
-
     if (!trimmed) {
-        debugLog('[parseInviteFromUrl] Empty input, returning null');
         return null;
     }
 
     // Try using URL API first
     try {
         const urlStr = trimmed.startsWith('http') ? trimmed : `https://placeholder${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
-        debugLog('[parseInviteFromUrl] Parsing URL', JSON.stringify({urlStr}));
 
         const url = new URL(urlStr);
         const id = url.searchParams.get('id') || url.searchParams.get('invite_id') || url.searchParams.get('iid') || '';
         const type = url.searchParams.get('type') || '';
         const invited_by = url.searchParams.get('invited_by') || '';
 
-        debugLog('[parseInviteFromUrl] Extracted params', JSON.stringify({id, type, invited_by}));
-
         if (id || invited_by) {
-            debugLog('[parseInviteFromUrl] Returning valid result', JSON.stringify({id, type, invited_by}));
             return {id, type, invited_by};
         }
-
-        debugLog('[parseInviteFromUrl] No id or invited_by found via URL API');
     } catch (err) {
-        debugLog('[parseInviteFromUrl] URL parsing failed', JSON.stringify({error: String(err)}));
+        // URL parsing failed, try fallback
     }
 
     // Fallback: Manual parsing for iOS/Hermes compatibility
     try {
-        debugLog('[parseInviteFromUrl] Trying fallback manual parsing');
-
         // Extract query string manually
         const questionMarkIndex = trimmed.indexOf('?');
         if (questionMarkIndex !== -1) {
             const queryString = trimmed.substring(questionMarkIndex + 1);
-            debugLog('[parseInviteFromUrl] Query string', JSON.stringify({queryString}));
 
             // Parse query parameters manually
             const params: Record<string, string> = {};
@@ -109,26 +96,19 @@ function parseInviteFromUrl(input: string): {id: string; type: string; invited_b
             const type = params.type || '';
             const invited_by = params.invited_by || '';
 
-            debugLog('[parseInviteFromUrl] Manual parsing result', JSON.stringify({id, type, invited_by}));
-
             if (id || invited_by) {
-                debugLog('[parseInviteFromUrl] Returning manual parsing result');
                 return {id, type, invited_by};
             }
         }
-
-        debugLog('[parseInviteFromUrl] No query parameters found in fallback');
     } catch (err) {
-        debugLog('[parseInviteFromUrl] Manual parsing failed', JSON.stringify({error: String(err)}));
+        // Manual parsing failed
     }
 
     // Last resort: treat as raw ID
     if (/^[a-z0-9]+$/i.test(trimmed)) {
-        debugLog('[parseInviteFromUrl] Treating as raw ID', JSON.stringify({id: trimmed}));
         return {id: trimmed, type: '', invited_by: ''};
     }
 
-    debugLog('[parseInviteFromUrl] Returning null');
     return null;
 }
 
@@ -162,6 +142,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     inputContainer: {
         marginBottom: 16,
+    },
+    multilineInput: {
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 14,
+        color: theme.centerChannelColor,
+        minHeight: 100,
+        textAlignVertical: 'top',
     },
     errorText: {
         color: theme.errorTextColor,
@@ -213,50 +203,23 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
             .replace(/＃/g, '#')
             .trim();
 
-        debugLog('[InviteLink] Input changed (before cleaning)', JSON.stringify({
-            originalText: text,
-            originalLength: text.length,
-            cleanedText: cleaned,
-            cleanedLength: cleaned.length,
-            hasChanged: text !== cleaned,
-        }));
-
         setInputValue(cleaned);
         setShowError(false);
         const result = parseInviteFromUrl(cleaned);
-        debugLog('[InviteLink] Input changed (after cleaning)', JSON.stringify({
-            text: cleaned,
-            textLength: cleaned.length,
-            result,
-            isValid: result !== null && (result.id !== '' || result.invited_by !== ''),
-        }));
         setParsed(result);
     }, []);
 
     const handleConfirm = usePreventDoubleTap(useCallback(async () => {
         Keyboard.dismiss();
 
-        debugLog('[InviteLink] Confirm clicked', JSON.stringify({
-            inputValue,
-            inputValueLength: inputValue?.length,
-            parsed,
-        }));
-
         const result = parseInviteFromUrl(inputValue);
 
-        debugLog('[InviteLink] Parsing invite URL', JSON.stringify({
-            inputValue,
-            result,
-        }));
-
         if (!result) {
-            debugLog('[InviteLink] Parse result is null');
             setShowError(true);
             return;
         }
 
         if (!result.id && !result.invited_by) {
-            debugLog('[InviteLink] Both id and invited_by are empty', JSON.stringify(result));
             setShowError(true);
             return;
         }
@@ -269,12 +232,6 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                 inviteType: result.type,
                 invitedBy: result.invited_by,
             });
-
-            debugLog('[InviteLink] Stored invite info', JSON.stringify({
-                inviteId: result.id,
-                inviteType: result.type,
-                invitedBy: result.invited_by,
-            }));
 
             // Go back to login screen
             popTopScreen(componentId);
@@ -289,85 +246,6 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
         }
     }, [componentId, inputValue, intl]));
 
-    // Test function to quickly set a valid invite link
-    const handleTestInvite = useCallback(() => {
-        const testUrl = 'https://ai.optibot.cn:8065/invite?invited_by=npxp3ccyrbybieqhc535rgmxnw';
-        setInputValue(testUrl);
-        const result = parseInviteFromUrl(testUrl);
-        setParsed(result);
-        setShowError(false);
-        debugLog('[InviteLink] Test invite set', JSON.stringify({testUrl, result}));
-    }, []);
-
-    // Debug function to show detailed character analysis
-    const handleShowCharAnalysis = useCallback(() => {
-        if (!inputValue) {
-            Alert.alert('No input', 'Please paste an invite link first');
-            return;
-        }
-        
-        const charCodes = inputValue.split('').map((c, i) => {
-            const code = c.charCodeAt(0);
-            return `${i}: '${c}' (0x${code.toString(16).padStart(4, '0')}, ${code})`;
-        }).join('\n');
-        
-        Alert.alert(
-            'Character Analysis',
-            `Input length: ${inputValue.length}\n\n` + charCodes,
-            [{text: 'OK'}]
-        );
-    }, [inputValue]);
-
-    // Debug function to test parsing step by step
-    const handleTestParsing = useCallback(() => {
-        if (!inputValue) {
-            Alert.alert('No input', 'Please paste an invite link first');
-            return;
-        }
-
-        const steps: string[] = [];
-        const trimmed = inputValue.trim();
-        steps.push(`1. Input length: ${inputValue.length}`);
-        steps.push(`2. Trimmed length: ${trimmed.length}`);
-        steps.push(`3. Starts with http: ${trimmed.startsWith('http')}`);
-        steps.push(`4. Contains ?: ${trimmed.includes('?')}`);
-
-        // Try URL API
-        try {
-            const url = new URL(trimmed);
-            steps.push(`5. URL API: ✅ Success`);
-            steps.push(`6. URL href: ${url.href}`);
-            steps.push(`7. URL search: ${url.search}`);
-
-            const invited_by = url.searchParams.get('invited_by');
-            steps.push(`8. invited_by: ${invited_by || '(null)'}`);
-        } catch (err) {
-            steps.push(`5. URL API: ❌ Failed`);
-            steps.push(`   Error: ${String(err)}`);
-        }
-
-        // Try manual parsing
-        const qIndex = trimmed.indexOf('?');
-        steps.push(`9. Manual parsing:`);
-        steps.push(`   ? at index: ${qIndex}`);
-        if (qIndex !== -1) {
-            const query = trimmed.substring(qIndex + 1);
-            steps.push(`   Query: ${query}`);
-            const ibIndex = query.indexOf('invited_by=');
-            steps.push(`   invited_by= at: ${ibIndex}`);
-            if (ibIndex !== -1) {
-                const value = query.substring(ibIndex + 11).split('&')[0];
-                steps.push(`   Value: ${value}`);
-            }
-        }
-
-        Alert.alert(
-            '🔍 Parsing Test',
-            steps.join('\n'),
-            [{text: 'OK'}]
-        );
-    }, [inputValue]);
-
     const handleBack = useCallback(() => {
         popTopScreen(componentId);
     }, [componentId]);
@@ -381,75 +259,21 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
             testID='invite_link.screen'
         >
             <View style={styles.container}>
-                <View style={styles.icon}>
-                    <CompassIcon
-                        name='link-variant'
-                        size={24}
-                        color={theme.linkColor}
-                    />
-                </View>
-
-                <Text style={styles.hint}>
-                    {intl.formatMessage({id: 'invite_link.hint', defaultMessage: 'Paste the invite link you received from the inviter below'})}
-                </Text>
-
                 <View style={styles.inputContainer}>
-                    <FloatingTextInput
-                        rawInput={true}
-                        blurOnSubmit={false}
-                        autoComplete='off'
-                        disableFullscreenUI={true}
-                        enablesReturnKeyAutomatically={true}
-                        label={intl.formatMessage({id: 'invite_link.input_label', defaultMessage: 'Invite Link'})}
+                    <TextInput
+                        style={styles.multilineInput}
+                        placeholder={intl.formatMessage({id: 'invite_link.placeholder', defaultMessage: '请粘贴邀请链接...'})}
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
                         onChangeText={handleInputChange}
-                        returnKeyType='done'
-                        testID='invite_link.input'
-                        theme={theme}
                         value={inputValue}
+                        multiline={true}
+                        numberOfLines={4}
+                        textAlignVertical='top'
                         autoCapitalize='none'
                         autoCorrect={false}
+                        testID='invite_link.input'
                     />
                 </View>
-
-                {showError && (
-                    <View>
-                        <Text style={styles.errorText}>
-                            {intl.formatMessage({id: 'invite_link.parse_error', defaultMessage: 'Unable to recognize invite link, please check and try again'})}
-                        </Text>
-                        <Text style={{...styles.errorText, fontSize: 11, marginTop: 4, opacity: 0.8}}>
-                            {'Debug: length=' + inputValue.length + ', hasHttp=' + inputValue.includes('http') + ', parsed=' + (parsed ? 'yes' : 'null')}
-                        </Text>
-                        <Text style={{...styles.errorText, fontSize: 11, marginTop: 4, opacity: 0.8}}>
-                            {'请尝试点击下方的 "🧪 Test Invite Link" 按钮'}
-                        </Text>
-                    </View>
-                )}
-
-                {isValid && !showError && (
-                    <Text style={styles.successText}>
-                        {intl.formatMessage({id: 'invite_link.parse_success', defaultMessage: '✅ Invite recognized, tap confirm to continue'})}
-                    </Text>
-                )}
-
-                {/* Debug info visible on screen */}
-                {hasInput && (
-                    <View style={{marginTop: 12, padding: 8, backgroundColor: changeOpacity(theme.centerChannelColor, 0.05), borderRadius: 4}}>
-                        <Text style={{fontSize: 11, color: changeOpacity(theme.centerChannelColor, 0.6), fontFamily: 'monospace'}}>
-                            {'📊 Debug Info:\n'}
-                            {'Input length: ' + inputValue.length + '\n'}
-                            {'Parsed: ' + (parsed ? 'Yes ✅' : 'No ❌') + '\n'}
-                            {parsed ? ('  id: ' + (parsed.id || '(empty)') + '\n') : ''}
-                            {parsed ? ('  invited_by: ' + (parsed.invited_by || '(empty)') + '\n') : ''}
-                            {parsed ? ('  type: ' + (parsed.type || '(empty)') + '\n') : ''}
-                            {'Valid: ' + (isValid ? 'Yes ✅' : 'No ❌') + '\n'}
-                            {'---\n'}
-                            {'Contains "?": ' + inputValue.includes('?') + '\n'}
-                            {'Contains "invited_by": ' + inputValue.includes('invited_by') + '\n'}
-                            {'Contains "=": ' + inputValue.includes('=') + '\n'}
-                            {'First 20 chars: ' + inputValue.substring(0, 20).split('').map(c => c.charCodeAt(0).toString(16)).join(' ')}
-                        </Text>
-                    </View>
-                )}
 
                 <View style={styles.buttonContainer}>
                     <Button
@@ -457,41 +281,8 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                         onPress={handleConfirm}
                         size='lg'
                         testID='invite_link.confirm.button'
-                        text={intl.formatMessage({id: 'invite_link.confirm', defaultMessage: 'Confirm'})}
+                        text={intl.formatMessage({id: 'invite_link.confirm', defaultMessage: '确认'})}
                         showLoader={isLoading}
-                        theme={theme}
-                    />
-                </View>
-
-                {/* Test button for debugging */}
-                <View style={{marginTop: 16}}>
-                    <Button
-                        onPress={handleTestInvite}
-                        size='md'
-                        testID='invite_link.test.button'
-                        text={'🧪 Test Invite Link'}
-                        theme={theme}
-                    />
-                </View>
-
-                {/* Character analysis button */}
-                <View style={{marginTop: 8}}>
-                    <Button
-                        onPress={handleShowCharAnalysis}
-                        size='md'
-                        testID='invite_link.char_analysis.button'
-                        text={'🔍 Show Character Analysis'}
-                        theme={theme}
-                    />
-                </View>
-
-                {/* Parsing test button */}
-                <View style={{marginTop: 8}}>
-                    <Button
-                        onPress={handleTestParsing}
-                        size='md'
-                        testID='invite_link.parsing_test.button'
-                        text={'🧪 Test Parsing Steps'}
                         theme={theme}
                     />
                 </View>
