@@ -10,3 +10,4 @@ NSMicrophoneUsageDescription = "用于发送语音消息和进行语音或视频
 NSPhotoLibraryAddUsageDescription = "用于保存二维码图片和聊天中的照片到您的相册。";
 NSPhotoLibraryUsageDescription = "用于选择照片发送消息或上传头像。";
 NSSpeechRecognitionUsageDescription = "启用您的设备向 Apple 发送用户数据意味着您可以向Dedalix发送语音消息。";
+NSDeclaredAgeRangeDescription = "此应用适合 17 岁及以上用户使用。应用可能包含用户生成的内容，需要用户具备相应的判断能力。";

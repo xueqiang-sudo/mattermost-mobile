@@ -10,3 +10,4 @@ NSMicrophoneUsageDescription = "Enabling access to your device's microphones mea
 NSPhotoLibraryAddUsageDescription = "Enabling write access to your photo library means you can save downloaded photos and videos from Dedalix to your device.";
 NSPhotoLibraryUsageDescription = "Allowing access to your photo library enables you to select photos or videos and attach them to messages.";
 NSSpeechRecognitionUsageDescription = "Enabling your device to send user data to Apple means you can send voice messages to Dedalix.";
+NSDeclaredAgeRangeDescription = "This app is suitable for users aged 17 and above. The app may contain user-generated content and requires users to have appropriate judgment.";

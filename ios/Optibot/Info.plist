@@ -130,5 +130,12 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSDeclaredAgeRange</key>
+	<dict>
+		<key>NSDeclaredAgeRangeMinimumAge</key>
+		<integer>17</integer>
+	</dict>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
 </dict>
 </plist>
