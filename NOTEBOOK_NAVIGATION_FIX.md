@@ -1,4 +1,4 @@
-# 记事本导航修复
+# 记事本和知识库导航修复
 
 ## 🐛 问题描述
 
@@ -6,10 +6,11 @@
 1. 点击记事本列表项 → **无反应**
 2. 点击新增笔记按钮 → **无反应**
 3. 屏幕无法打开
+4. 知识库的文档详情、新增、编辑同样**无反应**
 
 ### 根本原因
 
-**Note 屏幕使用了错误的导航库！**
+**Note 和 KB 屏幕使用了错误的导航库！**
 
 #### 错误的实现
 
@@ -294,12 +295,34 @@ export function popTopScreen(componentId?: string) {
 
 ### 修改的文件
 
+#### Note 屏幕
+
 | 文件 | 新增 | 删除 | 说明 |
 |------|------|------|------|
 | `notebook_screen.tsx` | +15 | -20 | 改用 goToScreen |
 | `note_detail_screen.tsx` | +8 | -35 | 改用 Props |
 | `note_add_screen.tsx` | +5 | -29 | 改用 Props |
-| **总计** | **+28** | **-84** | **净减 56 行** |
+| **小计** | **+28** | **-84** | **净减 56 行** |
+
+#### KB 屏幕
+
+| 文件 | 新增 | 删除 | 说明 |
+|------|------|------|------|
+| `kb_detail_screen.tsx` | +10 | -40 | 改用 Props |
+| `kb_add_screen.tsx` | +8 | -50 | 改用 Props |
+| `kb_edit_screen.tsx` | +8 | -50 | 改用 Props |
+| `knowledge_base_screen.tsx` | +30 | -25 | 改用 goToScreen |
+| **小计** | **+56** | **-165** | **净减 109 行** |
+
+#### 文档
+
+| 文件 | 新增 | 删除 | 说明 |
+|------|------|------|------|
+| `NOTEBOOK_NAVIGATION_FIX.md` | +545 | 0 | 修复文档 |
+
+#### 总计
+
+| 总计 | **+629** | **-249** | **净增 380 行（含文档）** |
 
 ### 删除的代码
 
@@ -518,23 +541,41 @@ grep -n "NOTE_DETAIL\|NOTE_ADD" app/screens/index.tsx
 
 ### 完成的工作
 
+#### Note 屏幕
 1. ✅ 修复 NoteDetailScreen（改用 Props）
 2. ✅ 修复 NoteAddScreen（改用 Props）
 3. ✅ 修复 NotebookScreen（改用 goToScreen）
-4. ✅ 移除 @react-navigation/native
-5. ✅ 使用 react-native-navigation 的正确方式
+
+#### KB 屏幕
+4. ✅ 修复 KBDetailScreen（改用 Props）
+5. ✅ 修复 KBAddScreen（改用 Props）
+6. ✅ 修复 KBEditScreen（改用 Props）
+7. ✅ 修复 KnowledgeBaseScreen（改用 goToScreen）
+
+#### 共同修复
+8. ✅ 移除 @react-navigation/native
+9. ✅ 使用 react-native-navigation 的正确方式
 
 ### 修复效果
 
+#### Note 功能
 - ✅ 点击笔记列表项 → 正常打开详情
 - ✅ 点击"+"号 → 正常打开新增页面
 - ✅ 返回按钮 → 正常工作
 - ✅ iOS 手势 → 正常支持
 - ✅ 参数传递 → 正常工作
 
+#### KB 功能
+- ✅ 点击知识库文档 → 正常打开详情
+- ✅ 点击"+"号 → 正常打开新增页面
+- ✅ 点击编辑 → 正常打开编辑页面
+- ✅ 返回按钮 → 正常工作
+- ✅ iOS 手势 → 正常支持
+- ✅ 参数传递 → 正常工作
+
 ### 代码质量
 
-- ✅ 代码更简洁（净减 56 行）
+- ✅ 代码更简洁（净减 165 行，不含文档）
 - ✅ 类型安全（Props 明确定义）
 - ✅ 易维护（统一导航方式）
 - ✅ 无副作用（正确实现）
