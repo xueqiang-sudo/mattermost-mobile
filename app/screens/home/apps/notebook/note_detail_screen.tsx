@@ -27,9 +27,11 @@ type Props = {
     componentId: AvailableScreens;
     noteId: string;
     noteTitle?: string;
+    teamId: string;
+    scope: 'private' | 'public';
 };
 
-const NoteDetailScreen = ({noteId, noteTitle}: Props) => {
+const NoteDetailScreen = ({noteId, noteTitle, teamId, scope}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -52,7 +54,7 @@ const NoteDetailScreen = ({noteId, noteTitle}: Props) => {
             setError(null);
             debugLog('[NoteDetail] Loading note', {noteId, serverUrl});
 
-            const result = await getNoteEntry(serverUrl, noteId);
+            const result = await getNoteEntry(serverUrl, teamId, noteId, scope);
 
             if (result.error) {
                 throw result.error;
@@ -66,7 +68,7 @@ const NoteDetailScreen = ({noteId, noteTitle}: Props) => {
         } finally {
             setLoading(false);
         }
-    }, [noteId, serverUrl]);
+    }, [noteId, serverUrl, teamId, scope]);
 
     useEffect(() => {
         loadNoteDetail();

@@ -370,6 +370,12 @@ const PhoneLoginForm = ({
                 // 如果用户输入了昵称，更新用户信息
                 const updateResult = await apiClient.patchMe({nickname: inputNickname});
                 userNickname = updateResult.nickname || inputNickname;
+
+                // 同步更新 loginedUser 对象的昵称，确保后续创建团队时使用正确的昵称
+                if (loginedUser) {
+                    loginedUser.nickname = userNickname;
+                    debugLog('[Login] Updated loginedUser nickname:', userNickname);
+                }
             }
 
             // 5.3 调用 login 接口进行登录，注意需要传递 loginedUser 参数

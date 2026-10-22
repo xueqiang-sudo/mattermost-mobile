@@ -21,6 +21,7 @@ import {resetToDebug} from '@screens/navigation';
 
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {isSystemAdmin} from '@utils/user';
 
 import {type AppsStackParamList} from './apps_stack_param_list';
 import {APPS, getDashboardAccess, type AppDef, type DashboardAccess} from './api';
@@ -134,6 +135,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const conversationsEnabled = useMemo(() => dashboardAccess?.conversations_enabled === true, [dashboardAccess]);
     const teamMes = useMemo(() => dashboardAccess?.team_mes_enabled === true, [dashboardAccess]);
     const isTeamAdmin = useMemo(() => dashboardAccess?.is_admin === true, [dashboardAccess]);
+    const isSysAdmin = useMemo(() => isSystemAdmin(currentUser?.roles || ''), [currentUser]);
     const teamSidebarAdmin = useMemo(() => dashboardAccess?.sidebar_admin_enabled === true, [dashboardAccess]);
 
     const styles = getStyleSheet(theme);
@@ -189,9 +191,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             if (app.key === 'mes') {
                 return Boolean(dashboardAccess.mes_enabled) && teamMes;
             }
-            // Role Management: require isTeamAdmin AND team sidebar_admin_enabled (matches webapp)
+            // Role Management: visible to team admins OR system admins (no sidebar_admin_enabled check)
             if (app.key === 'role_management') {
-                return isTeamAdmin && teamSidebarAdmin;
+                return isTeamAdmin || isSysAdmin;
             }
             // Apps with noPermission are always visible
             if (app.noPermission) {
@@ -200,7 +202,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             // All other apps require explicit permission in tabs list
             return allowedTabs.has(app.key);
         });
-    }, [dashboardAccess, isErpTeam, conversationsEnabled, teamMes, isTeamAdmin, teamSidebarAdmin]);
+    }, [dashboardAccess, isErpTeam, conversationsEnabled, teamMes, isTeamAdmin, isSysAdmin]);
 
     const handleAppPress = useCallback((app: AppDef) => {
         switch (app.key) {

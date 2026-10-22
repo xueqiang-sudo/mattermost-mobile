@@ -170,8 +170,10 @@ const NotebookScreen = () => {
         goToScreen(Screens.NOTE_DETAIL, title, {
             noteId: item.noteId,
             noteTitle: item.title || item.preview || '',
+            teamId,
+            scope,
         });
-    }, [intl]);
+    }, [intl, teamId, scope]);
 
     // ---- Delete note ----
     const onDeleteNote = useCallback((item: NoteListItem) => {

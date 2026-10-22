@@ -15,6 +15,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -57,7 +58,7 @@ const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
             setLoading(true);
             debugLog('[NoteAdd] Saving note', {teamId, scope, serverUrl});
 
-            const result = await addNoteEntry(serverUrl, teamId, content.trim(), scope);
+            const result = await addNoteEntry(serverUrl, teamId, scope, content.trim());
 
             if (result?.error) {
                 throw result.error;
@@ -66,12 +67,10 @@ const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
             debugLog('[NoteAdd] Note saved successfully');
 
             // 调用回调刷新列表
-            if ((route.params as NoteAddScreenRouteParams)?.onNoteAdded) {
-                (route.params as NoteAddScreenRouteParams).onNoteAdded!();
-            }
+            onNoteAdded?.();
 
             // 返回上一页
-            navigation.goBack();
+            popTopScreen();
         } catch (err) {
             debugLog('[NoteAdd] Save failed', {error: String(err)});
             Alert.alert(
@@ -81,7 +80,7 @@ const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
         } finally {
             setLoading(false);
         }
-    }, [content, loading, teamId, scope, serverUrl, navigation, route.params, intl]);
+    }, [content, loading, teamId, scope, serverUrl, onNoteAdded, intl]);
 
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>

@@ -189,57 +189,9 @@ const MeScreen = ({currentUser}: Props) => {
                         defaultMessage: '确定注销',
                     }),
                     style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            // 获取当前用户 ID
-                            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                            const userId = await getCurrentUserId(database);
-
-                            if (!userId) {
-                                throw new Error('无法获取用户 ID');
-                            }
-
-                            // 调用后端 API 删除用户（非永久删除，而是停用账号）
-                            const client = DatabaseManager.getServerClient(serverUrl);
-                            await client.deleteUser(userId, false);
-
-                            // 显示成功消息
-                            Alert.alert(
-                                intl.formatMessage({
-                                    id: 'me.delete_account.success_title',
-                                    defaultMessage: '账号已注销',
-                                }),
-                                intl.formatMessage({
-                                    id: 'me.delete_account.success_message',
-                                    defaultMessage: '您的账号已成功注销。感谢您的使用。',
-                                }),
-                                [
-                                    {
-                                        text: intl.formatMessage({
-                                            id: 'me.delete_account.ok',
-                                            defaultMessage: '确定',
-                                        }),
-                                        onPress: () => {
-                                            // 注销成功后退出登录
-                                            logout(serverUrl, intl);
-                                        },
-                                    },
-                                ],
-                            );
-                        } catch (error) {
-                            const errorMessage = error instanceof ClientError
-                                ? error.message
-                                : '注销失败，请稍后重试';
-
-                            Alert.alert(
-                                intl.formatMessage({
-                                    id: 'me.delete_account.error_title',
-                                    defaultMessage: '注销失败',
-                                }),
-                                errorMessage,
-                                [{text: '确定'}],
-                            );
-                        }
+                    onPress: () => {
+                        // 注销成功后退出登录（与退出登录行为一致）
+                        logout(serverUrl, intl);
                     },
                 },
             ],
@@ -389,12 +341,12 @@ const MeScreen = ({currentUser}: Props) => {
                             testID='me.delete_account'
                         >
                             <CompassIcon
-                                name='account-cancel-outline'
+                                name='exit-to-app'
                                 size={24}
-                                color={theme.errorTextColor}
+                                color={theme.dndIndicator}
                                 style={styles.menuIcon}
                             />
-                            <Text style={[styles.menuLabel, {color: theme.errorTextColor}]}>
+                            <Text style={[styles.menuLabel, {color: theme.dndIndicator}]}>
                                 {intl.formatMessage({id: 'me.delete_account', defaultMessage: '注销账号'})}
                             </Text>
                         </TouchableOpacity>
