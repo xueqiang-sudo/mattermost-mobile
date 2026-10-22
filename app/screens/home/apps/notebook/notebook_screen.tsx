@@ -161,8 +161,6 @@ const NotebookScreen = () => {
         setRefreshing(false);
     }, [searchQuery, doSearch, loadNotes]);
 
-    const navigation = useNavigation();
-
     // ---- Open detail (using Stack navigation) ----
     const openDetail = useCallback((item: NoteListItem) => {
         const title = item.title || item.preview || intl.formatMessage({
