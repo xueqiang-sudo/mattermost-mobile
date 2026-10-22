@@ -10,7 +10,12 @@ import AppsScreen from './apps';
 import AppWebView from './app_webview';
 import CloudDriveScreen from './cloud_drive/cloud_drive_screen';
 import ConversationsScreen from './conversations/conversations_screen';
-// import KnowledgeBaseScreen from './knowledge_base/knowledge_base_screen';
+import ApprovalsScreen from './erp/approvals_screen';
+import FinanceScreen from './erp/finance_screen';
+import HotProductsScreen from './erp/hot_products_screen';
+import InventoryScreen from './erp/inventory_screen';
+import SalesScreen from './erp/sales_screen';
+import KnowledgeBaseScreen from './knowledge_base/knowledge_base_screen';
 import MesScreen from './mes/mes_screen';
 import NotebookScreen from './notebook/notebook_screen';
 import PriceListScreen from './price_list/price_list_screen';
@@ -50,12 +55,17 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.APPS_WEBVIEW} component={AppWebView}/>
                 <Stack.Screen name={Screens.APPS_CLOUD_DRIVE} component={CloudDriveScreen}/>
                 <Stack.Screen name={Screens.APPS_CONVERSATIONS} component={ConversationsScreen}/>
-                {/* <Stack.Screen name={Screens.APPS_KNOWLEDGE_BASE} component={KnowledgeBaseScreen}/> */}
+                <Stack.Screen name={Screens.APPS_KNOWLEDGE_BASE} component={KnowledgeBaseScreen}/>
                 <Stack.Screen name={Screens.APPS_MES} component={MesScreen}/>
                 <Stack.Screen name={Screens.APPS_NOTEBOOK} component={NotebookScreen}/>
                 <Stack.Screen name={Screens.APPS_PRICE_LIST} component={PriceListScreen}/>
                 <Stack.Screen name={Screens.APPS_PROMOTION} component={PromotionScreen}/>
                 <Stack.Screen name={Screens.APPS_ROLE_MANAGEMENT} component={RoleManagementScreen}/>
+                <Stack.Screen name={Screens.APPS_APPROVALS} component={ApprovalsScreen}/>
+                <Stack.Screen name={Screens.APPS_FINANCE} component={FinanceScreen}/>
+                <Stack.Screen name={Screens.APPS_HOT_PRODUCTS} component={HotProductsScreen}/>
+                <Stack.Screen name={Screens.APPS_INVENTORY} component={InventoryScreen}/>
+                <Stack.Screen name={Screens.APPS_SALES} component={SalesScreen}/>
             </Stack.Navigator>
         </AppsRnnHomeComponentIdContext.Provider>
     );

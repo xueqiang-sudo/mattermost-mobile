@@ -57,7 +57,7 @@ export const APPS: AppDef[] = [
     {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询', iconName: 'forum-outline', erpOnly: false, noPermission: false},
     {key: 'price_list', labelId: 'workbench.tab.price_list', defaultLabel: '价格表', iconName: 'file-excel-outline', erpOnly: false, noPermission: false},
     {key: 'cloud_drive', labelId: 'workbench.tab.cloud_drive', defaultLabel: '云盘', iconName: 'folder-outline', erpOnly: false, noPermission: false},
-    // {key: 'knowledge_base', labelId: 'workbench.tab.knowledge_base', defaultLabel: '知识库', iconName: 'book-outline', erpOnly: false, noPermission: false},
+    {key: 'knowledge_base', labelId: 'workbench.tab.knowledge_base', defaultLabel: '知识库', iconName: 'book-outline', erpOnly: false, noPermission: false},
     {key: 'notebook', labelId: 'workbench.tab.notebook', defaultLabel: '记事本', iconName: 'notebook-outline', erpOnly: false, noPermission: true},
     // MES & Promotion
     {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: 'MES', iconName: 'monitor', erpOnly: false, noPermission: false},
@@ -278,7 +278,7 @@ export async function getDashboardAccess(serverUrl: string, teamId?: string): Pr
         return {
             tabs: ['conversations', 'finance', 'sales', 'hotproducts', 'inventory',
                 'orders', 'projects', 'approvals', 'price_list', 'cloud_drive',
-                // 'knowledge_base',
+                'knowledge_base',
                 'notebook'],
             is_admin: false,
             configurable: false,
@@ -292,6 +292,450 @@ export async function getDashboardAccess(serverUrl: string, teamId?: string): Pr
             allowed_contact_types: ['internal'],
         };
     }
+}
+
+// ---- ERP Apps Types ----
+
+// Hot Products (热销榜)
+export type HotProduct = {
+    item_code: string;
+    item_name: string;
+    total_qty: number;
+    total_amount: number;
+    order_count: number;
+    last_order_date: string;
+    uom: string;
+};
+
+export type HotProductsData = {
+    products: HotProduct[];
+    total_qty: number;
+    total_money: number;
+    orders: number;
+    uom: string;
+};
+
+// Approvals (审批清单)
+export type Approval = {
+    doctype: string;
+    name: string;
+    workflow_state: string;
+    party: string;
+    grand_total: number;
+    date: string;
+};
+
+// Finance (流水账)
+export type CashJournalEntry = {
+    name: string;
+    posting_date: string;
+    direction: string;
+    party: string;
+    amount: number;
+    mode_of_payment: string;
+    account: string;
+};
+
+export type CashJournalGroup = {
+    date: string;
+    date_label: string;
+    entries: CashJournalEntry[];
+};
+
+export type CashJournalSummary = {
+    in_month: number;
+    out_month: number;
+    net_month: number;
+};
+
+export type CashJournalData = {
+    summary: CashJournalSummary;
+    groups: CashJournalGroup[];
+    total_entries: number;
+};
+
+// Sales (销售统计)
+export type SalesCustomer = {
+    customer: string;
+    customer_name: string;
+    order_count: number;
+    order_amount: number;
+    billed_amount: number;
+    paid_amount: number;
+    outstanding_amount: number;
+    last_order_date: string;
+};
+
+export type Salesperson = {
+    name: string;
+    display_name: string;
+    order_count: number;
+    order_amount: number;
+    billed_amount: number;
+    paid_amount: number;
+    outstanding_amount: number;
+    customers: SalesCustomer[];
+};
+
+export type SalesData = {
+    salespeople: Salesperson[];
+    totals: {
+        order_count: number;
+        order_amount: number;
+        billed_amount: number;
+        paid_amount: number;
+        outstanding_amount: number;
+    };
+};
+
+// Inventory (库存分析)
+export type InventoryWarehouseItem = {
+    item_code: string;
+    item_name: string;
+    qty: number;
+    stock_value: number;
+    turnover_days: number | null;
+    last_out_date: string;
+};
+
+export type InventoryWarehouse = {
+    warehouse: string;
+    stock_value: number;
+    item_count: number;
+    daily_out_value: number;
+    turnover_days: number | null;
+    dead_count: number;
+    dead_value: number;
+    low_stock_count: number;
+    items: InventoryWarehouseItem[];
+};
+
+export type InventoryAgingBucket = {
+    bucket: string;
+    value: number;
+    qty: number;
+};
+
+export type InventoryTrendPoint = {
+    month: string;
+    stock_value: number;
+    out_value: number;
+    turnover_days: number | null;
+};
+
+export type InventoryItem = {
+    item_code: string;
+    item_name: string;
+    qty: number;
+    stock_value: number;
+    turnover_days: number | null;
+    flag_slow_high_value: boolean;
+};
+
+export type DeadStockItem = {
+    item_code: string;
+    item_name: string;
+    warehouse: string;
+    qty: number;
+    stock_value: number;
+    days_since_out: number;
+    never_out: boolean;
+};
+
+export type LowStockItem = {
+    item_code: string;
+    item_name: string;
+    warehouse: string;
+    actual: number;
+    safety: number;
+    shortage: number;
+};
+
+export type InventoryData = {
+    as_of: string;
+    days: number;
+    summary: {
+        total_stock_value: number;
+        daily_out_value: number;
+        overall_turnover_days: number | null;
+        healthy_pct: number;
+        dead_count: number;
+        dead_value: number;
+        low_stock_count: number;
+    };
+    warehouses: InventoryWarehouse[];
+    aging: {
+        buckets: InventoryAgingBucket[];
+        healthy_pct: number;
+    };
+    trend: InventoryTrendPoint[];
+    items: InventoryItem[];
+    dead_stock: DeadStockItem[];
+    low_stock: LowStockItem[];
+};
+
+export type WarehouseItem = {
+    name: string;
+    warehouse_name: string;
+};
+
+// ---- ERP Apps API Functions ----
+
+const MCP_API_BASE = '/plugins/com.mattermost.frappe-sync/api/mcp/tools';
+
+async function mcpGet(client: any, toolName: string, params?: Record<string, string>): Promise<any> {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    const url = `${MCP_API_BASE}/${encodeURIComponent(toolName)}${query}`;
+    return client.doFetch(url, {method: 'get'});
+}
+
+async function mcpPost(client: any, toolName: string, body: Record<string, any>): Promise<any> {
+    const url = `${MCP_API_BASE}/${encodeURIComponent(toolName)}`;
+    return client.doFetch(url, {method: 'post', body});
+}
+
+export async function fetchHotProducts(serverUrl: string, teamId?: string, from?: string, to?: string): Promise<HotProductsData> {
+    const client = NetworkManager.getClient(serverUrl);
+    const params: Record<string, string> = {sort_by: 'qty'};
+    if (from && to) {
+        params.from = from;
+        params.to = to;
+    } else {
+        params.months = '1';
+    }
+    if (teamId) {params.team_id = teamId;}
+    const data = await mcpGet(client, 'hot_products', params);
+    return {
+        products: (data?.products || []).map((p: any) => ({
+            item_code: p.item_code || '',
+            item_name: p.item_name || p.item_code || '',
+            total_qty: p.total_qty || 0,
+            total_amount: p.total_amount || 0,
+            order_count: p.order_count || 0,
+            last_order_date: p.last_order_date || '',
+            uom: p.uom || '',
+        })),
+        total_qty: data?.total_qty || 0,
+        total_money: data?.total_amount || 0,
+        orders: data?.total_orders || 0,
+        uom: data?.uom || '',
+    };
+}
+
+export async function fetchApprovals(serverUrl: string, teamId?: string): Promise<Approval[]> {
+    const client = NetworkManager.getClient(serverUrl);
+    const params: Record<string, string> = {};
+    if (teamId) {params.team_id = teamId;}
+    const data = await mcpGet(client, 'pending_approvals', params);
+    return (data?.pending || data?.data || []).map((a: any) => ({
+        doctype: a.doctype || '',
+        name: a.name || '',
+        workflow_state: a.workflow_state || '',
+        party: a.party || '',
+        grand_total: a.grand_total || 0,
+        date: a.date || '',
+    }));
+}
+
+export async function postApprovalAction(serverUrl: string, doctype: string, name: string, action: 'Approve' | 'Reject', teamId?: string): Promise<boolean> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const body: Record<string, any> = {doctype, name, action};
+        if (teamId) {body.team_id = teamId;}
+        await mcpPost(client, 'approval_action', body);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function fetchCashJournal(serverUrl: string, teamId?: string, from?: string, to?: string, type?: string): Promise<CashJournalData> {
+    const client = NetworkManager.getClient(serverUrl);
+    const params: Record<string, string> = {};
+    if (from) {params.from = from;}
+    if (to) {params.to = to;}
+    if (type) {params.type = type;}
+    if (teamId) {params.team_id = teamId;}
+    const data = await mcpGet(client, 'finance', params);
+
+    const entries: CashJournalEntry[] = (data?.entries || data?.data || []).map((e: any) => ({
+        name: e.name || '',
+        posting_date: e.posting_date || '',
+        direction: e.direction || '',
+        party: e.party || '',
+        amount: e.amount || 0,
+        mode_of_payment: e.mode_of_payment || '',
+        account: e.account || '',
+    }));
+
+    const groupMap = new Map<string, CashJournalEntry[]>();
+    for (const entry of entries) {
+        const date = entry.posting_date;
+        if (!groupMap.has(date)) {
+            groupMap.set(date, []);
+        }
+        groupMap.get(date)!.push(entry);
+    }
+
+    const sortedDates = Array.from(groupMap.keys()).sort((a, b) => b.localeCompare(a));
+    const groups: CashJournalGroup[] = sortedDates.map((date) => {
+        const d = new Date(date + 'T00:00:00');
+        // Return date in standard format, let UI layer handle localization
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()}`;
+        return {date, date_label: dateLabel, entries: groupMap.get(date)!};
+    });
+
+    return {
+        summary: {
+            in_month: data?.summary?.in_month || 0,
+            out_month: data?.summary?.out_month || 0,
+            net_month: data?.summary?.net_month || 0,
+        },
+        groups,
+        total_entries: entries.length,
+    };
+}
+
+export async function fetchSales(serverUrl: string, teamId?: string, months?: string, from?: string, to?: string): Promise<SalesData> {
+    const client = NetworkManager.getClient(serverUrl);
+    const params: Record<string, string> = {};
+    if (from && to) {
+        params.from = from;
+        params.to = to;
+    } else {
+        params.months = months || '1';
+    }
+    if (teamId) {params.team_id = teamId;}
+    const data = await mcpGet(client, 'sales_ranking', params);
+    const salespeople = (data?.salespeople || []).map((s: any) => {
+        const billed = s.billed_amount || 0;
+        const paid = s.paid_amount || 0;
+        return {
+            name: s.name || '',
+            display_name: s.name || '',
+            order_count: s.order_count || 0,
+            order_amount: s.order_amount || 0,
+            billed_amount: billed,
+            paid_amount: paid,
+            outstanding_amount: billed - paid,
+            customers: (s.customers || []).map((c: any) => {
+                const cBilled = c.billed_amount || 0;
+                const cPaid = c.paid_amount || 0;
+                return {
+                    customer: c.customer || '',
+                    customer_name: c.customer_name || c.customer || '',
+                    order_count: c.order_count || 0,
+                    order_amount: c.order_amount || 0,
+                    billed_amount: cBilled,
+                    paid_amount: cPaid,
+                    outstanding_amount: cBilled - cPaid,
+                    last_order_date: c.last_order_date || '',
+                };
+            }),
+        };
+    });
+    return {
+        salespeople,
+        totals: {
+            order_count: data?.totals?.order_count || 0,
+            order_amount: data?.totals?.order_amount || 0,
+            billed_amount: data?.totals?.billed_amount || 0,
+            paid_amount: data?.totals?.paid_amount || 0,
+            outstanding_amount: (data?.totals?.billed_amount || 0) - (data?.totals?.paid_amount || 0),
+        },
+    };
+}
+
+export async function fetchInventory(serverUrl: string, teamId?: string, days?: string, deadDays?: string, agingDays?: string, warehouse?: string): Promise<InventoryData> {
+    const client = NetworkManager.getClient(serverUrl);
+    const params: Record<string, string> = {};
+    if (days) {params.days = days;}
+    if (deadDays) {params.dead_days = deadDays;}
+    if (agingDays) {params.aging_days = agingDays;}
+    if (warehouse) {params.warehouse = warehouse;}
+    if (teamId) {params.team_id = teamId;}
+    const data = await mcpGet(client, 'inventory', params);
+    return {
+        as_of: data?.as_of || '',
+        days: data?.days || 30,
+        summary: {
+            total_stock_value: data?.summary?.total_stock_value || 0,
+            daily_out_value: data?.summary?.daily_out_value || 0,
+            overall_turnover_days: data?.summary?.overall_turnover_days ?? null,
+            healthy_pct: data?.summary?.healthy_pct || 0,
+            dead_count: data?.summary?.dead_count || 0,
+            dead_value: data?.summary?.dead_value || 0,
+            low_stock_count: data?.summary?.low_stock_count || 0,
+        },
+        warehouses: (data?.warehouses || []).map((w: any) => ({
+            warehouse: w.warehouse || '',
+            stock_value: w.stock_value || 0,
+            item_count: w.item_count || 0,
+            daily_out_value: w.daily_out_value || 0,
+            turnover_days: w.turnover_days ?? null,
+            dead_count: w.dead_count || 0,
+            dead_value: w.dead_value || 0,
+            low_stock_count: w.low_stock_count || 0,
+            items: (w.items || []).map((i: any) => ({
+                item_code: i.item_code || '',
+                item_name: i.item_name || '',
+                qty: i.qty || 0,
+                stock_value: i.stock_value || 0,
+                turnover_days: i.turnover_days ?? null,
+                last_out_date: i.last_out_date || '',
+            })),
+        })),
+        aging: {
+            buckets: (data?.aging?.buckets || []).map((b: any) => ({
+                bucket: b.bucket || '',
+                value: b.value || 0,
+                qty: b.qty || 0,
+            })),
+            healthy_pct: data?.aging?.healthy_pct || 0,
+        },
+        trend: (data?.trend || []).map((t: any) => ({
+            month: t.month || '',
+            stock_value: t.stock_value || 0,
+            out_value: t.out_value || 0,
+            turnover_days: t.turnover_days ?? null,
+        })),
+        items: (data?.items || []).map((i: any) => ({
+            item_code: i.item_code || '',
+            item_name: i.item_name || '',
+            qty: i.qty || 0,
+            stock_value: i.stock_value || 0,
+            turnover_days: i.turnover_days ?? null,
+            flag_slow_high_value: i.flag_slow_high_value || false,
+        })),
+        dead_stock: (data?.dead_stock || []).map((d: any) => ({
+            item_code: d.item_code || '',
+            item_name: d.item_name || '',
+            warehouse: d.warehouse || '',
+            qty: d.qty || 0,
+            stock_value: d.stock_value || 0,
+            days_since_out: d.days_since_out || 0,
+            never_out: d.never_out || false,
+        })),
+        low_stock: (data?.low_stock || []).map((l: any) => ({
+            item_code: l.item_code || '',
+            item_name: l.item_name || '',
+            warehouse: l.warehouse || '',
+            actual: l.actual || 0,
+            safety: l.safety || 0,
+            shortage: l.shortage || 0,
+        })),
+    };
+}
+
+export async function fetchWarehouseList(serverUrl: string, teamId?: string): Promise<WarehouseItem[]> {
+    const client = NetworkManager.getClient(serverUrl);
+    const params: Record<string, string> = {};
+    if (teamId) {params.team_id = teamId;}
+    const data = await mcpGet(client, 'erpnext_warehouse_list', params);
+    return (data?.items || []).map((w: any) => ({
+        name: w.name || '',
+        warehouse_name: w.warehouse_name || w.name || '',
+    }));
 }
 
 // ---- Role Management Types ----

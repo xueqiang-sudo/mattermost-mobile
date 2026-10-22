@@ -107,6 +107,11 @@ export const APPS_CLOUD_DRIVE = 'AppsCloudDrive';
 export const APPS_KNOWLEDGE_BASE = 'AppsKnowledgeBase';
 export const APPS_NOTEBOOK = 'AppsNotebook';
 export const APPS_CONVERSATIONS = 'AppsConversations';
+export const APPS_HOT_PRODUCTS = 'AppsHotProducts';
+export const APPS_APPROVALS = 'AppsApprovals';
+export const APPS_FINANCE = 'AppsFinance';
+export const APPS_SALES = 'AppsSales';
+export const APPS_INVENTORY = 'AppsInventory';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -264,6 +269,11 @@ export default {
     APPS_KNOWLEDGE_BASE,
     APPS_NOTEBOOK,
     APPS_CONVERSATIONS,
+    APPS_HOT_PRODUCTS,
+    APPS_APPROVALS,
+    APPS_FINANCE,
+    APPS_SALES,
+    APPS_INVENTORY,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,

@@ -368,13 +368,30 @@ const PhoneLoginForm = ({
                 }
 
                 // 如果用户输入了昵称，更新用户信息
+                debugLog('[Login] Updating user nickname:', inputNickname);
                 const updateResult = await apiClient.patchMe({nickname: inputNickname});
+                debugLog('[Login] patchMe result:', JSON.stringify(updateResult));
                 userNickname = updateResult.nickname || inputNickname;
 
                 // 同步更新 loginedUser 对象的昵称，确保后续创建团队时使用正确的昵称
                 if (loginedUser) {
                     loginedUser.nickname = userNickname;
-                    debugLog('[Login] Updated loginedUser nickname:', userNickname);
+                    debugLog('[Login] Updated loginedUser nickname:', userNickname, 'user object:', JSON.stringify({
+                        id: loginedUser.id,
+                        username: loginedUser.username,
+                        nickname: loginedUser.nickname,
+                    }));
+                }
+
+                // 调用服务端 API 创建个人团队（使用最新的昵称）
+                try {
+                    debugLog('[Login] Creating personal team via server API');
+                    await apiClient.createPersonalTeam();
+                    debugLog('[Login] Personal team created successfully');
+                } catch (teamErr) {
+                    debugLog('[Login] Failed to create personal team:', getFullErrorMessage(teamErr));
+                    logError('[Login] Failed to create personal team', getFullErrorMessage(teamErr));
+                    // 继续登录流程，团队创建失败不是致命错误
                 }
             }
 

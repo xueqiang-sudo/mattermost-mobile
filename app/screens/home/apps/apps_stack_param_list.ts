@@ -17,4 +17,9 @@ export type AppsStackParamList = {
     [Screens.APPS_KNOWLEDGE_BASE]: undefined;
     [Screens.APPS_NOTEBOOK]: undefined;
     [Screens.APPS_CONVERSATIONS]: undefined;
+    [Screens.APPS_APPROVALS]: undefined;
+    [Screens.APPS_FINANCE]: undefined;
+    [Screens.APPS_HOT_PRODUCTS]: undefined;
+    [Screens.APPS_INVENTORY]: undefined;
+    [Screens.APPS_SALES]: undefined;
 };

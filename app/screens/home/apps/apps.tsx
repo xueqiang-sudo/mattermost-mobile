@@ -175,8 +175,8 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         const allowedTabs = new Set(dashboardAccess.tabs || []);
 
         return APPS.filter((app) => {
-            // Hide price_list and cloud_drive (user request)
-            if (app.key === 'price_list' || app.key === 'cloud_drive') {
+            // Hide price_list (user request)
+            if (app.key === 'price_list') {
                 return false;
             }
             // Non-ERP teams: hide erpOnly apps
@@ -221,14 +221,29 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             case 'cloud_drive':
                 navigation.navigate(Screens.APPS_CLOUD_DRIVE);
                 break;
-            // case 'knowledge_base':
-            //     navigation.navigate(Screens.APPS_KNOWLEDGE_BASE);
-            //     break;
+            case 'knowledge_base':
+                navigation.navigate(Screens.APPS_KNOWLEDGE_BASE);
+                break;
             case 'notebook':
                 navigation.navigate(Screens.APPS_NOTEBOOK);
                 break;
             case 'conversations':
                 navigation.navigate(Screens.APPS_CONVERSATIONS);
+                break;
+            case 'hotproducts':
+                navigation.navigate(Screens.APPS_HOT_PRODUCTS);
+                break;
+            case 'approvals':
+                navigation.navigate(Screens.APPS_APPROVALS);
+                break;
+            case 'finance':
+                navigation.navigate(Screens.APPS_FINANCE);
+                break;
+            case 'sales':
+                navigation.navigate(Screens.APPS_SALES);
+                break;
+            case 'inventory':
+                navigation.navigate(Screens.APPS_INVENTORY);
                 break;
             case 'debug':
                 resetToDebug();

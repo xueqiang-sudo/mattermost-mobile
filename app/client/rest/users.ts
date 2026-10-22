@@ -118,6 +118,15 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         );
     };
 
+    createPersonalTeam = () => {
+        return this.doFetch(
+            `${this.getUsersRoute()}/personal-team`,
+            {
+                method: 'post',
+            },
+        );
+    };
+
     createUser = async (user: UserProfile, token: string, inviteId: string) => {
         const queryParams: any = {};
 
