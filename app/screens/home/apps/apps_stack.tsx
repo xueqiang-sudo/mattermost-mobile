@@ -17,6 +17,8 @@ import InventoryScreen from './erp/inventory_screen';
 import SalesScreen from './erp/sales_screen';
 import KnowledgeBaseScreen from './knowledge_base/knowledge_base_screen';
 import MesScreen from './mes/mes_screen';
+import NoteAddScreen from './notebook/note_add_screen';
+import NoteDetailScreen from './notebook/note_detail_screen';
 import NotebookScreen from './notebook/notebook_screen';
 import PriceListScreen from './price_list/price_list_screen';
 import PromotionScreen from './promotion/promotion_screen';
@@ -58,6 +60,8 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.APPS_KNOWLEDGE_BASE} component={KnowledgeBaseScreen}/>
                 <Stack.Screen name={Screens.APPS_MES} component={MesScreen}/>
                 <Stack.Screen name={Screens.APPS_NOTEBOOK} component={NotebookScreen}/>
+                <Stack.Screen name={Screens.NOTE_DETAIL} component={NoteDetailScreen}/>
+                <Stack.Screen name={Screens.NOTE_ADD} component={NoteAddScreen}/>
                 <Stack.Screen name={Screens.APPS_PRICE_LIST} component={PriceListScreen}/>
                 <Stack.Screen name={Screens.APPS_PROMOTION} component={PromotionScreen}/>
                 <Stack.Screen name={Screens.APPS_ROLE_MANAGEMENT} component={RoleManagementScreen}/>

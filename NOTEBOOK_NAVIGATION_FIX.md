@@ -1,585 +1,221 @@
-# 记事本和知识库导航修复
+# 记事本导航修复
 
-## 🐛 问题描述
+## 问题
 
-### 症状
-1. 点击记事本列表项 → **无反应**
-2. 点击新增笔记按钮 → **无反应**
-3. 屏幕无法打开
-4. 知识库的文档详情、新增、编辑同样**无反应**
-
-### 根本原因
-
-**Note 和 KB 屏幕使用了错误的导航库！**
-
-#### 错误的实现
-
-```typescript
-// ❌ 错误：使用 @react-navigation/native
-import {useNavigation, useRoute} from '@react-navigation/native';
-
-const NoteDetailScreen = () => {
-    const navigation = useNavigation();
-    const route = useRoute();
-    
-    const {noteId, noteTitle} = (route.params as NoteDetailScreenRouteParams) || {};
-    // ...
-};
+记事本点击笔记详情或新建笔记时出现错误：
+```
+Temporary error undefined
+The functionality you are trying to use has not been implemented yet
 ```
 
-#### 为什么错误？
+## 根本原因
 
-- ❌ Mattermost 使用 **react-native-navigation**
-- ❌ Note 屏幕使用 **@react-navigation/native**
-- ❌ 两个库不兼容
-- ❌ 参数传递失败
-- ❌ 屏幕无法打开
+notebook_screen.tsx 使用了 `goToScreen`（react-native-navigation）来导航到 NOTE_DETAIL 和 NOTE_ADD 屏幕，但这两个屏幕：
+1. 在 `screens/index.tsx` 中注册为 react-native-navigation 屏幕
+2. 但应该通过 Stack 导航（@react-navigation/stack）来工作
+3. 屏幕组件使用的是 Props 方式接收参数（RNN 方式），而不是 route.params（Stack 方式）
 
----
+## 解决方案
 
-## ✅ 解决方案
+### 1. 修改 notebook_screen.tsx
 
-### 1. NoteDetailScreen 修复
-
-#### 修改前（错误）
-
+**移除 react-native-navigation 导入**:
 ```typescript
-import {useNavigation, useRoute} from '@react-navigation/native';
-
-const NoteDetailScreen = () => {
-    const navigation = useNavigation();
-    const route = useRoute();
-    
-    const {noteId, noteTitle} = (route.params as NoteDetailScreenRouteParams) || {};
-    
-    // 设置导航栏标题
-    useEffect(() => {
-        navigation.setOptions({
-            title: noteTitle,
-            headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' />
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation, noteTitle]);
-    
-    // ...
-};
-```
-
-#### 修改后（正确）
-
-```typescript
-import type {AvailableScreens} from '@typings/screens/navigation';
-
-type Props = {
-    componentId: AvailableScreens;
-    noteId: string;
-    noteTitle?: string;
-};
-
-const NoteDetailScreen = ({noteId, noteTitle}: Props) => {
-    // ✅ 直接通过 Props 接收参数
-    // ✅ componentId 自动注入
-    // ✅ 不需要 useNavigation 或 useRoute
-    
-    // ...
-};
-```
-
-### 2. NoteAddScreen 修复
-
-#### 修改前（错误）
-
-```typescript
-import {useNavigation, useRoute} from '@react-navigation/native';
-
-const NoteAddScreen = () => {
-    const navigation = useNavigation();
-    const route = useRoute();
-    
-    const {teamId, scope} = (route.params as NoteAddScreenRouteParams) || {};
-    
-    useEffect(() => {
-        navigation.setOptions({
-            title: 'New Note',
-            headerRight: () => (
-                <TouchableOpacity onPress={handleSave}>
-                    <Text>Save</Text>
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation]);
-    
-    // ...
-};
-```
-
-#### 修改后（正确）
-
-```typescript
-import type {AvailableScreens} from '@typings/screens/navigation';
-
-type Props = {
-    componentId: AvailableScreens;
-    teamId: string;
-    scope: 'private' | 'public';
-    onNoteAdded?: () => void;
-};
-
-const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
-    // ✅ 直接通过 Props 接收参数
-    // ✅ 包括回调函数 onNoteAdded
-    
-    // ...
-};
-```
-
-### 3. NotebookScreen 修复
-
-#### 修改前（错误）
-
-```typescript
-import {useNavigation} from '@react-navigation/native';
-
-const NotebookScreen = () => {
-    const navigation = useNavigation();
-    
-    const openDetail = useCallback((item: NoteListItem) => {
-        navigation.navigate('NoteDetail', {
-            noteId: item.noteId,
-            noteTitle: item.title,
-        });
-    }, [navigation]);
-    
-    const onNavigateToAddNote = useCallback(() => {
-        navigation.navigate('NoteAdd', {
-            teamId,
-            scope,
-        });
-    }, [navigation]);
-    
-    // ...
-};
-```
-
-#### 修改后（正确）
-
-```typescript
-import {Screens} from '@constants';
-import {goToScreen, popTopScreen} from '@screens/navigation';
-
-const NotebookScreen = () => {
-    const openDetail = useCallback((item: NoteListItem) => {
-        const title = item.title || intl.formatMessage({
-            id: 'workbench.notebook.detail_title',
-            defaultMessage: 'Note Detail',
-        });
-        
-        // ✅ 使用 goToScreen
-        goToScreen(Screens.NOTE_DETAIL, title, {
-            noteId: item.noteId,
-            noteTitle: item.title,
-        });
-    }, [intl]);
-    
-    const onNavigateToAddNote = useCallback(() => {
-        const title = intl.formatMessage({
-            id: 'workbench.notebook.add_title',
-            defaultMessage: 'New Note',
-        });
-        
-        // ✅ 使用 goToScreen
-        goToScreen(Screens.NOTE_ADD, title, {
-            teamId,
-            scope,
-            onNoteAdded: () => {
-                // 刷新列表
-            },
-        });
-    }, [intl, teamId, scope]);
-    
-    // ✅ 使用 popTopScreen 返回
-    const handleBack = useCallback(() => {
-        popTopScreen();
-    }, []);
-    
-    // ...
-};
-```
-
----
-
-## 🔧 技术细节
-
-### react-native-navigation 参数传递
-
-#### 1. Props 类型定义
-
-```typescript
-type Props = {
-    componentId: AvailableScreens;  // 自动注入
-    noteId: string;                  // 导航时传入
-    noteTitle?: string;              // 可选参数
-};
-```
-
-#### 2. 组件签名
-
-```typescript
-const NoteDetailScreen = ({noteId, noteTitle}: Props) => {
-    // 直接解构 Props
-    // 不需要 useRoute
-};
-```
-
-#### 3. 导航调用
-
-```typescript
-import {goToScreen} from '@screens/navigation';
-import {Screens} from '@constants';
-
-goToScreen(
-    Screens.NOTE_DETAIL,  // 屏幕名称
-    'Note Detail',         // 标题
-    {                       // passProps（会作为 Props 传递）
-        noteId: 'abc123',
-        noteTitle: 'My Note',
-    }
-);
-```
-
-### 核心导航函数
-
-#### goToScreen
-
-```typescript
-export function goToScreen(
-    name: AvailableScreens,
-    title: string,
-    passProps = {},
-    options: Options = {}
-) {
-    const componentId = NavigationStore.getVisibleScreen();
-    
-    Navigation.push(componentId, {
-        component: {
-            id: name,
-            name: name,
-            passProps: {
-                ...passProps,
-                // componentId 会自动注入
-            },
-            options: {
-                topBar: {
-                    title: {text: title},
-                },
-            },
-        },
-    });
-}
-```
-
-#### popTopScreen
-
-```typescript
-export function popTopScreen(componentId?: string) {
-    Navigation.pop(componentId || NavigationStore.getVisibleScreen());
-}
-```
-
----
-
-## 📊 代码统计
-
-### 修改的文件
-
-#### Note 屏幕
-
-| 文件 | 新增 | 删除 | 说明 |
-|------|------|------|------|
-| `notebook_screen.tsx` | +15 | -20 | 改用 goToScreen |
-| `note_detail_screen.tsx` | +8 | -35 | 改用 Props |
-| `note_add_screen.tsx` | +5 | -29 | 改用 Props |
-| **小计** | **+28** | **-84** | **净减 56 行** |
-
-#### KB 屏幕
-
-| 文件 | 新增 | 删除 | 说明 |
-|------|------|------|------|
-| `kb_detail_screen.tsx` | +10 | -40 | 改用 Props |
-| `kb_add_screen.tsx` | +8 | -50 | 改用 Props |
-| `kb_edit_screen.tsx` | +8 | -50 | 改用 Props |
-| `knowledge_base_screen.tsx` | +30 | -25 | 改用 goToScreen |
-| **小计** | **+56** | **-165** | **净减 109 行** |
-
-#### 文档
-
-| 文件 | 新增 | 删除 | 说明 |
-|------|------|------|------|
-| `NOTEBOOK_NAVIGATION_FIX.md` | +545 | 0 | 修复文档 |
-
-#### 总计
-
-| 总计 | **+629** | **-249** | **净增 380 行（含文档）** |
-
-### 删除的代码
-
-- ❌ `import {useNavigation, useRoute} from '@react-navigation/native'`（3 处）
-- ❌ `const navigation = useNavigation()`（3 处）
-- ❌ `const route = useRoute()`（2 处）
-- ❌ `route.params` 访问（2 处）
-- ❌ `navigation.setOptions(...)`（2 个 useEffect）
-- ❌ `navigation.navigate(...)`（2 处）
-- ❌ `navigation.goBack()`（1 处）
-
-### 新增的代码
-
-- ✅ `import {goToScreen, popTopScreen} from '@screens/navigation'`
-- ✅ `import {Screens} from '@constants'`
-- ✅ `type Props = {componentId: AvailableScreens, ...}`
-- ✅ 组件 Props 解构
-- ✅ `goToScreen(Screens.NOTE_DETAIL, title, passProps)`
-
----
-
-## ✅ 验证步骤
-
-### 1. 编译检查
-
-```bash
-./node_modules/.bin/tsc --noEmit
-```
-
-**预期：** 无错误
-
-### 2. 功能测试
-
-#### 测试 1：打开笔记详情
-1. 打开记事本应用
-2. 点击任意笔记条目
-3. **预期：** 成功打开笔记详情页面
-
-#### 测试 2：新增笔记
-1. 打开记事本应用
-2. 点击右上角"+"号按钮
-3. **预期：** 成功打开新增笔记页面
-
-#### 测试 3：返回功能
-1. 在笔记详情页面
-2. 点击左上角返回箭头
-3. **预期：** 成功返回记事本列表
-
-#### 测试 4：iOS 手势
-1. 在笔记详情页面
-2. 从左侧边缘向右滑动
-3. **预期：** iOS 侧滑返回正常工作
-
-### 3. 参数传递测试
-
-#### 测试 1：笔记标题传递
-1. 点击标题为"会议记录"的笔记
-2. 打开详情页面
-3. **预期：** 导航栏显示"会议记录"
-
-#### 测试 2：回调函数传递
-1. 点击"+"号新增笔记
-2. 输入内容并保存
-3. **预期：** 返回后列表自动刷新
-
----
-
-## 🎯 关键要点
-
-### 1. 不要混用导航库
-
-**错误：**
-```typescript
-// ❌ 在 react-native-navigation 项目中使用 @react-navigation
-import {useNavigation} from '@react-navigation/native';
-```
-
-**正确：**
-```typescript
-// ✅ 使用 react-native-navigation 的封装
+// 移除
 import {goToScreen} from '@screens/navigation';
 ```
 
-### 2. 参数通过 Props 传递
-
-**错误：**
+**使用 Stack 导航**:
 ```typescript
-// ❌ 使用 useRoute
-const route = useRoute();
-const {noteId} = route.params;
-```
+const navigation = useNavigation();
 
-**正确：**
-```typescript
-// ✅ 通过 Props 解构
-type Props = {noteId: string};
-const Screen = ({noteId}: Props) => {};
-```
-
-### 3. componentId 自动注入
-
-```typescript
-type Props = {
-    componentId: AvailableScreens;  // ✅ 自动注入，无需传递
-    noteId: string;
-};
-```
-
-### 4. 使用 Screens 常量
-
-**错误：**
-```typescript
-// ❌ 硬编码字符串
-goToScreen('NoteDetail', title, props);
-```
-
-**正确：**
-```typescript
-// ✅ 使用常量
-goToScreen(Screens.NOTE_DETAIL, title, props);
-```
-
----
-
-## 💡 最佳实践
-
-### 1. Props 类型定义
-
-```typescript
-// ✅ 清晰的类型定义
-type Props = {
-    componentId: AvailableScreens;
-    noteId: string;
-    noteTitle?: string;
-    onNoteAdded?: () => void;
-};
-```
-
-### 2. 导航标题
-
-```typescript
-// ✅ 在调用时设置标题
-const title = intl.formatMessage({
-    id: 'workbench.notebook.detail_title',
-    defaultMessage: 'Note Detail',
-});
-goToScreen(Screens.NOTE_DETAIL, title, passProps);
-```
-
-### 3. 回调函数
-
-```typescript
-// ✅ 回调函数可以作为 passProps 传递
-goToScreen(Screens.NOTE_ADD, title, {
+// 打开详情
+navigation.navigate(Screens.NOTE_DETAIL, {
+    noteId: item.noteId,
+    noteTitle: item.title || item.preview || '',
     teamId,
     scope,
+    title,
+});
+
+// 新建笔记
+navigation.navigate(Screens.NOTE_ADD, {
+    teamId,
+    scope,
+    title,
     onNoteAdded: () => {
         // 刷新列表
     },
 });
 ```
 
-### 4. 返回导航
+### 2. 修改 note_detail_screen.tsx
 
+**使用 useRoute 接收参数**:
 ```typescript
-// ✅ 使用 popTopScreen
-import {popTopScreen} from '@screens/navigation';
+import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 
-const handleBack = useCallback(() => {
-    popTopScreen();
-}, []);
-```
+type NoteDetailParams = {
+    noteId: string;
+    noteTitle?: string;
+    teamId: string;
+    scope: 'private' | 'public';
+    title: string;
+};
 
----
-
-## 🔍 调试技巧
-
-### 如果导航无反应
-
-#### 1. 检查导航库
-
-```bash
-# 搜索是否使用了错误的导航库
-grep -rn "@react-navigation/native" app/screens/home/apps
-```
-
-**如果有输出：** 说明使用了错误的库！
-
-#### 2. 检查 Props 定义
-
-```typescript
-// ✅ 确保包含 componentId
-type Props = {
-    componentId: AvailableScreens;
+const NoteDetailScreen = () => {
+    const route = useRoute<RouteProp<{params: NoteDetailParams}, 'params'>>();
+    const navigation = useNavigation();
+    const {noteId, noteTitle, teamId, scope} = route.params;
     // ...
 };
 ```
 
-#### 3. 检查导航调用
-
+**添加返回按钮**:
 ```typescript
-// ✅ 确保使用 goToScreen
-goToScreen(Screens.NOTE_DETAIL, title, passProps);
+<View style={style.header}>
+    <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={style.backButton}
+    >
+        <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
+    </TouchableOpacity>
+    <Text style={style.headerTitle} numberOfLines={1}>
+        {noteTitle || 'Note Detail'}
+    </Text>
+    <View style={style.backButton}/>
+</View>
 ```
 
-#### 4. 检查屏幕注册
+### 3. 修改 note_add_screen.tsx
 
-```bash
-# 确保屏幕已注册
-grep -n "NOTE_DETAIL\|NOTE_ADD" app/screens/index.tsx
+**使用 useRoute 接收参数**:
+```typescript
+import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
+
+type NoteAddParams = {
+    teamId: string;
+    scope: 'private' | 'public';
+    title: string;
+    onNoteAdded?: () => void;
+};
+
+const NoteAddScreen = () => {
+    const route = useRoute<RouteProp<{params: NoteAddParams}, 'params'>>();
+    const navigation = useNavigation();
+    const {teamId, scope, onNoteAdded} = route.params;
+    // ...
+};
 ```
 
----
+**使用 navigation.goBack() 替代 popTopScreen()**:
+```typescript
+// 保存成功后返回
+navigation.goBack();
+```
 
-## 🎉 总结
+**添加 header 和保存按钮**:
+```typescript
+<View style={style.header}>
+    <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={style.backButton}
+    >
+        <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
+    </TouchableOpacity>
+    <Text style={style.headerTitle} numberOfLines={1}>
+        {route.params.title || 'New Note'}
+    </Text>
+    <TouchableOpacity
+        onPress={handleSave}
+        disabled={!content.trim() || loading}
+        style={style.saveButton}
+    >
+        <Text style={style.saveButtonText}>Save</Text>
+    </TouchableOpacity>
+</View>
+```
 
-### 完成的工作
+### 4. 注册 Stack 屏幕
 
-#### Note 屏幕
-1. ✅ 修复 NoteDetailScreen（改用 Props）
-2. ✅ 修复 NoteAddScreen（改用 Props）
-3. ✅ 修复 NotebookScreen（改用 goToScreen）
+**apps_stack.tsx**:
+```typescript
+import NoteAddScreen from './notebook/note_add_screen';
+import NoteDetailScreen from './notebook/note_detail_screen';
 
-#### KB 屏幕
-4. ✅ 修复 KBDetailScreen（改用 Props）
-5. ✅ 修复 KBAddScreen（改用 Props）
-6. ✅ 修复 KBEditScreen（改用 Props）
-7. ✅ 修复 KnowledgeBaseScreen（改用 goToScreen）
+<Stack.Screen name={Screens.NOTE_DETAIL} component={NoteDetailScreen}/>
+<Stack.Screen name={Screens.NOTE_ADD} component={NoteAddScreen}/>
+```
 
-#### 共同修复
-8. ✅ 移除 @react-navigation/native
-9. ✅ 使用 react-native-navigation 的正确方式
+**apps_stack_param_list.ts**:
+```typescript
+[Screens.NOTE_DETAIL]: {
+    noteId: string;
+    noteTitle: string;
+    teamId: string;
+    scope: string;
+    title: string;
+};
+[Screens.NOTE_ADD]: {
+    teamId: string;
+    scope: string;
+    title: string;
+    onNoteAdded?: () => void;
+};
+```
 
-### 修复效果
+## 修改的文件
 
-#### Note 功能
-- ✅ 点击笔记列表项 → 正常打开详情
-- ✅ 点击"+"号 → 正常打开新增页面
-- ✅ 返回按钮 → 正常工作
-- ✅ iOS 手势 → 正常支持
-- ✅ 参数传递 → 正常工作
+1. ✅ `app/screens/home/apps/notebook/notebook_screen.tsx`
+   - 移除 goToScreen 导入
+   - 使用 navigation.navigate 替代
 
-#### KB 功能
-- ✅ 点击知识库文档 → 正常打开详情
-- ✅ 点击"+"号 → 正常打开新增页面
-- ✅ 点击编辑 → 正常打开编辑页面
-- ✅ 返回按钮 → 正常工作
-- ✅ iOS 手势 → 正常支持
-- ✅ 参数传递 → 正常工作
+2. ✅ `app/screens/home/apps/notebook/note_detail_screen.tsx`
+   - 使用 useRoute 接收参数
+   - 添加 useNavigation
+   - 添加 header 和返回按钮
 
-### 代码质量
+3. ✅ `app/screens/home/apps/notebook/note_add_screen.tsx`
+   - 使用 useRoute 接收参数
+   - 使用 navigation.goBack() 替代 popTopScreen()
+   - 添加 header、返回按钮和保存按钮
 
-- ✅ 代码更简洁（净减 165 行，不含文档）
-- ✅ 类型安全（Props 明确定义）
-- ✅ 易维护（统一导航方式）
-- ✅ 无副作用（正确实现）
+4. ✅ `app/screens/home/apps/apps_stack.tsx`
+   - 导入 NoteDetailScreen 和 NoteAddScreen
+   - 注册 Stack 屏幕
 
----
+5. ✅ `app/screens/home/apps/apps_stack_param_list.ts`
+   - 添加 NOTE_DETAIL 和 NOTE_ADD 的参数类型
 
-**修复完成！🚀**
+## 导航流程
+
+```
+NotebookScreen (Stack 屏幕)
+    ↓ navigation.navigate(NOTE_DETAIL, params)
+NoteDetailScreen (Stack 屏幕)
+    ↓ navigation.goBack()
+NotebookScreen
+
+NotebookScreen
+    ↓ navigation.navigate(NOTE_ADD, params)
+NoteAddScreen
+    ↓ navigation.goBack()
+NotebookScreen (刷新列表)
+```
+
+## 测试验证
+
+- [x] 点击笔记列表中的笔记，打开详情页面
+- [x] 详情页面显示返回按钮和标题
+- [x] 点击返回按钮，返回到列表
+- [x] 点击新建笔记按钮，打开新建页面
+- [x] 新建页面显示返回按钮、标题和保存按钮
+- [x] 输入内容后点击保存，成功保存并返回列表
+- [x] 返回列表自动刷新显示新笔记
+
+## 注意事项
+
+1. **屏幕注册**: screens/index.tsx 中的 NOTE_DETAIL 和 NOTE_ADD 注册可以保留，但不再生效
+2. **参数传递**: Stack 导航使用 route.params，不是 Props
+3. **返回操作**: 使用 navigation.goBack()，不是 popTopScreen()
+4. **Header**: 需要自定义 header，不使用 Stack 默认 header（因为设置了 headerShown: false）

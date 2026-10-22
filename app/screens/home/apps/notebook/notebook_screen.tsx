@@ -23,7 +23,6 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
-import {goToScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -162,20 +161,22 @@ const NotebookScreen = () => {
         setRefreshing(false);
     }, [searchQuery, doSearch, loadNotes]);
 
-    // ---- Open detail (using goToScreen) ----
+    const navigation = useNavigation();
+
+    // ---- Open detail (using Stack navigation) ----
     const openDetail = useCallback((item: NoteListItem) => {
-        // 使用导航方式打开笔记详情，避免 iOS Modal 手势冲突
         const title = item.title || item.preview || intl.formatMessage({
             id: 'workbench.notebook.detail_title',
             defaultMessage: 'Note Detail',
         });
-        goToScreen(Screens.NOTE_DETAIL, title, {
+        navigation.navigate(Screens.NOTE_DETAIL, {
             noteId: item.noteId,
             noteTitle: item.title || item.preview || '',
             teamId,
             scope,
+            title,
         });
-    }, [intl, teamId, scope]);
+    }, [intl, teamId, scope, navigation]);
 
     // ---- Delete note ----
     const onDeleteNote = useCallback((item: NoteListItem) => {
@@ -210,15 +211,16 @@ const NotebookScreen = () => {
         );
     }, [intl, serverUrl, teamId, scope, searchQuery, doSearch, loadNotes]);
 
-    // ---- Add note (using goToScreen) ----
+    // ---- Add note (using Stack navigation) ----
     const onNavigateToAddNote = useCallback(() => {
         const title = intl.formatMessage({
             id: 'workbench.notebook.add_title',
             defaultMessage: 'New Note',
         });
-        goToScreen(Screens.NOTE_ADD, title, {
+        navigation.navigate(Screens.NOTE_ADD, {
             teamId,
             scope,
+            title,
             onNoteAdded: () => {
                 // 添加成功后刷新列表
                 if (searchQuery.trim()) {
@@ -228,7 +230,7 @@ const NotebookScreen = () => {
                 }
             },
         });
-    }, [intl, teamId, scope, searchQuery, doSearch, loadNotes]);
+    }, [intl, teamId, scope, searchQuery, doSearch, loadNotes, navigation]);
 
     // ---- Toggle scope ----
     const toggleScope = useCallback(() => {

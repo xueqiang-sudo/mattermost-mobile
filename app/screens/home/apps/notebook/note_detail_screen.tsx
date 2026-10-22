@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -21,17 +22,18 @@ import {typography} from '@utils/typography';
 
 import {getNoteEntry, type NoteDetail} from '../workbench_api';
 
-import type {AvailableScreens} from '@typings/screens/navigation';
-
-type Props = {
-    componentId: AvailableScreens;
+type NoteDetailParams = {
     noteId: string;
     noteTitle?: string;
     teamId: string;
     scope: 'private' | 'public';
+    title: string;
 };
 
-const NoteDetailScreen = ({noteId, noteTitle, teamId, scope}: Props) => {
+const NoteDetailScreen = () => {
+    const route = useRoute<RouteProp<{params: NoteDetailParams}, 'params'>>();
+    const navigation = useNavigation();
+    const {noteId, noteTitle, teamId, scope} = route.params;
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -76,6 +78,21 @@ const NoteDetailScreen = ({noteId, noteTitle, teamId, scope}: Props) => {
 
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+            <View style={style.header}>
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={style.backButton}
+                >
+                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
+                </TouchableOpacity>
+                <Text style={style.headerTitle} numberOfLines={1}>
+                    {noteTitle || intl.formatMessage({
+                        id: 'workbench.notebook.detail_title',
+                        defaultMessage: 'Note Detail',
+                    })}
+                </Text>
+                <View style={style.backButton}/>
+            </View>
             <ScrollView
                 style={style.scrollView}
                 contentContainerStyle={style.scrollContent}
@@ -130,9 +147,26 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         backgroundColor: theme.centerChannelBg,
     },
-    backButton: {
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
         paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    backButton: {
+        paddingHorizontal: 8,
         paddingVertical: 8,
+    },
+    headerTitle: {
+        flex: 1,
+        fontSize: 18,
+        fontWeight: '600',
+        color: theme.sidebarText,
+        textAlign: 'center',
+        ...typography('Heading', 200, 'SemiBold'),
     },
     scrollView: {
         flex: 1,

@@ -16,6 +16,19 @@ export type AppsStackParamList = {
     [Screens.APPS_CLOUD_DRIVE]: undefined;
     [Screens.APPS_KNOWLEDGE_BASE]: undefined;
     [Screens.APPS_NOTEBOOK]: undefined;
+    [Screens.NOTE_DETAIL]: {
+        noteId: string;
+        noteTitle: string;
+        teamId: string;
+        scope: string;
+        title: string;
+    };
+    [Screens.NOTE_ADD]: {
+        teamId: string;
+        scope: string;
+        title: string;
+        onNoteAdded?: () => void;
+    };
     [Screens.APPS_CONVERSATIONS]: undefined;
     [Screens.APPS_APPROVALS]: undefined;
     [Screens.APPS_FINANCE]: undefined;

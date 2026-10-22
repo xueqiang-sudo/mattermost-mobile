@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -15,23 +16,23 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import {addNoteEntry} from '../workbench_api';
 
-import type {AvailableScreens} from '@typings/screens/navigation';
-
-type Props = {
-    componentId: AvailableScreens;
+type NoteAddParams = {
     teamId: string;
     scope: 'private' | 'public';
+    title: string;
     onNoteAdded?: () => void;
 };
 
-const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
+const NoteAddScreen = () => {
+    const route = useRoute<RouteProp<{params: NoteAddParams}, 'params'>>();
+    const navigation = useNavigation();
+    const {teamId, scope, onNoteAdded} = route.params;
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -70,7 +71,7 @@ const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
             onNoteAdded?.();
 
             // 返回上一页
-            popTopScreen();
+            navigation.goBack();
         } catch (err) {
             debugLog('[NoteAdd] Save failed', {error: String(err)});
             Alert.alert(
@@ -84,6 +85,35 @@ const NoteAddScreen = ({teamId, scope, onNoteAdded}: Props) => {
 
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+            <View style={style.header}>
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={style.backButton}
+                >
+                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
+                </TouchableOpacity>
+                <Text style={style.headerTitle} numberOfLines={1}>
+                    {route.params.title || intl.formatMessage({
+                        id: 'workbench.notebook.add_title',
+                        defaultMessage: 'New Note',
+                    })}
+                </Text>
+                <TouchableOpacity
+                    onPress={handleSave}
+                    disabled={!content.trim() || loading}
+                    style={style.saveButton}
+                >
+                    <Text style={[
+                        style.saveButtonText,
+                        (!content.trim() || loading) && style.saveButtonTextDisabled,
+                    ]}>
+                        {intl.formatMessage({
+                            id: 'workbench.notebook.save',
+                            defaultMessage: 'Save',
+                        })}
+                    </Text>
+                </TouchableOpacity>
+            </View>
             <View style={style.inputContainer}>
                 <TextInput
                     style={style.textInput}
@@ -110,12 +140,29 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         backgroundColor: theme.centerChannelBg,
     },
-    backButton: {
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
         paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    backButton: {
+        paddingHorizontal: 8,
         paddingVertical: 8,
     },
+    headerTitle: {
+        flex: 1,
+        fontSize: 18,
+        fontWeight: '600',
+        color: theme.sidebarText,
+        textAlign: 'center',
+        ...typography('Heading', 200, 'SemiBold'),
+    },
     saveButton: {
-        paddingHorizontal: 16,
+        paddingHorizontal: 8,
         paddingVertical: 8,
     },
     saveButtonText: {
