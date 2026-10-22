@@ -23,6 +23,9 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {formatFullName} from '@utils/display_name';
 import {useUserLocale} from '@context/user_locale';
+import {getCurrentUserId} from '@queries/servers/system';
+import DatabaseManager from '@database/manager';
+import {ClientError} from '@client/rest/error';
 
 import type UserModel from '@typings/database/models/servers/user';
 
@@ -162,7 +165,7 @@ const MeScreen = ({currentUser}: Props) => {
         alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
     }, [intl, serverDisplayName, serverUrl]));
 
-    const handleDeleteAccount = usePreventDoubleTap(useCallback(() => {
+    const handleDeleteAccount = usePreventDoubleTap(useCallback(async () => {
         Alert.alert(
             intl.formatMessage({
                 id: 'me.delete_account.title',
@@ -170,7 +173,7 @@ const MeScreen = ({currentUser}: Props) => {
             }),
             intl.formatMessage({
                 id: 'me.delete_account.message',
-                defaultMessage: '如需注销账号，请联系客服：\n\n邮箱：support@optibot.cn\n\n我们将在 72 小时内处理您的请求。注销后，您的所有数据将被永久删除且无法恢复。',
+                defaultMessage: '注销后，您的所有数据将被永久删除且无法恢复。确定要注销账号吗？',
             }),
             [
                 {
@@ -182,22 +185,66 @@ const MeScreen = ({currentUser}: Props) => {
                 },
                 {
                     text: intl.formatMessage({
-                        id: 'me.delete_account.contact',
-                        defaultMessage: '联系客服',
+                        id: 'me.delete_account.confirm',
+                        defaultMessage: '确定注销',
                     }),
-                    onPress: () => {
-                        // 可以打开邮件客户端或跳转到联系页面
-                        // 这里简单显示联系方式
-                        Alert.alert(
-                            '客服联系方式',
-                            '邮箱：support@optibot.cn\n\n请在邮件中说明您的账号信息和注销原因，我们将在 72 小时内处理。',
-                            [{text: '确定'}],
-                        );
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            // 获取当前用户 ID
+                            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                            const userId = await getCurrentUserId(database);
+
+                            if (!userId) {
+                                throw new Error('无法获取用户 ID');
+                            }
+
+                            // 调用后端 API 删除用户（非永久删除，而是停用账号）
+                            const client = DatabaseManager.getServerClient(serverUrl);
+                            await client.deleteUser(userId, false);
+
+                            // 显示成功消息
+                            Alert.alert(
+                                intl.formatMessage({
+                                    id: 'me.delete_account.success_title',
+                                    defaultMessage: '账号已注销',
+                                }),
+                                intl.formatMessage({
+                                    id: 'me.delete_account.success_message',
+                                    defaultMessage: '您的账号已成功注销。感谢您的使用。',
+                                }),
+                                [
+                                    {
+                                        text: intl.formatMessage({
+                                            id: 'me.delete_account.ok',
+                                            defaultMessage: '确定',
+                                        }),
+                                        onPress: () => {
+                                            // 注销成功后退出登录
+                                            logout(serverUrl, intl);
+                                        },
+                                    },
+                                ],
+                            );
+                        } catch (error) {
+                            const errorMessage = error instanceof ClientError
+                                ? error.message
+                                : '注销失败，请稍后重试';
+
+                            Alert.alert(
+                                intl.formatMessage({
+                                    id: 'me.delete_account.error_title',
+                                    defaultMessage: '注销失败',
+                                }),
+                                errorMessage,
+                                [{text: '确定'}],
+                            );
+                        }
                     },
                 },
             ],
         );
-    }, [intl]));
+    }, [intl, serverUrl]));
 
     return (
         <Freeze freeze={!isFocused}>
@@ -342,7 +389,7 @@ const MeScreen = ({currentUser}: Props) => {
                             testID='me.delete_account'
                         >
                             <CompassIcon
-                                name='delete'
+                                name='account-cancel-outline'
                                 size={24}
                                 color={theme.errorTextColor}
                                 style={styles.menuIcon}

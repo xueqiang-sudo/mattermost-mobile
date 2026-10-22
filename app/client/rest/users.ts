@@ -17,6 +17,7 @@ export interface ClientUsersMix {
     patchMe: (userPatch: Partial<UserProfile>, groupLabel?: RequestGroupLabel) => Promise<UserProfile>;
     patchUser: (userPatch: Partial<UserProfile> & {id: string}) => Promise<UserProfile>;
     updateUser: (user: UserProfile) => Promise<UserProfile>;
+    deleteUser: (userId: string, permanent?: boolean) => Promise<any>;
     demoteUserToGuest: (userId: string) => Promise<any>;
     getKnownUsers: () => Promise<string[]>;
     sendPasswordResetEmail: (email: string) => Promise<any>;
@@ -152,6 +153,13 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         return this.doFetch(
             `${this.getUserRoute(user.id)}`,
             {method: 'put', body: user},
+        );
+    };
+
+    deleteUser = async (userId: string, permanent = false) => {
+        return this.doFetch(
+            `${this.getUserRoute(userId)}${buildQueryString({permanent})}`,
+            {method: 'delete'},
         );
     };
 
