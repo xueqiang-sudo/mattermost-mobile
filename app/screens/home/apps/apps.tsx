@@ -187,6 +187,10 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             if (app.key === 'conversations' && !conversationsEnabled) {
                 return false;
             }
+            // stock_in/stock_out check warehouse_inout permission
+            if (app.key === 'stock_in' || app.key === 'stock_out') {
+                return allowedTabs.has('warehouse_inout');
+            }
             // MES: require both API-level mes_enabled AND team-level mes_enabled (matches webapp)
             if (app.key === 'mes') {
                 return Boolean(dashboardAccess.mes_enabled) && teamMes;
@@ -244,6 +248,12 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 break;
             case 'inventory':
                 navigation.navigate(Screens.APPS_INVENTORY);
+                break;
+            case 'stock_in':
+                navigation.navigate(Screens.APPS_WAREHOUSE_INOUT, {initialScanType: 'stock_in'});
+                break;
+            case 'stock_out':
+                navigation.navigate(Screens.APPS_WAREHOUSE_INOUT, {initialScanType: 'stock_out'});
                 break;
             case 'debug':
                 resetToDebug();

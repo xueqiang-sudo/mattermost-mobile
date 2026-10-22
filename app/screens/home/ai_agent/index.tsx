@@ -359,8 +359,9 @@ const AppsScreen = () => {
             };
 
             const client = NetworkManager.getClient(serverUrl);
+            // Use new Pick List API (via frappe-sync plugin → MCP)
             const result = await client.doFetch(
-                '/plugins/com.mattermost.frappe-sync/api/stock-entry',
+                '/plugins/com.mattermost.frappe-sync/api/pick-list',
                 {method: 'POST', body},
             );
 
@@ -370,7 +371,7 @@ const AppsScreen = () => {
             }
 
             if (result?.status === 'success') {
-                setEntryId(result.stock_entry_id || '');
+                setEntryId(result.pick_list_id || result.stock_entry_id || '');
                 if (result.received_count) {
                     setEntryDetail(`+${result.received_count} ${result.receipt_status || ''}`);
                 } else if (result.dispatch_count) {

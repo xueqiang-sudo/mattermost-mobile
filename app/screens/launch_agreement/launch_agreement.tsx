@@ -26,8 +26,8 @@ type Props = {
     componentId: AvailableScreens;
 }
 
-const TERMS_URL = 'https://pipeline.optibot.cn/terms.html';
-const PRIVACY_URL = 'https://pipeline.optibot.cn/privacy.html';
+const TERMS_URL = 'https://pipeline.optibot.cn/terms';
+const PRIVACY_URL = 'https://pipeline.optibot.cn/privacy';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     return {

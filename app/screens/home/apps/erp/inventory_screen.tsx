@@ -663,15 +663,15 @@ const InventoryScreen = () => {
                     </TouchableOpacity>
                 )}
                 <TouchableOpacity style={styles.filterButton} onPress={cycleDays}>
-                    <Text style={styles.filterText}>{intl.formatMessage({id: 'workbench.inventory.turnover_days', defaultMessage: '周转 {days}天'}, {days})}</Text></Text>
+                    <Text style={styles.filterText}>{intl.formatMessage({id: 'workbench.inventory.turnover_days', defaultMessage: '周转 {days}天'}, {days})}</Text>
                 </TouchableOpacity>
                 {activeTab !== 'turnover' && (
                     <>
                         <TouchableOpacity style={styles.filterButton} onPress={cycleDeadDays}>
-                            <Text style={styles.filterText}>{intl.formatMessage({id: 'workbench.inventory.dead_days', defaultMessage: '呆滞 ≥{days}天'}, {days: deadDays})}</Text></Text>
+                            <Text style={styles.filterText}>{intl.formatMessage({id: 'workbench.inventory.dead_days', defaultMessage: '呆滞 ≥{days}天'}, {days: deadDays})}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.filterButton} onPress={cycleAgingDays}>
-                            <Text style={styles.filterText}>{intl.formatMessage({id: 'workbench.inventory.aging_days', defaultMessage: '库龄 >{days}天'}, {days: agingDays})}</Text></Text>
+                            <Text style={styles.filterText}>{intl.formatMessage({id: 'workbench.inventory.aging_days', defaultMessage: '库龄 >{days}天'}, {days: agingDays})}</Text>
                         </TouchableOpacity>
                     </>
                 )}

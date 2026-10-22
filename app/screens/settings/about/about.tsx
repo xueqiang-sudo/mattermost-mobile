@@ -30,8 +30,8 @@ const SECTION_GAP = 24;
 const CARD_RADIUS = 12;
 const LOGO_SIZE = 80;
 
-const TERMS_URL = 'https://pipeline.optibot.cn/terms.html';
-const PRIVACY_URL = 'https://pipeline.optibot.cn/privacy.html';
+const TERMS_URL = 'https://pipeline.optibot.cn/terms';
+const PRIVACY_URL = 'https://pipeline.optibot.cn/privacy';
 
 const appIcon = require('@assets/images/icon.png');
 

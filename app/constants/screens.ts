@@ -112,6 +112,7 @@ export const APPS_APPROVALS = 'AppsApprovals';
 export const APPS_FINANCE = 'AppsFinance';
 export const APPS_SALES = 'AppsSales';
 export const APPS_INVENTORY = 'AppsInventory';
+export const APPS_WAREHOUSE_INOUT = 'AppsWarehouseInout';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -274,6 +275,7 @@ export default {
     APPS_FINANCE,
     APPS_SALES,
     APPS_INVENTORY,
+    APPS_WAREHOUSE_INOUT,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,

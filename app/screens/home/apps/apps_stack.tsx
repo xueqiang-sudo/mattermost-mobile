@@ -15,6 +15,7 @@ import FinanceScreen from './erp/finance_screen';
 import HotProductsScreen from './erp/hot_products_screen';
 import InventoryScreen from './erp/inventory_screen';
 import SalesScreen from './erp/sales_screen';
+import WarehouseInoutScreen from './erp/warehouse_inout_screen';
 import KnowledgeBaseScreen from './knowledge_base/knowledge_base_screen';
 import MesScreen from './mes/mes_screen';
 import NoteAddScreen from './notebook/note_add_screen';
@@ -70,6 +71,7 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.APPS_HOT_PRODUCTS} component={HotProductsScreen}/>
                 <Stack.Screen name={Screens.APPS_INVENTORY} component={InventoryScreen}/>
                 <Stack.Screen name={Screens.APPS_SALES} component={SalesScreen}/>
+                <Stack.Screen name={Screens.APPS_WAREHOUSE_INOUT} component={WarehouseInoutScreen}/>
             </Stack.Navigator>
         </AppsRnnHomeComponentIdContext.Provider>
     );

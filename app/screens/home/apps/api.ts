@@ -53,6 +53,8 @@ export const APPS: AppDef[] = [
     {key: 'finance', labelId: 'workbench.tab.finance', defaultLabel: '流水账', iconName: 'credit-card-outline', erpOnly: true, noPermission: false},
     {key: 'sales', labelId: 'workbench.tab.sales', defaultLabel: '销售统计', iconName: 'chart-line', erpOnly: true, noPermission: false},
     {key: 'inventory', labelId: 'workbench.tab.inventory', defaultLabel: '库存分析', iconName: 'archive-outline', erpOnly: true, noPermission: false},
+    {key: 'stock_out', labelId: 'warehouse_inout.outbound', defaultLabel: '出库', iconName: 'export-variant', erpOnly: true, noPermission: false},
+    {key: 'stock_in', labelId: 'warehouse_inout.inbound', defaultLabel: '入库', iconName: 'import', erpOnly: true, noPermission: false},
     // Common apps
     {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询', iconName: 'forum-outline', erpOnly: false, noPermission: false},
     {key: 'price_list', labelId: 'workbench.tab.price_list', defaultLabel: '价格表', iconName: 'file-excel-outline', erpOnly: false, noPermission: false},
@@ -849,4 +851,85 @@ export async function saveRolePermission(
             flags: flags || {},
         },
     });
+}
+
+// ---- Pick List (出入库) ----
+
+export type PickListItem = {
+    item_code: string;
+    item_name?: string;
+    qty: number;
+    stock_qty?: number;
+    warehouse: string;
+    sales_order?: string;
+};
+
+export type PickList = {
+    name: string;
+    purpose: string;
+    customer?: string;
+    customer_name?: string;
+    company: string;
+    status: string;
+    creation: string;
+    parent_warehouse?: string;
+    locations?: PickListItem[];
+};
+
+export async function fetchPickLists(
+    serverUrl: string,
+    purpose?: string,
+    company?: string,
+    teamId?: string,
+): Promise<PickList[]> {
+    const client = NetworkManager.getClient(serverUrl);
+    const params: Record<string, string> = {limit: '50'};
+    if (purpose) {params.purpose = purpose;}
+    if (company) {params.company = company;}
+    if (teamId) {params.team_id = teamId;}
+    const data = await mcpGet(client, 'erpnext_pick_list_list', params);
+    return (data?.data || []).map((d: any) => ({
+        name: d.name || '',
+        purpose: d.purpose || '',
+        customer: d.customer || '',
+        customer_name: d.customer_name || '',
+        company: d.company || '',
+        status: d.status || '',
+        creation: d.creation || '',
+        parent_warehouse: d.parent_warehouse || '',
+    }));
+}
+
+export async function createPickList(
+    serverUrl: string,
+    company: string,
+    purpose: string,
+    locations: PickListItem[],
+    customer?: string,
+    teamId?: string,
+): Promise<PickList> {
+    const client = NetworkManager.getClient(serverUrl);
+    const body: Record<string, any> = {
+        company,
+        purpose,
+        locations: locations.map((l) => ({
+            item_code: l.item_code,
+            qty: l.qty,
+            stock_qty: l.stock_qty || l.qty,
+            warehouse: l.warehouse,
+            ...(l.sales_order ? {sales_order: l.sales_order} : {}),
+        })),
+    };
+    if (customer) {body.customer = customer;}
+    if (teamId) {body.team_id = teamId;}
+    const data = await mcpPost(client, 'erpnext_pick_list_create', body);
+    const doc = data?.data || {};
+    return {
+        name: doc.name || '',
+        purpose: doc.purpose || purpose,
+        company: doc.company || company,
+        status: doc.status || 'Draft',
+        creation: doc.creation || '',
+        customer: doc.customer || customer || '',
+    };
 }

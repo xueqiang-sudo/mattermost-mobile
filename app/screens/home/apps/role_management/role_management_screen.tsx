@@ -57,6 +57,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
     {key: 'finance', labelId: 'workbench.tab.finance', defaultLabel: '流水账', erpOnly: true},
     {key: 'sales', labelId: 'workbench.tab.sales', defaultLabel: '销售统计', erpOnly: true},
     {key: 'inventory', labelId: 'workbench.tab.inventory', defaultLabel: '库存分析', erpOnly: true},
+    {key: 'warehouse_inout', labelId: 'workbench.tab.warehouse_inout', defaultLabel: '出入库', erpOnly: true},
     {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询'},
     {key: 'price_list', labelId: 'workbench.tab.price_list', defaultLabel: '价格表'},
     {key: 'mes_enabled', labelId: 'workbench.flag.mes_enabled', defaultLabel: '启动MES功能', isFlag: true},
