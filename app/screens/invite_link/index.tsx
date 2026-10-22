@@ -160,11 +160,17 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleInputChange = useCallback((text: string) => {
-        // Clean the input: remove invisible characters and normalize whitespace
+        // Clean the input: remove invisible characters and normalize whitespace and full-width chars
         const cleaned = text
-            .replace(/[​-‍﻿]/g, '')  // Remove zero-width characters
+            .replace(/[​‌‍﻿]/g, '')  // Remove zero-width characters
             .replace(/ /g, ' ')                 // Replace non-breaking spaces
             .replace(/\s+/g, ' ')                    // Normalize whitespace
+            .replace(/：/g, ':')
+            .replace(/／/g, '/')
+            .replace(/？/g, '?')
+            .replace(/＝/g, '=')
+            .replace(/＆/g, '&')
+            .replace(/＃/g, '#')
             .trim();
 
         debugLog('[InviteLink] Input changed (before cleaning)', JSON.stringify({
@@ -253,6 +259,25 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
         debugLog('[InviteLink] Test invite set', JSON.stringify({testUrl, result}));
     }, []);
 
+    // Debug function to show detailed character analysis
+    const handleShowCharAnalysis = useCallback(() => {
+        if (!inputValue) {
+            Alert.alert('No input', 'Please paste an invite link first');
+            return;
+        }
+        
+        const charCodes = inputValue.split('').map((c, i) => {
+            const code = c.charCodeAt(0);
+            return `${i}: '${c}' (0x${code.toString(16).padStart(4, '0')}, ${code})`;
+        }).join('\n');
+        
+        Alert.alert(
+            'Character Analysis',
+            `Input length: ${inputValue.length}\n\n` + charCodes,
+            [{text: 'OK'}]
+        );
+    }, [inputValue]);
+
     const handleBack = useCallback(() => {
         popTopScreen(componentId);
     }, [componentId]);
@@ -297,15 +322,39 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                 </View>
 
                 {showError && (
-                    <Text style={styles.errorText}>
-                        {intl.formatMessage({id: 'invite_link.parse_error', defaultMessage: 'Unable to recognize invite link, please check and try again'})}
-                    </Text>
+                    <View>
+                        <Text style={styles.errorText}>
+                            {intl.formatMessage({id: 'invite_link.parse_error', defaultMessage: 'Unable to recognize invite link, please check and try again'})}
+                        </Text>
+                        <Text style={{...styles.errorText, fontSize: 11, marginTop: 4, opacity: 0.8}}>
+                            {'Debug: length=' + inputValue.length + ', hasHttp=' + inputValue.includes('http') + ', parsed=' + (parsed ? 'yes' : 'null')}
+                        </Text>
+                    </View>
                 )}
 
                 {isValid && !showError && (
                     <Text style={styles.successText}>
                         {intl.formatMessage({id: 'invite_link.parse_success', defaultMessage: '✅ Invite recognized, tap confirm to continue'})}
                     </Text>
+                )}
+
+                {/* Debug info visible on screen */}
+                {hasInput && (
+                    <View style={{marginTop: 12, padding: 8, backgroundColor: changeOpacity(theme.centerChannelColor, 0.05), borderRadius: 4}}>
+                        <Text style={{fontSize: 11, color: changeOpacity(theme.centerChannelColor, 0.6), fontFamily: 'monospace'}}>
+                            {'📊 Debug Info:\n'}
+                            {'Input length: ' + inputValue.length + '\n'}
+                            {'Parsed: ' + (parsed ? 'Yes' : 'No') + '\n'}
+                            {parsed ? ('  id: ' + (parsed.id || '(empty)') + '\n') : ''}
+                            {parsed ? ('  invited_by: ' + (parsed.invited_by || '(empty)') + '\n') : ''}
+                            {parsed ? ('  type: ' + (parsed.type || '(empty)') + '\n') : ''}
+                            {'Valid: ' + isValid + '\n'}
+                            {'---\n'}
+                            {'First 20 chars: ' + inputValue.substring(0, 20).split('').map(c => c.charCodeAt(0).toString(16)).join(' ') + '\n'}
+                            {'Contains http: ' + inputValue.includes('http') + '\n'}
+                            {'Starts with http: ' + inputValue.startsWith('http')}
+                        </Text>
+                    </View>
                 )}
 
                 <View style={styles.buttonContainer}>
@@ -327,6 +376,17 @@ const InviteLinkScreen = ({componentId, serverUrl: propServerUrl}: Props) => {
                         size='md'
                         testID='invite_link.test.button'
                         text={'🧪 Test Invite Link'}
+                        theme={theme}
+                    />
+                </View>
+
+                {/* Character analysis button */}
+                <View style={{marginTop: 8}}>
+                    <Button
+                        onPress={handleShowCharAnalysis}
+                        size='md'
+                        testID='invite_link.char_analysis.button'
+                        text={'🔍 Show Character Analysis'}
                         theme={theme}
                     />
                 </View>
