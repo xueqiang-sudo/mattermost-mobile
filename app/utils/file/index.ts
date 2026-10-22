@@ -677,10 +677,9 @@ export const hasWriteStoragePermission = async (intl: IntlShape) => {
 
 export const hasPhotoLibraryWritePermission = async (intl: IntlShape) => {
     if (Platform.OS === 'ios') {
-        // Use PHOTO_LIBRARY for saving photos
-        // Note: PHOTO_LIBRARY_ADD_ONLY sometimes has timing issues with CameraRoll.saveAsset
-        // so we use the full PHOTO_LIBRARY permission for reliability
-        const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
+        // Use PHOTO_LIBRARY_ADD_ONLY for saving photos (iOS 14+)
+        // This is the correct permission for saving to photo library
+        const permission = PERMISSIONS.IOS.PHOTO_LIBRARY_ADD_ONLY;
         let permissionRequest;
         const hasPermission = await Permissions.check(permission);
 
