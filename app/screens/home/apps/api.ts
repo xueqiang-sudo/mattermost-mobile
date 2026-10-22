@@ -28,6 +28,8 @@ export type DashboardAccess = {
     mes_create_line_info?: boolean;
     drive_write?: boolean;
     kb_write?: boolean;
+    warehouse_stock_in?: boolean;
+    warehouse_stock_out?: boolean;
     contact_edit?: boolean;
     contact_scope?: string;
     allowed_contact_types?: string[];
