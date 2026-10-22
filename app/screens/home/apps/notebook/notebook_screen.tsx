@@ -369,6 +369,8 @@ const NotebookScreen = () => {
             animationType='slide'
             presentationStyle='pageSheet'
             onRequestClose={() => setDetailVisible(false)}
+            // 防止 iOS 下拉关闭手势与 ScrollView 冲突导致崩溃
+            gestureEnabled={false}
         >
             <SafeAreaView edges={['top', 'bottom']} style={style.modalContainer}>
                 <View style={style.modalHeader}>
@@ -383,7 +385,12 @@ const NotebookScreen = () => {
                     </Text>
                     <View style={style.modalCloseBtn}/>
                 </View>
-                <ScrollView style={style.modalBody} contentContainerStyle={style.modalBodyContent}>
+                <ScrollView
+                    style={style.modalBody}
+                    contentContainerStyle={style.modalBodyContent}
+                    bounces={false}  // 防止 iOS 弹性滚动导致的崩溃
+                    scrollEventThrottle={16}  // 优化滚动性能
+                >
                     {detailLoading ? (
                         <ActivityIndicator size='large' color={theme.buttonBg} style={style.modalLoading}/>
                     ) : detailNote ? (
@@ -407,6 +414,7 @@ const NotebookScreen = () => {
             animationType='slide'
             presentationStyle='pageSheet'
             onRequestClose={() => setAddVisible(false)}
+            gestureEnabled={false}  // 防止 iOS 下拉手势冲突
         >
             <SafeAreaView edges={['top', 'bottom']} style={style.modalContainer}>
                 <View style={style.modalHeader}>
