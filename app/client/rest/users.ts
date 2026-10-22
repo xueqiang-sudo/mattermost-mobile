@@ -110,7 +110,7 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
 
     acceptInvitation = (inviterId: string) => {
         return this.doFetch(
-            `${this.getBaseRoute()}/invitations/accept`,
+            `${this.urlVersion}/invitations/accept`,
             {
                 method: 'post',
                 body: {inviter_id: inviterId},
