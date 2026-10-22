@@ -8,7 +8,6 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
-    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -81,16 +80,6 @@ const NotebookScreen = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    // Detail modal
-    const [detailVisible, setDetailVisible] = useState(false);
-    const [detailLoading, setDetailLoading] = useState(false);
-    const [detailNote, setDetailNote] = useState<NoteDetail | null>(null);
-
-    // Add modal
-    const [addVisible, setAddVisible] = useState(false);
-    const [addContent, setAddContent] = useState('');
-    const [addLoading, setAddLoading] = useState(false);
 
     // ---- Init: get teamId ----
     useEffect(() => {
@@ -171,21 +160,14 @@ const NotebookScreen = () => {
         setRefreshing(false);
     }, [searchQuery, doSearch, loadNotes]);
 
-    // ---- Open detail ----
-    const openDetail = useCallback(async (item: NoteListItem) => {
-        setDetailVisible(true);
-        setDetailLoading(true);
-        setDetailNote(null);
-        try {
-            const result = await getNoteEntry(serverUrl, teamId, item.noteId, scope);
-            const data = result?.data || result;
-            setDetailNote({noteId: data?.noteId || item.noteId, content: data?.content || ''});
-        } catch {
-            setDetailNote({noteId: item.noteId, content: ''});
-        } finally {
-            setDetailLoading(false);
-        }
-    }, [serverUrl, teamId, scope]);
+    // ---- Open detail (using navigation instead of Modal) ----
+    const openDetail = useCallback((item: NoteListItem) => {
+        // 使用导航方式打开笔记详情，避免 iOS Modal 手势冲突
+        navigation.navigate('NoteDetail', {
+            noteId: item.noteId,
+            noteTitle: item.title || item.preview || '',
+        });
+    }, [navigation]);
 
     // ---- Delete note ----
     const onDeleteNote = useCallback((item: NoteListItem) => {
@@ -220,35 +202,21 @@ const NotebookScreen = () => {
         );
     }, [intl, serverUrl, teamId, scope, searchQuery, doSearch, loadNotes]);
 
-    // ---- Add note ----
-    const onAddNote = useCallback(async () => {
-        if (!addContent.trim()) return;
-        setAddLoading(true);
-        debugLog('notebook', `Adding note - teamId: ${teamId}, scope: ${scope}, contentLength: ${addContent.trim().length}`);
-        try {
-            const resp = await addNoteEntry(serverUrl, teamId, scope, addContent.trim());
-            debugLog('notebook', `Add note response: ${JSON.stringify(resp)}`);
-            if (resp?.ok === false) {
-                throw new Error(resp?.error || 'Unknown error');
-            }
-            setAddContent('');
-            setAddVisible(false);
-            if (searchQuery.trim()) {
-                doSearch(searchQuery);
-            } else {
-                loadNotes();
-            }
-        } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
-            debugLog('notebook', `Add note failed: ${errorMsg}`);
-            Alert.alert(
-                intl.formatMessage({id: 'workbench.notebook.error', defaultMessage: 'Error'}),
-                `${intl.formatMessage({id: 'workbench.notebook.add_failed', defaultMessage: 'Failed to add note.'})}: ${errorMsg}`,
-            );
-        } finally {
-            setAddLoading(false);
-        }
-    }, [addContent, serverUrl, teamId, scope, searchQuery, doSearch, loadNotes, intl]);
+    // ---- Add note (using navigation) ----
+    const onNavigateToAddNote = useCallback(() => {
+        navigation.navigate('NoteAdd', {
+            teamId,
+            scope,
+            onNoteAdded: () => {
+                // 添加成功后刷新列表
+                if (searchQuery.trim()) {
+                    doSearch(searchQuery);
+                } else {
+                    loadNotes();
+                }
+            },
+        });
+    }, [navigation, teamId, scope, searchQuery, doSearch, loadNotes]);
 
     // ---- Toggle scope ----
     const toggleScope = useCallback(() => {
@@ -362,110 +330,6 @@ const NotebookScreen = () => {
         </View>
     ), [style, scope, toggleScope, searchQuery, onSearchChange, theme, intl]);
 
-    // ---- Detail modal ----
-    const renderDetailModal = useCallback(() => (
-        <Modal
-            visible={detailVisible}
-            animationType='slide'
-            presentationStyle='pageSheet'
-            onRequestClose={() => setDetailVisible(false)}
-            // 防止 iOS 下拉关闭手势与 ScrollView 冲突导致崩溃
-            gestureEnabled={false}
-        >
-            <SafeAreaView edges={['top', 'bottom']} style={style.modalContainer}>
-                <View style={style.modalHeader}>
-                    <TouchableOpacity
-                        style={style.modalCloseBtn}
-                        onPress={() => setDetailVisible(false)}
-                    >
-                        <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <Text style={style.modalTitle} numberOfLines={1}>
-                        {intl.formatMessage({id: 'workbench.notebook.detail_title', defaultMessage: 'Note Detail'})}
-                    </Text>
-                    <View style={style.modalCloseBtn}/>
-                </View>
-                <ScrollView
-                    style={style.modalBody}
-                    contentContainerStyle={style.modalBodyContent}
-                    bounces={false}  // 防止 iOS 弹性滚动导致的崩溃
-                    scrollEventThrottle={16}  // 优化滚动性能
-                >
-                    {detailLoading ? (
-                        <ActivityIndicator size='large' color={theme.buttonBg} style={style.modalLoading}/>
-                    ) : detailNote ? (
-                        <Text style={style.detailContent} selectable={true}>
-                            {detailNote.content || intl.formatMessage({id: 'workbench.notebook.empty_content', defaultMessage: '(No content)'})}
-                        </Text>
-                    ) : (
-                        <Text style={style.detailContent}>
-                            {intl.formatMessage({id: 'workbench.notebook.load_failed', defaultMessage: 'Failed to load note.'})}
-                        </Text>
-                    )}
-                </ScrollView>
-            </SafeAreaView>
-        </Modal>
-    ), [detailVisible, detailLoading, detailNote, style, theme, intl]);
-
-    // ---- Add modal ----
-    const renderAddModal = useCallback(() => (
-        <Modal
-            visible={addVisible}
-            animationType='slide'
-            presentationStyle='pageSheet'
-            onRequestClose={() => setAddVisible(false)}
-            gestureEnabled={false}  // 防止 iOS 下拉手势冲突
-        >
-            <SafeAreaView edges={['top', 'bottom']} style={style.modalContainer}>
-                <View style={style.modalHeader}>
-                    <TouchableOpacity
-                        style={style.modalCloseBtn}
-                        onPress={() => {
-                            setAddVisible(false);
-                            setAddContent('');
-                        }}
-                    >
-                        <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <Text style={style.modalTitle} numberOfLines={1}>
-                        {intl.formatMessage({id: 'workbench.notebook.add_title', defaultMessage: 'New Note'})}
-                    </Text>
-                    <TouchableOpacity
-                        style={style.modalCloseBtn}
-                        onPress={onAddNote}
-                        disabled={addLoading || !addContent.trim()}
-                    >
-                        {addLoading ? (
-                            <ActivityIndicator size='small' color={theme.buttonBg}/>
-                        ) : (
-                            <Text
-                                style={[
-                                    style.modalSaveBtn,
-                                    !addContent.trim() && style.modalSaveBtnDisabled,
-                                ]}
-                            >
-                                {intl.formatMessage({id: 'workbench.notebook.save', defaultMessage: 'Save'})}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
-                <View style={style.modalBody}>
-                    <TextInput
-                        style={style.addTextInput}
-                        value={addContent}
-                        onChangeText={setAddContent}
-                        placeholder={intl.formatMessage({id: 'workbench.notebook.add_placeholder', defaultMessage: 'Write your note here...'})}
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.44)}
-                        multiline={true}
-                        textAlignVertical='top'
-                        autoFocus={true}
-                        autoCapitalize='sentences'
-                    />
-                </View>
-            </SafeAreaView>
-        </Modal>
-    ), [addVisible, addContent, addLoading, onAddNote, style, theme, intl]);
-
     // ---- Main render ----
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
@@ -482,7 +346,7 @@ const NotebookScreen = () => {
                 </Text>
                 <TouchableOpacity
                     style={style.addBtn}
-                    onPress={() => setAddVisible(true)}
+                    onPress={onNavigateToAddNote}
                 >
                     <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
                 </TouchableOpacity>
@@ -507,9 +371,7 @@ const NotebookScreen = () => {
                 />
             )}
 
-            {/* Modals */}
-            {renderDetailModal()}
-            {renderAddModal()}
+            {/* Modals - removed, using navigation instead */}
         </SafeAreaView>
     );
 };
