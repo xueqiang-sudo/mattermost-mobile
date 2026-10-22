@@ -9,7 +9,6 @@ import {
     Alert,
     FlatList,
     Linking,
-    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -577,28 +576,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const [searchQuery, setSearchQuery] = useState('');
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Detail modal
-    const [detailDoc, setDetailDoc] = useState<KBDoc | null>(null);
-    const [detailLoading, setDetailLoading] = useState(false);
-
-    // Add modal
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [addType, setAddType] = useState<AddDocType>('text');
-    const [addTitle, setAddTitle] = useState('');
-    const [addContent, setAddContent] = useState('');
-    const [addUrl, setAddUrl] = useState('');
-    const [addLoading, setAddLoading] = useState(false);
-    const [addFileUri, setAddFileUri] = useState<string | null>(null);
-    const [addFileName, setAddFileName] = useState('');
-    const [addFileType, setAddFileType] = useState('');
-
-    // Edit modal
-    const [editingDoc, setEditingDoc] = useState<KBDoc | null>(null);
-    const [editTitle, setEditTitle] = useState('');
-    const [editContent, setEditContent] = useState('');
-    const [editLoading, setEditLoading] = useState(false);
-
-    // Ask AI modal
+    // Ask AI modal (保留 Modal 模式)
     const [showAskModal, setShowAskModal] = useState(false);
     const [askQuery, setAskQuery] = useState('');
     const [askLoading, setAskLoading] = useState(false);
@@ -720,151 +698,51 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         }
     }, []);
 
-    // View document detail
-    const openDetail = useCallback(async (docId: string) => {
-        setDetailLoading(true);
-        setDetailDoc({docId, title: '...', content: '', category: '', tags: [], createdAt: '', updatedAt: ''});
-        try {
-            const resp = await getKBDoc(serverUrl, teamId, docId);
-            const doc = resp?.doc || resp?.data || resp;
-            setDetailDoc(doc);
-        } catch {
-            setDetailDoc(null);
-            Alert.alert(
-                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'workbench.kb.detail_error', defaultMessage: 'Failed to load document.'}),
-            );
-        } finally {
-            setDetailLoading(false);
-        }
-    }, [serverUrl, teamId, intl]);
+    // View document detail (Navigation mode)
+    const openDetail = useCallback((docId: string, title?: string) => {
+        navigation.navigate('KBDetail', {
+            docId,
+            docTitle: title,
+            onDocUpdated: () => {
+                // Refresh list after returning from detail
+                if (searchQuery.trim()) {
+                    performSearch(searchQuery);
+                } else {
+                    loadDocuments();
+                }
+            },
+        });
+    }, [navigation, searchQuery, performSearch, loadDocuments]);
 
-    const closeDetail = useCallback(() => {
-        setDetailDoc(null);
-    }, []);
+    // Edit document (Navigation mode)
+    const openEditScreen = useCallback((doc: KBDoc) => {
+        navigation.navigate('KBEdit', {
+            doc,
+            onDocUpdated: () => {
+                // Refresh list after returning from edit
+                if (searchQuery.trim()) {
+                    performSearch(searchQuery);
+                } else {
+                    loadDocuments();
+                }
+            },
+        });
+    }, [navigation, searchQuery, performSearch, loadDocuments]);
 
-    // Delete document
-    const handleDelete = useCallback((docId: string) => {
-        Alert.alert(
-            intl.formatMessage({id: 'workbench.kb.delete_title', defaultMessage: 'Delete Document'}),
-            intl.formatMessage({id: 'workbench.kb.delete_confirm', defaultMessage: 'Are you sure you want to delete this document?'}),
-            [
-                {text: intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'}), style: 'cancel'},
-                {
-                    text: intl.formatMessage({id: 'mobile.post.delete', defaultMessage: 'Delete'}),
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deleteKBDoc(serverUrl, teamId, docId);
-                            setDetailDoc(null);
-                            loadDocuments();
-                        } catch {
-                            Alert.alert(
-                                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
-                                intl.formatMessage({id: 'workbench.kb.delete_error', defaultMessage: 'Failed to delete document.'}),
-                            );
-                        }
-                    },
-                },
-            ],
-        );
-    }, [serverUrl, teamId, intl, loadDocuments]);
-
-    // Edit document
-    const openEditModal = useCallback((doc: KBDoc) => {
-        setEditingDoc(doc);
-        setEditTitle(doc.title);
-        setEditContent(doc.content || '');
-    }, []);
-
-    const handleEditSubmit = useCallback(async () => {
-        if (!editingDoc || !editTitle.trim()) return;
-        setEditLoading(true);
-        try {
-            await updateKBDoc(serverUrl, teamId, editingDoc.docId, {
-                title: editTitle.trim(),
-                content: editContent.trim(),
-            });
-            setEditingDoc(null);
-            loadDocuments();
-            // Refresh detail if open
-            if (detailDoc?.docId === editingDoc.docId) {
-                setDetailDoc({...detailDoc, title: editTitle.trim(), content: editContent.trim()});
-            }
-        } catch {
-            Alert.alert(
-                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'workbench.kb.edit_error', defaultMessage: 'Failed to update document.'}),
-            );
-        } finally {
-            setEditLoading(false);
-        }
-    }, [serverUrl, teamId, editingDoc, editTitle, editContent, detailDoc, loadDocuments, intl]);
-
-    // Add document
-    const openAddModal = useCallback(() => {
-        setAddType('text');
-        setAddTitle('');
-        setAddContent('');
-        setAddUrl('');
-        setAddFileUri(null);
-        setAddFileName('');
-        setAddFileType('');
-        setShowAddModal(true);
-    }, []);
-
-    const closeAddModal = useCallback(() => {
-        setShowAddModal(false);
-    }, []);
-
-    const pickFile = useCallback(async () => {
-        try {
-            const result = await DocumentPicker.pick({
-                type: ['*/*'],
-            } as any);
-            if (result && result[0]) {
-                setAddFileUri(result[0].uri);
-                setAddFileName(result[0].name || '');
-                setAddFileType(result[0].type || 'application/octet-stream');
-            }
-        } catch (err: any) {
-            if (!DocumentPicker.isCancel(err)) {
-                Alert.alert(
-                    intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
-                    intl.formatMessage({id: 'workbench.kb.file_pick_error', defaultMessage: 'Failed to pick file.'}),
-                );
-            }
-        }
-    }, [intl]);
-
-    const handleAddSubmit = useCallback(async () => {
-        if (addType === 'text' && !addTitle.trim()) return;
-        if (addType === 'text' && !addContent.trim()) return;
-        if (addType === 'url' && !addTitle.trim()) return;
-        if (addType === 'url' && !addUrl.trim()) return;
-        if (addType === 'file' && !addFileUri) return;
-
-        setAddLoading(true);
-        try {
-            if (addType === 'text') {
-                await createKBDocText(serverUrl, teamId, addTitle.trim(), addContent.trim());
-            } else if (addType === 'url') {
-                await createKBDocURL(serverUrl, teamId, addTitle.trim(), addUrl.trim());
-            } else {
-                // file mode
-                await createKBDocFile(serverUrl, teamId, addFileUri!, addFileName, addFileType);
-            }
-            setShowAddModal(false);
-            loadDocuments();
-        } catch {
-            Alert.alert(
-                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'workbench.kb.add_error', defaultMessage: 'Failed to add document.'}),
-            );
-        } finally {
-            setAddLoading(false);
-        }
-    }, [serverUrl, teamId, addType, addTitle, addContent, addUrl, intl, loadDocuments]);
+    // Add document (Navigation mode)
+    const openAddScreen = useCallback(() => {
+        navigation.navigate('KBAdd', {
+            teamId,
+            onDocAdded: () => {
+                // Refresh list after returning from add
+                if (searchQuery.trim()) {
+                    performSearch(searchQuery);
+                } else {
+                    loadDocuments();
+                }
+            },
+        });
+    }, [navigation, teamId, searchQuery, performSearch, loadDocuments]);
 
     // Ask AI
     const openAskModal = useCallback(() => {
@@ -941,7 +819,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const renderItemCard = useCallback((item: DisplayItem) => (
         <TouchableOpacity
             style={style.docCard}
-            onPress={() => openDetail(item.docId)}
+            onPress={() => openDetail(item.docId, item.title)}
             activeOpacity={0.7}
         >
             <View style={style.docHeader}>
@@ -1089,7 +967,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                     {intl.formatMessage({id: 'workbench.kb.title', defaultMessage: 'Knowledge Base'})}
                 </Text>
                 {kbWrite && (
-                    <TouchableOpacity style={style.headerAction} onPress={openAddModal}>
+                    <TouchableOpacity style={style.headerAction} onPress={openAddScreen}>
                         <CompassIcon name='plus' size={22} color={theme.sidebarText}/>
                     </TouchableOpacity>
                 )}
@@ -1136,7 +1014,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             {/* Bottom action bar */}
             <View style={style.bottomBar}>
                 {kbWrite && (
-                    <TouchableOpacity style={style.addBtn} onPress={openAddModal}>
+                    <TouchableOpacity style={style.addBtn} onPress={openAddScreen}>
                         <CompassIcon name='plus' size={18} color={theme.buttonBg}/>
                         <Text style={style.addBtnText}>
                             {intl.formatMessage({id: 'workbench.kb.add_doc', defaultMessage: 'Add'})}
@@ -1151,304 +1029,12 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 </TouchableOpacity>
             </View>
 
-            {/* ---- Detail Modal ---- */}
-            <Modal
-                visible={detailDoc !== null}
-                animationType='slide'
-                presentationStyle='pageSheet'
-                onRequestClose={closeDetail}
-            >
-                <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                    <View style={style.modalHeader}>
-                        <Text style={style.modalTitle} numberOfLines={1}>
-                            {detailDoc?.title || ''}
-                        </Text>
-                        <TouchableOpacity style={style.modalClose} onPress={closeDetail}>
-                            <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                        </TouchableOpacity>
-                    </View>
-                    {detailLoading ? (
-                        <View style={style.emptyContainer}>
-                            <ActivityIndicator size='large' color={theme.centerChannelColor}/>
-                        </View>
-                    ) : (
-                        <ScrollView style={style.modalBody} showsVerticalScrollIndicator={true}>
-                            {detailDoc && (
-                                <>
-                                    <Text style={style.detailCategory}>{detailDoc.category}</Text>
-                                    <Text style={style.detailDate}>{formatDate(detailDoc.createdAt)}</Text>
-                                    {detailDoc.tags && detailDoc.tags.length > 0 && (
-                                        <View style={{...style.docTags, marginBottom: 12}}>
-                                            {detailDoc.tags.map((tag, i) => (
-                                                <View key={`${tag}-${i}`} style={style.tagChip}>
-                                                    <Text style={style.tagText}>{tag}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    )}
-                                    {detailDoc.sourceUrl ? (
-                                        <Text style={style.detailSourceUrl}>{detailDoc.sourceUrl}</Text>
-                                    ) : null}
-                                    <View style={{marginTop: 12}}>
-                                        {detailDoc.content ? (
-                                            <Markdown
-                                                value={detailDoc.content}
-                                                baseTextStyle={style.detailContent}
-                                                location={Screens.APPS_CONVERSATIONS}
-                                                theme={theme}
-                                                disableAtMentions={true}
-                                            />
-                                        ) : (
-                                            <Text style={style.detailContent}>
-                                                {intl.formatMessage({id: 'workbench.kb.no_content', defaultMessage: 'No content available.'})}
-                                            </Text>
-                                        )}
-                                    </View>
-                                    {/* Download button for file type */}
-                                    {detailDoc.category === 'file' && detailDoc.fileName && (
-                                        <TouchableOpacity
-                                            style={style.detailDownloadBtn}
-                                            onPress={() => {
-                                                const url = getKBDownloadUrl(serverUrl, detailDoc.docId, teamId);
-                                                Linking.openURL(url);
-                                            }}
-                                        >
-                                            <CompassIcon name='download-outline' size={18} color={theme.buttonBg}/>
-                                            <Text style={style.detailDownloadText}>
-                                                {intl.formatMessage({id: 'workbench.kb.download', defaultMessage: 'Download File'})}
-                                                {detailDoc.fileSize ? ` (${formatFileSize(detailDoc.fileSize)})` : ''}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-                                    {/* Edit button */}
-                                    {kbWrite && detailDoc.category === 'text' && (
-                                        <TouchableOpacity
-                                            style={style.detailEditBtn}
-                                            onPress={() => {
-                                                closeDetail();
-                                                openEditModal(detailDoc);
-                                            }}
-                                        >
-                                            <CompassIcon name='pencil-outline' size={18} color={theme.buttonBg}/>
-                                            <Text style={style.detailEditText}>
-                                                {intl.formatMessage({id: 'workbench.kb.edit', defaultMessage: 'Edit Document'})}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-                                    {/* Delete button */}
-                                    {kbWrite && (
-                                        <TouchableOpacity
-                                            style={style.detailDeleteBtn}
-                                            onPress={() => handleDelete(detailDoc.docId)}
-                                        >
-                                            <CompassIcon name='trash-can-outline' size={18} color={theme.errorTextColor}/>
-                                            <Text style={style.detailDeleteText}>
-                                                {intl.formatMessage({id: 'workbench.kb.delete', defaultMessage: 'Delete Document'})}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </>
-                            )}
-                        </ScrollView>
-                    )}
-                </SafeAreaView>
-            </Modal>
-
-            {/* ---- Add Document Modal ---- */}
-            <Modal
-                visible={showAddModal}
-                animationType='slide'
-                presentationStyle='pageSheet'
-                onRequestClose={closeAddModal}
-            >
-                <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                    <View style={style.modalHeader}>
-                        <Text style={style.modalTitle}>
-                            {intl.formatMessage({id: 'workbench.kb.add_document', defaultMessage: 'Add Document'})}
-                        </Text>
-                        <TouchableOpacity style={style.modalClose} onPress={closeAddModal}>
-                            <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={style.modalBody} keyboardShouldPersistTaps='handled'>
-                        {/* Type selector */}
-                        <View style={style.addTypeRow}>
-                            <TouchableOpacity
-                                style={[style.addTypeBtn, addType === 'text' && style.addTypeBtnActive]}
-                                onPress={() => setAddType('text')}
-                            >
-                                <CompassIcon name='text-box-outline' size={22} color={addType === 'text' ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.48)}/>
-                                <Text style={[style.addTypeLabel, addType === 'text' && style.addTypeLabelActive]}>
-                                    {intl.formatMessage({id: 'workbench.kb.type_text', defaultMessage: 'Text'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[style.addTypeBtn, addType === 'url' && style.addTypeBtnActive]}
-                                onPress={() => setAddType('url')}
-                            >
-                                <CompassIcon name='link-variant' size={22} color={addType === 'url' ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.48)}/>
-                                <Text style={[style.addTypeLabel, addType === 'url' && style.addTypeLabelActive]}>
-                                    {intl.formatMessage({id: 'workbench.kb.type_url', defaultMessage: 'URL'})}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[style.addTypeBtn, addType === 'file' && style.addTypeBtnActive]}
-                                onPress={() => setAddType('file')}
-                            >
-                                <CompassIcon name='file-upload-outline' size={22} color={addType === 'file' ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.48)}/>
-                                <Text style={[style.addTypeLabel, addType === 'file' && style.addTypeLabelActive]}>
-                                    {intl.formatMessage({id: 'workbench.kb.type_file', defaultMessage: 'File'})}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Title */}
-                        <Text style={style.formLabel}>
-                            {intl.formatMessage({id: 'workbench.kb.form_title', defaultMessage: 'Title'})}
-                        </Text>
-                        <TextInput
-                            style={style.formInput}
-                            placeholder={intl.formatMessage({id: 'workbench.kb.title_placeholder', defaultMessage: 'Enter document title'})}
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                            value={addTitle}
-                            onChangeText={setAddTitle}
-                            autoCapitalize='sentences'
-                        />
-
-                        {/* Content, URL, or File */}
-                        {addType === 'text' && (
-                            <>
-                                <Text style={style.formLabel}>
-                                    {intl.formatMessage({id: 'workbench.kb.form_content', defaultMessage: 'Content (Markdown)'})}
-                                </Text>
-                                <TextInput
-                                    style={[style.formInput, style.formTextArea]}
-                                    placeholder={intl.formatMessage({id: 'workbench.kb.content_placeholder', defaultMessage: 'Enter document content...'})}
-                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                                    value={addContent}
-                                    onChangeText={setAddContent}
-                                    multiline={true}
-                                    textAlignVertical='top'
-                                    autoCapitalize='sentences'
-                                />
-                            </>
-                        )}
-                        {addType === 'url' && (
-                            <>
-                                <Text style={style.formLabel}>
-                                    {intl.formatMessage({id: 'workbench.kb.form_url', defaultMessage: 'Source URL'})}
-                                </Text>
-                                <TextInput
-                                    style={style.formInput}
-                                    placeholder={intl.formatMessage({id: 'workbench.kb.url_placeholder', defaultMessage: 'https://example.com/article'})}
-                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                                    value={addUrl}
-                                    onChangeText={setAddUrl}
-                                    keyboardType='url'
-                                    autoCapitalize='none'
-                                    autoCorrect={false}
-                                />
-                            </>
-                        )}
-                        {addType === 'file' && (
-                            <>
-                                <Text style={style.formLabel}>
-                                    {intl.formatMessage({id: 'workbench.kb.form_file', defaultMessage: 'File'})}
-                                </Text>
-                                <TouchableOpacity style={style.filePickerBtn} onPress={pickFile}>
-                                    <CompassIcon name='file-upload-outline' size={20} color={theme.buttonBg}/>
-                                    <Text style={style.filePickerText} numberOfLines={1}>
-                                        {addFileName || intl.formatMessage({id: 'workbench.kb.pick_file', defaultMessage: 'Choose file...'})}
-                                    </Text>
-                                </TouchableOpacity>
-                                <Text style={style.fileHint}>{KB_SUPPORTED_LABEL}</Text>
-                            </>
-                        )}
-
-                        {/* Submit */}
-                        <TouchableOpacity
-                            style={[
-                                style.formSubmit,
-                                ((addType !== 'file' && !addTitle.trim()) || (addType === 'file' && !addFileUri) || addLoading) && style.formSubmitDisabled,
-                            ]}
-                            onPress={handleAddSubmit}
-                            disabled={(addType !== 'file' && !addTitle.trim()) || (addType === 'file' && !addFileUri) || addLoading}
-                        >
-                            {addLoading ? (
-                                <ActivityIndicator size='small' color={theme.buttonColor}/>
-                            ) : (
-                                <Text style={style.formSubmitText}>
-                                    {intl.formatMessage({id: 'workbench.kb.add_submit', defaultMessage: 'Add Document'})}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
-
-            {/* ---- Edit Document Modal ---- */}
-            <Modal
-                visible={editingDoc !== null}
-                animationType='slide'
-                presentationStyle='pageSheet'
-                onRequestClose={() => setEditingDoc(null)}
-            >
-                <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                    <View style={style.modalHeader}>
-                        <Text style={style.modalTitle}>
-                            {intl.formatMessage({id: 'workbench.kb.edit_document', defaultMessage: 'Edit Document'})}
-                        </Text>
-                        <TouchableOpacity style={style.modalClose} onPress={() => setEditingDoc(null)}>
-                            <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={style.modalBody} keyboardShouldPersistTaps='handled'>
-                        <Text style={style.formLabel}>
-                            {intl.formatMessage({id: 'workbench.kb.form_title', defaultMessage: 'Title'})}
-                        </Text>
-                        <TextInput
-                            style={style.formInput}
-                            placeholder={intl.formatMessage({id: 'workbench.kb.title_placeholder', defaultMessage: 'Enter document title'})}
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                            value={editTitle}
-                            onChangeText={setEditTitle}
-                            autoCapitalize='sentences'
-                        />
-                        <Text style={style.formLabel}>
-                            {intl.formatMessage({id: 'workbench.kb.form_content', defaultMessage: 'Content (Markdown)'})}
-                        </Text>
-                        <TextInput
-                            style={[style.formInput, style.formTextArea]}
-                            placeholder={intl.formatMessage({id: 'workbench.kb.content_placeholder', defaultMessage: 'Enter document content...'})}
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                            value={editContent}
-                            onChangeText={setEditContent}
-                            multiline={true}
-                            textAlignVertical='top'
-                            autoCapitalize='sentences'
-                        />
-                        <TouchableOpacity
-                            style={[style.formSubmit, (!editTitle.trim() || editLoading) && style.formSubmitDisabled]}
-                            onPress={handleEditSubmit}
-                            disabled={!editTitle.trim() || editLoading}
-                        >
-                            {editLoading ? (
-                                <ActivityIndicator size='small' color={theme.buttonColor}/>
-                            ) : (
-                                <Text style={style.formSubmitText}>
-                                    {intl.formatMessage({id: 'workbench.kb.edit_submit', defaultMessage: 'Update Document'})}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
-
             {/* ---- Ask AI Modal ---- */}
             <Modal
                 visible={showAskModal}
                 animationType='slide'
                 presentationStyle='pageSheet'
+                gestureEnabled={false}
                 onRequestClose={closeAskModal}
             >
                 <SafeAreaView edges={['top', 'bottom']} style={style.container}>
