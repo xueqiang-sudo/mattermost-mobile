@@ -18,6 +18,7 @@ import {
 import DocumentPicker from 'react-native-document-picker';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import Markdown from '@components/markdown';
 import {Screens} from '@constants';
@@ -25,7 +26,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
-import {goToScreen, popTopScreen} from '@screens/navigation';
+import {goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -564,6 +565,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [teamId, setTeamId] = useState('');
@@ -890,7 +892,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => popTopScreen()}>
+                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
                         <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                     </TouchableOpacity>
                     <Text style={style.headerTitle}>
@@ -910,7 +912,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => popTopScreen()}>
+                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
                         <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                     </TouchableOpacity>
                     <Text style={style.headerTitle}>
@@ -971,7 +973,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             {/* Header */}
             <View style={style.header}>
-                <TouchableOpacity style={style.backBtn} onPress={() => popTopScreen()}>
+                <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
                     <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                 </TouchableOpacity>
                 <Text style={style.headerTitle}>

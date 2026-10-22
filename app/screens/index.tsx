@@ -448,19 +448,19 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             screen = withServerDatabase(require('@screens/home/apps/app_webview').default);
             break;
         case Screens.NOTE_DETAIL:
-            screen = withServerDatabase(require('@screens/home/apps/notebook/note_detail_screen').default);
+            screen = withIntl(withServerDatabase(require('@screens/home/apps/notebook/note_detail_screen').default));
             break;
         case Screens.NOTE_ADD:
-            screen = withServerDatabase(require('@screens/home/apps/notebook/note_add_screen').default);
+            screen = withIntl(withServerDatabase(require('@screens/home/apps/notebook/note_add_screen').default));
             break;
         case Screens.KB_DETAIL:
-            screen = withServerDatabase(require('@screens/home/apps/knowledge_base/kb_detail_screen').default);
+            screen = withIntl(withServerDatabase(require('@screens/home/apps/knowledge_base/kb_detail_screen').default));
             break;
         case Screens.KB_ADD:
-            screen = withServerDatabase(require('@screens/home/apps/knowledge_base/kb_add_screen').default);
+            screen = withIntl(withServerDatabase(require('@screens/home/apps/knowledge_base/kb_add_screen').default));
             break;
         case Screens.KB_EDIT:
-            screen = withServerDatabase(require('@screens/home/apps/knowledge_base/kb_edit_screen').default);
+            screen = withIntl(withServerDatabase(require('@screens/home/apps/knowledge_base/kb_edit_screen').default));
             break;
         case Screens.TMP_DEV_TEST:
             screen = withIntl(require('@screens/tmp_dev_test').default);
