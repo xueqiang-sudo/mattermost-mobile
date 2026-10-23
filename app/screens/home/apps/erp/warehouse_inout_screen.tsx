@@ -42,12 +42,13 @@ const WarehouseInoutScreen = () => {
     const navigation = useNavigation();
     const route = useRoute<RouteProp<AppsStackParamList, typeof Screens.APPS_WAREHOUSE_INOUT>>();
     const initialScanType = route.params?.initialScanType || null;
+    const initialScanResult = route.params?.scanResult || '';
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
-    const [scanType, setScanType] = useState<ScanType>(null);
-    const [scanResult, setScanResult] = useState('');
+    const [scanType, setScanType] = useState<ScanType>(initialScanType);
+    const [scanResult, setScanResult] = useState(initialScanResult);
     const [showSuccess, setShowSuccess] = useState(false);
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [selectedWarehouse, setSelectedWarehouse] = useState('');
@@ -56,7 +57,7 @@ const WarehouseInoutScreen = () => {
     const [sendError, setSendError] = useState('');
     const [pickListId, setPickListId] = useState('');
     const [resultFields, setResultFields] = useState<DisplayField[]>([]);
-    const [autoOpened, setAutoOpened] = useState(false);
+    const [scannerError, setScannerError] = useState('');
 
     const openScanner = useCallback((type: ScanType) => {
         setScanType(type);
@@ -66,13 +67,18 @@ const WarehouseInoutScreen = () => {
         setSelectedWarehouse('');
         setPickListId('');
         setResultFields([]);
+        setScannerError('');
 
-        showQrScannerModal(intl, {
-            onScanResultCallback: (value: string) => {
-                setScanResult(value);
-                return true;
-            },
-        });
+        try {
+            showQrScannerModal(intl, {
+                onScanResultCallback: (value: string) => {
+                    setScanResult(value);
+                    return true;
+                },
+            });
+        } catch (e: any) {
+            setScannerError(e?.message || 'Failed to open scanner');
+        }
     }, [intl]);
 
     useEffect(() => {
@@ -80,17 +86,6 @@ const WarehouseInoutScreen = () => {
             title: intl.formatMessage({id: 'workbench.tab.warehouse_inout', defaultMessage: '出入库'}),
         });
     }, [navigation, intl]);
-
-    // Auto-open scanner when navigated from apps panel with initialScanType
-    useEffect(() => {
-        if (initialScanType && !autoOpened) {
-            setAutoOpened(true);
-            // Small delay to let the screen render before opening scanner
-            const timer = setTimeout(() => openScanner(initialScanType), 300);
-            return () => clearTimeout(timer);
-        }
-        return undefined;
-    }, [initialScanType, autoOpened, openScanner]);
 
     // Fetch warehouses on mount
     useEffect(() => {
@@ -174,7 +169,17 @@ const WarehouseInoutScreen = () => {
     const canSend = selectedWarehouse !== '' && !isSending && scanResult !== '';
 
     return (
-        <SafeAreaView style={styles.container} edges={['left', 'right']}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+            {/* Header with back button */}
+            <View style={styles.header}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>
+                    {scanTypeLabel || intl.formatMessage({id: 'workbench.tab.warehouse_inout', defaultMessage: '出入库'})}
+                </Text>
+            </View>
+
             {/* Two action buttons — hide when opened directly from apps panel */}
             {!initialScanType && (
                 <View style={styles.buttonRow}>
@@ -335,6 +340,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: theme.sidebarBg,
+    },
+    backBtn: {
+        padding: 8,
+        marginRight: 8,
+    },
+    headerTitle: {
+        ...typography('Heading', 200, 'SemiBold'),
+        color: theme.sidebarText,
+        flex: 1,
     },
     buttonRow: {
         flexDirection: 'row',

@@ -15,6 +15,19 @@ export type AppsStackParamList = {
     [Screens.APPS_PRICE_LIST]: undefined;
     [Screens.APPS_CLOUD_DRIVE]: undefined;
     [Screens.APPS_KNOWLEDGE_BASE]: undefined;
+    [Screens.KB_DETAIL]: {
+        docId: string;
+        docTitle?: string;
+        onDocUpdated?: () => void;
+    };
+    [Screens.KB_ADD]: {
+        teamId: string;
+        onDocAdded?: () => void;
+    };
+    [Screens.KB_EDIT]: {
+        doc: any;
+        onDocUpdated?: () => void;
+    };
     [Screens.APPS_NOTEBOOK]: undefined;
     [Screens.NOTE_DETAIL]: {
         noteId: string;
@@ -35,5 +48,5 @@ export type AppsStackParamList = {
     [Screens.APPS_HOT_PRODUCTS]: undefined;
     [Screens.APPS_INVENTORY]: undefined;
     [Screens.APPS_SALES]: undefined;
-    [Screens.APPS_WAREHOUSE_INOUT]: {initialScanType?: 'stock_in' | 'stock_out'} | undefined;
+    [Screens.APPS_WAREHOUSE_INOUT]: {initialScanType?: 'stock_in' | 'stock_out'; scanResult?: string} | undefined;
 };

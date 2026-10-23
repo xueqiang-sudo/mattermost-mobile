@@ -18,6 +18,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {resetToDebug} from '@screens/navigation';
+import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -250,11 +251,19 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 navigation.navigate(Screens.APPS_INVENTORY);
                 break;
             case 'stock_in':
-                navigation.navigate(Screens.APPS_WAREHOUSE_INOUT, {initialScanType: 'stock_in'});
+            case 'stock_out': {
+                const scanType = app.key as 'stock_in' | 'stock_out';
+                showQrScannerModal(intl, {
+                    onScanResultCallback: (value: string) => {
+                        navigation.navigate(Screens.APPS_WAREHOUSE_INOUT, {
+                            initialScanType: scanType,
+                            scanResult: value,
+                        });
+                        return true;
+                    },
+                });
                 break;
-            case 'stock_out':
-                navigation.navigate(Screens.APPS_WAREHOUSE_INOUT, {initialScanType: 'stock_out'});
-                break;
+            }
             case 'debug':
                 resetToDebug();
                 break;

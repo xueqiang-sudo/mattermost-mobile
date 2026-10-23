@@ -8,6 +8,7 @@ import {
     Alert,
     FlatList,
     Linking,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,

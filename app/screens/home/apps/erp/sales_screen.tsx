@@ -310,6 +310,7 @@ type SalespersonRowProps = {
 };
 
 const SalespersonRow = ({sp, rank, isExpanded, onToggle, style}: SalespersonRowProps) => {
+    const intl = useIntl();
     const hasCustomers = sp.customers && sp.customers.length > 0;
 
     return (

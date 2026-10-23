@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -56,6 +57,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Heading', 200, 'SemiBold'),
         color: theme.sidebarText,
         flex: 1,
+    },
+    backBtn: {
+        padding: 8,
+        marginRight: 8,
     },
     refreshBtn: {
         padding: 8,
@@ -201,6 +206,7 @@ const ApprovalsScreen = () => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
 
     const [approvals, setApprovals] = useState<Approval[]>([]);
     const [loading, setLoading] = useState(true);
@@ -310,6 +316,9 @@ const ApprovalsScreen = () => {
                 testID='approvals.screen'
             >
                 <View style={styles.header}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                    </TouchableOpacity>
                     <Text style={styles.headerTitle}>
                         {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
                     </Text>
@@ -333,6 +342,9 @@ const ApprovalsScreen = () => {
                 testID='approvals.screen'
             >
                 <View style={styles.header}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                    </TouchableOpacity>
                     <Text style={styles.headerTitle}>
                         {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
                     </Text>
@@ -366,6 +378,9 @@ const ApprovalsScreen = () => {
                 testID='approvals.screen'
             >
                 <View style={styles.header}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                    </TouchableOpacity>
                     <Text style={styles.headerTitle}>
                         {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
                     </Text>
@@ -411,6 +426,9 @@ const ApprovalsScreen = () => {
             testID='approvals.screen'
         >
             <View style={styles.header}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
                 <Text style={styles.headerTitle}>
                     {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
                 </Text>

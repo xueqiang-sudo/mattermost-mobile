@@ -17,6 +17,9 @@ import InventoryScreen from './erp/inventory_screen';
 import SalesScreen from './erp/sales_screen';
 import WarehouseInoutScreen from './erp/warehouse_inout_screen';
 import KnowledgeBaseScreen from './knowledge_base/knowledge_base_screen';
+import KbAddScreen from './knowledge_base/kb_add_screen';
+import KbDetailScreen from './knowledge_base/kb_detail_screen';
+import KbEditScreen from './knowledge_base/kb_edit_screen';
 import MesScreen from './mes/mes_screen';
 import NoteAddScreen from './notebook/note_add_screen';
 import NoteDetailScreen from './notebook/note_detail_screen';
@@ -59,6 +62,9 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.APPS_CLOUD_DRIVE} component={CloudDriveScreen}/>
                 <Stack.Screen name={Screens.APPS_CONVERSATIONS} component={ConversationsScreen}/>
                 <Stack.Screen name={Screens.APPS_KNOWLEDGE_BASE} component={KnowledgeBaseScreen}/>
+                <Stack.Screen name={Screens.KB_DETAIL} component={KbDetailScreen}/>
+                <Stack.Screen name={Screens.KB_ADD} component={KbAddScreen}/>
+                <Stack.Screen name={Screens.KB_EDIT} component={KbEditScreen}/>
                 <Stack.Screen name={Screens.APPS_MES} component={MesScreen}/>
                 <Stack.Screen name={Screens.APPS_NOTEBOOK} component={NotebookScreen}/>
                 <Stack.Screen name={Screens.NOTE_DETAIL} component={NoteDetailScreen}/>
