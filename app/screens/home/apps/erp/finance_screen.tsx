@@ -403,7 +403,7 @@ const FinanceScreen = () => {
     // Day options
     const dayOptions = useMemo(() => {
         const opts: Array<{value: number; label: string}> = [
-            {value: 0, label: intl.formatMessage({id: 'workbench.journal.all_days', defaultMessage: 'All Days'})},
+            {value: 0, label: intl.formatMessage({id: 'workbench.journal.all_days', defaultMessage: '全部日期'})},
         ];
         for (let d = 1; d <= daysInMonth; d++) {
             opts.push({value: d, label: `${d}${intl.formatMessage({id: 'workbench.journal.day', defaultMessage: '日'})}`});
@@ -413,9 +413,9 @@ const FinanceScreen = () => {
 
     // Direction options
     const dirOptions = useMemo(() => [
-        {value: '', label: intl.formatMessage({id: 'workbench.journal.all', defaultMessage: 'All'})},
-        {value: 'in', label: intl.formatMessage({id: 'workbench.journal.receipts_only', defaultMessage: 'Receipts'})},
-        {value: 'out', label: intl.formatMessage({id: 'workbench.journal.payments_only', defaultMessage: 'Payments'})},
+        {value: '', label: intl.formatMessage({id: 'workbench.journal.all', defaultMessage: '全部'})},
+        {value: 'in', label: intl.formatMessage({id: 'workbench.journal.receipts_only', defaultMessage: '收入'})},
+        {value: 'out', label: intl.formatMessage({id: 'workbench.journal.payments_only', defaultMessage: '支出'})},
     ], [intl]);
 
     // Close all dropdowns
@@ -527,7 +527,7 @@ const FinanceScreen = () => {
                     <Text style={style.errorText}>{error}</Text>
                     <TouchableOpacity style={style.retryBtn} onPress={loadData}>
                         <Text style={style.retryBtnText}>
-                            {intl.formatMessage({id: 'mobile.retry', defaultMessage: 'Retry'})}
+                            {intl.formatMessage({id: 'mobile.retry', defaultMessage: '重试'})}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -564,7 +564,7 @@ const FinanceScreen = () => {
                 <TouchableOpacity style={style.filterBtn} onPress={() => toggleDropdown('day')}>
                     <Text style={style.filterBtnText}>
                         {day === 0
-                            ? intl.formatMessage({id: 'workbench.journal.all_days', defaultMessage: 'All Days'})
+                            ? intl.formatMessage({id: 'workbench.journal.all_days', defaultMessage: '全部日期'})
                             : `${day}${intl.formatMessage({id: 'workbench.journal.day', defaultMessage: '日'})}`}
                     </Text>
                     <CompassIcon name={dayDropdownOpen ? 'menu-up' : 'menu-down'} size={16} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
@@ -572,10 +572,10 @@ const FinanceScreen = () => {
                 <TouchableOpacity style={style.filterBtn} onPress={() => toggleDropdown('dir')}>
                     <Text style={style.filterBtnText}>
                         {directionFilter === ''
-                            ? intl.formatMessage({id: 'workbench.journal.all', defaultMessage: 'All'})
+                            ? intl.formatMessage({id: 'workbench.journal.all', defaultMessage: '全部'})
                             : directionFilter === 'in'
-                                ? intl.formatMessage({id: 'workbench.journal.receipts_only', defaultMessage: 'Receipts'})
-                                : intl.formatMessage({id: 'workbench.journal.payments_only', defaultMessage: 'Payments'})}
+                                ? intl.formatMessage({id: 'workbench.journal.receipts_only', defaultMessage: '收入'})
+                                : intl.formatMessage({id: 'workbench.journal.payments_only', defaultMessage: '支出'})}
                     </Text>
                     <CompassIcon name={dirDropdownOpen ? 'menu-up' : 'menu-down'} size={16} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
                 </TouchableOpacity>
@@ -620,7 +620,7 @@ const FinanceScreen = () => {
                 <View style={style.summaryBar}>
                     <View style={style.summaryItem}>
                         <Text style={style.summaryLabel}>
-                            {intl.formatMessage({id: 'workbench.journal.summary_in', defaultMessage: 'Income'})}
+                            {intl.formatMessage({id: 'workbench.journal.summary_in', defaultMessage: '收入'})}
                         </Text>
                         <Text style={[style.summaryValue, style.summaryValueIn]}>
                             {formatMoney(data.summary.in_month)}
@@ -629,7 +629,7 @@ const FinanceScreen = () => {
                     <View style={style.separator}/>
                     <View style={style.summaryItem}>
                         <Text style={style.summaryLabel}>
-                            {intl.formatMessage({id: 'workbench.journal.summary_out', defaultMessage: 'Expense'})}
+                            {intl.formatMessage({id: 'workbench.journal.summary_out', defaultMessage: '支出'})}
                         </Text>
                         <Text style={[style.summaryValue, style.summaryValueOut]}>
                             {formatMoney(data.summary.out_month)}
@@ -638,7 +638,7 @@ const FinanceScreen = () => {
                     <View style={style.separator}/>
                     <View style={style.summaryItem}>
                         <Text style={style.summaryLabel}>
-                            {intl.formatMessage({id: 'workbench.journal.summary_net', defaultMessage: 'Net'})}
+                            {intl.formatMessage({id: 'workbench.journal.summary_net', defaultMessage: '净额'})}
                         </Text>
                         <Text style={style.summaryValue}>
                             {formatMoney(data.summary.net_month)}
@@ -652,7 +652,7 @@ const FinanceScreen = () => {
                 <View style={style.emptyContainer}>
                     <CompassIcon name='credit-card-outline' size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
                     <Text style={style.emptyText}>
-                        {intl.formatMessage({id: 'workbench.journal.empty', defaultMessage: 'No payment records'})}
+                        {intl.formatMessage({id: 'workbench.journal.empty', defaultMessage: '暂无记录'})}
                     </Text>
                 </View>
             ) : data && (

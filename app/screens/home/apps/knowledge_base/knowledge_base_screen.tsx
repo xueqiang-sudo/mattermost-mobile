@@ -882,6 +882,31 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         );
     }, [loading, searchResults, style, theme, intl]);
 
+    // Determine which list to show (must be before early returns for hooks rules)
+    const isSearchMode = searchResults !== null;
+
+    // Unified display list for FlatList (must be before early returns for hooks rules)
+    const displayItems = useMemo<DisplayItem[]>(() => {
+        if (isSearchMode) {
+            return (searchResults || []).map((r) => ({
+                docId: r.docId,
+                title: r.title,
+                category: r.category,
+                tags: [],
+                createdAt: '',
+                snippet: r.snippet,
+                score: r.score,
+            }));
+        }
+        return documents.map((d) => ({
+            docId: d.docId,
+            title: d.title,
+            category: d.category,
+            tags: d.tags,
+            createdAt: d.createdAt,
+        }));
+    }, [isSearchMode, searchResults, documents]);
+
     // ---- Loading state ----
 
     // Show loading only when teamId is not set AND there's no error
@@ -939,31 +964,6 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     }
 
     console.log('[KB] Rendering main content, teamId:', teamId, 'loading:', loading, 'error:', error);
-
-    // Determine which list to show
-    const isSearchMode = searchResults !== null;
-
-    // Unified display list for FlatList
-    const displayItems = useMemo<DisplayItem[]>(() => {
-        if (isSearchMode) {
-            return (searchResults || []).map((r) => ({
-                docId: r.docId,
-                title: r.title,
-                category: r.category,
-                tags: [],
-                createdAt: '',
-                snippet: r.snippet,
-                score: r.score,
-            }));
-        }
-        return documents.map((d) => ({
-            docId: d.docId,
-            title: d.title,
-            category: d.category,
-            tags: d.tags,
-            createdAt: d.createdAt,
-        }));
-    }, [isSearchMode, searchResults, documents]);
 
     // ---- Main render ----
 
