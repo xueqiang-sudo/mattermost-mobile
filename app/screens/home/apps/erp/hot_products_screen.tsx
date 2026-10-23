@@ -26,7 +26,7 @@ import {
     fetchHotProducts,
     type HotProductsData,
     type HotProduct,
-} from '../../api';
+} from '../api';
 
 // ---- Constants ----
 

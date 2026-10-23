@@ -7,7 +7,6 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
-    Linking,
     Modal,
     ScrollView,
     StyleSheet,
@@ -16,12 +15,10 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import DocumentPicker from 'react-native-document-picker';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
-import Markdown from '@components/markdown';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
