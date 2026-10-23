@@ -311,7 +311,7 @@ const ApprovalsScreen = () => {
     if (loading) {
         return (
             <SafeAreaView
-                edges={['bottom', 'left', 'right']}
+                edges={['top', 'bottom']}
                 style={styles.container}
                 testID='approvals.screen'
             >
@@ -337,7 +337,7 @@ const ApprovalsScreen = () => {
     if (error) {
         return (
             <SafeAreaView
-                edges={['bottom', 'left', 'right']}
+                edges={['top', 'bottom']}
                 style={styles.container}
                 testID='approvals.screen'
             >
@@ -373,7 +373,7 @@ const ApprovalsScreen = () => {
     if (approvals.length === 0) {
         return (
             <SafeAreaView
-                edges={['bottom', 'left', 'right']}
+                edges={['top', 'bottom']}
                 style={styles.container}
                 testID='approvals.screen'
             >
@@ -421,7 +421,7 @@ const ApprovalsScreen = () => {
     // Main list view
     return (
         <SafeAreaView
-            edges={['bottom', 'left', 'right']}
+            edges={['top', 'bottom']}
             style={styles.container}
             testID='approvals.screen'
         >
