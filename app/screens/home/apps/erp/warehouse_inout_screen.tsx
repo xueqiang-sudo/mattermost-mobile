@@ -12,7 +12,6 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
-    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -52,7 +51,7 @@ const WarehouseInoutScreen = () => {
     const [showSuccess, setShowSuccess] = useState(false);
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [selectedWarehouse, setSelectedWarehouse] = useState('');
-    const [showWarehousePicker, setShowWarehousePicker] = useState(false);
+    const [warehouseDropdownOpen, setWarehouseDropdownOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [sendError, setSendError] = useState('');
     const [pickListId, setPickListId] = useState('');
@@ -232,20 +231,44 @@ const WarehouseInoutScreen = () => {
                     )}
 
                     {/* Warehouse selector */}
+                    <Text style={styles.label}>
+                        {intl.formatMessage({id: 'apps.select_warehouse', defaultMessage: '选择仓库'})}
+                    </Text>
                     <TouchableOpacity
-                        onPress={() => setShowWarehousePicker(true)}
-                        style={styles.warehouseButton}
+                        onPress={() => setWarehouseDropdownOpen(!warehouseDropdownOpen)}
+                        style={styles.selectBtn}
                     >
-                        <CompassIcon name='warehouse-outline' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
-                        {selectedWarehouse ? (
-                            <Text style={styles.warehouseButtonText}>{selectedWarehouse}</Text>
-                        ) : (
-                            <Text style={styles.warehousePlaceholder}>
-                                {intl.formatMessage({id: 'apps.choose_warehouse', defaultMessage: '选择仓库...'})}
-                            </Text>
-                        )}
-                        <CompassIcon name='chevron-down' size={20} color={changeOpacity(theme.centerChannelColor, 0.56)}/>
+                        <Text style={selectedWarehouse ? styles.selectText : styles.selectPlaceholder}>
+                            {selectedWarehouse || intl.formatMessage({id: 'apps.choose_warehouse', defaultMessage: '选择仓库...'})}
+                        </Text>
+                        <CompassIcon name={warehouseDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
                     </TouchableOpacity>
+                    {warehouseDropdownOpen && (
+                        <ScrollView style={styles.dropdown}>
+                            {warehouses.map((wh) => (
+                                <TouchableOpacity
+                                    key={wh.name}
+                                    style={[styles.dropdownItem, selectedWarehouse === wh.name && styles.dropdownItemSelected]}
+                                    onPress={() => {
+                                        setSelectedWarehouse(wh.name);
+                                        setWarehouseDropdownOpen(false);
+                                        setSendError('');
+                                    }}
+                                >
+                                    <Text style={styles.dropdownItemText}>
+                                        {wh.warehouse_name || wh.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                            {warehouses.length === 0 && (
+                                <View style={styles.emptyDropdownContainer}>
+                                    <Text style={styles.emptyText}>
+                                        {intl.formatMessage({id: 'apps.no_warehouses', defaultMessage: '暂无仓库'})}
+                                    </Text>
+                                </View>
+                            )}
+                        </ScrollView>
+                    )}
 
                     {/* Error */}
                     {sendError ? (
@@ -291,47 +314,6 @@ const WarehouseInoutScreen = () => {
                 </ScrollView>
             ) : null}
 
-            {/* Warehouse picker modal */}
-            <Modal
-                visible={showWarehousePicker}
-                transparent={true}
-                animationType='slide'
-                onRequestClose={() => setShowWarehousePicker(false)}
-            >
-                <TouchableOpacity
-                    style={styles.pickerOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowWarehousePicker(false)}
-                >
-                    <View style={styles.pickerContent}>
-                        <View style={styles.pickerHeader}>
-                            <Text style={styles.pickerHeaderText}>
-                                {intl.formatMessage({id: 'apps.select_warehouse', defaultMessage: '选择仓库'})}
-                            </Text>
-                        </View>
-                        <ScrollView style={styles.pickerScroll}>
-                            {warehouses.map((wh) => (
-                                <TouchableOpacity
-                                    key={wh.name}
-                                    style={[
-                                        styles.pickerItem,
-                                        selectedWarehouse === wh.name && styles.pickerItemSelected,
-                                    ]}
-                                    onPress={() => {
-                                        setSelectedWarehouse(wh.name);
-                                        setShowWarehousePicker(false);
-                                        setSendError('');
-                                    }}
-                                >
-                                    <Text style={selectedWarehouse === wh.name ? styles.pickerItemSelectedText : styles.pickerItemText}>
-                                        {wh.warehouse_name || wh.name}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
         </SafeAreaView>
     );
 };
@@ -427,26 +409,61 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         textAlign: 'right',
         ...typography('Body', 200, 'Regular'),
     },
-    warehouseButton: {
-        height: 48,
-        borderRadius: 10,
+    label: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: 12,
+        marginBottom: 4,
+        ...typography('Body', 75, 'Regular'),
+    },
+    selectBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        marginTop: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 8,
         borderWidth: 1,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
     },
-    warehouseButtonText: {
+    selectText: {
         color: theme.centerChannelColor,
         flex: 1,
         ...typography('Body', 200, 'Regular'),
     },
-    warehousePlaceholder: {
+    selectPlaceholder: {
         color: changeOpacity(theme.centerChannelColor, 0.4),
         flex: 1,
         ...typography('Body', 200, 'Regular'),
+    },
+    dropdown: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 200,
+        backgroundColor: theme.centerChannelBg,
+    },
+    dropdownItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    dropdownItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+    },
+    dropdownItemText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200, 'Regular'),
+    },
+    emptyDropdownContainer: {
+        paddingHorizontal: 12,
+        paddingVertical: 16,
+    },
+    emptyText: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        textAlign: 'center',
+        ...typography('Body', 75, 'Regular'),
     },
     errorContainer: {
         flexDirection: 'row',
@@ -498,48 +515,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         marginTop: 4,
         textAlign: 'center',
         ...typography('Body', 75, 'Regular'),
-    },
-    pickerOverlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-        backgroundColor: changeOpacity('#000000', 0.5),
-    },
-    pickerContent: {
-        backgroundColor: theme.centerChannelBg,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        maxHeight: '60%',
-        paddingBottom: 34,
-    },
-    pickerHeader: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
-    },
-    pickerHeaderText: {
-        color: theme.centerChannelColor,
-        textAlign: 'center',
-        ...typography('Heading', 200, 'SemiBold'),
-    },
-    pickerScroll: {
-        maxHeight: 400,
-    },
-    pickerItem: {
-        paddingVertical: 14,
-        paddingHorizontal: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.04),
-    },
-    pickerItemSelected: {
-        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
-    },
-    pickerItemText: {
-        color: theme.centerChannelColor,
-        ...typography('Body', 200, 'Regular'),
-    },
-    pickerItemSelectedText: {
-        color: theme.buttonBg,
-        ...typography('Body', 200, 'SemiBold'),
     },
 }));
 
