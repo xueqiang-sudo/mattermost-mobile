@@ -105,21 +105,6 @@ const WarehouseInoutScreen = () => {
         fetchWarehouses();
     }, [serverUrl]);
 
-    // Auto-clear success after 5 seconds
-    useEffect(() => {
-        if (showSuccess) {
-            const timer = setTimeout(() => {
-                setShowSuccess(false);
-                setScanResult('');
-                setScanType(null);
-                setSelectedWarehouse('');
-                setPickListId('');
-                setResultFields([]);
-            }, 5000);
-            return () => clearTimeout(timer);
-        }
-        return undefined;
-    }, [showSuccess]);
 
     const handleSend = useCallback(async () => {
         if (!scanResult || !selectedWarehouse || isSending) {
