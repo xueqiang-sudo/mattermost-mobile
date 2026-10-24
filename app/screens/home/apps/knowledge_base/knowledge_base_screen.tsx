@@ -15,7 +15,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
@@ -65,6 +65,8 @@ type DisplayItem = {
     createdAt: string;
     snippet?: string;
     score?: number;
+    fileName?: string;
+    fileSize?: number;
 };
 
 // ---- Helpers ----
@@ -76,10 +78,48 @@ function formatDate(val: string): string {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
-function categoryIcon(category: string): string {
+function getExtension(fileName?: string): string {
+    if (!fileName) return '';
+    const idx = fileName.lastIndexOf('.');
+    if (idx < 0 || idx === fileName.length - 1) return '';
+    return fileName.slice(idx + 1).toLowerCase();
+}
+
+function categoryIcon(category: string, ext?: string): string {
+    // File category: prefer extension-based icon (same palette as cloud drive)
+    if (category === 'file' && ext) {
+        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'];
+        const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
+        const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
+        const pdfExts = ['pdf'];
+        const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
+        const presentationExts = ['ppt', 'pptx', 'key', 'odp'];
+        const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'dmg', 'iso'];
+        const codeExts = [
+            'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp',
+            'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt', 'scala', 'lua',
+            'html', 'htm', 'css', 'scss', 'sass', 'less',
+            'json', 'xml', 'yaml', 'yml', 'toml', 'sql',
+        ];
+
+        if (ext === 'gif') return 'file-gif';
+        if (imageExts.includes(ext)) return 'file-image-outline-large';
+        if (videoExts.includes(ext)) return 'file-video-outline-large';
+        if (audioExts.includes(ext)) return 'file-audio-outline-large';
+        if (pdfExts.includes(ext)) return 'file-pdf-outline-large';
+        if (sheetExts.includes(ext)) return 'file-excel-outline-large';
+        if (presentationExts.includes(ext)) return 'file-powerpoint-outline-large';
+        if (codeExts.includes(ext)) return 'file-code-outline-large';
+        if (archiveExts.includes(ext)) return 'file-zip-outline-large';
+        if (['doc', 'docx', 'odt', 'rtf', 'txt', 'md'].includes(ext)) return 'file-word-outline-large';
+        return 'file-generic-outline-large';
+    }
+
     switch (category) {
         case 'file':
             return 'file-document-outline';
@@ -215,6 +255,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         letterSpacing: 0.5,
     },
     docDate: {
+        ...typography('Body', 50, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.48),
+    },
+    docExtBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 4,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    docExtText: {
+        ...typography('Body', 25, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+        textTransform: 'uppercase',
+    },
+    docSize: {
         ...typography('Body', 50, 'Regular'),
         color: changeOpacity(theme.centerChannelColor, 0.48),
     },
@@ -565,6 +620,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
     const style = getStyleSheet(theme);
+    const insets = useSafeAreaInsets();
 
     const [teamId, setTeamId] = useState('');
     const [loading, setLoading] = useState(true);
@@ -827,41 +883,66 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     ), [style, theme, searchQuery, onSearchChange, clearSearch, performSearch, intl]);
 
     // Render a single document card
-    const renderItemCard = useCallback((item: DisplayItem) => (
-        <TouchableOpacity
-            style={style.docCard}
-            onPress={() => openDetail(item.docId, item.title)}
-            activeOpacity={0.7}
-        >
-            <View style={style.docHeader}>
-                <CompassIcon
-                    name={categoryIcon(item.category)}
-                    size={20}
-                    color={theme.buttonBg}
-                />
-                <Text style={style.docTitle} numberOfLines={2}>{item.title}</Text>
-            </View>
-            <View style={style.docMeta}>
-                <Text style={style.docCategory}>{item.category || 'unknown'}</Text>
-                {item.createdAt ? <Text style={style.docDate}>{formatDate(item.createdAt)}</Text> : null}
-                {item.score !== undefined && (
-                    <Text style={style.docScore}>{(item.score * 100).toFixed(0)}%</Text>
-                )}
-            </View>
-            {item.tags && item.tags.length > 0 && (
-                <View style={style.docTags}>
-                    {item.tags.map((tag, i) => (
-                        <View key={`${tag}-${i}`} style={style.tagChip}>
-                            <Text style={style.tagText}>{tag}</Text>
+    const renderItemCard = useCallback((item: DisplayItem) => {
+        const ext = getExtension(item.fileName);
+        const isFile = item.category === 'file';
+
+        return (
+            <TouchableOpacity
+                style={style.docCard}
+                onPress={() => openDetail(item.docId, item.title)}
+                activeOpacity={0.7}
+            >
+                <View style={style.docHeader}>
+                    <CompassIcon
+                        name={categoryIcon(item.category, ext)}
+                        size={20}
+                        color={theme.buttonBg}
+                    />
+                    <Text style={style.docTitle} numberOfLines={2}>{item.title}</Text>
+                    {isFile && ext ? (
+                        <View style={style.docExtBadge}>
+                            <Text style={style.docExtText}>{ext}</Text>
                         </View>
-                    ))}
+                    ) : null}
                 </View>
-            )}
-            {item.snippet ? (
-                <Text style={style.docSnippet} numberOfLines={3}>{item.snippet}</Text>
-            ) : null}
-        </TouchableOpacity>
-    ), [style, theme, openDetail]);
+                <View style={style.docMeta}>
+                    {isFile ? (
+                        <>
+                            <Text style={style.docSize}>
+                                {item.fileSize ? formatFileSize(item.fileSize) : '-'}
+                            </Text>
+                            {item.createdAt ? (
+                                <Text style={style.docDate}>· {formatDate(item.createdAt)}</Text>
+                            ) : null}
+                        </>
+                    ) : (
+                        <>
+                            <Text style={style.docCategory}>
+                                {item.category || intl.formatMessage({id: 'workbench.kb.category_unknown', defaultMessage: 'unknown'})}
+                            </Text>
+                            {item.createdAt ? <Text style={style.docDate}>{formatDate(item.createdAt)}</Text> : null}
+                        </>
+                    )}
+                    {item.score !== undefined && (
+                        <Text style={style.docScore}>{(item.score * 100).toFixed(0)}%</Text>
+                    )}
+                </View>
+                {item.tags && item.tags.length > 0 && (
+                    <View style={style.docTags}>
+                        {item.tags.map((tag, i) => (
+                            <View key={`${tag}-${i}`} style={style.tagChip}>
+                                <Text style={style.tagText}>{tag}</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+                {item.snippet ? (
+                    <Text style={style.docSnippet} numberOfLines={3}>{item.snippet}</Text>
+                ) : null}
+            </TouchableOpacity>
+        );
+    }, [style, theme, openDetail, intl]);
 
     const renderFlatListItem = useCallback(({item}: {item: DisplayItem}) => renderItemCard(item), [renderItemCard]);
 
@@ -904,6 +985,8 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             category: d.category,
             tags: d.tags,
             createdAt: d.createdAt,
+            fileName: d.fileName,
+            fileSize: d.fileSize,
         }));
     }, [isSearchMode, searchResults, documents]);
 
@@ -1014,7 +1097,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                         data={displayItems}
                         renderItem={renderFlatListItem}
                         keyExtractor={keyExtractor}
-                        contentContainerStyle={style.listContent}
+                        contentContainerStyle={[style.listContent, {paddingBottom: 80 + insets.bottom}]}
                         ListEmptyComponent={renderEmpty}
                         refreshing={false}
                         onRefresh={loadDocuments}
@@ -1023,7 +1106,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             </View>
 
             {/* Bottom action bar */}
-            <View style={style.bottomBar}>
+            <View style={[style.bottomBar, {paddingBottom: 10 + insets.bottom}]}>
                 {kbWrite && (
                     <TouchableOpacity style={style.addBtn} onPress={openAddScreen}>
                         <CompassIcon name='plus' size={18} color={theme.buttonBg}/>

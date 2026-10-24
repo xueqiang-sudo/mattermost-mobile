@@ -1,11 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, StyleSheet, View} from 'react-native';
 
-import {makeGroupChannel} from '@actions/remote/channel';
+import {makeBotGroupChannel, makeGroupChannel} from '@actions/remote/channel';
 import Button from '@components/button';
 import OptionBox, {OPTIONS_HEIGHT} from '@components/option_box';
 import {Events, Screens} from '@constants';
@@ -14,6 +14,7 @@ import {useTheme} from '@context/theme';
 import {dismissBottomSheet} from '@screens/navigation';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {queryUsersById} from '@queries/servers/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -54,6 +55,18 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
     const theme = useTheme();
     const serverUrl = useServerUrl();
 
+    // Resolve whether the target user is a bot so we can route "Send message"
+    // to makeBotGroupChannel (creates a `botgm_` group) instead of the
+    // regular makeGroupChannel path.
+    const [isBot, setIsBot] = useState(false);
+    useEffect(() => {
+        const db = DatabaseManager.serverDatabases[serverUrl]?.database;
+        if (!db || !userId) return;
+        queryUsersById(db, [userId]).fetch().then((users) => {
+            setIsBot(Boolean(users[0]?.isBot));
+        }).catch(() => {/* ignore */});
+    }, [serverUrl, userId]);
+
     const mentionUser = useCallback(async () => {
         await dismissBottomSheet(Screens.USER_PROFILE);
         DeviceEventEmitter.emit(Events.SEND_TO_POST_DRAFT, {location, text: `@${username}`});
@@ -63,8 +76,13 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
         await dismissBottomSheet(Screens.USER_PROFILE);
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentTeamId = await getCurrentTeamId(database);
-        await makeGroupChannel(serverUrl, [userId], true, undefined, currentTeamId);
-    }, [userId, serverUrl]);
+        if (isBot) {
+            // Bot → create a botgm_ group via the server's dedicated endpoint
+            await makeBotGroupChannel(serverUrl, userId, currentTeamId);
+        } else {
+            await makeGroupChannel(serverUrl, [userId], true, undefined, currentTeamId);
+        }
+    }, [userId, serverUrl, isBot]);
 
     if (type === 'all') {
         return (

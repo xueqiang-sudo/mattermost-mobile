@@ -167,7 +167,9 @@ const KBEditScreen = ({doc, onDocUpdated}: Props) => {
                             defaultMessage: 'Category',
                         })}
                     </Text>
-                    <Text style={style.infoText}>{doc.category || 'Unknown'}</Text>
+                    <Text style={style.infoText}>
+                        {doc.category || intl.formatMessage({id: 'workbench.kb.category_unknown', defaultMessage: 'Unknown'})}
+                    </Text>
                 </View>
 
                 {doc.createdAt && (

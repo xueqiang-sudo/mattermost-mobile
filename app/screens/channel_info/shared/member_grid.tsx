@@ -143,6 +143,7 @@ type Props = {
     showSearch?: boolean;
     onAddPress?: () => void;
     onRemovePress?: () => void;
+    onMemberPress?: (userId: string) => void;
     maxVisible?: number; // for public/private channels: show max N + "+N more"
     testID?: string;
 }
@@ -198,6 +199,7 @@ const MemberGridInner = ({
     showSearch,
     onAddPress,
     onRemovePress,
+    onMemberPress,
     maxVisible,
     testID,
 }: Props) => {
@@ -239,9 +241,10 @@ const MemberGridInner = ({
             <MemberAvatarItem
                 userId={userId}
                 nickname={nickname}
+                onPress={onMemberPress}
             />
         );
-    }, [currentUserId, myNickname]);
+    }, [currentUserId, myNickname, onMemberPress]);
 
     const keyExtractor = useCallback((item: string) => item, []);
 
@@ -315,12 +318,13 @@ type OuterProps = {
     showSearch?: boolean;
     onAddPress?: () => void;
     onRemovePress?: () => void;
+    onMemberPress?: (userId: string) => void;
     maxVisible?: number;
     testID?: string;
 }
 
 const enhanced = withObservables(['memberIds'], ({memberIds, database}: OuterProps & WithDatabaseArgs) => ({
-    users: queryUsersById(database, memberIds).observeWithColumns(['last_picture_update', 'username', 'first_name', 'last_name', 'nickname']),
+    users: queryUsersById(database, memberIds).observeWithColumns(['last_picture_update', 'username', 'first_name', 'last_name', 'nickname', 'is_bot']),
 }));
 
 const MemberGrid = withDatabase(enhanced(MemberGridInner));

@@ -7,7 +7,7 @@ import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {makeGroupChannel} from '@actions/remote/channel';
+import {makeBotGroupChannel, makeGroupChannel} from '@actions/remote/channel';
 import {fetchDepartmentsByTeam, moveContactEmployeeToDepartment} from '@actions/remote/contact_new';
 import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
 import {fetchTeamById, getTeamMembersByIds, removeUserFromTeam} from '@actions/remote/team';
@@ -677,7 +677,10 @@ const ContactsEmployeeProfile = ({
         await updateRelationFields(relationRemark, relationDescription, nextValue);
     }, [canEditRelationFields, editingCompany, intl, companyEditInput, relationRemark, relationDescription, updateRelationFields]));
 
-    const resolveMattermostUserId = useCallback(async (): Promise<string | null> => {
+    // Resolve the Mattermost user for this employee. Returns both the user ID
+    // and an is_bot flag so that handleSendMessage can route to the right
+    // channel-creation API (bot → makeBotGroupChannel; human → makeGroupChannel).
+    const resolveMattermostUser = useCallback(async (): Promise<{id: string; isBot: boolean} | null> => {
         if (!serverUrl) {
             return null;
         }
@@ -685,13 +688,14 @@ const ContactsEmployeeProfile = ({
         try {
             if (employee.email) {
                 const user = await client.getUserByEmail(employee.email);
-                return user?.id ?? null;
+                if (!user) return null;
+                return {id: user.id, isBot: Boolean((user as UserProfile).is_bot)};
             }
-            return employee.id;
+            return {id: employee.id, isBot: Boolean(employee.is_bot)};
         } catch {
-            return employee.id;
+            return {id: employee.id, isBot: Boolean(employee.is_bot)};
         }
-    }, [serverUrl, employee.id, employee.email]);
+    }, [serverUrl, employee.id, employee.email, employee.is_bot]);
 
     const isSelf = Boolean(currentUserId && employee.id && currentUserId === employee.id);
     const profileTagKeys = buildEnterpriseUserTagKeys({
@@ -706,8 +710,8 @@ const ContactsEmployeeProfile = ({
             return;
         }
         setSending(true);
-        const userId = await resolveMattermostUserId();
-        if (!userId) {
+        const resolved = await resolveMattermostUser();
+        if (!resolved) {
             setSending(false);
             Alert.alert(
                 '',
@@ -720,7 +724,11 @@ const ContactsEmployeeProfile = ({
         }
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentTeamId = await getCurrentTeamId(database);
-        const result = await makeGroupChannel(serverUrl, [userId], true, undefined, currentTeamId);
+        // Bot → botgm_ group (server creates the channel with the `botgm_`
+        // prefix and enforces 1-on-1 membership); human → regular GM.
+        const result = resolved.isBot
+            ? await makeBotGroupChannel(serverUrl, resolved.id, currentTeamId)
+            : await makeGroupChannel(serverUrl, [resolved.id], true, undefined, currentTeamId);
         setSending(false);
         if (result.error) {
             Alert.alert(
@@ -733,7 +741,7 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [serverUrl, sending, isSelf, resolveMattermostUserId, employee, intl, handleClose]));
+    }, [serverUrl, sending, isSelf, resolveMattermostUser, intl, handleClose]));
 
     const canSendMessage = !isSelf && Boolean(employee.email || employee.id);
 

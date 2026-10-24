@@ -66,6 +66,7 @@ type SimpleUserProfile = {
     country_code?: string;
     phone?: string;
     last_picture_update?: number;
+    is_bot?: boolean;
 }
 
 type UserProfile = SimpleUserProfile & {

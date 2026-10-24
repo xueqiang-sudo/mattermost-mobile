@@ -19,8 +19,13 @@ import Markdown from '@components/markdown';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
+import {isImage, isVideo, isAudio} from '@utils/file';
+import {showMediaViewer} from '@utils/gallery';
+import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -94,14 +99,43 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
         loadDetail();
     }, [loadDetail]);
 
-    // 下载文件
+    // Open file using the same in-app preview as the chat window
+    // (showMediaViewer for image/video/audio; openUnifiedFileViewer for documents)
     const handleDownload = useCallback(async () => {
         if (!doc) return;
 
         try {
-            const url = await getKBDownloadUrl(serverUrl, doc.docId);
-            if (url) {
-                await Linking.openURL(url);
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const teamId = await getCurrentTeamId(database);
+            if (!teamId) {
+                throw new Error('team_id missing');
+            }
+
+            const url = getKBDownloadUrl(serverUrl, doc.docId, teamId);
+            if (!url) {
+                throw new Error('No download URL');
+            }
+
+            const fileName = doc.fileName || doc.title || '';
+            const extDot = fileName.lastIndexOf('.');
+            const extension = extDot > 0 ? fileName.slice(extDot + 1).toLowerCase() : '';
+
+            const fileInfo: FileInfo = {
+                id: doc.docId,
+                user_id: '',
+                create_at: 0,
+                name: fileName,
+                extension,
+                size: doc.fileSize || 0,
+                mime_type: '',
+                uri: url,
+                localPath: url,
+            } as FileInfo;
+
+            if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
+                showMediaViewer(fileInfo, serverUrl);
+            } else {
+                openUnifiedFileViewer(fileInfo, theme);
             }
         } catch (err) {
             Alert.alert(
@@ -109,7 +143,7 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
                 String(err),
             );
         }
-    }, [doc, serverUrl, intl]);
+    }, [doc, serverUrl, intl, theme]);
 
     // 删除文档
     const handleDelete = useCallback(() => {
@@ -177,7 +211,9 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
                 ) : doc ? (
                     <>
                         {/* 分类 */}
-                        <Text style={style.category}>{doc.category || 'Unknown'}</Text>
+                        <Text style={style.category}>
+                            {doc.category || intl.formatMessage({id: 'workbench.kb.category_unknown', defaultMessage: 'Unknown'})}
+                        </Text>
 
                         {/* 日期 */}
                         <Text style={style.date}>{formatDate(doc.createdAt)}</Text>

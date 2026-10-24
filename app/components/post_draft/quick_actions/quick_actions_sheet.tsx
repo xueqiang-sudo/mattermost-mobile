@@ -187,8 +187,23 @@ export default function QuickActionsSheet({
         if (!database) return;
         const teamId = await getCurrentTeamId(database);
         if (!teamId) return;
-        showCloudDrivePickerModal(channelId, teamId);
-    }, [channelId, intl, maxFilesReached, maxFileCount, serverUrl]);
+        // Pass addFiles so the cloud drive picker can feed files into the
+        // optimistic rendering pipeline (same flow as the photo gallery),
+        // instead of waiting for the server createPost round-trip.
+        showCloudDrivePickerModal(channelId, teamId, (files) => {
+            try {
+                addFiles(files);
+            } catch (error) {
+                Alert.alert(
+                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                    intl.formatMessage({
+                        id: 'file_picker.add_files_error',
+                        defaultMessage: 'Failed to add files. Please try again.',
+                    }),
+                );
+            }
+        });
+    }, [addFiles, channelId, intl, maxFilesReached, maxFileCount, serverUrl]);
 
     const handleGalleryPress = useCallback(() => {
         if (maxFilesReached) {

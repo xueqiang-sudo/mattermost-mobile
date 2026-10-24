@@ -6,7 +6,6 @@ import {useIntl} from 'react-intl';
 import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {createPost} from '@actions/remote/post';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -34,6 +33,7 @@ type Props = {
     componentId: AvailableScreens;
     channelId: string;
     teamId?: string;
+    onSend?: (files: FileInfo[]) => void | Promise<void>;
 };
 
 function formatFileSize(bytes: number): string {
@@ -50,18 +50,45 @@ function formatFileSize(bytes: number): string {
 
 function getFileIcon(file: DriveFile): string {
     if (file.type === 'folder') return 'folder-outline';
+
     const ext = (file.extension || '').toLowerCase();
-    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'];
-    const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm'];
-    const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac'];
-    const docExts = ['doc', 'docx', 'pdf', 'txt', 'rtf', 'odt'];
-    const sheetExts = ['xls', 'xlsx', 'csv', 'ods'];
-    if (imageExts.includes(ext)) return 'file-image-outline';
-    if (videoExts.includes(ext)) return 'file-video-outline';
-    if (audioExts.includes(ext)) return 'file-music-outline';
+    if (!ext) return 'file-document-outline';
+
+    const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'svg', 'webp', 'ico', 'tiff'];
+    const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
+    const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
+    const docExts = [
+        'doc', 'docx', 'txt', 'rtf', 'odt', 'md', 'mdx',
+        'pages', 'tex', 'epub', 'log',
+    ];
+    const pdfExts = ['pdf'];
+    const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
+    const presentationExts = ['ppt', 'pptx', 'key', 'odp'];
+    const codeExts = [
+        'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp',
+        'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt', 'scala', 'lua',
+        'pl', 'sh', 'bash', 'zsh', 'ps1', 'bat', 'cmd',
+        'html', 'htm', 'css', 'scss', 'sass', 'less',
+        'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf',
+        'sql', 'graphql', 'proto',
+    ];
+    const archiveExts = [
+        'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'dmg', 'iso',
+    ];
+    const executableExts = ['exe', 'msi', 'apk', 'app', 'ipa', 'deb', 'rpm'];
+
+    if (ext === 'gif') return 'file-gif';
+    if (imageExts.includes(ext)) return 'file-image-outline-large';
+    if (videoExts.includes(ext)) return 'file-video-outline-large';
+    if (audioExts.includes(ext)) return 'file-audio-outline-large';
+    if (pdfExts.includes(ext)) return 'file-pdf-outline-large';
     if (docExts.includes(ext)) return 'file-document-outline';
-    if (sheetExts.includes(ext)) return 'file-excel-outline';
-    return 'file-outline';
+    if (sheetExts.includes(ext)) return 'file-document-outline';
+    if (presentationExts.includes(ext)) return 'file-document-outline';
+    if (codeExts.includes(ext)) return 'file-document-outline';
+    if (archiveExts.includes(ext)) return 'file-zip-outline-large';
+    if (executableExts.includes(ext)) return 'file-download-outline';
+    return 'file-document-outline';
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -196,7 +223,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-export default function CloudDrivePicker({componentId, channelId, teamId: propTeamId}: Props) {
+export default function CloudDrivePicker({componentId, channelId, teamId: propTeamId, onSend}: Props) {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -309,26 +336,34 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
 
         try {
             const selectedFiles = files.filter((f) => selectedIds.has(f.id));
-            const fileInfos: any[] = [];
+            const fileInfos: FileInfo[] = [];
 
             for (const file of selectedFiles) {
                 const result = await copyDriveFileToChannel(serverUrl, resolvedTeamId, file.id, channelId);
                 if (result) {
-                    fileInfos.push(result);
+                    const r = result as any;
+                    fileInfos.push({
+                        ...r,
+                        // Defensive: ensure post_id is truthy so Phase 1's
+                        // isExistingServerFile check passes even if the
+                        // copyDriveFileToChannel response omits it.
+                        post_id: r.post_id || '_pre_copied',
+                        // Marker for draft_handler's addFiles pipeline: files are already
+                        // copied to the channel, do NOT re-copy in Phase 0.
+                        _skipPhase0: true,
+                    } as FileInfo);
                 }
             }
 
-            if (fileInfos.length > 0) {
-                const fileIds = fileInfos.map((f: any) => f.id);
-                await createPost(
-                    serverUrl,
-                    {channel_id: channelId, message: '', file_ids: fileIds} as any,
-                    fileInfos,
-                    true,
-                );
-            }
-
+            // Dismiss the picker first so the user sees the chat immediately.
+            // The addFiles pipeline (optimistic rendering) will render previews
+            // as soon as it writes pending posts to the local DB, then handle
+            // the server createPost call in the background.
             await dismissModal({componentId});
+
+            if (fileInfos.length > 0 && onSend) {
+                await onSend(fileInfos);
+            }
         } catch (error) {
             logDebug('CloudDrivePicker send error', error);
             Alert.alert(
@@ -337,7 +372,7 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
             );
             setSending(false);
         }
-    }, [selectedIds, sending, files, serverUrl, resolvedTeamId, channelId, componentId, intl]);
+    }, [selectedIds, sending, files, serverUrl, resolvedTeamId, channelId, componentId, intl, onSend]);
 
     const renderItem = useCallback(({item}: {item: DriveFile}) => {
         const isFolder = item.type === 'folder';

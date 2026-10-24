@@ -4,14 +4,20 @@
 import {Screens} from '@constants';
 import {showModalWithBackButton} from '@screens/navigation';
 
-export const showCloudDrivePickerModal = (channelId: string, teamId: string) => {
+export type CloudDrivePickerOnSend = (files: FileInfo[]) => void | Promise<void>;
+
+export const showCloudDrivePickerModal = (
+    channelId: string,
+    teamId: string,
+    onSend?: CloudDrivePickerOnSend,
+) => {
     const title = '';
     const closeButtonId = `close-${Screens.CLOUD_DRIVE_PICKER}`;
     showModalWithBackButton(
         Screens.CLOUD_DRIVE_PICKER,
         title,
         closeButtonId,
-        {channelId, teamId},
+        {channelId, teamId, onSend},
         {useBackIcon: true},
     );
 };

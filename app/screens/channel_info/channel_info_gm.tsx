@@ -16,7 +16,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen} from '@screens/navigation';
+import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen, openUserProfileModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername} from '@utils/user';
@@ -213,6 +213,18 @@ const ChannelInfoGM = ({
         });
     }, [channelId, displayName, displayNameCustomized, memberIds, intl]);
 
+    // Open user profile bottom sheet when a member avatar is tapped
+    // (mirrors the enterprise directory "tap a person" pattern).
+    // The "Send message" button in the profile sheet routes by is_bot
+    // (bot → makeBotGroupChannel → botgm_ group; normal user → makeGroupChannel).
+    const handleMemberPress = useCallback((userId: string) => {
+        openUserProfileModal(intl, theme, {
+            location: componentId,
+            userId,
+            channelId,
+        });
+    }, [intl, theme, componentId, channelId]);
+
     const handleEditNickname = useCallback(() => {
         const title = intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'});
         goToScreen(Screens.EDIT_GROUP_NICKNAME, title, {
@@ -297,6 +309,7 @@ const ChannelInfoGM = ({
                             showSearch={true}
                             onAddPress={handleAddPeople}
                             onRemovePress={handleRemovePeople}
+                            onMemberPress={handleMemberPress}
                             testID='channel_info_gm.member_grid'
                         />
                     </View>

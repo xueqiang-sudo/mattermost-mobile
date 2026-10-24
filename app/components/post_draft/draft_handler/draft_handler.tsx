@@ -167,11 +167,29 @@ export default function DraftHandler(props: Props) {
                 );
                 const oldToNewIdMap: Record<string, string> = {};
 
-                if (existingServerFiles.length > 0) {
-                    debugLog('DRAFT', `addFiles: Phase 0 - copying ${existingServerFiles.length} existing server files`);
+                // Files marked with _skipPhase0 are already on the server and attached
+                // to the target channel (e.g., cloud drive picker pre-copied them via
+                // copyDriveFileToChannel). Re-copying would create duplicates, so just
+                // keep their IDs as-is and let Phase 1 treat them as existing server files.
+                const preCopiedFileIds = new Set(
+                    filesToUpload
+                        .filter(f => (f as FileInfo & {_skipPhase0?: boolean})._skipPhase0 && f.id)
+                        .map(f => f.id!),
+                );
+                if (preCopiedFileIds.size > 0) {
+                    preCopiedFileIds.forEach(id => {
+                        oldToNewIdMap[id] = id;
+                    });
+                    debugLog('DRAFT', `addFiles: Phase 0 - skipping copy for ${preCopiedFileIds.size} pre-copied cloud drive files`);
+                }
+
+                const filesToCopy = existingServerFiles.filter(f => !preCopiedFileIds.has(f.id!));
+
+                if (filesToCopy.length > 0) {
+                    debugLog('DRAFT', `addFiles: Phase 0 - copying ${filesToCopy.length} existing server files`);
                     try {
                         const client = NetworkManager.getClient(serverUrl);
-                        const originalFileIds = existingServerFiles.map(f => f.id!);
+                        const originalFileIds = filesToCopy.map(f => f.id!);
                         debugLog('DRAFT', `addFiles: Phase 0 - calling copyFiles with IDs: ${originalFileIds.join(', ')}`);
                         const copyResult = await client.copyFiles(originalFileIds);
                         debugLog('DRAFT', `addFiles: Phase 0 - copyFiles returned: ${JSON.stringify(copyResult)}`);
@@ -191,7 +209,7 @@ export default function DraftHandler(props: Props) {
                         // This allows the upload to proceed even if copy fails
                         console.warn('[addFiles] Failed to copy files, will use original IDs:', copyError);
                     }
-                } else {
+                } else if (preCopiedFileIds.size === 0) {
                     debugLog('DRAFT', `addFiles: Phase 0 - no existing server files to copy`);
                 }
 

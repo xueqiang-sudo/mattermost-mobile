@@ -2,20 +2,24 @@
 // See LICENSE.txt for license information.
 
 /**
- * 出入库 Screen — 扫码创建 Pick List
- * 流程：点击出库/入库按钮 → 扫描二维码 → 选择仓库 → 发送创建拣货单
- * 调用 frappe-sync 插件 API (/api/pick-list) → MCP erpnext_pick_list_create
+ * 离线出库/入库扫描 Screen
+ * - 扫码后本地存储记录
+ * - 支持日期/时段筛选、人工输入、删除、批量上传
+ * - 调用 frappe-sync 插件 API (/api/pick-list)
  */
 
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
-    Platform,
+    Alert,
+    FlatList,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -32,273 +36,697 @@ import {typography} from '@utils/typography';
 
 import type {AppsStackParamList} from '../apps_stack_param_list';
 
-type DisplayField = {key: string; label: string; value: string};
-type ScanType = 'stock_in' | 'stock_out' | null;
-type Warehouse = {name: string; warehouse_name?: string};
+import {parseQrCode} from './scan_utils';
+import {
+    addScanRecord,
+    getScanRecords,
+    deleteScanRecords,
+    updateScanRecordStatus,
+    getDistinctScanDates,
+    getDistinctScanSessions,
+    createCurrentSession,
+    createCurrentDate,
+    type ScanRecord,
+} from './scan_database';
+
+type ScanType = 'stock_in' | 'stock_out';
+
+function formatDisplayBarcode(item: ScanRecord): string {
+    const boxStr = String(item.boxNo || '0').padStart(2, '0');
+    const weightStr = String(Math.round((item.netWeight || 0) * 100)).padStart(6, '0');
+    if (item.isMasterSheet) {
+        return `9${item.codeSheetNo}${boxStr}${weightStr}`;
+    }
+    return `${item.codeSheetNo}${boxStr}${weightStr}`;
+}
 
 const WarehouseInoutScreen = () => {
     const intl = useIntl();
     const navigation = useNavigation();
     const route = useRoute<RouteProp<AppsStackParamList, typeof Screens.APPS_WAREHOUSE_INOUT>>();
-    const initialScanType = route.params?.initialScanType || null;
+    const initialScanType = (route.params?.initialScanType || 'stock_out') as ScanType;
     const initialScanResult = route.params?.scanResult || '';
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
-    const [scanType, setScanType] = useState<ScanType>(initialScanType);
-    const [scanResult, setScanResult] = useState(initialScanResult);
-    const [showSuccess, setShowSuccess] = useState(false);
-    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-    const [selectedWarehouse, setSelectedWarehouse] = useState('');
-    const [warehouseDropdownOpen, setWarehouseDropdownOpen] = useState(false);
-    const [isSending, setIsSending] = useState(false);
-    const [sendError, setSendError] = useState('');
-    const [pickListId, setPickListId] = useState('');
-    const [resultFields, setResultFields] = useState<DisplayField[]>([]);
-    const [scannerError, setScannerError] = useState('');
+    // ── State ──
+    const [scanType] = useState<ScanType>(initialScanType);
+    const [scanDate, setScanDate] = useState(createCurrentDate());
+    const [scanSession, setScanSession] = useState('');
+    const [records, setRecords] = useState<ScanRecord[]>([]);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [currentBarcode, setCurrentBarcode] = useState('');
+    const [showManualInput, setShowManualInput] = useState(false);
+    const [manualInputText, setManualInputText] = useState('');
+    const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+    const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false);
+    const [availableDates, setAvailableDates] = useState<string[]>([]);
+    const [availableSessions, setAvailableSessions] = useState<string[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [showPickListModal, setShowPickListModal] = useState(false);
+    const [pendingPickLists, setPendingPickLists] = useState<{name: string; customer_name?: string}[]>([]);
+    const [selectedPickList, setSelectedPickList] = useState('');
+    const [pickListDropdownOpen, setPickListDropdownOpen] = useState(false);
+    const [isLoadingPickLists, setIsLoadingPickLists] = useState(false);
 
-    const openScanner = useCallback((type: ScanType) => {
-        setScanType(type);
-        setScanResult('');
-        setShowSuccess(false);
-        setSendError('');
-        setSelectedWarehouse('');
-        setPickListId('');
-        setResultFields([]);
-        setScannerError('');
+    const title = scanType === 'stock_out'
+        ? intl.formatMessage({id: 'warehouse_inout.outbound_scan', defaultMessage: '离线出库扫描'})
+        : intl.formatMessage({id: 'warehouse_inout.inbound_scan', defaultMessage: '离线入库扫描'});
 
-        try {
-            showQrScannerModal(intl, {
-                onScanResultCallback: (value: string) => {
-                    setScanResult(value);
-                    return true;
-                },
-            });
-        } catch (e: any) {
-            setScannerError(e?.message || 'Failed to open scanner');
+    // ── Load data ──
+    const loadRecords = useCallback(async () => {
+        const list = await getScanRecords({scanType, scanDate, scanSession});
+        setRecords(list);
+    }, [scanType, scanDate, scanSession]);
+
+    const loadDropdowns = useCallback(async () => {
+        const dates = await getDistinctScanDates(scanType);
+        if (!dates.includes(scanDate)) {
+            dates.unshift(scanDate);
         }
-    }, [intl]);
+        setAvailableDates(dates);
+
+        const sessions = await getDistinctScanSessions(scanDate, scanType);
+        if (!sessions.includes(scanSession)) {
+            sessions.unshift(scanSession);
+        }
+        setAvailableSessions(sessions);
+    }, [scanType, scanDate, scanSession]);
 
     useEffect(() => {
-        navigation.setOptions({
-            title: intl.formatMessage({id: 'workbench.tab.warehouse_inout', defaultMessage: '出入库'}),
-        });
-    }, [navigation, intl]);
+        const init = async () => {
+            // Create new scan session (numbered format: 01-HH:MM)
+            const session = await createCurrentSession(scanDate, scanType);
+            setScanSession(session);
 
-    // Fetch warehouses on mount
-    useEffect(() => {
-        const fetchWarehouses = async () => {
-            try {
-                const client = NetworkManager.getClient(serverUrl);
-                const data = await client.doFetch(
-                    '/plugins/com.mattermost.frappe-sync/api/warehouses',
-                    {method: 'GET'},
-                );
-                if (data?.warehouses) {
-                    setWarehouses(data.warehouses);
+            // Handle initial scan result from route params
+            if (initialScanResult) {
+                const parsed = parseQrCode(initialScanResult);
+                if (parsed) {
+                    const displayBarcode = formatDisplayBarcode({
+                        codeSheetNo: parsed.codeSheetNo,
+                        boxNo: parsed.boxNo,
+                        netWeight: parsed.netWeight,
+                        isMasterSheet: parsed.isMasterSheet,
+                    } as ScanRecord);
+                    setCurrentBarcode(displayBarcode);
+                    await addScanRecord({
+                        scanType,
+                        codeSheetNo: parsed.codeSheetNo,
+                        boxNo: parsed.boxNo,
+                        netWeight: parsed.netWeight,
+                        rawScan: initialScanResult,
+                        isMasterSheet: parsed.isMasterSheet,
+                        scanDate,
+                        scanSession: session,
+                        status: 'pending',
+                    });
                 }
-            } catch (e: any) {
-                console.warn('Failed to fetch warehouses:', e?.message || e);
             }
+
+            // Load records and dropdowns
+            const list = await getScanRecords({scanType, scanDate, scanSession: session});
+            setRecords(list);
+
+            const dates = await getDistinctScanDates(scanType);
+            if (!dates.includes(scanDate)) {
+                dates.unshift(scanDate);
+            }
+            setAvailableDates(dates);
+
+            const sessions = await getDistinctScanSessions(scanDate, scanType);
+            if (!sessions.includes(session)) {
+                sessions.unshift(session);
+            }
+            setAvailableSessions(sessions);
         };
-        fetchWarehouses();
-    }, [serverUrl]);
+        init();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // ── Stats ──
+    const stats = useMemo(() => {
+        const totalBarcodes = records.length;
+        const totalBoxes = records.reduce((sum, r) => {
+            const boxNum = parseInt(r.boxNo, 10);
+            return sum + (isNaN(boxNum) ? 1 : boxNum);
+        }, 0);
+        const totalWeight = records.reduce((sum, r) => sum + (r.netWeight || 0), 0);
+        return {totalBarcodes, totalBoxes, totalWeight: totalWeight.toFixed(2)};
+    }, [records]);
 
-    const handleSend = useCallback(async () => {
-        if (!scanResult || !selectedWarehouse || isSending) {
+    const pendingCount = useMemo(() => records.filter((r) => r.status === 'pending' || r.status === 'failed').length, [records]);
+
+    // ── Scan handler ──
+    const handleScanResult = useCallback(async (raw: string) => {
+        const parsed = parseQrCode(raw);
+        if (!parsed) {
             return;
         }
 
-        setIsSending(true);
-        setSendError('');
+        const displayBarcode = formatDisplayBarcode({
+            codeSheetNo: parsed.codeSheetNo,
+            boxNo: parsed.boxNo,
+            netWeight: parsed.netWeight,
+            isMasterSheet: parsed.isMasterSheet,
+        } as ScanRecord);
+        setCurrentBarcode(displayBarcode);
+
+        await addScanRecord({
+            scanType,
+            codeSheetNo: parsed.codeSheetNo,
+            boxNo: parsed.boxNo,
+            netWeight: parsed.netWeight,
+            rawScan: raw,
+            isMasterSheet: parsed.isMasterSheet,
+            scanDate,
+            scanSession,
+            status: 'pending',
+        });
+
+        await loadRecords();
+        await loadDropdowns();
+    }, [scanType, scanDate, scanSession, loadRecords, loadDropdowns]);
+
+    const openScanner = useCallback(() => {
+        showQrScannerModal(intl, {
+            onScanResultCallback: (value: string) => {
+                handleScanResult(value);
+                return true; // handled - close scanner
+            },
+        });
+    }, [intl, handleScanResult]);
+
+    // ── Manual input ──
+    const handleManualInput = useCallback(async () => {
+        const input = manualInputText.trim();
+        if (!input) {
+            return;
+        }
+
+        // Parse formatted barcode:
+        // Master (starts with 9): 9 + 11位码单号 + 2位箱数 + 6位净重 = 20 chars
+        // Single box:             11位码单号 + 2位箱号 + 6位净重 = 19 chars
+        let codeSheetNo: string;
+        let boxNo: string;
+        let netWeight: number;
+        let isMaster: boolean;
+
+        if (input.startsWith('9') && input.length >= 20) {
+            isMaster = true;
+            codeSheetNo = input.substring(1, 12);
+            boxNo = input.substring(12, 14);
+            const weightStr = input.substring(14, 20);
+            netWeight = parseInt(weightStr, 10) / 100;
+        } else if (input.length >= 19) {
+            isMaster = false;
+            codeSheetNo = input.substring(0, 11);
+            boxNo = input.substring(11, 13);
+            const weightStr = input.substring(13, 19);
+            netWeight = parseInt(weightStr, 10) / 100;
+        } else {
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.invalid_format', defaultMessage: '格式错误'}),
+                intl.formatMessage({id: 'warehouse_inout.invalid_format_msg', defaultMessage: '请输入完整的条码数据（总码单20位或单箱19位）'}),
+            );
+            return;
+        }
+
+        const displayBarcode = formatDisplayBarcode({
+            codeSheetNo,
+            boxNo,
+            netWeight,
+            isMasterSheet: isMaster,
+        } as ScanRecord);
+        setCurrentBarcode(displayBarcode);
+
+        await addScanRecord({
+            scanType,
+            codeSheetNo,
+            boxNo,
+            netWeight,
+            rawScan: input,
+            isMasterSheet: isMaster,
+            scanDate,
+            scanSession,
+            status: 'pending',
+        });
+
+        await loadRecords();
+        await loadDropdowns();
+        setManualInputText('');
+        setShowManualInput(false);
+    }, [manualInputText, scanType, scanDate, scanSession, intl, loadRecords, loadDropdowns]);
+
+    // ── Delete ──
+    const handleDelete = useCallback(async () => {
+        if (selectedIds.size === 0) {
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.select_first', defaultMessage: '请先选择要删除的条目'}),
+            );
+            return;
+        }
+
+        const confirmed = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.confirm_delete_title', defaultMessage: '确认删除'}),
+                intl.formatMessage(
+                    {id: 'warehouse_inout.confirm_delete_msg', defaultMessage: '确定要删除选中的 {count} 条记录吗？'},
+                    {count: selectedIds.size},
+                ),
+                [
+                    {text: intl.formatMessage({id: 'mobile.cancel', defaultMessage: '取消'}), style: 'cancel', onPress: () => resolve(false)},
+                    {text: intl.formatMessage({id: 'warehouse_inout.delete', defaultMessage: '删除'}), style: 'destructive', onPress: () => resolve(true)},
+                ],
+            );
+        });
+
+        if (confirmed) {
+            await deleteScanRecords(Array.from(selectedIds));
+            setSelectedIds(new Set());
+            await loadRecords();
+            await loadDropdowns();
+        }
+    }, [selectedIds, intl, loadRecords, loadDropdowns]);
+
+    // ── Upload: Step 1 - Fetch pending pick lists and show selection modal ──
+    const handleUploadStart = useCallback(async () => {
+        const pendingRecords = records.filter((r) => r.status === 'pending' || r.status === 'failed');
+        if (pendingRecords.length === 0) {
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.nothing_to_upload', defaultMessage: '没有待上传的记录'}),
+            );
+            return;
+        }
+
+        setIsLoadingPickLists(true);
+        setShowPickListModal(true);
+        setSelectedPickList('');
 
         try {
-            const body = {
-                scan_type: scanType,
-                warehouse: selectedWarehouse,
-                raw_scan: scanResult,
-            };
-
             const client = NetworkManager.getClient(serverUrl);
             const result = await client.doFetch(
-                '/plugins/com.mattermost.frappe-sync/api/pick-list',
-                {method: 'POST', body},
+                '/plugins/com.mattermost.frappe-sync/api/pick-lists/pending',
+                {method: 'GET'},
             );
 
-            if (result?.fields) {
-                setResultFields(result.fields);
+            const lists: {name: string; customer_name?: string}[] = [];
+            if (result?.data) {
+                if (Array.isArray(result.data)) {
+                    lists.push(...result.data);
+                } else if (typeof result.data === 'object') {
+                    // Handle {message: [...]} wrapper
+                    const msg = result.data.message || result.data;
+                    if (Array.isArray(msg)) {
+                        lists.push(...msg);
+                    }
+                }
             }
-
-            if (result?.status === 'success') {
-                setPickListId(result.pick_list_id || '');
-                setShowSuccess(true);
-            } else {
-                setSendError(result?.error || intl.formatMessage({id: 'warehouse_inout.error', defaultMessage: '创建失败'}));
-            }
-        } catch (e: any) {
-            setSendError(e?.message || intl.formatMessage({id: 'apps.network_error', defaultMessage: 'Network error'}));
-        } finally {
-            setIsSending(false);
+            setPendingPickLists(lists);
+        } catch {
+            setPendingPickLists([]);
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.fetch_pick_lists_failed', defaultMessage: '获取拣货单列表失败'}),
+            );
         }
-    }, [scanResult, scanType, selectedWarehouse, serverUrl, isSending, intl]);
 
-    const scanTypeLabel = scanType === 'stock_in'
-        ? intl.formatMessage({id: 'warehouse_inout.inbound', defaultMessage: '入库'})
-        : scanType === 'stock_out'
-            ? intl.formatMessage({id: 'warehouse_inout.outbound', defaultMessage: '出库'})
-            : '';
+        setIsLoadingPickLists(false);
+    }, [records, serverUrl, intl]);
 
-    const canSend = selectedWarehouse !== '' && !isSending && scanResult !== '';
+    // ── Upload: Step 2 - Upload items to selected pick list ──
+    const handleUploadConfirm = useCallback(async () => {
+        if (!selectedPickList) {
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.select_pick_list', defaultMessage: '请选择拣货单'}),
+            );
+            return;
+        }
+
+        const pendingRecords = records.filter((r) => r.status === 'pending' || r.status === 'failed');
+        if (pendingRecords.length === 0) {
+            return;
+        }
+
+        setShowPickListModal(false);
+        setIsUploading(true);
+
+        const rawScans = pendingRecords.map((r) => r.rawScan);
+        const pendingIds = pendingRecords.map((r) => r.id);
+
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            await client.doFetch(
+                '/plugins/com.mattermost.frappe-sync/api/pick-list-items',
+                {
+                    method: 'POST',
+                    body: {
+                        pick_list: selectedPickList,
+                        raw_scans: rawScans,
+                    },
+                },
+            );
+
+            await updateScanRecordStatus(pendingIds, 'uploaded');
+        } catch {
+            await updateScanRecordStatus(pendingIds, 'failed');
+        }
+
+        setIsUploading(false);
+        setSelectedPickList('');
+        await loadRecords();
+
+        Alert.alert(
+            intl.formatMessage({id: 'warehouse_inout.upload_done', defaultMessage: '上传完成'}),
+            intl.formatMessage(
+                {id: 'warehouse_inout.upload_done_msg', defaultMessage: '已上传 {count} 条记录到拣货单 {pickList}'},
+                {count: pendingRecords.length, pickList: selectedPickList},
+            ),
+        );
+    }, [selectedPickList, records, serverUrl, intl, loadRecords]);
+
+    // ── Toggle selection ──
+    const toggleSelect = useCallback((id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    }, []);
+
+    // ── Render list item ──
+    const renderRecord = useCallback(({item, index}: {item: ScanRecord; index: number}) => {
+        const isSelected = selectedIds.has(item.id);
+        const statusColor = item.status === 'uploaded' ? '#4CAF50'
+            : item.status === 'failed' ? '#F44336'
+                : changeOpacity(theme.centerChannelColor, 0.4);
+
+        return (
+            <TouchableOpacity
+                style={[styles.listItem, isSelected && styles.listItemSelected]}
+                onPress={() => toggleSelect(item.id)}
+            >
+                <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                    {isSelected && <CompassIcon name='check' size={14} color='#fff'/>}
+                </View>
+                <Text style={styles.listIndex}>{index + 1}</Text>
+                <View style={styles.listContent}>
+                    <Text style={styles.listBarcode} numberOfLines={1}>
+                        {formatDisplayBarcode(item)}
+                    </Text>
+                </View>
+                <View style={[styles.statusDot, {backgroundColor: statusColor}]}/>
+            </TouchableOpacity>
+        );
+    }, [selectedIds, theme, styles, toggleSelect]);
+
+    const keyExtractor = useCallback((item: ScanRecord) => item.id, []);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
-            {/* Header with back button */}
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {scanTypeLabel || intl.formatMessage({id: 'workbench.tab.warehouse_inout', defaultMessage: '出入库'})}
+                <Text style={styles.headerTitle}>{title}</Text>
+                <TouchableOpacity style={styles.scanBtn} onPress={openScanner}>
+                    <CompassIcon name='qrcode' size={18} color={theme.buttonColor}/>
+                    <Text style={styles.scanBtnText}>
+                        {intl.formatMessage({id: 'warehouse_inout.new_scan', defaultMessage: '新扫描'})}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Date & Session dropdowns */}
+            <View style={styles.filterArea}>
+                <View style={styles.filterRow}>
+                    <Text style={styles.filterLabel}>
+                        {intl.formatMessage({id: 'warehouse_inout.scan_date', defaultMessage: '扫描日期'})}
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.selectBtn}
+                        onPress={() => {
+                            setSessionDropdownOpen(false);
+                            setDateDropdownOpen(!dateDropdownOpen);
+                        }}
+                    >
+                        <Text style={styles.selectText}>{scanDate}</Text>
+                        <CompassIcon name={dateDropdownOpen ? 'menu-up' : 'menu-down'} size={18} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                    </TouchableOpacity>
+                </View>
+                {dateDropdownOpen && (
+                    <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                        {availableDates.map((d) => (
+                            <TouchableOpacity
+                                key={d}
+                                style={[styles.dropdownItem, scanDate === d && styles.dropdownItemSelected]}
+                                onPress={() => {
+                                    setScanDate(d);
+                                    setDateDropdownOpen(false);
+                                }}
+                            >
+                                <Text style={styles.dropdownItemText}>{d}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                )}
+
+                <View style={styles.filterRow}>
+                    <Text style={styles.filterLabel}>
+                        {intl.formatMessage({id: 'warehouse_inout.current_scan', defaultMessage: '当前扫描'})}
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.selectBtn}
+                        onPress={() => {
+                            setDateDropdownOpen(false);
+                            setSessionDropdownOpen(!sessionDropdownOpen);
+                        }}
+                    >
+                        <Text style={styles.selectText}>{scanSession}</Text>
+                        <CompassIcon name={sessionDropdownOpen ? 'menu-up' : 'menu-down'} size={18} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                    </TouchableOpacity>
+                </View>
+                {sessionDropdownOpen && (
+                    <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                        {availableSessions.map((s) => (
+                            <TouchableOpacity
+                                key={s}
+                                style={[styles.dropdownItem, scanSession === s && styles.dropdownItemSelected]}
+                                onPress={() => {
+                                    setScanSession(s);
+                                    setSessionDropdownOpen(false);
+                                }}
+                            >
+                                <Text style={styles.dropdownItemText}>{s}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                )}
+            </View>
+
+            {/* Action buttons */}
+            <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => setShowManualInput(true)}>
+                    <Text style={styles.actionBtnText}>
+                        {intl.formatMessage({id: 'warehouse_inout.manual_input', defaultMessage: '人工输入'})}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete}>
+                    <Text style={styles.actionBtnText}>
+                        {intl.formatMessage({id: 'warehouse_inout.delete', defaultMessage: '删除'})}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionBtn, styles.uploadBtn, (isUploading || isLoadingPickLists) && styles.disabledBtn]}
+                    onPress={handleUploadStart}
+                    disabled={isUploading || isLoadingPickLists}
+                >
+                    {isUploading ? (
+                        <ActivityIndicator size='small' color='#fff'/>
+                    ) : (
+                        <Text style={styles.actionBtnText}>
+                            {intl.formatMessage({id: 'warehouse_inout.upload', defaultMessage: '上传'})}
+                            {pendingCount > 0 ? ` (${pendingCount})` : ''}
+                        </Text>
+                    )}
+                </TouchableOpacity>
+            </View>
+
+            {/* Current barcode */}
+            {currentBarcode ? (
+                <View style={styles.currentBarcode}>
+                    <Text style={styles.currentBarcodeLabel}>
+                        {intl.formatMessage({id: 'warehouse_inout.current_barcode', defaultMessage: '当前条码'})}
+                    </Text>
+                    <Text style={styles.currentBarcodeValue} numberOfLines={1}>{currentBarcode}</Text>
+                </View>
+            ) : null}
+
+            {/* Stats */}
+            <View style={styles.statsBar}>
+                <Text style={styles.statsLabel}>
+                    {intl.formatMessage({id: 'warehouse_inout.subtotal', defaultMessage: '小计'})}
+                </Text>
+                <Text style={styles.statsValue}>
+                    {intl.formatMessage({id: 'warehouse_inout.barcode_count', defaultMessage: '条码数'})}:{stats.totalBarcodes}
+                </Text>
+                <Text style={styles.statsValue}>
+                    {intl.formatMessage({id: 'warehouse_inout.box_count', defaultMessage: '箱数'})}:{stats.totalBoxes}
+                </Text>
+                <Text style={styles.statsValue}>
+                    {intl.formatMessage({id: 'warehouse_inout.total_weight', defaultMessage: '重量'})}:{stats.totalWeight}
                 </Text>
             </View>
 
-            {/* Two action buttons — hide when opened directly from apps panel */}
-            {!initialScanType && (
-                <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.inButton]}
-                        onPress={() => openScanner('stock_in')}
-                    >
-                        <CompassIcon name='import' size={28} color='#fff'/>
-                        <Text style={styles.actionButtonText}>
-                            {intl.formatMessage({id: 'warehouse_inout.inbound', defaultMessage: '入库'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.outButton]}
-                        onPress={() => openScanner('stock_out')}
-                    >
-                        <CompassIcon name='export-variant' size={28} color='#fff'/>
-                        <Text style={styles.actionButtonText}>
-                            {intl.formatMessage({id: 'warehouse_inout.outbound', defaultMessage: '出库'})}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {/* Scan result area */}
-            {scanResult ? (
-                <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
-                    <Text style={styles.scanTypeLabel}>{scanTypeLabel}</Text>
-
-                    {/* Raw scan data */}
-                    <View style={styles.rawScanContainer}>
-                        <Text style={styles.rawScanLabel}>
-                            {intl.formatMessage({id: 'apps.scan_result', defaultMessage: '扫码结果'})}
-                        </Text>
-                        <Text style={styles.rawScanText} numberOfLines={3}>
-                            {scanResult}
+            {/* Record list */}
+            <FlatList
+                data={records}
+                renderItem={renderRecord}
+                keyExtractor={keyExtractor}
+                style={styles.list}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Text style={styles.emptyText}>
+                            {intl.formatMessage({id: 'warehouse_inout.no_records', defaultMessage: '暂无扫描记录'})}
                         </Text>
                     </View>
+                }
+            />
 
-                    {/* Parsed fields from server */}
-                    {resultFields.length > 0 && (
-                        <View style={styles.resultContainer}>
-                            {resultFields.filter((f) => f.value).map((field, idx) => (
-                                <View key={`${field.key}-${idx}`} style={styles.resultRow}>
-                                    <Text style={styles.resultRowLabel}>{field.label}</Text>
-                                    <Text style={styles.resultRowValue}>{field.value}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    )}
-
-                    {/* Warehouse selector */}
-                    <Text style={styles.label}>
-                        {intl.formatMessage({id: 'apps.select_warehouse', defaultMessage: '选择仓库'})}
-                    </Text>
-                    <TouchableOpacity
-                        onPress={() => setWarehouseDropdownOpen(!warehouseDropdownOpen)}
-                        style={styles.selectBtn}
-                    >
-                        <Text style={selectedWarehouse ? styles.selectText : styles.selectPlaceholder}>
-                            {selectedWarehouse || intl.formatMessage({id: 'apps.choose_warehouse', defaultMessage: '选择仓库...'})}
+            {/* Manual input modal */}
+            <Modal
+                visible={showManualInput}
+                transparent={true}
+                animationType='fade'
+                onRequestClose={() => setShowManualInput(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>
+                            {intl.formatMessage({id: 'warehouse_inout.manual_input', defaultMessage: '人工输入'})}
                         </Text>
-                        <CompassIcon name={warehouseDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
-                    </TouchableOpacity>
-                    {warehouseDropdownOpen && (
-                        <ScrollView style={styles.dropdown}>
-                            {warehouses.map((wh) => (
-                                <TouchableOpacity
-                                    key={wh.name}
-                                    style={[styles.dropdownItem, selectedWarehouse === wh.name && styles.dropdownItemSelected]}
-                                    onPress={() => {
-                                        setSelectedWarehouse(wh.name);
-                                        setWarehouseDropdownOpen(false);
-                                        setSendError('');
-                                    }}
-                                >
-                                    <Text style={styles.dropdownItemText}>
-                                        {wh.warehouse_name || wh.name}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                            {warehouses.length === 0 && (
-                                <View style={styles.emptyDropdownContainer}>
-                                    <Text style={styles.emptyText}>
-                                        {intl.formatMessage({id: 'apps.no_warehouses', defaultMessage: '暂无仓库'})}
-                                    </Text>
-                                </View>
-                            )}
-                        </ScrollView>
-                    )}
-
-                    {/* Error */}
-                    {sendError ? (
-                        <View style={styles.errorContainer}>
-                            <CompassIcon name='alert-outline' size={18} color='#F44336'/>
-                            <Text style={styles.errorText}>{sendError}</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={manualInputText}
+                            onChangeText={setManualInputText}
+                            placeholder={intl.formatMessage({id: 'warehouse_inout.enter_barcode', defaultMessage: '输入码单号'})}
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
+                            autoFocus={true}
+                            returnKeyType='done'
+                            onSubmitEditing={handleManualInput}
+                        />
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.modalBtnCancel]}
+                                onPress={() => {
+                                    setShowManualInput(false);
+                                    setManualInputText('');
+                                }}
+                            >
+                                <Text style={styles.modalBtnCancelText}>
+                                    {intl.formatMessage({id: 'mobile.cancel', defaultMessage: '取消'})}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.modalBtnConfirm]}
+                                onPress={handleManualInput}
+                                disabled={!manualInputText.trim()}
+                            >
+                                <Text style={styles.modalBtnConfirmText}>
+                                    {intl.formatMessage({id: 'warehouse_inout.confirm', defaultMessage: '确认'})}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
-                    ) : null}
+                    </View>
+                </View>
+            </Modal>
 
-                    {/* Send button */}
-                    <TouchableOpacity
-                        onPress={handleSend}
-                        disabled={!canSend}
-                        style={[
-                            styles.sendButton,
-                            !canSend && styles.disabledButton,
-                        ]}
-                    >
-                        {isSending ? (
-                            <ActivityIndicator color='#FFFFFF' size='small'/>
-                        ) : (
-                            <CompassIcon name='send' size={22} color='#FFFFFF'/>
-                        )}
-                        <Text style={styles.sendButtonText}>
-                            {isSending
-                                ? intl.formatMessage({id: 'apps.sending', defaultMessage: '发送中...'})
-                                : intl.formatMessage({id: 'apps.send', defaultMessage: '发送'})}
+            {/* Pick list selection modal */}
+            <Modal
+                visible={showPickListModal}
+                transparent={true}
+                animationType='fade'
+                onRequestClose={() => setShowPickListModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>
+                            {intl.formatMessage({id: 'warehouse_inout.select_pick_list_title', defaultMessage: '选择拣货单'})}
                         </Text>
-                    </TouchableOpacity>
 
-                    {/* Success */}
-                    {showSuccess && (
-                        <View style={styles.successContainer}>
-                            <CompassIcon name='check-circle' size={22} color='#4CAF50'/>
-                            <Text style={styles.successText}>
-                                {intl.formatMessage({id: 'apps.send_success', defaultMessage: '发送成功'})}
+                        {isLoadingPickLists ? (
+                            <View style={{alignItems: 'center', paddingVertical: 20}}>
+                                <ActivityIndicator size='large' color={theme.buttonBg}/>
+                                <Text style={styles.loadingText}>
+                                    {intl.formatMessage({id: 'warehouse_inout.loading', defaultMessage: '加载中...'})}
+                                </Text>
+                            </View>
+                        ) : pendingPickLists.length === 0 ? (
+                            <Text style={styles.emptyText}>
+                                {intl.formatMessage({id: 'warehouse_inout.no_pending_pick_lists', defaultMessage: '暂无待处理的拣货单'})}
                             </Text>
-                        </View>
-                    )}
-                    {showSuccess && pickListId ? (
-                        <Text style={styles.successDetail}>{pickListId}</Text>
-                    ) : null}
-                </ScrollView>
-            ) : null}
+                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    style={styles.selectBtn}
+                                    onPress={() => setPickListDropdownOpen(!pickListDropdownOpen)}
+                                >
+                                    <Text style={styles.selectText}>
+                                        {selectedPickList || intl.formatMessage({id: 'warehouse_inout.choose_pick_list', defaultMessage: '请选择拣货单'})}
+                                    </Text>
+                                    <CompassIcon name={pickListDropdownOpen ? 'menu-up' : 'menu-down'} size={18} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
+                                </TouchableOpacity>
+                                {pickListDropdownOpen && (
+                                    <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                                        {pendingPickLists.map((pl) => (
+                                            <TouchableOpacity
+                                                key={pl.name}
+                                                style={[styles.dropdownItem, selectedPickList === pl.name && styles.dropdownItemSelected]}
+                                                onPress={() => {
+                                                    setSelectedPickList(pl.name);
+                                                    setPickListDropdownOpen(false);
+                                                }}
+                                            >
+                                                <Text style={styles.dropdownItemText}>
+                                                    {pl.name}{pl.customer_name ? ` - ${pl.customer_name}` : ''}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                )}
+                            </>
+                        )}
 
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.modalBtnCancel]}
+                                onPress={() => {
+                                    setShowPickListModal(false);
+                                    setSelectedPickList('');
+                                    setPickListDropdownOpen(false);
+                                }}
+                            >
+                                <Text style={styles.modalBtnCancelText}>
+                                    {intl.formatMessage({id: 'mobile.cancel', defaultMessage: '取消'})}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.modalBtnConfirm, !selectedPickList && styles.disabledBtn]}
+                                onPress={handleUploadConfirm}
+                                disabled={!selectedPickList || isLoadingPickLists}
+                            >
+                                <Text style={styles.modalBtnConfirmText}>
+                                    {intl.formatMessage({id: 'warehouse_inout.upload', defaultMessage: '上传'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -311,12 +739,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
         backgroundColor: theme.sidebarBg,
     },
     backBtn: {
-        padding: 8,
+        padding: 6,
         marginRight: 8,
     },
     headerTitle: {
@@ -324,108 +752,57 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         color: theme.sidebarText,
         flex: 1,
     },
-    buttonRow: {
+    scanBtn: {
         flexDirection: 'row',
-        padding: 16,
-        gap: 12,
-    },
-    actionButton: {
-        flex: 1,
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 20,
-        borderRadius: 12,
-        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        backgroundColor: theme.buttonBg,
+        gap: 4,
     },
-    outButton: {
-        backgroundColor: '#e74c3c',
+    scanBtnText: {
+        color: theme.buttonColor,
+        ...typography('Body', 75, 'SemiBold'),
     },
-    inButton: {
-        backgroundColor: '#27ae60',
+
+    // Filter area
+    filterArea: {
+        paddingHorizontal: 12,
+        paddingTop: 8,
     },
-    actionButtonText: {
-        color: '#fff',
-        ...typography('Body', 200, 'SemiBold'),
-    },
-    contentScroll: {
-        flex: 1,
-        paddingHorizontal: 16,
-    },
-    scanTypeLabel: {
-        color: changeOpacity(theme.centerChannelColor, 0.4),
-        textAlign: 'center',
-        marginBottom: 12,
-        ...typography('Body', 75, 'Regular'),
-    },
-    rawScanContainer: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
-        borderRadius: 12,
-        padding: 16,
-    },
-    rawScanLabel: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginBottom: 8,
-        ...typography('Body', 75, 'Regular'),
-    },
-    rawScanText: {
-        color: theme.centerChannelColor,
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-        ...typography('Body', 75, 'Regular'),
-    },
-    resultContainer: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
-        borderRadius: 12,
-        padding: 16,
-        marginTop: 12,
-    },
-    resultRow: {
+    filterRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 4,
+        alignItems: 'center',
+        marginBottom: 6,
     },
-    resultRowLabel: {
+    filterLabel: {
+        ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginRight: 12,
-        ...typography('Body', 75, 'Regular'),
-    },
-    resultRowValue: {
-        color: theme.centerChannelColor,
-        flex: 1,
-        textAlign: 'right',
-        ...typography('Body', 200, 'Regular'),
-    },
-    label: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 12,
-        marginBottom: 4,
-        ...typography('Body', 75, 'Regular'),
+        width: 70,
     },
     selectBtn: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingVertical: 8,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
     },
     selectText: {
         color: theme.centerChannelColor,
-        flex: 1,
-        ...typography('Body', 200, 'Regular'),
-    },
-    selectPlaceholder: {
-        color: changeOpacity(theme.centerChannelColor, 0.4),
-        flex: 1,
         ...typography('Body', 200, 'Regular'),
     },
     dropdown: {
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
         borderRadius: 8,
-        marginTop: 4,
-        maxHeight: 200,
+        marginTop: 2,
+        marginBottom: 4,
+        maxHeight: 160,
         backgroundColor: theme.centerChannelBg,
     },
     dropdownItem: {
@@ -441,65 +818,205 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         color: theme.centerChannelColor,
         ...typography('Body', 200, 'Regular'),
     },
-    emptyDropdownContainer: {
+
+    // Action buttons
+    actionRow: {
+        flexDirection: 'row',
         paddingHorizontal: 12,
-        paddingVertical: 16,
-    },
-    emptyText: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        textAlign: 'center',
-        ...typography('Body', 75, 'Regular'),
-    },
-    errorContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 12,
-        padding: 10,
-        borderRadius: 8,
-        backgroundColor: changeOpacity('#F44336', 0.1),
-    },
-    errorText: {
-        color: '#F44336',
-        marginLeft: 8,
-        flex: 1,
-        ...typography('Body', 75, 'Regular'),
-    },
-    sendButton: {
-        height: 52,
-        borderRadius: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 16,
-        backgroundColor: theme.buttonBg,
+        paddingVertical: 8,
         gap: 8,
     },
-    disabledButton: {
-        opacity: 0.5,
-    },
-    sendButtonText: {
-        color: '#FFFFFF',
-        ...typography('Body', 200, 'SemiBold'),
-    },
-    successContainer: {
-        flexDirection: 'row',
+    actionBtn: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 16,
-        padding: 12,
+        paddingVertical: 10,
         borderRadius: 8,
-        backgroundColor: changeOpacity('#4CAF50', 0.1),
+        backgroundColor: theme.buttonBg,
     },
-    successText: {
-        color: '#4CAF50',
-        marginLeft: 8,
-        ...typography('Body', 200, 'SemiBold'),
+    deleteBtn: {
+        backgroundColor: '#F44336',
     },
-    successDetail: {
-        color: changeOpacity('#4CAF50', 0.8),
-        marginTop: 4,
+    uploadBtn: {
+        backgroundColor: '#4CAF50',
+    },
+    disabledBtn: {
+        opacity: 0.6,
+    },
+    actionBtnText: {
+        color: '#FFFFFF',
+        ...typography('Body', 75, 'SemiBold'),
+        fontSize: 13,
+    },
+
+    // Current barcode
+    currentBarcode: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    currentBarcodeLabel: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginRight: 8,
+    },
+    currentBarcodeValue: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.centerChannelColor,
+        flex: 1,
+        fontFamily: 'monospace',
+    },
+
+    // Stats bar
+    statsBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.06),
+        gap: 12,
+    },
+    statsLabel: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    statsValue: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.72),
+    },
+
+    // List
+    list: {
+        flex: 1,
+    },
+    listItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    listItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.06),
+    },
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        borderWidth: 1.5,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+    },
+    checkboxChecked: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
+    },
+    listIndex: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        width: 28,
         textAlign: 'center',
-        ...typography('Body', 75, 'Regular'),
+    },
+    listContent: {
+        flex: 1,
+    },
+    listBarcode: {
+        ...typography('Body', 100, 'Regular'),
+        color: theme.centerChannelColor,
+        fontFamily: 'monospace',
+    },
+    listMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+        gap: 12,
+    },
+    listMetaText: {
+        ...typography('Body', 50),
+        color: changeOpacity(theme.centerChannelColor, 0.48),
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+
+    // Empty
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 60,
+    },
+    emptyText: {
+        ...typography('Body', 200),
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        textAlign: 'center',
+        paddingVertical: 16,
+    },
+    loadingText: {
+        ...typography('Body', 200),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: 8,
+    },
+
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: changeOpacity('#000000', 0.5),
+    },
+    modalContent: {
+        width: '80%',
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 12,
+        padding: 20,
+    },
+    modalTitle: {
+        ...typography('Heading', 200, 'SemiBold'),
+        color: theme.centerChannelColor,
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    modalInput: {
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        color: theme.centerChannelColor,
+        ...typography('Body', 200, 'Regular'),
+        marginBottom: 16,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    modalBtn: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    modalBtnCancel: {
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+    },
+    modalBtnCancelText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200, 'Regular'),
+    },
+    modalBtnConfirm: {
+        backgroundColor: theme.buttonBg,
+    },
+    modalBtnConfirmText: {
+        color: theme.buttonColor,
+        ...typography('Body', 200, 'SemiBold'),
     },
 }));
 

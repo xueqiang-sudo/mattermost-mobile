@@ -8,7 +8,6 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
-    Linking,
     Modal,
     StyleSheet,
     Text,
@@ -23,6 +22,9 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {isImage, isVideo, isAudio} from '@utils/file';
+import {showMediaViewer} from '@utils/gallery';
+import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -72,20 +74,43 @@ function getFileIcon(file: DriveFile): string {
     if (file.type === 'folder') return 'folder-outline';
 
     const ext = (file.extension || '').toLowerCase();
-    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'];
-    const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm'];
-    const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac'];
-    const docExts = ['doc', 'docx', 'pdf', 'txt', 'rtf', 'odt'];
-    const sheetExts = ['xls', 'xlsx', 'csv', 'ods'];
-    const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz'];
+    if (!ext) return 'file-document-outline';
 
-    if (imageExts.includes(ext)) return 'file-image-outline';
-    if (videoExts.includes(ext)) return 'file-video-outline';
-    if (audioExts.includes(ext)) return 'file-music-outline';
+    const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'svg', 'webp', 'ico', 'tiff'];
+    const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
+    const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
+    const docExts = [
+        'doc', 'docx', 'txt', 'rtf', 'odt', 'md', 'mdx',
+        'pages', 'tex', 'epub', 'log',
+    ];
+    const pdfExts = ['pdf'];
+    const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
+    const presentationExts = ['ppt', 'pptx', 'key', 'odp'];
+    const codeExts = [
+        'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp',
+        'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt', 'scala', 'lua',
+        'pl', 'sh', 'bash', 'zsh', 'ps1', 'bat', 'cmd',
+        'html', 'htm', 'css', 'scss', 'sass', 'less',
+        'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf',
+        'sql', 'graphql', 'proto',
+    ];
+    const archiveExts = [
+        'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'dmg', 'iso',
+    ];
+    const executableExts = ['exe', 'msi', 'apk', 'app', 'ipa', 'deb', 'rpm'];
+
+    if (ext === 'gif') return 'file-gif';
+    if (imageExts.includes(ext)) return 'file-image-outline-large';
+    if (videoExts.includes(ext)) return 'file-video-outline-large';
+    if (audioExts.includes(ext)) return 'file-audio-outline-large';
+    if (pdfExts.includes(ext)) return 'file-pdf-outline-large';
     if (docExts.includes(ext)) return 'file-document-outline';
-    if (sheetExts.includes(ext)) return 'file-excel-outline';
-    if (archiveExts.includes(ext)) return 'folder-zip-outline';
-    return 'file-outline';
+    if (sheetExts.includes(ext)) return 'file-document-outline';
+    if (presentationExts.includes(ext)) return 'file-document-outline';
+    if (codeExts.includes(ext)) return 'file-document-outline';
+    if (archiveExts.includes(ext)) return 'file-zip-outline-large';
+    if (executableExts.includes(ext)) return 'file-download-outline';
+    return 'file-document-outline';
 }
 
 // ---- Styles ----
@@ -435,16 +460,38 @@ const CloudDriveScreen = () => {
         setBreadcrumbs([]);
     }, []);
 
-    // ── Open file (download) ──
+    // ── Open file using the same in-app preview as the chat window ──
     const openFile = useCallback((file: DriveFile) => {
-        const url = getDriveDownloadUrl(serverUrl, teamId, file.id);
-        Linking.openURL(url).catch(() => {
+        try {
+            const url = getDriveDownloadUrl(serverUrl, teamId, file.id);
+            if (!url) {
+                throw new Error('No download URL');
+            }
+
+            const fileInfo: FileInfo = {
+                id: file.id,
+                user_id: file.owner_id || '',
+                create_at: file.create_at || 0,
+                name: file.name,
+                extension: (file.extension || '').toLowerCase(),
+                size: file.size || 0,
+                mime_type: file.mime_type || '',
+                uri: url,
+                localPath: url,
+            } as FileInfo;
+
+            if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
+                showMediaViewer(fileInfo, serverUrl);
+            } else {
+                openUnifiedFileViewer(fileInfo, theme);
+            }
+        } catch (err) {
             Alert.alert(
                 intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'workbench.drive.error_open_file', defaultMessage: 'Could not open this file.'}),
+                intl.formatMessage({id: 'workbench.drive.error_open_file', defaultMessage: 'Unable to open this file.'}),
             );
-        });
-    }, [serverUrl, teamId, intl]);
+        }
+    }, [serverUrl, teamId, intl, theme]);
 
     // ── Tap handler ──
     const onFileTap = useCallback((file: DriveFile) => {
@@ -502,7 +549,7 @@ const CloudDriveScreen = () => {
                                         } catch {
                                             Alert.alert(
                                                 intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
-                                                intl.formatMessage({id: 'workbench.drive.error_delete', defaultMessage: 'Failed to delete item.'}),
+                                                intl.formatMessage({id: 'workbench.drive.error_delete', defaultMessage: 'Failed to delete.'}),
                                             );
                                         }
                                     },
@@ -558,7 +605,7 @@ const CloudDriveScreen = () => {
         } catch {
             Alert.alert(
                 intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
-                intl.formatMessage({id: 'workbench.drive.error_rename', defaultMessage: 'Failed to rename item.'}),
+                intl.formatMessage({id: 'workbench.drive.error_rename', defaultMessage: 'Failed to rename.'}),
             );
         } finally {
             setRenaming(false);
@@ -622,7 +669,7 @@ const CloudDriveScreen = () => {
                     style={style.emptyIcon}
                 />
                 <Text style={style.emptyTitle}>
-                    {intl.formatMessage({id: 'workbench.drive.empty_title', defaultMessage: 'No files here'})}
+                    {intl.formatMessage({id: 'workbench.drive.empty_title', defaultMessage: 'No files'})}
                 </Text>
                 <Text style={style.emptySubtitle}>
                     {intl.formatMessage({
@@ -637,7 +684,7 @@ const CloudDriveScreen = () => {
     // ── Render breadcrumb bar ──
     const renderBreadcrumbs = () => {
         const crumbs: BreadcrumbItem[] = [
-            {id: '', name: intl.formatMessage({id: 'workbench.drive.root', defaultMessage: 'Drive'})},
+            {id: '', name: intl.formatMessage({id: 'workbench.drive.root', defaultMessage: 'Cloud Drive'})},
             ...breadcrumbs,
         ];
 
