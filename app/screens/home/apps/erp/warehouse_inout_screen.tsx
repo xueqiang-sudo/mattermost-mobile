@@ -52,12 +52,14 @@ import {
 type ScanType = 'stock_in' | 'stock_out';
 
 function formatDisplayBarcode(item: ScanRecord): string {
-    const boxStr = String(item.boxNo || '0').padStart(2, '0');
     const weightStr = String(Math.round((item.netWeight || 0) * 100)).padStart(6, '0');
     if (item.isMasterSheet) {
+        // 总码单: 9 + 11位码单号 + 2位箱数 + 6位净重
+        const boxStr = String(item.boxNo || '0').padStart(2, '0');
         return `9${item.codeSheetNo}${boxStr}${weightStr}`;
     }
-    return `${item.codeSheetNo}${boxStr}${weightStr}`;
+    // 箱单: 11位码单号 + "01"(永远是1箱) + 6位净重
+    return `${item.codeSheetNo}01${weightStr}`;
 }
 
 const WarehouseInoutScreen = () => {
@@ -168,8 +170,13 @@ const WarehouseInoutScreen = () => {
     const stats = useMemo(() => {
         const totalBarcodes = records.length;
         const totalBoxes = records.reduce((sum, r) => {
-            const boxNum = parseInt(r.boxNo, 10);
-            return sum + (isNaN(boxNum) ? 1 : boxNum);
+            if (r.isMasterSheet) {
+                // 总码单: boxNo 是总箱数
+                const boxNum = parseInt(r.boxNo, 10);
+                return sum + (isNaN(boxNum) ? 1 : boxNum);
+            }
+            // 箱单: 每条记录就是1箱
+            return sum + 1;
         }, 0);
         const totalWeight = records.reduce((sum, r) => sum + (r.netWeight || 0), 0);
         return {totalBarcodes, totalBoxes, totalWeight: totalWeight.toFixed(2)};
@@ -454,7 +461,6 @@ const WarehouseInoutScreen = () => {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{title}</Text>
                 <TouchableOpacity style={styles.scanBtn} onPress={openScanner}>
-                    <CompassIcon name='qrcode' size={18} color={theme.buttonColor}/>
                     <Text style={styles.scanBtnText}>
                         {intl.formatMessage({id: 'warehouse_inout.new_scan', defaultMessage: '新扫描'})}
                     </Text>
