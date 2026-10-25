@@ -24,6 +24,14 @@ const messages = defineMessages({
         id: 'mobile.post_info.withdraw',
         defaultMessage: 'Withdraw',
     },
+    withdrawThis: {
+        id: 'mobile.post_info.withdraw_this',
+        defaultMessage: '撤回该条消息',
+    },
+    withdrawAll: {
+        id: 'mobile.post_info.withdraw_all',
+        defaultMessage: '撤回本次发送的全部消息',
+    },
 });
 
 const DeletePostOption = ({bottomSheetId, combinedPost, post}: Props) => {
@@ -37,23 +45,23 @@ const DeletePostOption = ({bottomSheetId, combinedPost, post}: Props) => {
         if (batchId) {
             // Show batch delete options
             Alert.alert(
-                formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: 'Withdraw Message'}),
+                formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: '撤回消息'}),
                 formatMessage({
                     id: 'mobile.post.withdraw_batch_question',
-                    defaultMessage: 'This message is part of a batch. Do you want to delete just this message or all messages in the batch?',
+                    defaultMessage: '该消息属于批次发送，请选择撤回范围',
                 }),
                 [{
-                    text: formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                    text: formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
                     style: 'cancel',
                 }, {
-                    text: formatMessage({id: 'mobile.post_info.withdraw_this', defaultMessage: 'Delete This'}),
+                    text: formatMessage(messages.withdrawThis),
                     style: 'destructive',
                     onPress: async () => {
                         await dismissBottomSheet(bottomSheetId);
                         deletePost(serverUrl, combinedPost || post);
                     },
                 }, {
-                    text: formatMessage({id: 'mobile.post_info.withdraw_all', defaultMessage: 'Delete All'}),
+                    text: formatMessage(messages.withdrawAll),
                     style: 'destructive',
                     onPress: async () => {
                         await dismissBottomSheet(bottomSheetId);
@@ -65,16 +73,16 @@ const DeletePostOption = ({bottomSheetId, combinedPost, post}: Props) => {
         } else {
             // Single post delete
             Alert.alert(
-                formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: 'Withdraw Message'}),
+                formatMessage({id: 'mobile.post.withdraw_title', defaultMessage: '撤回消息'}),
                 formatMessage({
                     id: 'mobile.post.withdraw_question',
-                    defaultMessage: 'Are you sure you want to withdraw this message?',
+                    defaultMessage: '确定要撤回这条消息吗？',
                 }),
                 [{
-                    text: formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
+                    text: formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
                     style: 'cancel',
                 }, {
-                    text: formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: 'Withdraw'}),
+                    text: formatMessage({id: 'mobile.post_info.withdraw', defaultMessage: '撤回'}),
                     style: 'destructive',
                     onPress: async () => {
                         await dismissBottomSheet(bottomSheetId);
