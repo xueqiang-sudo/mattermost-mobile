@@ -9,6 +9,8 @@
  *     concat_field 以 "9" 开头时按固定长度拆分: 9 + 11位码单号 + 3位箱号 + 6位净重
  */
 
+import {debugLog} from '@store/debug_log';
+
 export type ParsedQrCode = {
     codeSheetNo: string;   // 码单号
     boxNo: string;         // 箱号
@@ -49,6 +51,9 @@ export function parseQrCode(raw: string): ParsedQrCode | null {
 }
 
 function parseTabFormat(parts: string[]): ParsedQrCode {
+    debugLog('SCAN_UTILS', `Tab格式原始数据: ${parts.join('\\t')}`);
+    debugLog('SCAN_UTILS', `Tab格式分割字段数: ${parts.length}`, parts);
+
     const first = parts[0];
     const isMaster = first === '9';
 
@@ -61,19 +66,23 @@ function parseTabFormat(parts: string[]): ParsedQrCode {
         codeSheetNo = parts.length > 1 ? parts[1] : '';
         boxNo = parts.length > 2 ? parts[2] : '';
         const netWeightStr = parts.length > 3 ? parts[3] : '0';
+        debugLog('SCAN_UTILS', `总码单 - 码单号: ${codeSheetNo}, 箱数: ${boxNo}, 重量字符串: ${netWeightStr}`);
         // 如果是6位数字，除以100000转换为kg；否则直接解析
         netWeight = netWeightStr.length === 6 && /^\d+$/.test(netWeightStr)
             ? parseInt(netWeightStr, 10) / 100000
             : parseFloat(netWeightStr) || 0;
+        debugLog('SCAN_UTILS', `总码单 - 转换后重量: ${netWeight} kg`);
     } else {
         // 箱单格式: 码单号\t箱号\t净重\t...
         codeSheetNo = first;
         boxNo = parts.length > 1 ? parts[1] : '';
         const netWeightStr = parts.length > 2 ? parts[2] : '0';
+        debugLog('SCAN_UTILS', `箱单 - 码单号: ${codeSheetNo}, 箱号: ${boxNo}, 重量字符串: ${netWeightStr}`);
         // 如果是6位数字，除以100000转换为kg；否则直接解析
         netWeight = netWeightStr.length === 6 && /^\d+$/.test(netWeightStr)
             ? parseInt(netWeightStr, 10) / 100000
             : parseFloat(netWeightStr) || 0;
+        debugLog('SCAN_UTILS', `箱单 - 转换后重量: ${netWeight} kg`);
     }
 
     return {
@@ -86,6 +95,7 @@ function parseTabFormat(parts: string[]): ParsedQrCode {
 }
 
 function parseEuroFormat(parts: string[]): ParsedQrCode {
+    debugLog('SCAN_UTILS', `Euro格式原始数据: ${parts.join('€')}`);
     // parts[0] = "i"（前缀）
     const concatField = parts.length > 1 ? parts[1] : '';
     const isMaster = concatField.startsWith('9');
@@ -99,6 +109,7 @@ function parseEuroFormat(parts: string[]): ParsedQrCode {
         boxNo = concatField.substring(12, 15);
         const weightStr = concatField.substring(15, 21);
         netWeight = parseInt(weightStr, 10) / 100000; // 6位数字转换为kg
+        debugLog('SCAN_UTILS', `Euro总码单 - 码单号: ${codeSheetNo}, 箱数: ${boxNo}, 重量: ${weightStr} -> ${netWeight} kg`);
     }
 
     return {
@@ -111,6 +122,7 @@ function parseEuroFormat(parts: string[]): ParsedQrCode {
 }
 
 function parsePlainNumericFormat(raw: string): ParsedQrCode {
+    debugLog('SCAN_UTILS', `纯数字格式原始数据: ${raw}`);
     // 纯数字格式：19位或20位
     // 20位以9开头：总码单 (9 + 11位码单号 + 2位箱数 + 6位净重)
     // 19位：箱单 (11位码单号 + 2位箱号 + 6位净重)
@@ -126,12 +138,14 @@ function parsePlainNumericFormat(raw: string): ParsedQrCode {
         boxNo = raw.substring(12, 14);
         const weightStr = raw.substring(14, 20);
         netWeight = parseInt(weightStr, 10) / 100000; // 6位数字转换为kg
+        debugLog('SCAN_UTILS', `纯数字总码单 - 码单号: ${codeSheetNo}, 箱数: ${boxNo}, 重量: ${weightStr} -> ${netWeight} kg`);
     } else {
         // 19位箱单：11位码单号 + 2位箱号 + 6位净重
         codeSheetNo = raw.substring(0, 11);
         boxNo = raw.substring(11, 13);
         const weightStr = raw.substring(13, 19);
         netWeight = parseInt(weightStr, 10) / 100000; // 6位数字转换为kg
+        debugLog('SCAN_UTILS', `纯数字箱单 - 码单号: ${codeSheetNo}, 箱号: ${boxNo}, 重量: ${weightStr} -> ${netWeight} kg`);
     }
 
     return {
