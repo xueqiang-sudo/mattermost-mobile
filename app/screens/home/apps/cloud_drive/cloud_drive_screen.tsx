@@ -465,7 +465,7 @@ const CloudDriveScreen = () => {
     }, []);
 
     // ── Open file using the same in-app preview as the chat window ──
-    const openFile = useCallback((file: DriveFile) => {
+    const openFile = useCallback(async (file: DriveFile) => {
         try {
             const previewUrl = getDrivePreviewUrl(serverUrl, teamId, file.id);
             const downloadUrl = getDriveDownloadUrl(serverUrl, teamId, file.id);
@@ -493,7 +493,19 @@ const CloudDriveScreen = () => {
                 return;
             }
 
-            const fileInfo: FileInfo = {
+            // Fetch full file info including pdf_preview_id if already converted
+            let fullFileInfo: FileInfo | null = null;
+            if (file.mm_file_id) {
+                try {
+                    const NetworkManager = (await import('@managers/network_manager')).default;
+                    const client = NetworkManager.getClient(serverUrl);
+                    fullFileInfo = await client.getFileInfo(file.mm_file_id);
+                } catch (err) {
+                    // ignore - fall back to manual construction
+                }
+            }
+
+            const fileInfo: FileInfo = fullFileInfo || {
                 id: file.mm_file_id || file.id,
                 user_id: file.owner_id || '',
                 create_at: file.create_at || 0,

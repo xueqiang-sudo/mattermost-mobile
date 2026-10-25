@@ -25,6 +25,7 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {downloadFile} from '@actions/remote/file';
 import {getCurrentTeamId} from '@queries/servers/system';
+import NetworkManager from '@managers/network_manager';
 import {goToScreen} from '@screens/navigation';
 import {isImage, isVideo, isAudio, getLocalFilePathFromFile} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
@@ -792,16 +793,28 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             // PDF conversion pipeline. Bridge KB docId → mm_file_id first.
             const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
             let mmFileId = '';
+            let fullFileInfo: FileInfo | null = null;
             if (officeExtensions.includes(ext.toLowerCase())) {
                 try {
                     const info = await getKBFileInfo(serverUrl, item.docId, tid);
                     mmFileId = info.mm_file_id || '';
+
+                    // Get full file info including pdf_preview_id if already converted
+                    if (mmFileId) {
+                        const client = NetworkManager.getClient(serverUrl);
+                        fullFileInfo = await client.getFileInfo(mmFileId);
+                        debugLog('[KB] Got full file info', {
+                            mm_file_id: mmFileId,
+                            pdf_preview_id: fullFileInfo.pdf_preview_id,
+                            has_preview_image: fullFileInfo.has_preview_image,
+                        });
+                    }
                 } catch (err) {
                     debugLog('[KB] getKBFileInfo failed', err);
                 }
             }
 
-            const fileInfo: FileInfo = {
+            const fileInfo: FileInfo = fullFileInfo || {
                 id: mmFileId || item.docId,
                 user_id: '',
                 create_at: 0,
