@@ -158,7 +158,7 @@ const File = ({
     }, [onLongPress]);
 
     const handlePreviewPress = useCallback(() => {
-        debugLog('FILE', `handlePreviewPress called: hasDocumentRef=${Boolean(document.current)}`);
+        debugLog('FILE', `handlePreviewPress called: hasDocumentRef=${Boolean(document.current)}, file=${file.name}`);
         if (longPressTriggered.current) {
             debugLog('FILE', 'handlePreviewPress: long press triggered, ignoring');
             return;
@@ -167,10 +167,17 @@ const File = ({
             debugLog('FILE', 'handlePreviewPress: calling document.current.handlePreviewPress()');
             document.current.handlePreviewPress();
         } else {
-            debugLog('FILE', `handlePreviewPress: calling onPress(${index})`);
-            onPress(index);
+            // For media files (image/video/audio), use gallery viewer
+            // For other files (PDF, Office, text, etc.), use download and preview
+            if (isImage(file) || isVideo(file) || isAudio(file)) {
+                debugLog('FILE', `handlePreviewPress: media file, calling onPress(${index})`);
+                onPress(index);
+            } else {
+                debugLog('FILE', `handlePreviewPress: non-media file (${file.name}), using downloadAndPreviewFile`);
+                downloadAndPreviewFile(file);
+            }
         }
-    }, [index, onPress]);
+    }, [index, onPress, file, downloadAndPreviewFile]);
 
     const {styles, onGestureEvent, ref} = useGalleryItem(galleryIdentifier, index, handlePreviewPress);
 
