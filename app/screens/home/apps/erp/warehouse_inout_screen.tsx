@@ -28,6 +28,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
+import {debugLog} from '@store/debug_log';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
@@ -180,9 +181,9 @@ const WarehouseInoutScreen = () => {
             return sum + 1;
         }, 0);
         const totalWeight = records.reduce((sum, r) => sum + (r.netWeight || 0), 0);
-        console.log('[STATS] 记录数:', records.length, '总重量:', totalWeight, 'kg');
+        debugLog('STATS', `记录数: ${records.length}, 总重量: ${totalWeight} kg`);
         records.forEach((r, i) => {
-            console.log(`[STATS] 记录${i + 1}:`, {
+            debugLog('STATS', `记录${i + 1}`, {
                 codeSheetNo: r.codeSheetNo,
                 boxNo: r.boxNo,
                 netWeight: r.netWeight,
@@ -196,13 +197,13 @@ const WarehouseInoutScreen = () => {
 
     // ── Scan handler ──
     const handleScanResult = useCallback(async (raw: string) => {
-        console.log('[SCAN] 原始扫描数据:', raw);
+        debugLog('SCAN', `原始扫描数据: ${raw}`);
         const parsed = parseQrCode(raw);
         if (!parsed) {
-            console.log('[SCAN] 解析失败');
+            debugLog('SCAN', '解析失败');
             return;
         }
-        console.log('[SCAN] 解析结果:', {
+        debugLog('SCAN', '解析结果', {
             codeSheetNo: parsed.codeSheetNo,
             boxNo: parsed.boxNo,
             netWeight: parsed.netWeight,
@@ -215,7 +216,7 @@ const WarehouseInoutScreen = () => {
             netWeight: parsed.netWeight,
             isMasterSheet: parsed.isMasterSheet,
         } as ScanRecord);
-        console.log('[SCAN] 显示条码:', displayBarcode);
+        debugLog('SCAN', `显示条码: ${displayBarcode}`);
         setCurrentBarcode(displayBarcode);
 
         await addScanRecord({
