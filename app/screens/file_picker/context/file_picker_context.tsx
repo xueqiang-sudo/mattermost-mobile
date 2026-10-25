@@ -9,6 +9,10 @@ import type {FileInfo} from '@mattermost/types/files';
 
 export type SelectedFile = FileInfo & {
     source: 'channel' | 'album' | 'device';
+    // For album photos: the original camera-roll URI. We key the selection
+    // map by this so that `isFileSelected(originalUri)` works in the UI even
+    // after the photo has been copied to the cache directory for upload.
+    originalUri?: string;
 };
 
 type SelectionState = {
@@ -51,8 +55,15 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
                 return state;
             }
             const newMap = new Map(state.selectedFiles);
-            newMap.set(action.file.id || action.file.clientId || String(Date.now()), action.file);
-            debugLog('FilePickerContext', `ADD_FILE success: new count = ${newMap.size}`);
+            // Album photos are keyed by originalUri so isFileSelected(photoUri)
+            // matches against the camera-roll URI the grid renders with. Other
+            // sources keep their existing keying.
+            const mapKey =
+                (action.file.source === 'album' && action.file.originalUri)
+                    ? action.file.originalUri
+                    : (action.file.id || action.file.clientId || String(Date.now()));
+            newMap.set(mapKey, action.file);
+            debugLog('FilePickerContext', `ADD_FILE success: new count = ${newMap.size}`, {mapKey});
             return {...state, selectedFiles: newMap};
         }
         case 'REMOVE_FILE': {

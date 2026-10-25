@@ -43,6 +43,7 @@ import {
     deleteKBDoc,
     askKB,
     getKBDownloadUrl,
+    getKBFileInfo,
     KB_SUPPORTED_LABEL,
     type KBDoc,
     type KBSearchResult,
@@ -785,8 +786,22 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             if (!url) throw new Error('No download URL');
 
             const ext = getExtension(item.fileName);
+
+            // Office documents need a real Mattermost file ID for the in-app
+            // PDF conversion pipeline. Bridge KB docId → mm_file_id first.
+            const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+            let mmFileId = '';
+            if (officeExtensions.includes(ext.toLowerCase())) {
+                try {
+                    const info = await getKBFileInfo(serverUrl, item.docId, tid);
+                    mmFileId = info.mm_file_id || '';
+                } catch (err) {
+                    console.warn('[KB] getKBFileInfo failed', err);
+                }
+            }
+
             const fileInfo: FileInfo = {
-                id: item.docId,
+                id: mmFileId || item.docId,
                 user_id: '',
                 create_at: 0,
                 name: item.fileName || item.title,
@@ -803,12 +818,15 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 showMediaViewer(fileInfo, serverUrl);
             } else {
                 // For other files, download first then open
+                // Use the mm_file_id when available so the unified viewer's
+                // PDF conversion endpoint works; fall back to KB download URL.
+                const downloadId = mmFileId || item.docId;
                 const localPath = getLocalFilePathFromFile(serverUrl, fileInfo);
-                const downloadTask = downloadFile(serverUrl, item.docId, localPath);
+                const downloadTask = downloadFile(serverUrl, downloadId, localPath);
 
                 // Show loading indicator (optional)
                 Alert.alert(
-                    intl.formatMessage({id: 'workbench.kb.downloading', defaultMessage: 'Downloading...'}),
+                    intl.formatMessage({id: 'file.downloading', defaultMessage: 'Downloading...'}),
                     intl.formatMessage({id: 'workbench.kb.downloading_message', defaultMessage: 'Please wait while the file is being downloaded.'}),
                 );
 

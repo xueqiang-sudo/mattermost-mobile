@@ -70,7 +70,7 @@ const ConvertingView = ({fileInfo}: ConvertingViewProps) => {
             />
             <Text style={styles.text}>
                 {intl.formatMessage({
-                    id: 'file_viewer.converting',
+                    id: 'file.converting',
                     defaultMessage: 'Converting document...',
                 })}
             </Text>

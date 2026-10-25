@@ -35,6 +35,7 @@ import {
     getKBDoc,
     deleteKBDoc,
     getKBDownloadUrl,
+    getKBFileInfo,
     KB_SUPPORTED_LABEL,
     type KBDoc,
 } from '../workbench_api';
@@ -120,8 +121,24 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
             const extDot = fileName.lastIndexOf('.');
             const extension = extDot > 0 ? fileName.slice(extDot + 1).toLowerCase() : '';
 
+            // Office documents need a real Mattermost file ID for the in-app
+            // PDF conversion pipeline (POST /api/v4/files/{id}/convert).
+            // The KB docId is an OpenSquilla ID — bridge via /api/kb/file-info
+            // which returns a first-class mm_file_id. Without this the unified
+            // viewer gets stuck on "Converting document...".
+            const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+            let mmFileId = '';
+            if (officeExtensions.includes(extension)) {
+                try {
+                    const info = await getKBFileInfo(serverUrl, doc.docId, teamId);
+                    mmFileId = info.mm_file_id || '';
+                } catch (err) {
+                    debugLog('[KBDetail] getKBFileInfo failed', {error: String(err)});
+                }
+            }
+
             const fileInfo: FileInfo = {
-                id: doc.docId,
+                id: mmFileId || doc.docId,
                 user_id: '',
                 create_at: 0,
                 name: fileName,

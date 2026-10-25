@@ -403,6 +403,29 @@ export function getKBDownloadUrl(serverUrl: string, docId: string, teamId: strin
     return `${serverUrl}${FACT_EXTRACTOR_BASE}/api/kb/download?${params.toString()}`;
 }
 
+/**
+ * Resolve a KB document to a first-class Mattermost FileInfo.
+ * The plugin downloads the file from OpenSquilla (if not cached) and uploads
+ * it as a Mattermost file, returning the real `mm_file_id` that can be used
+ * with /api/v4/files/{id}/* endpoints (PDF conversion, preview, etc.).
+ */
+export async function getKBFileInfo(
+    serverUrl: string,
+    docId: string,
+    teamId: string,
+): Promise<{mm_file_id: string; filename: string}> {
+    const params = new URLSearchParams({docId, team_id: teamId});
+    const data = await apiFetch(
+        serverUrl,
+        `${FACT_EXTRACTOR_BASE}/api/kb/file-info?${params.toString()}`,
+        {method: 'get'},
+    );
+    return {
+        mm_file_id: data?.mm_file_id || '',
+        filename: data?.filename || '',
+    };
+}
+
 // ── Notebook ──
 
 export type NoteListItem = {

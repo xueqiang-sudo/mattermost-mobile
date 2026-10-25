@@ -232,6 +232,7 @@ export default function PhotoAlbumTab() {
                 mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
                 size: fileSize,
                 source: 'album',
+                originalUri: photoUri, // key selection map by the camera-roll URI
                 extension,
                 width: photo.node.image.width,
                 height: photo.node.image.height,

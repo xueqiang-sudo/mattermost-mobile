@@ -474,12 +474,31 @@ const CloudDriveScreen = () => {
             }
 
             // Use mm_file_id for Office files to enable server-side PDF conversion
+            const ext = (file.extension || '').toLowerCase();
+            const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+            const isOffice = officeExtensions.includes(ext);
+
+            // Office documents need a real Mattermost file ID for the in-app
+            // PDF conversion pipeline. If the server hasn't populated mm_file_id
+            // yet, the conversion endpoint will fail with "Converting document..."
+            // — surface a clear error instead of silently failing.
+            if (isOffice && !file.mm_file_id) {
+                Alert.alert(
+                    intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
+                    intl.formatMessage({
+                        id: 'workbench.drive.preview_unavailable',
+                        defaultMessage: 'This Office file cannot be previewed yet. Please try again later or download it.',
+                    }),
+                );
+                return;
+            }
+
             const fileInfo: FileInfo = {
-                id: file.mm_file_id || '',
+                id: file.mm_file_id || file.id,
                 user_id: file.owner_id || '',
                 create_at: file.create_at || 0,
                 name: file.name,
-                extension: (file.extension || '').toLowerCase(),
+                extension: ext,
                 size: file.size || 0,
                 mime_type: file.mime_type || '',
                 uri: previewUrl,
