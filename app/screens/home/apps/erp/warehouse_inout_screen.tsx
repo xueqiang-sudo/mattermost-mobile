@@ -413,9 +413,22 @@ const WarehouseInoutScreen = () => {
         const rawScans = pendingRecords.map((r) => r.rawScan);
         const pendingIds = pendingRecords.map((r) => r.id);
 
+        debugLog('UPLOAD', `准备上传 ${rawScans.length} 条记录到拣货单 ${selectedPickList}`);
+        debugLog('UPLOAD', '原始扫描数据:', rawScans);
+        pendingRecords.forEach((r, i) => {
+            debugLog('UPLOAD', `记录${i + 1}`, {
+                id: r.id,
+                rawScan: r.rawScan,
+                codeSheetNo: r.codeSheetNo,
+                boxNo: r.boxNo,
+                netWeight: r.netWeight,
+                status: r.status,
+            });
+        });
+
         try {
             const client = NetworkManager.getClient(serverUrl);
-            await client.doFetch(
+            const response = await client.doFetch(
                 '/plugins/com.mattermost.frappe-sync/api/pick-lists/add-items-from-scan',
                 {
                     method: 'POST',
@@ -425,6 +438,8 @@ const WarehouseInoutScreen = () => {
                     },
                 },
             );
+
+            debugLog('UPLOAD', '上传响应:', response);
 
             await updateScanRecordStatus(pendingIds, 'uploaded');
         } catch {
