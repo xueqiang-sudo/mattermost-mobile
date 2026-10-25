@@ -23,9 +23,10 @@ import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
+import {downloadFile} from '@actions/remote/file';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {goToScreen} from '@screens/navigation';
-import {isImage, isVideo, isAudio} from '@utils/file';
+import {isImage, isVideo, isAudio, getLocalFilePathFromFile} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -793,15 +794,34 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 size: item.fileSize || 0,
                 mime_type: '',
                 uri: url,
-                localPath: url,
+                localPath: '',  // Will be set after download
             } as FileInfo;
 
+            // For media files, can use remote URL directly
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
+                fileInfo.localPath = url;
                 showMediaViewer(fileInfo, serverUrl);
             } else {
+                // For other files, download first then open
+                const localPath = getLocalFilePathFromFile(serverUrl, fileInfo);
+                const downloadTask = downloadFile(serverUrl, item.docId, localPath);
+
+                // Show loading indicator (optional)
+                Alert.alert(
+                    intl.formatMessage({id: 'workbench.kb.downloading', defaultMessage: 'Downloading...'}),
+                    intl.formatMessage({id: 'workbench.kb.downloading_message', defaultMessage: 'Please wait while the file is being downloaded.'}),
+                );
+
+                await downloadTask;
+
+                // Update fileInfo with local path
+                fileInfo.localPath = localPath;
+                fileInfo.uri = localPath;
+
                 openUnifiedFileViewer(fileInfo, theme);
             }
-        } catch {
+        } catch (error) {
+            console.error('[KB] Preview error:', error);
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
