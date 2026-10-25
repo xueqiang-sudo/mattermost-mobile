@@ -32,6 +32,12 @@ export function parseQrCode(raw: string): ParsedQrCode | null {
         return parseEuroFormat(euroParts);
     }
 
+    // 纯数字格式：19位或20位
+    const trimmed = raw.trim();
+    if (/^\d+$/.test(trimmed) && (trimmed.length === 19 || trimmed.length === 20)) {
+        return parsePlainNumericFormat(trimmed);
+    }
+
     // 无法解析，返回基本信息
     return {
         codeSheetNo: raw.trim(),
@@ -44,16 +50,25 @@ export function parseQrCode(raw: string): ParsedQrCode | null {
 
 function parseTabFormat(parts: string[]): ParsedQrCode {
     const first = parts[0];
-    const isMaster = first.startsWith('9');
-    let codeSheetNo = first;
+    const isMaster = first === '9';
 
-    if (isMaster && first.length >= 12) {
-        codeSheetNo = first.substring(1, 12);
+    let codeSheetNo = '';
+    let boxNo = '';
+    let netWeight = 0;
+
+    if (isMaster) {
+        // 总码单格式: 9\t码单号\t箱数量\t净重\t...
+        codeSheetNo = parts.length > 1 ? parts[1] : '';
+        boxNo = parts.length > 2 ? parts[2] : '';
+        const netWeightStr = parts.length > 3 ? parts[3] : '0';
+        netWeight = parseFloat(netWeightStr) || 0;
+    } else {
+        // 箱单格式: 码单号\t箱号\t净重\t...
+        codeSheetNo = first;
+        boxNo = parts.length > 1 ? parts[1] : '';
+        const netWeightStr = parts.length > 2 ? parts[2] : '0';
+        netWeight = parseFloat(netWeightStr) || 0;
     }
-
-    const boxNo = parts.length > 1 ? parts[1] : '';
-    const netWeightStr = parts.length > 2 ? parts[2] : '0';
-    const netWeight = parseFloat(netWeightStr) || 0;
 
     return {
         codeSheetNo,

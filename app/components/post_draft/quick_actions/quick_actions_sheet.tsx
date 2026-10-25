@@ -131,6 +131,8 @@ export default function QuickActionsSheet({
             void (async () => {
                 try {
                     await onDismiss();
+                    // Wait for bottom sheet to fully dismiss before launching picker
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 } finally {
                     fn();
                 }

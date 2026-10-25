@@ -668,78 +668,75 @@ const WarehouseInoutScreen = () => {
             <Modal
                 visible={showPickListModal}
                 transparent={true}
-                animationType='fade'
+                animationType='slide'
                 onRequestClose={() => setShowPickListModal(false)}
             >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>
-                            {intl.formatMessage({id: 'warehouse_inout.select_pick_list_title', defaultMessage: '选择拣货单'})}
-                        </Text>
+                <View style={styles.bottomSheetOverlay}>
+                    <View style={styles.bottomSheetContent}>
+                        <View style={styles.bottomSheetHeader}>
+                            <Text style={styles.bottomSheetTitle}>
+                                {intl.formatMessage({id: 'warehouse_inout.select_pick_list_title', defaultMessage: '选择拣货单'})}
+                            </Text>
+                        </View>
 
                         {isLoadingPickLists ? (
-                            <View style={{alignItems: 'center', paddingVertical: 20}}>
+                            <View style={styles.bottomSheetLoading}>
                                 <ActivityIndicator size='large' color={theme.buttonBg}/>
                                 <Text style={styles.loadingText}>
                                     {intl.formatMessage({id: 'warehouse_inout.loading', defaultMessage: '加载中...'})}
                                 </Text>
                             </View>
                         ) : pendingPickLists.length === 0 ? (
-                            <Text style={styles.emptyText}>
-                                {intl.formatMessage({id: 'warehouse_inout.no_pending_pick_lists', defaultMessage: '暂无待处理的拣货单'})}
-                            </Text>
+                            <View style={styles.bottomSheetEmpty}>
+                                <Text style={styles.emptyText}>
+                                    {intl.formatMessage({id: 'warehouse_inout.no_pending_pick_lists', defaultMessage: '暂无待处理的拣货单'})}
+                                </Text>
+                            </View>
                         ) : (
-                            <>
-                                <TouchableOpacity
-                                    style={styles.selectBtn}
-                                    onPress={() => setPickListDropdownOpen(!pickListDropdownOpen)}
-                                >
-                                    <Text style={styles.selectText}>
-                                        {selectedPickList || intl.formatMessage({id: 'warehouse_inout.choose_pick_list', defaultMessage: '请选择拣货单'})}
-                                    </Text>
-                                    <CompassIcon name={pickListDropdownOpen ? 'menu-up' : 'menu-down'} size={18} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
-                                </TouchableOpacity>
-                                {pickListDropdownOpen && (
-                                    <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
-                                        {pendingPickLists.map((pl) => (
-                                            <TouchableOpacity
-                                                key={pl.name}
-                                                style={[styles.dropdownItem, selectedPickList === pl.name && styles.dropdownItemSelected]}
-                                                onPress={() => {
-                                                    setSelectedPickList(pl.name);
-                                                    setPickListDropdownOpen(false);
-                                                }}
-                                            >
-                                                <Text style={styles.dropdownItemText}>
-                                                    {pl.name}{pl.customer_name ? ` - ${pl.customer_name}` : ''}
+                            <ScrollView style={styles.bottomSheetList} nestedScrollEnabled={true}>
+                                {pendingPickLists.map((pl) => (
+                                    <TouchableOpacity
+                                        key={pl.name}
+                                        style={[styles.pickListItem, selectedPickList === pl.name && styles.pickListItemSelected]}
+                                        onPress={() => setSelectedPickList(pl.name)}
+                                    >
+                                        <View style={[styles.radioButton, selectedPickList === pl.name && styles.radioButtonSelected]}>
+                                            {selectedPickList === pl.name && (
+                                                <View style={styles.radioButtonInner}/>
+                                            )}
+                                        </View>
+                                        <View style={styles.pickListItemContent}>
+                                            <Text style={styles.pickListItemTitle}>{pl.name}</Text>
+                                            {pl.customer_name && (
+                                                <Text style={styles.pickListItemSubtitle}>
+                                                    客户：{pl.customer_name}
                                                 </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </ScrollView>
-                                )}
-                            </>
+                                            )}
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
                         )}
 
-                        <View style={styles.modalActions}>
+                        <View style={styles.bottomSheetActions}>
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalBtnCancel]}
+                                style={[styles.bottomSheetBtn, styles.bottomSheetBtnCancel]}
                                 onPress={() => {
                                     setShowPickListModal(false);
                                     setSelectedPickList('');
-                                    setPickListDropdownOpen(false);
                                 }}
                             >
-                                <Text style={styles.modalBtnCancelText}>
+                                <Text style={styles.bottomSheetBtnCancelText}>
                                     {intl.formatMessage({id: 'mobile.cancel', defaultMessage: '取消'})}
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalBtnConfirm, !selectedPickList && styles.disabledBtn]}
+                                style={[styles.bottomSheetBtn, styles.bottomSheetBtnConfirm, !selectedPickList && styles.disabledBtn]}
                                 onPress={handleUploadConfirm}
                                 disabled={!selectedPickList || isLoadingPickLists}
                             >
-                                <Text style={styles.modalBtnConfirmText}>
-                                    {intl.formatMessage({id: 'warehouse_inout.upload', defaultMessage: '上传'})}
+                                <Text style={styles.bottomSheetBtnConfirmText}>
+                                    {intl.formatMessage({id: 'warehouse_inout.upload', defaultMessage: '确认上传'})}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -983,7 +980,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         marginTop: 8,
     },
 
-    // Modal
+    // Modal (kept for other modals if any)
     modalOverlay: {
         flex: 1,
         justifyContent: 'center',
@@ -1034,6 +1031,114 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         backgroundColor: theme.buttonBg,
     },
     modalBtnConfirmText: {
+        color: theme.buttonColor,
+        ...typography('Body', 200, 'SemiBold'),
+    },
+
+    // Bottom Sheet (for pick list selection)
+    bottomSheetOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: changeOpacity('#000000', 0.5),
+    },
+    bottomSheetContent: {
+        backgroundColor: theme.centerChannelBg,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        maxHeight: '80%',
+        paddingBottom: 34, // Safe area bottom padding
+    },
+    bottomSheetHeader: {
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 16,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    bottomSheetTitle: {
+        ...typography('Heading', 400, 'SemiBold'),
+        color: theme.centerChannelColor,
+        textAlign: 'center',
+    },
+    bottomSheetLoading: {
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
+    bottomSheetEmpty: {
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
+    bottomSheetList: {
+        maxHeight: 400,
+    },
+    pickListItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    pickListItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
+    },
+    radioButton: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    radioButtonSelected: {
+        borderColor: theme.buttonBg,
+    },
+    radioButtonInner: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: theme.buttonBg,
+    },
+    pickListItemContent: {
+        flex: 1,
+    },
+    pickListItemTitle: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginBottom: 4,
+    },
+    pickListItemSubtitle: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+    },
+    bottomSheetActions: {
+        flexDirection: 'row',
+        gap: 12,
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    bottomSheetBtn: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    bottomSheetBtnCancel: {
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+    },
+    bottomSheetBtnCancelText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200, 'Regular'),
+    },
+    bottomSheetBtnConfirm: {
+        backgroundColor: theme.buttonBg,
+    },
+    bottomSheetBtnConfirmText: {
         color: theme.buttonColor,
         ...typography('Body', 200, 'SemiBold'),
     },
