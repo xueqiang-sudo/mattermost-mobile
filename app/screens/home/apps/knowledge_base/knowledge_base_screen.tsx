@@ -31,6 +31,7 @@ import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {debugLog} from '@store/debug_log';
 
 import {
     listKBDocs,
@@ -616,7 +617,7 @@ type Props = {
 };
 
 const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
-    console.log('[KB] Component rendering, kbWrite:', kbWrite);
+    debugLog('[KB] Component rendering, kbWrite:', kbWrite);
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -645,7 +646,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Init: load teamId
     useEffect(() => {
-        console.log('[KB] Init useEffect running, serverUrl:', serverUrl, 'retryKey:', initRetryKey);
+        debugLog('[KB] Init useEffect running, serverUrl:', serverUrl, 'retryKey:', initRetryKey);
         let mounted = true;
         const init = async () => {
             try {
@@ -653,22 +654,22 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                     throw new Error('Server URL is not available');
                 }
 
-                console.log('[KB] Getting database and teamId...');
+                debugLog('[KB] Getting database and teamId...');
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                 const tid = await getCurrentTeamId(database);
-                console.log('[KB] Got teamId:', tid);
+                debugLog('[KB] Got teamId:', tid);
 
                 if (!tid) {
                     throw new Error('Team ID not found');
                 }
 
                 if (mounted) {
-                    console.log('[KB] Setting teamId state');
+                    debugLog('[KB] Setting teamId state');
                     setTeamId(tid);
                     setError(null);
                 }
             } catch (err) {
-                console.error('[KB] Init error:', err);
+                debugLog('[KB] Init error:', err);
                 const message = err instanceof Error ? err.message : 'Failed to initialize';
                 if (mounted) {
                     setError(message);
@@ -684,29 +685,29 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Load documents when teamId or category changes
     const loadDocuments = useCallback(async () => {
-        console.log('[KB] loadDocuments called, teamId:', teamId, 'serverUrl:', serverUrl);
+        debugLog('[KB] loadDocuments called, teamId:', teamId, 'serverUrl:', serverUrl);
         if (!teamId || !serverUrl) {
-            console.log('[KB] Missing teamId or serverUrl, setting loading false');
+            debugLog('[KB] Missing teamId or serverUrl, setting loading false');
             setLoading(false);
             return;
         }
-        console.log('[KB] Setting loading true, fetching documents...');
+        debugLog('[KB] Setting loading true, fetching documents...');
         setLoading(true);
         setSearchResults(null);
         setError(null);
         try {
             const resp = await listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100});
-            console.log('[KB] Got response:', resp);
+            debugLog('[KB] Got response:', resp);
             const docs = resp?.data?.documents || resp?.docs || resp?.documents || [];
-            console.log('[KB] Parsed docs:', docs.length, 'documents');
+            debugLog('[KB] Parsed docs:', docs.length, 'documents');
             setDocuments(docs);
         } catch (err) {
-            console.error('[KB] loadDocuments error:', err);
+            debugLog('[KB] loadDocuments error:', err);
             const message = err instanceof Error ? err.message : 'Failed to load documents';
             setError(message);
             setDocuments([]);
         } finally {
-            console.log('[KB] Setting loading false');
+            debugLog('[KB] Setting loading false');
             setLoading(false);
         }
     }, [serverUrl, teamId, activeCategory]);
@@ -796,7 +797,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                     const info = await getKBFileInfo(serverUrl, item.docId, tid);
                     mmFileId = info.mm_file_id || '';
                 } catch (err) {
-                    console.warn('[KB] getKBFileInfo failed', err);
+                    debugLog('[KB] getKBFileInfo failed', err);
                 }
             }
 
@@ -839,7 +840,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 openUnifiedFileViewer(fileInfo, theme);
             }
         } catch (error) {
-            console.error('[KB] Preview error:', error);
+            debugLog('[KB] Preview error:', error);
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
@@ -1069,7 +1070,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Show loading only when teamId is not set AND there's no error
     if (!teamId && !error) {
-        console.log('[KB] Rendering loading state (no teamId)');
+        debugLog('[KB] Rendering loading state (no teamId)');
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
@@ -1089,7 +1090,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Show error state if teamId failed to load
     if (!teamId && error) {
-        console.log('[KB] Rendering error state (no teamId):', error);
+        debugLog('[KB] Rendering error state (no teamId):', error);
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
@@ -1121,7 +1122,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         );
     }
 
-    console.log('[KB] Rendering main content, teamId:', teamId, 'loading:', loading, 'error:', error);
+    debugLog('[KB] Rendering main content, teamId:', teamId, 'loading:', loading, 'error:', error);
 
     // ---- Main render ----
 

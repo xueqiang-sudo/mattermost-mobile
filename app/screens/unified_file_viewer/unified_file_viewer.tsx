@@ -22,7 +22,8 @@ import {popTopScreen} from '@screens/navigation';
 import TextViewer from '@screens/text_viewer/text_viewer';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAppleDocument, isAudio, isImage, isPdf, isTextFile, isVideo, pathWithPrefix} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
-import {logDebug, logError} from '@utils/log';
+import {logError} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 
 import ConvertingView from './converting_view';
 import ImagePreview from './image_preview';
@@ -121,7 +122,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        logDebug('Failed to save pdf_preview_id to database:', dbError);
+                        debugLog('Failed to save pdf_preview_id to database:', dbError);
                     }
 
                     // Update state and show PDF
@@ -168,7 +169,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        logDebug('Failed to save pdf_preview_id to database:', dbError);
+                        debugLog('Failed to save pdf_preview_id to database:', dbError);
                     }
 
                     // Update state and show PDF
@@ -188,7 +189,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     setFileState('unsupported');
                 }
             } catch (error) {
-                logDebug('Polling error:', getFullErrorMessage(error));
+                debugLog('Polling error:', getFullErrorMessage(error));
                 if (pollingRef.current) {
                     clearInterval(pollingRef.current);
                     pollingRef.current = null;
@@ -341,7 +342,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 // For now, just store the path
             }
         } catch (error) {
-            logDebug('Error downloading file:', getFullErrorMessage(error));
+            debugLog('Error downloading file:', getFullErrorMessage(error));
             if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
                 Alert.alert(
                     intl.formatMessage({id: 'file_viewer.error', defaultMessage: 'Error'}),
@@ -378,7 +379,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        logDebug('Failed to save pdf_preview_id to database:', dbError);
+                        debugLog('Failed to save pdf_preview_id to database:', dbError);
                     }
 
                     const newFileInfo = {...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id};
@@ -388,7 +389,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     return;
                 }
             } catch (error) {
-                logDebug('Failed to fetch file info from server:', error);
+                debugLog('Failed to fetch file info from server:', error);
             }
 
             // No PDF preview yet, start conversion
@@ -428,7 +429,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             setProgress(1);
             setFilePath(path!);
         } catch (error) {
-            logDebug('Download error:', getFullErrorMessage(error));
+            debugLog('Download error:', getFullErrorMessage(error));
         }
     }, [serverUrl, currentFileInfo]);
 
@@ -441,7 +442,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                         showOpenWithDialog: true,
                         showAppsSuggestions: true,
                     }).catch((error) => {
-                        logDebug('Open with error:', error);
+                        debugLog('Open with error:', error);
                     });
                 }
             });
@@ -451,7 +452,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 showOpenWithDialog: true,
                 showAppsSuggestions: true,
             }).catch((error) => {
-                logDebug('Open with error:', error);
+                debugLog('Open with error:', error);
             });
         }
     }, [filePath, currentFileInfo, handleDownload]);
