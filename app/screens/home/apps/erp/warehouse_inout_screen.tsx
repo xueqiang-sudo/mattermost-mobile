@@ -333,27 +333,40 @@ const WarehouseInoutScreen = () => {
         try {
             const client = NetworkManager.getClient(serverUrl);
             const result = await client.doFetch(
-                '/plugins/com.mattermost.frappe-sync/api/pick-lists/pending',
+                '/plugins/com.mattermost.frappe-sync/api/pick-lists/get-pending-pick-lists',
                 {method: 'GET'},
             );
 
+            // Check for error in response
+            if (result?.error) {
+                setPendingPickLists([]);
+                Alert.alert(
+                    intl.formatMessage({id: 'warehouse_inout.fetch_pick_lists_failed', defaultMessage: '获取拣货单列表失败'}),
+                    String(result.error),
+                );
+                setIsLoadingPickLists(false);
+                return;
+            }
+
             const lists: {name: string; customer_name?: string}[] = [];
-            if (result?.data) {
-                if (Array.isArray(result.data)) {
-                    lists.push(...result.data);
-                } else if (typeof result.data === 'object') {
-                    // Handle {message: [...]} wrapper
-                    const msg = result.data.message || result.data;
-                    if (Array.isArray(msg)) {
-                        lists.push(...msg);
+            // ERPNext returns {pick_lists: ["STO-PICK-...", ...]}
+            // MCP wraps as {data: {pick_lists: [...]}}
+            const pickLists = result?.data?.pick_lists || result?.pick_lists || result?.message;
+            if (Array.isArray(pickLists)) {
+                for (const item of pickLists) {
+                    if (typeof item === 'string') {
+                        lists.push({name: item});
+                    } else if (item?.name) {
+                        lists.push(item);
                     }
                 }
             }
             setPendingPickLists(lists);
-        } catch {
+        } catch (e: any) {
             setPendingPickLists([]);
             Alert.alert(
                 intl.formatMessage({id: 'warehouse_inout.fetch_pick_lists_failed', defaultMessage: '获取拣货单列表失败'}),
+                e?.message || String(e),
             );
         }
 
@@ -383,7 +396,7 @@ const WarehouseInoutScreen = () => {
         try {
             const client = NetworkManager.getClient(serverUrl);
             await client.doFetch(
-                '/plugins/com.mattermost.frappe-sync/api/pick-list-items',
+                '/plugins/com.mattermost.frappe-sync/api/pick-lists/add-items-from-scan',
                 {
                     method: 'POST',
                     body: {
