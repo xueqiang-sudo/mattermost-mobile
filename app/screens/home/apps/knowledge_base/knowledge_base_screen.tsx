@@ -26,7 +26,7 @@ import DatabaseManager from '@database/manager';
 import {downloadFile} from '@actions/remote/file';
 import {getCurrentTeamId} from '@queries/servers/system';
 import NetworkManager from '@managers/network_manager';
-import {goToScreen} from '@screens/navigation';
+import {goToScreen, showModal} from '@screens/navigation';
 import {isImage, isVideo, isAudio, getLocalFilePathFromFile} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
@@ -881,23 +881,44 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     }, [intl, searchQuery, performSearch, loadDocuments]);
 
     // Add document (Navigation mode)
+    const onUploadKBFiles = useCallback(async (files: FileInfo[]) => {
+        if (!files || files.length === 0) return;
+
+        try {
+            // Upload each file sequentially
+            for (const file of files) {
+                await createKBDocFile(
+                    serverUrl,
+                    teamId,
+                    file.uri || '',
+                    file.name || 'unknown',
+                    file.mime_type || 'application/octet-stream',
+                );
+            }
+            // Refresh document list after upload
+            if (searchQuery.trim()) {
+                performSearch(searchQuery);
+            } else {
+                loadDocuments();
+            }
+        } catch (err) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.kb.error_upload', defaultMessage: 'Failed to upload file.'}),
+            );
+        }
+    }, [serverUrl, teamId, searchQuery, performSearch, loadDocuments, intl]);
+
     const openAddScreen = useCallback(() => {
-        const title = intl.formatMessage({
-            id: 'workbench.kb.add_title',
-            defaultMessage: 'Add Document',
-        });
-        goToScreen(Screens.KB_ADD, title, {
-            teamId,
-            onDocAdded: () => {
-                // Refresh list after returning from add
-                if (searchQuery.trim()) {
-                    performSearch(searchQuery);
-                } else {
-                    loadDocuments();
-                }
+        showModal(
+            Screens.FILE_PICKER,
+            intl.formatMessage({id: 'workbench.kb.add_title', defaultMessage: 'Add Document'}),
+            {
+                onSend: onUploadKBFiles,
+                channelId: '', // Not needed for KB uploads
             },
-        });
-    }, [intl, teamId, searchQuery, performSearch, loadDocuments]);
+        );
+    }, [onUploadKBFiles, intl]);
 
     // Ask AI
     const openAskModal = useCallback(() => {

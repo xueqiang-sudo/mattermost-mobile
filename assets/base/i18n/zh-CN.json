@@ -2717,6 +2717,7 @@
   "file_picker.max_selection": "已达到可选择的最大文件数量。",
 
   "workbench.kb.error": "错误",
+  "workbench.kb.error_upload": "上传文件失败",
   "workbench.kb.add_failed": "添加文档失败。",
   "workbench.kb.type_text": "文本",
   "workbench.kb.type_url": "URL",
@@ -2785,5 +2786,8 @@
   "workbench.drive.create": "创建",
   "workbench.drive.rename_title": "重命名",
   "workbench.drive.rename_placeholder": "输入新名称",
-  "workbench.drive.save": "保存"
+  "workbench.drive.save": "保存",
+  "workbench.drive.upload": "上传",
+  "workbench.drive.upload_title": "上传文件",
+  "workbench.drive.error_upload": "上传文件失败"
 }

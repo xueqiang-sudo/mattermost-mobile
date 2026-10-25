@@ -2718,6 +2718,7 @@
   "file_picker.max_selection": "You have reached the maximum number of files you can select.",
 
   "workbench.kb.error": "Error",
+  "workbench.kb.error_upload": "Failed to upload file.",
   "workbench.kb.add_failed": "Failed to add document.",
   "workbench.kb.type_text": "Text",
   "workbench.kb.type_url": "URL",
@@ -2786,5 +2787,8 @@
   "workbench.drive.create": "Create",
   "workbench.drive.rename_title": "Rename",
   "workbench.drive.rename_placeholder": "Enter new name",
-  "workbench.drive.save": "Save"
+  "workbench.drive.save": "Save",
+  "workbench.drive.upload": "Upload",
+  "workbench.drive.upload_title": "Upload Files",
+  "workbench.drive.error_upload": "Failed to upload file."
 }

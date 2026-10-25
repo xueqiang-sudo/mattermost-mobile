@@ -131,6 +131,36 @@ export async function copyDriveFileToChannel(serverUrl: string, teamId: string, 
     });
 }
 
+export async function uploadDriveFile(
+    serverUrl: string,
+    teamId: string,
+    parentId: string,
+    scope: string,
+    fileUri: string,
+    fileName: string,
+    fileType: string,
+): Promise<DriveFile> {
+    const client = NetworkManager.getClient(serverUrl);
+    const formData = new FormData();
+    formData.append('parent_id', parentId);
+    formData.append('scope', scope);
+    formData.append('files', {
+        uri: fileUri,
+        name: fileName,
+        type: fileType,
+    } as any);
+
+    const resp = await client.doFetch(
+        `/api/v4/teams/${teamId}/drive/files`,
+        {method: 'post', body: formData},
+    );
+    if (!resp.ok) {
+        throw new Error(resp.error || 'Upload failed');
+    }
+    const files = await resp.json();
+    return Array.isArray(files) ? files[0] : files;
+}
+
 // ── Conversations ──
 
 export type ConversationChannel = {

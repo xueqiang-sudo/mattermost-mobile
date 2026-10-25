@@ -24,9 +24,10 @@ import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {isImage, isVideo, isAudio} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
-import {openUnifiedFileViewer} from '@utils/navigation';
+import {openUnifiedFileViewer, showModal} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {Screens} from '@constants';
 
 import {
     listDriveFiles,
@@ -35,6 +36,7 @@ import {
     deleteDriveFile,
     getDriveDownloadUrl,
     getDrivePreviewUrl,
+    uploadDriveFile,
     type DriveFile,
 } from '../workbench_api';
 
@@ -214,6 +216,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.buttonBg,
     },
     newFolderBtnText: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.buttonColor,
+        marginLeft: 6,
+    },
+    uploadBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: theme.buttonBg,
+        marginRight: 8,
+    },
+    uploadBtnText: {
         ...typography('Body', 75, 'SemiBold'),
         color: theme.buttonColor,
         marginLeft: 6,
@@ -631,6 +647,45 @@ const CloudDriveScreen = () => {
         }
     }, [serverUrl, teamId, parentId, scope, newFolderName, intl, loadFiles]);
 
+    // ── Upload files ──
+    const onUploadFiles = useCallback(async (files: FileInfo[]) => {
+        if (!files || files.length === 0) return;
+
+        try {
+            // Upload each file sequentially
+            for (const file of files) {
+                await uploadDriveFile(
+                    serverUrl,
+                    teamId,
+                    parentId,
+                    scope,
+                    file.uri || '',
+                    file.name || 'unknown',
+                    file.mime_type || 'application/octet-stream',
+                );
+            }
+            // Refresh file list after upload
+            loadFiles();
+        } catch (err) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.drive.error_upload', defaultMessage: 'Failed to upload file.'}),
+            );
+        }
+    }, [serverUrl, teamId, parentId, scope, intl, loadFiles]);
+
+    // ── Open file picker ──
+    const onOpenFilePicker = useCallback(() => {
+        showModal(
+            Screens.FILE_PICKER,
+            intl.formatMessage({id: 'workbench.drive.upload_title', defaultMessage: 'Upload Files'}),
+            {
+                onSend: onUploadFiles,
+                channelId: '', // Not needed for cloud drive uploads
+            },
+        );
+    }, [onUploadFiles, intl]);
+
     // ── Rename ──
     const onRename = useCallback(async () => {
         const name = renameName.trim();
@@ -810,6 +865,15 @@ const CloudDriveScreen = () => {
                     </TouchableOpacity>
                 </View>
                 <View style={style.toolbarSpacer}/>
+                <TouchableOpacity
+                    style={style.uploadBtn}
+                    onPress={onOpenFilePicker}
+                >
+                    <CompassIcon name='upload-outline' size={18} color={theme.buttonColor}/>
+                    <Text style={style.uploadBtnText}>
+                        {intl.formatMessage({id: 'workbench.drive.upload', defaultMessage: 'Upload'})}
+                    </Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                     style={style.newFolderBtn}
                     onPress={() => {
