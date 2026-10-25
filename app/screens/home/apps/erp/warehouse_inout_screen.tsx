@@ -180,6 +180,15 @@ const WarehouseInoutScreen = () => {
             return sum + 1;
         }, 0);
         const totalWeight = records.reduce((sum, r) => sum + (r.netWeight || 0), 0);
+        console.log('[STATS] 记录数:', records.length, '总重量:', totalWeight, 'kg');
+        records.forEach((r, i) => {
+            console.log(`[STATS] 记录${i + 1}:`, {
+                codeSheetNo: r.codeSheetNo,
+                boxNo: r.boxNo,
+                netWeight: r.netWeight,
+                isMasterSheet: r.isMasterSheet,
+            });
+        });
         return {totalBarcodes, totalBoxes, totalWeight: totalWeight.toFixed(2)};
     }, [records]);
 
@@ -187,10 +196,18 @@ const WarehouseInoutScreen = () => {
 
     // ── Scan handler ──
     const handleScanResult = useCallback(async (raw: string) => {
+        console.log('[SCAN] 原始扫描数据:', raw);
         const parsed = parseQrCode(raw);
         if (!parsed) {
+            console.log('[SCAN] 解析失败');
             return;
         }
+        console.log('[SCAN] 解析结果:', {
+            codeSheetNo: parsed.codeSheetNo,
+            boxNo: parsed.boxNo,
+            netWeight: parsed.netWeight,
+            isMasterSheet: parsed.isMasterSheet,
+        });
 
         const displayBarcode = formatDisplayBarcode({
             codeSheetNo: parsed.codeSheetNo,
@@ -198,6 +215,7 @@ const WarehouseInoutScreen = () => {
             netWeight: parsed.netWeight,
             isMasterSheet: parsed.isMasterSheet,
         } as ScanRecord);
+        console.log('[SCAN] 显示条码:', displayBarcode);
         setCurrentBarcode(displayBarcode);
 
         await addScanRecord({
