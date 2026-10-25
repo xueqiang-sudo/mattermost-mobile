@@ -52,7 +52,8 @@ import {
 type ScanType = 'stock_in' | 'stock_out';
 
 function formatDisplayBarcode(item: ScanRecord): string {
-    const weightStr = String(Math.round((item.netWeight || 0) * 100)).padStart(6, '0');
+    // netWeight 存储的是 kg 值，需要乘以 100000 转换为 6 位数字
+    const weightStr = String(Math.round((item.netWeight || 0) * 100000)).padStart(6, '0');
     if (item.isMasterSheet) {
         // 总码单: 9 + 11位码单号 + 2位箱数 + 6位净重
         const boxStr = String(item.boxNo || '0').padStart(2, '0');
