@@ -92,7 +92,7 @@ function parseEuroFormat(parts: string[]): ParsedQrCode {
         codeSheetNo = concatField.substring(1, 12);
         boxNo = concatField.substring(12, 15);
         const weightStr = concatField.substring(15, 21);
-        netWeight = parseFloat(weightStr) / 100; // 6位数字，后2位是小数
+        netWeight = parseFloat(weightStr) / 100000; // 6位数字，后6位是重量（单位：kg）
     }
 
     return {
@@ -101,5 +101,38 @@ function parseEuroFormat(parts: string[]): ParsedQrCode {
         netWeight,
         isMasterSheet: isMaster,
         rawFields: parts,
+    };
+}
+
+function parsePlainNumericFormat(raw: string): ParsedQrCode {
+    // 纯数字格式：19位或20位
+    // 20位以9开头：总码单 (9 + 11位码单号 + 2位箱数 + 6位净重)
+    // 19位：箱单 (11位码单号 + 2位箱号 + 6位净重)
+    const isMaster = raw.startsWith('9') && raw.length === 20;
+
+    let codeSheetNo = '';
+    let boxNo = '';
+    let netWeight = 0;
+
+    if (isMaster) {
+        // 20位总码单：9 + 11位码单号 + 2位箱数 + 6位净重
+        codeSheetNo = raw.substring(1, 12);
+        boxNo = raw.substring(12, 14);
+        const weightStr = raw.substring(14, 20);
+        netWeight = parseFloat(weightStr) / 100000;
+    } else {
+        // 19位箱单：11位码单号 + 2位箱号 + 6位净重
+        codeSheetNo = raw.substring(0, 11);
+        boxNo = raw.substring(11, 13);
+        const weightStr = raw.substring(13, 19);
+        netWeight = parseFloat(weightStr) / 100000;
+    }
+
+    return {
+        codeSheetNo,
+        boxNo,
+        netWeight,
+        isMasterSheet: isMaster,
+        rawFields: [raw],
     };
 }
