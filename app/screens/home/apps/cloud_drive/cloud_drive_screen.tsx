@@ -34,6 +34,7 @@ import {
     renameDriveFile,
     deleteDriveFile,
     getDriveDownloadUrl,
+    getDrivePreviewUrl,
     type DriveFile,
 } from '../workbench_api';
 
@@ -70,19 +71,22 @@ function formatDate(timestamp: number): string {
     return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
-function getFileIcon(file: DriveFile): string {
-    if (file.type === 'folder') return 'folder-outline';
+const FILE_ICON_BLUE = '#338AFF';
+const FILE_ICON_RED = '#ED522A';
+const FILE_ICON_GREEN = '#1CA660';
+const FILE_ICON_GRAY = '#999999';
+
+function getFileIconInfo(file: DriveFile): {name: string; color: string} {
+    if (file.type === 'folder') return {name: 'folder-outline', color: ''};
 
     const ext = (file.extension || '').toLowerCase();
-    if (!ext) return 'file-document-outline';
+    if (!ext) return {name: 'file-generic-outline-large', color: FILE_ICON_BLUE};
 
-    const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'svg', 'webp', 'ico', 'tiff'];
+    const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'gif'];
     const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
     const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
-    const docExts = [
-        'doc', 'docx', 'txt', 'rtf', 'odt', 'md', 'mdx',
-        'pages', 'tex', 'epub', 'log',
-    ];
+    const wordExts = ['doc', 'docx', 'odt', 'pages', 'rtf'];
+    const textExts = ['txt', 'md', 'mdx', 'tex', 'epub', 'log'];
     const pdfExts = ['pdf'];
     const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
     const presentationExts = ['ppt', 'pptx', 'key', 'odp'];
@@ -97,20 +101,20 @@ function getFileIcon(file: DriveFile): string {
     const archiveExts = [
         'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'dmg', 'iso',
     ];
-    const executableExts = ['exe', 'msi', 'apk', 'app', 'ipa', 'deb', 'rpm'];
+    const patchExts = ['patch', 'diff'];
 
-    if (ext === 'gif') return 'file-gif';
-    if (imageExts.includes(ext)) return 'file-image-outline-large';
-    if (videoExts.includes(ext)) return 'file-video-outline-large';
-    if (audioExts.includes(ext)) return 'file-audio-outline-large';
-    if (pdfExts.includes(ext)) return 'file-pdf-outline-large';
-    if (docExts.includes(ext)) return 'file-document-outline';
-    if (sheetExts.includes(ext)) return 'file-document-outline';
-    if (presentationExts.includes(ext)) return 'file-document-outline';
-    if (codeExts.includes(ext)) return 'file-document-outline';
-    if (archiveExts.includes(ext)) return 'file-zip-outline-large';
-    if (executableExts.includes(ext)) return 'file-download-outline';
-    return 'file-document-outline';
+    if (imageExts.includes(ext)) return {name: 'file-image-outline-large', color: FILE_ICON_BLUE};
+    if (videoExts.includes(ext)) return {name: 'file-video-outline-large', color: FILE_ICON_BLUE};
+    if (audioExts.includes(ext)) return {name: 'file-audio-outline-large', color: FILE_ICON_BLUE};
+    if (pdfExts.includes(ext)) return {name: 'file-pdf-outline-large', color: FILE_ICON_RED};
+    if (wordExts.includes(ext)) return {name: 'file-word-outline-large', color: FILE_ICON_BLUE};
+    if (textExts.includes(ext)) return {name: 'file-text-outline-large', color: FILE_ICON_GRAY};
+    if (sheetExts.includes(ext)) return {name: 'file-excel-outline-large', color: FILE_ICON_GREEN};
+    if (presentationExts.includes(ext)) return {name: 'file-powerpoint-outline-large', color: FILE_ICON_RED};
+    if (codeExts.includes(ext)) return {name: 'file-code-outline-large', color: FILE_ICON_BLUE};
+    if (archiveExts.includes(ext)) return {name: 'file-zip-outline-large', color: FILE_ICON_BLUE};
+    if (patchExts.includes(ext)) return {name: 'file-patch-outline-large', color: FILE_ICON_BLUE};
+    return {name: 'file-generic-outline-large', color: FILE_ICON_BLUE};
 }
 
 // ---- Styles ----
@@ -463,21 +467,26 @@ const CloudDriveScreen = () => {
     // ── Open file using the same in-app preview as the chat window ──
     const openFile = useCallback((file: DriveFile) => {
         try {
-            const url = getDriveDownloadUrl(serverUrl, teamId, file.id);
-            if (!url) {
-                throw new Error('No download URL');
+            const previewUrl = getDrivePreviewUrl(serverUrl, teamId, file.id);
+            const downloadUrl = getDriveDownloadUrl(serverUrl, teamId, file.id);
+            if (!previewUrl) {
+                throw new Error('No preview URL');
             }
 
+            // Use mm_file_id for Office files to enable server-side PDF conversion
             const fileInfo: FileInfo = {
-                id: file.id,
+                id: file.mm_file_id || '',
                 user_id: file.owner_id || '',
                 create_at: file.create_at || 0,
                 name: file.name,
                 extension: (file.extension || '').toLowerCase(),
                 size: file.size || 0,
                 mime_type: file.mime_type || '',
-                uri: url,
-                localPath: url,
+                uri: previewUrl,
+                localPath: previewUrl,
+                link: downloadUrl,
+                has_preview_image: false,
+                archived: false,
             } as FileInfo;
 
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
@@ -615,8 +624,8 @@ const CloudDriveScreen = () => {
     // ── Render file row ──
     const renderFileRow = useCallback(({item}: {item: DriveFile}) => {
         const isFolder = item.type === 'folder';
-        const iconName = getFileIcon(item);
-        const iconColor = isFolder ? theme.sidebarText : theme.linkColor;
+        const iconInfo = getFileIconInfo(item);
+        const iconColor = isFolder ? theme.sidebarText : iconInfo.color;
 
         return (
             <TouchableOpacity
@@ -626,7 +635,7 @@ const CloudDriveScreen = () => {
                 activeOpacity={0.6}
             >
                 <View style={[style.fileIcon, isFolder ? style.fileIconFolder : style.fileIconFile]}>
-                    <CompassIcon name={iconName} size={22} color={iconColor}/>
+                    <CompassIcon name={iconInfo.name} size={22} color={iconColor}/>
                 </View>
                 <View style={style.fileInfo}>
                     <View style={{flexDirection: 'row', alignItems: 'center'}}>

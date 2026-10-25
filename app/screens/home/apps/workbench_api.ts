@@ -73,6 +73,7 @@ export type DriveFile = {
     size: number;
     scope: 'public' | 'private';
     owner_id: string;
+    mm_file_id?: string;
     create_at: number;
     update_at: number;
 };
@@ -117,6 +118,10 @@ export async function getDriveFilePath(serverUrl: string, teamId: string, fileId
 
 export function getDriveDownloadUrl(serverUrl: string, teamId: string, fileId: string): string {
     return `${serverUrl}/api/v4/teams/${teamId}/drive/files/${fileId}/download`;
+}
+
+export function getDrivePreviewUrl(serverUrl: string, teamId: string, fileId: string): string {
+    return `${serverUrl}/api/v4/teams/${teamId}/drive/files/${fileId}/preview`;
 }
 
 export async function copyDriveFileToChannel(serverUrl: string, teamId: string, fileId: string, channelId: string): Promise<any> {

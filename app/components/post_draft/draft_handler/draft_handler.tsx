@@ -216,6 +216,11 @@ export default function DraftHandler(props: Props) {
                 // Phase 1: Prepare all files with dimensions in parallel
                 debugLog('DRAFT', `addFiles: Phase 1 - preparing files`);
                 debugLog('DRAFT', `addFiles: Phase 1 - starting Promise.all for ${filesToUpload.length} files`);
+
+                // Generate ONE pending post ID for ALL files (not one per file)
+                const pendingPostId = `${currentUserId}:${Date.now()}_${generateId()}`;
+                debugLog('DRAFT', `addFiles: Phase 1 - single post ID for all files: ${pendingPostId}`);
+
                 const filesWithPostData = await Promise.all(
                     filesToUpload.map(async (file, index) => {
                         debugLog('DRAFT', `addFiles: Phase 1 - processing file ${index + 1}/${filesToUpload.length}: ${file.name}`);
@@ -229,7 +234,6 @@ export default function DraftHandler(props: Props) {
 
                         // Use the new copied file ID for existing server files, or generate pending ID for new files
                         const pendingFileId = isExistingServerFile ? (oldToNewIdMap[file.id!] || file.id!) : `pending_${generateId()}`;
-                        const pendingPostId = `${currentUserId}:${Date.now()}_${generateId()}`;
 
                         const fileName = file.name || '';
                         const extension = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
@@ -292,44 +296,44 @@ export default function DraftHandler(props: Props) {
                             height: localFile.height,
                         });
 
-                        const post = {
-                            pending_post_id: pendingPostId,
-                            user_id: currentUserId,
-                            channel_id: channelId,
-                            root_id: rootId,
-                            message: '',
-                            // file_ids will be set by createBatchPendingPosts from the files array
-                            props: batchId ? {
-                                batch_id: batchId,
-                                batch_size: filesToUpload.length,
-                                upload_status: isExistingServerFile ? 'complete' : 'uploading',
-                            } : {
-                                upload_status: isExistingServerFile ? 'complete' : 'uploading',
-                            },
-                        } as Post;
-
-                        debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: post prepared`, {
-                            pending_post_id: post.pending_post_id,
-                            channel_id: post.channel_id,
-                            file_ids: post.file_ids,
-                        });
-
-                        return {localFile, post, pendingPostId, isExistingServerFile};
+                        return {localFile, isExistingServerFile};
                     }),
                 );
 
-                debugLog('DRAFT', `addFiles: Phase 1 COMPLETE, prepared ${filesWithPostData.length} files`);
+                debugLog('DRAFT', `addFiles: Phase 1 COMPLETE, prepared ${filesWithPostData.length} files for single post`);
 
-                // Phase 2: Batch create all pending posts in a single DB write
-                // This triggers observe() only once instead of N times
-                debugLog('DRAFT', `addFiles: Phase 2 - batch create pending posts`);
+                // Phase 2: Create ONE pending post with ALL files in a single DB write
+                debugLog('DRAFT', `addFiles: Phase 2 - create single pending post with all files`);
+
+                // Collect all file IDs
+                const allFileIds = filesWithPostData.map(({localFile}) => localFile.id!);
+                const allLocalFiles = filesWithPostData.map(({localFile}) => localFile);
+                const hasExistingServerFile = filesWithPostData.some(({isExistingServerFile}) => isExistingServerFile);
+
+                // Create ONE post with all file_ids
+                const singlePost = {
+                    pending_post_id: pendingPostId,
+                    user_id: currentUserId,
+                    channel_id: channelId,
+                    root_id: rootId,
+                    message: '',
+                    file_ids: allFileIds,
+                    props: {
+                        upload_status: hasExistingServerFile ? 'complete' : 'uploading',
+                    },
+                } as Post;
+
+                debugLog('DRAFT', `addFiles: Phase 2 - single post prepared with ${allFileIds.length} files`, {
+                    pending_post_id: singlePost.pending_post_id,
+                    file_ids: singlePost.file_ids,
+                });
+
                 const batchResult = await createBatchPendingPosts(
                     serverUrl,
-                    filesWithPostData.map(({localFile, post}) => ({
-                        post,
-                        // All files now have new IDs (either copied or pending), safe to create File models
-                        files: [localFile],
-                    })),
+                    [{
+                        post: singlePost,
+                        files: allLocalFiles,
+                    }],
                 );
 
                 if (batchResult.error) {
@@ -338,74 +342,59 @@ export default function DraftHandler(props: Props) {
                 }
 
                 const batchData = batchResult.data!;
-                debugLog('DRAFT', `addFiles: Phase 2 complete, created ${batchData.length} posts`);
-                const pendingPosts: Array<{postId: string; file: FileInfo; isExistingServerFile: boolean}> = [];
+                debugLog('DRAFT', `addFiles: Phase 2 complete, created 1 post with ${allFileIds.length} files`);
 
-                for (let i = 0; i < batchData.length; i++) {
-                    pendingPosts.push({
-                        postId: batchData[i].pendingPostId,
-                        file: filesWithPostData[i].localFile,
-                        isExistingServerFile: filesWithPostData[i].isExistingServerFile,
-                    });
-                }
+                // Phase 3: Call server API once for the single post
+                debugLog('DRAFT', `addFiles: Phase 3 - calling server API for single post`);
+                const {pendingPostId: serverPendingPostId, post: serverPost, files: serverFiles} = batchData[0];
 
-                // Phase 3: Call server API for each post (pending posts already in DB)
-                debugLog('DRAFT', `addFiles: Phase 3 - calling server API for ${batchData.length} posts`);
-                for (let i = 0; i < batchData.length; i++) {
-                    const {pendingPostId, post, files} = batchData[i];
-                    debugLog('DRAFT', `addFiles: Phase 3 - API call ${i + 1}/${batchData.length}`);
+                let createdPostId = serverPendingPostId;
+                try {
+                    const result = await createPost(
+                        serverUrl,
+                        {...serverPost, pending_post_id: serverPendingPostId},
+                        serverFiles,
+                        true, // Skip pending post creation (already done in batch)
+                    );
 
-                    try {
-                        const result = await createPost(
-                            serverUrl,
-                            {...post, pending_post_id: pendingPostId},
-                            files,
-                            true, // Skip pending post creation (already done in batch)
-                        );
-
-                        if (result.error) {
-                            debugLog('DRAFT', `addFiles: Phase 3 ERROR - ${result.error}`);
-                            throw result.error;
-                        }
-
-                        if (result.data?.postId) {
-                            pendingPosts[i].postId = result.data.postId;
-                            debugLog('DRAFT', `addFiles: Phase 3 - post ${i + 1} created, id=${result.data.postId}`);
-                        }
-                    } catch (err) {
-                        logError('[addFiles createPost]', err);
-                        debugLog('DRAFT', `addFiles: Phase 3 exception - ${err}`);
-                        // Continue with other posts
+                    if (result.error) {
+                        debugLog('DRAFT', `addFiles: Phase 3 ERROR - ${result.error}`);
+                        throw result.error;
                     }
+
+                    if (result.data?.postId) {
+                        createdPostId = result.data.postId;
+                        debugLog('DRAFT', `addFiles: Phase 3 - post created, id=${result.data.postId}`);
+                    }
+                } catch (err) {
+                    logError('[addFiles createPost]', err);
+                    debugLog('DRAFT', `addFiles: Phase 3 exception - ${err}`);
                 }
 
 
                 // Emit scroll to bottom immediately so user sees their posts
                 DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
 
-                // Store batch info for undo functionality (only for multiple files)
-                if (pendingPosts.length > 0 && batchId) {
-                    DeviceEventEmitter.emit(Events.POST_BATCH_CREATED, {
-                        batchId,
-                        postIds: pendingPosts.map(p => p.postId),
-                        channelId,
-                    });
+                // Upload all files in background and update the single post
+                debugLog('DRAFT', `addFiles: background upload - ${filesWithPostData.length} files for post ${createdPostId}`);
+
+                const uploadedFiles: FileInfo[] = [];
+                const filesToActuallyUpload = filesWithPostData.filter(({isExistingServerFile}) => !isExistingServerFile);
+
+                // For existing server files, add them directly to uploadedFiles
+                for (const {localFile, isExistingServerFile} of filesWithPostData) {
+                    if (isExistingServerFile) {
+                        debugLog('DRAFT', `addFiles: adding existing server file ${localFile.name} (id=${localFile.id}) to uploaded list`);
+                        uploadedFiles.push(localFile);
+                    }
                 }
 
-                // Upload files in background and update posts
-                debugLog('DRAFT', `addFiles: background upload - ${pendingPosts.length} files`);
-                debugLog('DRAFT', `addFiles: starting upload loop`);
-                for (let uploadIndex = 0; uploadIndex < pendingPosts.length; uploadIndex++) {
-                    const {postId, file, isExistingServerFile} = pendingPosts[uploadIndex];
+                // Upload new files sequentially (can be parallelized later if needed)
+                for (let uploadIndex = 0; uploadIndex < filesToActuallyUpload.length; uploadIndex++) {
+                    const {localFile: file} = filesToActuallyUpload[uploadIndex];
 
-                    // Skip upload for existing server files - they already have valid file IDs
-                    if (isExistingServerFile) {
-                        debugLog('DRAFT', `addFiles: skipping upload for existing server file ${file.name} (id=${file.id})`);
-                        continue;
-                    }
-
-                    debugLog('DRAFT', `addFiles: uploading file ${uploadIndex + 1}/${pendingPosts.length}: ${file.name}`, {
-                        postId,
+                    debugLog('DRAFT', `addFiles: uploading file ${uploadIndex + 1}/${filesToActuallyUpload.length}: ${file.name}`, {
+                        postId: createdPostId,
                         fileId: file.id,
                         localPath: file.localPath,
                         uri: file.uri,
@@ -465,34 +454,48 @@ export default function DraftHandler(props: Props) {
                             }
                         });
 
-                        // Update post with real file ID
-                        debugLog('DRAFT', `addFiles: upload complete for file ${uploadIndex + 1}, updating post ${postId}`);
-                        debugLog('DRAFT', `addFiles: uploaded file details`, {
+                        debugLog('DRAFT', `addFiles: upload complete for file ${uploadIndex + 1}`, {
                             id: uploadedFile.id,
                             name: uploadedFile.name,
                             clientId: uploadedFile.clientId,
                             localPath: uploadedFile.localPath,
                         });
-                        await updatePostFileIds(serverUrl, postId, [uploadedFile]);
-                        debugLog('DRAFT', `addFiles: post ${postId} updated with real file ID`);
+
+                        uploadedFiles.push(uploadedFile);
 
                     } catch (uploadErr) {
                         logError('[addFiles background upload]', uploadErr);
                         debugLog('DRAFT', `addFiles: upload ERROR for file ${uploadIndex + 1} (${file.name})`, {
                             error: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
                             stack: uploadErr instanceof Error ? uploadErr.stack : 'N/A',
-                            postId,
+                            postId: createdPostId,
                             fileId: file.id,
                         });
-                        // Mark post as failed (don't throw, continue with other files)
+                        // Mark post as failed
                         try {
-                            await markPostUploadFailed(serverUrl, postId, file.name);
-                            debugLog('DRAFT', `addFiles: post ${postId} marked as failed`);
+                            await markPostUploadFailed(serverUrl, createdPostId, file.name);
+                            debugLog('DRAFT', `addFiles: post ${createdPostId} marked as failed`);
                         } catch (markErr) {
                             debugLog('DRAFT', `addFiles: ERROR marking post as failed: ${markErr instanceof Error ? markErr.message : String(markErr)}`);
                         }
+                        return; // Stop uploading remaining files
                     }
                 }
+
+                // Update the single post with all uploaded file IDs
+                if (uploadedFiles.length > 0) {
+                    debugLog('DRAFT', `addFiles: updating post ${createdPostId} with ${uploadedFiles.length} file IDs`);
+                    try {
+                        await updatePostFileIds(serverUrl, createdPostId, uploadedFiles);
+                        debugLog('DRAFT', `addFiles: post ${createdPostId} updated with all file IDs`);
+                    } catch (updateErr) {
+                        logError('[addFiles updatePostFileIds]', updateErr);
+                        debugLog('DRAFT', `addFiles: ERROR updating post with file IDs`, {
+                            error: updateErr instanceof Error ? updateErr.message : String(updateErr),
+                        });
+                    }
+                }
+
                 debugLog('DRAFT', `addFiles: all uploads complete`);
 
 

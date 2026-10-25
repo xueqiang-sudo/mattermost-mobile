@@ -25,6 +25,9 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {goToScreen} from '@screens/navigation';
+import {isImage, isVideo, isAudio} from '@utils/file';
+import {showMediaViewer} from '@utils/gallery';
+import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -48,10 +51,10 @@ import {
 // ---- Constants ----
 
 const CATEGORIES = [
-    {key: '', labelId: 'workbench.kb.filter_all', defaultMessage: 'All'},
     {key: 'file', labelId: 'workbench.kb.filter_file', defaultMessage: 'File'},
     {key: 'text', labelId: 'workbench.kb.filter_text', defaultMessage: 'Text'},
     {key: 'url', labelId: 'workbench.kb.filter_url', defaultMessage: 'URL'},
+    {key: 'ask', labelId: 'workbench.kb.filter_ask', defaultMessage: '提问'},
 ];
 
 type AddDocType = 'text' | 'url' | 'file';
@@ -90,8 +93,12 @@ function getExtension(fileName?: string): string {
     return fileName.slice(idx + 1).toLowerCase();
 }
 
-function categoryIcon(category: string, ext?: string): string {
-    // File category: prefer extension-based icon (same palette as cloud drive)
+const KB_ICON_BLUE = '#338AFF';
+const KB_ICON_RED = '#ED522A';
+const KB_ICON_GREEN = '#1CA660';
+const KB_ICON_GRAY = '#999999';
+
+function categoryIconInfo(category: string, ext?: string): {name: string; color: string} {
     if (category === 'file' && ext) {
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'];
         const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
@@ -100,6 +107,8 @@ function categoryIcon(category: string, ext?: string): string {
         const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
         const presentationExts = ['ppt', 'pptx', 'key', 'odp'];
         const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'dmg', 'iso'];
+        const wordExts = ['doc', 'docx', 'odt', 'rtf', 'pages'];
+        const textExts = ['txt', 'md', 'log', 'epub'];
         const codeExts = [
             'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp',
             'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt', 'scala', 'lua',
@@ -107,29 +116,20 @@ function categoryIcon(category: string, ext?: string): string {
             'json', 'xml', 'yaml', 'yml', 'toml', 'sql',
         ];
 
-        if (ext === 'gif') return 'file-gif';
-        if (imageExts.includes(ext)) return 'file-image-outline-large';
-        if (videoExts.includes(ext)) return 'file-video-outline-large';
-        if (audioExts.includes(ext)) return 'file-audio-outline-large';
-        if (pdfExts.includes(ext)) return 'file-pdf-outline-large';
-        if (sheetExts.includes(ext)) return 'file-excel-outline-large';
-        if (presentationExts.includes(ext)) return 'file-powerpoint-outline-large';
-        if (codeExts.includes(ext)) return 'file-code-outline-large';
-        if (archiveExts.includes(ext)) return 'file-zip-outline-large';
-        if (['doc', 'docx', 'odt', 'rtf', 'txt', 'md'].includes(ext)) return 'file-word-outline-large';
-        return 'file-generic-outline-large';
+        if (imageExts.includes(ext)) return {name: 'file-image-outline-large', color: KB_ICON_BLUE};
+        if (videoExts.includes(ext)) return {name: 'file-video-outline-large', color: KB_ICON_BLUE};
+        if (audioExts.includes(ext)) return {name: 'file-audio-outline-large', color: KB_ICON_BLUE};
+        if (pdfExts.includes(ext)) return {name: 'file-pdf-outline-large', color: KB_ICON_RED};
+        if (wordExts.includes(ext)) return {name: 'file-word-outline-large', color: KB_ICON_BLUE};
+        if (textExts.includes(ext)) return {name: 'file-text-outline-large', color: KB_ICON_GRAY};
+        if (sheetExts.includes(ext)) return {name: 'file-excel-outline-large', color: KB_ICON_GREEN};
+        if (presentationExts.includes(ext)) return {name: 'file-powerpoint-outline-large', color: KB_ICON_RED};
+        if (codeExts.includes(ext)) return {name: 'file-code-outline-large', color: KB_ICON_BLUE};
+        if (archiveExts.includes(ext)) return {name: 'file-zip-outline-large', color: KB_ICON_BLUE};
+        return {name: 'file-generic-outline-large', color: KB_ICON_BLUE};
     }
-
-    switch (category) {
-        case 'file':
-            return 'file-document-outline';
-        case 'text':
-            return 'text-box-outline';
-        case 'url':
-            return 'link-variant';
-        default:
-            return 'book-open-outline';
-    }
+    if (category === 'url') return {name: 'link-variant', color: KB_ICON_BLUE};
+    return {name: 'file-text-outline-large', color: KB_ICON_GRAY};
 }
 
 function formatFileSize(bytes: number): string {
@@ -627,7 +627,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const [error, setError] = useState<string | null>(null);
     const [documents, setDocuments] = useState<KBDoc[]>([]);
     const [searchResults, setSearchResults] = useState<KBSearchResult[] | null>(null);
-    const [activeCategory, setActiveCategory] = useState('');
+    const [activeCategory, setActiveCategory] = useState('file');
     const [searchQuery, setSearchQuery] = useState('');
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -773,6 +773,42 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         });
     }, [intl, searchQuery, performSearch, loadDocuments]);
 
+    // Preview file directly (like webapp)
+    const openFilePreview = useCallback(async (item: DisplayItem) => {
+        try {
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const tid = await getCurrentTeamId(database);
+            if (!tid) throw new Error('team_id missing');
+
+            const url = getKBDownloadUrl(serverUrl, item.docId, tid);
+            if (!url) throw new Error('No download URL');
+
+            const ext = getExtension(item.fileName);
+            const fileInfo: FileInfo = {
+                id: item.docId,
+                user_id: '',
+                create_at: 0,
+                name: item.fileName || item.title,
+                extension: ext,
+                size: item.fileSize || 0,
+                mime_type: '',
+                uri: url,
+                localPath: url,
+            } as FileInfo;
+
+            if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
+                showMediaViewer(fileInfo, serverUrl);
+            } else {
+                openUnifiedFileViewer(fileInfo, theme);
+            }
+        } catch {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
+            );
+        }
+    }, [serverUrl, theme, intl]);
+
     // Edit document (Navigation mode)
     const openEditScreen = useCallback((doc: KBDoc) => {
         const title = intl.formatMessage({
@@ -886,18 +922,19 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const renderItemCard = useCallback((item: DisplayItem) => {
         const ext = getExtension(item.fileName);
         const isFile = item.category === 'file';
+        const iconInfo = categoryIconInfo(item.category, ext);
 
         return (
             <TouchableOpacity
                 style={style.docCard}
-                onPress={() => openDetail(item.docId, item.title)}
+                onPress={() => isFile ? openFilePreview(item) : openDetail(item.docId, item.title)}
                 activeOpacity={0.7}
             >
                 <View style={style.docHeader}>
                     <CompassIcon
-                        name={categoryIcon(item.category, ext)}
+                        name={iconInfo.name}
                         size={20}
-                        color={theme.buttonBg}
+                        color={iconInfo.color}
                     />
                     <Text style={style.docTitle} numberOfLines={2}>{item.title}</Text>
                     {isFile && ext ? (
@@ -942,7 +979,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 ) : null}
             </TouchableOpacity>
         );
-    }, [style, theme, openDetail, intl]);
+    }, [style, theme, openDetail, openFilePreview, intl]);
 
     const renderFlatListItem = useCallback(({item}: {item: DisplayItem}) => renderItemCard(item), [renderItemCard]);
 
@@ -1073,9 +1110,47 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             {/* Search bar */}
             {renderSearchBar}
 
-            {/* Document list */}
+            {/* Document list or Ask AI tab */}
             <View style={{flex: 1}}>
-                {error ? (
+                {activeCategory === 'ask' ? (
+                    <ScrollView style={{flex: 1, paddingHorizontal: 16}} keyboardShouldPersistTaps='handled'>
+                        <TextInput
+                            style={style.askInput}
+                            placeholder={intl.formatMessage({id: 'workbench.kb.ask_placeholder', defaultMessage: 'Ask a question about your knowledge base...'})}
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
+                            value={askQuery}
+                            onChangeText={setAskQuery}
+                            multiline={true}
+                            returnKeyType='send'
+                            autoCapitalize='sentences'
+                            onSubmitEditing={handleAskSubmit}
+                        />
+                        <TouchableOpacity
+                            style={[style.askSubmit, (!askQuery.trim() || askLoading) && style.askSubmitDisabled]}
+                            onPress={handleAskSubmit}
+                            disabled={!askQuery.trim() || askLoading}
+                        >
+                            {askLoading ? (
+                                <ActivityIndicator size='small' color={theme.buttonColor}/>
+                            ) : (
+                                <>
+                                    <CompassIcon name='robot' size={18} color={theme.buttonColor}/>
+                                    <Text style={style.askSubmitText}>
+                                        {intl.formatMessage({id: 'workbench.kb.ask_submit', defaultMessage: 'Ask'})}
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                        {askAnswer.length > 0 && (
+                            <View style={style.askAnswerBox}>
+                                <Text style={style.askAnswerLabel}>
+                                    {intl.formatMessage({id: 'workbench.kb.answer_label', defaultMessage: 'Answer'})}
+                                </Text>
+                                <Text style={style.askAnswerText} selectable={true}>{askAnswer}</Text>
+                            </View>
+                        )}
+                    </ScrollView>
+                ) : error ? (
                     <View style={style.emptyContainer}>
                         <CompassIcon name='alert-circle-outline' size={48} color={theme.errorTextColor}/>
                         <Text style={style.emptyText}>{error}</Text>
@@ -1115,12 +1190,6 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                         </Text>
                     </TouchableOpacity>
                 )}
-                <TouchableOpacity style={style.askBtn} onPress={openAskModal}>
-                    <CompassIcon name='robot' size={18} color={theme.buttonColor}/>
-                    <Text style={style.askBtnText}>
-                        {intl.formatMessage({id: 'workbench.kb.ask_ai', defaultMessage: 'Ask AI'})}
-                    </Text>
-                </TouchableOpacity>
             </View>
 
             {/* ---- Ask AI Modal ---- */}

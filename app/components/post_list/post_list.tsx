@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {FlatList} from '@stream-io/flat-list-mvcp';
+import {FlashList} from '@shopify/flash-list';
 import React, {type ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {DeviceEventEmitter, type ListRenderItemInfo, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent} from 'react-native';
 import Animated, {type AnimatedStyle} from 'react-native-reanimated';
@@ -511,7 +511,7 @@ const PostList = ({
 
     return (
         <View style={styles.container}>
-            <Animated.FlatList
+            <FlashList
                 contentContainerStyle={[listContentStyle, contentContainerStyle]}
                 data={orderedPosts}
                 keyboardDismissMode='interactive'
@@ -520,8 +520,6 @@ const PostList = ({
                 initialNumToRender={INITIAL_BATCH_TO_RENDER + 5}
                 ListHeaderComponent={header}
                 ListFooterComponent={footer}
-                maintainVisibleContentPosition={SCROLL_POSITION_CONFIG}
-                maxToRenderPerBatch={10}
                 nativeID={nativeID}
                 onEndReached={onEndReached}
                 onEndReachedThreshold={0.9}
@@ -529,17 +527,16 @@ const PostList = ({
                 onScrollToIndexFailed={onScrollToIndexFailed}
                 onViewableItemsChanged={onViewableItemsChanged}
                 ref={listRef}
-                removeClippedSubviews={true}
                 renderItem={renderItem}
                 scrollEventThrottle={SCROLL_EVENT_THROTTLE}
                 style={styles.flex}
                 viewabilityConfig={VIEWABILITY_CONFIG}
-                testID={`${testID}.flat_list`}
+                testID={`${testID}.flash_list`}
                 inverted={true}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                windowSize={11}
-                updateCellsBatchingPeriod={300}
+                estimatedItemSize={80}
+                drawDistance={500}
             />
             {location !== Screens.PERMALINK &&
             <ScrollToEndView

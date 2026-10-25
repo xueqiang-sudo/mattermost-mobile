@@ -48,19 +48,22 @@ function formatFileSize(bytes: number): string {
     return `${size.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
 }
 
-function getFileIcon(file: DriveFile): string {
-    if (file.type === 'folder') return 'folder-outline';
+const PICKER_ICON_BLUE = '#338AFF';
+const PICKER_ICON_RED = '#ED522A';
+const PICKER_ICON_GREEN = '#1CA660';
+const PICKER_ICON_GRAY = '#999999';
+
+function getFileIconInfo(file: DriveFile): {name: string; color: string} {
+    if (file.type === 'folder') return {name: 'folder-outline', color: '#FFC107'};
 
     const ext = (file.extension || '').toLowerCase();
-    if (!ext) return 'file-document-outline';
+    if (!ext) return {name: 'file-generic-outline-large', color: PICKER_ICON_BLUE};
 
-    const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'svg', 'webp', 'ico', 'tiff'];
+    const imageExts = ['png', 'jpg', 'jpeg', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'gif'];
     const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv'];
     const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
-    const docExts = [
-        'doc', 'docx', 'txt', 'rtf', 'odt', 'md', 'mdx',
-        'pages', 'tex', 'epub', 'log',
-    ];
+    const wordExts = ['doc', 'docx', 'odt', 'pages', 'rtf'];
+    const textExts = ['txt', 'md', 'mdx', 'tex', 'epub', 'log'];
     const pdfExts = ['pdf'];
     const sheetExts = ['xls', 'xlsx', 'csv', 'ods', 'numbers'];
     const presentationExts = ['ppt', 'pptx', 'key', 'odp'];
@@ -75,20 +78,18 @@ function getFileIcon(file: DriveFile): string {
     const archiveExts = [
         'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'dmg', 'iso',
     ];
-    const executableExts = ['exe', 'msi', 'apk', 'app', 'ipa', 'deb', 'rpm'];
 
-    if (ext === 'gif') return 'file-gif';
-    if (imageExts.includes(ext)) return 'file-image-outline-large';
-    if (videoExts.includes(ext)) return 'file-video-outline-large';
-    if (audioExts.includes(ext)) return 'file-audio-outline-large';
-    if (pdfExts.includes(ext)) return 'file-pdf-outline-large';
-    if (docExts.includes(ext)) return 'file-document-outline';
-    if (sheetExts.includes(ext)) return 'file-document-outline';
-    if (presentationExts.includes(ext)) return 'file-document-outline';
-    if (codeExts.includes(ext)) return 'file-document-outline';
-    if (archiveExts.includes(ext)) return 'file-zip-outline-large';
-    if (executableExts.includes(ext)) return 'file-download-outline';
-    return 'file-document-outline';
+    if (imageExts.includes(ext)) return {name: 'file-image-outline-large', color: PICKER_ICON_BLUE};
+    if (videoExts.includes(ext)) return {name: 'file-video-outline-large', color: PICKER_ICON_BLUE};
+    if (audioExts.includes(ext)) return {name: 'file-audio-outline-large', color: PICKER_ICON_BLUE};
+    if (pdfExts.includes(ext)) return {name: 'file-pdf-outline-large', color: PICKER_ICON_RED};
+    if (wordExts.includes(ext)) return {name: 'file-word-outline-large', color: PICKER_ICON_BLUE};
+    if (textExts.includes(ext)) return {name: 'file-text-outline-large', color: PICKER_ICON_GRAY};
+    if (sheetExts.includes(ext)) return {name: 'file-excel-outline-large', color: PICKER_ICON_GREEN};
+    if (presentationExts.includes(ext)) return {name: 'file-powerpoint-outline-large', color: PICKER_ICON_RED};
+    if (codeExts.includes(ext)) return {name: 'file-code-outline-large', color: PICKER_ICON_BLUE};
+    if (archiveExts.includes(ext)) return {name: 'file-zip-outline-large', color: PICKER_ICON_BLUE};
+    return {name: 'file-generic-outline-large', color: PICKER_ICON_BLUE};
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -289,7 +290,6 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
             for (const a of ancestors) {
                 crumbs.push({id: a.id, name: a.name});
             }
-            crumbs.push({id: file.id, name: file.name});
             setBreadcrumbs(crumbs);
         } catch {
             setBreadcrumbs((prev) => [...prev, {id: file.id, name: file.name}]);
@@ -377,7 +377,7 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
     const renderItem = useCallback(({item}: {item: DriveFile}) => {
         const isFolder = item.type === 'folder';
         const isSelected = selectedIds.has(item.id);
-        const iconName = getFileIcon(item);
+        const iconInfo = getFileIconInfo(item);
 
         return (
             <TouchableOpacity
@@ -386,9 +386,9 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
                 activeOpacity={0.7}
             >
                 <CompassIcon
-                    name={iconName}
+                    name={iconInfo.name}
                     size={32}
-                    color={isFolder ? '#FFC107' : changeOpacity(theme.centerChannelColor, 0.5)}
+                    color={iconInfo.color}
                 />
                 <View style={style.fileInfo}>
                     <Text style={style.fileName} numberOfLines={1}>{item.name}</Text>
