@@ -627,7 +627,7 @@ const KnowledgeBaseScreen = () => {
     const params = route.params as RouteParams | undefined;
     const kbWrite = params?.kbWrite === true;
 
-    debugLog('[KB] Component rendering, kbWrite:', kbWrite);
+    debugLog('[KB] Component rendering, kbWrite:', JSON.stringify({kbWrite}));
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
