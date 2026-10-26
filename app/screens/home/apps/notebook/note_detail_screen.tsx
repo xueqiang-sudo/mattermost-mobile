@@ -54,7 +54,7 @@ const NoteDetailScreen = () => {
         try {
             setLoading(true);
             setError(null);
-            debugLog('[NoteDetail] Loading note', {noteId, serverUrl});
+            debugLog('[NoteDetail] Loading note', JSON.stringify({noteId, serverUrl}));
 
             const result = await getNoteEntry(serverUrl, teamId, noteId, scope);
 
@@ -65,7 +65,7 @@ const NoteDetailScreen = () => {
             setNote(result.data || null);
             debugLog('[NoteDetail] Note loaded', JSON.stringify({hasData: Boolean(result.data)}));
         } catch (err) {
-            debugLog('[NoteDetail] Load failed', {error: String(err)});
+            debugLog('[NoteDetail] Load failed', String(err));
             setError(String(err));
         } finally {
             setLoading(false);

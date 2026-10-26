@@ -532,11 +532,22 @@ const CloudDriveScreen = () => {
                 try {
                     const NetworkManager = (await import('@managers/network_manager')).default;
                     const client = NetworkManager.getClient(serverUrl);
-                    fullFileInfo = await client.getFileInfo(file.mm_file_id);
+
+                    // Add timestamp to bypass cache
+                    const timestamp = Date.now();
+                    try {
+                        // Try with cache-busting parameter first
+                        fullFileInfo = await client.getFileInfo(`${file.mm_file_id}?_t=${timestamp}`);
+                    } catch (e) {
+                        // Fallback to normal request if query params not supported
+                        fullFileInfo = await client.getFileInfo(file.mm_file_id);
+                    }
+
                     debugLog('[Drive] Got full file info', JSON.stringify({
                         mm_file_id: file.mm_file_id,
                         pdf_preview_id: fullFileInfo.pdf_preview_id,
                         has_preview_image: fullFileInfo.has_preview_image,
+                        pdf_conversion_status: (fullFileInfo as any)?.pdf_conversion_status,
                     }));
                 } catch (err) {
                     debugLog('[Drive] getFileInfo failed, falling back to manual construction', String(err));

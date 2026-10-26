@@ -43,13 +43,13 @@ const initialState: SelectionState = {
 function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
     switch (action.type) {
         case 'ADD_FILE': {
-            debugLog('FilePickerContext', `ADD_FILE: ${action.file.name || 'unnamed'}`, {
+            debugLog('FilePickerContext', `ADD_FILE: ${action.file.name || 'unnamed'}`, JSON.stringify({
                 fileId: action.file.id,
                 clientId: action.file.clientId,
                 uri: action.file.uri,
                 currentCount: state.selectedFiles.size,
                 maxSelection: state.maxSelection,
-            });
+            }));
             if (state.selectedFiles.size >= state.maxSelection) {
                 debugLog('FilePickerContext', 'ADD_FILE rejected: max selection reached');
                 return state;
@@ -63,13 +63,13 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
                     ? action.file.originalUri
                     : (action.file.id || action.file.clientId || String(Date.now()));
             newMap.set(mapKey, action.file);
-            debugLog('FilePickerContext', `ADD_FILE success: new count = ${newMap.size}`, {mapKey});
+            debugLog('FilePickerContext', `ADD_FILE success: new count = ${newMap.size}`, JSON.stringify({mapKey}));
             return {...state, selectedFiles: newMap};
         }
         case 'REMOVE_FILE': {
-            debugLog('FilePickerContext', `REMOVE_FILE: ${action.fileId}`, {
+            debugLog('FilePickerContext', `REMOVE_FILE: ${action.fileId}`, JSON.stringify({
                 currentCount: state.selectedFiles.size,
-            });
+            }));
             const file = state.selectedFiles.get(action.fileId);
             const newMap = new Map(state.selectedFiles);
             newMap.delete(action.fileId);

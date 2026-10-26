@@ -839,11 +839,22 @@ const KnowledgeBaseScreen = () => {
 
                     // Get full file info including pdf_preview_id if already converted
                     const client = NetworkManager.getClient(serverUrl);
-                    fullFileInfo = await client.getFileInfo(mmFileId);
+
+                    // Add timestamp to bypass cache
+                    const timestamp = Date.now();
+                    try {
+                        // Try with cache-busting parameter first
+                        fullFileInfo = await client.getFileInfo(`${mmFileId}?_t=${timestamp}`);
+                    } catch (e) {
+                        // Fallback to normal request if query params not supported
+                        fullFileInfo = await client.getFileInfo(mmFileId);
+                    }
+
                     debugLog('[KB] Got full file info', JSON.stringify({
                         mm_file_id: mmFileId,
                         pdf_preview_id: fullFileInfo.pdf_preview_id,
                         has_preview_image: fullFileInfo.has_preview_image,
+                        pdf_conversion_status: (fullFileInfo as any)?.pdf_conversion_status,
                     }));
                 } catch (err) {
                     debugLog('[KB] getKBFileInfo failed', String(err));

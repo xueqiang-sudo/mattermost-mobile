@@ -56,6 +56,9 @@ export function initConsoleInterceptor() {
                 if (typeof a === 'string') {
                     return a;
                 }
+                if (a instanceof Error) {
+                    return `${a.name}: ${a.message}${a.stack ? `\n${a.stack}` : ''}`;
+                }
                 try {
                     return JSON.stringify(a, null, 2);
                 } catch {

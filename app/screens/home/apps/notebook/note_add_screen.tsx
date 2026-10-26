@@ -57,7 +57,7 @@ const NoteAddScreen = () => {
 
         try {
             setLoading(true);
-            debugLog('[NoteAdd] Saving note', {teamId, scope, serverUrl});
+            debugLog('[NoteAdd] Saving note', JSON.stringify({teamId, scope, serverUrl}));
 
             const result = await addNoteEntry(serverUrl, teamId, scope, content.trim());
 
@@ -73,7 +73,7 @@ const NoteAddScreen = () => {
             // 返回上一页
             navigation.goBack();
         } catch (err) {
-            debugLog('[NoteAdd] Save failed', {error: String(err)});
+            debugLog('[NoteAdd] Save failed', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.notebook.error', defaultMessage: 'Error'}),
                 String(err),

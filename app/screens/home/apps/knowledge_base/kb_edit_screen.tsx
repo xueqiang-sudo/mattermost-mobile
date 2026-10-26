@@ -61,11 +61,11 @@ const KBEditScreen = ({doc, onDocUpdated}: Props) => {
 
         try {
             setLoading(true);
-            debugLog('[KBEdit] Saving document', {
+            debugLog('[KBEdit] Saving document', JSON.stringify({
                 docId: doc.docId,
                 titleLength: title.trim().length,
                 contentLength: content.trim().length,
-            });
+            }));
 
             const result = await updateKBDoc(serverUrl, doc.docId, {
                 title: title.trim(),
@@ -84,7 +84,7 @@ const KBEditScreen = ({doc, onDocUpdated}: Props) => {
             // 返回上一页
             popTopScreen();
         } catch (err) {
-            debugLog('[KBEdit] Save failed', {error: String(err)});
+            debugLog('[KBEdit] Save failed', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 `${intl.formatMessage({
