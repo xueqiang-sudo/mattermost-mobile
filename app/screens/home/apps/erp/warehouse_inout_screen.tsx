@@ -54,7 +54,12 @@ type ScanType = 'stock_in' | 'stock_out';
 
 function formatDisplayBarcode(item: ScanRecord): string {
     // netWeight 存储的是 kg 值，需要乘以 100 转换为整数格式
-    const weightStr = String(Math.round((item.netWeight || 0) * 100)).padStart(6, '0');
+    const weightValue = (item.netWeight || 0) * 100;
+    const weightRounded = Math.round(weightValue);
+    const weightStr = String(weightRounded).padStart(6, '0');
+
+    debugLog('formatDisplayBarcode', `netWeight=${item.netWeight}, weightValue=${weightValue}, weightRounded=${weightRounded}, weightStr=${weightStr}`);
+
     if (item.isMasterSheet) {
         // 总码单: 9 + 11位码单号 + 2位箱数 + 6位净重
         const boxStr = String(item.boxNo || '0').padStart(2, '0');
@@ -128,12 +133,17 @@ const WarehouseInoutScreen = () => {
             if (initialScanResult) {
                 const parsed = parseQrCode(initialScanResult);
                 if (parsed) {
+                    debugLog('ScanRecord', `Parsed QR code: codeSheetNo=${parsed.codeSheetNo}, boxNo=${parsed.boxNo}, netWeight=${parsed.netWeight}, isMasterSheet=${parsed.isMasterSheet}`);
+                    debugLog('ScanRecord', `Raw scan data: ${initialScanResult}`);
+
                     const displayBarcode = formatDisplayBarcode({
                         codeSheetNo: parsed.codeSheetNo,
                         boxNo: parsed.boxNo,
                         netWeight: parsed.netWeight,
                         isMasterSheet: parsed.isMasterSheet,
                     } as ScanRecord);
+                    debugLog('ScanRecord', `Generated barcode: ${displayBarcode}`);
+
                     setCurrentBarcode(displayBarcode);
                     await addScanRecord({
                         scanType,

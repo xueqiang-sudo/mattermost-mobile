@@ -2744,6 +2744,7 @@
   "workbench.kb.detail_title": "文档详情",
   "workbench.kb.edit_title": "编辑文档",
   "workbench.kb.add_title": "添加文档",
+  "workbench.kb.add_document": "添加文档",
   "workbench.kb.ask_error": "获取答案失败，请重试。",
   "workbench.kb.search_placeholder": "搜索文档...",
   "workbench.kb.no_search_results": "未找到匹配的文档。",

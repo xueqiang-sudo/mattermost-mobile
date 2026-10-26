@@ -30,6 +30,7 @@ import {goToScreen, showModal} from '@screens/navigation';
 import {isImage, isVideo, isAudio, getLocalFilePathFromFile} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
+import {useDownloadFileAndPreview} from '@hooks/files';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {debugLog} from '@store/debug_log';
@@ -169,6 +170,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     headerAction: {
         padding: 8,
         marginLeft: 4,
+    },
+    headerActionText: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.sidebarText,
     },
 
     // Category chips
@@ -645,6 +650,9 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     // Retry key - increment to trigger re-init
     const [initRetryKey, setInitRetryKey] = useState(0);
 
+    // File preview hook (same as chat window)
+    const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
+
     // Init: load teamId
     useEffect(() => {
         debugLog('[KB] Init useEffect running, serverUrl:', serverUrl, 'retryKey:', initRetryKey);
@@ -823,7 +831,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 size: item.fileSize || 0,
                 mime_type: '',
                 uri: url,
-                localPath: '',  // Will be set after download
+                localPath: '',
             } as FileInfo;
 
             // For media files, can use remote URL directly
@@ -831,26 +839,9 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 fileInfo.localPath = url;
                 showMediaViewer(fileInfo, serverUrl);
             } else {
-                // For other files, download first then open
-                // Use the mm_file_id when available so the unified viewer's
-                // PDF conversion endpoint works; fall back to KB download URL.
-                const downloadId = mmFileId || item.docId;
-                const localPath = getLocalFilePathFromFile(serverUrl, fileInfo);
-                const downloadTask = downloadFile(serverUrl, downloadId, localPath);
-
-                // Show loading indicator (optional)
-                Alert.alert(
-                    intl.formatMessage({id: 'file.downloading', defaultMessage: 'Downloading...'}),
-                    intl.formatMessage({id: 'workbench.kb.downloading_message', defaultMessage: 'Please wait while the file is being downloaded.'}),
-                );
-
-                await downloadTask;
-
-                // Update fileInfo with local path
-                fileInfo.localPath = localPath;
-                fileInfo.uri = localPath;
-
-                openUnifiedFileViewer(fileInfo, theme);
+                // For other files (Office, PDF, etc.), use the same hook as chat window
+                // This handles PDF preview, downloading, and conversion automatically
+                downloadAndPreviewFile(fileInfo);
             }
         } catch (error) {
             debugLog('[KB] Preview error:', error);
@@ -912,7 +903,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
     const openAddScreen = useCallback(() => {
         showModal(
             Screens.FILE_PICKER,
-            intl.formatMessage({id: 'workbench.kb.add_title', defaultMessage: 'Add Document'}),
+            intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'}),
             {
                 onSend: onUploadKBFiles,
                 channelId: '', // Not needed for KB uploads
@@ -1168,11 +1159,13 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                     <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                 </TouchableOpacity>
                 <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.kb.title', defaultMessage: 'Knowledge Base'})}
+                    {intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'})}
                 </Text>
                 {kbWrite && (
                     <TouchableOpacity style={style.headerAction} onPress={openAddScreen}>
-                        <CompassIcon name='plus' size={22} color={theme.sidebarText}/>
+                        <Text style={style.headerActionText}>
+                            {intl.formatMessage({id: 'workbench.kb.add_document', defaultMessage: '添加文档'})}
+                        </Text>
                     </TouchableOpacity>
                 )}
             </View>

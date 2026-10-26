@@ -2745,6 +2745,7 @@
   "workbench.kb.detail_title": "Document Detail",
   "workbench.kb.edit_title": "Edit Document",
   "workbench.kb.add_title": "Add Document",
+  "workbench.kb.add_document": "Add Document",
   "workbench.kb.ask_error": "Failed to get an answer. Please try again.",
   "workbench.kb.search_placeholder": "Search documents...",
   "workbench.kb.no_search_results": "No matching documents found.",

@@ -157,7 +157,8 @@ export async function uploadDriveFile(
     if (!resp.ok) {
         throw new Error(resp.error || 'Upload failed');
     }
-    const files = await resp.json();
+    // doFetch returns the parsed response directly (like uploadKBFile)
+    const files = resp.data || resp;
     return Array.isArray(files) ? files[0] : files;
 }
 

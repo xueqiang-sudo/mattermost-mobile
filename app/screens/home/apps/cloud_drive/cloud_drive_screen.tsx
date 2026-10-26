@@ -25,6 +25,7 @@ import {getCurrentTeamId} from '@queries/servers/system';
 import {isImage, isVideo, isAudio} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer, showModal} from '@utils/navigation';
+import {useDownloadFileAndPreview} from '@hooks/files';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {Screens} from '@constants';
@@ -406,6 +407,9 @@ const CloudDriveScreen = () => {
     const [renameName, setRenameName] = useState('');
     const [renaming, setRenaming] = useState(false);
 
+    // File preview hook (same as chat window)
+    const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
+
     // ── Init: load team ID ──
     useEffect(() => {
         const init = async () => {
@@ -530,7 +534,7 @@ const CloudDriveScreen = () => {
                 size: file.size || 0,
                 mime_type: file.mime_type || '',
                 uri: previewUrl,
-                localPath: previewUrl,
+                localPath: '',
                 link: downloadUrl,
                 has_preview_image: false,
                 archived: false,
@@ -539,7 +543,9 @@ const CloudDriveScreen = () => {
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
                 showMediaViewer(fileInfo, serverUrl);
             } else {
-                openUnifiedFileViewer(fileInfo, theme);
+                // Use the same hook as chat window for consistent behavior
+                // This handles PDF preview, downloading, and conversion automatically
+                downloadAndPreviewFile(fileInfo);
             }
         } catch (err) {
             Alert.alert(
