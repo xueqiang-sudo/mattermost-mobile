@@ -181,7 +181,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
 
             // Validate and normalize files before sending
             const normalizedFiles = files.map((file, index) => {
-                debugLog('filePicker', `Processing file ${index + 1}:`, {
+                debugLog('filePicker', `Processing file ${index + 1}:`, JSON.stringify({
                     name: file.name,
                     uri: file.uri,
                     id: file.id,
@@ -189,7 +189,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                     mime_type: file.mime_type,
                     size: file.size,
                     extension: file.extension,
-                });
+                }));
 
                 // Ensure all required fields are present
                 return {
@@ -206,7 +206,8 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
 
             debugLog('filePicker', 'Calling onSend callback');
             try {
-                onSend(normalizedFiles);
+                // Await the onSend callback to handle async operations properly
+                await onSend(normalizedFiles);
                 debugLog('filePicker', 'onSend callback completed successfully');
             } catch (sendError) {
                 debugLog('filePicker', `onSend callback error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
@@ -249,7 +250,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
         {key: 'files', label: intl.formatMessage({id: 'file_picker.tab.phone_files', defaultMessage: 'Phone Files'})},
     ];
 
-    debugLog('filePicker', `Rendering ${tabs.length} tabs:`, tabs.map(t => ({key: t.key, label: t.label})));
+    debugLog('filePicker', `Rendering ${tabs.length} tabs:`, JSON.stringify(tabs.map(t => ({key: t.key, label: t.label}))));
 
     const renderTabContent = () => {
         switch (activeTab) {

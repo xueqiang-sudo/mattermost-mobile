@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -618,11 +618,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 
 // ---- Main Component ----
 
-type Props = {
+type RouteParams = {
     kbWrite?: boolean;
 };
 
-const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
+const KnowledgeBaseScreen = () => {
+    const route = useRoute();
+    const params = route.params as RouteParams | undefined;
+    const kbWrite = params?.kbWrite === true;
+
     debugLog('[KB] Component rendering, kbWrite:', kbWrite);
     const intl = useIntl();
     const theme = useTheme();
@@ -787,6 +791,12 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Preview file directly (like webapp)
     const openFilePreview = useCallback(async (item: DisplayItem) => {
+        debugLog('[KB] openFilePreview called:', JSON.stringify({
+            docId: item.docId,
+            fileName: item.fileName,
+            fileSize: item.fileSize,
+        }));
+
         try {
             const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
             const tid = await getCurrentTeamId(database);
@@ -794,23 +804,29 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
             const previewUrl = getKBDownloadUrl(serverUrl, item.docId, tid);
             const downloadUrl = getKBDownloadUrl(serverUrl, item.docId, tid);
+            debugLog('[KB] URLs generated:', JSON.stringify({previewUrl, downloadUrl}));
+
             if (!previewUrl) throw new Error('No download URL');
 
             const ext = getExtension(item.fileName);
             const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
             const isOffice = officeExtensions.includes(ext.toLowerCase());
+            debugLog('[KB] File type check:', JSON.stringify({ext, isOffice}));
 
             // Office documents need a real Mattermost file ID for the in-app
             // PDF conversion pipeline. Bridge KB docId → mm_file_id first.
             let mmFileId = '';
             let fullFileInfo: FileInfo | null = null;
             if (isOffice) {
+                debugLog('[KB] Office file, fetching mm_file_id');
                 try {
                     const info = await getKBFileInfo(serverUrl, item.docId, tid);
                     mmFileId = info.mm_file_id || '';
+                    debugLog('[KB] Got mm_file_id:', mmFileId);
 
                     // If Office file hasn't been indexed yet, show clear error (matching webapp behavior)
                     if (!mmFileId) {
+                        debugLog('[KB] Office file without mm_file_id, showing error');
                         Alert.alert(
                             intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                             intl.formatMessage({
@@ -858,11 +874,22 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 archived: false,
             } as FileInfo;
 
+            debugLog('[KB] FileInfo constructed:', JSON.stringify({
+                id: fileInfo.id,
+                name: fileInfo.name,
+                extension: fileInfo.extension,
+                isImage: isImage(fileInfo),
+                isVideo: isVideo(fileInfo),
+                isAudio: isAudio(fileInfo),
+            }));
+
             // For media files, can use remote URL directly
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
+                debugLog('[KB] Opening media file');
                 fileInfo.localPath = previewUrl;
                 showMediaViewer(fileInfo, serverUrl);
             } else {
+                debugLog('[KB] Opening document file with downloadAndPreviewFile');
                 // For other files (Office, PDF, etc.), use the same hook as chat window
                 // This handles PDF preview, downloading, and conversion automatically
                 downloadAndPreviewFile(fileInfo);
@@ -874,7 +901,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
             );
         }
-    }, [serverUrl, theme, intl]);
+    }, [serverUrl, theme, intl, downloadAndPreviewFile]);
 
     // Edit document (Navigation mode)
     const openEditScreen = useCallback((doc: KBDoc) => {

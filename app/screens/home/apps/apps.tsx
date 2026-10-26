@@ -226,7 +226,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 navigation.navigate(Screens.APPS_CLOUD_DRIVE);
                 break;
             case 'knowledge_base':
-                navigation.navigate(Screens.APPS_KNOWLEDGE_BASE);
+                navigation.navigate(Screens.APPS_KNOWLEDGE_BASE, {
+                    kbWrite: dashboardAccess?.kb_write === true,
+                });
                 break;
             case 'notebook':
                 navigation.navigate(Screens.APPS_NOTEBOOK);

@@ -81,7 +81,7 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
         try {
             setLoading(true);
             setError(null);
-            debugLog('[KBDetail] Loading doc', {docId, serverUrl});
+            debugLog('[KBDetail] Loading doc', JSON.stringify({docId, serverUrl}));
 
             const result = await getKBDoc(serverUrl, docId);
 
@@ -90,9 +90,9 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
             }
 
             setDoc(result || null);
-            debugLog('[KBDetail] Doc loaded', {hasData: Boolean(result)});
+            debugLog('[KBDetail] Doc loaded', JSON.stringify({hasData: Boolean(result)}));
         } catch (err) {
-            debugLog('[KBDetail] Load failed', {error: String(err)});
+            debugLog('[KBDetail] Load failed', JSON.stringify({error: String(err)}));
             setError(String(err));
         } finally {
             setLoading(false);

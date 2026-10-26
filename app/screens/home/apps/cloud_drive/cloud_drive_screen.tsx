@@ -22,10 +22,11 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
-import {isImage, isVideo, isAudio} from '@utils/file';
+import {isImage, isVideo, isAudio, hasPdfPreview} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer, showModal} from '@utils/navigation';
 import {useDownloadFileAndPreview} from '@hooks/files';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {Screens} from '@constants';
@@ -486,9 +487,18 @@ const CloudDriveScreen = () => {
 
     // ── Open file using the same in-app preview as the chat window ──
     const openFile = useCallback(async (file: DriveFile) => {
+        debugLog('[Drive] openFile called:', JSON.stringify({
+            fileId: file.id,
+            fileName: file.name,
+            extension: file.extension,
+            mm_file_id: file.mm_file_id,
+        }));
+
         try {
             const previewUrl = getDrivePreviewUrl(serverUrl, teamId, file.id);
             const downloadUrl = getDriveDownloadUrl(serverUrl, teamId, file.id);
+            debugLog('[Drive] URLs generated:', JSON.stringify({previewUrl, downloadUrl}));
+
             if (!previewUrl) {
                 throw new Error('No preview URL');
             }
@@ -497,12 +507,14 @@ const CloudDriveScreen = () => {
             const ext = (file.extension || '').toLowerCase();
             const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
             const isOffice = officeExtensions.includes(ext);
+            debugLog('[Drive] File type check:', JSON.stringify({ext, isOffice}));
 
             // Office documents need a real Mattermost file ID for the in-app
             // PDF conversion pipeline. If the server hasn't populated mm_file_id
             // yet, the conversion endpoint will fail with "Converting document..."
             // — surface a clear error instead of silently failing.
             if (isOffice && !file.mm_file_id) {
+                debugLog('[Drive] Office file without mm_file_id, showing error');
                 Alert.alert(
                     intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
                     intl.formatMessage({
@@ -516,6 +528,7 @@ const CloudDriveScreen = () => {
             // Fetch full file info including pdf_preview_id if already converted
             let fullFileInfo: FileInfo | null = null;
             if (file.mm_file_id) {
+                debugLog('[Drive] Fetching full file info for mm_file_id:', file.mm_file_id);
                 try {
                     const NetworkManager = (await import('@managers/network_manager')).default;
                     const client = NetworkManager.getClient(serverUrl);
@@ -546,9 +559,18 @@ const CloudDriveScreen = () => {
                 archived: false,
             } as FileInfo;
 
+            debugLog('[Drive] FileInfo constructed:', JSON.stringify({
+                id: fileInfo.id,
+                name: fileInfo.name,
+                extension: fileInfo.extension,
+                hasPdfPreview: hasPdfPreview(fileInfo),
+            }));
+
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
+                debugLog('[Drive] Opening media file');
                 showMediaViewer(fileInfo, serverUrl);
             } else {
+                debugLog('[Drive] Opening document file with downloadAndPreviewFile');
                 // Use the same hook as chat window for consistent behavior
                 // This handles PDF preview, downloading, and conversion automatically
                 downloadAndPreviewFile(fileInfo);
@@ -560,13 +582,22 @@ const CloudDriveScreen = () => {
                 intl.formatMessage({id: 'workbench.drive.error_open_file', defaultMessage: 'Unable to open this file.'}),
             );
         }
-    }, [serverUrl, teamId, intl, theme]);
+    }, [serverUrl, teamId, intl, theme, downloadAndPreviewFile]);
 
     // ── Tap handler ──
     const onFileTap = useCallback((file: DriveFile) => {
+        debugLog('[Drive] onFileTap called:', JSON.stringify({
+            fileId: file.id,
+            fileName: file.name,
+            fileType: file.type,
+            extension: file.extension,
+        }));
+
         if (file.type === 'folder') {
+            debugLog('[Drive] Opening folder');
             openFolder(file);
         } else {
+            debugLog('[Drive] Opening file');
             openFile(file);
         }
     }, [openFolder, openFile]);
@@ -667,6 +698,13 @@ const CloudDriveScreen = () => {
         try {
             // Upload each file sequentially
             for (const file of files) {
+                debugLog('[Drive] Uploading file:', JSON.stringify({
+                    name: file.name,
+                    uri: file.uri,
+                    mime_type: file.mime_type,
+                    size: file.size,
+                }));
+
                 await uploadDriveFile(
                     serverUrl,
                     teamId,
@@ -676,10 +714,15 @@ const CloudDriveScreen = () => {
                     file.name || 'unknown',
                     file.mime_type || 'application/octet-stream',
                 );
+
+                debugLog('[Drive] File uploaded successfully:', file.name);
             }
+
+            debugLog('[Drive] All files uploaded, refreshing list');
             // Refresh file list after upload
             loadFiles();
         } catch (err) {
+            debugLog('[Drive] Upload error:', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.drive.error_upload', defaultMessage: 'Failed to upload file.'}),

@@ -358,6 +358,7 @@ const ContactsDepartmentDetail = ({
     const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [manageMode, setManageMode] = useState(initialManageMode);
+    const [isErpEnterprise, setIsErpEnterprise] = useState(false);
 
     /** 标签数据：优先使用 props 传入，否则组件内部加载 */
     const [localOwnerId, setLocalOwnerId] = useState<string | undefined>();
@@ -967,25 +968,40 @@ const ContactsDepartmentDetail = ({
                 },
             });
         } else {
-            const manageIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
-            mergeNavigationOptions(effectiveCloseButtonId, {
-                topBar: {
-                    rightButtons: [
-                        {
-                            id: DEPT_MANAGE_BUTTON_ID,
-                            icon: manageIcon,
-                            testID: 'contacts.department_detail.manage.button',
-                        },
-                        {
-                            id: DEPT_SEARCH_BUTTON_ID,
-                            icon: searchIcon,
-                            testID: 'contacts.department_detail.search.button',
-                        },
-                    ],
-                },
-            });
+            // For ERP enterprises, hide the management button and only show search button
+            if (isErpEnterprise) {
+                mergeNavigationOptions(effectiveCloseButtonId, {
+                    topBar: {
+                        rightButtons: [
+                            {
+                                id: DEPT_SEARCH_BUTTON_ID,
+                                icon: searchIcon,
+                                testID: 'contacts.department_detail.search.button',
+                            },
+                        ],
+                    },
+                });
+            } else {
+                const manageIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
+                mergeNavigationOptions(effectiveCloseButtonId, {
+                    topBar: {
+                        rightButtons: [
+                            {
+                                id: DEPT_MANAGE_BUTTON_ID,
+                                icon: manageIcon,
+                                testID: 'contacts.department_detail.manage.button',
+                            },
+                            {
+                                id: DEPT_SEARCH_BUTTON_ID,
+                                icon: searchIcon,
+                                testID: 'contacts.department_detail.search.button',
+                            },
+                        ],
+                    },
+                });
+            }
         }
-    }, [effectiveCloseButtonId, manageMode, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor]);
+    }, [effectiveCloseButtonId, manageMode, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor, isErpEnterprise]);
 
     const fetchData = useCallback(async () => {
         if (!mounted.current) {
@@ -1077,6 +1093,9 @@ const ContactsDepartmentDetail = ({
                 if (currentUserId === undefined) {
                     setLocalCurrentUserId(meResult?.id);
                 }
+                // Check if this is an ERP enterprise (has erp_address)
+                const isErp = Boolean((teamResult.team as any)?.erp_address);
+                setIsErpEnterprise(isErp);
             } catch {
                 // 标签降级展示，忽略错误
             }
