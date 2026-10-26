@@ -578,6 +578,8 @@ const CloudDriveScreen = () => {
                 has_preview_image: fileInfo.has_preview_image,
                 hasPdfPreview: hasPdfPreview(fileInfo),
                 usingFullFileInfo: Boolean(fullFileInfo),
+                original_file_id: file.id,
+                original_mm_file_id: file.mm_file_id,
             }));
 
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {

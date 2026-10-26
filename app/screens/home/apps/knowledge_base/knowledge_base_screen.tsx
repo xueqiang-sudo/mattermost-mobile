@@ -854,8 +854,16 @@ const KnowledgeBaseScreen = () => {
                         mm_file_id: mmFileId,
                         pdf_preview_id: fullFileInfo.pdf_preview_id,
                         has_preview_image: fullFileInfo.has_preview_image,
+                        extension: fullFileInfo.extension,
+                        name: fullFileInfo.name,
                         pdf_conversion_status: (fullFileInfo as any)?.pdf_conversion_status,
                     }));
+
+                    // 确保扩展名正确
+                    if (!fullFileInfo.extension || fullFileInfo.extension === '') {
+                        debugLog('[KB] Warning: fullFileInfo.extension is empty, using extracted ext:', ext);
+                        fullFileInfo.extension = ext;
+                    }
                 } catch (err) {
                     debugLog('[KB] getKBFileInfo failed', String(err));
                     // Show user-friendly error instead of silently continuing
@@ -892,6 +900,9 @@ const KnowledgeBaseScreen = () => {
                 pdf_preview_id: fileInfo.pdf_preview_id,
                 has_preview_image: fileInfo.has_preview_image,
                 usingFullFileInfo: Boolean(fullFileInfo),
+                original_docId: item.docId,
+                original_mmFileId: mmFileId,
+                extracted_ext: ext,
             }));
 
             // For media files, can use remote URL directly

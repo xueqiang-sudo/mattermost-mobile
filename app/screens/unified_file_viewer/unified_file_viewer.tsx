@@ -446,7 +446,15 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     return;
                 }
             } catch (error) {
-                debugLog('[UnifiedFileViewer] Failed to get file info from server:', String(error));
+                const errorMessage = String(error);
+                debugLog('[UnifiedFileViewer] Failed to get file info from server:', errorMessage);
+
+                // 如果是权限错误，直接显示错误，不尝试转换
+                if (errorMessage.includes('权限') || errorMessage.includes('permission')) {
+                    debugLog('[UnifiedFileViewer] Permission denied, cannot preview this file');
+                    setFileState('unsupported');
+                    return;
+                }
             }
 
             // No PDF preview yet, start conversion
