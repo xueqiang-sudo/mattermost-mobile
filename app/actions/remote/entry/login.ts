@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {fetchConfigAndLicense} from '@actions/remote/systems';
+import {startBackgroundSync} from '@actions/remote/channel_sync';
 import DatabaseManager from '@database/manager';
 import {getServerCredentials} from '@init/credentials';
 import IntuneManager from '@managers/intune_manager';
@@ -42,6 +43,13 @@ export async function loginEntry({serverUrl}: AfterLoginArgs): Promise<{error?: 
             SecurityManager.addServer(serverUrl, clData.config, false, intunePolicy);
             WebsocketManager.createClient(serverUrl, credentials.token, credentials.preauthSecret);
             await WebsocketManager.initializeClient(serverUrl, 'Login');
+
+            // 启动后台全量异步增量同步（不阻塞登录流程）
+            debugLog('loginEntry', 'Starting background message sync');
+            startBackgroundSync(serverUrl).catch(err => {
+                debugLog('loginEntry', `Background sync failed: ${err}`);
+                // 不阻塞登录流程
+            });
         }
 
         return {};
