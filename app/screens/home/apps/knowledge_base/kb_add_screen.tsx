@@ -11,14 +11,16 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import DocumentPicker, {type DocumentPickerResponse} from 'react-native-document-picker';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
+import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {popTopScreen} from '@screens/navigation';
+import {popTopScreen, showModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
+
+import type {FileInfo} from '@mattermost/types/files';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -48,7 +50,7 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [url, setUrl] = useState('');
-    const [file, setFile] = useState<DocumentPickerResponse | null>(null);
+    const [file, setFile] = useState<FileInfo | null>(null);
     const [loading, setLoading] = useState(false);
 
     // 检查是否可以保存
@@ -63,30 +65,33 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
         return false;
     }, [addType, title, content, url, file]);
 
-    // 选择文件
-    const handlePickFile = useCallback(async () => {
-        try {
-            const result = await DocumentPicker.pick({
-                type: [DocumentPicker.types.allFiles],
-                copyTo: 'cachesDirectory',
-            });
-
-            if (result && result.length > 0) {
-                setFile(result[0]);
+    // 选择文件 - 使用和云盘相同的文件选择器，支持群组文件、相册、手机文件
+    const handlePickFile = useCallback(() => {
+        const onFileSelected = (files: FileInfo[]) => {
+            if (files && files.length > 0) {
+                const selected = files[0];
+                setFile(selected);
                 if (!title.trim()) {
-                    setTitle(result[0].name);
+                    setTitle(selected.name);
                 }
-                debugLog('[KBAdd] File picked', JSON.stringify({name: result[0].name, size: result[0].size}));
+                debugLog('[KBAdd] File picked', JSON.stringify({
+                    name: selected.name,
+                    size: selected.size,
+                    localPath: selected.localPath,
+                    uri: selected.uri,
+                    id: selected.id,
+                }));
             }
-        } catch (err) {
-            if (!DocumentPicker.isCancel(err)) {
-                debugLog('[KBAdd] Pick file failed', {error: String(err)});
-                Alert.alert(
-                    intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
-                    String(err),
-                );
-            }
-        }
+        };
+
+        showModal(
+            Screens.FILE_PICKER,
+            intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
+            {
+                onSend: onFileSelected,
+                channelId: '',
+            },
+        );
     }, [intl, title]);
 
     // 保存
@@ -112,7 +117,24 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
             } else if (addType === 'url') {
                 result = await createKBDocURL(serverUrl, teamId, title.trim(), url.trim());
             } else if (addType === 'file' && file) {
-                result = await createKBDocFile(serverUrl, teamId, file);
+                // Use localPath (for channel files already downloaded) or uri (for newly selected files)
+                const fileUri = file.localPath || file.uri || '';
+                const fileName = file.name || 'unknown';
+                const fileType = file.mime_type || 'application/octet-stream';
+
+                debugLog('[KBAdd] File path resolution:', JSON.stringify({
+                    localPath: file.localPath,
+                    uri: file.uri,
+                    resolvedUri: fileUri,
+                    fileName,
+                    fileType,
+                }));
+
+                if (!fileUri) {
+                    throw new Error('File has no local path or URI');
+                }
+
+                result = await createKBDocFile(serverUrl, teamId, fileUri, fileName, fileType);
             }
 
             if (result?.error) {

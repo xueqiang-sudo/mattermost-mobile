@@ -231,13 +231,13 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 debugLog('[Apps] Navigating to knowledge base', JSON.stringify({
                     is_admin: dashboardAccess?.is_admin,
                     kb_write: dashboardAccess?.kb_write,
-                    kbWrite: dashboardAccess?.kb_write === true,
+                    kbWrite: Boolean(dashboardAccess?.kb_write),
                     drive_write: dashboardAccess?.drive_write,
                     contact_edit: dashboardAccess?.contact_edit,
                     configurable: dashboardAccess?.configurable,
                 }));
                 navigation.navigate(Screens.APPS_KNOWLEDGE_BASE, {
-                    kbWrite: dashboardAccess?.kb_write === true,
+                    kbWrite: Boolean(dashboardAccess?.kb_write),
                 });
                 break;
             case 'notebook':

@@ -723,12 +723,19 @@ const CloudDriveScreen = () => {
                     id: file.id,
                 }));
 
-                let fileUri = file.uri || '';
+                // Use localPath (for channel files already downloaded) or uri (for newly selected files)
+                let fileUri = file.localPath || file.uri || '';
                 let fileName = file.name || 'unknown';
                 let fileMimeType = file.mime_type || 'application/octet-stream';
 
-                // If file doesn't have a local URI (e.g., from channel files),
-                // download it first then upload to cloud drive
+                debugLog('[Drive] File path resolution:', JSON.stringify({
+                    localPath: file.localPath,
+                    uri: file.uri,
+                    resolvedUri: fileUri,
+                    hasLocalPath: Boolean(file.localPath),
+                }));
+
+                // If file doesn't have a local path or URI, download it first
                 if (!fileUri && file.id) {
                     debugLog('[Drive] File has no local URI, downloading first:', file.id);
                     try {
