@@ -420,21 +420,28 @@ const WarehouseInoutScreen = () => {
         setShowPickListModal(false);
         setIsUploading(true);
 
-        const rawScans = pendingRecords.map((r) => r.rawScan);
         const pendingIds = pendingRecords.map((r) => r.id);
+        const items = pendingRecords.map((r) => ({
+            code_sheet_no: r.codeSheetNo,
+            box_no: r.boxNo,
+            weight: r.netWeight,
+            type: r.isMasterSheet ? 'C' : 'B',
+        }));
 
-        debugLog('UPLOAD', `准备上传 ${rawScans.length} 条记录到拣货单 ${selectedPickList}`);
-        debugLog('UPLOAD', '原始扫描数据:', rawScans);
+        debugLog('UPLOAD', `准备上传 ${items.length} 条记录到拣货单 ${selectedPickList}`);
         pendingRecords.forEach((r, i) => {
             debugLog('UPLOAD', `记录${i + 1}`, {
                 id: r.id,
-                rawScan: r.rawScan,
                 codeSheetNo: r.codeSheetNo,
                 boxNo: r.boxNo,
                 netWeight: r.netWeight,
+                isMasterSheet: r.isMasterSheet,
                 status: r.status,
             });
         });
+
+        let uploadSuccess = false;
+        let uploadError = '';
 
         try {
             const client = NetworkManager.getClient(serverUrl);
@@ -444,15 +451,22 @@ const WarehouseInoutScreen = () => {
                     method: 'POST',
                     body: {
                         pick_list: selectedPickList,
-                        raw_scans: rawScans,
+                        items,
                     },
                 },
             );
 
             debugLog('UPLOAD', '上传响应:', response);
 
+            if (response?.error) {
+                throw new Error(response.error);
+            }
+
             await updateScanRecordStatus(pendingIds, 'uploaded');
-        } catch {
+            uploadSuccess = true;
+        } catch (e) {
+            uploadError = e instanceof Error ? e.message : String(e);
+            debugLog('UPLOAD', '上传失败:', uploadError);
             await updateScanRecordStatus(pendingIds, 'failed');
         }
 
@@ -460,13 +474,20 @@ const WarehouseInoutScreen = () => {
         setSelectedPickList('');
         await loadRecords();
 
-        Alert.alert(
-            intl.formatMessage({id: 'warehouse_inout.upload_done', defaultMessage: '上传完成'}),
-            intl.formatMessage(
-                {id: 'warehouse_inout.upload_done_msg', defaultMessage: '已上传 {count} 条记录到拣货单 {pickList}'},
-                {count: pendingRecords.length, pickList: selectedPickList},
-            ),
-        );
+        if (uploadSuccess) {
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.upload_done', defaultMessage: '上传完成'}),
+                intl.formatMessage(
+                    {id: 'warehouse_inout.upload_done_msg', defaultMessage: '已上传 {count} 条记录到拣货单 {pickList}'},
+                    {count: pendingRecords.length, pickList: selectedPickList},
+                ),
+            );
+        } else {
+            Alert.alert(
+                intl.formatMessage({id: 'warehouse_inout.upload_failed', defaultMessage: '上传失败'}),
+                uploadError || intl.formatMessage({id: 'warehouse_inout.upload_failed_msg', defaultMessage: '上传到拣货单 {pickList} 失败，请重试'}, {pickList: selectedPickList}),
+            );
+        }
     }, [selectedPickList, records, serverUrl, intl, loadRecords]);
 
     // ── Toggle selection ──
