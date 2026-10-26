@@ -627,7 +627,13 @@ const KnowledgeBaseScreen = () => {
     const params = route.params as RouteParams | undefined;
     const kbWrite = params?.kbWrite === true;
 
-    debugLog('[KB] Component rendering, kbWrite:', JSON.stringify({kbWrite}));
+    debugLog('[KB] Component rendering, kbWrite:', JSON.stringify({
+        kbWrite,
+        params_kbWrite: params?.kbWrite,
+        params_type: typeof params?.kbWrite,
+        params_exists: Boolean(params),
+        all_params: params ? JSON.stringify(params) : 'undefined',
+    }));
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -794,7 +800,10 @@ const KnowledgeBaseScreen = () => {
         debugLog('[KB] openFilePreview called:', JSON.stringify({
             docId: item.docId,
             fileName: item.fileName,
+            title: item.title,
             fileSize: item.fileSize,
+            category: item.category,
+            allKeys: Object.keys(item),
         }));
 
         try {

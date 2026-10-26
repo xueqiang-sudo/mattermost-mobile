@@ -131,6 +131,9 @@ export async function copyDriveFileToChannel(serverUrl: string, teamId: string, 
     });
 }
 
+import {debugLog} from '@store/debug_log';
+import {toMilliseconds} from '@utils/datetime';
+
 export async function uploadDriveFile(
     serverUrl: string,
     teamId: string,
@@ -140,26 +143,67 @@ export async function uploadDriveFile(
     fileName: string,
     fileType: string,
 ): Promise<DriveFile> {
-    const client = NetworkManager.getClient(serverUrl);
-    const formData = new FormData();
-    formData.append('parent_id', parentId);
-    formData.append('scope', scope);
-    formData.append('files', {
-        uri: fileUri,
-        name: fileName,
-        type: fileType,
-    } as any);
+    // Debug: Log upload parameters
+    debugLog('[uploadDriveFile] Parameters:', JSON.stringify({
+        teamId,
+        parentId,
+        scope,
+        fileUri,
+        fileName,
+        fileType,
+    }));
 
-    const resp = await client.doFetch(
-        `/api/v4/teams/${teamId}/drive/files`,
-        {method: 'post', body: formData},
-    );
-    if (!resp.ok) {
-        throw new Error(resp.error || 'Upload failed');
-    }
-    // doFetch returns the parsed response directly (like uploadKBFile)
-    const files = resp.data || resp;
-    return Array.isArray(files) ? files[0] : files;
+    const client = NetworkManager.getClient(serverUrl);
+
+    // Use the same upload method as chat window (apiClient.upload)
+    // This handles file URIs correctly, including URL-encoded characters
+    const url = `/api/v4/teams/${teamId}/drive/files`;
+    const options = {
+        method: 'POST',
+        multipart: {
+            data: {
+                parent_id: parentId,
+                scope: scope,
+            },
+        },
+        timeoutInterval: toMilliseconds({minutes: 3}),
+        headers: client.getRequestHeaders('POST'),
+    };
+
+    // Remove file:// prefix if present (apiClient.upload expects plain path)
+    const localPath = fileUri.replace('file://', '');
+
+    debugLog('[uploadDriveFile] Using apiClient.upload with localPath:', localPath);
+
+    return new Promise<DriveFile>((resolve, reject) => {
+        const promise = client.apiClient.upload(url, localPath, options);
+
+        promise.then((response: any) => {
+            debugLog('[uploadDriveFile] Upload response:', JSON.stringify({
+                ok: response.ok,
+                status: response.status,
+                hasData: Boolean(response.data),
+            }));
+
+            if (!response.ok) {
+                const errorMsg = response.data?.message || response.error || 'Upload failed';
+                reject(new Error(errorMsg));
+                return;
+            }
+
+            // Parse response - server returns array of files or single file object
+            const files = response.data?.data || response.data || response;
+            const file = Array.isArray(files) ? files[0] : files;
+            resolve(file as DriveFile);
+        }).catch((error: any) => {
+            debugLog('[uploadDriveFile] Upload error:', JSON.stringify({
+                message: error?.message,
+                status: error?.status,
+                data: error?.data,
+            }));
+            reject(new Error(error?.data?.message || error?.message || 'Upload failed'));
+        });
+    });
 }
 
 // ── Conversations ──

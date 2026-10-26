@@ -720,19 +720,76 @@ const CloudDriveScreen = () => {
                     uri: file.uri,
                     mime_type: file.mime_type,
                     size: file.size,
+                    id: file.id,
                 }));
+
+                let fileUri = file.uri || '';
+                let fileName = file.name || 'unknown';
+                let fileMimeType = file.mime_type || 'application/octet-stream';
+
+                // If file doesn't have a local URI (e.g., from channel files),
+                // download it first then upload to cloud drive
+                if (!fileUri && file.id) {
+                    debugLog('[Drive] File has no local URI, downloading first:', file.id);
+                    try {
+                        const NetworkManager = (await import('@managers/network_manager')).default;
+                        const client = NetworkManager.getClient(serverUrl);
+
+                        // Get file download URL
+                        const fileUrl = `${serverUrl}/api/v4/files/${file.id}`;
+                        const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
+
+                        // Download file to temp location
+                        const {downloadAsync} = await import('expo-file-system');
+                        const cacheDir = await import('expo-file-system').then(fs => fs.cacheDirectory);
+                        const tempPath = `${cacheDir}drive_upload_${Date.now()}_${fileName}`;
+
+                        const downloadResult = await downloadAsync(fileUrl, tempPath, {
+                            headers: {
+                                'Authorization': authHeader,
+                            },
+                        });
+
+                        if (downloadResult.uri) {
+                            fileUri = downloadResult.uri;
+                            debugLog('[Drive] File downloaded to:', fileUri);
+                        } else {
+                            throw new Error('Download failed: no URI returned');
+                        }
+                    } catch (downloadErr) {
+                        debugLog('[Drive] Failed to download file:', String(downloadErr));
+                        throw new Error(`Failed to download file: ${file.name}`);
+                    }
+                }
+
+                if (!fileUri) {
+                    debugLog('[Drive] Skipping file with no URI:', fileName);
+                    continue;
+                }
+
+                // Decode URI if it contains URL-encoded characters
+                // React Native FormData needs proper file:// URIs
+                if (fileUri.includes('%')) {
+                    try {
+                        const decodedUri = decodeURIComponent(fileUri);
+                        debugLog('[Drive] Decoded URI:', decodedUri);
+                        fileUri = decodedUri;
+                    } catch (decodeErr) {
+                        debugLog('[Drive] Failed to decode URI, using original:', String(decodeErr));
+                    }
+                }
 
                 await uploadDriveFile(
                     serverUrl,
                     teamId,
                     parentId,
                     scope,
-                    file.uri || '',
-                    file.name || 'unknown',
-                    file.mime_type || 'application/octet-stream',
+                    fileUri,
+                    fileName,
+                    fileMimeType,
                 );
 
-                debugLog('[Drive] File uploaded successfully:', file.name);
+                debugLog('[Drive] File uploaded successfully:', fileName);
             }
 
             debugLog('[Drive] All files uploaded, refreshing list');
