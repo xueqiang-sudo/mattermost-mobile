@@ -63,7 +63,7 @@ const NoteDetailScreen = () => {
             }
 
             setNote(result.data || null);
-            debugLog('[NoteDetail] Note loaded', {hasData: Boolean(result.data)});
+            debugLog('[NoteDetail] Note loaded', JSON.stringify({hasData: Boolean(result.data)}));
         } catch (err) {
             debugLog('[NoteDetail] Load failed', {error: String(err)});
             setError(String(err));

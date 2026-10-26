@@ -710,7 +710,7 @@ const KnowledgeBaseScreen = () => {
         setError(null);
         try {
             const resp = await listKBDocs(serverUrl, teamId, {category: activeCategory, limit: 100});
-            debugLog('[KB] Got response:', resp);
+            debugLog('[KB] Got response:', JSON.stringify(resp));
             const docs = resp?.data?.documents || resp?.docs || resp?.documents || [];
             debugLog('[KB] Parsed docs:', docs.length, 'documents');
             setDocuments(docs);
@@ -878,9 +878,9 @@ const KnowledgeBaseScreen = () => {
                 id: fileInfo.id,
                 name: fileInfo.name,
                 extension: fileInfo.extension,
-                isImage: isImage(fileInfo),
-                isVideo: isVideo(fileInfo),
-                isAudio: isAudio(fileInfo),
+                pdf_preview_id: fileInfo.pdf_preview_id,
+                has_preview_image: fileInfo.has_preview_image,
+                usingFullFileInfo: Boolean(fullFileInfo),
             }));
 
             // For media files, can use remote URL directly

@@ -459,7 +459,7 @@ const WarehouseInoutScreen = () => {
                 },
             );
 
-            debugLog('UPLOAD', '上传响应:', response);
+            debugLog('UPLOAD', '上传响应:', JSON.stringify(response));
 
             if (response?.error) {
                 throw new Error(response.error);
@@ -469,7 +469,7 @@ const WarehouseInoutScreen = () => {
             uploadSuccess = true;
         } catch (e) {
             uploadError = e instanceof Error ? e.message : String(e);
-            debugLog('UPLOAD', '上传失败:', uploadError);
+            debugLog('UPLOAD', '上传失败:', String(uploadError));
             await updateScanRecordStatus(pendingIds, 'failed');
         }
 

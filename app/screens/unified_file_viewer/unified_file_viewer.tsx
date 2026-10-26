@@ -122,7 +122,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        debugLog('Failed to save pdf_preview_id to database:', dbError);
+                        debugLog('Failed to save pdf_preview_id to database:', String(dbError));
                     }
 
                     // Update state and show PDF
@@ -169,7 +169,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        debugLog('Failed to save pdf_preview_id to database:', dbError);
+                        debugLog('Failed to save pdf_preview_id to database:', String(dbError));
                     }
 
                     // Update state and show PDF
@@ -355,9 +355,19 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [serverUrl, theme, intl, handleClose]);
 
     const determineFileState = useCallback(async () => {
+        debugLog('[UnifiedFileViewer] determineFileState called', JSON.stringify({
+            fileId,
+            fileName: fileInfo.name,
+            extension: fileInfo.extension,
+            pdf_preview_id: fileInfo.pdf_preview_id,
+            has_preview_image: fileInfo.has_preview_image,
+            isOffice: isOfficeFile(fileInfo),
+            isViewable: isViewableFile(fileInfo),
+        }));
 
         // iOS: Apple documents use native QuickLook, no PDF conversion needed
         if (isAppleDocument(fileInfo)) {
+            debugLog('[UnifiedFileViewer] Apple document, using QuickLook');
             setFileState('viewable');
             downloadAndShowFile(fileInfo);
             return;
@@ -365,12 +375,19 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
         // Check if Office file - fetch latest info from server to check if PDF preview exists
         if (isOfficeFile(fileInfo)) {
+            debugLog('[UnifiedFileViewer] Office file detected, checking PDF preview');
             try {
                 const client = NetworkManager.getClient(serverUrl);
                 const updatedFileInfo = await client.getFileInfo(fileId);
 
+                debugLog('[UnifiedFileViewer] Server file info:', JSON.stringify({
+                    pdf_preview_id: updatedFileInfo.pdf_preview_id,
+                    has_preview_image: updatedFileInfo.has_preview_image,
+                }));
+
                 // If server has PDF preview, use it
                 if (updatedFileInfo.pdf_preview_id) {
+                    debugLog('[UnifiedFileViewer] PDF preview available, showing file');
                     // Save to database
                     try {
                         const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -379,7 +396,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        debugLog('Failed to save pdf_preview_id to database:', dbError);
+                        debugLog('Failed to save pdf_preview_id to database:', String(dbError));
                     }
 
                     const newFileInfo = {...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id};
@@ -389,10 +406,11 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     return;
                 }
             } catch (error) {
-                debugLog('Failed to fetch file info from server:', error);
+                debugLog('[UnifiedFileViewer] Failed to get file info from server:', String(error));
             }
 
             // No PDF preview yet, start conversion
+            debugLog('[UnifiedFileViewer] No PDF preview, starting conversion');
             setFileState('converting');
             startPolling();
             return;
@@ -400,12 +418,14 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
         // Check if file can be viewed
         if (isViewableFile(fileInfo)) {
+            debugLog('[UnifiedFileViewer] File is viewable, showing directly');
             setFileState('viewable');
             downloadAndShowFile(fileInfo);
             return;
         }
 
         // Unsupported file
+        debugLog('[UnifiedFileViewer] File is unsupported');
         setFileState('unsupported');
     }, [fileInfo, fileId, serverUrl, startPolling, downloadAndShowFile]);
 
@@ -442,7 +462,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                         showOpenWithDialog: true,
                         showAppsSuggestions: true,
                     }).catch((error) => {
-                        debugLog('Open with error:', error);
+                        debugLog('Open with error:', String(error));
                     });
                 }
             });

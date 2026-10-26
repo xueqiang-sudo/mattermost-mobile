@@ -76,7 +76,7 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
                 if (!title.trim()) {
                     setTitle(result[0].name);
                 }
-                debugLog('[KBAdd] File picked', {name: result[0].name, size: result[0].size});
+                debugLog('[KBAdd] File picked', JSON.stringify({name: result[0].name, size: result[0].size}));
             }
         } catch (err) {
             if (!DocumentPicker.isCancel(err)) {

@@ -52,7 +52,7 @@ export function parseQrCode(raw: string): ParsedQrCode | null {
 
 function parseTabFormat(parts: string[]): ParsedQrCode {
     debugLog('SCAN_UTILS', `Tab格式原始数据: ${parts.join('\\t')}`);
-    debugLog('SCAN_UTILS', `Tab格式分割字段数: ${parts.length}`, parts);
+    debugLog('SCAN_UTILS', `Tab格式分割字段数: ${parts.length}`, JSON.stringify(parts));
 
     const first = parts[0];
     const isMaster = first === '9';

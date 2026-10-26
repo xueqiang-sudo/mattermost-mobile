@@ -19,6 +19,8 @@ import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {resetToDebug} from '@screens/navigation';
 
+import {debugLog} from '@store/debug_log';
+
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {isSystemAdmin} from '@utils/user';
@@ -226,6 +228,10 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 navigation.navigate(Screens.APPS_CLOUD_DRIVE);
                 break;
             case 'knowledge_base':
+                debugLog('[Apps] Navigating to knowledge base', JSON.stringify({
+                    kb_write: dashboardAccess?.kb_write,
+                    kbWrite: dashboardAccess?.kb_write === true,
+                }));
                 navigation.navigate(Screens.APPS_KNOWLEDGE_BASE, {
                     kbWrite: dashboardAccess?.kb_write === true,
                 });
