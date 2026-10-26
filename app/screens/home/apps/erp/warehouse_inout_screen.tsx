@@ -443,16 +443,19 @@ const WarehouseInoutScreen = () => {
         let uploadSuccess = false;
         let uploadError = '';
 
+        const requestBody = {
+            pick_list: selectedPickList,
+            items,
+        };
+        debugLog('UPLOAD', 'Request body to send:', JSON.stringify(requestBody, null, 2));
+
         try {
             const client = NetworkManager.getClient(serverUrl);
             const response = await client.doFetch(
                 '/plugins/com.mattermost.frappe-sync/api/pick-lists/add-items-from-scan',
                 {
                     method: 'POST',
-                    body: {
-                        pick_list: selectedPickList,
-                        items,
-                    },
+                    body: requestBody,
                 },
             );
 
