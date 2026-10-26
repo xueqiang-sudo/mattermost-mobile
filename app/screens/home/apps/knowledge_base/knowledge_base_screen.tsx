@@ -678,7 +678,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                     setError(null);
                 }
             } catch (err) {
-                debugLog('[KB] Init error:', err);
+                debugLog('[KB] Init error:', String(err));
                 const message = err instanceof Error ? err.message : 'Failed to initialize';
                 if (mounted) {
                     setError(message);
@@ -711,7 +711,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             debugLog('[KB] Parsed docs:', docs.length, 'documents');
             setDocuments(docs);
         } catch (err) {
-            debugLog('[KB] loadDocuments error:', err);
+            debugLog('[KB] loadDocuments error:', String(err));
             const message = err instanceof Error ? err.message : 'Failed to load documents';
             setError(message);
             setDocuments([]);
@@ -792,33 +792,54 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
             const tid = await getCurrentTeamId(database);
             if (!tid) throw new Error('team_id missing');
 
-            const url = getKBDownloadUrl(serverUrl, item.docId, tid);
-            if (!url) throw new Error('No download URL');
+            const previewUrl = getKBDownloadUrl(serverUrl, item.docId, tid);
+            const downloadUrl = getKBDownloadUrl(serverUrl, item.docId, tid);
+            if (!previewUrl) throw new Error('No download URL');
 
             const ext = getExtension(item.fileName);
+            const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+            const isOffice = officeExtensions.includes(ext.toLowerCase());
 
             // Office documents need a real Mattermost file ID for the in-app
             // PDF conversion pipeline. Bridge KB docId → mm_file_id first.
-            const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
             let mmFileId = '';
             let fullFileInfo: FileInfo | null = null;
-            if (officeExtensions.includes(ext.toLowerCase())) {
+            if (isOffice) {
                 try {
                     const info = await getKBFileInfo(serverUrl, item.docId, tid);
                     mmFileId = info.mm_file_id || '';
 
-                    // Get full file info including pdf_preview_id if already converted
-                    if (mmFileId) {
-                        const client = NetworkManager.getClient(serverUrl);
-                        fullFileInfo = await client.getFileInfo(mmFileId);
-                        debugLog('[KB] Got full file info', {
-                            mm_file_id: mmFileId,
-                            pdf_preview_id: fullFileInfo.pdf_preview_id,
-                            has_preview_image: fullFileInfo.has_preview_image,
-                        });
+                    // If Office file hasn't been indexed yet, show clear error (matching webapp behavior)
+                    if (!mmFileId) {
+                        Alert.alert(
+                            intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                            intl.formatMessage({
+                                id: 'workbench.kb.preview_unavailable',
+                                defaultMessage: 'This Office file cannot be previewed yet. Please try again later or download it.',
+                            }),
+                        );
+                        return;
                     }
+
+                    // Get full file info including pdf_preview_id if already converted
+                    const client = NetworkManager.getClient(serverUrl);
+                    fullFileInfo = await client.getFileInfo(mmFileId);
+                    debugLog('[KB] Got full file info', JSON.stringify({
+                        mm_file_id: mmFileId,
+                        pdf_preview_id: fullFileInfo.pdf_preview_id,
+                        has_preview_image: fullFileInfo.has_preview_image,
+                    }));
                 } catch (err) {
-                    debugLog('[KB] getKBFileInfo failed', err);
+                    debugLog('[KB] getKBFileInfo failed', String(err));
+                    // Show user-friendly error instead of silently continuing
+                    Alert.alert(
+                        intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                        intl.formatMessage({
+                            id: 'workbench.kb.preview_unavailable',
+                            defaultMessage: 'This Office file cannot be previewed yet. Please try again later or download it.',
+                        }),
+                    );
+                    return;
                 }
             }
 
@@ -830,13 +851,16 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 extension: ext,
                 size: item.fileSize || 0,
                 mime_type: '',
-                uri: url,
+                uri: previewUrl,
                 localPath: '',
+                link: downloadUrl,
+                has_preview_image: false,
+                archived: false,
             } as FileInfo;
 
             // For media files, can use remote URL directly
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
-                fileInfo.localPath = url;
+                fileInfo.localPath = previewUrl;
                 showMediaViewer(fileInfo, serverUrl);
             } else {
                 // For other files (Office, PDF, etc.), use the same hook as chat window
@@ -844,7 +868,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
                 downloadAndPreviewFile(fileInfo);
             }
         } catch (error) {
-            debugLog('[KB] Preview error:', error);
+            debugLog('[KB] Preview error:', String(error));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
@@ -1115,7 +1139,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
 
     // Show error state if teamId failed to load
     if (!teamId && error) {
-        debugLog('[KB] Rendering error state (no teamId):', error);
+        debugLog('[KB] Rendering error state (no teamId):', String(error));
         return (
             <SafeAreaView edges={['top', 'bottom']} style={style.container}>
                 <View style={style.header}>
@@ -1147,7 +1171,7 @@ const KnowledgeBaseScreen = ({kbWrite = false}: Props) => {
         );
     }
 
-    debugLog('[KB] Rendering main content, teamId:', teamId, 'loading:', loading, 'error:', error);
+    debugLog('[KB] Rendering main content, teamId:', teamId, 'loading:', loading, 'error:', String(error));
 
     // ---- Main render ----
 

@@ -20,12 +20,12 @@ import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
+import {useDownloadFileAndPreview} from '@hooks/files';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {isImage, isVideo, isAudio} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
-import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -66,6 +66,9 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
     const [loading, setLoading] = useState(true);
     const [doc, setDoc] = useState<KBDoc | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Use the same hook as chat window for consistent file preview behavior
+    const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
 
     // 加载文档详情
     const loadDetail = useCallback(async () => {
@@ -112,8 +115,9 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
                 throw new Error('team_id missing');
             }
 
-            const url = getKBDownloadUrl(serverUrl, doc.docId, teamId);
-            if (!url) {
+            const previewUrl = getKBDownloadUrl(serverUrl, doc.docId, teamId);
+            const downloadUrl = getKBDownloadUrl(serverUrl, doc.docId, teamId);
+            if (!previewUrl) {
                 throw new Error('No download URL');
             }
 
@@ -127,17 +131,49 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
             // which returns a first-class mm_file_id. Without this the unified
             // viewer gets stuck on "Converting document...".
             const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+            const isOffice = officeExtensions.includes(extension);
             let mmFileId = '';
-            if (officeExtensions.includes(extension)) {
+            let fullFileInfo: FileInfo | null = null;
+            if (isOffice) {
                 try {
                     const info = await getKBFileInfo(serverUrl, doc.docId, teamId);
                     mmFileId = info.mm_file_id || '';
+
+                    // If Office file hasn't been indexed yet, show clear error (matching webapp behavior)
+                    if (!mmFileId) {
+                        Alert.alert(
+                            intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                            intl.formatMessage({
+                                id: 'workbench.kb.preview_unavailable',
+                                defaultMessage: 'This Office file cannot be previewed yet. Please try again later or download it.',
+                            }),
+                        );
+                        return;
+                    }
+
+                    // Get full file info including pdf_preview_id if already converted
+                    const NetworkManager = (await import('@managers/network_manager')).default;
+                    const client = NetworkManager.getClient(serverUrl);
+                    fullFileInfo = await client.getFileInfo(mmFileId);
+                    debugLog('[KBDetail] Got full file info', JSON.stringify({
+                        mm_file_id: mmFileId,
+                        pdf_preview_id: fullFileInfo.pdf_preview_id,
+                    }));
                 } catch (err) {
-                    debugLog('[KBDetail] getKBFileInfo failed', {error: String(err)});
+                    debugLog('[KBDetail] getKBFileInfo failed', String(err));
+                    // Show user-friendly error instead of silently continuing
+                    Alert.alert(
+                        intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                        intl.formatMessage({
+                            id: 'workbench.kb.preview_unavailable',
+                            defaultMessage: 'This Office file cannot be previewed yet. Please try again later or download it.',
+                        }),
+                    );
+                    return;
                 }
             }
 
-            const fileInfo: FileInfo = {
+            const fileInfo: FileInfo = fullFileInfo || {
                 id: mmFileId || doc.docId,
                 user_id: '',
                 create_at: 0,
@@ -145,22 +181,28 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
                 extension,
                 size: doc.fileSize || 0,
                 mime_type: '',
-                uri: url,
-                localPath: url,
+                uri: previewUrl,
+                localPath: previewUrl,
+                link: downloadUrl,
+                has_preview_image: false,
+                archived: false,
             } as FileInfo;
 
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
                 showMediaViewer(fileInfo, serverUrl);
             } else {
-                openUnifiedFileViewer(fileInfo, theme);
+                // Use downloadAndPreviewFile for consistent behavior with chat window
+                // This handles PDF preview, downloading, and conversion automatically
+                downloadAndPreviewFile(fileInfo);
             }
         } catch (err) {
+            debugLog('[KBDetail] Download error:', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
-                String(err),
+                intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
             );
         }
-    }, [doc, serverUrl, intl, theme]);
+    }, [doc, serverUrl, intl, theme, downloadAndPreviewFile]);
 
     // 删除文档
     const handleDelete = useCallback(() => {

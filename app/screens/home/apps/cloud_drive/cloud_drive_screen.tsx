@@ -520,8 +520,14 @@ const CloudDriveScreen = () => {
                     const NetworkManager = (await import('@managers/network_manager')).default;
                     const client = NetworkManager.getClient(serverUrl);
                     fullFileInfo = await client.getFileInfo(file.mm_file_id);
+                    debugLog('[Drive] Got full file info', JSON.stringify({
+                        mm_file_id: file.mm_file_id,
+                        pdf_preview_id: fullFileInfo.pdf_preview_id,
+                        has_preview_image: fullFileInfo.has_preview_image,
+                    }));
                 } catch (err) {
-                    // ignore - fall back to manual construction
+                    debugLog('[Drive] getFileInfo failed, falling back to manual construction', String(err));
+                    // Continue with manual construction as fallback
                 }
             }
 
@@ -548,6 +554,7 @@ const CloudDriveScreen = () => {
                 downloadAndPreviewFile(fileInfo);
             }
         } catch (err) {
+            debugLog('[Drive] Open file error:', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.drive.error_open_file', defaultMessage: 'Unable to open this file.'}),
