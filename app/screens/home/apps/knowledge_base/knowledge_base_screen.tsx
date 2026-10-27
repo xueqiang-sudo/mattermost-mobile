@@ -60,11 +60,10 @@ import KBAddTextURLModal from './kb_add_text_url_modal';
 const CATEGORIES = [
     {key: 'file', labelId: 'workbench.kb.filter_file', defaultMessage: 'File'},
     {key: 'text', labelId: 'workbench.kb.filter_text', defaultMessage: 'Text'},
-    {key: 'url', labelId: 'workbench.kb.filter_url', defaultMessage: 'URL'},
     {key: 'ask', labelId: 'workbench.kb.filter_ask', defaultMessage: '提问'},
 ];
 
-type AddDocType = 'text' | 'url' | 'file';
+type AddDocType = 'text' | 'file';
 
 /** Unified display item for both document list and search results. */
 type DisplayItem = {
@@ -135,7 +134,7 @@ function categoryIconInfo(category: string, ext?: string): {name: string; color:
         if (archiveExts.includes(ext)) return {name: 'file-zip-outline-large', color: KB_ICON_BLUE};
         return {name: 'file-generic-outline-large', color: KB_ICON_BLUE};
     }
-    if (category === 'url') return {name: 'link-variant', color: KB_ICON_BLUE};
+    if (category === 'text') return {name: 'file-text-outline-large', color: KB_ICON_GRAY};
     return {name: 'file-text-outline-large', color: KB_ICON_GRAY};
 }
 
@@ -628,7 +627,7 @@ const KnowledgeBaseScreen = () => {
 
     // Add document modal states
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addModalType, setAddModalType] = useState<'text' | 'url'>('text');
+    const [addModalType, setAddModalType] = useState<'text'>('text');
 
     // Delete states
     const [deleteTarget, setDeleteTarget] = useState<DisplayItem | null>(null);
@@ -1102,7 +1101,7 @@ const KnowledgeBaseScreen = () => {
             // 【关键修复】先关闭文本/URL modal（如果打开了），再打开文件选择器
             // 这样可以避免在 modal 内部嵌套 modal 导致的导航上下文问题
             if (showAddModal) {
-                debugLog('[KB] Closing text/URL modal before opening file picker');
+                debugLog('[KB] Closing text modal before opening file picker');
                 setShowAddModal(false);
             }
 
@@ -1122,10 +1121,6 @@ const KnowledgeBaseScreen = () => {
             // 显示文本输入Modal
             setShowAddModal(true);
             setAddModalType('text');
-        } else if (activeCategory === 'url') {
-            // 显示URL输入Modal
-            setShowAddModal(true);
-            setAddModalType('url');
         }
     }, [activeCategory, onUploadKBFiles, intl, showAddModal]);
 

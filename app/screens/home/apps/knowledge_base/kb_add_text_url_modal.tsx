@@ -22,9 +22,9 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {debugLog} from '@store/debug_log';
 
-import {createKBDocText, createKBDocURL} from '../workbench_api';
+import {createKBDocText} from '../workbench_api';
 
-type AddKBModalType = 'text' | 'url';
+type AddKBModalType = 'text';
 
 interface KBAddTextURLModalProps {
     visible: boolean;
@@ -161,7 +161,6 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
     // State
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [url, setUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -171,36 +170,18 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
 
         if (type === 'text') {
             return title.trim().length > 0 && content.trim().length > 0;
-        } else if (type === 'url') {
-            return title.trim().length > 0 && url.trim().length > 0 && isValidUrl(url);
         }
         return false;
-    }, [type, title, content, url, isSubmitting]);
+    }, [type, title, content, isSubmitting]);
 
     // URL validation
-    const isValidUrl = (urlString: string): boolean => {
-        try {
-            new URL(urlString);
-            return true;
-        } catch {
-            return false;
-        }
-    };
-
     // Get modal title
     const getTitle = useCallback(() => {
-        if (type === 'text') {
-            return intl.formatMessage({
-                id: 'workbench.kb.add_text',
-                defaultMessage: '添加文本文档',
-            });
-        } else {
-            return intl.formatMessage({
-                id: 'workbench.kb.add_url',
-                defaultMessage: '从链接导入',
-            });
-        }
-    }, [type, intl]);
+        return intl.formatMessage({
+            id: 'workbench.kb.add_text',
+            defaultMessage: '添加文本文档',
+        });
+    }, [intl]);
 
     // Submit handler
     const handleSubmit = useCallback(async () => {
@@ -210,30 +191,19 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
         setError(null);
 
         try {
-            debugLog(`[KBAddTextURLModal] Submitting ${type} document:`, JSON.stringify({
+            debugLog(`[KBAddTextURLModal] Submitting text document:`, JSON.stringify({
                 teamId,
                 title: title.trim(),
                 hasContent: content.trim().length > 0,
-                url: url.trim(),
             }));
 
-            if (type === 'text') {
-                await createKBDocText(
-                    serverUrl,
-                    teamId,
-                    title.trim(),
-                    content.trim(),
-                );
-                debugLog('[KBAddTextURLModal] Text document created successfully');
-            } else if (type === 'url') {
-                await createKBDocURL(
-                    serverUrl,
-                    teamId,
-                    title.trim(),
-                    url.trim(),
-                );
-                debugLog('[KBAddTextURLModal] URL document created successfully');
-            }
+            await createKBDocText(
+                serverUrl,
+                teamId,
+                title.trim(),
+                content.trim(),
+            );
+            debugLog('[KBAddTextURLModal] Text document created successfully');
 
             // Reset form
             setTitle('');
@@ -250,13 +220,12 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
         } finally {
             setIsSubmitting(false);
         }
-    }, [type, title, content, url, teamId, serverUrl, canSubmit, onClose, onSuccess]);
+    }, [title, content, teamId, serverUrl, canSubmit, onClose, onSuccess]);
 
     // Reset on close
     const handleClose = useCallback(() => {
         setTitle('');
         setContent('');
-        setUrl('');
         setError(null);
         onClose();
     }, [onClose]);
@@ -325,30 +294,6 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
                                 multiline={true}
                                 editable={!isSubmitting}
                             />
-                        </View>
-                    )}
-
-                    {/* URL field - url mode only */}
-                    {type === 'url' && (
-                        <View style={style.formGroup}>
-                            <Text style={style.label}>
-                                URL<Text style={style.required}> *</Text>
-                            </Text>
-                            <TextInput
-                                style={style.input}
-                                placeholder="https://example.com"
-                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                                value={url}
-                                onChangeText={setUrl}
-                                keyboardType="url"
-                                editable={!isSubmitting}
-                            />
-                            <Text style={style.hint}>
-                                {intl.formatMessage({
-                                    id: 'workbench.kb.url_hint',
-                                    defaultMessage: '输入完整的URL，例如 https://example.com/article',
-                                })}
-                            </Text>
                         </View>
                     )}
 
