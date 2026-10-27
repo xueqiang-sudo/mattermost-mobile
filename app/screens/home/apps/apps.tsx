@@ -235,6 +235,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                     drive_write: dashboardAccess?.drive_write,
                     contact_edit: dashboardAccess?.contact_edit,
                     configurable: dashboardAccess?.configurable,
+                    full_dashboardAccess: dashboardAccess,
                 }));
                 navigation.navigate(Screens.APPS_KNOWLEDGE_BASE, {
                     kbWrite: Boolean(dashboardAccess?.kb_write),
@@ -279,7 +280,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 });
                 break;
         }
-    }, [navigation]);
+    }, [navigation, dashboardAccess]);
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),

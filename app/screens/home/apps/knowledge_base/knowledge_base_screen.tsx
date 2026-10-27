@@ -1168,7 +1168,7 @@ const KnowledgeBaseScreen = () => {
             category: d.category,
             tags: d.tags,
             createdAt: d.createdAt,
-            fileName: d.fileName,
+            fileName: d.filename || d.fileName,
             fileSize: d.fileSize,
         }));
     }, [isSearchMode, searchResults, documents]);

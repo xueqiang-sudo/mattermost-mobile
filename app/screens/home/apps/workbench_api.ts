@@ -348,11 +348,12 @@ export type KBDoc = {
     category: string;
     tags: string[];
     sourceUrl?: string;
+    filename?: string;
     fileName?: string;
     fileSize?: number;
     chunks?: number;
     createdAt: string;
-    updatedAt: string;
+    updatedAt?: string;
 };
 
 export type KBSearchResult = {

@@ -23,6 +23,7 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {isImage, isVideo, isAudio, hasPdfPreview} from '@utils/file';
+import type {FileInfo} from '@mattermost/types/files';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
 import {showModal} from '@screens/navigation';
