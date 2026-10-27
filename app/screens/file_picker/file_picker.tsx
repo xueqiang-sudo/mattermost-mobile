@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';

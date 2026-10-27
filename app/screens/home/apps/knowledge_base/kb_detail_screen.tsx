@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
+import {popTopScreen, goToScreen} from '@screens/navigation';
 import Markdown from '@components/markdown';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -24,7 +24,6 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {useDownloadFileAndPreview} from '@hooks/files';
 import {getCurrentTeamId} from '@queries/servers/system';
-import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {isImage, isVideo, isAudio} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
@@ -60,11 +59,10 @@ function formatDate(val: string): string {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
+const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [loading, setLoading] = useState(true);
@@ -361,7 +359,7 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             {/* Custom Header */}
             <View style={style.header}>
-                <TouchableOpacity style={style.headerBtn} onPress={() => navigation.goBack()}>
+                <TouchableOpacity style={style.headerBtn} onPress={() => popTopScreen()}>
                     <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                 </TouchableOpacity>
                 <Text style={style.headerTitle} numberOfLines={1}>
