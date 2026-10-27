@@ -9,6 +9,7 @@ import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
+import {useTheme} from '@context/theme';
 
 import {FilePickerProvider, useFilePicker} from './context/file_picker_context';
 import GroupFilesTab from './tabs/group_files_tab';
