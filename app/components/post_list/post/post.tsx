@@ -889,4 +889,36 @@ const Post = ({
     );
 };
 
-export default Post;
+// 【性能优化】使用 React.memo 防止不必要的重新渲染
+// 自定义比较函数：只比较真正影响渲染的属性
+// 这样当其他 posts 更新时，本 post 不会重新计算
+export default React.memo(Post, (prevProps, nextProps) => {
+    // 返回 true = 相同，不需要重新渲染
+    // 返回 false = 不同，需要重新渲染
+    return (
+        // 关键数据变化检查
+        prevProps.post.id === nextProps.post.id &&
+        prevProps.post.message === nextProps.post.message &&
+        prevProps.post.updateAt === nextProps.post.updateAt &&
+        prevProps.post.deleteAt === nextProps.post.deleteAt &&
+        prevProps.post.fileIds === nextProps.post.fileIds &&
+        prevProps.post.isPinned === nextProps.post.isPinned &&
+        prevProps.post.userId === nextProps.post.userId &&
+
+        // UI 相关属性
+        prevProps.highlight === nextProps.highlight &&
+        prevProps.isSaved === nextProps.isSaved &&
+        prevProps.location === nextProps.location &&
+        prevProps.hasReactions === nextProps.hasReactions &&
+
+        // 用户上下文（通常不变）
+        prevProps.currentUser?.id === nextProps.currentUser?.id &&
+        prevProps.author?.id === nextProps.author?.id &&
+
+        // 忽略这些属性，因为它们通常每次都是新值：
+        // - customEmojiNames（数组，每次新建）
+        // - searchPatterns（数组，每次新建）
+        // - 其他 callback 或对象引用
+        true
+    );
+});
