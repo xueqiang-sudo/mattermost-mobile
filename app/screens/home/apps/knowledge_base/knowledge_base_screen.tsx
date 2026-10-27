@@ -26,7 +26,7 @@ import DatabaseManager from '@database/manager';
 import {downloadFile} from '@actions/remote/file';
 import {getCurrentTeamId} from '@queries/servers/system';
 import NetworkManager from '@managers/network_manager';
-import {goToScreen, showModal} from '@screens/navigation';
+import {goToScreen, showModal, dismissModal} from '@screens/navigation';
 import {isImage, isVideo, isAudio, getLocalFilePathFromFile} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
@@ -1041,6 +1041,30 @@ const KnowledgeBaseScreen = () => {
 
             debugLog('[KB] All files uploaded, refreshing document list');
 
+            // 【关键修复】先关闭所有 modal，再更新文档列表
+            // 这样可以避免在 modal 内触发导航，导致上下文丢失
+            debugLog('[KB] Dismissing all modals before refresh');
+
+            try {
+                // 关闭 FILE_PICKER modal
+                await dismissModal({componentId: Screens.FILE_PICKER});
+                debugLog('[KB] FILE_PICKER modal dismissed');
+            } catch (dismissErr1) {
+                const err1 = dismissErr1 instanceof Error ? dismissErr1.message : String(dismissErr1);
+                debugLog('[KB] WARNING: Failed to dismiss FILE_PICKER:', err1);
+            }
+
+            try {
+                // 关闭 文本/URL 编辑 modal（如果打开的话）
+                // setShowAddModal(false) 在回调中不起作用，所以我们通过其他方式处理
+            } catch (dismissErr2) {
+                const err2 = dismissErr2 instanceof Error ? dismissErr2.message : String(dismissErr2);
+                debugLog('[KB] WARNING: Failed to dismiss text modal:', err2);
+            }
+
+            // 现在所有 modal 都关闭了，可以安全地更新文档列表
+            debugLog('[KB] Updating document list after modal closure');
+
             // Refresh document list after upload - use cached references
             try {
                 if (cachedSearchQuery.trim()) {
@@ -1075,14 +1099,25 @@ const KnowledgeBaseScreen = () => {
         // 根据当前tab决定操作
         if (activeCategory === 'file') {
             // 直接打开文件选择器
-            showModal(
-                Screens.FILE_PICKER,
-                intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
-                {
-                    onSend: onUploadKBFiles,
-                    channelId: '',
-                },
-            );
+            // 【关键修复】先关闭文本/URL modal（如果打开了），再打开文件选择器
+            // 这样可以避免在 modal 内部嵌套 modal 导致的导航上下文问题
+            if (showAddModal) {
+                debugLog('[KB] Closing text/URL modal before opening file picker');
+                setShowAddModal(false);
+            }
+
+            // 延迟打开文件选择器，确保前面的 modal 先关闭
+            setTimeout(() => {
+                debugLog('[KB] Opening file picker after closing text modal');
+                showModal(
+                    Screens.FILE_PICKER,
+                    intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
+                    {
+                        onSend: onUploadKBFiles,
+                        channelId: '',
+                    },
+                );
+            }, 100);
         } else if (activeCategory === 'text') {
             // 显示文本输入Modal
             setShowAddModal(true);
@@ -1092,7 +1127,7 @@ const KnowledgeBaseScreen = () => {
             setShowAddModal(true);
             setAddModalType('url');
         }
-    }, [activeCategory, onUploadKBFiles, intl]);
+    }, [activeCategory, onUploadKBFiles, intl, showAddModal]);
 
     // 删除文档 - 显示确认
     const handleDeleteDoc = useCallback((item: DisplayItem) => {
