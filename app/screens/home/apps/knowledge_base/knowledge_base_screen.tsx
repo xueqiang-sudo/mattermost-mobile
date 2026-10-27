@@ -53,6 +53,8 @@ import {
     type KBAskSource,
 } from '../workbench_api';
 
+import KBAddTextURLModal from './kb_add_text_url_modal';
+
 // ---- Constants ----
 
 const CATEGORIES = [
@@ -322,49 +324,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 12,
     },
 
-    // Bottom bar
-    bottomBar: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        backgroundColor: theme.centerChannelBg,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-        flexDirection: 'row',
-        gap: 10,
-    },
-    askBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        borderRadius: 10,
-        backgroundColor: theme.buttonBg,
-        gap: 8,
-    },
-    askBtnText: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.buttonColor,
-    },
-    addBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 10,
-        backgroundColor: changeOpacity(theme.buttonBg, 0.12),
-        gap: 6,
-    },
-    addBtnText: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.buttonBg,
-    },
-
     // Modal common
     modalOverlay: {
         flex: 1,
@@ -497,7 +456,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 
     // Ask AI modal
+    askInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 8,
+        marginBottom: 16,
+    },
     askInput: {
+        flex: 1,
         borderWidth: 1,
         borderColor: changeOpacity(theme.centerChannelColor, 0.16),
         borderRadius: 8,
@@ -505,17 +471,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 10,
         ...typography('Body', 100, 'Regular'),
         color: theme.centerChannelColor,
-        marginBottom: 12,
     },
     askSubmit: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 12,
-        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 8,
         backgroundColor: theme.buttonBg,
-        gap: 8,
-        marginBottom: 16,
+        gap: 6,
     },
     askSubmitDisabled: {
         opacity: 0.5,
@@ -523,6 +488,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     askSubmitText: {
         ...typography('Body', 100, 'SemiBold'),
         color: theme.buttonColor,
+        display: 'none',
     },
     askAnswerBox: {
         padding: 14,
@@ -614,6 +580,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'SemiBold'),
         color: theme.buttonBg,
     },
+
+    // Delete button
+    deleteButton: {
+        padding: 8,
+        marginLeft: 'auto',
+    },
 }));
 
 // ---- Main Component ----
@@ -659,6 +631,14 @@ const KnowledgeBaseScreen = () => {
 
     // Retry key - increment to trigger re-init
     const [initRetryKey, setInitRetryKey] = useState(0);
+
+    // Add document modal states
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [addModalType, setAddModalType] = useState<'text' | 'url'>('text');
+
+    // Delete states
+    const [deleteTarget, setDeleteTarget] = useState<DisplayItem | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // File preview hook (same as chat window)
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
@@ -983,15 +963,81 @@ const KnowledgeBaseScreen = () => {
     }, [serverUrl, teamId, searchQuery, performSearch, loadDocuments, intl]);
 
     const openAddScreen = useCallback(() => {
-        showModal(
-            Screens.FILE_PICKER,
-            intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'}),
-            {
-                onSend: onUploadKBFiles,
-                channelId: '', // Not needed for KB uploads
-            },
+        // 根据当前tab决定操作
+        if (activeCategory === 'file') {
+            // 直接打开文件选择器
+            showModal(
+                Screens.FILE_PICKER,
+                intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'}),
+                {
+                    onSend: onUploadKBFiles,
+                    channelId: '',
+                },
+            );
+        } else if (activeCategory === 'text') {
+            // 显示文本输入Modal
+            setShowAddModal(true);
+            setAddModalType('text');
+        } else if (activeCategory === 'url') {
+            // 显示URL输入Modal
+            setShowAddModal(true);
+            setAddModalType('url');
+        }
+    }, [activeCategory, onUploadKBFiles, intl]);
+
+    // 删除文档 - 显示确认
+    const handleDeleteDoc = useCallback((item: DisplayItem) => {
+        Alert.alert(
+            intl.formatMessage({id: 'workbench.kb.delete', defaultMessage: '删除文档'}),
+            intl.formatMessage(
+                {id: 'workbench.kb.delete_confirm', defaultMessage: '确定要删除 "{title}" 吗？此操作无法撤销。'},
+                {title: item.title},
+            ),
+            [
+                {
+                    text: intl.formatMessage({id: 'workbench.kb.cancel', defaultMessage: '取消'}),
+                    style: 'cancel',
+                },
+                {
+                    text: intl.formatMessage({id: 'workbench.kb.delete', defaultMessage: '删除'}),
+                    onPress: () => confirmDeleteDoc(item),
+                    style: 'destructive',
+                },
+            ],
         );
-    }, [onUploadKBFiles, intl]);
+        setDeleteTarget(item);
+    }, [intl]);
+
+    // 执行删除
+    const confirmDeleteDoc = useCallback(async (item: DisplayItem) => {
+        if (!teamId) return;
+
+        setIsDeleting(true);
+        try {
+            debugLog('[KB] Deleting document:', item.docId);
+            await deleteKBDoc(serverUrl, teamId, item.docId);
+            debugLog('[KB] Document deleted successfully');
+
+            // 删除成功，刷新列表
+            if (searchQuery.trim()) {
+                performSearch(searchQuery);
+            } else {
+                loadDocuments();
+            }
+        } catch (err) {
+            debugLog('[KB] Delete error:', String(err));
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                intl.formatMessage({
+                    id: 'workbench.kb.error_delete',
+                    defaultMessage: 'Failed to delete document.',
+                }),
+            );
+        } finally {
+            setIsDeleting(false);
+            setDeleteTarget(null);
+        }
+    }, [serverUrl, teamId, searchQuery, performSearch, loadDocuments, intl]);
 
     // Ask AI
     const openAskModal = useCallback(() => {
@@ -1083,11 +1129,18 @@ const KnowledgeBaseScreen = () => {
                         color={iconInfo.color}
                     />
                     <Text style={style.docTitle} numberOfLines={2}>{item.title}</Text>
-                    {isFile && ext ? (
-                        <View style={style.docExtBadge}>
-                            <Text style={style.docExtText}>{ext}</Text>
-                        </View>
-                    ) : null}
+
+                    {/* 删除按钮 - 新增 */}
+                    {kbWrite && (
+                        <TouchableOpacity
+                            style={style.deleteButton}
+                            onPress={(e) => {
+                                handleDeleteDoc(item);
+                            }}
+                        >
+                            <CompassIcon name='trash-can-outline' size={18} color={theme.errorTextColor}/>
+                        </TouchableOpacity>
+                    )}
                 </View>
                 <View style={style.docMeta}>
                     {isFile ? (
@@ -1111,7 +1164,7 @@ const KnowledgeBaseScreen = () => {
                         <Text style={style.docScore}>{(item.score * 100).toFixed(0)}%</Text>
                     )}
                 </View>
-                {item.tags && item.tags.length > 0 && (
+                {!isFile && item.tags && item.tags.length > 0 && (
                     <View style={style.docTags}>
                         {item.tags.map((tag, i) => (
                             <View key={`${tag}-${i}`} style={style.tagChip}>
@@ -1125,7 +1178,7 @@ const KnowledgeBaseScreen = () => {
                 ) : null}
             </TouchableOpacity>
         );
-    }, [style, theme, openDetail, openFilePreview, intl]);
+    }, [style, theme, kbWrite, openDetail, openFilePreview, handleDeleteDoc, intl]);
 
     const renderFlatListItem = useCallback(({item}: {item: DisplayItem}) => renderItemCard(item), [renderItemCard]);
 
@@ -1245,9 +1298,7 @@ const KnowledgeBaseScreen = () => {
                 </Text>
                 {kbWrite && (
                     <TouchableOpacity style={style.headerAction} onPress={openAddScreen}>
-                        <Text style={style.headerActionText}>
-                            {intl.formatMessage({id: 'workbench.kb.add_document', defaultMessage: '添加文档'})}
-                        </Text>
+                        <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
                     </TouchableOpacity>
                 )}
             </View>
@@ -1255,40 +1306,35 @@ const KnowledgeBaseScreen = () => {
             {/* Category chips */}
             {renderCategoryChips}
 
-            {/* Search bar */}
-            {renderSearchBar}
 
             {/* Document list or Ask AI tab */}
             <View style={{flex: 1}}>
                 {activeCategory === 'ask' ? (
                     <ScrollView style={{flex: 1, paddingHorizontal: 16}} keyboardShouldPersistTaps='handled'>
-                        <TextInput
-                            style={style.askInput}
-                            placeholder={intl.formatMessage({id: 'workbench.kb.ask_placeholder', defaultMessage: 'Ask a question about your knowledge base...'})}
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                            value={askQuery}
-                            onChangeText={setAskQuery}
-                            multiline={true}
-                            returnKeyType='send'
-                            autoCapitalize='sentences'
-                            onSubmitEditing={handleAskSubmit}
-                        />
-                        <TouchableOpacity
-                            style={[style.askSubmit, (!askQuery.trim() || askLoading) && style.askSubmitDisabled]}
-                            onPress={handleAskSubmit}
-                            disabled={!askQuery.trim() || askLoading}
-                        >
-                            {askLoading ? (
-                                <ActivityIndicator size='small' color={theme.buttonColor}/>
-                            ) : (
-                                <>
+                        <View style={style.askInputContainer}>
+                            <TextInput
+                                style={style.askInput}
+                                placeholder={intl.formatMessage({id: 'workbench.kb.ask_placeholder', defaultMessage: 'Ask a question about your knowledge base...'})}
+                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
+                                value={askQuery}
+                                onChangeText={setAskQuery}
+                                multiline={true}
+                                returnKeyType='send'
+                                autoCapitalize='sentences'
+                                onSubmitEditing={handleAskSubmit}
+                            />
+                            <TouchableOpacity
+                                style={[style.askSubmit, (!askQuery.trim() || askLoading) && style.askSubmitDisabled]}
+                                onPress={handleAskSubmit}
+                                disabled={!askQuery.trim() || askLoading}
+                            >
+                                {askLoading ? (
+                                    <ActivityIndicator size='small' color={theme.buttonColor}/>
+                                ) : (
                                     <CompassIcon name='robot' size={18} color={theme.buttonColor}/>
-                                    <Text style={style.askSubmitText}>
-                                        {intl.formatMessage({id: 'workbench.kb.ask_submit', defaultMessage: 'Ask'})}
-                                    </Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                         {askAnswer.length > 0 && (
                             <View style={style.askAnswerBox}>
                                 <Text style={style.askAnswerLabel}>
@@ -1321,24 +1367,12 @@ const KnowledgeBaseScreen = () => {
                         renderItem={renderFlatListItem}
                         keyExtractor={keyExtractor}
                         contentContainerStyle={[style.listContent, {paddingBottom: 80 + insets.bottom}]}
-                        ListEmptyComponent={renderEmpty}
                         refreshing={false}
                         onRefresh={loadDocuments}
                     />
                 )}
             </View>
 
-            {/* Bottom action bar */}
-            <View style={[style.bottomBar, {paddingBottom: 10 + insets.bottom}]}>
-                {kbWrite && (
-                    <TouchableOpacity style={style.addBtn} onPress={openAddScreen}>
-                        <CompassIcon name='plus' size={18} color={theme.buttonBg}/>
-                        <Text style={style.addBtnText}>
-                            {intl.formatMessage({id: 'workbench.kb.add_doc', defaultMessage: 'Add'})}
-                        </Text>
-                    </TouchableOpacity>
-                )}
-            </View>
 
             {/* ---- Ask AI Modal ---- */}
             <Modal
@@ -1358,33 +1392,30 @@ const KnowledgeBaseScreen = () => {
                         </TouchableOpacity>
                     </View>
                     <ScrollView style={style.modalBody} keyboardShouldPersistTaps='handled'>
-                        <TextInput
-                            style={style.askInput}
-                            placeholder={intl.formatMessage({id: 'workbench.kb.ask_placeholder', defaultMessage: 'Ask a question about your knowledge base...'})}
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                            value={askQuery}
-                            onChangeText={setAskQuery}
-                            multiline={true}
-                            returnKeyType='send'
-                            autoCapitalize='sentences'
-                            onSubmitEditing={handleAskSubmit}
-                        />
-                        <TouchableOpacity
-                            style={[style.askSubmit, (!askQuery.trim() || askLoading) && style.askSubmitDisabled]}
-                            onPress={handleAskSubmit}
-                            disabled={!askQuery.trim() || askLoading}
-                        >
-                            {askLoading ? (
-                                <ActivityIndicator size='small' color={theme.buttonColor}/>
-                            ) : (
-                                <>
+                        <View style={style.askInputContainer}>
+                            <TextInput
+                                style={style.askInput}
+                                placeholder={intl.formatMessage({id: 'workbench.kb.ask_placeholder', defaultMessage: 'Ask a question about your knowledge base...'})}
+                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
+                                value={askQuery}
+                                onChangeText={setAskQuery}
+                                multiline={true}
+                                returnKeyType='send'
+                                autoCapitalize='sentences'
+                                onSubmitEditing={handleAskSubmit}
+                            />
+                            <TouchableOpacity
+                                style={[style.askSubmit, (!askQuery.trim() || askLoading) && style.askSubmitDisabled]}
+                                onPress={handleAskSubmit}
+                                disabled={!askQuery.trim() || askLoading}
+                            >
+                                {askLoading ? (
+                                    <ActivityIndicator size='small' color={theme.buttonColor}/>
+                                ) : (
                                     <CompassIcon name='robot' size={18} color={theme.buttonColor}/>
-                                    <Text style={style.askSubmitText}>
-                                        {intl.formatMessage({id: 'workbench.kb.ask_submit', defaultMessage: 'Ask'})}
-                                    </Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
+                                )}
+                            </TouchableOpacity>
+                        </View>
 
                         {/* Answer display */}
                         {askAnswer.length > 0 && (
@@ -1421,6 +1452,21 @@ const KnowledgeBaseScreen = () => {
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
+
+            {/* Add Text/URL Modal */}
+            {showAddModal && (
+                <KBAddTextURLModal
+                    visible={showAddModal}
+                    type={addModalType}
+                    onClose={() => setShowAddModal(false)}
+                    onSuccess={() => {
+                        setShowAddModal(false);
+                        loadDocuments();
+                    }}
+                    serverUrl={serverUrl}
+                    teamId={teamId}
+                />
+            )}
         </SafeAreaView>
     );
 };

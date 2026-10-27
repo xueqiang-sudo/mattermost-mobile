@@ -25,6 +25,24 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
     },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E5E5',
+    },
+    backButton: {
+        padding: 8,
+        marginRight: 8,
+    },
+    headerTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+    },
     tabBar: {
         flexDirection: 'row',
         borderBottomWidth: 1,
@@ -287,6 +305,17 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
 
     return (
         <View style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => dismissModal({componentId})}
+                >
+                    <CompassIcon name='arrow-left' size={24} color='#333'/>
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>
+                    {intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'})}
+                </Text>
+            </View>
             <View style={styles.tabBar}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.key;

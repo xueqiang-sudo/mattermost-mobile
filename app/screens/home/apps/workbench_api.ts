@@ -399,11 +399,21 @@ export async function getKBDoc(serverUrl: string, teamId: string, docId: string)
 }
 
 export async function createKBDocText(serverUrl: string, teamId: string, title: string, content: string) {
-    return kbPost(serverUrl, '/api/kb/create', teamId, {title, content, category: 'text'});
+    debugLog('[createKBDocText] Creating text document:', JSON.stringify({teamId, title}));
+    return kbPost(serverUrl, '/api/kb/create', teamId, {
+        title,
+        content,
+        category: 'text',
+    });
 }
 
 export async function createKBDocURL(serverUrl: string, teamId: string, title: string, sourceUrl: string) {
-    return kbPost(serverUrl, '/api/kb/create', teamId, {title, sourceUrl});
+    debugLog('[createKBDocURL] Creating URL document:', JSON.stringify({teamId, title, sourceUrl}));
+    return kbPost(serverUrl, '/api/kb/create', teamId, {
+        title,
+        sourceUrl,
+        category: 'url',
+    });
 }
 
 export async function deleteKBDoc(serverUrl: string, teamId: string, docId: string) {
@@ -426,6 +436,13 @@ export async function uploadKBFile(
     fileName: string,
     fileType: string,
 ): Promise<{file_uuid: string; filename: string}> {
+    debugLog('[uploadKBFile] Starting upload:', JSON.stringify({
+        teamId,
+        fileUri,
+        fileName,
+        fileType,
+    }));
+
     const client = NetworkManager.getClient(serverUrl);
     const formData = new FormData();
     formData.append('file', {
@@ -434,17 +451,30 @@ export async function uploadKBFile(
         type: fileType,
     } as any);
 
-    const resp = await client.doFetch(
-        `${FACT_EXTRACTOR_BASE}/api/kb/upload?team_id=${encodeURIComponent(teamId)}`,
-        {method: 'post', body: formData},
-    );
-    if (!resp.ok) {
-        throw new Error(resp.error || 'Upload failed');
+    try {
+        const resp = await client.doFetch(
+            `${FACT_EXTRACTOR_BASE}/api/kb/upload?team_id=${encodeURIComponent(teamId)}`,
+            {method: 'post', body: formData},
+        );
+
+        debugLog('[uploadKBFile] Upload response:', JSON.stringify({
+            ok: resp.ok,
+            hasFileUuid: Boolean(resp.file_uuid),
+            hasError: Boolean(resp.error),
+            error: resp.error,
+        }));
+
+        if (!resp.ok) {
+            throw new Error(resp.error || 'Upload failed');
+        }
+        if (!resp.file_uuid) {
+            throw new Error('上传成功但未返回文件ID');
+        }
+        return {file_uuid: resp.file_uuid, filename: resp.filename || fileName};
+    } catch (err) {
+        debugLog('[uploadKBFile] Error:', String(err));
+        throw err;
     }
-    if (!resp.file_uuid) {
-        throw new Error('上传成功但未返回文件ID');
-    }
-    return {file_uuid: resp.file_uuid, filename: resp.filename || fileName};
 }
 
 export async function createKBDocFile(
@@ -454,15 +484,37 @@ export async function createKBDocFile(
     fileName: string,
     fileType: string,
 ): Promise<any> {
-    // Step 1: Upload file
-    const {file_uuid} = await uploadKBFile(serverUrl, teamId, fileUri, fileName, fileType);
-
-    // Step 2: Create KB entry
-    return kbPost(serverUrl, '/api/kb/create', teamId, {
-        fileId: file_uuid,
+    debugLog('[createKBDocFile] Starting file upload process:', JSON.stringify({
+        teamId,
         fileName,
-        title: fileName,
-    });
+        fileType,
+    }));
+
+    try {
+        // Step 1: Upload file
+        debugLog('[createKBDocFile] Step 1: Uploading file...');
+        const {file_uuid} = await uploadKBFile(serverUrl, teamId, fileUri, fileName, fileType);
+        debugLog('[createKBDocFile] File uploaded, file_uuid:', file_uuid);
+
+        // Step 2: Create KB entry
+        // Explicitly set category to 'file' for proper filtering (matching webapp behavior)
+        debugLog('[createKBDocFile] Step 2: Creating KB entry...');
+        const result = await kbPost(serverUrl, '/api/kb/create', teamId, {
+            fileId: file_uuid,
+            fileName,
+            title: fileName,
+            category: 'file',
+        });
+        debugLog('[createKBDocFile] KB entry created:', JSON.stringify({
+            docId: result?.docId,
+            hasError: Boolean(result?.error),
+        }));
+
+        return result;
+    } catch (err) {
+        debugLog('[createKBDocFile] Error:', String(err));
+        throw err;
+    }
 }
 
 export async function updateKBDoc(
