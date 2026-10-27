@@ -3,7 +3,10 @@
 
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+
+import {useNavigation} from '@react-navigation/native';
 import {useTheme} from '@context/theme';
 import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
@@ -140,6 +143,7 @@ type FilePickerContentProps = {
     componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
+    title?: string;
 };
 
 function getFileIcon(name: string): string {
@@ -168,20 +172,32 @@ function getFileIcon(name: string): string {
     return 'file-generic-outline';
 }
 
-function FilePickerContent({componentId, onSend, channelId}: FilePickerContentProps) {
+function FilePickerContent({componentId, onSend, channelId, title}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
+    const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
     const {getSelectedFiles, getSelectedCount, state, dispatch} = useFilePicker();
     const [activeTab, setActiveTab] = useState<TabKey>('chat');
     const [expanded, setExpanded] = useState(false);
+    const [sending, setSending] = useState(false);
+
+    const headerTitle = title || intl.formatMessage({id: 'file_picker.title', defaultMessage: 'Select Files'});
 
     const selectedCount = state.selectedFiles.size;
-    const canSend = selectedCount > 0;
+    const canSend = selectedCount > 0 && !sending;
 
-    debugLog('filePicker', `Render: selectedCount=${selectedCount}, canSend=${canSend}`);
+    debugLog('filePicker', `Render: selectedCount=${selectedCount}, canSend=${canSend}, sending=${sending}`);
 
     const handleSend = useCallback(async () => {
+        // Prevent duplicate clicks
+        if (sending) {
+            debugLog('filePicker', 'handleSend already in progress, ignoring duplicate click');
+            return;
+        }
+
         try {
+            setSending(true);
             debugLog('filePicker', 'handleSend started');
             const files = Array.from(state.selectedFiles.values());
             debugLog('filePicker', `handleSend called with ${files.length} files`);
@@ -194,6 +210,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                         defaultMessage: 'Please select at least one file to send.',
                     }),
                 );
+                setSending(false);
                 return;
             }
 
@@ -237,6 +254,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                         defaultMessage: 'Failed to send files. Please try again.',
                     }),
                 );
+                setSending(false);
                 return;
             }
 
@@ -257,8 +275,9 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                     defaultMessage: 'An unexpected error occurred. Please try again.',
                 }),
             );
+            setSending(false);
         }
-    }, [componentId, state.selectedFiles, onSend, intl]);
+    }, [componentId, state.selectedFiles, onSend, intl, sending]);
 
     const selectedFilesList = Array.from(state.selectedFiles.values());
 
@@ -304,7 +323,17 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
+            {/* Custom Header with Back Button */}
+            <View style={styles.header}>
+                <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                    <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
+                </TouchableOpacity>
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                    {headerTitle}
+                </Text>
+            </View>
+
             <View style={styles.tabBar}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.key;
@@ -362,12 +391,16 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                         style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
                         disabled={!canSend}
                     >
-                        <Text style={styles.sendButtonText}>
-                            {intl.formatMessage({
-                                id: 'file_picker.send',
-                                defaultMessage: 'Send',
-                            })}
-                        </Text>
+                        {sending ? (
+                            <ActivityIndicator size='small' color={theme.buttonColor}/>
+                        ) : (
+                            <Text style={styles.sendButtonText}>
+                                {intl.formatMessage({
+                                    id: 'file_picker.send',
+                                    defaultMessage: 'Send',
+                                })}
+                            </Text>
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -382,7 +415,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                     />
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -390,13 +423,14 @@ type FilePickerProps = {
     componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
+    title?: string;
 };
 
-export default function FilePicker({componentId, onSend, channelId}: FilePickerProps) {
+export default function FilePicker({componentId, onSend, channelId, title}: FilePickerProps) {
     debugLog('filePicker', `FilePicker component rendering, channelId=${channelId}`);
     return (
         <FilePickerProvider maxSelection={9}>
-            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId}/>
+            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId} title={title}/>
         </FilePickerProvider>
     );
 }

@@ -160,9 +160,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 12,
         backgroundColor: theme.sidebarBg,
     },
-    backBtn: {
+    headerBtn: {
         padding: 8,
-        marginRight: 8,
     },
     headerTitle: {
         ...typography('Heading', 200, 'SemiBold'),
@@ -171,11 +170,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     headerAction: {
         padding: 8,
-        marginLeft: 4,
-    },
-    headerActionText: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: theme.sidebarText,
     },
 
     // Category chips
@@ -1020,7 +1014,7 @@ const KnowledgeBaseScreen = () => {
             // 直接打开文件选择器
             showModal(
                 Screens.FILE_PICKER,
-                intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'}),
+                intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
                 {
                     onSend: onUploadKBFiles,
                     channelId: '',
@@ -1036,29 +1030,6 @@ const KnowledgeBaseScreen = () => {
             setAddModalType('url');
         }
     }, [activeCategory, onUploadKBFiles, intl]);
-
-    // Configure navigation header
-    useEffect(() => {
-        navigation.setOptions({
-            headerShown: true,
-            headerStyle: {
-                backgroundColor: theme.sidebarBg,
-            },
-            headerTintColor: theme.sidebarText,
-            headerTitle: intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'}),
-            headerTitleStyle: {
-                color: theme.sidebarText,
-            },
-            headerRight: () => kbWrite ? (
-                <TouchableOpacity
-                    style={style.headerAction}
-                    onPress={openAddScreen}
-                >
-                    <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            ) : null,
-        });
-    }, [navigation, theme, intl, kbWrite, openAddScreen, style]);
 
     // 删除文档 - 显示确认
     const handleDeleteDoc = useCallback((item: DisplayItem) => {
@@ -1346,7 +1317,24 @@ const KnowledgeBaseScreen = () => {
     // ---- Main render ----
 
     return (
-        <SafeAreaView edges={['bottom']} style={style.container}>
+        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+            {/* Custom Header (same as Cloud Drive) */}
+            <View style={style.header}>
+                <TouchableOpacity style={style.headerBtn} onPress={() => navigation.goBack()}>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
+                <Text style={style.headerTitle} numberOfLines={1}>
+                    {intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'})}
+                </Text>
+                {kbWrite ? (
+                    <TouchableOpacity style={style.headerAction} onPress={openAddScreen}>
+                        <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={style.headerAction}/>
+                )}
+            </View>
+
             {/* Category chips */}
             {renderCategoryChips}
 

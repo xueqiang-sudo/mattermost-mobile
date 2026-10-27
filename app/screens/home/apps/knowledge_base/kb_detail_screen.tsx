@@ -9,11 +9,13 @@ import {
     Linking,
     ScrollView,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import Markdown from '@components/markdown';
 import {Screens} from '@constants';
@@ -33,6 +35,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 
 import {
     getKBDoc,
+    updateKBDoc,
     deleteKBDoc,
     getKBDownloadUrl,
     getKBFileInfo,
@@ -61,11 +64,18 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [loading, setLoading] = useState(true);
     const [doc, setDoc] = useState<KBDoc | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // 编辑状态
+    const [editTitle, setEditTitle] = useState('');
+    const [editContent, setEditContent] = useState('');
+    const [editUrl, setEditUrl] = useState('');
+    const [saving, setSaving] = useState(false);
 
     // Use the same hook as chat window for consistent file preview behavior
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
@@ -97,6 +107,12 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
             }
 
             setDoc(result || null);
+            // 初始化编辑字段
+            if (result) {
+                setEditTitle(result.title || '');
+                setEditContent(result.content || '');
+                setEditUrl(result.sourceUrl || '');
+            }
             debugLog('[KBDetail] Doc loaded', JSON.stringify({hasData: Boolean(result)}));
         } catch (err) {
             debugLog('[KBDetail] Load failed', JSON.stringify({error: String(err)}));
@@ -109,6 +125,80 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
     useEffect(() => {
         loadDetail();
     }, [loadDetail]);
+
+    // 保存文档（仅对文本和URL类型）
+    const handleSave = useCallback(async () => {
+        if (!doc || saving) return;
+
+        const isText = doc.category === 'text';
+        const isUrl = doc.category === 'url';
+
+        if (!isText && !isUrl) return;
+
+        // 验证
+        if (!editTitle.trim()) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.kb.title_required', defaultMessage: 'Title is required.'}),
+            );
+            return;
+        }
+
+        if (isText && !editContent.trim()) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.kb.content_required', defaultMessage: 'Content is required.'}),
+            );
+            return;
+        }
+
+        if (isUrl && !editUrl.trim()) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.kb.url_required', defaultMessage: 'URL is required.'}),
+            );
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const teamId = await getCurrentTeamId(database);
+            if (!teamId) {
+                throw new Error('team_id missing');
+            }
+
+            const updates: any = {title: editTitle.trim()};
+            if (isText) {
+                updates.content = editContent.trim();
+            } else if (isUrl) {
+                updates.sourceUrl = editUrl.trim();
+            }
+
+            const result = await updateKBDoc(serverUrl, teamId, doc.docId, updates);
+
+            if (result?.error) {
+                throw new Error(result.error);
+            }
+
+            // 更新本地状态
+            setDoc((prev) => prev ? {...prev, ...updates} : null);
+            onDocUpdated?.();
+
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.success', defaultMessage: 'Success'}),
+                intl.formatMessage({id: 'workbench.kb.save_success', defaultMessage: 'Document saved successfully.'}),
+            );
+        } catch (err) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                String(err),
+            );
+        } finally {
+            setSaving(false);
+        }
+    }, [doc, editTitle, editContent, editUrl, saving, serverUrl, intl, onDocUpdated]);
 
     // Open file using the same in-app preview as the chat window
     // (showMediaViewer for image/video/audio; openUnifiedFileViewer for documents)
@@ -248,13 +338,52 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
         );
     }, [doc, serverUrl, intl, onDocUpdated]);
 
+    // 编辑文档（仅对文本和URL类型）
+    const handleEdit = useCallback(() => {
+        if (!doc) return;
+        const title = intl.formatMessage({
+            id: 'workbench.kb.edit_title',
+            defaultMessage: 'Edit Document',
+        });
+        goToScreen(Screens.KB_EDIT, title, {
+            doc,
+            onDocUpdated: () => {
+                // 编辑完成后刷新详情
+                loadDetail();
+                onDocUpdated?.();
+            },
+        });
+    }, [doc, intl, loadDetail, onDocUpdated]);
+
+    const isEditable = doc && (doc.category === 'text' || doc.category === 'url');
+
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+            {/* Custom Header */}
+            <View style={style.header}>
+                <TouchableOpacity style={style.headerBtn} onPress={() => navigation.goBack()}>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
+                <Text style={style.headerTitle} numberOfLines={1}>
+                    {intl.formatMessage({id: 'workbench.kb.detail_title', defaultMessage: 'Document Detail'})}
+                </Text>
+                {isEditable ? (
+                    <TouchableOpacity style={style.headerBtn} onPress={handleSave} disabled={saving}>
+                        <Text style={[style.saveButtonText, saving && style.saveButtonTextDisabled]}>
+                            {intl.formatMessage({id: 'workbench.kb.save', defaultMessage: 'Save'})}
+                        </Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={style.headerBtn}/>
+                )}
+            </View>
+
             <ScrollView
                 style={style.scrollView}
                 contentContainerStyle={style.scrollContent}
                 bounces={false}
                 scrollEventThrottle={16}
+                keyboardShouldPersistTaps='handled'
             >
                 {loading ? (
                     <ActivityIndicator size='large' color={theme.buttonBg} style={style.loading}/>
@@ -281,86 +410,135 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
                     </View>
                 ) : doc ? (
                     <>
-                        {/* 分类 */}
-                        <Text style={style.category}>
-                            {doc.category || intl.formatMessage({id: 'workbench.kb.category_unknown', defaultMessage: 'Unknown'})}
-                        </Text>
+                        {/* 分类和日期 */}
+                        <View style={style.metaContainer}>
+                            <Text style={style.category}>
+                                {doc.category || intl.formatMessage({id: 'workbench.kb.category_unknown', defaultMessage: 'Unknown'})}
+                            </Text>
+                            <Text style={style.date}>{formatDate(doc.createdAt)}</Text>
+                        </View>
 
-                        {/* 日期 */}
-                        <Text style={style.date}>{formatDate(doc.createdAt)}</Text>
+                        {/* 可编辑字段（文本和URL类型） */}
+                        {isEditable ? (
+                            <>
+                                {/* 标题输入 */}
+                                <View style={style.inputContainer}>
+                                    <Text style={style.label}>
+                                        {intl.formatMessage({id: 'workbench.kb.title', defaultMessage: 'Title'})}
+                                    </Text>
+                                    <TextInput
+                                        style={style.textInput}
+                                        value={editTitle}
+                                        onChangeText={setEditTitle}
+                                        placeholder={intl.formatMessage({id: 'workbench.kb.title_placeholder', defaultMessage: 'Enter title'})}
+                                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.44)}
+                                        autoCapitalize='sentences'
+                                    />
+                                </View>
 
-                        {/* 标签 */}
-                        {doc.tags && doc.tags.length > 0 && (
-                            <View style={style.tagsContainer}>
-                                {doc.tags.map((tag, i) => (
-                                    <View key={`${tag}-${i}`} style={style.tagChip}>
-                                        <Text style={style.tagText}>{tag}</Text>
+                                {/* 内容输入（文本类型） */}
+                                {doc.category === 'text' && (
+                                    <View style={style.inputContainer}>
+                                        <Text style={style.label}>
+                                            {intl.formatMessage({id: 'workbench.kb.content', defaultMessage: 'Content'})}
+                                        </Text>
+                                        <TextInput
+                                            style={[style.textInput, style.textArea]}
+                                            value={editContent}
+                                            onChangeText={setEditContent}
+                                            placeholder={intl.formatMessage({id: 'workbench.kb.content_placeholder', defaultMessage: 'Enter content'})}
+                                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.44)}
+                                            multiline={true}
+                                            textAlignVertical='top'
+                                            autoCapitalize='sentences'
+                                        />
                                     </View>
-                                ))}
-                            </View>
+                                )}
+
+                                {/* URL输入（URL类型） */}
+                                {doc.category === 'url' && (
+                                    <View style={style.inputContainer}>
+                                        <Text style={style.label}>URL</Text>
+                                        <TextInput
+                                            style={style.textInput}
+                                            value={editUrl}
+                                            onChangeText={setEditUrl}
+                                            placeholder='https://...'
+                                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.44)}
+                                            autoCapitalize='none'
+                                            autoCorrect={false}
+                                            keyboardType='url'
+                                        />
+                                    </View>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {/* 来源 URL（仅显示，不可编辑） */}
+                                {doc.sourceUrl ? (
+                                    <TouchableOpacity
+                                        onPress={() => Linking.openURL(doc.sourceUrl!)}
+                                        style={style.sourceUrlContainer}
+                                    >
+                                        <CompassIcon name='link-variant' size={16} color={theme.linkColor}/>
+                                        <Text style={style.sourceUrl} numberOfLines={2}>
+                                            {doc.sourceUrl}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ) : null}
+
+                                {/* 内容 */}
+                                <View style={style.contentContainer}>
+                                    {doc.content ? (
+                                        <Markdown
+                                            value={doc.content}
+                                            baseTextStyle={style.content}
+                                            location={Screens.APPS_CONVERSATIONS}
+                                            theme={theme}
+                                            disableAtMentions={true}
+                                        />
+                                    ) : doc.category === 'file' ? (
+                                        <TouchableOpacity
+                                            onPress={handleDownload}
+                                            style={style.downloadButton}
+                                        >
+                                            <CompassIcon name='file-download-outline' size={24} color={theme.buttonBg}/>
+                                            <Text style={style.downloadText}>
+                                                {intl.formatMessage({
+                                                    id: 'workbench.kb.download_file',
+                                                    defaultMessage: 'Download File',
+                                                })}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <Text style={style.emptyContent}>
+                                            {intl.formatMessage({
+                                                id: 'workbench.kb.no_content',
+                                                defaultMessage: '(No content)',
+                                            })}
+                                        </Text>
+                                    )}
+                                </View>
+                            </>
                         )}
 
-                        {/* 来源 URL */}
-                        {doc.sourceUrl ? (
-                            <TouchableOpacity
-                                onPress={() => Linking.openURL(doc.sourceUrl!)}
-                                style={style.sourceUrlContainer}
-                            >
-                                <CompassIcon name='link-variant' size={16} color={theme.linkColor}/>
-                                <Text style={style.sourceUrl} numberOfLines={2}>
-                                    {doc.sourceUrl}
-                                </Text>
-                            </TouchableOpacity>
-                        ) : null}
-
-                        {/* 内容 */}
-                        <View style={style.contentContainer}>
-                            {doc.content ? (
-                                <Markdown
-                                    value={doc.content}
-                                    baseTextStyle={style.content}
-                                    location={Screens.APPS_CONVERSATIONS}
-                                    theme={theme}
-                                    disableAtMentions={true}
-                                />
-                            ) : doc.category === 'file' ? (
+                        {/* 删除按钮（仅对非编辑类型显示） */}
+                        {!isEditable && (
+                            <View style={style.actionsContainer}>
                                 <TouchableOpacity
-                                    onPress={handleDownload}
-                                    style={style.downloadButton}
+                                    onPress={handleDelete}
+                                    style={style.deleteButton}
                                 >
-                                    <CompassIcon name='file-download-outline' size={24} color={theme.buttonBg}/>
-                                    <Text style={style.downloadText}>
+                                    <CompassIcon name='delete-outline' size={20} color={theme.errorTextColor}/>
+                                    <Text style={style.deleteButtonText}>
                                         {intl.formatMessage({
-                                            id: 'workbench.kb.download_file',
-                                            defaultMessage: 'Download File',
+                                            id: 'workbench.kb.delete',
+                                            defaultMessage: 'Delete',
                                         })}
                                     </Text>
                                 </TouchableOpacity>
-                            ) : (
-                                <Text style={style.emptyContent}>
-                                    {intl.formatMessage({
-                                        id: 'workbench.kb.no_content',
-                                        defaultMessage: '(No content)',
-                                    })}
-                                </Text>
-                            )}
-                        </View>
-
-                        {/* 操作按钮 */}
-                        <View style={style.actionsContainer}>
-                            <TouchableOpacity
-                                onPress={handleDelete}
-                                style={style.deleteButton}
-                            >
-                                <CompassIcon name='delete-outline' size={20} color={theme.errorTextColor}/>
-                                <Text style={style.deleteButtonText}>
-                                    {intl.formatMessage({
-                                        id: 'workbench.kb.delete',
-                                        defaultMessage: 'Delete',
-                                    })}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                            </View>
+                        )}
                     </>
                 ) : (
                     <Text style={style.emptyContent}>
@@ -380,6 +558,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         backgroundColor: theme.centerChannelBg,
     },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: theme.sidebarBg,
+    },
+    headerBtn: {
+        padding: 8,
+    },
+    headerTitle: {
+        ...typography('Heading', 200, 'SemiBold'),
+        color: theme.sidebarText,
+        flex: 1,
+    },
     backButton: {
         paddingHorizontal: 16,
         paddingVertical: 8,
@@ -390,6 +583,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     scrollContent: {
         padding: 16,
         paddingBottom: 40,
+    },
+    docTitle: {
+        ...typography('Heading', 300, 'Bold'),
+        color: theme.centerChannelColor,
+        marginBottom: 12,
+    },
+    metaContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 8,
     },
     loading: {
         flex: 1,
@@ -504,6 +708,39 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100, 'Regular'),
         color: theme.errorTextColor,
         marginLeft: 6,
+    },
+    inputContainer: {
+        marginBottom: 16,
+    },
+    label: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.72),
+        marginBottom: 6,
+    },
+    textInput: {
+        ...typography('Body', 200, 'Regular'),
+        color: theme.centerChannelColor,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 4,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+    },
+    textArea: {
+        minHeight: 200,
+        paddingTop: 10,
+    },
+    saveButtonText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.buttonColor,
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        backgroundColor: theme.buttonBg,
+        borderRadius: 4,
+    },
+    saveButtonTextDisabled: {
+        opacity: 0.5,
     },
 }));
 

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
+import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -44,6 +45,7 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     const [addType, setAddType] = useState<AddDocType>('text');
@@ -164,6 +166,25 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
 
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+            {/* Custom Header */}
+            <View style={style.header}>
+                <TouchableOpacity style={style.headerBtn} onPress={() => navigation.goBack()}>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
+                <Text style={style.headerTitle} numberOfLines={1}>
+                    {intl.formatMessage({id: 'workbench.kb.add_title', defaultMessage: 'Add Document'})}
+                </Text>
+                <TouchableOpacity
+                    style={style.headerButton}
+                    onPress={handleSave}
+                    disabled={!canSave() || loading}
+                >
+                    <Text style={[style.saveButtonText, !canSave() && style.saveButtonTextDisabled]}>
+                        {intl.formatMessage({id: 'workbench.kb.save', defaultMessage: 'Save'})}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
             {/* 类型选择 */}
             <View style={style.typeSelector}>
                 <TouchableOpacity
@@ -366,6 +387,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: theme.sidebarBg,
+    },
+    headerBtn: {
+        padding: 8,
+    },
+    headerTitle: {
+        ...typography('Heading', 200, 'SemiBold'),
+        color: theme.sidebarText,
+        flex: 1,
     },
     headerButton: {
         paddingHorizontal: 16,

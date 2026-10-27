@@ -11,7 +11,7 @@ export const showCloudDrivePickerModal = (
     teamId: string,
     onSend?: CloudDrivePickerOnSend,
 ) => {
-    const title = '';
+    const title = 'Cloud Drive';
     const closeButtonId = `close-${Screens.CLOUD_DRIVE_PICKER}`;
     showModalWithBackButton(
         Screens.CLOUD_DRIVE_PICKER,
