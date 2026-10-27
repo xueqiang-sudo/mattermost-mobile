@@ -245,8 +245,8 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
 
             debugLog('filePicker', `All ${normalizedFiles.length} files validated successfully`);
 
-            // 【关键修改】先dismiss modal，再调用onSend
-            // 这样可以避免onSend中的复杂操作对已卸载组件的影响
+            // 【关键修改】先dismiss modal，再在后台执行onSend
+            // 这样可以立刻关闭弹窗，给用户最好的UX体验
             debugLog('filePicker', 'Dismissing modal first (before onSend)');
             try {
                 await dismissModal({componentId});
@@ -256,17 +256,17 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
                 // 继续执行，不中断onSend
             }
 
-            debugLog('filePicker', 'Calling onSend callback');
-            try {
-                // Await the onSend callback to handle async operations properly
-                await onSend(normalizedFiles);
-                debugLog('filePicker', 'onSend callback completed successfully');
-            } catch (sendError) {
-                debugLog('filePicker', `onSend callback error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+            debugLog('filePicker', 'Executing onSend in background (fire and forget)');
+            // 不await onSend - 让它在后台执行，不阻塞UI
+            // 由于onUploadFiles中已经缓存了所有必需的refs，async操作是安全的
+            onSend(normalizedFiles).catch((sendError) => {
+                debugLog('filePicker', `Background onSend error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
                 debugLog('filePicker', `Error stack: ${sendError instanceof Error ? sendError.stack : 'N/A'}`);
-                // 不再显示Alert，因为modal已关闭
-            }
-            debugLog('filePicker', '=== handleSend COMPLETED ===');
+            });
+            debugLog('filePicker', 'onSend queued to background, handleSend completed');
+
+            // 立刻结束handleSend，Modal已关闭，用户能立刻继续操作
+            setSending(false);
         } catch (error) {
             debugLog('filePicker', `=== handleSend UNEXPECTED ERROR ===`);
             debugLog('filePicker', `Error: ${error instanceof Error ? error.message : String(error)}`);
