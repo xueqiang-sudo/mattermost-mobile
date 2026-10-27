@@ -8,7 +8,7 @@ import {Platform, StatusBar, type StatusBarStyle} from 'react-native';
 import FileViewer from 'react-native-file-viewer';
 import tinyColor from 'tinycolor2';
 
-import {getLocalFileInfo} from '@actions/local/file';
+import {getLocalFileInfo, updateLocalFilePath} from '@actions/local/file';
 import {buildFilePreviewUrl, buildFileUrl, downloadFile} from '@actions/remote/file';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -217,6 +217,12 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
                 await downloadTask.current;
                 setProgress(1);
+
+                // Cache the local path in database (like WeChat - persist downloaded file paths)
+                if (file.id && path) {
+                    updateLocalFilePath(serverUrl, file.id, path);
+                }
+
                 openDocument(file);
             }
         } catch (error) {

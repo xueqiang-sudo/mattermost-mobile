@@ -376,19 +376,12 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
                             {isSubmitting ? (
                                 <ActivityIndicator size="small" color={theme.buttonColor}/>
                             ) : (
-                                <>
-                                    <CompassIcon
-                                        name={type === 'text' ? 'content-save' : 'download'}
-                                        size={18}
-                                        color={theme.buttonColor}
-                                    />
-                                    <Text style={style.submitButtonText}>
-                                        {type === 'text'
-                                            ? intl.formatMessage({id: 'workbench.kb.save', defaultMessage: '保存'})
-                                            : intl.formatMessage({id: 'workbench.kb.import', defaultMessage: '导入'})
-                                        }
-                                    </Text>
-                                </>
+                                <Text style={style.submitButtonText}>
+                                    {type === 'text'
+                                        ? intl.formatMessage({id: 'workbench.kb.save', defaultMessage: '保存'})
+                                        : intl.formatMessage({id: 'workbench.kb.import', defaultMessage: '导入'})
+                                    }
+                                </Text>
                             )}
                         </TouchableOpacity>
                     </View>

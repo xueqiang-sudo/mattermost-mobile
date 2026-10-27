@@ -438,43 +438,61 @@ export async function uploadKBFile(
 ): Promise<{file_uuid: string; filename: string}> {
     debugLog('[uploadKBFile] Starting upload:', JSON.stringify({
         teamId,
-        fileUri,
         fileName,
         fileType,
+        hasFileUri: Boolean(fileUri),
     }));
 
     const client = NetworkManager.getClient(serverUrl);
-    const formData = new FormData();
-    formData.append('file', {
-        uri: fileUri,
-        name: fileName,
-        type: fileType,
-    } as any);
 
-    try {
-        const resp = await client.doFetch(
-            `${FACT_EXTRACTOR_BASE}/api/kb/upload?team_id=${encodeURIComponent(teamId)}`,
-            {method: 'post', body: formData},
-        );
+    // Use native upload (same as cloud drive) - handles URL-encoded paths and large files
+    const url = `${FACT_EXTRACTOR_BASE}/api/kb/upload?team_id=${encodeURIComponent(teamId)}`;
+    const options = {
+        method: 'POST',
+        multipart: {
+            data: {},
+        },
+        timeoutInterval: toMilliseconds({minutes: 3}),
+        headers: client.getRequestHeaders('POST'),
+    };
 
-        debugLog('[uploadKBFile] Upload response:', JSON.stringify({
-            ok: resp.ok,
-            hasFileUuid: Boolean(resp.file_uuid),
-            hasError: Boolean(resp.error),
-            error: resp.error,
-        }));
+    // Remove file:// prefix if present (apiClient.upload expects plain path)
+    const localPath = fileUri.replace('file://', '');
 
-        if (!resp.ok) {
-            throw new Error(resp.error || 'Upload failed');
-        }
-        if (!resp.file_uuid) {
-            throw new Error('上传成功但未返回文件ID');
-        }
-        return {file_uuid: resp.file_uuid, filename: resp.filename || fileName};
-    } catch (err) {
-        debugLog('[uploadKBFile] Error:', String(err));
-        throw err;
-    }
+    debugLog('[uploadKBFile] Using apiClient.upload with localPath:', localPath);
+
+    return new Promise<{file_uuid: string; filename: string}>((resolve, reject) => {
+        const promise = client.apiClient.upload(url, localPath, options);
+
+        promise.then((response: any) => {
+            debugLog('[uploadKBFile] Upload response:', JSON.stringify({
+                ok: response.ok,
+                status: response.status,
+                hasData: Boolean(response.data),
+            }));
+
+            if (!response.ok) {
+                const errorMsg = response.data?.message || response.error || 'Upload failed';
+                reject(new Error(errorMsg));
+                return;
+            }
+
+            const data = response.data || response;
+            if (!data.file_uuid) {
+                reject(new Error('上传成功但未返回文件ID'));
+                return;
+            }
+
+            resolve({file_uuid: data.file_uuid, filename: data.filename || fileName});
+        }).catch((error: any) => {
+            debugLog('[uploadKBFile] Upload error:', JSON.stringify({
+                message: error?.message,
+                status: error?.status,
+                data: error?.data,
+            }));
+            reject(new Error(error?.data?.message || error?.message || 'Upload failed'));
+        });
+    });
 }
 
 export async function createKBDocFile(
@@ -488,17 +506,17 @@ export async function createKBDocFile(
         teamId,
         fileName,
         fileType,
+        hasFileUri: Boolean(fileUri),
     }));
 
     try {
-        // Step 1: Upload file
-        debugLog('[createKBDocFile] Step 1: Uploading file...');
+        // Step 1: Upload file via multipart form (same as webapp)
+        debugLog('[createKBDocFile] Step 1: Uploading file via multipart...');
         const {file_uuid} = await uploadKBFile(serverUrl, teamId, fileUri, fileName, fileType);
         debugLog('[createKBDocFile] File uploaded, file_uuid:', file_uuid);
 
-        // Step 2: Create KB entry
-        // Explicitly set category to 'file' for proper filtering (matching webapp behavior)
-        debugLog('[createKBDocFile] Step 2: Creating KB entry...');
+        // Step 2: Create KB entry with fileId (same as webapp)
+        debugLog('[createKBDocFile] Step 2: Creating KB entry with fileId...');
         const result = await kbPost(serverUrl, '/api/kb/create', teamId, {
             fileId: file_uuid,
             fileName,

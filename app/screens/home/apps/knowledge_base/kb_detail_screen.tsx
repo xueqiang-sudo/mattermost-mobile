@@ -81,9 +81,16 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
         try {
             setLoading(true);
             setError(null);
-            debugLog('[KBDetail] Loading doc', JSON.stringify({docId, serverUrl}));
 
-            const result = await getKBDoc(serverUrl, docId);
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const teamId = await getCurrentTeamId(database);
+            if (!teamId) {
+                throw new Error('team_id missing');
+            }
+
+            debugLog('[KBDetail] Loading doc', JSON.stringify({docId, serverUrl, teamId}));
+
+            const result = await getKBDoc(serverUrl, teamId, docId);
 
             if (result?.error) {
                 throw new Error(result.error);
@@ -221,7 +228,12 @@ const KBDetailScreen = ({docId, docTitle, onDocUpdated}: Props) => {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await deleteKBDoc(serverUrl, doc.docId);
+                            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                            const teamId = await getCurrentTeamId(database);
+                            if (!teamId) {
+                                throw new Error('team_id missing');
+                            }
+                            await deleteKBDoc(serverUrl, teamId, doc.docId);
                             onDocUpdated?.();
                             popTopScreen();
                         } catch (err) {

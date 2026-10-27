@@ -305,17 +305,6 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => dismissModal({componentId})}
-                >
-                    <CompassIcon name='arrow-left' size={24} color='#333'/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'})}
-                </Text>
-            </View>
             <View style={styles.tabBar}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.key;

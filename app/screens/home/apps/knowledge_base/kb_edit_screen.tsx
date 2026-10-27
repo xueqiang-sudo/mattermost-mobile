@@ -16,6 +16,8 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -61,13 +63,21 @@ const KBEditScreen = ({doc, onDocUpdated}: Props) => {
 
         try {
             setLoading(true);
+
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const teamId = await getCurrentTeamId(database);
+            if (!teamId) {
+                throw new Error('team_id missing');
+            }
+
             debugLog('[KBEdit] Saving document', JSON.stringify({
                 docId: doc.docId,
+                teamId,
                 titleLength: title.trim().length,
                 contentLength: content.trim().length,
             }));
 
-            const result = await updateKBDoc(serverUrl, doc.docId, {
+            const result = await updateKBDoc(serverUrl, teamId, doc.docId, {
                 title: title.trim(),
                 content: content.trim(),
             });

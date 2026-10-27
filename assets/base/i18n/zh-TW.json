@@ -2764,6 +2764,13 @@
   "workbench.kb.filter_file": "檔案",
   "workbench.kb.filter_text": "文字",
   "workbench.kb.filter_url": "URL",
+  "workbench.kb.filter_ask": "提問",
+  "workbench.kb.ask_search": "搜尋",
+  "workbench.kb.save": "儲存",
+  "workbench.kb.import": "匯入",
+  "workbench.kb.cancel": "取消",
+  "workbench.kb.preview_unavailable": "該檔案暫時無法預覽，請稍後再試或下載查看。",
+  "workbench.kb.error_delete": "刪除文件失敗。",
   "workbench.kb.downloading_message": "正在下載檔案，請稍候。",
   "workbench.kb.preview_error": "無法開啟此檔案。",
 

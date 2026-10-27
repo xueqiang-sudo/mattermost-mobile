@@ -940,13 +940,64 @@ const KnowledgeBaseScreen = () => {
         try {
             // Upload each file sequentially
             for (const file of files) {
+                debugLog('[KB] Processing file for upload:', JSON.stringify({
+                    name: file.name,
+                    id: file.id,
+                    uri: file.uri,
+                    localPath: file.localPath,
+                    size: file.size,
+                    mime_type: file.mime_type,
+                }));
+
+                let fileUri = file.uri || file.localPath || '';
+
+                // If no local URI, download from server using file ID
+                if (!fileUri || fileUri.startsWith('http://') || fileUri.startsWith('https://')) {
+                    let downloadUrl = fileUri;
+                    if (!downloadUrl && file.id) {
+                        downloadUrl = `${serverUrl}/api/v4/files/${file.id}`;
+                    }
+
+                    if (!downloadUrl) {
+                        throw new Error(`No file URI or ID available for ${file.name}`);
+                    }
+
+                    debugLog('[KB] Downloading file for KB upload:', downloadUrl);
+                    const {downloadAsync, cacheDirectory} = await import('expo-file-system');
+                    const client = NetworkManager.getClient(serverUrl);
+                    const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
+                    const localUri = `${cacheDirectory}kb_upload_${Date.now()}_${(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                    const downloadResult = await downloadAsync(downloadUrl, localUri, {
+                        headers: authHeader ? {'Authorization': authHeader} : {},
+                    });
+                    if (downloadResult?.uri) {
+                        fileUri = downloadResult.uri;
+                        debugLog('[KB] File downloaded:', fileUri);
+                    } else {
+                        throw new Error(`Download failed for ${file.name}`);
+                    }
+                }
+
+                // Decode URI if it contains URL-encoded characters (like Chinese filenames)
+                // This is critical for files with non-ASCII names from device storage
+                if (fileUri.includes('%')) {
+                    try {
+                        const decodedUri = decodeURIComponent(fileUri);
+                        debugLog('[KB] Decoded URI:', decodedUri);
+                        fileUri = decodedUri;
+                    } catch (decodeErr) {
+                        debugLog('[KB] Failed to decode URI, using original:', String(decodeErr));
+                    }
+                }
+
                 await createKBDocFile(
                     serverUrl,
                     teamId,
-                    file.uri || '',
+                    fileUri,
                     file.name || 'unknown',
                     file.mime_type || 'application/octet-stream',
                 );
+                debugLog('[KB] File uploaded successfully:', file.name);
             }
             // Refresh document list after upload
             if (searchQuery.trim()) {
@@ -955,6 +1006,7 @@ const KnowledgeBaseScreen = () => {
                 loadDocuments();
             }
         } catch (err) {
+            debugLog('[KB] Upload error:', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.kb.error_upload', defaultMessage: 'Failed to upload file.'}),
@@ -984,6 +1036,29 @@ const KnowledgeBaseScreen = () => {
             setAddModalType('url');
         }
     }, [activeCategory, onUploadKBFiles, intl]);
+
+    // Configure navigation header
+    useEffect(() => {
+        navigation.setOptions({
+            headerShown: true,
+            headerStyle: {
+                backgroundColor: theme.sidebarBg,
+            },
+            headerTintColor: theme.sidebarText,
+            headerTitle: intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'}),
+            headerTitleStyle: {
+                color: theme.sidebarText,
+            },
+            headerRight: () => kbWrite ? (
+                <TouchableOpacity
+                    style={style.headerAction}
+                    onPress={openAddScreen}
+                >
+                    <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
+                </TouchableOpacity>
+            ) : null,
+        });
+    }, [navigation, theme, intl, kbWrite, openAddScreen, style]);
 
     // 删除文档 - 显示确认
     const handleDeleteDoc = useCallback((item: DisplayItem) => {
@@ -1232,15 +1307,7 @@ const KnowledgeBaseScreen = () => {
     if (!teamId && !error) {
         debugLog('[KB] Rendering loading state (no teamId)');
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.kb.title', defaultMessage: 'Knowledge Base'})}
-                    </Text>
-                </View>
+            <SafeAreaView edges={['bottom']} style={style.container}>
                 <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                 </View>
@@ -1252,15 +1319,7 @@ const KnowledgeBaseScreen = () => {
     if (!teamId && error) {
         debugLog('[KB] Rendering error state (no teamId):', String(error));
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.kb.title', defaultMessage: 'Knowledge Base'})}
-                    </Text>
-                </View>
+            <SafeAreaView edges={['bottom']} style={style.container}>
                 <View style={style.emptyContainer}>
                     <CompassIcon name='alert-circle-outline' size={48} color={theme.errorTextColor}/>
                     <Text style={style.emptyText}>{error}</Text>
@@ -1287,22 +1346,7 @@ const KnowledgeBaseScreen = () => {
     // ---- Main render ----
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'})}
-                </Text>
-                {kbWrite && (
-                    <TouchableOpacity style={style.headerAction} onPress={openAddScreen}>
-                        <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                )}
-            </View>
-
+        <SafeAreaView edges={['bottom']} style={style.container}>
             {/* Category chips */}
             {renderCategoryChips}
 
@@ -1331,7 +1375,9 @@ const KnowledgeBaseScreen = () => {
                                 {askLoading ? (
                                     <ActivityIndicator size='small' color={theme.buttonColor}/>
                                 ) : (
-                                    <CompassIcon name='robot' size={18} color={theme.buttonColor}/>
+                                    <Text style={{color: theme.buttonColor, ...typography('Body', 100, 'SemiBold')}}>
+                                        {intl.formatMessage({id: 'workbench.kb.ask_search', defaultMessage: '搜索'})}
+                                    </Text>
                                 )}
                             </TouchableOpacity>
                         </View>
@@ -1412,7 +1458,9 @@ const KnowledgeBaseScreen = () => {
                                 {askLoading ? (
                                     <ActivityIndicator size='small' color={theme.buttonColor}/>
                                 ) : (
-                                    <CompassIcon name='robot' size={18} color={theme.buttonColor}/>
+                                    <Text style={{color: theme.buttonColor, ...typography('Body', 100, 'SemiBold')}}>
+                                        {intl.formatMessage({id: 'workbench.kb.ask_search', defaultMessage: '搜索'})}
+                                    </Text>
                                 )}
                             </TouchableOpacity>
                         </View>
