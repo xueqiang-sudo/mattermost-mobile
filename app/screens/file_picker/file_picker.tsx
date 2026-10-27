@@ -6,9 +6,6 @@ import {useIntl} from 'react-intl';
 import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {useNavigation} from '@react-navigation/native';
-import {useTheme} from '@context/theme';
-import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
@@ -175,7 +172,6 @@ function getFileIcon(name: string): string {
 function FilePickerContent({componentId, onSend, channelId, title}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
-    const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const {getSelectedFiles, getSelectedCount, state, dispatch} = useFilePicker();
     const [activeTab, setActiveTab] = useState<TabKey>('chat');
@@ -330,7 +326,7 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
         <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
             {/* Custom Header with Back Button */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                <TouchableOpacity style={styles.backButton} onPress={() => dismissModal({componentId})}>
                     <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle} numberOfLines={1}>
