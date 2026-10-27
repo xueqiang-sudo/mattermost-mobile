@@ -69,31 +69,71 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
 
     // 选择文件 - 使用和云盘相同的文件选择器，支持群组文件、相册、手机文件
     const handlePickFile = useCallback(() => {
+        debugLog('[KBAdd] === handlePickFile START ===');
+
         const onFileSelected = (files: FileInfo[]) => {
-            if (files && files.length > 0) {
+            debugLog('[KBAdd] onFileSelected callback invoked');
+
+            if (!files || files.length === 0) {
+                debugLog('[KBAdd] No files selected');
+                return;
+            }
+
+            try {
                 const selected = files[0];
-                setFile(selected);
-                if (!title.trim()) {
-                    setTitle(selected.name);
-                }
-                debugLog('[KBAdd] File picked', JSON.stringify({
+                debugLog('[KBAdd] File selected:', JSON.stringify({
                     name: selected.name,
                     size: selected.size,
                     localPath: selected.localPath,
                     uri: selected.uri,
                     id: selected.id,
                 }));
+
+                // 缓存当前title以便安全使用
+                setFile(selected);
+                debugLog('[KBAdd] File state updated');
+
+                if (!title.trim()) {
+                    setTitle(selected.name);
+                    debugLog('[KBAdd] Title set to file name:', selected.name);
+                }
+
+                debugLog('[KBAdd] File pick completed successfully');
+            } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                debugLog('[KBAdd] ERROR in onFileSelected:', errorMsg);
+                debugLog('[KBAdd] Stack:', error instanceof Error ? error.stack : 'N/A');
+                Alert.alert(
+                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                    intl.formatMessage({
+                        id: 'workbench.kb.file_pick_error',
+                        defaultMessage: 'Failed to select file. Please try again.',
+                    }),
+                );
             }
         };
 
-        showModal(
-            Screens.FILE_PICKER,
-            intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
-            {
-                onSend: onFileSelected,
-                channelId: '',
-            },
-        );
+        try {
+            showModal(
+                Screens.FILE_PICKER,
+                intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
+                {
+                    onSend: onFileSelected,
+                    channelId: '',
+                },
+            );
+            debugLog('[KBAdd] File picker modal opened');
+        } catch (modalErr) {
+            const errorMsg = modalErr instanceof Error ? modalErr.message : String(modalErr);
+            debugLog('[KBAdd] ERROR opening modal:', errorMsg);
+            Alert.alert(
+                intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                intl.formatMessage({
+                    id: 'workbench.kb.modal_error',
+                    defaultMessage: 'Failed to open file picker. Please try again.',
+                }),
+            );
+        }
     }, [intl, title]);
 
     // 保存

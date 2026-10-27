@@ -929,11 +929,42 @@ const KnowledgeBaseScreen = () => {
 
     // Add document (Navigation mode)
     const onUploadKBFiles = useCallback(async (files: FileInfo[]) => {
-        if (!files || files.length === 0) return;
+        debugLog('[KB] === onUploadKBFiles START ===');
+
+        if (!files || files.length === 0) {
+            debugLog('[KB] No files to upload');
+            return;
+        }
+
+        // 【关键修复】缓存所有必需的值
+        const cachedServerUrl = serverUrl;
+        const cachedTeamId = teamId;
+        const cachedSearchQuery = searchQuery;
+        const cachedPerformSearch = performSearch;
+        const cachedLoadDocuments = loadDocuments;
+
+        debugLog('[KB] Cached refs:', JSON.stringify({
+            hasServerUrl: Boolean(cachedServerUrl),
+            hasTeamId: Boolean(cachedTeamId),
+            searchQuery: cachedSearchQuery.substring(0, 50),
+        }));
+
+        if (!cachedServerUrl || !cachedTeamId) {
+            debugLog('[KB] ERROR: Missing serverUrl or teamId');
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.kb.error_upload', defaultMessage: 'Failed to upload file.'}),
+            );
+            return;
+        }
 
         try {
+            debugLog('[KB] Starting upload of ${files.length} file(s)');
+
             // Upload each file sequentially
-            for (const file of files) {
+            for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
+                const file = files[fileIdx];
+                debugLog('[KB] === File ${fileIdx + 1}/${files.length} ===');
                 debugLog('[KB] Processing file for upload:', JSON.stringify({
                     name: file.name,
                     id: file.id,
@@ -949,7 +980,7 @@ const KnowledgeBaseScreen = () => {
                 if (!fileUri || fileUri.startsWith('http://') || fileUri.startsWith('https://')) {
                     let downloadUrl = fileUri;
                     if (!downloadUrl && file.id) {
-                        downloadUrl = `${serverUrl}/api/v4/files/${file.id}`;
+                        downloadUrl = `${cachedServerUrl}/api/v4/files/${file.id}`;
                     }
 
                     if (!downloadUrl) {
@@ -958,17 +989,24 @@ const KnowledgeBaseScreen = () => {
 
                     debugLog('[KB] Downloading file for KB upload:', downloadUrl);
                     const {downloadAsync, cacheDirectory} = await import('expo-file-system');
-                    const client = NetworkManager.getClient(serverUrl);
+                    const client = NetworkManager.getClient(cachedServerUrl);
                     const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
                     const localUri = `${cacheDirectory}kb_upload_${Date.now()}_${(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-                    const downloadResult = await downloadAsync(downloadUrl, localUri, {
-                        headers: authHeader ? {'Authorization': authHeader} : {},
-                    });
-                    if (downloadResult?.uri) {
-                        fileUri = downloadResult.uri;
-                        debugLog('[KB] File downloaded:', fileUri);
-                    } else {
-                        throw new Error(`Download failed for ${file.name}`);
+
+                    try {
+                        const downloadResult = await downloadAsync(downloadUrl, localUri, {
+                            headers: authHeader ? {'Authorization': authHeader} : {},
+                        });
+                        if (downloadResult?.uri) {
+                            fileUri = downloadResult.uri;
+                            debugLog('[KB] File downloaded:', fileUri);
+                        } else {
+                            throw new Error(`Download failed for ${file.name}`);
+                        }
+                    } catch (dlErr) {
+                        const dlErrorMsg = dlErr instanceof Error ? dlErr.message : String(dlErr);
+                        debugLog('[KB] ERROR downloading file:', dlErrorMsg);
+                        throw new Error(`Failed to download file: ${file.name}`);
                     }
                 }
 
@@ -980,27 +1018,52 @@ const KnowledgeBaseScreen = () => {
                         debugLog('[KB] Decoded URI:', decodedUri);
                         fileUri = decodedUri;
                     } catch (decodeErr) {
-                        debugLog('[KB] Failed to decode URI, using original:', String(decodeErr));
+                        const decodeErrorMsg = decodeErr instanceof Error ? decodeErr.message : String(decodeErr);
+                        debugLog('[KB] WARNING: Failed to decode URI, using original:', decodeErrorMsg);
                     }
                 }
 
-                await createKBDocFile(
-                    serverUrl,
-                    teamId,
-                    fileUri,
-                    file.name || 'unknown',
-                    file.mime_type || 'application/octet-stream',
-                );
-                debugLog('[KB] File uploaded successfully:', file.name);
+                try {
+                    await createKBDocFile(
+                        cachedServerUrl,
+                        cachedTeamId,
+                        fileUri,
+                        file.name || 'unknown',
+                        file.mime_type || 'application/octet-stream',
+                    );
+                    debugLog('[KB] File uploaded successfully:', file.name);
+                } catch (uploadErr) {
+                    const uploadErrorMsg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+                    debugLog('[KB] ERROR uploading file to KB:', uploadErrorMsg);
+                    throw uploadErr;
+                }
             }
-            // Refresh document list after upload
-            if (searchQuery.trim()) {
-                performSearch(searchQuery);
-            } else {
-                loadDocuments();
+
+            debugLog('[KB] All files uploaded, refreshing document list');
+
+            // Refresh document list after upload - use cached references
+            try {
+                if (cachedSearchQuery.trim()) {
+                    debugLog('[KB] Refreshing search results');
+                    cachedPerformSearch(cachedSearchQuery);
+                } else {
+                    debugLog('[KB] Loading all documents');
+                    cachedLoadDocuments();
+                }
+            } catch (refreshErr) {
+                const refreshErrorMsg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+                debugLog('[KB] WARNING: Failed to refresh documents:', refreshErrorMsg);
+                // Don't fail just because refresh failed
             }
+
+            debugLog('[KB] === onUploadKBFiles COMPLETED ===');
         } catch (err) {
-            debugLog('[KB] Upload error:', String(err));
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorStack = err instanceof Error ? err.stack : '';
+            debugLog('[KB] === onUploadKBFiles FAILED ===');
+            debugLog('[KB] Error message:', errorMsg);
+            debugLog('[KB] Error stack:', errorStack);
+
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.kb.error_upload', defaultMessage: 'Failed to upload file.'}),

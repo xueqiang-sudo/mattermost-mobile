@@ -188,39 +188,65 @@ export default function PhotoAlbumTab() {
             let fileUri = photoUri;
             let fileSize = 0;
             try {
+                // Validate that cacheDirectory is available
+                if (!cacheDirectory) {
+                    throw new Error('Cache directory not available');
+                }
+
                 // Create a unique filename for the cache directory
                 const cacheFileName = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
                 const cacheUri = cacheDirectory + cacheFileName;
 
-                debugLog('PhotoAlbumTab', `Copying photo to cache: ${photoUri} -> ${cacheUri}`);
+                debugLog('PhotoAlbumTab', `=== Starting photo copy ===`);
+                debugLog('PhotoAlbumTab', `From: ${photoUri}`);
+                debugLog('PhotoAlbumTab', `To: ${cacheUri}`);
+
+                // Check if source file exists
+                const sourceInfo = await getInfoAsync(photoUri);
+                if (!sourceInfo.exists) {
+                    throw new Error(`Source photo not found: ${photoUri}`);
+                }
+                debugLog('PhotoAlbumTab', `Source file exists, size: ${sourceInfo.size} bytes`);
 
                 await copyAsync({
                     from: photoUri,
                     to: cacheUri,
                 });
 
-                debugLog('PhotoAlbumTab', `Photo copied successfully to: ${cacheUri}`);
+                debugLog('PhotoAlbumTab', `Photo copied successfully`);
+
+                // Verify the copied file exists and is readable
+                const copiedInfo = await getInfoAsync(cacheUri, {size: true});
+                if (!copiedInfo.exists) {
+                    throw new Error(`Copied file verification failed: ${cacheUri}`);
+                }
+                debugLog('PhotoAlbumTab', `Copied file verified at: ${cacheUri}`);
 
                 // Use the cached file URI
                 fileUri = cacheUri;
 
                 // Get file size from the cached file
-                const fileInfo = await getInfoAsync(cacheUri, {size: true});
-                if ('size' in fileInfo) {
-                    fileSize = fileInfo.size || 0;
+                if ('size' in copiedInfo) {
+                    fileSize = copiedInfo.size || 0;
                 }
-                debugLog('PhotoAlbumTab', `Cached file size: ${fileSize}`);
+                debugLog('PhotoAlbumTab', `Final file size: ${fileSize} bytes`);
             } catch (error) {
-                debugLog('PhotoAlbumTab', `Error copying photo to cache: ${error instanceof Error ? error.message : String(error)}`);
-                // Fallback: try to get size from original URI
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                debugLog('PhotoAlbumTab', `ERROR copying photo to cache: ${errorMsg}`);
+                debugLog('PhotoAlbumTab', `Stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+                debugLog('PhotoAlbumTab', `Fallback: using original URI instead`);
+
+                // Fallback: use original URI but still try to get size
+                fileUri = photoUri;
                 try {
                     const fileInfo = await getInfoAsync(photoUri, {size: true});
-                    if ('size' in fileInfo) {
+                    if (fileInfo.exists && 'size' in fileInfo) {
                         fileSize = fileInfo.size || 0;
+                        debugLog('PhotoAlbumTab', `Using original file, size: ${fileSize} bytes`);
                     }
-                    debugLog('PhotoAlbumTab', `Original file size: ${fileSize}`);
                 } catch (sizeError) {
-                    debugLog('PhotoAlbumTab', `Error getting file size: ${sizeError instanceof Error ? sizeError.message : String(sizeError)}`);
+                    const sizeErrorMsg = sizeError instanceof Error ? sizeError.message : String(sizeError);
+                    debugLog('PhotoAlbumTab', `Error getting original file size: ${sizeErrorMsg}`);
                 }
             }
 

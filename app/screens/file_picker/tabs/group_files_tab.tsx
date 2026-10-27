@@ -349,17 +349,36 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
 
     const handleFilePress = useCallback((entry: FileEntry) => {
         const fileId = entry.file.id;
+        debugLog('filePicker', `=== GroupFilesTab: handleFilePress fileId=${fileId} ===`);
 
         if (isFileSelected(fileId)) {
+            debugLog('filePicker', `Removing file: ${fileId}`);
             dispatch({type: 'REMOVE_FILE', fileId});
         } else if (canSelectMore()) {
-            dispatch({
-                type: 'ADD_FILE',
-                file: {
-                    ...entry.file.toFileInfo(entry.post.userId),
-                    source: 'channel',
-                },
-            });
+            try {
+                debugLog('filePicker', `Adding file: ${fileId}`);
+                const fileInfo = entry.file.toFileInfo(entry.post.userId);
+                debugLog('filePicker', `FileInfo created:`, JSON.stringify({
+                    id: fileInfo.id,
+                    name: fileInfo.name,
+                    extension: fileInfo.extension,
+                }));
+
+                dispatch({
+                    type: 'ADD_FILE',
+                    file: {
+                        ...fileInfo,
+                        source: 'channel',
+                    },
+                });
+                debugLog('filePicker', `File added to selection successfully`);
+            } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                debugLog('filePicker', `ERROR adding file: ${errorMsg}`);
+                debugLog('filePicker', `Stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+            }
+        } else {
+            debugLog('filePicker', `Cannot select more files (already at max)`);
         }
     }, [dispatch, isFileSelected, canSelectMore]);
 

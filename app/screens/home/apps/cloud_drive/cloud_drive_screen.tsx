@@ -711,11 +711,43 @@ const CloudDriveScreen = () => {
 
     // ── Upload files ──
     const onUploadFiles = useCallback(async (files: FileInfo[]) => {
-        if (!files || files.length === 0) return;
+        debugLog('[Drive] === onUploadFiles START ===');
+
+        if (!files || files.length === 0) {
+            debugLog('[Drive] No files to upload');
+            return;
+        }
+
+        // 【关键修复】缓存所有必需的值，避免async操作期间state变化
+        const cachedServerUrl = serverUrl;
+        const cachedTeamId = teamId;
+        const cachedParentId = parentId;
+        const cachedScope = scope;
+        const cachedLoadFiles = loadFiles;
+
+        debugLog('[Drive] Cached refs:', JSON.stringify({
+            hasServerUrl: Boolean(cachedServerUrl),
+            hasTeamId: Boolean(cachedTeamId),
+            parentId: cachedParentId,
+            scope: cachedScope,
+        }));
+
+        if (!cachedServerUrl || !cachedTeamId) {
+            debugLog('[Drive] ERROR: Missing serverUrl or teamId');
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'workbench.drive.error_upload', defaultMessage: 'Failed to upload file.'}),
+            );
+            return;
+        }
 
         try {
+            debugLog('[Drive] Starting upload of ${files.length} file(s)');
+
             // Upload each file sequentially
-            for (const file of files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                debugLog('[Drive] === File ${i + 1}/${files.length} ===');
                 debugLog('[Drive] Uploading file:', JSON.stringify({
                     name: file.name,
                     uri: file.uri,
@@ -741,10 +773,10 @@ const CloudDriveScreen = () => {
                     debugLog('[Drive] File has no local URI, downloading first:', file.id);
                     try {
                         const NetworkManager = (await import('@managers/network_manager')).default;
-                        const client = NetworkManager.getClient(serverUrl);
+                        const client = NetworkManager.getClient(cachedServerUrl);
 
                         // Get file download URL
-                        const fileUrl = `${serverUrl}/api/v4/files/${file.id}`;
+                        const fileUrl = `${cachedServerUrl}/api/v4/files/${file.id}`;
                         const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
 
                         // Download file to temp location
@@ -765,7 +797,8 @@ const CloudDriveScreen = () => {
                             throw new Error('Download failed: no URI returned');
                         }
                     } catch (downloadErr) {
-                        debugLog('[Drive] Failed to download file:', String(downloadErr));
+                        const errorMsg = downloadErr instanceof Error ? downloadErr.message : String(downloadErr);
+                        debugLog('[Drive] ERROR downloading file:', errorMsg);
                         throw new Error(`Failed to download file: ${file.name}`);
                     }
                 }
@@ -783,28 +816,48 @@ const CloudDriveScreen = () => {
                         debugLog('[Drive] Decoded URI:', decodedUri);
                         fileUri = decodedUri;
                     } catch (decodeErr) {
-                        debugLog('[Drive] Failed to decode URI, using original:', String(decodeErr));
+                        const decodeErrorMsg = decodeErr instanceof Error ? decodeErr.message : String(decodeErr);
+                        debugLog('[Drive] Failed to decode URI, using original:', decodeErrorMsg);
                     }
                 }
 
-                await uploadDriveFile(
-                    serverUrl,
-                    teamId,
-                    parentId,
-                    scope,
-                    fileUri,
-                    fileName,
-                    fileMimeType,
-                );
-
-                debugLog('[Drive] File uploaded successfully:', fileName);
+                try {
+                    await uploadDriveFile(
+                        cachedServerUrl,
+                        cachedTeamId,
+                        cachedParentId,
+                        cachedScope,
+                        fileUri,
+                        fileName,
+                        fileMimeType,
+                    );
+                    debugLog('[Drive] File uploaded successfully:', fileName);
+                } catch (uploadErr) {
+                    const uploadErrorMsg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+                    debugLog('[Drive] ERROR uploading file:', uploadErrorMsg);
+                    throw uploadErr;
+                }
             }
 
-            debugLog('[Drive] All files uploaded, refreshing list');
-            // Refresh file list after upload
-            loadFiles();
+            debugLog('[Drive] All files uploaded successfully, refreshing list');
+
+            // Refresh file list after upload - use cached reference
+            try {
+                cachedLoadFiles();
+            } catch (refreshErr) {
+                const refreshErrorMsg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+                debugLog('[Drive] WARNING: Failed to refresh file list:', refreshErrorMsg);
+                // Don't fail the upload just because refresh failed
+            }
+
+            debugLog('[Drive] === onUploadFiles COMPLETED ===');
         } catch (err) {
-            debugLog('[Drive] Upload error:', String(err));
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorStack = err instanceof Error ? err.stack : '';
+            debugLog('[Drive] === onUploadFiles FAILED ===');
+            debugLog('[Drive] Error message:', errorMsg);
+            debugLog('[Drive] Error stack:', errorStack);
+
             Alert.alert(
                 intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.drive.error_upload', defaultMessage: 'Failed to upload file.'}),

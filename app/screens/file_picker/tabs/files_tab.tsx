@@ -76,38 +76,64 @@ export default function FilesTab() {
             debugLog('filePicker', `DocumentPicker returned ${result.length} files`);
 
             result.forEach((file, index) => {
-                debugLog('filePicker', `Processing file ${index + 1}:`);
-                debugLog('filePicker', `  Name: ${file.name}`);
-                debugLog('filePicker', `  URI: ${file.uri}`);
-                debugLog('filePicker', `  FileCopyUri: ${file.fileCopyUri}`);
-                debugLog('filePicker', `  Type: ${file.type}`);
-                debugLog('filePicker', `  Size: ${file.size}`);
+                debugLog('filePicker', `=== Processing file ${index + 1}/${result.length} ===`);
+                debugLog('filePicker', `Name: ${file.name}`);
+                debugLog('filePicker', `URI: ${file.uri}`);
+                debugLog('filePicker', `FileCopyUri: ${file.fileCopyUri}`);
+                debugLog('filePicker', `Type: ${file.type}`);
+                debugLog('filePicker', `Size: ${file.size}`);
 
                 if (canSelectMore()) {
                     // Use fileCopyUri if available (from copyTo option), otherwise use original uri
                     const fileUri = file.fileCopyUri || file.uri;
-                    debugLog('filePicker', `  Using URI: ${fileUri}`);
+
+                    // Validate file URI
+                    if (!fileUri) {
+                        debugLog('filePicker', `ERROR: No valid URI for file ${index + 1}`);
+                        return;
+                    }
+
+                    debugLog('filePicker', `Using URI: ${fileUri}`);
+
+                    // Validate file name
+                    const fileName = file.name || 'unknown';
+                    if (!fileName) {
+                        debugLog('filePicker', `WARNING: File name is empty for ${index + 1}`);
+                    }
 
                     const selectedFile: SelectedFile = {
                         id: fileUri,
                         clientId: fileUri,
-                        name: file.name || 'unknown',
+                        name: fileName,
                         uri: fileUri,
                         mime_type: file.type || 'application/octet-stream',
                         size: file.size || 0,
                         source: 'device',
-                        extension: getFileExtension(file.name || '') || '',
+                        extension: getFileExtension(fileName || '') || '',
                     };
 
-                    debugLog('filePicker', `  Dispatching ADD_FILE action`);
-                    dispatch({type: 'ADD_FILE', file: selectedFile});
-                    debugLog('filePicker', `  File added successfully`);
+                    debugLog('filePicker', `Creating SelectedFile:`, JSON.stringify({
+                        id: selectedFile.id,
+                        name: selectedFile.name,
+                        uri: selectedFile.uri,
+                        mime_type: selectedFile.mime_type,
+                        size: selectedFile.size,
+                        extension: selectedFile.extension,
+                    }));
+
+                    try {
+                        dispatch({type: 'ADD_FILE', file: selectedFile});
+                        debugLog('filePicker', `File added successfully`);
+                    } catch (dispatchError) {
+                        const errorMsg = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+                        debugLog('filePicker', `ERROR dispatching ADD_FILE: ${errorMsg}`);
+                    }
                 } else {
-                    debugLog('filePicker', `  Skipped: cannot select more files`);
+                    debugLog('filePicker', `Skipped: cannot select more files (index ${index})`);
                 }
             });
 
-            debugLog('filePicker', `All files processed successfully`);
+            debugLog('filePicker', `All ${result.length} files processed successfully`);
         } catch (error) {
             if (DocumentPicker.isCancel(error)) {
                 debugLog('filePicker', 'User cancelled file picker');

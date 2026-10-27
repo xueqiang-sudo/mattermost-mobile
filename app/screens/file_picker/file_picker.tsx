@@ -198,11 +198,12 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
 
         try {
             setSending(true);
-            debugLog('filePicker', 'handleSend started');
+            debugLog('filePicker', '=== handleSend STARTED ===');
             const files = Array.from(state.selectedFiles.values());
             debugLog('filePicker', `handleSend called with ${files.length} files`);
 
             if (files.length === 0) {
+                debugLog('filePicker', 'ERROR: no files selected');
                 Alert.alert(
                     intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                     intl.formatMessage({
@@ -224,10 +225,11 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
                     mime_type: file.mime_type,
                     size: file.size,
                     extension: file.extension,
+                    source: file.source,
                 }));
 
                 // Ensure all required fields are present
-                return {
+                const normalized = {
                     ...file,
                     id: file.id || file.clientId || `file_${index}_${Date.now()}`,
                     clientId: file.clientId || file.id || `client_${index}_${Date.now()}`,
@@ -237,7 +239,22 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
                     size: file.size || 0,
                     extension: file.extension || file.name?.split('.').pop() || '',
                 };
+                debugLog('filePicker', `Normalized file ${index + 1}: id=${normalized.id}, uri=${normalized.uri}`);
+                return normalized;
             });
+
+            debugLog('filePicker', `All ${normalizedFiles.length} files validated successfully`);
+
+            // 【关键修改】先dismiss modal，再调用onSend
+            // 这样可以避免onSend中的复杂操作对已卸载组件的影响
+            debugLog('filePicker', 'Dismissing modal first (before onSend)');
+            try {
+                await dismissModal({componentId});
+                debugLog('filePicker', 'Modal dismissed successfully');
+            } catch (dismissError) {
+                debugLog('filePicker', `Dismiss modal error: ${dismissError instanceof Error ? dismissError.message : String(dismissError)}`);
+                // 继续执行，不中断onSend
+            }
 
             debugLog('filePicker', 'Calling onSend callback');
             try {
@@ -247,27 +264,14 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
             } catch (sendError) {
                 debugLog('filePicker', `onSend callback error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
                 debugLog('filePicker', `Error stack: ${sendError instanceof Error ? sendError.stack : 'N/A'}`);
-                Alert.alert(
-                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
-                    intl.formatMessage({
-                        id: 'file_picker.send_error',
-                        defaultMessage: 'Failed to send files. Please try again.',
-                    }),
-                );
-                setSending(false);
-                return;
+                // 不再显示Alert，因为modal已关闭
             }
-
-            debugLog('filePicker', 'Dismissing modal');
-            try {
-                await dismissModal({componentId});
-                debugLog('filePicker', 'Modal dismissed successfully');
-            } catch (dismissError) {
-                debugLog('filePicker', `Dismiss modal error: ${dismissError instanceof Error ? dismissError.message : String(dismissError)}`);
-            }
+            debugLog('filePicker', '=== handleSend COMPLETED ===');
         } catch (error) {
-            debugLog('filePicker', `handleSend unexpected error: ${error instanceof Error ? error.message : String(error)}`);
-            debugLog('filePicker', `Error stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+            debugLog('filePicker', `=== handleSend UNEXPECTED ERROR ===`);
+            debugLog('filePicker', `Error: ${error instanceof Error ? error.message : String(error)}`);
+            debugLog('filePicker', `Stack: ${error instanceof Error ? error.stack : 'N/A'}`);
+
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
                 intl.formatMessage({

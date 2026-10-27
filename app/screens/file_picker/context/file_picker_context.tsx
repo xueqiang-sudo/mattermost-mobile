@@ -43,17 +43,30 @@ const initialState: SelectionState = {
 function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
     switch (action.type) {
         case 'ADD_FILE': {
-            debugLog('FilePickerContext', `ADD_FILE: ${action.file.name || 'unnamed'}`, JSON.stringify({
+            debugLog('FilePickerContext', `=== ADD_FILE START ===`);
+            debugLog('FilePickerContext', `File: ${action.file.name || 'unnamed'}`, JSON.stringify({
                 fileId: action.file.id,
                 clientId: action.file.clientId,
                 uri: action.file.uri,
+                source: action.file.source,
                 currentCount: state.selectedFiles.size,
                 maxSelection: state.maxSelection,
             }));
-            if (state.selectedFiles.size >= state.maxSelection) {
-                debugLog('FilePickerContext', 'ADD_FILE rejected: max selection reached');
+
+            // Validate required fields
+            if (!action.file.uri) {
+                debugLog('FilePickerContext', `ERROR: ADD_FILE rejected - missing uri`);
                 return state;
             }
+            if (!action.file.name) {
+                debugLog('FilePickerContext', `WARNING: ADD_FILE - file has no name`);
+            }
+
+            if (state.selectedFiles.size >= state.maxSelection) {
+                debugLog('FilePickerContext', `ERROR: ADD_FILE rejected - max selection reached (${state.selectedFiles.size}/${state.maxSelection})`);
+                return state;
+            }
+
             const newMap = new Map(state.selectedFiles);
             // Album photos are keyed by originalUri so isFileSelected(photoUri)
             // matches against the camera-roll URI the grid renders with. Other
@@ -62,14 +75,19 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
                 (action.file.source === 'album' && action.file.originalUri)
                     ? action.file.originalUri
                     : (action.file.id || action.file.clientId || String(Date.now()));
+
+            debugLog('FilePickerContext', `ADD_FILE using mapKey: ${mapKey}`);
+
             newMap.set(mapKey, action.file);
-            debugLog('FilePickerContext', `ADD_FILE success: new count = ${newMap.size}`, JSON.stringify({mapKey}));
+            debugLog('FilePickerContext', `ADD_FILE success: new count = ${newMap.size}/${state.maxSelection}`);
             return {...state, selectedFiles: newMap};
         }
         case 'REMOVE_FILE': {
-            debugLog('FilePickerContext', `REMOVE_FILE: ${action.fileId}`, JSON.stringify({
+            debugLog('FilePickerContext', `=== REMOVE_FILE ===`);
+            debugLog('FilePickerContext', `FileId: ${action.fileId}`, JSON.stringify({
                 currentCount: state.selectedFiles.size,
             }));
+
             const file = state.selectedFiles.get(action.fileId);
             const newMap = new Map(state.selectedFiles);
             newMap.delete(action.fileId);
@@ -77,21 +95,23 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
 
             // Clean up cached file if it was from album
             if (file?.source === 'album' && file.uri?.includes('cache')) {
+                debugLog('FilePickerContext', `Cleaning up cached album file: ${file.uri}`);
                 deleteAsync(file.uri).catch((err) => {
-                    debugLog('FilePickerContext', `Failed to delete cached file: ${err instanceof Error ? err.message : String(err)}`);
+                    debugLog('FilePickerContext', `WARNING: Failed to delete cached file: ${err instanceof Error ? err.message : String(err)}`);
                 });
             }
 
             return {...state, selectedFiles: newMap};
         }
         case 'CLEAR_SELECTION': {
-            debugLog('FilePickerContext', 'CLEAR_SELECTION');
+            debugLog('FilePickerContext', `=== CLEAR_SELECTION ===`);
 
             // Clean up all cached album files
             state.selectedFiles.forEach((file) => {
                 if (file.source === 'album' && file.uri?.includes('cache')) {
+                    debugLog('FilePickerContext', `Cleaning up cached album file: ${file.uri}`);
                     deleteAsync(file.uri).catch((err) => {
-                        debugLog('FilePickerContext', `Failed to delete cached file: ${err instanceof Error ? err.message : String(err)}`);
+                        debugLog('FilePickerContext', `WARNING: Failed to delete cached file: ${err instanceof Error ? err.message : String(err)}`);
                     });
                 }
             });
@@ -102,7 +122,7 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
             debugLog('FilePickerContext', `SET_MAX_SELECTION: ${action.max}`);
             return {...state, maxSelection: action.max};
         default:
-            debugLog('FilePickerContext', `Unknown action: ${action.type}`);
+            debugLog('FilePickerContext', `WARNING: Unknown action: ${action.type}`);
             return state;
     }
 }
