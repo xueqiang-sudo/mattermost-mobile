@@ -187,14 +187,34 @@ const WarehouseInoutScreen = () => {
         debugLog('WarehouseInout.sessionRecords', {scanType, scanDate, targetSession, count: sessionRecords.length});
         debugLog('WarehouseInout.sessionRecords detail', sessionRecords.map(r => ({codeSheetNo: r.codeSheetNo, boxNo: r.boxNo, isMasterSheet: r.isMasterSheet})));
 
-        const isDuplicate = sessionRecords.some((r) =>
-            r.codeSheetNo === parsed.codeSheetNo &&
-            r.boxNo === parsed.boxNo &&
-            r.isMasterSheet === parsed.isMasterSheet &&
-            // 额外检查：如果都是空 boxNo，需要检查 rawScan 是否相同（避免无法解析的二维码误匹配）
-            !(parsed.boxNo === '' && r.boxNo === '' && r.rawScan !== raw),
-        );
-        debugLog('WarehouseInout.isDuplicate', {isDuplicate, parsed});
+        // 当前扫描的信息
+        debugLog('WarehouseInout.currentScan', {
+            raw,
+            codeSheetNo: parsed.codeSheetNo,
+            boxNo: parsed.boxNo,
+            isMasterSheet: parsed.isMasterSheet,
+            netWeight: parsed.netWeight,
+        });
+
+        const isDuplicate = sessionRecords.some((r) => {
+            const match =
+                r.codeSheetNo === parsed.codeSheetNo &&
+                r.boxNo === parsed.boxNo &&
+                r.isMasterSheet === parsed.isMasterSheet &&
+                // 额外检查：如果都是空 boxNo，需要检查 rawScan 是否相同（避免无法解析的二维码误匹配）
+                !(parsed.boxNo === '' && r.boxNo === '' && r.rawScan !== raw);
+
+            if (match) {
+                debugLog('WarehouseInout.duplicateFound', {
+                    codeSheetNo: r.codeSheetNo,
+                    boxNo: r.boxNo,
+                    isMasterSheet: r.isMasterSheet,
+                    reason: '码单号、箱号、总码单标记都相同',
+                });
+            }
+            return match;
+        });
+        debugLog('WarehouseInout.isDuplicate', {isDuplicate, totalCheckCount: sessionRecords.length});
 
         if (isDuplicate) {
             // 重复扫描：振动反馈 + 红色警告提示
