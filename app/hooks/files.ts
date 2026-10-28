@@ -13,7 +13,6 @@ import {buildFilePreviewUrl, buildFileUrl, downloadFile} from '@actions/remote/f
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
-import {debugLog} from '@store/debug_log';
 import {alertDownloadFailed, alertFailedToOpenDocument, alertOnlyPDFSupported} from '@utils/document';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isGif, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
@@ -141,16 +140,13 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
     }, [theme, onDonePreviewingFile]);
 
     const downloadAndPreviewFile = useCallback(async (file: FileInfo) => {
-        debugLog('FILE', `[downloadAndPreviewFile] called: name=${file.name}, ext=${file.extension}, hasPdfPreview=${hasPdfPreview(file)}, pdf_preview_id=${file.pdf_preview_id}`);
         setDidCancel(false);
 
         // Office 文件有 PDF 预览版本时，下载并打开 PDF 版本
         if (hasPdfPreview(file) && file.pdf_preview_id) {
-            debugLog('FILE', `[downloadAndPreviewFile] Office file with PDF preview, downloading PDF: pdf_preview_id=${file.pdf_preview_id}`);
 
             const client = NetworkManager.getClient(serverUrl);
             const downloadUrl = client.getFileRoute(file.pdf_preview_id);
-            debugLog('FILE', `[downloadAndPreviewFile] downloadUrl=${downloadUrl}`);
 
             const pdfFileInfo: FileInfo = {
                 ...file,
@@ -165,21 +161,15 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
             try {
                 if (!pdfExists) {
-                    debugLog('FILE', `[downloadAndPreviewFile] PDF not cached, downloading: path=${pdfPath}`);
                     setDownloading(true);
                     downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
                     downloadTask.current?.progress?.(setProgress);
                     await downloadTask.current;
                     setProgress(1);
-                    debugLog('FILE', '[downloadAndPreviewFile] PDF download complete');
-                } else {
-                    debugLog('FILE', `[downloadAndPreviewFile] PDF already cached: path=${pdfPath}`);
                 }
 
-                debugLog('FILE', `[downloadAndPreviewFile] Opening PDF: id=${pdfFileInfo.id}, name=${pdfFileInfo.name}`);
                 openDocument(pdfFileInfo);
             } catch (error) {
-                debugLog('FILE', `[downloadAndPreviewFile] PDF download error: ${error instanceof Error ? error.message : String(error)}`);
                 if (pdfPath) {
                     deleteAsync(pdfPath, {idempotent: true});
                 }

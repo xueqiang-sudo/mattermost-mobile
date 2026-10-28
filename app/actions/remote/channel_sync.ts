@@ -10,7 +10,6 @@ import {fetchPosts, fetchPostsSince} from '@actions/remote/post';
 import {queryMyChannels} from '@queries/servers/channel';
 import {getPostsForChannel} from '@queries/servers/post';
 import DatabaseManager from '@database/manager';
-import {debugLog} from '@store/debug_log';
 import {logInfo} from '@utils/log';
 
 type SyncOptions = {
@@ -24,7 +23,6 @@ type SyncOptions = {
  * @param serverUrl 服务器地址
  */
 export async function startBackgroundSync(serverUrl: string): Promise<void> {
-    debugLog('BackgroundSync', `Starting background sync for ${serverUrl}`);
     logInfo('BackgroundSync: Starting background message sync');
 
     try {
@@ -34,11 +32,9 @@ export async function startBackgroundSync(serverUrl: string): Promise<void> {
         const myChannels = await queryMyChannels(database).fetch();
 
         if (!myChannels || myChannels.length === 0) {
-            debugLog('BackgroundSync', 'No channels found, skipping sync');
             return;
         }
 
-        debugLog('BackgroundSync', `Found ${myChannels.length} channels to sync`);
 
         // 按优先级分类
         const highPriorityChannels: string[] = [];
@@ -55,7 +51,6 @@ export async function startBackgroundSync(serverUrl: string): Promise<void> {
             }
         }
 
-        debugLog('BackgroundSync', `High priority: ${highPriorityChannels.length}, Normal: ${normalPriorityChannels.length}`);
 
         // 先同步高优先级频道（并发数 3）
         if (highPriorityChannels.length > 0) {
@@ -75,10 +70,8 @@ export async function startBackgroundSync(serverUrl: string): Promise<void> {
             });
         }
 
-        debugLog('BackgroundSync', 'Background sync completed successfully');
         logInfo('BackgroundSync: Background message sync completed');
     } catch (error) {
-        debugLog('BackgroundSync', `Background sync failed: ${error}`);
         logInfo(`BackgroundSync: Background sync failed: ${error}`);
         // 不抛出错误，避免影响用户体验
     }
@@ -94,13 +87,11 @@ async function syncChannelsBatch(
 ): Promise<void> {
     const {concurrent = 2, messagesPerChannel = 50, priority = 'low'} = options;
 
-    debugLog('BackgroundSync', `Syncing ${channelIds.length} channels with concurrency ${concurrent}`);
 
     // 分批并发，避免同时发太多请求
     for (let i = 0; i < channelIds.length; i += concurrent) {
         const batch = channelIds.slice(i, i + concurrent);
 
-        debugLog('BackgroundSync', `Processing batch ${Math.floor(i / concurrent) + 1}: ${batch.length} channels`);
 
         // 并发同步这一批频道
         const results = await Promise.allSettled(
@@ -111,7 +102,6 @@ async function syncChannelsBatch(
         const succeeded = results.filter(r => r.status === 'fulfilled').length;
         const failed = results.filter(r => r.status === 'rejected').length;
 
-        debugLog('BackgroundSync', `Batch completed: ${succeeded} succeeded, ${failed} failed`);
 
         // 如果是低优先级，批次之间等待一下，避免影响用户操作
         if (priority === 'low' && i + concurrent < channelIds.length) {
@@ -142,17 +132,13 @@ async function syncSingleChannel(
 
         if (since === 0) {
             // 首次同步：加载最近 N 条
-            debugLog('BackgroundSync', `Channel ${channelId}: First sync, loading ${messagesPerChannel} posts`);
             await fetchPosts(serverUrl, channelId, 0, messagesPerChannel, false);
         } else {
             // 增量同步：只加载 since 之后的新消息
-            debugLog('BackgroundSync', `Channel ${channelId}: Incremental sync since ${since}`);
             await fetchPostsSince(serverUrl, channelId, since, false);
         }
 
-        debugLog('BackgroundSync', `Channel ${channelId}: Sync completed`);
     } catch (error) {
-        debugLog('BackgroundSync', `Channel ${channelId}: Sync failed - ${error}`);
         // 不抛出错误，继续同步其他频道
     }
 }
@@ -161,6 +147,5 @@ async function syncSingleChannel(
  * 停止后台同步（可选，用于用户主动取消）
  */
 export function stopBackgroundSync(): void {
-    debugLog('BackgroundSync', 'Background sync stopped');
     // TODO: 如果需要取消正在进行的同步，可以在这里实现
 }

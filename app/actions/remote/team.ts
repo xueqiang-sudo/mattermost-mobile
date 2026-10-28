@@ -19,7 +19,6 @@ import {addTeamToTeamHistory, prepareDeleteTeam, prepareMyTeams, getNthLastChann
 import {getIsCRTEnabled} from '@queries/servers/thread';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
-import {debugLog} from '@store/debug_log';
 import {setTeamLoading} from '@store/team_load_store';
 import {getFullErrorMessage} from '@utils/errors';
 import {isTablet} from '@utils/helpers';
@@ -186,20 +185,16 @@ export async function fetchMyTeams(serverUrl: string, fetchOnly = false, groupLa
 
         // 新用户没有团队时，调用服务端 API 创建个人团队
         if (teams.length === 0 && !fetchOnly) {
-            debugLog('fetchMyTeams', 'No teams found, calling server API to create personal team');
             try {
                 // 调用服务端 API 创建个人团队（服务端会使用最新的用户昵称）
                 await client.createPersonalTeam();
-                debugLog('fetchMyTeams', 'Personal team created via server API');
 
                 // 重新获取团队和成员信息
                 [teams, memberships] = await Promise.all([
                     client.getMyTeams(groupLabel),
                     client.getMyTeamMembers(groupLabel),
                 ]);
-                debugLog('fetchMyTeams', `After re-fetch: teams=${teams.length}, memberships=${memberships.length}`);
             } catch (createError) {
-                debugLog('fetchMyTeams', `Failed to create personal team: ${getFullErrorMessage(createError)}`);
                 // 创建失败不阻塞，继续正常流程
             }
         }
@@ -254,11 +249,9 @@ export async function fetchTeamMembersForClassification(serverUrl: string, teamI
         // Fetch all team members (paginated, up to 500 per page)
         const members = await client.getTeamMembers(teamId, 0, 500);
         if (!members?.length) {
-            debugLog('teamMembers', `No team members returned for team ${teamId}`);
             return;
         }
 
-        debugLog('teamMembers', `Fetched ${members.length} members for team ${teamId} (max 500 per page)`);
 
         const records = await operator.handleTeamMemberships({
             teamMemberships: members,
@@ -267,7 +260,6 @@ export async function fetchTeamMembersForClassification(serverUrl: string, teamI
 
         if (records.length > 0) {
             await operator.batchRecords(records, 'fetchTeamMembersForClassification');
-            debugLog('teamMembers', `Stored ${records.length} team membership records`);
         }
     } catch (error) {
         logDebug('error on fetchTeamMembersForClassification', getFullErrorMessage(error));

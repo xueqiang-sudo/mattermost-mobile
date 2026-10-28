@@ -16,7 +16,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -57,7 +56,6 @@ const NoteAddScreen = () => {
 
         try {
             setLoading(true);
-            debugLog('[NoteAdd] Saving note', JSON.stringify({teamId, scope, serverUrl}));
 
             const result = await addNoteEntry(serverUrl, teamId, scope, content.trim());
 
@@ -65,7 +63,6 @@ const NoteAddScreen = () => {
                 throw result.error;
             }
 
-            debugLog('[NoteAdd] Note saved successfully');
 
             // 调用回调刷新列表
             onNoteAdded?.();
@@ -73,7 +70,6 @@ const NoteAddScreen = () => {
             // 返回上一页
             navigation.goBack();
         } catch (err) {
-            debugLog('[NoteAdd] Save failed', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.notebook.error', defaultMessage: 'Error'}),
                 String(err),

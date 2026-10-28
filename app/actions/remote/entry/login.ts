@@ -9,7 +9,6 @@ import IntuneManager from '@managers/intune_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import SecurityManager from '@managers/security_manager';
 import WebsocketManager from '@managers/websocket_manager';
-import {debugLog} from '@store/debug_log';
 
 type AfterLoginArgs = {
     serverUrl: string;
@@ -35,7 +34,6 @@ export async function loginEntry({serverUrl}: AfterLoginArgs): Promise<{error?: 
         if (clData.error) {
             return {error: clData.error};
         }
-        debugLog('loginEntry', `Config and license fetched - hasDiagnosticId: ${Boolean(clData.config?.DiagnosticId)}`);
 
         const credentials = await getServerCredentials(serverUrl);
         if (credentials?.token) {
@@ -45,9 +43,7 @@ export async function loginEntry({serverUrl}: AfterLoginArgs): Promise<{error?: 
             await WebsocketManager.initializeClient(serverUrl, 'Login');
 
             // 启动后台全量异步增量同步（不阻塞登录流程）
-            debugLog('loginEntry', 'Starting background message sync');
             startBackgroundSync(serverUrl).catch(err => {
-                debugLog('loginEntry', `Background sync failed: ${err}`);
                 // 不阻塞登录流程
             });
         }

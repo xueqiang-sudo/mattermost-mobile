@@ -26,7 +26,6 @@ import {useDefaultHeaderHeight} from '@hooks/header';
 import {useTeamSwitch} from '@hooks/team_switch';
 import SecurityManager from '@managers/security_manager';
 import {popTopScreen} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import EphemeralStore from '@store/ephemeral_store';
 import {getChatListBackdropColor} from '@utils/theme';
 

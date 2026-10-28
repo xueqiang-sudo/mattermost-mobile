@@ -10,7 +10,6 @@ import DatabaseManager from '@database/manager';
 import SecurityManager from '@managers/security_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {getServer, getServerByIdentifier} from '@queries/app/servers';
-import {debugLog} from '@store/debug_log';
 import {logError} from '@utils/log';
 import {canReceiveNotifications} from '@utils/push_proxy';
 import {alertServerAlreadyConnected, alertServerError, loginToServer} from '@utils/server';
@@ -69,7 +68,6 @@ export async function switchToServerAndLogin(serverUrl: string, theme: Theme, in
         return;
     }
 
-    debugLog('addServer', `Config and license fetched - hasDiagnosticId: ${Boolean(data.config?.DiagnosticId)}, diagnosticId: ${data.config?.DiagnosticId || 'EMPTY'}`);
 
     const existingServer = await getServerByIdentifier(data.config!.DiagnosticId);
     if (existingServer && existingServer.lastActiveAt > 0) {

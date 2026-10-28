@@ -8,7 +8,6 @@ import NetworkManager from '@managers/network_manager';
 import {getCurrentUserId} from '@queries/servers/system';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
-import {debugLog} from '@store/debug_log';
 
 export type ConfigAndLicenseRequest = {
     config?: ClientConfig;
@@ -98,7 +97,6 @@ export const fetchConfigAndLicense = async (
 
     for (let attempt = 1; attempt <= totalAttempts; attempt++) {
         try {
-            debugLog('fetchConfigAndLicense', `Attempt ${attempt}/${totalAttempts} for ${serverUrl}`);
 
             const client = NetworkManager.getClient(serverUrl);
 
@@ -111,19 +109,15 @@ export const fetchConfigAndLicense = async (
                 license = await client.getClientLicenseOld(groupLabel);
             } catch (licenseError) {
                 // License fetch failed - this is OK for non-enterprise servers
-                debugLog('fetchConfigAndLicense', `License fetch failed (this is OK for non-enterprise servers): ${getFullErrorMessage(licenseError)}`);
                 license = undefined;
             }
 
             // Check if DiagnosticId is present
             const hasDiagnosticId = Boolean(config?.DiagnosticId && config.DiagnosticId.trim() !== '');
-            debugLog('fetchConfigAndLicense', `Attempt ${attempt} result - hasConfig: ${Boolean(config)}, hasLicense: ${Boolean(license)}, hasDiagnosticId: ${hasDiagnosticId}, diagnosticId: ${config?.DiagnosticId || 'EMPTY'}`);
 
             // If DiagnosticId is empty and we have retries left, try again
             if (!hasDiagnosticId && attempt < totalAttempts) {
-                debugLog('fetchConfigAndLicense', `DiagnosticId is empty, will retry (attempt ${attempt}/${totalAttempts})`);
                 const delay = 1000 * attempt; // 1s, 2s, 3s...
-                debugLog('fetchConfigAndLicense', `Waiting ${delay}ms before retry`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
                 continue;
             }
@@ -132,24 +126,20 @@ export const fetchConfigAndLicense = async (
                 await storeConfigAndLicense(serverUrl, config, license);
             }
 
-            debugLog('fetchConfigAndLicense', `Success on attempt ${attempt} - diagnosticId: ${config?.DiagnosticId || 'EMPTY'}, usedRetries: ${attempt > 1}`);
 
             return {config, license};
         } catch (error) {
             lastError = error;
-            debugLog('fetchConfigAndLicense', `Attempt ${attempt}/${totalAttempts} failed: ${getFullErrorMessage(error)}`);
 
             // If we have retries left, wait and try again
             if (attempt < totalAttempts) {
                 const delay = 1000 * attempt;
-                debugLog('fetchConfigAndLicense', `Waiting ${delay}ms before retry`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }
         }
     }
 
     // All attempts failed
-    debugLog('fetchConfigAndLicense', `All ${totalAttempts} attempts failed - lastError: ${getFullErrorMessage(lastError)}`);
     forceLogoutIfNecessary(serverUrl, lastError);
     return {error: lastError};
 };

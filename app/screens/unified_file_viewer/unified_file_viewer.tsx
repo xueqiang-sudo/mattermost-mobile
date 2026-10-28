@@ -5,7 +5,7 @@ import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
 } from '@mattermost/secure-pdf-viewer';
-import {deleteAsync, getInfoAsync, readAsStringAsync, writeAsStringAsync} from 'expo-file-system';
+import {deleteAsync, getInfoAsync, writeAsStringAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
@@ -23,7 +23,6 @@ import TextViewer from '@screens/text_viewer/text_viewer';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAppleDocument, isAudio, isImage, isPdf, isTextFile, isVideo, pathWithPrefix} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {logError} from '@utils/log';
-import {debugLog} from '@store/debug_log';
 
 import ConvertingView from './converting_view';
 import ImagePreview from './image_preview';
@@ -105,18 +104,15 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const startPolling = useCallback(async () => {
         pollingCountRef.current = 0;
 
-        debugLog('[UnifiedFileViewer] Starting PDF conversion polling for fileId:', fileId);
 
         // Trigger conversion and check server response
         try {
             const client = NetworkManager.getClient(serverUrl);
             const result = await client.triggerPdfConversion(fileId);
 
-            debugLog('[UnifiedFileViewer] Trigger conversion result:', JSON.stringify(result));
 
             // If preview is already complete, use it immediately
             if (result.status === 'complete' && result.pdf_preview_id) {
-                debugLog('[UnifiedFileViewer] ✓ PDF already ready:', result.pdf_preview_id);
                 const updatedFileInfo = await client.getFileInfo(fileId);
                 if (updatedFileInfo.pdf_preview_id) {
                     // Save to database
@@ -126,9 +122,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             files: [{...updatedFileInfo, id: fileId}],
                             prepareRecordsOnly: false,
                         });
-                        debugLog('[UnifiedFileViewer] Saved pdf_preview_id to database');
                     } catch (dbError) {
-                        debugLog('Failed to save pdf_preview_id to database:', String(dbError));
                     }
 
                     // Update state and show PDF
@@ -142,16 +136,13 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
             // If status is 'converting' or 'queued', start polling
             if (result.status === 'converting' || result.status === 'queued') {
-                debugLog('[UnifiedFileViewer] Conversion in progress, starting poll');
             } else if (result.status === 'failed') {
                 // Conversion failed
-                debugLog('[UnifiedFileViewer] ✗ Conversion failed:', result.error);
                 setFileState('unsupported');
                 return;
             }
         } catch (error) {
             // Continue to polling even if trigger fails
-            debugLog('[UnifiedFileViewer] Trigger conversion error:', String(error));
         }
 
         // Use recursive setTimeout instead of setInterval for better async handling
@@ -176,15 +167,9 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 const conversionStatus = (updatedFileInfo as any)?.pdf_conversion_status;
                 const conversionError = (updatedFileInfo as any)?.pdf_conversion_error;
 
-                debugLog(`[UnifiedFileViewer] Poll #${pollingCountRef.current}:`, JSON.stringify({
-                    pdf_preview_id: updatedFileInfo?.pdf_preview_id || 'EMPTY',
-                    pdf_conversion_status: conversionStatus || 'unknown',
-                    pdf_conversion_error: conversionError || 'none',
-                }));
 
                 // Conversion complete
                 if (updatedFileInfo.pdf_preview_id) {
-                    debugLog('[UnifiedFileViewer] ✓ PDF ready:', updatedFileInfo.pdf_preview_id);
 
                     // Save to database
                     try {
@@ -193,9 +178,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             files: [{...updatedFileInfo, id: fileId}],
                             prepareRecordsOnly: false,
                         });
-                        debugLog('[UnifiedFileViewer] Saved pdf_preview_id to database');
                     } catch (dbError) {
-                        debugLog('Failed to save pdf_preview_id to database:', String(dbError));
                     }
 
                     // Update state and show PDF
@@ -208,14 +191,12 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
                 // Check if conversion failed
                 if (conversionStatus === 'failed') {
-                    debugLog('[UnifiedFileViewer] ✗ Conversion failed:', conversionError);
                     setFileState('unsupported');
                     return;
                 }
 
                 // Timeout
                 if (pollingCountRef.current >= MAX_POLLING_ATTEMPTS) {
-                    debugLog('[UnifiedFileViewer] Poll timeout after', MAX_POLLING_ATTEMPTS, 'attempts');
                     setFileState('unsupported');
                     return;
                 }
@@ -223,13 +204,11 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 // Continue polling (use setTimeout instead of setInterval)
                 pollingRef.current = setTimeout(doPoll, 2000);
             } catch (error) {
-                debugLog(`[UnifiedFileViewer] Poll #${pollingCountRef.current} error:`, String(error));
 
                 // Continue polling even on error, don't stop
                 if (pollingCountRef.current < MAX_POLLING_ATTEMPTS) {
                     pollingRef.current = setTimeout(doPoll, 2000);
                 } else {
-                    debugLog('[UnifiedFileViewer] Poll timeout after error');
                     setFileState('unsupported');
                 }
             }
@@ -324,7 +303,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     setProgress(1);
                 }
 
-            } else {
             }
 
             setFilePath(path!);
@@ -340,25 +318,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     // Delete empty file
                     await deleteAsync(pathWithoutPrefix, {idempotent: true});
                     throw new Error('Downloaded file is empty (0 bytes). Server may have returned an error.');
-                } else if (fileInfo.size < 100) {
-                }
-
-                // Read first 100 bytes to check if it's actually a PDF
-                if (fileInfo.exists && fileInfo.size > 0) {
-                    const firstBytes = await readAsStringAsync(pathWithoutPrefix, {
-                        encoding: 'base64',
-                        length: 100,
-                    });
-                    // PDF files start with "%PDF" (25 50 44 46 in hex)
-                    const isPdfHeader = firstBytes.startsWith('JVBER');
-
-                    if (!isPdfHeader) {
-                        // Read more content to see what it actually is
-                        const moreContent = await readAsStringAsync(pathWithoutPrefix, {
-                            encoding: 'utf8',
-                            length: 500,
-                        });
-                    }
                 }
             } catch (validationError) {
             }
@@ -382,7 +341,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 // For now, just store the path
             }
         } catch (error) {
-            debugLog('Error downloading file:', getFullErrorMessage(error));
             if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
                 Alert.alert(
                     intl.formatMessage({id: 'file_viewer.error', defaultMessage: 'Error'}),
@@ -395,19 +353,9 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, [serverUrl, theme, intl, handleClose]);
 
     const determineFileState = useCallback(async () => {
-        debugLog('[UnifiedFileViewer] determineFileState called', JSON.stringify({
-            fileId,
-            fileName: fileInfo.name,
-            extension: fileInfo.extension,
-            pdf_preview_id: fileInfo.pdf_preview_id,
-            has_preview_image: fileInfo.has_preview_image,
-            isOffice: isOfficeFile(fileInfo),
-            isViewable: isViewableFile(fileInfo),
-        }));
 
         // iOS: Apple documents use native QuickLook, no PDF conversion needed
         if (isAppleDocument(fileInfo)) {
-            debugLog('[UnifiedFileViewer] Apple document, using QuickLook');
             setFileState('viewable');
             downloadAndShowFile(fileInfo);
             return;
@@ -415,19 +363,13 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
         // Check if Office file - fetch latest info from server to check if PDF preview exists
         if (isOfficeFile(fileInfo)) {
-            debugLog('[UnifiedFileViewer] Office file detected, checking PDF preview');
             try {
                 const client = NetworkManager.getClient(serverUrl);
                 const updatedFileInfo = await client.getFileInfo(fileId);
 
-                debugLog('[UnifiedFileViewer] Server file info:', JSON.stringify({
-                    pdf_preview_id: updatedFileInfo.pdf_preview_id,
-                    has_preview_image: updatedFileInfo.has_preview_image,
-                }));
 
                 // If server has PDF preview, use it
                 if (updatedFileInfo.pdf_preview_id) {
-                    debugLog('[UnifiedFileViewer] PDF preview available, showing file');
                     // Save to database
                     try {
                         const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -436,7 +378,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             prepareRecordsOnly: false,
                         });
                     } catch (dbError) {
-                        debugLog('Failed to save pdf_preview_id to database:', String(dbError));
                     }
 
                     const newFileInfo = {...fileInfo, pdf_preview_id: updatedFileInfo.pdf_preview_id};
@@ -447,18 +388,15 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 }
             } catch (error) {
                 const errorMessage = String(error);
-                debugLog('[UnifiedFileViewer] Failed to get file info from server:', errorMessage);
 
                 // 如果是权限错误，直接显示错误，不尝试转换
                 if (errorMessage.includes('权限') || errorMessage.includes('permission')) {
-                    debugLog('[UnifiedFileViewer] Permission denied, cannot preview this file');
                     setFileState('unsupported');
                     return;
                 }
             }
 
             // No PDF preview yet, start conversion
-            debugLog('[UnifiedFileViewer] No PDF preview, starting conversion');
             setFileState('converting');
             startPolling();
             return;
@@ -466,14 +404,12 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
         // Check if file can be viewed
         if (isViewableFile(fileInfo)) {
-            debugLog('[UnifiedFileViewer] File is viewable, showing directly');
             setFileState('viewable');
             downloadAndShowFile(fileInfo);
             return;
         }
 
         // Unsupported file
-        debugLog('[UnifiedFileViewer] File is unsupported');
         setFileState('unsupported');
     }, [fileInfo, fileId, serverUrl, startPolling, downloadAndShowFile]);
 
@@ -497,7 +433,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             setProgress(1);
             setFilePath(path!);
         } catch (error) {
-            debugLog('Download error:', getFullErrorMessage(error));
         }
     }, [serverUrl, currentFileInfo]);
 
@@ -510,7 +445,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                         showOpenWithDialog: true,
                         showAppsSuggestions: true,
                     }).catch((error) => {
-                        debugLog('Open with error:', String(error));
                     });
                 }
             });
@@ -520,7 +454,6 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 showOpenWithDialog: true,
                 showAppsSuggestions: true,
             }).catch((error) => {
-                debugLog('Open with error:', String(error));
             });
         }
     }, [filePath, currentFileInfo, handleDownload]);

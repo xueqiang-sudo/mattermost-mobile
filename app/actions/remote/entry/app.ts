@@ -7,20 +7,15 @@ import DatabaseManager from '@database/manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {prepareCommonSystemValues} from '@queries/servers/system';
-import {debugLog} from '@store/debug_log';
 import {deleteV1Data} from '@utils/file';
 
 import {verifyPushProxy} from './common';
 
 export async function appEntry(serverUrl: string, since = 0) {
-    debugLog('appEntry', `started for ${serverUrl}, since=${since}`);
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
-        debugLog('appEntry', `ERROR: operator not found for ${serverUrl}`);
-        debugLog('appEntry', `available: ${Object.keys(DatabaseManager.serverDatabases).join(', ')}`);
         return {error: `${serverUrl} database not found`};
     }
-    debugLog('appEntry', 'operator found, initializing...');
 
     PerformanceMetricsManager.startTimeToInteraction();
 
@@ -36,12 +31,10 @@ export async function appEntry(serverUrl: string, since = 0) {
         await operator.batchRecords(removeLastUnreadChannelId, 'appEntry - removeLastUnreadChannelId');
     }
 
-    debugLog('appEntry', 'opening WebSocket connections...');
     WebsocketManager.openAll('Cold Start');
 
     verifyPushProxy(serverUrl);
 
-    debugLog('appEntry', 'completed successfully');
     return {};
 }
 

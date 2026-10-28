@@ -24,7 +24,6 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {useDownloadFileAndPreview} from '@hooks/files';
 import {getCurrentTeamId} from '@queries/servers/system';
-import {debugLog} from '@store/debug_log';
 import {isImage, isVideo, isAudio} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -96,7 +95,6 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
                 throw new Error('team_id missing');
             }
 
-            debugLog('[KBDetail] Loading doc', JSON.stringify({docId, serverUrl, teamId}));
 
             const result = await getKBDoc(serverUrl, teamId, docId);
 
@@ -111,9 +109,7 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
                 setEditContent(result.content || '');
                 setEditUrl(result.sourceUrl || '');
             }
-            debugLog('[KBDetail] Doc loaded', JSON.stringify({hasData: Boolean(result)}));
         } catch (err) {
-            debugLog('[KBDetail] Load failed', JSON.stringify({error: String(err)}));
             setError(String(err));
         } finally {
             setLoading(false);
@@ -250,12 +246,7 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
                     const NetworkManager = (await import('@managers/network_manager')).default;
                     const client = NetworkManager.getClient(serverUrl);
                     fullFileInfo = await client.getFileInfo(mmFileId);
-                    debugLog('[KBDetail] Got full file info', JSON.stringify({
-                        mm_file_id: mmFileId,
-                        pdf_preview_id: fullFileInfo.pdf_preview_id,
-                    }));
                 } catch (err) {
-                    debugLog('[KBDetail] getKBFileInfo failed', String(err));
                     // Show user-friendly error instead of silently continuing
                     Alert.alert(
                         intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
@@ -291,7 +282,6 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
                 downloadAndPreviewFile(fileInfo);
             }
         } catch (err) {
-            debugLog('[KBDetail] Download error:', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),

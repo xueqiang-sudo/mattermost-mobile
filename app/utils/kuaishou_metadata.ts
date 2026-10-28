@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {debugLog} from '@store/debug_log';
 
 export type KuaishouMetadata = {
     title: string;
@@ -18,7 +17,6 @@ export type KuaishouMetadata = {
  */
 export async function fetchKuaishouMetadata(url: string): Promise<KuaishouMetadata | null> {
     try {
-        debugLog('Kuaishou', `Fetching metadata for: ${url}`);
 
         const response = await fetch(url, {
             headers: {
@@ -28,7 +26,6 @@ export async function fetchKuaishouMetadata(url: string): Promise<KuaishouMetada
         });
 
         if (!response.ok) {
-            debugLog('Kuaishou', `HTTP error: ${response.status}`);
             return null;
         }
 
@@ -53,7 +50,6 @@ export async function fetchKuaishouMetadata(url: string): Promise<KuaishouMetada
         const description = descParts.join('\n');
 
         if (!title) {
-            debugLog('Kuaishou', 'Failed to extract title');
             return null;
         }
 
@@ -66,10 +62,8 @@ export async function fetchKuaishouMetadata(url: string): Promise<KuaishouMetada
             siteName: '快手',
         };
 
-        debugLog('Kuaishou', `Extracted metadata: ${JSON.stringify(metadata)}`);
         return metadata;
     } catch (error) {
-        debugLog('Kuaishou', `Error fetching metadata: ${error}`);
         return null;
     }
 }

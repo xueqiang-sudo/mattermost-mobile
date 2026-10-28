@@ -23,7 +23,6 @@ import {queryMyTeams} from '@queries/servers/team';
 import {resetToHome} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
-import {debugLog} from '@store/debug_log';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -249,7 +248,6 @@ const PhoneLoginForm = ({
             // 调用获取验证码 API
             logInfo('getVerificationCode sendAccountCode:', normalizedLoginId);
             const res = await sendAccountCode(serverUrl, normalizedLoginId);
-            debugLog('getVerificationCode response', JSON.stringify(res));
             // 安全地访问 test_code 字段
             const testCode = res && typeof res === 'object' && 'test_code' in res ? res.test_code : '';
             setVerificationCode(testCode || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
@@ -271,12 +269,6 @@ const PhoneLoginForm = ({
 
         } catch (loginError) {
             const errMsg = getFullErrorMessage(loginError);
-            debugLog('getVerificationCode error', JSON.stringify({
-                message: errMsg,
-                errorId: (loginError as ClientError)?.server_error_id,
-                type: typeof loginError,
-                isObject: loginError instanceof Object,
-            }));
             if ((loginError as ClientError).server_error_id === 'com.mattermost.sms-gateway' && (loginError as ClientError).message === 'Too many requests') {
                 setError(intl.formatMessage({
                     id: 'login.error_too_many_requests',
@@ -318,7 +310,6 @@ const PhoneLoginForm = ({
             if (cfgLicenseData.error) {
                 throw cfgLicenseData.error;
             }
-            debugLog('signInWithCode', `Config fetched - hasDiagnosticId: ${Boolean(cfgLicenseData.config?.DiagnosticId)}, diagnosticId: ${cfgLicenseData.config?.DiagnosticId || 'EMPTY'}`);
 
             // 3. 登录前先获取 username
             let isNeedTryReg = true;
@@ -368,28 +359,18 @@ const PhoneLoginForm = ({
                 }
 
                 // 如果用户输入了昵称，更新用户信息
-                debugLog('[Login] Updating user nickname:', inputNickname);
                 const updateResult = await apiClient.patchMe({nickname: inputNickname});
-                debugLog('[Login] patchMe result:', JSON.stringify(updateResult));
                 userNickname = updateResult.nickname || inputNickname;
 
                 // 同步更新 loginedUser 对象的昵称，确保后续创建团队时使用正确的昵称
                 if (loginedUser) {
                     loginedUser.nickname = userNickname;
-                    debugLog('[Login] Updated loginedUser nickname:', userNickname, 'user object:', JSON.stringify({
-                        id: loginedUser.id,
-                        username: loginedUser.username,
-                        nickname: loginedUser.nickname,
-                    }));
                 }
 
                 // 调用服务端 API 创建个人团队（使用最新的昵称）
                 try {
-                    debugLog('[Login] Creating personal team via server API');
                     await apiClient.createPersonalTeam();
-                    debugLog('[Login] Personal team created successfully');
                 } catch (teamErr) {
-                    debugLog('[Login] Failed to create personal team:', getFullErrorMessage(teamErr));
                     logError('[Login] Failed to create personal team', getFullErrorMessage(teamErr));
                     // 继续登录流程，团队创建失败不是致命错误
                 }
@@ -402,28 +383,17 @@ const PhoneLoginForm = ({
             }
 
             // 登录成功 — 处理邀请链接
-            debugLog('[Login] Checking pending invite info after login');
             const pendingInviteAfterLogin = EphemeralStore.getPendingInviteInfo();
-            debugLog('[Login] Pending invite info', JSON.stringify({
-                hasPendingInvite: Boolean(pendingInviteAfterLogin),
-                inviteId: pendingInviteAfterLogin?.inviteId || '',
-                invitedBy: pendingInviteAfterLogin?.invitedBy || '',
-                inviteType: pendingInviteAfterLogin?.inviteType || '',
-            }));
 
             if (pendingInviteAfterLogin?.inviteId || pendingInviteAfterLogin?.invitedBy) {
-                debugLog('[Login] Processing invite after login', JSON.stringify(pendingInviteAfterLogin));
                 try {
                     const client = await getAutoClient(serverUrl);
 
                     // Accept contact invitation if invited_by is present
                     if (pendingInviteAfterLogin.invitedBy) {
                         try {
-                            debugLog('[Login] Calling acceptInvitation API', JSON.stringify({invitedBy: pendingInviteAfterLogin.invitedBy}));
                             await client.acceptInvitation(pendingInviteAfterLogin.invitedBy);
-                            debugLog('[Login] Successfully accepted contact invitation', JSON.stringify({invitedBy: pendingInviteAfterLogin.invitedBy}));
                         } catch (acceptErr) {
-                            debugLog('[Login] Failed to accept contact invitation', getFullErrorMessage(acceptErr));
                             logError('[Login] Failed to accept contact invitation', getFullErrorMessage(acceptErr));
                         }
                     }
@@ -431,21 +401,15 @@ const PhoneLoginForm = ({
                     // Join team if invite_id is present
                     if (pendingInviteAfterLogin.inviteId) {
                         try {
-                            debugLog('[Login] Calling joinTeam API', JSON.stringify({inviteId: pendingInviteAfterLogin.inviteId, invitedBy: pendingInviteAfterLogin.invitedBy}));
                             await client.joinTeam(pendingInviteAfterLogin.inviteId, pendingInviteAfterLogin.invitedBy);
-                            debugLog('[Login] Successfully joined team via invite link', JSON.stringify({inviteId: pendingInviteAfterLogin.inviteId, invitedBy: pendingInviteAfterLogin.invitedBy}));
                         } catch (joinErr) {
-                            debugLog('[Login] Failed to join team via invite link', getFullErrorMessage(joinErr));
                             logError('[Login] Failed to join team via invite link', getFullErrorMessage(joinErr));
                         }
                     }
                 } catch (inviteErr) {
-                    debugLog('[Login] Failed to process invite', getFullErrorMessage(inviteErr));
                     logError('[Login] Failed to process invite', getFullErrorMessage(inviteErr));
                 }
                 EphemeralStore.clearPendingInviteInfo();
-            } else {
-                debugLog('[Login] No pending invite info found after login');
             }
 
             // Fallback: ensure teams & channels are loaded via REST API

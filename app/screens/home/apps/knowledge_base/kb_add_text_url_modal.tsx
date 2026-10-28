@@ -20,7 +20,6 @@ import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {debugLog} from '@store/debug_log';
 
 import {createKBDocText} from '../workbench_api';
 
@@ -191,11 +190,6 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
         setError(null);
 
         try {
-            debugLog(`[KBAddTextURLModal] Submitting text document:`, JSON.stringify({
-                teamId,
-                title: title.trim(),
-                hasContent: content.trim().length > 0,
-            }));
 
             await createKBDocText(
                 serverUrl,
@@ -203,7 +197,6 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
                 title.trim(),
                 content.trim(),
             );
-            debugLog('[KBAddTextURLModal] Text document created successfully');
 
             // Reset form
             setTitle('');
@@ -215,7 +208,6 @@ const KBAddTextURLModal: React.FC<KBAddTextURLModalProps> = ({
             onSuccess();
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-            debugLog('[KBAddTextURLModal] Error:', errorMsg);
             setError(errorMsg);
         } finally {
             setIsSubmitting(false);

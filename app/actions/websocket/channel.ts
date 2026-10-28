@@ -19,7 +19,6 @@ import DatabaseManager from '@database/manager';
 import {deleteChannelMembership, getChannelById, prepareMyChannelsForTeam, getCurrentChannel} from '@queries/servers/channel';
 import {getConfig, getCurrentChannelId, getCurrentTeamId, setCurrentTeamId} from '@queries/servers/system';
 import {getCurrentUser, getTeammateNameDisplay, getUserById} from '@queries/servers/user';
-import {debugLog} from '@store/debug_log';
 import EphemeralStore from '@store/ephemeral_store';
 import MyChannelModel from '@typings/database/models/servers/my_channel';
 import {logDebug} from '@utils/log';
@@ -30,10 +29,8 @@ import type {Model} from '@nozbe/watermelondb';
 export async function handleChannelCreatedEvent(serverUrl: string, msg: any) {
     const {team_id: teamId, channel_id: channelId} = msg.data;
 
-    debugLog('WS', `handleChannelCreatedEvent: channel_id=${channelId}, team_id=${teamId}`);
 
     if (EphemeralStore.creatingChannel) {
-        debugLog('WS', 'handleChannelCreatedEvent: skipping, we are creating this channel');
         return; // We probably don't need to handle this WS because we provoked it
     }
 
@@ -42,23 +39,14 @@ export async function handleChannelCreatedEvent(serverUrl: string, msg: any) {
 
         const channel = await getChannelById(database, channelId);
         if (channel) {
-            debugLog('WS', `handleChannelCreatedEvent: channel ${channelId} already exists`);
             return; // We already have this channel
         }
 
-        debugLog('WS', `handleChannelCreatedEvent: fetching channel ${channelId} for team ${teamId}`);
         const models: Model[] = [];
         const {channels, memberships} = await fetchMyChannel(serverUrl, teamId, channelId, true);
 
         if (channels && memberships && channels[0]) {
             const fetchedChannel = channels[0];
-            debugLog('WS', `handleChannelCreatedEvent: fetched channel details`, {
-                channelId: fetchedChannel.id,
-                displayName: fetchedChannel.display_name,
-                type: fetchedChannel.type,
-                teamId: fetchedChannel.team_id,
-                shared: fetchedChannel.shared,
-            });
 
             const prepare = await prepareMyChannelsForTeam(operator, teamId, channels, memberships);
             if (prepare.length) {
@@ -72,16 +60,10 @@ export async function handleChannelCreatedEvent(serverUrl: string, msg: any) {
                     models.push(...categoryModels.models);
                 }
             }
-
-            debugLog('WS', `handleChannelCreatedEvent: storing ${models.length} models for channel ${channelId}`);
-        } else {
-            debugLog('WS', `handleChannelCreatedEvent: fetchMyChannel returned null for ${channelId}`);
         }
 
         operator.batchRecords(models, 'handleChannelCreatedEvent');
-        debugLog('WS', `handleChannelCreatedEvent: completed for channel ${channelId}`);
     } catch (error) {
-        debugLog('WS', `handleChannelCreatedEvent failed: channel_id=${channelId} error=${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -240,7 +222,6 @@ export async function handleChannelMemberUpdatedEvent(serverUrl: string, msg: an
 }
 
 export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMessage) {
-    debugLog('WS', `handleDirectAddedEvent channel_id=${msg.broadcast?.channel_id}`);
 
     if (EphemeralStore.creatingDMorGMTeammates.length) {
         let userList: string[] | undefined;
@@ -256,7 +237,6 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
         if (userList?.length === EphemeralStore.creatingDMorGMTeammates.length) {
             const usersSet = new Set(userList);
             if (EphemeralStore.creatingDMorGMTeammates.every((v) => usersSet.has(v))) {
-                debugLog('WS', 'handleDirectAddedEvent: skipping, we are creating this channel');
                 return; // We are adding this channel
             }
         }
@@ -268,17 +248,14 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
         const {channel_id: channelId} = msg.broadcast;
         const channel = await getChannelById(database, channelId);
         if (channel) {
-            debugLog('WS', `handleDirectAddedEvent: channel ${channelId} already exists`);
             return; // We already have this channel
         }
         const {channels, memberships} = await fetchMyChannel(serverUrl, '', channelId, true);
         if (!channels || !memberships) {
-            debugLog('WS', `handleDirectAddedEvent: fetchMyChannel returned null for ${channelId}`);
             return;
         }
         const user = await getCurrentUser(database);
         if (!user) {
-            debugLog('WS', 'handleDirectAddedEvent: no current user');
             return;
         }
 
@@ -286,7 +263,6 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
 
         const {directChannels, users} = await fetchMissingDirectChannelsInfo(serverUrl, channels, user.locale, teammateDisplayNameSetting, user.id, true);
         if (!directChannels?.[0]) {
-            debugLog('WS', `handleDirectAddedEvent: fetchMissingDirectChannelsInfo returned null for ${channelId}`);
             return;
         }
 
@@ -305,10 +281,8 @@ export async function handleDirectAddedEvent(serverUrl: string, msg: WebSocketMe
             models.push(...userModels);
         }
 
-        debugLog('WS', `handleDirectAddedEvent: stored channel ${channelId} (${models.length} models)`);
         operator.batchRecords(models, 'handleDirectAddedEvent');
     } catch (error) {
-        debugLog('WS', `handleDirectAddedEvent failed: channel_id=${msg.broadcast?.channel_id} error=${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

@@ -12,7 +12,6 @@ import {General, Permissions, Preferences} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
 import EphemeralStore from '@store/ephemeral_store';
-import {debugLog} from '@store/debug_log';
 import {isDefaultChannel} from '@utils/channel';
 import {hasPermission} from '@utils/role';
 import {getUserIdFromChannelName, isSystemAdmin} from '@utils/user';
@@ -824,42 +823,17 @@ export function channelBelongsToTeamScopedConversations(
 ): boolean {
     const boundTeam = channel.teamId ?? '';
 
-    // 记录外部群组/共享频道的处理日志
-    const isExternalOrShared = channel.shared || (boundTeam !== '' && boundTeam !== teamId);
-    if (isExternalOrShared) {
-        debugLog('ChannelFilter', `Evaluating external/shared channel: ${channel.displayName || channel.name}`, {
-            channelId: channel.id,
-            channelType: channel.type,
-            channelTeamId: boundTeam,
-            currentTeamId: teamId,
-            isShared: channel.shared,
-            isCrossTeam: boundTeam !== '' && boundTeam !== teamId,
-        });
-    }
-
     if (boundTeam === teamId) {
-        if (isExternalOrShared) {
-            debugLog('ChannelFilter', `✓ Including channel (same team): ${channel.displayName || channel.name}`);
-        }
         return true;
     }
     if (channel.type === General.DM_CHANNEL && boundTeam === '') {
         const teammateId = getUserIdFromChannelName(currentUserId, channel.name);
         if (!teammateId || teammateId === currentUserId) {
-            if (isExternalOrShared) {
-                debugLog('ChannelFilter', `✗ Excluding DM channel (invalid teammate): ${channel.displayName || channel.name}`);
-            }
             return false;
-        }
-        if (isExternalOrShared) {
-            debugLog('ChannelFilter', `✓ Including DM channel: ${channel.displayName || channel.name}`);
         }
         return true;
     }
     if (channel.type === General.GM_CHANNEL && boundTeam === '') {
-        if (isExternalOrShared) {
-            debugLog('ChannelFilter', `✓ Including GM channel: ${channel.displayName || channel.name}`);
-        }
         return true;
     }
 
@@ -869,17 +843,9 @@ export function channelBelongsToTeamScopedConversations(
     if (channel.shared || (boundTeam !== '' && boundTeam !== teamId)) {
         // 对于跨团队频道，只要用户是成员就应该显示
         // 这里假设如果频道存在于 MyChannel 表中，用户就是成员
-        debugLog('ChannelFilter', `✓ Including external/shared channel: ${channel.displayName || channel.name}`, {
-            reason: channel.shared ? 'shared=true' : 'cross-team membership',
-            channelTeamId: boundTeam,
-            currentTeamId: teamId,
-        });
         return true;
     }
 
-    if (isExternalOrShared) {
-        debugLog('ChannelFilter', `✗ Excluding channel (filtered out): ${channel.displayName || channel.name}`);
-    }
     return false;
 }
 
@@ -1051,17 +1017,6 @@ export const observeRecentConversationsForTeam = (database: Database, teamId: st
                             emptyTeamUserIds,
                             emptyGmMembers,
                         );
-
-                        // 记录外部群组的过滤结果
-                        if (channel.shared || (channel.teamId && channel.teamId !== teamId)) {
-                            debugLog('ChannelFilter', `Channel ${channel.displayName || channel.name} team-scoped filter: ${belongs ? 'INCLUDED' : 'EXCLUDED'}`, {
-                                channelId: channel.id,
-                                channelType: channel.type,
-                                channelTeamId: channel.teamId,
-                                currentTeamId: teamId,
-                                isShared: channel.shared,
-                            });
-                        }
 
                         return belongs;
                     });

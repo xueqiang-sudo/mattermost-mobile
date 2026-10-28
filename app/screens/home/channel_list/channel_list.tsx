@@ -23,7 +23,6 @@ import WebsocketManager from '@managers/websocket_manager';
 import {queryMyTeams} from '@queries/servers/team';
 import DatabaseManager from '@database/manager';
 import {resetToDebug, openToS} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import NavigationStore from '@store/navigation_store';
 import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
@@ -158,12 +157,10 @@ const ChannelListScreen = (props: ChannelProps) => {
     const noTeamsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        debugLog('CHANNEL_LIST', `teamCount changed: ${teamCount}, teamsLoading=${teamsLoading}`);
 
         if (teamCount > 0 || teamsLoading) {
             // 团队已加载或正在加载，清除超时
             if (noTeamsTimeoutRef.current) {
-                debugLog('CHANNEL_LIST', `cleared no-teams timeout (teamCount=${teamCount}, loading=${teamsLoading})`);
                 clearTimeout(noTeamsTimeoutRef.current);
                 noTeamsTimeoutRef.current = null;
             }
@@ -172,14 +169,10 @@ const ChannelListScreen = (props: ChannelProps) => {
 
         // teamCount=0 且不在加载，启动较长超时等待 WebSocket 加载
         if (!noTeamsTimeoutRef.current) {
-            debugLog('CHANNEL_LIST', `teamCount=0, starting 15s timeout`);
             noTeamsTimeoutRef.current = setTimeout(() => {
                 noTeamsTimeoutRef.current = null;
                 if (!teamsLoadingRef.current) {
-                    debugLog('CHANNEL_LIST', `15s timeout fired, still no teams → debug screen`);
                     resetToDebug();
-                } else {
-                    debugLog('CHANNEL_LIST', `15s timeout fired but teamsLoading=true, skip redirect`);
                 }
             }, 15000);
         }

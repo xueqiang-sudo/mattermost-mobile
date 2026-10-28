@@ -28,7 +28,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
-import {debugLog} from '@store/debug_log';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
@@ -58,7 +57,6 @@ function formatDisplayBarcode(item: ScanRecord): string {
     const weightRounded = Math.round(weightValue);
     const weightStr = String(weightRounded).padStart(6, '0');
 
-    debugLog('formatDisplayBarcode', `netWeight=${item.netWeight}, weightValue=${weightValue}, weightRounded=${weightRounded}, weightStr=${weightStr}`);
 
     if (item.isMasterSheet) {
         // 总码单: 9 + 11位码单号 + 2位箱数 + 6位净重
@@ -133,8 +131,6 @@ const WarehouseInoutScreen = () => {
             if (initialScanResult) {
                 const parsed = parseQrCode(initialScanResult);
                 if (parsed) {
-                    debugLog('ScanRecord', `Parsed QR code: codeSheetNo=${parsed.codeSheetNo}, boxNo=${parsed.boxNo}, netWeight=${parsed.netWeight}, isMasterSheet=${parsed.isMasterSheet}`);
-                    debugLog('ScanRecord', `Raw scan data: ${initialScanResult}`);
 
                     const displayBarcode = formatDisplayBarcode({
                         codeSheetNo: parsed.codeSheetNo,
@@ -142,7 +138,6 @@ const WarehouseInoutScreen = () => {
                         netWeight: parsed.netWeight,
                         isMasterSheet: parsed.isMasterSheet,
                     } as ScanRecord);
-                    debugLog('ScanRecord', `Generated barcode: ${displayBarcode}`);
 
                     setCurrentBarcode(displayBarcode);
                     await addScanRecord({
@@ -191,15 +186,6 @@ const WarehouseInoutScreen = () => {
             return sum + 1;
         }, 0);
         const totalWeight = records.reduce((sum, r) => sum + (r.netWeight || 0), 0);
-        debugLog('STATS', `记录数: ${records.length}, 总重量: ${totalWeight} kg`);
-        records.forEach((r, i) => {
-            debugLog('STATS', `记录${i + 1}`, {
-                codeSheetNo: r.codeSheetNo,
-                boxNo: r.boxNo,
-                netWeight: r.netWeight,
-                isMasterSheet: r.isMasterSheet,
-            });
-        });
         return {totalBarcodes, totalBoxes, totalWeight: totalWeight.toFixed(2)};
     }, [records]);
 
@@ -207,18 +193,10 @@ const WarehouseInoutScreen = () => {
 
     // ── Scan handler ──
     const handleScanResult = useCallback(async (raw: string) => {
-        debugLog('SCAN', `原始扫描数据: ${raw}`);
         const parsed = parseQrCode(raw);
         if (!parsed) {
-            debugLog('SCAN', '解析失败');
             return;
         }
-        debugLog('SCAN', '解析结果', {
-            codeSheetNo: parsed.codeSheetNo,
-            boxNo: parsed.boxNo,
-            netWeight: parsed.netWeight,
-            isMasterSheet: parsed.isMasterSheet,
-        });
 
         const displayBarcode = formatDisplayBarcode({
             codeSheetNo: parsed.codeSheetNo,
@@ -226,7 +204,6 @@ const WarehouseInoutScreen = () => {
             netWeight: parsed.netWeight,
             isMasterSheet: parsed.isMasterSheet,
         } as ScanRecord);
-        debugLog('SCAN', `显示条码: ${displayBarcode}`);
         setCurrentBarcode(displayBarcode);
 
         await addScanRecord({
@@ -428,18 +405,6 @@ const WarehouseInoutScreen = () => {
             type: r.isMasterSheet ? 'C' : 'B',
         }));
 
-        debugLog('UPLOAD', `准备上传 ${items.length} 条记录到拣货单 ${selectedPickList}`);
-        pendingRecords.forEach((r, i) => {
-            debugLog('UPLOAD', `记录${i + 1}`, {
-                id: r.id,
-                codeSheetNo: r.codeSheetNo,
-                boxNo: r.boxNo,
-                netWeight: r.netWeight,
-                isMasterSheet: r.isMasterSheet,
-                status: r.status,
-            });
-        });
-
         let uploadSuccess = false;
         let uploadError = '';
 
@@ -447,7 +412,6 @@ const WarehouseInoutScreen = () => {
             pick_list: selectedPickList,
             items,
         };
-        debugLog('UPLOAD', 'Request body to send:', JSON.stringify(requestBody, null, 2));
 
         try {
             const client = NetworkManager.getClient(serverUrl);
@@ -459,7 +423,6 @@ const WarehouseInoutScreen = () => {
                 },
             );
 
-            debugLog('UPLOAD', '上传响应:', JSON.stringify(response));
 
             if (response?.error) {
                 throw new Error(response.error);
@@ -469,7 +432,6 @@ const WarehouseInoutScreen = () => {
             uploadSuccess = true;
         } catch (e) {
             uploadError = e instanceof Error ? e.message : String(e);
-            debugLog('UPLOAD', '上传失败:', String(uploadError));
             await updateScanRecordStatus(pendingIds, 'failed');
         }
 

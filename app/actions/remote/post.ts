@@ -24,7 +24,6 @@ import {getCurrentUserId} from '@queries/servers/system';
 import {getIsCRTEnabled, prepareThreadsFromReceivedPosts} from '@queries/servers/thread';
 import {queryAllUsers} from '@queries/servers/user';
 import EphemeralStore from '@store/ephemeral_store';
-import {debugLog} from '@store/debug_log';
 import {setFetchingThreadState} from '@store/fetching_thread_store';
 import {getValidEmojis, matchEmoticons} from '@utils/emoji/helpers';
 import {getFullErrorMessage, isServerError} from '@utils/errors';
@@ -263,10 +262,8 @@ export async function createBatchPendingPosts(
     error?: unknown;
 }> {
     try {
-        debugLog('POST', `createBatchPendingPosts: start, count=${postsWithFiles.length}`);
         const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
         if (!operator) {
-            debugLog('POST', `createBatchPendingPosts: ERROR - database not found`);
             return {error: `${serverUrl} database not found`};
         }
         const {database} = operator;
@@ -285,7 +282,6 @@ export async function createBatchPendingPosts(
             const {post, files} = postsWithFiles[i];
             const timestamp = baseTimestamp + i; // Ensure unique timestamps
             const pendingPostId = post.pending_post_id || `${currentUserId}:${timestamp}`;
-            debugLog('POST', `createBatchPendingPosts: processing post ${i + 1}/${postsWithFiles.length}, id=${pendingPostId}`);
 
         // Check for existing post
         const existing = await getPostById(database, pendingPostId);
@@ -355,14 +351,11 @@ export async function createBatchPendingPosts(
         }
 
         // Single batch write for ALL pending posts → triggers observe() only once
-        debugLog('POST', `createBatchPendingPosts: batch write, models=${allModels.length}`);
         await operator.batchRecords(allModels, 'createBatchPendingPosts');
 
-        debugLog('POST', `createBatchPendingPosts: success, results=${results.length}`);
         return {data: results};
     } catch (error) {
         console.error('[createBatchPendingPosts] error:', error);
-        debugLog('POST', `createBatchPendingPosts: ERROR - ${error}`);
         return {error};
     }
 }

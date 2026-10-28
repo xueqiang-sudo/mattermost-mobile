@@ -22,7 +22,6 @@ import Toast from '@components/toast';
 import {GALLERY_FOOTER_HEIGHT} from '@constants/gallery';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {debugLog} from '@store/debug_log';
 import {alertFailedToOpenDocument, alertOnlyPDFSupported} from '@utils/document';
 import {getFullErrorMessage} from '@utils/errors';
 import {fileExists, getLocalFilePathFromFile, hasPhotoLibraryWritePermission, isPdf, pathWithPrefix} from '@utils/file';
@@ -213,17 +212,6 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 const exists = await fileExists(path);
                 const fileInfo = exists ? await getInfoAsync(path) : null;
 
-                debugLog('SaveImage', JSON.stringify({
-                    stage: 'attempting',
-                    path: filePath,
-                    originalPath: path,
-                    fileExists: exists,
-                    fileSize: fileInfo?.size,
-                    type: cameraType,
-                    itemType: item.type,
-                    platform: Platform.OS,
-                    mimeType: item.mime_type,
-                }));
 
                 if (!exists || !fileInfo?.exists) {
                     throw new Error(`File does not exist at path: ${path}`);
@@ -241,11 +229,6 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 } catch (firstError) {
                     // On iOS, try without file:// prefix if first attempt fails
                     if (Platform.OS === 'ios') {
-                        debugLog('SaveImage', JSON.stringify({
-                            stage: 'retrying_without_prefix',
-                            path,
-                            firstError: getFullErrorMessage(firstError),
-                        }));
                         await CameraRoll.saveAsset(path, {
                             type: cameraType === 'image' ? 'photo' : 'video',
                         });
@@ -254,10 +237,6 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                     }
                 }
 
-                debugLog('SaveImage', JSON.stringify({
-                    stage: 'success',
-                    path: filePath,
-                }));
 
                 setSaved(true);
                 if (item.type !== 'avatar') {
@@ -266,13 +245,6 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
             } catch (e) {
                 const errorMsg = getFullErrorMessage(e);
                 const errorStack = e instanceof Error ? e.stack : undefined;
-                debugLog('SaveImage', JSON.stringify({
-                    stage: 'failed',
-                    error: errorMsg,
-                    stack: errorStack,
-                    path: filePath,
-                    platform: Platform.OS,
-                }));
 
                 // If permission error, try requesting permission again and retry once
                 if (errorMsg.toLowerCase().includes('permission') ||
@@ -408,10 +380,6 @@ const DownloadWithAction = ({action, enableSecureFilePreview, item, onDownloadSu
                 }
             }
         } catch (e) {
-            debugLog('SaveImage', JSON.stringify({
-                stage: 'startDownload_error',
-                error: getFullErrorMessage(e),
-            }));
             setShowToast(false);
         }
     };

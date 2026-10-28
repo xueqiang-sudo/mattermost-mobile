@@ -3,7 +3,6 @@
 
 import React from 'react';
 
-import {debugLog} from '@store/debug_log';
 import {isMessageAttachmentArray} from '@utils/message_attachment';
 import {isVideoPlatformLink, isYoutubeLink} from '@utils/url';
 
@@ -40,18 +39,6 @@ const contentType: Record<string, string> = {
 
 const Content = ({isReplyPost, layoutWidth, location, onLongPress, post, theme, showPermalinkPreviews}: ContentProps) => {
     let type: string | undefined = post.metadata?.embeds?.[0].type;
-
-    // Debug logging for Kuaishou video embeds
-    if (post.message?.includes('kuaishou.com')) {
-        debugLog('Kuaishou Debug', JSON.stringify({
-            postId: post.id,
-            message: post.message,
-            embedType: type,
-            embedUrl: post.metadata?.embeds?.[0]?.url,
-            embedData: post.metadata?.embeds?.[0]?.data,
-            hasEmbeds: Boolean(post.metadata?.embeds?.length),
-        }, null, 2));
-    }
 
     const nAppBindings = Array.isArray(post.props?.app_bindings) ? post.props.app_bindings.length : 0;
     if (!type && nAppBindings) {

@@ -13,7 +13,6 @@ import {
 } from 'react-native-reanimated';
 
 import {pagerTimingConfig} from '@screens/gallery/animation_config/timing';
-import {debugLog} from '@store/debug_log';
 
 import {LightboxProvider, type LightboxSharedValues} from './context';
 import Lightbox from './lightbox';

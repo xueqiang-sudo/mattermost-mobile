@@ -9,7 +9,6 @@ import {ExpoImage, ExpoImageBackground} from '@components/expo_image';
 import {Screens} from '@constants';
 import {useIsTablet} from '@hooks/device';
 import {showOverlay} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import {calculateDimensions, getViewPortWidth} from '@utils/images';
 import {fetchKuaishouMetadata, isKuaishouURL, type KuaishouMetadata} from '@utils/kuaishou_metadata';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -109,7 +108,6 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
 
             // If server data is incomplete, fetch from client
             if (!hasTitle || !hasDescription || !hasImages) {
-                debugLog('VideoLink', 'Server metadata incomplete, fetching from client');
                 fetchKuaishouMetadata(link).then((metadata) => {
                     if (metadata) {
                         setFallbackMetadata(metadata);
@@ -118,19 +116,6 @@ const VideoLink = ({isReplyPost, layoutWidth, metadata, theme}: VideoLinkProps) 
             }
         }
     }, [link, data]);
-
-    // Debug logging for Kuaishou video cards
-    if (link?.includes('kuaishou.com')) {
-        debugLog('VideoLink Debug', JSON.stringify({
-            link,
-            hasData: Boolean(data),
-            hasFallback: Boolean(fallbackMetadata),
-            dataKeys: data ? Object.keys(data) : [],
-            videoUrl: data?.['og:video:secure_url'] || data?.['og:video:url'] || data?.['og:video'] || data?.video,
-            thumbnail: data?.images?.[0]?.url,
-            title: data?.title || data?.['og:title'],
-        }, null, 2));
-    }
 
     const dimensions = calculateDimensions(
         MAX_IMAGE_HEIGHT,

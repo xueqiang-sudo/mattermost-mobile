@@ -19,7 +19,6 @@ import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {resetToDebug} from '@screens/navigation';
 
-import {debugLog} from '@store/debug_log';
 
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -228,15 +227,6 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 navigation.navigate(Screens.APPS_CLOUD_DRIVE);
                 break;
             case 'knowledge_base':
-                debugLog('[Apps] Navigating to knowledge base', JSON.stringify({
-                    is_admin: dashboardAccess?.is_admin,
-                    kb_write: dashboardAccess?.kb_write,
-                    kbWrite: Boolean(dashboardAccess?.kb_write),
-                    drive_write: dashboardAccess?.drive_write,
-                    contact_edit: dashboardAccess?.contact_edit,
-                    configurable: dashboardAccess?.configurable,
-                    full_dashboardAccess: dashboardAccess,
-                }));
                 navigation.navigate(Screens.APPS_KNOWLEDGE_BASE, {
                     kbWrite: Boolean(dashboardAccess?.kb_write),
                 });

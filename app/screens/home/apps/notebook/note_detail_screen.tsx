@@ -16,7 +16,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -54,7 +53,6 @@ const NoteDetailScreen = () => {
         try {
             setLoading(true);
             setError(null);
-            debugLog('[NoteDetail] Loading note', JSON.stringify({noteId, serverUrl}));
 
             const result = await getNoteEntry(serverUrl, teamId, noteId, scope);
 
@@ -63,9 +61,7 @@ const NoteDetailScreen = () => {
             }
 
             setNote(result.data || null);
-            debugLog('[NoteDetail] Note loaded', JSON.stringify({hasData: Boolean(result.data)}));
         } catch (err) {
-            debugLog('[NoteDetail] Load failed', String(err));
             setError(String(err));
         } finally {
             setLoading(false);

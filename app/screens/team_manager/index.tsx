@@ -19,7 +19,6 @@ import {dismissModal} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {debugLog} from '@store/debug_log';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -187,14 +186,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUserId, testIDPrefix = 'team_manager'}: Props) => {
-    debugLog('TeamManager', `Component rendering with props: componentId=${componentId}, companyId=${companyId}`);
 
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
-    debugLog('TeamManager', `serverUrl=${serverUrl || '(empty)'}, theme=${theme?.centerChannelBg ? 'loaded' : 'missing'}`);
 
     const [allMembers, setAllMembers] = useState<UserProfile[]>([]);
     const [membersLoading, setMembersLoading] = useState(false);
@@ -238,7 +235,6 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
 
     const loadAllMembers = useCallback(async () => {
         if (!serverUrl || !companyId) {
-            debugLog('TeamManager', `loadAllMembers: missing serverUrl=${serverUrl} or companyId=${companyId}`);
             setLoadError('Missing server URL or company ID');
             return;
         }
@@ -246,14 +242,11 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
         setLoadError(null);
         try {
             const client = NetworkManager.getClient(serverUrl);
-            debugLog('TeamManager', `Loading members for company: ${companyId}`);
             const [managersResult, members] = await Promise.all([
                 fetchTeamManagers(serverUrl, companyId),
                 client.getTeamMembers(companyId, 0, 500),
             ]);
 
-            debugLog('TeamManager', `Managers: error=${managersResult.error}, count=${managersResult.data?.length || 0}`);
-            debugLog('TeamManager', `Members count: ${members?.length || 0}`);
 
             const managerIds = new Set<string>();
             if (!managersResult.error && managersResult.data) {
@@ -270,12 +263,10 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
                 users = users.filter((u) => u.id !== excludeUserId);
             }
 
-            debugLog('TeamManager', `Loaded users: ${users.length}, managerIds: ${managerIds.size}`);
             setAllMembers(users);
             setSelectedManagerIds(managerIds);
             setInitialManagerIds(new Set(managerIds));
         } catch (err) {
-            debugLog('TeamManager', `Load error: ${err instanceof Error ? err.message : String(err)}`);
             setLoadError(err instanceof Error ? err.message : String(err));
             setAllMembers([]);
             setSelectedManagerIds(new Set());

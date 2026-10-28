@@ -16,7 +16,6 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {observeFilesForPost} from '@queries/servers/file';
 import {observePost, observePostAuthor} from '@queries/servers/post';
-import {debugLog} from '@store/debug_log';
 import {isAudio, isImage, isVideo} from '@utils/file';
 import {truncateFileName} from '@utils/file_name_truncate';
 import {showMediaViewer} from '@utils/gallery';
@@ -151,10 +150,8 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         });
     }, [channelId, files, location, quotedPostId, serverUrl, theme]);
 
-    debugLog('QUOTED_PREVIEW', `rendering: quotedPostId=${quotedPostId}, plain=${plain}, hasPost=${Boolean(post)}, hasAuthor=${Boolean(author)}`);
 
     if (!post) {
-        debugLog('QUOTED_PREVIEW', `no post found for quotedPostId=${quotedPostId}, returning null`);
         return null;
     }
 
@@ -187,7 +184,6 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         const fileIsVideo = firstFile && isVideo(firstFile);
         const rawFileName = firstFile?.name || 'File';
 
-        debugLog('QUOTED_PREVIEW', `file: name=${rawFileName}, id=${firstFile?.id}, localPath=${firstFile?.localPath}, isImage=${fileIsImage}, isVideo=${fileIsVideo}`);
 
         if (fileIsImage || fileIsVideo) {
             // Show thumbnail for images/videos
@@ -196,7 +192,6 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
             ) : undefined;
             const thumbnailUri = localUri || (firstFile.id ? buildFileThumbnailUrl(serverUrl, firstFile.id) : undefined);
 
-            debugLog('QUOTED_PREVIEW', `thumbnail: localUri=${localUri}, thumbnailUri=${thumbnailUri}`);
 
             if (thumbnailUri) {
                 return (
@@ -232,7 +227,6 @@ const QuotedPostPreview = ({author, channelId, files = [], isOwnPost, location, 
         );
     }, [files, serverUrl, style, theme, plain]);
 
-    debugLog('QUOTED_PREVIEW', `content: displayAuthor=${displayAuthor}, snippet=${snippet}, source=${source}, hasFiles=${files.length > 0}`);
 
     if (plain) {
         return (

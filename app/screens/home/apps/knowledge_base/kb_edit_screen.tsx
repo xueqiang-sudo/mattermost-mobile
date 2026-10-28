@@ -20,7 +20,6 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {popTopScreen} from '@screens/navigation';
-import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -72,12 +71,6 @@ const KBEditScreen = ({doc, onDocUpdated}: Props) => {
                 throw new Error('team_id missing');
             }
 
-            debugLog('[KBEdit] Saving document', JSON.stringify({
-                docId: doc.docId,
-                teamId,
-                titleLength: title.trim().length,
-                contentLength: content.trim().length,
-            }));
 
             const result = await updateKBDoc(serverUrl, teamId, doc.docId, {
                 title: title.trim(),
@@ -88,7 +81,6 @@ const KBEditScreen = ({doc, onDocUpdated}: Props) => {
                 throw new Error(result.error);
             }
 
-            debugLog('[KBEdit] Document saved successfully');
 
             // 调用回调刷新列表
             onDocUpdated?.();
@@ -96,7 +88,6 @@ const KBEditScreen = ({doc, onDocUpdated}: Props) => {
             // 返回上一页
             popTopScreen();
         } catch (err) {
-            debugLog('[KBEdit] Save failed', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 `${intl.formatMessage({

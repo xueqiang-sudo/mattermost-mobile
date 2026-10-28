@@ -10,7 +10,6 @@ import {fetchConfigAndLicense, fetchDataRetentionPolicy} from '@actions/remote/s
 import {fetchMyTeams, fetchTeamMembersForClassification, handleKickFromTeam, type MyTeamsRequest} from '@actions/remote/team';
 import {fetchMe, type MyUserRequest} from '@actions/remote/user';
 import {setTeamSyncInfo} from '@queries/servers/system';
-import {debugLog} from '@store/debug_log';
 import {General, Preferences, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import {PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
@@ -108,7 +107,6 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         }
 
         // let's start fetching in parallel all we can
-        debugLog('entry', `fetching teams and user data...`);
         const promises: [Promise<MyTeamsRequest>, Promise<MyUserRequest>] = [
             fetchMyTeams(serverUrl, true, groupLabel),
             fetchMe(serverUrl, true, groupLabel),
@@ -116,15 +114,12 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
 
         const [teamData, meData] = await Promise.all(promises);
 
-        debugLog('entry', `fetchMyTeams result: teams=${teamData.teams?.length || 0}, memberships=${teamData.memberships?.length || 0}, error=${teamData.error ? 'YES' : 'NO'}`);
-        debugLog('entry', `fetchMe result: user=${meData.user?.id || 'NONE'}, error=${meData.error ? 'YES' : 'NO'}`);
 
         // Only fail on critical errors (teams/me). Non-critical failures
         // (config/preferences) are logged but tolerated — aligned with webapp
         // loadMe() which silently ignores partial failures.
         const criticalError = teamData.error || meData.error;
         if (criticalError) {
-            debugLog('entry', `CRITICAL ERROR: ${criticalError instanceof Error ? criticalError.message : String(criticalError)}`);
             logError('entry: critical error during team/me fetch', teamData.error || meData.error);
             return {error: criticalError};
         }
@@ -163,7 +158,6 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         }
 
         if (!teamData.error && teamData.teams?.length === 0) {
-            debugLog('entry', `WARNING: teams array is EMPTY (no error but no teams returned)`);
             // 团队创建由服务端 autoRegisterUser 在注册时自动处理
             // 已注册但没有团队的用户需要在服务端管理后台手动创建团队
             initialTeamId = '';
@@ -171,12 +165,10 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
 
         const inTeam = teamData.teams?.find((t) => t.id === initialTeamId);
         if (initialTeamId && !inTeam && !teamData.error) {
-            debugLog('entry', `WARNING: initialTeamId=${initialTeamId} not found in teams list, resetting`);
             initialTeamId = '';
         }
 
         if (!initialTeamId && teamData.teams?.length && teamData.memberships?.length) {
-            debugLog('entry', `no initialTeamId, selecting default team from ${teamData.teams.length} teams`);
             // If no initial team was set in the database but got teams in the response
             const teamOrderPreference = getPreferenceValue<string>(prefData.preferences || [], Preferences.CATEGORIES.TEAMS_ORDER, '', '');
             const teamMembers = new Set(teamData.memberships.filter((m) => m.delete_at === 0).map((m) => m.team_id));
@@ -184,9 +176,6 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
             const defaultTeam = selectDefaultTeam(myTeams, meData.user?.locale || DEFAULT_LOCALE, teamOrderPreference, confResp.config?.ExperimentalPrimaryTeam);
             if (defaultTeam?.id) {
                 initialTeamId = defaultTeam.id;
-                debugLog('entry', `selected default team: ${defaultTeam.display_name || defaultTeam.name} (${defaultTeam.id})`);
-            } else {
-                debugLog('entry', `WARNING: selectDefaultTeam returned no team! myTeams=${myTeams.length}`);
             }
         }
 
@@ -203,12 +192,8 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
             const dmGm = allChannels.filter(c => c.type === 'D' || c.type === 'G');
             const teamChannels = allChannels.filter(c => c.team_id === initialTeamId);
             const crossTeamDmGm = allChannels.filter(c => (c.type === 'D' || c.type === 'G') && c.team_id === '');
-            debugLog('entryCommon', `fetchMyChannelsForTeam returned ${allChannels.length} channels total`);
-            debugLog('entryCommon', `  teamChannels: ${teamChannels.length}, DM/GM: ${dmGm.length}, crossTeamDM/GM: ${crossTeamDmGm.length}`);
-            debugLog('entryCommon', `  memberships: ${chData?.memberships?.length || 0}, categories: ${chData?.categories?.length || 0}`);
             if (dmGm.length > 0) {
                 const dmGmInfo = dmGm.map(c => `${c.id.substring(0, 8)}(type=${c.type},team='${c.team_id}',name='${c.display_name || c.name?.substring(0, 20)}')`).join(', ');
-                debugLog('entryCommon', `  DM/GM details: ${dmGmInfo}`);
             }
         }
 
