@@ -189,7 +189,9 @@ const WarehouseInoutScreen = () => {
         const isDuplicate = sessionRecords.some((r) =>
             r.codeSheetNo === parsed.codeSheetNo &&
             r.boxNo === parsed.boxNo &&
-            r.isMasterSheet === parsed.isMasterSheet,
+            r.isMasterSheet === parsed.isMasterSheet &&
+            // 额外检查：如果都是空 boxNo，需要检查 rawScan 是否相同（避免无法解析的二维码误匹配）
+            !(parsed.boxNo === '' && r.boxNo === '' && r.rawScan !== raw),
         );
         console.log('[DEBUG] isDuplicate:', {isDuplicate, parsed});
 
@@ -302,8 +304,9 @@ const WarehouseInoutScreen = () => {
             isMasterSheet: isMaster,
         } as ScanRecord);
 
-        // 检查本次 session 是否已扫描过相同的条形码
-        const isDuplicate = records.some((r) =>
+        // 检查本次 session 是否已扫描过相同的条形码（从数据库查，避免状态过期）
+        const sessionRecords = await getScanRecords({scanType, scanDate, scanSession});
+        const isDuplicate = sessionRecords.some((r) =>
             r.codeSheetNo === codeSheetNo &&
             r.boxNo === boxNo &&
             r.isMasterSheet === isMaster,
