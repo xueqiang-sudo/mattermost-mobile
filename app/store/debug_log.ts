@@ -36,10 +36,30 @@ async function initLogDir() {
             await makeDirectoryAsync(LOG_DIR, {intermediates: true});
         }
         fileLogReady = true;
+        // 把初始化完成前积攒的启动期日志补写一次。
+        flushToFile();
     } catch (e) {
         // eslint-disable-next-line no-console
         console.warn('debug_log: failed to init log dir', e);
     }
+}
+
+// 串行写入队列：所有写操作排成一条 Promise 链，杜绝并发（旧实现「先读整个文件
+// 再写」的并发会互相覆盖，导致崩溃前的日志大量丢失）。每条日志入队后立即触发写，
+// 内存里的 entries 即全量日志源，直接写它、不再 readAsStringAsync。
+let writeChain: Promise<void> = Promise.resolve();
+
+function flushToFile() {
+    if (!fileLogReady || !LOG_FILE) {
+        return;
+    }
+    // 用当前内存快照拼出全量内容（entries 已按 MAX_ENTRIES 截断）。
+    const snapshot = entries.map((e) => `[${e.time}] [${e.tag}] ${e.message}`).join('\n') + '\n';
+    writeChain = writeChain.
+        then(() => writeAsStringAsync(LOG_FILE, snapshot)).
+        catch(() => {
+            // 单次写失败不阻断后续写入
+        });
 }
 
 // 启动时初始化
@@ -56,21 +76,8 @@ export function debugLog(tag: string, message: string) {
     // eslint-disable-next-line no-console
     console.log(`[${time}] [${tag}] ${message}`);
 
-    // 写入文件（异步追加）
-    if (fileLogReady && LOG_FILE) {
-        const line = `[${time}] [${tag}] ${message}\n`;
-        readAsStringAsync(LOG_FILE).then((existing) => {
-            const maxFileSize = 100 * 1024; // 100KB 限制
-            let content = (existing || '') + line;
-            if (content.length > maxFileSize) {
-                // 保留后半部分
-                content = content.slice(content.length - maxFileSize);
-            }
-            writeAsStringAsync(LOG_FILE, content);
-        }).catch(() => {
-            writeAsStringAsync(LOG_FILE, line);
-        });
-    }
+    // 立即把当前全量日志排队写入文件（串行、不并发覆盖）。
+    flushToFile();
 }
 
 export function getDebugEntries(): DebugEntry[] {
@@ -80,7 +87,12 @@ export function getDebugEntries(): DebugEntry[] {
 export function clearDebugLog() {
     entries.length = 0;
     if (LOG_FILE) {
-        deleteAsync(LOG_FILE).catch(() => {});
+        // 排进同一条链，避免与排队中的写入竞态。
+        writeChain = writeChain.
+            then(() => deleteAsync(LOG_FILE, {idempotent: true})).
+            catch(() => {
+                // 删除失败忽略
+            });
     }
 }
 
