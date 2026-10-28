@@ -319,36 +319,47 @@ export default function DraftHandler(props: Props) {
 
                 // Phase 2: 每个文件一条 pending post（各自头像/时间戳），共享 batch_id。
                 // batch_order/batch_total 便于 UI 判断批次与排序。
-                debugLog('DRAFT', `addFiles: Phase 2 - create ${filesWithPostData.length} pending posts (one per file), batchId=${batchId}`);
+                // 【改进】顺序创建posts（不是批量创建），这样UI一个一个显示，对标微信体验
+                debugLog('DRAFT', `addFiles: Phase 2 - create ${filesWithPostData.length} pending posts sequentially, batchId=${batchId}`);
 
                 const batchTotal = filesWithPostData.length;
-                const postsToCreate = filesWithPostData.map(({localFile, isExistingServerFile}, orderIdx) => ({
-                    post: {
-                        pending_post_id: `${batchId}#${orderIdx}`,
-                        user_id: currentUserId,
-                        channel_id: channelId,
-                        root_id: rootId,
-                        message: '',
-                        file_ids: [localFile.id!],
-                        props: {
-                            upload_status: isExistingServerFile ? 'complete' : 'uploading',
-                            batch_id: batchId,
-                            batch_order: orderIdx,
-                            batch_total: batchTotal,
-                        },
-                    } as Post,
-                    files: [localFile],
-                }));
+                const batchData: Array<{
+                    pendingPostId: string;
+                    post: Post;
+                    files: FileInfo[];
+                }> = [];
 
-                const batchResult = await createBatchPendingPosts(serverUrl, postsToCreate);
+                // 顺序创建每条post（一个一个显示）
+                for (let orderIdx = 0; orderIdx < filesWithPostData.length; orderIdx++) {
+                    const {localFile, isExistingServerFile} = filesWithPostData[orderIdx];
+                    const postToCreate = {
+                        post: {
+                            pending_post_id: `${batchId}#${orderIdx}`,
+                            user_id: currentUserId,
+                            channel_id: channelId,
+                            root_id: rootId,
+                            message: '',
+                            file_ids: [localFile.id!],
+                            props: {
+                                upload_status: isExistingServerFile ? 'complete' : 'uploading',
+                                batch_id: batchId,
+                                batch_order: orderIdx,
+                                batch_total: batchTotal,
+                            },
+                        } as Post,
+                        files: [localFile],
+                    };
 
-                if (batchResult.error) {
-                    debugLog('DRAFT', `addFiles: Phase 2 ERROR - ${batchResult.error}`);
-                    throw batchResult.error;
+                    const singlePostResult = await createBatchPendingPosts(serverUrl, [postToCreate]);
+                    if (singlePostResult.error) {
+                        debugLog('DRAFT', `addFiles: Phase 2 ERROR (post ${orderIdx}) - ${singlePostResult.error}`);
+                        throw singlePostResult.error;
+                    }
+                    if (singlePostResult.data && singlePostResult.data.length > 0) {
+                        batchData.push(singlePostResult.data[0]);
+                        debugLog('DRAFT', `addFiles: Phase 2 - post ${orderIdx + 1}/${filesWithPostData.length} created`);
+                    }
                 }
-
-                const batchData = batchResult.data!;
-                debugLog('DRAFT', `addFiles: Phase 2 complete, created ${batchData.length} pending posts`);
 
                 // Phase 3: 为每条 pending post 各自调服务端 createPost。
                 // createdPostIds[i] 与 filesWithPostData[i] 一一对应，供后台上传阶段使用。
