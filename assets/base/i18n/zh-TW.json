@@ -180,7 +180,7 @@
   "browse_channels.showSharedChannels": "顯示：共享羣聊",
   "browse_channels.title": "瀏覽羣聊",
   "calls.join_call_avatars.bottom_sheet_title": "通話參與者",
-  "camera_type.photo.option": "拍攝照片",
+  "camera_type.photo.option": "拍攝",
   "camera_type.video.option": "錄製視頻",
   "center_panel.archived.closeChannel": "關閉羣聊",
   "channel.abac_policy_enforced.description": "只有匹配指定的訪問規則的用戶能被選中並添加到此羣聊。",

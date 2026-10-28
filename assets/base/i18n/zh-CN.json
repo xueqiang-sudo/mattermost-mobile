@@ -179,7 +179,7 @@
   "browse_channels.showSharedChannels": "显示：共享内部群",
   "browse_channels.title": "浏览内部群",
   "calls.join_call_avatars.bottom_sheet_title": "通话参与者",
-  "camera_type.photo.option": "拍摄照片",
+  "camera_type.photo.option": "拍摄",
   "camera_type.video.option": "录制视频",
   "center_panel.archived.closeChannel": "关闭内部群",
   "channel.abac_policy_enforced.description": "只有匹配指定的访问规则的用户能被选中并添加到此内部群。",
