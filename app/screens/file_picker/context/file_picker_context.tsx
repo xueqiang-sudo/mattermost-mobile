@@ -170,7 +170,7 @@ export function FilePickerProvider({children, maxSelection = 9}: FilePickerProvi
                 }
             });
         };
-    }, [state.selectedFiles]);
+    }, [state.selectedFiles, state.handedOff]);
 
     const isFileSelected = (fileId: string): boolean => {
         return state.selectedFiles.has(fileId);

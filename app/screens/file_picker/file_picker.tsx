@@ -222,8 +222,8 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
 
             debugLog('filePicker', `All ${normalizedFiles.length} files validated successfully`);
 
-            // 标记文件已交付上传：关闭弹窗卸载 Provider 时不要删相册缓存文件，
-            // 否则后台上传读不到文件导致发送失败。
+            // 标记文件已交付上传：所有来源（聊天/云盘/知识库）的 picker 都要保护相册缓存文件
+            // 这样关闭弹窗时不会删相册缓存文件，后台上传能正常读取。
             dispatch({type: 'MARK_HANDED_OFF'});
 
             // 【关键修改】先dismiss modal，再在后台执行onSend

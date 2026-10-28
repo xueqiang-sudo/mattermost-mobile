@@ -746,7 +746,7 @@ const CloudDriveScreen = () => {
             // Upload each file sequentially
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                debugLog('[Drive] === File ${i + 1}/${files.length} ===');
+                debugLog('[Drive] === File ${i + 1}/${supportedFiles.length} ===');
                 debugLog('[Drive] Uploading file:', JSON.stringify({
                     name: file.name,
                     uri: file.uri,
@@ -755,7 +755,37 @@ const CloudDriveScreen = () => {
                     id: file.id,
                 }));
 
-                // Use localPath (for channel files already downloaded) or uri (for newly selected files)
+                // For server files (from channel tab), download them first
+                if ((file as any).source === 'channel' && file.id && !file.uri) {
+                    debugLog('[Drive] File from channel tab, downloading first');
+                    try {
+                        const NetworkManager = (await import('@managers/network_manager')).default;
+                        const {downloadAsync, cacheDirectory} = await import('expo-file-system');
+                        const client = NetworkManager.getClient(cachedServerUrl);
+
+                        const fileUrl = `${cachedServerUrl}/api/v4/files/${file.id}`;
+                        const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
+                        const localUri = `${cacheDirectory}drive_${Date.now()}_${(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+
+                        debugLog('[Drive] Downloading from channel:', fileUrl);
+                        const downloadResult = await downloadAsync(fileUrl, localUri, {
+                            headers: authHeader ? {'Authorization': authHeader} : {},
+                        });
+
+                        if (downloadResult?.uri) {
+                            file.uri = downloadResult.uri;
+                            debugLog('[Drive] File downloaded:', file.uri);
+                        } else {
+                            throw new Error('Download did not return URI');
+                        }
+                    } catch (downloadErr) {
+                        const downloadErrorMsg = downloadErr instanceof Error ? downloadErr.message : String(downloadErr);
+                        debugLog('[Drive] Error downloading file from channel:', downloadErrorMsg);
+                        throw new Error(`Failed to download file from channel: ${file.name}`);
+                    }
+                }
+
+                // Use localPath or uri (for newly selected album/device files or downloaded channel files)
                 let fileUri = file.localPath || file.uri || '';
                 let fileName = file.name || 'unknown';
                 let fileMimeType = file.mime_type || 'application/octet-stream';

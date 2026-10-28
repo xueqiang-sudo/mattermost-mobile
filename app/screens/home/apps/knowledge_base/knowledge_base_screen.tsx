@@ -964,7 +964,7 @@ const KnowledgeBaseScreen = () => {
             // Upload each file sequentially
             for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
                 const file = files[fileIdx];
-                debugLog('[KB] === File ${fileIdx + 1}/${files.length} ===');
+                debugLog('[KB] === File ${fileIdx + 1}/${supportedFiles.length} ===');
                 debugLog('[KB] Processing file for upload:', JSON.stringify({
                     name: file.name,
                     id: file.id,
