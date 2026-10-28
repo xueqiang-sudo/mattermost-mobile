@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderTopWidth: 1,
         borderTopColor: '#F0F0F0',
+        backgroundColor: '#fff',
     },
     keepOriginalCheckbox: {
         width: 20,
@@ -481,18 +482,19 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                     </TouchableOpacity>
                 </View>
 
+                {/* 原图复选框 - 始终显示 */}
+                <KeepOriginalToggle/>
+
+                {/* 展开的文件列表 */}
                 {expanded && selectedCount > 0 && (
-                    <>
-                        <FlatList
-                            data={selectedFilesList}
-                            renderItem={renderFileItem}
-                            keyExtractor={(item) => item.id || item.clientId || String(Math.random())}
-                            style={styles.fileList}
-                            contentContainerStyle={selectedFilesList.length === 0 ? styles.fileListEmpty : undefined}
-                            showsVerticalScrollIndicator={false}
-                        />
-                        <KeepOriginalToggle/>
-                    </>
+                    <FlatList
+                        data={selectedFilesList}
+                        renderItem={renderFileItem}
+                        keyExtractor={(item) => item.id || item.clientId || String(Math.random())}
+                        style={styles.fileList}
+                        contentContainerStyle={selectedFilesList.length === 0 ? styles.fileListEmpty : undefined}
+                        showsVerticalScrollIndicator={false}
+                    />
                 )}
             </View>
         </SafeAreaView>
