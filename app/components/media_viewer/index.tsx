@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
-import {cacheDirectory} from 'expo-file-system';
+import {documentDirectory} from 'expo-file-system';
 import {Image} from 'expo-image';
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
@@ -134,10 +134,10 @@ const MediaViewerScreen = ({componentId, uri, type, name, serverUrl: serverUrlPr
                 }
                 const fileId = fileIdMatch[1];
 
-                // Download the file first to proper cache directory
+                // Download the file first to persistent document directory（与 getLocalFilePathFromFile 一致）
                 console.log('[MediaViewer] Downloading remote file:', fileId);
                 const server = urlSafeBase64Encode(serverUrl);
-                const cacheDir = `${cacheDirectory}${server}/Files`;
+                const cacheDir = `${documentDirectory}${server}/Files`;
                 const destination = `${cacheDir}/${fileId}`;
                 const response = await downloadFile(serverUrl, fileId, destination);
                 if (!response.data?.path) {
@@ -188,10 +188,10 @@ const MediaViewerScreen = ({componentId, uri, type, name, serverUrl: serverUrlPr
                 }
                 const fileId = fileIdMatch[1];
 
-                // Download the file first to proper cache directory
+                // Download the file first to persistent document directory（与 getLocalFilePathFromFile 一致）
                 console.log('[MediaViewer] Downloading remote file for share:', fileId);
                 const server = urlSafeBase64Encode(serverUrl);
-                const cacheDir = `${cacheDirectory}${server}/Files`;
+                const cacheDir = `${documentDirectory}${server}/Files`;
                 const destination = `${cacheDir}/${fileId}`;
                 const response = await downloadFile(serverUrl, fileId, destination);
                 if (!response.data?.path) {

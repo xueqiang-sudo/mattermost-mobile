@@ -1,16 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {View, TouchableWithoutFeedback, StyleSheet, Animated as RNAnimated, type GestureResponderEvent} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
-import {useServerUrl} from '@context/server';
 import {useGalleryItem} from '@hooks/gallery';
 import {useDownloadFileAndPreview} from '@hooks/files';
-import fileTransferManager from '@managers/file_transfer_manager';
 import {debugLog} from '@store/debug_log';
 import {hasPdfPreview, isAppleDocument, isAudio, isDocument, isImage, isPdf, isTextFile, isVideo} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -122,19 +120,16 @@ const File = ({
 }: FileProps) => {
     const document = useRef<DocumentRef>(null);
     const theme = useTheme();
-    const serverUrl = useServerUrl();
     const style = getStyleSheet(theme);
     const [showActionDialog, setShowActionDialog] = useState(false);
     const pressOpacity = useRef(new RNAnimated.Value(0)).current;
     const longPressTriggered = useRef(false);
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
-    // 自动下载：文件进入视口时触发下载
-    useEffect(() => {
-        if (inViewPort && file.id && !file.localPath) {
-            fileTransferManager.startDownload(serverUrl, file);
-        }
-    }, [inViewPort, file.id, file.localPath, serverUrl, file]);
+    // 微信式「点开才下载」：不在进入视口时自动下载完整文件。
+    // 文档类点开走 downloadAndPreviewFile（本地无则下载），图片/视频点开走 gallery
+    // viewer 按需取；列表缩略图由 ImageFile 用 mini_preview / 服务器缩略图 URL 显示，
+    // 不依赖本地完整文件。省流量、省存储，与微信行为一致。
 
     const handlePressIn = useCallback(() => {
         RNAnimated.timing(pressOpacity, {

@@ -134,6 +134,67 @@ export async function copyDriveFileToChannel(serverUrl: string, teamId: string, 
 import {debugLog} from '@store/debug_log';
 import {toMilliseconds} from '@utils/datetime';
 
+// 服务端（drive.go uploadDriveFile / KB upload）从 multipart part 的 filename 取文件名，
+// 而 apiClient.upload 用本地路径的 basename 作为该 filename。若 basename ≠ 期望文件名
+// （如 channel 文件复用缓存时 basename 是 "原名-fileId.ext"，或下载临时文件带前缀），
+// 上传后云盘/知识库显示的名字就会不对。这里在上传前把文件复制到一个 basename=目标
+// 文件名的唯一临时目录，保证服务端拿到正确文件名。不依赖 apiClient.upload 的可选字段。
+async function ensureUploadBasename(fileUri: string, fileName: string): Promise<string> {
+    try {
+        const safeName = fileName.replace(/[/\\]/g, '');
+        if (!safeName) {
+            return fileUri;
+        }
+        const withScheme = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+        const currentBase = decodeURIComponent(withScheme.split('/').pop() || '');
+        if (currentBase === safeName) {
+            return fileUri; // basename 已正确，无需复制
+        }
+        const {cacheDirectory, makeDirectoryAsync, copyAsync} = await import('expo-file-system');
+        const dir = `${cacheDirectory}upload_name_${Date.now()}/`;
+        await makeDirectoryAsync(dir, {intermediates: true});
+        const dest = `${dir}${safeName}`;
+        await copyAsync({from: withScheme, to: dest});
+        debugLog('[upload] Normalized basename for upload:', dest);
+        return dest;
+    } catch (e) {
+        debugLog('[upload] ensureUploadBasename failed, using original:', e instanceof Error ? e.message : String(e));
+        return fileUri;
+    }
+}
+
+// 上传完成后清理「中转副本」。只删缓存目录下、由上传流程自己产生的临时文件：
+// - upload_name_*：ensureUploadBasename 为纠正文件名复制出的副本
+// - drive_* / drive_upload_* / kb_upload_* / kb_add_*：channel 文件下载到的临时文件
+// 严格白名单匹配，绝不碰聊天持久化缓存（documentDirectory/<server>/Files/）或原始文件。
+async function cleanupTransientUploadFile(fileUri: string): Promise<void> {
+    try {
+        const {cacheDirectory, deleteAsync} = await import('expo-file-system');
+        if (!cacheDirectory || !fileUri) {
+            return;
+        }
+        const withScheme = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+        const cacheWithScheme = cacheDirectory.startsWith('file://') ? cacheDirectory : `file://${cacheDirectory}`;
+        // 必须位于缓存目录下
+        if (!withScheme.startsWith(cacheWithScheme)) {
+            return;
+        }
+        // 取缓存目录下的第一段目录名，必须是已知中转前缀之一
+        const rel = withScheme.slice(cacheWithScheme.length);
+        const firstSeg = rel.split('/')[0] || '';
+        const isTransient = /^(upload_name_|drive_|drive_upload_|kb_upload_|kb_add_)/.test(firstSeg);
+        if (!isTransient) {
+            return;
+        }
+        // 删除整个时间戳中转目录（里面只有这一个文件）
+        const dirToDelete = `${cacheWithScheme}${firstSeg}`;
+        await deleteAsync(dirToDelete, {idempotent: true});
+        debugLog('[upload] Cleaned up transient upload file:', dirToDelete);
+    } catch (e) {
+        debugLog('[upload] cleanupTransientUploadFile failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    }
+}
+
 export async function uploadDriveFile(
     serverUrl: string,
     teamId: string,
@@ -161,6 +222,9 @@ export async function uploadDriveFile(
     const options = {
         method: 'POST',
         multipart: {
+            // 服务端 drive.go 用 r.MultipartForm.File["files"] 取文件，字段名须为 "files"
+            // （对齐 webapp drive_api.ts 的 formData.append('files', file)）。显式指定，不依赖默认值。
+            fileKey: 'files',
             data: {
                 parent_id: parentId,
                 scope: scope,
@@ -170,11 +234,9 @@ export async function uploadDriveFile(
         headers: client.getRequestHeaders('POST'),
     };
 
-    // 原样传 fileUri（保留 file:// 前缀和 URL 编码），对齐聊天窗口上传路径
-    // （client/rest/files.ts 的 uploadAttachment 直接传 file.localPath，不去前缀、不 decode）。
-    // 去掉前缀 / decode 会把合法的 file://...%20... 变成带真实空格的裸路径，
-    // iOS 原生 upload 按 URL 解析失败后硬崩。
-    const localPath = fileUri;
+    // 保留 file:// 前缀和 URL 编码（对齐聊天窗口上传，避免 iOS 原生 URL 解析失败硬崩）；
+    // 同时保证 basename=原始文件名，让服务端取到正确文件名。
+    const localPath = await ensureUploadBasename(fileUri, fileName);
 
     debugLog('[uploadDriveFile] Using apiClient.upload with localPath:', localPath);
 
@@ -205,6 +267,9 @@ export async function uploadDriveFile(
                 data: error?.data,
             }));
             reject(new Error(error?.data?.message || error?.message || 'Upload failed'));
+        }).finally(() => {
+            // 上传结束（成功或失败）清理中转副本，避免缓存堆积。
+            cleanupTransientUploadFile(localPath);
         });
     });
 }
@@ -453,16 +518,19 @@ export async function uploadKBFile(
     const options = {
         method: 'POST',
         multipart: {
+            // 服务端 handleKBUpload 用 r.FormFile("file") 取文件，字段名必须是 "file"
+            // （对齐 webapp knowledge_base_api.ts 的 formData.append('file', file)）。
+            // 不指定 fileKey 会用默认字段名，服务端找不到文件 → "file is required"。
+            fileKey: 'file',
             data: {},
         },
         timeoutInterval: toMilliseconds({minutes: 3}),
         headers: client.getRequestHeaders('POST'),
     };
 
-    // 原样传 fileUri（保留 file:// 前缀和 URL 编码），对齐聊天窗口上传路径。
-    // 去掉前缀 / decode 会把合法的 file://...%20... 变成带真实空格的裸路径，
-    // iOS 原生 upload 按 URL 解析失败后硬崩。
-    const localPath = fileUri;
+    // 保留 file:// 前缀和 URL 编码（避免 iOS 原生 URL 解析失败硬崩）；
+    // 同时保证 basename=原始文件名，让服务端取到正确文件名。
+    const localPath = await ensureUploadBasename(fileUri, fileName);
 
     debugLog('[uploadKBFile] Using apiClient.upload with localPath:', localPath);
 
@@ -474,10 +542,12 @@ export async function uploadKBFile(
                 ok: response.ok,
                 status: response.status,
                 hasData: Boolean(response.data),
+                // 打出服务端返回体，便于区分 "file is required"(字段名)/网关错误等
+                data: response.data,
             }));
 
             if (!response.ok) {
-                const errorMsg = response.data?.message || response.error || 'Upload failed';
+                const errorMsg = response.data?.error || response.data?.message || response.error || 'Upload failed';
                 reject(new Error(errorMsg));
                 return;
             }
@@ -496,6 +566,9 @@ export async function uploadKBFile(
                 data: error?.data,
             }));
             reject(new Error(error?.data?.message || error?.message || 'Upload failed'));
+        }).finally(() => {
+            // 上传结束（成功或失败）清理中转副本，避免缓存堆积。
+            cleanupTransientUploadFile(localPath);
         });
     });
 }

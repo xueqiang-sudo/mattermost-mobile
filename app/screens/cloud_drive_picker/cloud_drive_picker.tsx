@@ -20,7 +20,6 @@ import {
     listDriveFiles,
     getDriveFilePath,
     type DriveFile,
-    copyDriveFileToChannel,
 } from '../home/apps/workbench_api';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -336,29 +335,23 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
 
         try {
             const selectedFiles = files.filter((f) => selectedIds.has(f.id));
-            const fileInfos: FileInfo[] = [];
 
-            for (const file of selectedFiles) {
-                const result = await copyDriveFileToChannel(serverUrl, resolvedTeamId, file.id, channelId);
-                if (result) {
-                    const r = result as any;
-                    fileInfos.push({
-                        ...r,
-                        // Defensive: ensure post_id is truthy so Phase 1's
-                        // isExistingServerFile check passes even if the
-                        // copyDriveFileToChannel response omits it.
-                        post_id: r.post_id || '_pre_copied',
-                        // Marker for draft_handler's addFiles pipeline: files are already
-                        // copied to the channel, do NOT re-copy in Phase 0.
-                        _skipPhase0: true,
-                    } as FileInfo);
-                }
-            }
+            // 不在这里 await copyDriveFileToChannel（大文件服务端复制很慢，会让弹窗一直转圈）。
+            // 改为用云盘文件的元信息构造占位 FileInfo，立即交给 addFiles 乐观渲染；
+            // 真正的 copyDriveFileToChannel 复制挪到 addFiles 的后台阶段执行。
+            const fileInfos: FileInfo[] = selectedFiles.map((file) => ({
+                id: `pending_${file.id}`,
+                name: file.name,
+                extension: file.extension,
+                mime_type: file.mime_type,
+                size: file.size,
+                // 标记：addFiles 后台阶段需调 copyDriveFileToChannel 把云盘文件复制进频道。
+                _needsCopyToChannel: true,
+                _cloudDriveFileId: file.id,
+                _cloudDriveTeamId: resolvedTeamId,
+            } as unknown as FileInfo));
 
             // Dismiss the picker first so the user sees the chat immediately.
-            // The addFiles pipeline (optimistic rendering) will render previews
-            // as soon as it writes pending posts to the local DB, then handle
-            // the server createPost call in the background.
             await dismissModal({componentId});
 
             if (fileInfos.length > 0 && onSend) {

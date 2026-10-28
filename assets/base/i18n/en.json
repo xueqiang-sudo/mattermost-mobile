@@ -2658,6 +2658,7 @@
   "forward.error_message": "Failed to forward the message. Please try again.",
   "forward.prefix": "Forwarded message",
   "post_info.forward": "Forward",
+  "post_info.recall_confirm": "Recall this message?",
   "post_info.revoke_this": "Revoke this message",
   "post_info.revoke_batch": "Revoke all messages in this batch",
   "file.conversion_pending": "Document Conversion",

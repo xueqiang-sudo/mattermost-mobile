@@ -280,14 +280,8 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
         }
 
         const now = Date.now();
-        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'heic', 'heif'];
-        const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v', 'webm'];
 
         const result: FileEntry[] = files
-            .filter(f => {
-                const ext = (f.extension || '').toLowerCase();
-                return !imageExts.includes(ext) && !videoExts.includes(ext);
-            })
             .map(f => {
                 const post = postMap.get(f.postId)!;
                 return {

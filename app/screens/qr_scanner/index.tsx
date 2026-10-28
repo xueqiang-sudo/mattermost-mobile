@@ -41,6 +41,7 @@ type Props = {
     componentId: AvailableScreens;
     onScanResult?: (data: string, scanContext?: string) => boolean; // 返回 true 表示外部处理了，false 表示使用默认处理
     scanContext?: string;
+    continuousScan?: boolean; // 连续扫描模式：处理后不关闭，冷却后继续扫
 }
 
 const getStyleSheet = makeStyleSheetFromTheme(() => {
@@ -181,7 +182,7 @@ const getStyleSheet = makeStyleSheetFromTheme(() => {
     };
 });
 
-const QRScanner = ({componentId, onScanResult, scanContext}: Props) => {
+const QRScanner = ({componentId, onScanResult, scanContext, continuousScan}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -372,6 +373,20 @@ const QRScanner = ({componentId, onScanResult, scanContext}: Props) => {
         if (onScanResult) {
             try {
                 const handled = onScanResult(value, scanContext);
+
+                // 连续扫描模式：处理后不关闭，冷却 1.5s 后清除防抖并重新启用扫描，
+                // 继续扫下一个码。用户自己点返回/关闭退出。
+                if (continuousScan) {
+                    logInfo('[QRScanner.processScanResult] 连续扫描模式，冷却后继续');
+                    setTimeout(() => {
+                        if (isMountedRef.current) {
+                            setLastScannedCode('');
+                            setScanningEnabled(true);
+                        }
+                    }, 1500);
+                    return;
+                }
+
                 if (handled) {
                     logInfo('[QRScanner.processScanResult] 外部已处理，关闭扫描页');
                     handleClose();
@@ -379,6 +394,17 @@ const QRScanner = ({componentId, onScanResult, scanContext}: Props) => {
                 }
             } catch (error) {
                 logInfo('[QRScanner.processScanResult] onScanResult catch error:', error);
+
+                // 连续模式下即使回调异常也要恢复扫描，避免卡死
+                if (continuousScan) {
+                    setTimeout(() => {
+                        if (isMountedRef.current) {
+                            setLastScannedCode('');
+                            setScanningEnabled(true);
+                        }
+                    }, 1500);
+                    return;
+                }
             }
         }
 
@@ -436,7 +462,7 @@ const QRScanner = ({componentId, onScanResult, scanContext}: Props) => {
 
         logInfo('[QRScanner.processScanResult] 执行关闭扫描界面');
         handleClose();
-    }, [onScanResult, scanContext, handleClose, intl]);
+    }, [onScanResult, scanContext, handleClose, intl, continuousScan]);
 
     const handleCodeScanned = useCallback((codes: Code[]) => {
         if (codes.length > 0 && scanningEnabled) {

@@ -29,6 +29,12 @@ type QrScannerOptions = {
      * 适用于需要获取原始扫描内容（如入库/出库扫码）的场景。
      */
     onScanResultCallback?: (value: string) => boolean;
+
+    /**
+     * 连续扫描模式：扫到一个码后不关闭扫描器，处理完短暂冷却后继续扫下一个，
+     * 由用户自己点返回/关闭退出。用于出库/入库连续扫码。
+     */
+    continuousScan?: boolean;
 };
 
 export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) => {
@@ -121,6 +127,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
             return false;
         },
         scanContext,
+        continuousScan: options?.continuousScan,
     }, {
         modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
         layout: {

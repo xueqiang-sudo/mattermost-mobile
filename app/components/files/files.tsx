@@ -91,14 +91,14 @@ const styles = StyleSheet.create({
         // 仅媒体消息时不要横向拉满，按内容自然宽度展示（对齐微信效果）。
         alignSelf: 'flex-start',
     },
-    rowWrap: {
-        flexWrap: 'wrap',
+    imageColumn: {
+        flexDirection: 'column',
+        marginTop: 5,
+        flexShrink: 0,
+        alignSelf: 'flex-start',
     },
     rowItemContainer: {
         flex: 1,
-    },
-    gridCell: {
-        marginBottom: MEDIA_GRID_GAP,
     },
     gutter: {
         marginLeft: 8,
@@ -295,59 +295,45 @@ const Files = ({
             );
         }
 
-        const cols = Math.min(pickMediaGridColumns(visibleImages.length), MEDIA_GRID_MAX_COLS);
-        const rawCellW = Math.floor((portraitPostWidth - (MEDIA_GRID_GAP * (cols - 1))) / cols);
-
-        // 本人与他人同一格宽上限，仅整行 alignSelf 区分左右
-        const cellW = Math.min(rawCellW, MEDIA_GRID_CELL_MAX_EDGE);
-        const gridRowWidth = (cols * cellW) + (MEDIA_GRID_GAP * Math.max(0, cols - 1));
-
+        // 多图竖排：每张图各占一行、从上往下堆叠，按单图尺寸渲染（微信单图上限）。
+        // 不再用网格横排。每张图传 isSingleImage，让 ImageFile 走自适应尺寸 + 180×200 上限，
+        // 而非网格小格子的绝对定位。
         return (
             <View
                 style={[
-                    styles.row,
-                    styles.rowWrap,
-                    {width: gridRowWidth},
+                    styles.imageColumn,
                     rowAlignEndStyle,
                     compactTopSpacing && {marginTop: 0},
                     isPermalinkPreview && {marginTop: 0},
                 ]}
                 testID='image-row'
             >
-                {visibleImages.map((file, idx) => {
-                    const col = idx % cols;
-                    const marginRight = col < cols - 1 ? MEDIA_GRID_GAP : 0;
-                    return (
-                        <View
-                            key={file.id}
-                            style={[
-                                styles.gridCell,
-                                {
-                                    width: cellW,
-                                    marginRight,
-                                    minWidth: 0,
-                                },
-                            ]}
-                            testID={`${file.id}-file-container`}
-                        >
-                            <File
-                                galleryIdentifier={galleryIdentifier}
-                                canDownloadFiles={canDownloadFiles}
-                                enableSecureFilePreview={enableSecureFilePreview}
-                                expandCardToParentWidth={expandCardToParentWidth}
-                                file={file}
-                                index={attachmentIndex(file.id!)}
-                                isSingleImage={isSingleImage}
-                                nonVisibleImagesCount={0}
-                                onPress={handlePreviewPress}
-                                updateFileForGallery={updateFileForGallery}
-                                wrapperWidth={cellW}
-                                inViewPort={inViewPort}
-                                uploadStatus={postProps?.upload_status as string}
-                            />
-                        </View>
-                    );
-                })}
+                {visibleImages.map((file, idx) => (
+                    <View
+                        key={file.id}
+                        style={[
+                            idx > 0 && {marginTop: MEDIA_GRID_GAP},
+                            rowAlignEndStyle,
+                        ]}
+                        testID={`${file.id}-file-container`}
+                    >
+                        <File
+                            galleryIdentifier={galleryIdentifier}
+                            canDownloadFiles={canDownloadFiles}
+                            enableSecureFilePreview={enableSecureFilePreview}
+                            expandCardToParentWidth={false}
+                            file={file}
+                            index={attachmentIndex(file.id!)}
+                            isSingleImage={true}
+                            nonVisibleImagesCount={0}
+                            onPress={handlePreviewPress}
+                            updateFileForGallery={updateFileForGallery}
+                            wrapperWidth={portraitPostWidth}
+                            inViewPort={inViewPort}
+                            uploadStatus={postProps?.upload_status as string}
+                        />
+                    </View>
+                ))}
             </View>
         );
     };

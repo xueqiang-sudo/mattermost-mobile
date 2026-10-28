@@ -790,7 +790,13 @@ const CloudDriveScreen = () => {
 
                         const fileUrl = `${cachedServerUrl}/api/v4/files/${file.id}`;
                         const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
-                        const localUri = `${cacheDirectory}drive_${Date.now()}_${(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                        // 服务器从上传文件路径的 basename 取文件名，所以 basename 必须是原始
+                        // 文件名，否则云盘里会显示成 drive_时间戳_xxx。把唯一性放到目录层
+                        // （时间戳子目录），文件名层保留原始 file.name。
+                        const {makeDirectoryAsync} = await import('expo-file-system');
+                        const downloadDir = `${cacheDirectory}drive_${Date.now()}/`;
+                        await makeDirectoryAsync(downloadDir, {intermediates: true});
+                        const localUri = `${downloadDir}${file.name || 'file'}`;
 
                         debugLog('[Drive] Download URL:', fileUrl);
                         debugLog('[Drive] Target local URI:', localUri);
@@ -859,10 +865,13 @@ const CloudDriveScreen = () => {
                         const fileUrl = `${cachedServerUrl}/api/v4/files/${file.id}`;
                         const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
 
-                        // Download file to temp location
-                        const {downloadAsync} = await import('expo-file-system');
+                        // Download file to temp location。basename 需为原始文件名
+                        // （服务器取 basename 作为云盘文件名），唯一性放到时间戳子目录。
+                        const {downloadAsync, makeDirectoryAsync} = await import('expo-file-system');
                         const cacheDir = await import('expo-file-system').then(fs => fs.cacheDirectory);
-                        const tempPath = `${cacheDir}drive_upload_${Date.now()}_${fileName}`;
+                        const tempDir = `${cacheDir}drive_upload_${Date.now()}/`;
+                        await makeDirectoryAsync(tempDir, {intermediates: true});
+                        const tempPath = `${tempDir}${fileName}`;
 
                         const downloadResult = await downloadAsync(fileUrl, tempPath, {
                             headers: {

@@ -441,7 +441,11 @@ const Post = ({
         // 5. Recall/Withdraw (撤回) - within 2 minutes, own post
         if (canWithdrawPost) {
             const withdrawText = intl.locale.startsWith('zh') ? '撤回' : 'Recall';
-            const batchId = (post.props as Record<string, unknown>)?.batch_id as string | undefined;
+            const rawBatchId = (post.props as Record<string, unknown>)?.batch_id as string | undefined;
+            const batchTotal = Number((post.props as Record<string, unknown>)?.batch_total ?? 0);
+            // 仅当批次含多条时才弹「撤回本条 / 撤回本次全部」二级菜单；
+            // 单条（含单文件批次 total<=1）走普通撤回确认。
+            const batchId = rawBatchId && batchTotal > 1 ? rawBatchId : undefined;
 
             items.push({
                 key: 'withdraw',
@@ -473,10 +477,10 @@ const Post = ({
                                 ],
                             );
                         } else {
-                            // Single post: standard confirm
+                            // Single post: standard confirm（标题用「撤回」而非「删除」）
                             Alert.alert(
-                                intl.formatMessage({id: 'mobile.post.delete_title', defaultMessage: 'Delete Post'}),
-                                intl.formatMessage({id: 'mobile.post.delete_question', defaultMessage: 'Are you sure you want to delete this post?'}),
+                                withdrawText,
+                                intl.formatMessage({id: 'post_info.recall_confirm', defaultMessage: 'Recall this message?'}),
                                 [{
                                     text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}),
                                     style: 'cancel',

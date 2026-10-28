@@ -74,7 +74,6 @@ const WarehouseInoutScreen = () => {
     const navigation = useNavigation();
     const route = useRoute<RouteProp<AppsStackParamList, typeof Screens.APPS_WAREHOUSE_INOUT>>();
     const initialScanType = (route.params?.initialScanType || 'stock_out') as ScanType;
-    const initialScanResult = route.params?.scanResult || '';
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
@@ -85,7 +84,7 @@ const WarehouseInoutScreen = () => {
     const [scanSession, setScanSession] = useState('');
     const [records, setRecords] = useState<ScanRecord[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [currentBarcode, setCurrentBarcode] = useState('');
+    const [, setCurrentBarcode] = useState(''); // 值不再展示，仅保留 setter 兼容扫描流程
     const [showManualInput, setShowManualInput] = useState(false);
     const [manualInputText, setManualInputText] = useState('');
     const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
@@ -100,7 +99,7 @@ const WarehouseInoutScreen = () => {
     const [isLoadingPickLists, setIsLoadingPickLists] = useState(false);
 
     const title = scanType === 'stock_out'
-        ? intl.formatMessage({id: 'warehouse_inout.outbound_scan', defaultMessage: '离线出库扫描'})
+        ? intl.formatMessage({id: 'warehouse_inout.outbound_scan', defaultMessage: '出库'})
         : intl.formatMessage({id: 'warehouse_inout.inbound_scan', defaultMessage: '离线入库扫描'});
 
     // ── Load data ──
@@ -125,56 +124,14 @@ const WarehouseInoutScreen = () => {
 
     useEffect(() => {
         const init = async () => {
-            // Create new scan session (numbered format: 01-HH:MM)
-            const session = await createCurrentSession(scanDate, scanType);
-            setScanSession(session);
+            // 进入页面不创建新 session、不累加，只展示该日期已有记录和下拉。
+            // session 默认选中该日期最近一次（若有），没有则为空。点「新扫描」才创建。
+            const sessions = await getDistinctScanSessions(scanDate, scanType);
+            const initialSession = sessions.length > 0 ? sessions[0] : '';
+            setScanSession(initialSession);
 
-            // Load existing records first
-            const existingList = await getScanRecords({scanType, scanDate, scanSession: session});
-
-            // Handle initial scan result from route params
-            if (initialScanResult) {
-                const parsed = parseQrCode(initialScanResult);
-                if (parsed) {
-
-                    const displayBarcode = formatDisplayBarcode({
-                        codeSheetNo: parsed.codeSheetNo,
-                        boxNo: parsed.boxNo,
-                        netWeight: parsed.netWeight,
-                        isMasterSheet: parsed.isMasterSheet,
-                    } as ScanRecord);
-
-                    // 检查是否已扫描过相同的条形码
-                    const isDuplicate = existingList.some((r) =>
-                        r.codeSheetNo === parsed.codeSheetNo &&
-                        r.boxNo === parsed.boxNo &&
-                        r.isMasterSheet === parsed.isMasterSheet,
-                    );
-
-                    if (!isDuplicate) {
-                        setCurrentBarcode(displayBarcode);
-                        await addScanRecord({
-                            scanType,
-                            codeSheetNo: parsed.codeSheetNo,
-                            boxNo: parsed.boxNo,
-                            netWeight: parsed.netWeight,
-                            rawScan: initialScanResult,
-                            isMasterSheet: parsed.isMasterSheet,
-                            scanDate,
-                            scanSession: session,
-                            status: 'pending',
-                        });
-                    } else {
-                        setCurrentBarcode(`${displayBarcode} (${intl.formatMessage({
-                            id: 'warehouse_inout.duplicate_scan',
-                            defaultMessage: '已扫描',
-                        })})`);
-                    }
-                }
-            }
-
-            // Load records and dropdowns
-            const list = await getScanRecords({scanType, scanDate, scanSession: session});
+            // 展示该日期该 session 的历史记录（session 为空时展示该日期全部）
+            const list = await getScanRecords({scanType, scanDate, scanSession: initialSession || undefined});
             setRecords(list);
 
             const dates = await getDistinctScanDates(scanType);
@@ -182,11 +139,6 @@ const WarehouseInoutScreen = () => {
                 dates.unshift(scanDate);
             }
             setAvailableDates(dates);
-
-            const sessions = await getDistinctScanSessions(scanDate, scanType);
-            if (!sessions.includes(session)) {
-                sessions.unshift(session);
-            }
             setAvailableSessions(sessions);
         };
         init();
@@ -211,11 +163,14 @@ const WarehouseInoutScreen = () => {
     const pendingCount = useMemo(() => records.filter((r) => r.status === 'pending' || r.status === 'failed').length, [records]);
 
     // ── Scan handler ──
-    const handleScanResult = useCallback(async (raw: string) => {
+    const handleScanResult = useCallback(async (raw: string, sessionOverride?: string) => {
         const parsed = parseQrCode(raw);
         if (!parsed) {
             return;
         }
+
+        // 连续扫描时用传入的 session（state 更新是异步的，不能依赖 scanSession）
+        const targetSession = sessionOverride || scanSession;
 
         const displayBarcode = formatDisplayBarcode({
             codeSheetNo: parsed.codeSheetNo,
@@ -224,8 +179,9 @@ const WarehouseInoutScreen = () => {
             isMasterSheet: parsed.isMasterSheet,
         } as ScanRecord);
 
-        // 检查本次 session 是否已扫描过相同的条形码
-        const isDuplicate = records.some((r) =>
+        // 检查本 session 是否已扫描过相同的条形码（从数据库查，避免闭包里 records 过期）
+        const sessionRecords = await getScanRecords({scanType, scanDate, scanSession: targetSession});
+        const isDuplicate = sessionRecords.some((r) =>
             r.codeSheetNo === parsed.codeSheetNo &&
             r.boxNo === parsed.boxNo &&
             r.isMasterSheet === parsed.isMasterSheet,
@@ -258,22 +214,33 @@ const WarehouseInoutScreen = () => {
             rawScan: raw,
             isMasterSheet: parsed.isMasterSheet,
             scanDate,
-            scanSession,
+            scanSession: targetSession,
             status: 'pending',
         });
 
-        await loadRecords();
+        // 用 targetSession 重新加载，保证连续扫描时列表实时累加
+        const updated = await getScanRecords({scanType, scanDate, scanSession: targetSession});
+        setRecords(updated);
         await loadDropdowns();
-    }, [scanType, scanDate, scanSession, loadRecords, loadDropdowns, records, intl]);
+    }, [scanType, scanDate, scanSession, loadDropdowns, intl]);
 
-    const openScanner = useCallback(() => {
+    const openScanner = useCallback(async () => {
+        // 「新扫描」：创建新 session（当前日期独立序号 +1，如 01→02），再打开连续扫描。
+        const newSession = await createCurrentSession(scanDate, scanType);
+        setScanSession(newSession);
+        setCurrentBarcode('');
+
+        // 新 session 加入下拉（置顶）
+        setAvailableSessions((prev) => (prev.includes(newSession) ? prev : [newSession, ...prev]));
+
         showQrScannerModal(intl, {
+            continuousScan: true, // 连续扫描，用户自己关闭摄像头
             onScanResultCallback: (value: string) => {
-                handleScanResult(value);
-                return true; // handled - close scanner
+                handleScanResult(value, newSession);
+                return true; // 连续模式下返回值不触发关闭
             },
         });
-    }, [intl, handleScanResult]);
+    }, [intl, handleScanResult, scanDate, scanType]);
 
     // ── Manual input ──
     const handleManualInput = useCallback(async () => {
@@ -524,8 +491,11 @@ const WarehouseInoutScreen = () => {
         }
     }, [selectedPickList, records, serverUrl, intl, loadRecords]);
 
-    // ── Toggle selection ──
-    const toggleSelect = useCallback((id: string) => {
+    // ── Toggle selection（复选框只用于删除；已上传记录不可选）──
+    const toggleSelect = useCallback((id: string, status: ScanRecord['status']) => {
+        if (status === 'uploaded') {
+            return; // 已上传记录锁定，不可勾选
+        }
         setSelectedIds((prev) => {
             const next = new Set(prev);
             if (next.has(id)) {
@@ -540,17 +510,30 @@ const WarehouseInoutScreen = () => {
     // ── Render list item ──
     const renderRecord = useCallback(({item, index}: {item: ScanRecord; index: number}) => {
         const isSelected = selectedIds.has(item.id);
-        const statusColor = item.status === 'uploaded' ? '#4CAF50'
+        const isUploaded = item.status === 'uploaded';
+
+        // 行末状态图标：已上传=绿对勾，失败=红感叹号，待上传=灰空心圈
+        const statusIcon = isUploaded ? 'check-circle'
+            : item.status === 'failed' ? 'alert-circle-outline'
+                : 'check-circle-outline';
+        const statusIconColor = isUploaded ? '#4CAF50'
             : item.status === 'failed' ? '#F44336'
                 : changeOpacity(theme.centerChannelColor, 0.4);
 
         return (
             <TouchableOpacity
                 style={[styles.listItem, isSelected && styles.listItemSelected]}
-                onPress={() => toggleSelect(item.id)}
+                onPress={() => toggleSelect(item.id, item.status)}
+                disabled={isUploaded}
             >
-                <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                {/* 复选框只用于删除；已上传记录置灰锁定 */}
+                <View style={[
+                    styles.checkbox,
+                    isSelected && styles.checkboxChecked,
+                    isUploaded && styles.checkboxLocked,
+                ]}>
                     {isSelected && <CompassIcon name='check' size={14} color='#fff'/>}
+                    {isUploaded && <CompassIcon name='lock' size={12} color={changeOpacity(theme.centerChannelColor, 0.3)}/>}
                 </View>
                 <Text style={styles.listIndex}>{index + 1}</Text>
                 <View style={styles.listContent}>
@@ -558,7 +541,7 @@ const WarehouseInoutScreen = () => {
                         {formatDisplayBarcode(item)}
                     </Text>
                 </View>
-                <View style={[styles.statusDot, {backgroundColor: statusColor}]}/>
+                <CompassIcon name={statusIcon} size={20} color={statusIconColor}/>
             </TouchableOpacity>
         );
     }, [selectedIds, theme, styles, toggleSelect]);
@@ -654,15 +637,20 @@ const WarehouseInoutScreen = () => {
                         {intl.formatMessage({id: 'warehouse_inout.manual_input', defaultMessage: '人工输入'})}
                     </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete}>
+                <TouchableOpacity
+                    style={[styles.actionBtn, styles.deleteBtn, selectedIds.size === 0 && styles.disabledBtn]}
+                    onPress={handleDelete}
+                    disabled={selectedIds.size === 0}
+                >
                     <Text style={styles.actionBtnText}>
                         {intl.formatMessage({id: 'warehouse_inout.delete', defaultMessage: '删除'})}
+                        {selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.actionBtn, styles.uploadBtn, (isUploading || isLoadingPickLists) && styles.disabledBtn]}
+                    style={[styles.actionBtn, styles.uploadBtn, (isUploading || isLoadingPickLists || pendingCount === 0) && styles.disabledBtn]}
                     onPress={handleUploadStart}
-                    disabled={isUploading || isLoadingPickLists}
+                    disabled={isUploading || isLoadingPickLists || pendingCount === 0}
                 >
                     {isUploading ? (
                         <ActivityIndicator size='small' color='#fff'/>
@@ -675,15 +663,15 @@ const WarehouseInoutScreen = () => {
                 </TouchableOpacity>
             </View>
 
-            {/* Current barcode */}
-            {currentBarcode ? (
-                <View style={styles.currentBarcode}>
-                    <Text style={styles.currentBarcodeLabel}>
-                        {intl.formatMessage({id: 'warehouse_inout.current_barcode', defaultMessage: '当前条码'})}
-                    </Text>
-                    <Text style={styles.currentBarcodeValue} numberOfLines={1}>{currentBarcode}</Text>
-                </View>
-            ) : null}
+            {/* 复选框用途提示：明确复选框只用于删除，与上传无关 */}
+            <View style={styles.hintRow}>
+                <Text style={styles.hintText}>
+                    {intl.formatMessage({
+                        id: 'warehouse_inout.checkbox_hint',
+                        defaultMessage: '勾选条目用于删除未上传记录；上传会提交全部待上传记录',
+                    })}
+                </Text>
+            </View>
 
             {/* Stats */}
             <View style={styles.statsBar}>
@@ -965,24 +953,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         fontSize: 13,
     },
 
-    // Current barcode
-    currentBarcode: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    // Checkbox usage hint
+    hintRow: {
         paddingHorizontal: 12,
         paddingVertical: 6,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
     },
-    currentBarcodeLabel: {
-        ...typography('Body', 75),
+    hintText: {
+        ...typography('Body', 50),
         color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginRight: 8,
-    },
-    currentBarcodeValue: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: theme.centerChannelColor,
-        flex: 1,
-        fontFamily: 'monospace',
     },
 
     // Stats bar
@@ -1029,8 +1008,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         marginRight: 8,
     },
     checkboxChecked: {
-        backgroundColor: theme.buttonBg,
-        borderColor: theme.buttonBg,
+        // 与删除按钮同色（#F44336），视觉上绑定「复选框 = 删除」
+        backgroundColor: '#F44336',
+        borderColor: '#F44336',
+    },
+    checkboxLocked: {
+        // 已上传记录：置灰锁定，不可选
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
     },
     listIndex: {
         ...typography('Body', 75),
@@ -1055,11 +1040,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
     listMetaText: {
         ...typography('Body', 50),
         color: changeOpacity(theme.centerChannelColor, 0.48),
-    },
-    statusDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
     },
 
     // Empty

@@ -186,6 +186,11 @@ export async function deleteFileCacheByDir(dir: string) {
         await deleteFilesInDir(appGroupCacheDir);
     }
 
+    // 聊天文件已落到 documentDirectory（持久化），删除需指向该目录。
+    const docDir = `${documentDirectory}/${dir}`;
+    await deleteFilesInDir(docDir);
+
+    // 兼容旧版本落在 cacheDirectory 的残留文件，一并清理。
     const cacheDir = `${cacheDirectory}/${dir}`;
     await deleteFilesInDir(cacheDir);
 
@@ -534,11 +539,14 @@ export function getLocalFilePathFromFile(serverUrl: string, file: FileInfo | Fil
                 }
             }
 
-            return `${cacheDirectory}${server}/Files/${filename}-${fileIdPath}.${extension}`;
+            // 持久化存储：落到 documentDirectory（iOS=沙盒 Documents，Android=app files），
+            // 系统空间紧张时不会自动清理，实现微信式「下过一次长期保留」。
+            // 不用 cacheDirectory（iOS Library/Caches、Android cache，均会被系统回收）。
+            return `${documentDirectory}${server}/Files/${filename}-${fileIdPath}.${extension}`;
         } else if (file?.id && hasValidExtension) {
-            return `${cacheDirectory}${server}/Files/${fileIdPath}.${file.extension}`;
+            return `${documentDirectory}${server}/Files/${fileIdPath}.${file.extension}`;
         } else if (file?.id) {
-            return `${cacheDirectory}${server}/Files/${fileIdPath}`;
+            return `${documentDirectory}${server}/Files/${fileIdPath}`;
         }
     }
 
@@ -737,7 +745,11 @@ export const getAllFilesInCachesDirectory = async (serverUrl: string) => {
     try {
         const files: ExpoFileInfo[] = [];
 
-        const promises = [getInfoAsync(`${cacheDirectory}/${urlSafeBase64Encode(serverUrl)}`, {size: true})];
+        // 聊天文件已落到 documentDirectory（持久化）；旧版本的 cacheDirectory 残留也一并统计。
+        const promises = [
+            getInfoAsync(`${documentDirectory}/${urlSafeBase64Encode(serverUrl)}`, {size: true}),
+            getInfoAsync(`${cacheDirectory}/${urlSafeBase64Encode(serverUrl)}`, {size: true}),
+        ];
         if (Platform.OS === 'ios') {
             const cacheDir = `${getIOSAppGroupDetails().appGroupSharedDirectory}/Library/Caches/${urlSafeBase64Encode(serverUrl)}`;
             promises.push(getInfoAsync(cacheDir, {size: true}));

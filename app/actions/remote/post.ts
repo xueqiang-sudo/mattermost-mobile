@@ -13,6 +13,7 @@ import {createThreadFromNewPost} from '@actions/local/thread';
 import {fetchChannelStats} from '@actions/remote/channel';
 import {ActionType, General, Post, ServerErrors} from '@constants';
 import DatabaseManager from '@database/manager';
+import {sanitizeLikeString} from '@helpers/database';
 import {filterPostsInOrderedArray} from '@helpers/api/post';
 import {getNeededAtMentionedUsernames} from '@helpers/api/user';
 import NetworkManager from '@managers/network_manager';
@@ -1143,9 +1144,12 @@ export const deletePostBatch = async (serverUrl: string, batchId: string) => {
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const client = NetworkManager.getClient(serverUrl);
 
-        // Find all posts with this batch_id
+        // Find all posts with this batch_id.
+        // batchId 含下划线（webapp 格式 batch_<ts>_<rand>），而 '_' 是 SQL LIKE 单字符
+        // 通配符，必须 sanitize，否则会误匹配其他批次。
+        const safeBatchId = sanitizeLikeString(batchId);
         const posts = await database.get('Post').query(
-            Q.where('props', Q.like(`%"batch_id":"${batchId}"%`)),
+            Q.where('props', Q.like(`%"batch_id":"${safeBatchId}"%`)),
         ).fetch();
 
         if (posts.length === 0) {

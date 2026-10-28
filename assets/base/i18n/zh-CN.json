@@ -2183,6 +2183,7 @@
   "post_info.forward": "转发",
   "post_info.guest": "访客",
   "post_info.revoke_batch": "撤回本次发送的全部消息",
+  "post_info.recall_confirm": "确定撤回这条消息吗？",
   "post_info.revoke_this": "撤回该条消息",
   "post_info.system": "系统",
   "post_message_view.edited": "(已编辑)",

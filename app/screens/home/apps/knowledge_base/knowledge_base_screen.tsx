@@ -60,7 +60,6 @@ import KBAddTextURLModal from './kb_add_text_url_modal';
 
 const CATEGORIES = [
     {key: 'file', labelId: 'workbench.kb.filter_file', defaultMessage: 'File'},
-    {key: 'text', labelId: 'workbench.kb.filter_text', defaultMessage: 'Text'},
     {key: 'ask', labelId: 'workbench.kb.filter_ask', defaultMessage: '提问'},
 ];
 
@@ -1011,10 +1010,14 @@ const KnowledgeBaseScreen = () => {
                     }
 
                     debugLog('[KB] Download URL:', downloadUrl);
-                    const {downloadAsync, cacheDirectory} = await import('expo-file-system');
+                    const {downloadAsync, cacheDirectory, makeDirectoryAsync} = await import('expo-file-system');
                     const client = NetworkManager.getClient(cachedServerUrl);
                     const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
-                    const localUri = `${cacheDirectory}kb_upload_${Date.now()}_${(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                    // 服务器从 basename 取文件名，basename 须为原始文件名，否则知识库里
+                    // 会显示成 kb_upload_时间戳_xxx。唯一性放到时间戳子目录。
+                    const downloadDir = `${cacheDirectory}kb_upload_${Date.now()}/`;
+                    await makeDirectoryAsync(downloadDir, {intermediates: true});
+                    const localUri = `${downloadDir}${file.name || 'file'}`;
 
                     debugLog('[KB] Download details:', JSON.stringify({
                         url: downloadUrl,

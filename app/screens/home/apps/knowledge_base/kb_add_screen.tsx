@@ -184,11 +184,14 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
 
                 // 无本地文件但有 id：从服务器下载。
                 if (!fileUri && file.id) {
-                    const {downloadAsync, cacheDirectory} = await import('expo-file-system');
+                    const {downloadAsync, cacheDirectory, makeDirectoryAsync} = await import('expo-file-system');
                     const client = NetworkManager.getClient(serverUrl);
                     const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
                     const downloadUrl = `${serverUrl}/api/v4/files/${file.id}`;
-                    const localUri = `${cacheDirectory}kb_add_${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                    // 服务器从 basename 取文件名，basename 须为原始文件名，唯一性放到时间戳子目录。
+                    const downloadDir = `${cacheDirectory}kb_add_${Date.now()}/`;
+                    await makeDirectoryAsync(downloadDir, {intermediates: true});
+                    const localUri = `${downloadDir}${fileName}`;
 
                     // 取不到鉴权头时直接报错，否则会把 401 错误页当文件存下来再上传。
                     if (!authHeader) {
