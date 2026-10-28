@@ -219,15 +219,25 @@ export default function DraftHandler(props: Props) {
                 debugLog('DRAFT', `addFiles: Phase 1 - preparing files`);
                 debugLog('DRAFT', `addFiles: Phase 1 - starting Promise.all for ${filesToUpload.length} files`);
 
+                // Debug: log all incoming files to check post_id presence
+                filesToUpload.forEach((file, i) => {
+                    debugLog('DRAFT', `addFiles: Phase 1 - file ${i}: id=${file.id}, post_id=${file.post_id}, source=${(file as any).source}, hasUri=${Boolean(file.uri)}`);
+                });
+
                 const filesWithPostData = await Promise.all(
                     filesToUpload.map(async (file, index) => {
                         debugLog('DRAFT', `addFiles: Phase 1 - processing file ${index + 1}/${filesToUpload.length}: ${file.name}`);
 
                         // Detect existing server files (from group files tab) - they have a real server ID and post_id
-                        const isExistingServerFile = Boolean(file.post_id) && Boolean(file.id) && !file.id.startsWith('pending_');
+                        // OR from channel source (聊天tab) where post_id might be empty but it's still a server file
+                        const isExistingServerFile =
+                            (Boolean(file.post_id) && Boolean(file.id) && !file.id.startsWith('pending_')) ||
+                            ((file as any).source === 'channel' && Boolean(file.id) && !file.id.startsWith('pending_'));
 
                         if (isExistingServerFile) {
-                            debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: existing server file, id=${file.id}`);
+                            debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: existing server file, id=${file.id}, source=${(file as any).source}`);
+                        } else {
+                            debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: new local file (will upload), post_id=${file.post_id}, id=${file.id}, source=${(file as any).source}, isPending=${file.id?.startsWith('pending_')}`);
                         }
 
                         // Use the new copied file ID for existing server files, or generate pending ID for new files

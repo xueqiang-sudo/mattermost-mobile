@@ -243,7 +243,7 @@ export default function PhotoAlbumTab() {
                         fileName: filename,
                     } as Asset);
 
-                    if (compressed.uri && compressed.uri !== cacheUri) {
+                    if (compressed?.uri && compressed.uri !== cacheUri) {
                         const compressedInfo = await getInfoAsync(compressed.uri, {size: true});
                         if (compressedInfo.exists) {
                             fileUri = compressed.uri;
@@ -255,6 +255,7 @@ export default function PhotoAlbumTab() {
                     }
                 } catch (compressError) {
                     debugLog('PhotoAlbumTab', `Compression failed, using cached original: ${compressError instanceof Error ? compressError.message : String(compressError)}`);
+                    // Compression failure is non-fatal; continue with cached original
                 }
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);

@@ -27,10 +27,12 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
+import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
+import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -127,6 +129,9 @@ const WarehouseInoutScreen = () => {
             const session = await createCurrentSession(scanDate, scanType);
             setScanSession(session);
 
+            // Load existing records first
+            const existingList = await getScanRecords({scanType, scanDate, scanSession: session});
+
             // Handle initial scan result from route params
             if (initialScanResult) {
                 const parsed = parseQrCode(initialScanResult);
@@ -139,18 +144,32 @@ const WarehouseInoutScreen = () => {
                         isMasterSheet: parsed.isMasterSheet,
                     } as ScanRecord);
 
-                    setCurrentBarcode(displayBarcode);
-                    await addScanRecord({
-                        scanType,
-                        codeSheetNo: parsed.codeSheetNo,
-                        boxNo: parsed.boxNo,
-                        netWeight: parsed.netWeight,
-                        rawScan: initialScanResult,
-                        isMasterSheet: parsed.isMasterSheet,
-                        scanDate,
-                        scanSession: session,
-                        status: 'pending',
-                    });
+                    // 检查是否已扫描过相同的条形码
+                    const isDuplicate = existingList.some((r) =>
+                        r.codeSheetNo === parsed.codeSheetNo &&
+                        r.boxNo === parsed.boxNo &&
+                        r.isMasterSheet === parsed.isMasterSheet,
+                    );
+
+                    if (!isDuplicate) {
+                        setCurrentBarcode(displayBarcode);
+                        await addScanRecord({
+                            scanType,
+                            codeSheetNo: parsed.codeSheetNo,
+                            boxNo: parsed.boxNo,
+                            netWeight: parsed.netWeight,
+                            rawScan: initialScanResult,
+                            isMasterSheet: parsed.isMasterSheet,
+                            scanDate,
+                            scanSession: session,
+                            status: 'pending',
+                        });
+                    } else {
+                        setCurrentBarcode(`${displayBarcode} (${intl.formatMessage({
+                            id: 'warehouse_inout.duplicate_scan',
+                            defaultMessage: '已扫描',
+                        })})`);
+                    }
                 }
             }
 
@@ -204,6 +223,31 @@ const WarehouseInoutScreen = () => {
             netWeight: parsed.netWeight,
             isMasterSheet: parsed.isMasterSheet,
         } as ScanRecord);
+
+        // 检查本次 session 是否已扫描过相同的条形码
+        const isDuplicate = records.some((r) =>
+            r.codeSheetNo === parsed.codeSheetNo &&
+            r.boxNo === parsed.boxNo &&
+            r.isMasterSheet === parsed.isMasterSheet,
+        );
+
+        if (isDuplicate) {
+            // 只显示提示，不存入数据库
+            setCurrentBarcode(`${displayBarcode} (${intl.formatMessage({
+                id: 'warehouse_inout.duplicate_scan',
+                defaultMessage: '已扫描',
+            })})`);
+            showSnackBar({
+                barType: SNACK_BAR_TYPE.DEFAULT,
+                customMessage: intl.formatMessage({
+                    id: 'warehouse_inout.duplicate_scan_msg',
+                    defaultMessage: '该条形码已在当前单号中扫描过',
+                }),
+                type: MESSAGE_TYPE.WARNING,
+            });
+            return;
+        }
+
         setCurrentBarcode(displayBarcode);
 
         await addScanRecord({
@@ -220,7 +264,7 @@ const WarehouseInoutScreen = () => {
 
         await loadRecords();
         await loadDropdowns();
-    }, [scanType, scanDate, scanSession, loadRecords, loadDropdowns]);
+    }, [scanType, scanDate, scanSession, loadRecords, loadDropdowns, records, intl]);
 
     const openScanner = useCallback(() => {
         showQrScannerModal(intl, {
@@ -272,6 +316,31 @@ const WarehouseInoutScreen = () => {
             netWeight,
             isMasterSheet: isMaster,
         } as ScanRecord);
+
+        // 检查本次 session 是否已扫描过相同的条形码
+        const isDuplicate = records.some((r) =>
+            r.codeSheetNo === codeSheetNo &&
+            r.boxNo === boxNo &&
+            r.isMasterSheet === isMaster,
+        );
+
+        if (isDuplicate) {
+            // 只显示提示，不存入数据库
+            setCurrentBarcode(`${displayBarcode} (${intl.formatMessage({
+                id: 'warehouse_inout.duplicate_scan',
+                defaultMessage: '已扫描',
+            })})`);
+            showSnackBar({
+                barType: SNACK_BAR_TYPE.DEFAULT,
+                customMessage: intl.formatMessage({
+                    id: 'warehouse_inout.duplicate_scan_msg',
+                    defaultMessage: '该条形码已在当前单号中扫描过',
+                }),
+                type: MESSAGE_TYPE.WARNING,
+            });
+            return;
+        }
+
         setCurrentBarcode(displayBarcode);
 
         await addScanRecord({
@@ -290,7 +359,7 @@ const WarehouseInoutScreen = () => {
         await loadDropdowns();
         setManualInputText('');
         setShowManualInput(false);
-    }, [manualInputText, scanType, scanDate, scanSession, intl, loadRecords, loadDropdowns]);
+    }, [manualInputText, scanType, scanDate, scanSession, intl, loadRecords, loadDropdowns, records]);
 
     // ── Delete ──
     const handleDelete = useCallback(async () => {
