@@ -22,6 +22,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Vibration,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
@@ -188,7 +189,8 @@ const WarehouseInoutScreen = () => {
         );
 
         if (isDuplicate) {
-            // 只显示提示，不存入数据库
+            // 重复扫描：振动反馈 + 红色警告提示
+            Vibration.vibrate([100, 100, 100]); // 3次短振
             setCurrentBarcode(`${displayBarcode} (${intl.formatMessage({
                 id: 'warehouse_inout.duplicate_scan',
                 defaultMessage: '已扫描',
@@ -199,7 +201,7 @@ const WarehouseInoutScreen = () => {
                     id: 'warehouse_inout.duplicate_scan_msg',
                     defaultMessage: '该条形码已在当前单号中扫描过',
                 }),
-                type: MESSAGE_TYPE.WARNING,
+                type: MESSAGE_TYPE.ERROR,  // 改成 ERROR 显示红色
             });
             return;
         }
@@ -222,6 +224,17 @@ const WarehouseInoutScreen = () => {
         const updated = await getScanRecords({scanType, scanDate, scanSession: targetSession});
         setRecords(updated);
         await loadDropdowns();
+
+        // 扫描成功：单次短振 + 成功提示
+        Vibration.vibrate(50); // 单次短振
+        showSnackBar({
+            barType: SNACK_BAR_TYPE.DEFAULT,
+            customMessage: `${displayBarcode} - ${intl.formatMessage({
+                id: 'warehouse_inout.scan_success',
+                defaultMessage: '扫描成功',
+            })}`,
+            type: MESSAGE_TYPE.SUCCESS,
+        });
     }, [scanType, scanDate, scanSession, loadDropdowns, intl]);
 
     const openScanner = useCallback(async () => {
@@ -292,7 +305,8 @@ const WarehouseInoutScreen = () => {
         );
 
         if (isDuplicate) {
-            // 只显示提示，不存入数据库
+            // 重复扫描：振动反馈 + 红色警告提示
+            Vibration.vibrate([100, 100, 100]); // 3次短振
             setCurrentBarcode(`${displayBarcode} (${intl.formatMessage({
                 id: 'warehouse_inout.duplicate_scan',
                 defaultMessage: '已扫描',
@@ -303,7 +317,7 @@ const WarehouseInoutScreen = () => {
                     id: 'warehouse_inout.duplicate_scan_msg',
                     defaultMessage: '该条形码已在当前单号中扫描过',
                 }),
-                type: MESSAGE_TYPE.WARNING,
+                type: MESSAGE_TYPE.ERROR,  // 改成 ERROR 显示红色
             });
             return;
         }
@@ -326,6 +340,17 @@ const WarehouseInoutScreen = () => {
         await loadDropdowns();
         setManualInputText('');
         setShowManualInput(false);
+
+        // 手工输入成功：单次短振 + 成功提示
+        Vibration.vibrate(50); // 单次短振
+        showSnackBar({
+            barType: SNACK_BAR_TYPE.DEFAULT,
+            customMessage: `${displayBarcode} - ${intl.formatMessage({
+                id: 'warehouse_inout.scan_success',
+                defaultMessage: '扫描成功',
+            })}`,
+            type: MESSAGE_TYPE.SUCCESS,
+        });
     }, [manualInputText, scanType, scanDate, scanSession, intl, loadRecords, loadDropdowns, records]);
 
     // ── Delete ──

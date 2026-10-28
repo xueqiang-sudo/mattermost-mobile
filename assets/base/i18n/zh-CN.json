@@ -2812,5 +2812,9 @@
   "workbench.drive.save": "保存",
   "workbench.drive.upload": "上传",
   "workbench.drive.upload_title": "上传文件",
-  "workbench.drive.error_upload": "上传文件失败"
+  "workbench.drive.error_upload": "上传文件失败",
+
+  "warehouse_inout.duplicate_scan": "已扫描",
+  "warehouse_inout.duplicate_scan_msg": "该条形码已在当前单号中扫描过",
+  "warehouse_inout.scan_success": "扫描成功",
 }
