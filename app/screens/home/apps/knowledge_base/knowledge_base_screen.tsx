@@ -964,17 +964,26 @@ const KnowledgeBaseScreen = () => {
             // Upload each file sequentially
             for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
                 const file = files[fileIdx];
-                debugLog('[KB] === File ${fileIdx + 1}/${supportedFiles.length} ===');
-                debugLog('[KB] Processing file for upload:', JSON.stringify({
+                debugLog('[KB] === File ${fileIdx + 1}/${files.length} ===');
+                debugLog('[KB] File details:', JSON.stringify({
                     name: file.name,
                     id: file.id,
                     uri: file.uri,
                     localPath: file.localPath,
-                    size: file.size,
                     mime_type: file.mime_type,
+                    size: file.size,
+                    source: (file as any).source,
+                    has_uri: Boolean(file.uri),
+                    has_localPath: Boolean(file.localPath),
                 }));
 
                 let fileUri = file.uri || file.localPath || '';
+
+                // If channel file with no URI, download from server first
+                if ((file as any).source === 'channel' && file.id && !fileUri) {
+                    debugLog('[KB] Detected channel file, starting download');
+                    debugLog('[KB] Channel file ID:', file.id);
+                }
 
                 // If no local URI, download from server using file ID
                 if (!fileUri || fileUri.startsWith('http://') || fileUri.startsWith('https://')) {
@@ -987,25 +996,38 @@ const KnowledgeBaseScreen = () => {
                         throw new Error(`No file URI or ID available for ${file.name}`);
                     }
 
-                    debugLog('[KB] Downloading file for KB upload:', downloadUrl);
+                    debugLog('[KB] Download URL:', downloadUrl);
                     const {downloadAsync, cacheDirectory} = await import('expo-file-system');
                     const client = NetworkManager.getClient(cachedServerUrl);
                     const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
                     const localUri = `${cacheDirectory}kb_upload_${Date.now()}_${(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
+                    debugLog('[KB] Download details:', JSON.stringify({
+                        url: downloadUrl,
+                        target_uri: localUri,
+                        has_auth: Boolean(authHeader),
+                        cache_dir: cacheDirectory,
+                    }));
+
                     try {
                         const downloadResult = await downloadAsync(downloadUrl, localUri, {
                             headers: authHeader ? {'Authorization': authHeader} : {},
                         });
+                        debugLog('[KB] Download result:', JSON.stringify({
+                            returned_uri: downloadResult?.uri,
+                            download_success: Boolean(downloadResult?.uri),
+                        }));
                         if (downloadResult?.uri) {
                             fileUri = downloadResult.uri;
-                            debugLog('[KB] File downloaded:', fileUri);
+                            debugLog('[KB] File downloaded successfully:', fileUri);
                         } else {
                             throw new Error(`Download failed for ${file.name}`);
                         }
                     } catch (dlErr) {
                         const dlErrorMsg = dlErr instanceof Error ? dlErr.message : String(dlErr);
-                        debugLog('[KB] ERROR downloading file:', dlErrorMsg);
+                        const dlErrorStack = dlErr instanceof Error ? dlErr.stack : 'No stack';
+                        debugLog('[KB] Download ERROR:', dlErrorMsg);
+                        debugLog('[KB] Download ERROR stack:', dlErrorStack);
                         throw new Error(`Failed to download file: ${file.name}`);
                     }
                 }

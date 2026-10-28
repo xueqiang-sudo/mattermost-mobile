@@ -747,17 +747,24 @@ const CloudDriveScreen = () => {
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 debugLog('[Drive] === File ${i + 1}/${supportedFiles.length} ===');
-                debugLog('[Drive] Uploading file:', JSON.stringify({
+                debugLog('[Drive] === File ${i + 1}/${files.length} ===');
+                debugLog('[Drive] File details:', JSON.stringify({
                     name: file.name,
+                    id: file.id,
                     uri: file.uri,
+                    localPath: file.localPath,
                     mime_type: file.mime_type,
                     size: file.size,
-                    id: file.id,
+                    source: (file as any).source,
+                    has_uri: Boolean(file.uri),
+                    has_localPath: Boolean(file.localPath),
                 }));
 
                 // For server files (from channel tab), download them first
                 if ((file as any).source === 'channel' && file.id && !file.uri) {
-                    debugLog('[Drive] File from channel tab, downloading first');
+                    debugLog('[Drive] Detected channel file, starting download process');
+                    debugLog('[Drive] Channel file ID:', file.id);
+                    debugLog('[Drive] Channel file name:', file.name);
                     try {
                         const NetworkManager = (await import('@managers/network_manager')).default;
                         const {downloadAsync, cacheDirectory} = await import('expo-file-system');
@@ -767,23 +774,39 @@ const CloudDriveScreen = () => {
                         const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
                         const localUri = `${cacheDirectory}drive_${Date.now()}_${(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
-                        debugLog('[Drive] Downloading from channel:', fileUrl);
+                        debugLog('[Drive] Download URL:', fileUrl);
+                        debugLog('[Drive] Target local URI:', localUri);
+                        debugLog('[Drive] Has auth header:', Boolean(authHeader));
+
                         const downloadResult = await downloadAsync(fileUrl, localUri, {
                             headers: authHeader ? {'Authorization': authHeader} : {},
                         });
 
+                        debugLog('[Drive] Download completed:', JSON.stringify({
+                            returned_uri: downloadResult?.uri,
+                            exists: Boolean(downloadResult?.uri),
+                        }));
+
                         if (downloadResult?.uri) {
                             file.uri = downloadResult.uri;
-                            debugLog('[Drive] File downloaded:', file.uri);
+                            debugLog('[Drive] File URI updated for upload:', file.uri);
                         } else {
                             throw new Error('Download did not return URI');
                         }
                     } catch (downloadErr) {
                         const downloadErrorMsg = downloadErr instanceof Error ? downloadErr.message : String(downloadErr);
-                        debugLog('[Drive] Error downloading file from channel:', downloadErrorMsg);
+                        const downloadErrorStack = downloadErr instanceof Error ? downloadErr.stack : 'No stack';
+                        debugLog('[Drive] Download ERROR:', downloadErrorMsg);
+                        debugLog('[Drive] Download ERROR stack:', downloadErrorStack);
                         throw new Error(`Failed to download file from channel: ${file.name}`);
                     }
                 }
+
+                debugLog('[Drive] File URI resolved:', JSON.stringify({
+                    fileUri: file.localPath || file.uri || '',
+                    from_localPath: Boolean(file.localPath),
+                    from_uri: Boolean(file.uri),
+                }));
 
                 // Use localPath or uri (for newly selected album/device files or downloaded channel files)
                 let fileUri = file.localPath || file.uri || '';
