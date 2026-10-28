@@ -204,6 +204,14 @@ function KeepOriginalToggle() {
     const intl = useIntl();
     const {state, dispatch} = useFilePicker();
 
+    // 只有全部文件都来自相册时，才显示原图复选框
+    const allFilesAreAlbum = state.selectedFiles.size > 0 &&
+        Array.from(state.selectedFiles.values()).every(f => f.source === 'album');
+
+    if (!allFilesAreAlbum) {
+        return null;
+    }
+
     return (
         <TouchableOpacity
             onPress={() => dispatch({type: 'SET_KEEP_ORIGINAL', keepOriginal: !state.keepOriginal})}
