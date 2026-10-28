@@ -15,10 +15,10 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
-import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {popTopScreen, showModal} from '@screens/navigation';
+import {showFilePickerScreen} from '@screens/file_picker/show_modal';
+import {popTopScreen} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 
 import type {FileInfo} from '@mattermost/types/files';
@@ -114,13 +114,10 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
         };
 
         try {
-            showModal(
-                Screens.FILE_PICKER,
+            showFilePickerScreen(
+                '',
+                onFileSelected,
                 intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
-                {
-                    onSend: onFileSelected,
-                    channelId: '',
-                },
             );
             debugLog('[KBAdd] File picker modal opened');
         } catch (modalErr) {

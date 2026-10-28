@@ -24,6 +24,7 @@ import {
     type DraftVideoProcessingBridge,
 } from '@utils/file/draft_video_local_processing';
 import {fileMaxWarning, fileSizeWarning, getExtensionFromMime, uploadDisabledWarning} from '@utils/file';
+import {completeProgress, emitProgress, failProgress, startProgress} from '@utils/file/optimistic_upload_progress';
 import {generateId} from '@utils/general';
 import {logError} from '@utils/log';
 import {showSnackBar} from '@utils/snack_bar';
@@ -156,9 +157,10 @@ export default function DraftHandler(props: Props) {
                     return;
                 }
 
-                // Generate batch ID for grouping these posts (only for multiple files)
-                const batchId = filesToUpload.length > 1 ? `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
-                debugLog('DRAFT', `addFiles: batchId=${batchId || 'none'}`);
+                // 单 post 多 file_ids（对齐 webapp）：所有选中文件进同一条消息，
+                // 只有一个头像/时间戳，而不是每个文件一条 post。
+                const pendingPostId = `${currentUserId}:${Date.now()}_${generateId()}`;
+                debugLog('DRAFT', `addFiles: single pendingPostId=${pendingPostId}`);
 
                 // Phase 0: Copy existing server files to get new file IDs (like webapp's forward)
                 debugLog('DRAFT', `addFiles: Phase 0 - detecting existing server files`);
@@ -219,8 +221,6 @@ export default function DraftHandler(props: Props) {
 
                 const filesWithPostData = await Promise.all(
                     filesToUpload.map(async (file, index) => {
-                        // Generate ONE pending post ID per file (webapp creates one post per file)
-                        const pendingPostId = `${currentUserId}:${Date.now()}_${generateId()}`;
                         debugLog('DRAFT', `addFiles: Phase 1 - processing file ${index + 1}/${filesToUpload.length}: ${file.name}`);
 
                         // Detect existing server files (from group files tab) - they have a real server ID and post_id
@@ -268,6 +268,8 @@ export default function DraftHandler(props: Props) {
                         const localFile: FileInfo = {
                             ...file,
                             id: pendingFileId,
+                            // 稳定的 clientId 用于逐文件上传进度订阅（渲染层按此订阅进度条）
+                            clientId: file.clientId || pendingFileId,
                             post_id: '',
                             user_id: currentUserId,
                             name: fileName,
@@ -294,42 +296,35 @@ export default function DraftHandler(props: Props) {
                             height: localFile.height,
                         });
 
-                        return {localFile, isExistingServerFile, pendingPostId};
+                        return {localFile, isExistingServerFile};
                     }),
                 );
 
                 debugLog('DRAFT', `addFiles: Phase 1 COMPLETE, prepared ${filesWithPostData.length} files`);
 
-                // Phase 2: Create ONE pending post PER FILE (webapp behavior)
-                // All posts in the same batch share the batch_id
-                debugLog('DRAFT', `addFiles: Phase 2 - create ${filesWithPostData.length} pending posts (one per file)`);
+                // Phase 2: Create ONE pending post with ALL files (webapp behavior)
+                // 一条消息挂所有文件 → 单个头像/时间戳，图片网格 + 文件列表。
+                debugLog('DRAFT', `addFiles: Phase 2 - create 1 pending post with ${filesWithPostData.length} files`);
 
-                const postsToCreate = filesWithPostData.map(({localFile, isExistingServerFile, pendingPostId}) => {
-                    const post = {
+                const allLocalFiles = filesWithPostData.map((f) => f.localFile);
+                const allExistingServerFiles = filesWithPostData.every((f) => f.isExistingServerFile);
+
+                const postToCreate = {
+                    post: {
                         pending_post_id: pendingPostId,
                         user_id: currentUserId,
                         channel_id: channelId,
                         root_id: rootId,
                         message: '',
-                        file_ids: [localFile.id!],  // Each post has ONE file
+                        file_ids: allLocalFiles.map((f) => f.id!),
                         props: {
-                            upload_status: isExistingServerFile ? 'complete' : 'uploading',
-                            ...(batchId ? {batch_id: batchId} : {}),  // Add batch_id for grouping
+                            upload_status: allExistingServerFiles ? 'complete' : 'uploading',
                         },
-                    } as Post;
+                    } as Post,
+                    files: allLocalFiles,
+                };
 
-                    return {
-                        post,
-                        files: [localFile],
-                    };
-                });
-
-                debugLog('DRAFT', `addFiles: Phase 2 - prepared ${postsToCreate.length} posts`, {
-                    batchId,
-                    postIds: postsToCreate.map(p => p.post.pending_post_id),
-                });
-
-                const batchResult = await createBatchPendingPosts(serverUrl, postsToCreate);
+                const batchResult = await createBatchPendingPosts(serverUrl, [postToCreate]);
 
                 if (batchResult.error) {
                     debugLog('DRAFT', `addFiles: Phase 2 ERROR - ${batchResult.error}`);
@@ -337,65 +332,62 @@ export default function DraftHandler(props: Props) {
                 }
 
                 const batchData = batchResult.data!;
-                debugLog('DRAFT', `addFiles: Phase 2 complete, created ${postsToCreate.length} posts`);
+                debugLog('DRAFT', `addFiles: Phase 2 complete, created pending post`);
 
-                // Store batch for undo functionality
-                if (batchId && batchData.length > 1) {
-                    const {storeBatchForUndo} = await import('@utils/batch_posts');
-                    storeBatchForUndo(batchId, batchData.map(d => d.post.id || d.post.pending_post_id!), channelId);
-                }
+                // Phase 3: Call server API to create the single post
+                debugLog('DRAFT', `addFiles: Phase 3 - calling server API`);
 
-                // Phase 3: Call server API for each post
-                debugLog('DRAFT', `addFiles: Phase 3 - calling server API for ${batchData.length} posts`);
+                let createdPostId = pendingPostId;
+                const {pendingPostId: serverPendingPostId, post: serverPost, files: serverFiles} = batchData[0];
+                try {
+                    const result = await createPost(
+                        serverUrl,
+                        {...serverPost, pending_post_id: serverPendingPostId},
+                        serverFiles,
+                        true, // Skip pending post creation (already done in batch)
+                    );
 
-                const createdPostIds: string[] = [];
-                for (let postIndex = 0; postIndex < batchData.length; postIndex++) {
-                    const {pendingPostId: serverPendingPostId, post: serverPost, files: serverFiles} = batchData[postIndex];
-
-                    try {
-                        const result = await createPost(
-                            serverUrl,
-                            {...serverPost, pending_post_id: serverPendingPostId},
-                            serverFiles,
-                            true, // Skip pending post creation (already done in batch)
-                        );
-
-                        if (result.error) {
-                            debugLog('DRAFT', `addFiles: Phase 3 ERROR for post ${postIndex + 1} - ${result.error}`);
-                            // Continue with other posts even if one fails
-                        } else if (result.data?.postId) {
-                            createdPostIds.push(result.data.postId);
-                            debugLog('DRAFT', `addFiles: Phase 3 - post ${postIndex + 1} created, id=${result.data.postId}`);
-                        }
-                    } catch (err) {
-                        logError(`[addFiles createPost ${postIndex + 1}]`, err);
-                        debugLog('DRAFT', `addFiles: Phase 3 exception for post ${postIndex + 1} - ${err}`);
+                    if (result.error) {
+                        debugLog('DRAFT', `addFiles: Phase 3 ERROR - ${result.error}`);
+                    } else if (result.data?.postId) {
+                        createdPostId = result.data.postId;
+                        debugLog('DRAFT', `addFiles: Phase 3 - post created, id=${createdPostId}`);
                     }
+                } catch (err) {
+                    logError('[addFiles createPost]', err);
+                    debugLog('DRAFT', `addFiles: Phase 3 exception - ${err}`);
                 }
 
-
-                // Emit scroll to bottom immediately so user sees their posts
+                // Emit scroll to bottom immediately so user sees their post
                 DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
 
                 // Upload files in background and update each post individually
-                debugLog('DRAFT', `addFiles: background upload - ${filesWithPostData.length} files to ${createdPostIds.length} posts`);
+                debugLog('DRAFT', `addFiles: background upload - ${filesWithPostData.length} files to post ${createdPostId}`);
 
-                // Upload each file and update its corresponding post
+                // 累积所有最终文件（已在服务器的 + 新上传完成的），最后一次性 updatePostFileIds。
+                // 不能在未全部上传完时就 patch，否则会把 pending_ 文件 id 发到服务器导致失败。
+                // 每个文件上传期间通过 progress 发布器单独上报进度，渲染层按 pending 文件 id 显示各自进度条。
+                const finalFiles: FileInfo[] = [];
+                let anyUploadFailed = false;
+                let failedFileName = '';
+
+                // Upload each file into the single post
                 for (let uploadIndex = 0; uploadIndex < filesWithPostData.length; uploadIndex++) {
-                    const {localFile: file, isExistingServerFile, pendingPostId} = filesWithPostData[uploadIndex];
-                    const postId = createdPostIds[uploadIndex] || pendingPostId;
+                    const {localFile: file, isExistingServerFile} = filesWithPostData[uploadIndex];
+                    const postId = createdPostId;
 
-                    // Skip upload for existing server files, but still update post
+                    // 进度键用 pending 文件 id（file.id），因为聊天列表从 DB 读取的 File 只有 id，无 clientId
+                    const progressKey = file.id!;
+
+                    // Existing server files (group files tab): already uploaded, keep as-is
                     if (isExistingServerFile) {
-                        debugLog('DRAFT', `addFiles: skipping upload for existing server file ${file.name}, updating post ${postId}`);
-                        try {
-                            await updatePostFileIds(serverUrl, postId, [file]);
-                            debugLog('DRAFT', `addFiles: post ${postId} updated with existing server file ${file.name}`);
-                        } catch (updateErr) {
-                            logError('[addFiles updatePostFileIds for existing server file]', updateErr);
-                        }
+                        debugLog('DRAFT', `addFiles: existing server file ${file.name}, no upload needed`);
+                        completeProgress(progressKey);
+                        finalFiles.push(file);
                         continue;
                     }
+
+                    startProgress(progressKey);
 
                     debugLog('DRAFT', `addFiles: uploading file ${uploadIndex + 1}/${filesWithPostData.length}: ${file.name}`, {
                         postId,
@@ -414,7 +406,9 @@ export default function DraftHandler(props: Props) {
                                 serverUrl,
                                 file,
                                 channelId,
-                                () => {/* progress */},
+                                (progress) => {
+                                    emitProgress(progressKey, progress);
+                                },
                                 (response) => {
                                     debugLog('DRAFT', `addFiles: upload callback for ${file.name}`, {
                                         code: response.code,
@@ -465,17 +459,8 @@ export default function DraftHandler(props: Props) {
                             localPath: uploadedFile.localPath,
                         });
 
-                        // Update this post with the uploaded file ID
-                        try {
-                            await updatePostFileIds(serverUrl, postId, [uploadedFile]);
-                            debugLog('DRAFT', `addFiles: post ${postId} updated with file ${uploadedFile.name}`);
-                        } catch (updateErr) {
-                            logError('[addFiles updatePostFileIds]', updateErr);
-                            debugLog('DRAFT', `addFiles: ERROR updating post ${postId} with file ID`, {
-                                error: updateErr instanceof Error ? updateErr.message : String(updateErr),
-                            });
-                        }
-
+                        completeProgress(progressKey);
+                        finalFiles.push(uploadedFile);
                     } catch (uploadErr) {
                         logError('[addFiles background upload]', uploadErr);
                         debugLog('DRAFT', `addFiles: upload ERROR for file ${uploadIndex + 1} (${file.name})`, {
@@ -484,14 +469,37 @@ export default function DraftHandler(props: Props) {
                             postId,
                             fileId: file.id,
                         });
-                        // Mark this post as failed
-                        try {
-                            await markPostUploadFailed(serverUrl, postId, file.name);
-                            debugLog('DRAFT', `addFiles: post ${postId} marked as failed`);
-                        } catch (markErr) {
-                            debugLog('DRAFT', `addFiles: ERROR marking post as failed: ${markErr instanceof Error ? markErr.message : String(markErr)}`);
+                        failProgress(progressKey);
+                        anyUploadFailed = true;
+                        if (!failedFileName) {
+                            failedFileName = file.name;
                         }
                         // Continue with other files even if one fails
+                    }
+                }
+
+                // All uploads done: update the single post once with every real file id.
+                // updatePostFileIds does a full replace + server patchPost, so send the
+                // complete set in one call (partial sends would overwrite each other).
+                if (finalFiles.length > 0) {
+                    try {
+                        await updatePostFileIds(serverUrl, createdPostId, finalFiles);
+                        debugLog('DRAFT', `addFiles: post ${createdPostId} updated with ${finalFiles.length} files`);
+                    } catch (updateErr) {
+                        logError('[addFiles updatePostFileIds]', updateErr);
+                        debugLog('DRAFT', `addFiles: ERROR updating post ${createdPostId}`, {
+                            error: updateErr instanceof Error ? updateErr.message : String(updateErr),
+                        });
+                    }
+                }
+
+                // If any file failed and none succeeded, mark the post as failed.
+                if (anyUploadFailed && finalFiles.length === 0) {
+                    try {
+                        await markPostUploadFailed(serverUrl, createdPostId, failedFileName);
+                        debugLog('DRAFT', `addFiles: post ${createdPostId} marked as failed`);
+                    } catch (markErr) {
+                        debugLog('DRAFT', `addFiles: ERROR marking post as failed: ${markErr instanceof Error ? markErr.message : String(markErr)}`);
                     }
                 }
 

@@ -18,12 +18,16 @@ export type SelectedFile = FileInfo & {
 type SelectionState = {
     selectedFiles: Map<string, SelectedFile>;
     maxSelection: number;
+    // 文件已交付给上传流程（点发送后）。置位后卸载清理不再删缓存文件，
+    // 否则相册图片的缓存文件会在后台上传前被删，导致上传失败。
+    handedOff: boolean;
 };
 
 type SelectionAction =
     | {type: 'ADD_FILE'; file: SelectedFile}
     | {type: 'REMOVE_FILE'; fileId: string}
     | {type: 'CLEAR_SELECTION'}
+    | {type: 'MARK_HANDED_OFF'}
     | {type: 'SET_MAX_SELECTION'; max: number};
 
 type FilePickerContextType = {
@@ -37,6 +41,7 @@ type FilePickerContextType = {
 
 const initialState: SelectionState = {
     selectedFiles: new Map(),
+    handedOff: false,
     maxSelection: 9,
 };
 
@@ -53,8 +58,13 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
                 maxSelection: state.maxSelection,
             }));
 
-            // Validate required fields
-            if (!action.file.uri) {
+            // Validate required fields.
+            // 云盘/频道文件是服务器已有文件（有真实 id+post_id，无本地 uri），
+            // 发送时走服务器端复制流程，不需要本地 uri；只有本地待上传文件才强制要求 uri。
+            const isExistingServerFile =
+                action.file.source === 'channel' ||
+                (Boolean(action.file.post_id) && Boolean(action.file.id) && !action.file.id.startsWith('pending_'));
+            if (!action.file.uri && !isExistingServerFile) {
                 debugLog('FilePickerContext', `ERROR: ADD_FILE rejected - missing uri`);
                 return state;
             }
@@ -118,6 +128,9 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
 
             return {...state, selectedFiles: new Map()};
         }
+        case 'MARK_HANDED_OFF':
+            debugLog('FilePickerContext', `MARK_HANDED_OFF: skip cache cleanup for ${state.selectedFiles.size} files`);
+            return {...state, handedOff: true};
         case 'SET_MAX_SELECTION':
             debugLog('FilePickerContext', `SET_MAX_SELECTION: ${action.max}`);
             return {...state, maxSelection: action.max};
@@ -140,9 +153,14 @@ export function FilePickerProvider({children, maxSelection = 9}: FilePickerProvi
         maxSelection,
     });
 
-    // Cleanup cached files when component unmounts
+    // Cleanup cached files when component unmounts.
+    // 已交付上传（handedOff）时不删：后台上传仍需读取这些缓存文件。
     useEffect(() => {
         return () => {
+            if (state.handedOff) {
+                debugLog('FilePickerContext', 'Component unmounting, files handed off to upload - skip cleanup');
+                return;
+            }
             debugLog('FilePickerContext', 'Component unmounting, cleaning up cached files');
             state.selectedFiles.forEach((file) => {
                 if (file.source === 'album' && file.uri?.includes('cache')) {

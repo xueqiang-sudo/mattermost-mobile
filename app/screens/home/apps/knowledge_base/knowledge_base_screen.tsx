@@ -26,7 +26,8 @@ import DatabaseManager from '@database/manager';
 import {downloadFile} from '@actions/remote/file';
 import {getCurrentTeamId} from '@queries/servers/system';
 import NetworkManager from '@managers/network_manager';
-import {goToScreen, showModal, dismissModal} from '@screens/navigation';
+import {showFilePickerScreen} from '@screens/file_picker/show_modal';
+import {goToScreen, dismissModal} from '@screens/navigation';
 import {isImage, isVideo, isAudio, getLocalFilePathFromFile} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
@@ -1108,13 +1109,10 @@ const KnowledgeBaseScreen = () => {
             // 延迟打开文件选择器，确保前面的 modal 先关闭
             setTimeout(() => {
                 debugLog('[KB] Opening file picker after closing text modal');
-                showModal(
-                    Screens.FILE_PICKER,
+                showFilePickerScreen(
+                    '',
+                    onUploadKBFiles,
                     intl.formatMessage({id: 'workbench.kb.select_file', defaultMessage: 'Select File'}),
-                    {
-                        onSend: onUploadKBFiles,
-                        channelId: '',
-                    },
                 );
             }, 100);
         } else if (activeCategory === 'text') {

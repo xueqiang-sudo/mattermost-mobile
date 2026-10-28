@@ -6,12 +6,15 @@ import {useIntl} from 'react-intl';
 import {FlatList, Image, StyleSheet, Text, View, PermissionsAndroid, Platform} from 'react-native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import {getInfoAsync, copyAsync, cacheDirectory} from 'expo-file-system';
+import {compressChatImageAsset} from '@utils/file/compress_chat_image';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
 
 import {useFilePicker, type SelectedFile} from '../context/file_picker_context';
+
+import type {Asset} from 'react-native-image-picker';
 
 const NUM_COLUMNS = 4;
 const PAGE_SIZE = 50;
@@ -229,7 +232,30 @@ export default function PhotoAlbumTab() {
                 if ('size' in copiedInfo) {
                     fileSize = copiedInfo.size || 0;
                 }
-                debugLog('PhotoAlbumTab', `Final file size: ${fileSize} bytes`);
+                debugLog('PhotoAlbumTab', `Final file size (before compress): ${fileSize} bytes`);
+
+                // 压缩图片（和标准相册入口一致），避免原图进聊天列表导致解码卡顿/OOM。
+                // 压缩失败时返回原文件，仍可正常上传。
+                try {
+                    const compressed = await compressChatImageAsset({
+                        uri: cacheUri,
+                        type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
+                        fileName: filename,
+                    } as Asset);
+
+                    if (compressed.uri && compressed.uri !== cacheUri) {
+                        const compressedInfo = await getInfoAsync(compressed.uri, {size: true});
+                        if (compressedInfo.exists) {
+                            fileUri = compressed.uri;
+                            if ('size' in compressedInfo) {
+                                fileSize = compressedInfo.size || fileSize;
+                            }
+                            debugLog('PhotoAlbumTab', `Compressed file: ${fileUri}, size: ${fileSize} bytes`);
+                        }
+                    }
+                } catch (compressError) {
+                    debugLog('PhotoAlbumTab', `Compression failed, using cached original: ${compressError instanceof Error ? compressError.message : String(compressError)}`);
+                }
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 debugLog('PhotoAlbumTab', `ERROR copying photo to cache: ${errorMsg}`);

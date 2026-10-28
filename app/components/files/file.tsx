@@ -22,6 +22,7 @@ import FileInfo from './file_info';
 import FileOptionsIcon from './file_options_icon';
 import ImageFile from './image_file';
 import ImageFileOverlay from './image_file_overlay';
+import UploadProgressOverlay from './upload_progress_overlay';
 import VideoFile from './video_file';
 
 import type {DocumentRef} from '@components/document';
@@ -180,6 +181,9 @@ const File = ({
     }, [index, onPress, file, downloadAndPreviewFile]);
 
     const {styles, onGestureEvent, ref} = useGalleryItem(galleryIdentifier, index, handlePreviewPress);
+
+    // 乐观发送：pending 文件（id 以 pending_ 开头）在上传期间显示各自进度条
+    const isPendingUpload = Boolean(file.id && file.id.startsWith('pending_'));
 
     const handleOnOptionsPress = useCallback(() => {
         onOptionsPress?.(file);
@@ -357,6 +361,7 @@ const File = ({
                         value={nonVisibleImagesCount}
                     />
                     }
+                    {isPendingUpload && <UploadProgressOverlay progressKey={file.id}/>}
                     <RNAnimated.View style={[style.pressOverlay, {opacity: pressOpacity}]} />
                 </Animated.View>
             </TouchableWithoutFeedback>
@@ -388,6 +393,7 @@ const File = ({
                         value={nonVisibleImagesCount}
                     />
                     }
+                    {isPendingUpload && <UploadProgressOverlay progressKey={file.id}/>}
                     <RNAnimated.View style={[style.pressOverlay, {opacity: pressOpacity}]} />
                 </Animated.View>
             </TouchableWithoutFeedback>

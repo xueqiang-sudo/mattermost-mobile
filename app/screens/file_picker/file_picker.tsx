@@ -4,7 +4,7 @@
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
@@ -26,24 +26,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E5E5',
-    },
-    backButton: {
-        padding: 8,
-        marginRight: 8,
-    },
-    headerTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
     },
     tabBar: {
         flexDirection: 'row',
@@ -142,7 +124,6 @@ type FilePickerContentProps = {
     componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
-    title?: string;
 };
 
 function getFileIcon(name: string): string {
@@ -171,16 +152,14 @@ function getFileIcon(name: string): string {
     return 'file-generic-outline';
 }
 
-function FilePickerContent({componentId, onSend, channelId, title}: FilePickerContentProps) {
+function FilePickerContent({componentId, onSend, channelId}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
-    const insets = useSafeAreaInsets();
     const {getSelectedFiles, getSelectedCount, state, dispatch} = useFilePicker();
     const [activeTab, setActiveTab] = useState<TabKey>('chat');
     const [expanded, setExpanded] = useState(false);
     const [sending, setSending] = useState(false);
 
-    const headerTitle = title || intl.formatMessage({id: 'file_picker.title', defaultMessage: 'Select Files'});
 
     const selectedCount = state.selectedFiles.size;
     const canSend = selectedCount > 0 && !sending;
@@ -243,6 +222,10 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
 
             debugLog('filePicker', `All ${normalizedFiles.length} files validated successfully`);
 
+            // 标记文件已交付上传：关闭弹窗卸载 Provider 时不要删相册缓存文件，
+            // 否则后台上传读不到文件导致发送失败。
+            dispatch({type: 'MARK_HANDED_OFF'});
+
             // 【关键修改】先dismiss modal，再在后台执行onSend
             // 这样可以立刻关闭弹窗，给用户最好的UX体验
             debugLog('filePicker', 'Dismissing modal first (before onSend)');
@@ -279,7 +262,7 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
             );
             setSending(false);
         }
-    }, [componentId, state.selectedFiles, onSend, intl, sending]);
+    }, [componentId, state.selectedFiles, onSend, intl, sending, dispatch]);
 
     const selectedFilesList = Array.from(state.selectedFiles.values());
 
@@ -325,17 +308,7 @@ function FilePickerContent({componentId, onSend, channelId, title}: FilePickerCo
     );
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
-            {/* Custom Header with Back Button */}
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => dismissModal({componentId})}>
-                    <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                    {headerTitle}
-                </Text>
-            </View>
-
+        <SafeAreaView edges={['bottom']} style={styles.container}>
             <View style={styles.tabBar}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.key;
@@ -425,14 +398,13 @@ type FilePickerProps = {
     componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
-    title?: string;
 };
 
-export default function FilePicker({componentId, onSend, channelId, title}: FilePickerProps) {
+export default function FilePicker({componentId, onSend, channelId}: FilePickerProps) {
     debugLog('filePicker', `FilePicker component rendering, channelId=${channelId}`);
     return (
         <FilePickerProvider maxSelection={9}>
-            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId} title={title}/>
+            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId}/>
         </FilePickerProvider>
     );
 }

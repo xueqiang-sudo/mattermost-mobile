@@ -26,12 +26,11 @@ import {isImage, isVideo, isAudio, hasPdfPreview} from '@utils/file';
 import type {FileInfo} from '@mattermost/types/files';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
-import {showModal} from '@screens/navigation';
+import {showFilePickerScreen} from '@screens/file_picker/show_modal';
 import {useDownloadFileAndPreview} from '@hooks/files';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {Screens} from '@constants';
 
 import {
     listDriveFiles,
@@ -867,13 +866,10 @@ const CloudDriveScreen = () => {
 
     // ── Open file picker ──
     const onOpenFilePicker = useCallback(() => {
-        showModal(
-            Screens.FILE_PICKER,
+        showFilePickerScreen(
+            '', // Not needed for cloud drive uploads
+            onUploadFiles,
             intl.formatMessage({id: 'workbench.drive.upload_title', defaultMessage: 'Upload Files'}),
-            {
-                onSend: onUploadFiles,
-                channelId: '', // Not needed for cloud drive uploads
-            },
         );
     }, [onUploadFiles, intl]);
 
