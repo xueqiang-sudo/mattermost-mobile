@@ -21,6 +21,8 @@ type SelectionState = {
     // 文件已交付给上传流程（点发送后）。置位后卸载清理不再删缓存文件，
     // 否则相册图片的缓存文件会在后台上传前被删，导致上传失败。
     handedOff: boolean;
+    // 微信式「原图」开关：true = 发送原图（跳过压缩）。仅影响相册图片。
+    keepOriginal: boolean;
 };
 
 type SelectionAction =
@@ -28,6 +30,7 @@ type SelectionAction =
     | {type: 'REMOVE_FILE'; fileId: string}
     | {type: 'CLEAR_SELECTION'}
     | {type: 'MARK_HANDED_OFF'}
+    | {type: 'SET_KEEP_ORIGINAL'; keepOriginal: boolean}
     | {type: 'SET_MAX_SELECTION'; max: number};
 
 type FilePickerContextType = {
@@ -42,6 +45,7 @@ type FilePickerContextType = {
 const initialState: SelectionState = {
     selectedFiles: new Map(),
     handedOff: false,
+    keepOriginal: false,
     maxSelection: 9,
 };
 
@@ -131,6 +135,9 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
         case 'MARK_HANDED_OFF':
             debugLog('FilePickerContext', `MARK_HANDED_OFF: skip cache cleanup for ${state.selectedFiles.size} files`);
             return {...state, handedOff: true};
+        case 'SET_KEEP_ORIGINAL':
+            debugLog('FilePickerContext', `SET_KEEP_ORIGINAL: ${action.keepOriginal}`);
+            return {...state, keepOriginal: action.keepOriginal};
         case 'SET_MAX_SELECTION':
             debugLog('FilePickerContext', `SET_MAX_SELECTION: ${action.max}`);
             return {...state, maxSelection: action.max};

@@ -161,151 +161,82 @@ export default function PhotoAlbumTab() {
         loadPhotos();
     }, [hasPermission]);
 
-    const handlePhotoPress = useCallback(async (photo: PhotoAsset) => {
+    const handlePhotoPress = useCallback((photo: PhotoAsset) => {
         debugLog('PhotoAlbumTab', 'handlePhotoPress called');
         const photoUri = photo.node.image.uri;
-        debugLog('PhotoAlbumTab', `Photo URI: ${photoUri}`);
-        debugLog('PhotoAlbumTab', `Photo node:`, {
-            uri: photo.node.image.uri,
-            filename: photo.node.image.filename,
-            width: photo.node.image.width,
-            height: photo.node.image.height,
-            timestamp: photo.node.timestamp,
-        });
-
         const isSelected = isFileSelected(photoUri);
         debugLog('PhotoAlbumTab', `Photo is selected: ${isSelected}`);
 
         if (isSelected) {
             debugLog('PhotoAlbumTab', `Removing photo: ${photoUri}`);
             dispatch({type: 'REMOVE_FILE', fileId: photoUri});
-        } else if (canSelectMore()) {
-            // Extract filename from URI if not provided
-            const filename = photo.node.image.filename || photoUri.split('/').pop() || 'photo.jpg';
-            debugLog('PhotoAlbumTab', `Filename: ${filename}`);
-
-            const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
-            debugLog('PhotoAlbumTab', `Extension: ${extension}`);
-
-            // Copy photo to cache directory to get a file:// URI that can be uploaded
-            let fileUri = photoUri;
-            let fileSize = 0;
-            try {
-                // Validate that cacheDirectory is available
-                if (!cacheDirectory) {
-                    throw new Error('Cache directory not available');
-                }
-
-                // Create a unique filename for the cache directory
-                const cacheFileName = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
-                const cacheUri = cacheDirectory + cacheFileName;
-
-                debugLog('PhotoAlbumTab', `=== Starting photo copy ===`);
-                debugLog('PhotoAlbumTab', `From: ${photoUri}`);
-                debugLog('PhotoAlbumTab', `To: ${cacheUri}`);
-
-                // Check if source file exists
-                const sourceInfo = await getInfoAsync(photoUri);
-                if (!sourceInfo.exists) {
-                    throw new Error(`Source photo not found: ${photoUri}`);
-                }
-                debugLog('PhotoAlbumTab', `Source file exists, size: ${sourceInfo.size} bytes`);
-
-                await copyAsync({
-                    from: photoUri,
-                    to: cacheUri,
-                });
-
-                debugLog('PhotoAlbumTab', `Photo copied successfully`);
-
-                // Verify the copied file exists and is readable
-                const copiedInfo = await getInfoAsync(cacheUri, {size: true});
-                if (!copiedInfo.exists) {
-                    throw new Error(`Copied file verification failed: ${cacheUri}`);
-                }
-                debugLog('PhotoAlbumTab', `Copied file verified at: ${cacheUri}`);
-
-                // Use the cached file URI
-                fileUri = cacheUri;
-
-                // Get file size from the cached file
-                if ('size' in copiedInfo) {
-                    fileSize = copiedInfo.size || 0;
-                }
-                debugLog('PhotoAlbumTab', `Final file size (before compress): ${fileSize} bytes`);
-
-                // 压缩图片（和标准相册入口一致），避免原图进聊天列表导致解码卡顿/OOM。
-                // 压缩失败时返回原文件，仍可正常上传。
-                try {
-                    const compressed = await compressChatImageAsset({
-                        uri: cacheUri,
-                        type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
-                        fileName: filename,
-                    } as Asset);
-
-                    if (compressed?.uri && compressed.uri !== cacheUri) {
-                        const compressedInfo = await getInfoAsync(compressed.uri, {size: true});
-                        if (compressedInfo.exists) {
-                            fileUri = compressed.uri;
-                            if ('size' in compressedInfo) {
-                                fileSize = compressedInfo.size || fileSize;
-                            }
-                            debugLog('PhotoAlbumTab', `Compressed file: ${fileUri}, size: ${fileSize} bytes`);
-                        }
-                    }
-                } catch (compressError) {
-                    debugLog('PhotoAlbumTab', `Compression failed, using cached original: ${compressError instanceof Error ? compressError.message : String(compressError)}`);
-                    // Compression failure is non-fatal; continue with cached original
-                }
-            } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error);
-                debugLog('PhotoAlbumTab', `ERROR copying photo to cache: ${errorMsg}`);
-                debugLog('PhotoAlbumTab', `Stack: ${error instanceof Error ? error.stack : 'N/A'}`);
-                debugLog('PhotoAlbumTab', `Fallback: using original URI instead`);
-
-                // Fallback: use original URI but still try to get size
-                fileUri = photoUri;
-                try {
-                    const fileInfo = await getInfoAsync(photoUri, {size: true});
-                    if (fileInfo.exists && 'size' in fileInfo) {
-                        fileSize = fileInfo.size || 0;
-                        debugLog('PhotoAlbumTab', `Using original file, size: ${fileSize} bytes`);
-                    }
-                } catch (sizeError) {
-                    const sizeErrorMsg = sizeError instanceof Error ? sizeError.message : String(sizeError);
-                    debugLog('PhotoAlbumTab', `Error getting original file size: ${sizeErrorMsg}`);
-                }
-            }
-
-            const selectedFile: SelectedFile = {
-                id: fileUri,
-                clientId: fileUri,
-                name: filename,
-                uri: fileUri,
-                mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
-                size: fileSize,
-                source: 'album',
-                originalUri: photoUri, // key selection map by the camera-roll URI
-                extension,
-                width: photo.node.image.width,
-                height: photo.node.image.height,
-            };
-
-            debugLog('PhotoAlbumTab', 'Adding photo to selection:', {
-                id: selectedFile.id,
-                name: selectedFile.name,
-                uri: selectedFile.uri,
-                extension: selectedFile.extension,
-                mime_type: selectedFile.mime_type,
-                size: selectedFile.size,
-                width: selectedFile.width,
-                height: selectedFile.height,
-            });
-
-            dispatch({type: 'ADD_FILE', file: selectedFile});
-        } else {
-            debugLog('PhotoAlbumTab', 'Cannot select more files: max selection reached');
+            return;
         }
+
+        if (!canSelectMore()) {
+            debugLog('PhotoAlbumTab', 'Cannot select more files: max selection reached');
+            return;
+        }
+
+        // 【关键改进】文件 I/O 操作异步执行，不阻塞 UI
+        // setImmediate 会在当前帧渲染完成后执行，保证 UI 立刻响应
+        setImmediate(async () => {
+            try {
+                const filename = photo.node.image.filename || photoUri.split('/').pop() || 'photo.jpg';
+                const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
+
+                let fileUri = photoUri;
+                let fileSize = 0;
+
+                // Copy photo to cache directory
+                if (cacheDirectory) {
+                    try {
+                        const cacheFileName = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
+                        const cacheUri = cacheDirectory + cacheFileName;
+
+                        debugLog('PhotoAlbumTab', `Copying photo to cache: ${cacheUri}`);
+                        const sourceInfo = await getInfoAsync(photoUri);
+                        if (!sourceInfo.exists) {
+                            throw new Error(`Source photo not found`);
+                        }
+
+                        await copyAsync({from: photoUri, to: cacheUri});
+                        const copiedInfo = await getInfoAsync(cacheUri, {size: true});
+                        if (copiedInfo.exists && 'size' in copiedInfo) {
+                            fileUri = cacheUri;
+                            fileSize = copiedInfo.size || 0;
+                        }
+                    } catch (e) {
+                        debugLog('PhotoAlbumTab', `Cache copy failed: ${e instanceof Error ? e.message : String(e)}, using original`);
+                        try {
+                            const fileInfo = await getInfoAsync(photoUri, {size: true});
+                            if (fileInfo.exists && 'size' in fileInfo) {
+                                fileSize = fileInfo.size || 0;
+                            }
+                        } catch {}
+                    }
+                }
+
+                const selectedFile: SelectedFile = {
+                    id: fileUri,
+                    clientId: fileUri,
+                    name: filename,
+                    uri: fileUri,
+                    mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
+                    size: fileSize,
+                    source: 'album',
+                    originalUri: photoUri,
+                    extension,
+                    width: photo.node.image.width,
+                    height: photo.node.image.height,
+                };
+
+                debugLog('PhotoAlbumTab', 'Adding photo to selection:', {name: selectedFile.name, uri: selectedFile.uri});
+                dispatch({type: 'ADD_FILE', file: selectedFile});
+            } catch (error) {
+                debugLog('PhotoAlbumTab', `Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        });
     }, [dispatch, isFileSelected, canSelectMore]);
 
     const renderPhoto = useCallback(({item}: {item: PhotoAsset}) => {
@@ -313,13 +244,9 @@ export default function PhotoAlbumTab() {
         const isSelected = isFileSelected(photoUri);
         const canSelect = canSelectMore() || isSelected;
 
-        const handlePress = () => {
-            handlePhotoPress(item);
-        };
-
         return (
             <TouchableWithFeedback
-                onPress={handlePress}
+                onPress={() => handlePhotoPress(item)}
                 style={styles.imageContainer}
                 type='opacity'
             >

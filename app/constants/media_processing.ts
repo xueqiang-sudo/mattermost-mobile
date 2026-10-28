@@ -8,8 +8,12 @@
  */
 export const ENABLE_VIDEO_COMPRESS = true;
 
-/** When false, gallery/camera images skip react-native-compressor Image path (camera may still use JPEG quality). */
-export const ENABLE_IMAGE_COMPRESS = false;
+/**
+ * 微信式默认压缩总开关。true = 默认压缩聊天图片（勾「原图」可逐张跳过）。
+ * 紧急关闭时设 false（全部图片跳过压缩，发原图）。
+ * When false, gallery/camera images skip react-native-compressor Image path (camera may still use JPEG quality).
+ */
+export const ENABLE_IMAGE_COMPRESS = true;
 
 /**
  * Chat video: react-native-compressor `Video.compress`.

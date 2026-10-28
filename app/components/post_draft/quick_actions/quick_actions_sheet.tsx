@@ -251,7 +251,7 @@ export default function QuickActionsSheet({
             key: 'gallery',
             icon: 'image-outline',
             labelId: 'post_draft.quick_action.gallery',
-            labelDefault: 'Gallery',
+            labelDefault: 'Photos',
             disabled: fileDisabled,
             onPress: wrapWithDismiss(handleGalleryPress),
             testID: `${baseTestID}.image_action`,

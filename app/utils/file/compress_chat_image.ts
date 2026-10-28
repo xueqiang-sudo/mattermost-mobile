@@ -76,6 +76,9 @@ export type CompressChatImageOptions = {
     isAborted?: () => boolean;
     /** 0–1; Image.compress has no native progress — we emit coarse steps for overlay / placeholders. */
     onProgress?: (progress: number) => void;
+
+    /** 微信式「原图」：为 true 时跳过压缩，发送原图。 */
+    keepOriginal?: boolean;
 };
 
 /**
@@ -86,7 +89,9 @@ export async function compressChatImageAsset(
     file: Asset | DocumentPickerResponse,
     options?: CompressChatImageOptions,
 ): Promise<Asset | DocumentPickerResponse> {
-    if (!ENABLE_IMAGE_COMPRESS || !isProbablyImage(file) || !file.uri) {
+    // 微信式：默认压缩；勾「原图」(keepOriginal) 或非图片时跳过。
+    // ENABLE_IMAGE_COMPRESS 保留为紧急总开关（false 时全部跳过压缩）。
+    if (!ENABLE_IMAGE_COMPRESS || options?.keepOriginal || !isProbablyImage(file) || !file.uri) {
         return file;
     }
 

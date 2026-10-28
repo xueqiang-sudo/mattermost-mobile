@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useState, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -152,6 +152,24 @@ function getFileIcon(name: string): string {
     return 'file-generic-outline';
 }
 
+function SelectedCountDisplay() {
+    const intl = useIntl();
+    const {state} = useFilePicker();
+    const selectedCount = state.selectedFiles.size;
+
+    return (
+        <Text style={styles.selectedCount}>
+            {intl.formatMessage(
+                {
+                    id: 'file_picker.selected_count_center',
+                    defaultMessage: '{count} files selected',
+                },
+                {count: selectedCount},
+            )}
+        </Text>
+    );
+}
+
 function FilePickerContent({componentId, onSend, channelId}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
@@ -238,12 +256,41 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
             }
 
             debugLog('filePicker', 'Executing onSend in background (fire and forget)');
-            // 不await onSend - 让它在后台执行，不阻塞UI
+
+            // 微信式压缩：发送时按「原图」开关处理相册图片。
+            // 放在 dismiss 之后、后台执行，不阻塞 UI。keepOriginal=true 时跳过压缩发原图。
+            const keepOriginal = state.keepOriginal;
+            const prepareAndSend = async () => {
+                const prepared = await Promise.all(normalizedFiles.map(async (file) => {
+                    if (file.source !== 'album' || !file.uri) {
+                        return file;
+                    }
+                    try {
+                        const compressed = await compressChatImageAsset({
+                            uri: file.uri,
+                            type: file.mime_type,
+                            fileName: file.name,
+                        } as Asset, {keepOriginal});
+
+                        if (compressed?.uri && compressed.uri !== file.uri) {
+                            const info = await getInfoAsync(compressed.uri, {size: true});
+                            const size = info.exists && 'size' in info ? (info.size || file.size) : file.size;
+                            return {...file, uri: compressed.uri, size};
+                        }
+                    } catch (e) {
+                        debugLog('filePicker', `compress on send failed, using original: ${e instanceof Error ? e.message : String(e)}`);
+                    }
+                    return file;
+                }));
+                return onSend(prepared);
+            };
+
+            // 不await - 让它在后台执行，不阻塞UI
             // 由于onUploadFiles中已经缓存了所有必需的refs，async操作是安全的
             // onSend 的类型是 () => void，可能同步也可能返回 Promise。
             // 用 Promise.resolve 包一层，避免对 undefined 调用 .catch 导致
             // "Cannot read property 'catch' of undefined" 报错。
-            Promise.resolve(onSend(normalizedFiles)).catch((sendError) => {
+            Promise.resolve(prepareAndSend()).catch((sendError) => {
                 debugLog('filePicker', `Background onSend error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
                 debugLog('filePicker', `Error stack: ${sendError instanceof Error ? sendError.stack : 'N/A'}`);
             });
@@ -271,7 +318,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
 
     const tabs: {key: TabKey; label: string}[] = [
         {key: 'chat', label: intl.formatMessage({id: 'file_picker.tab.chat', defaultMessage: 'Chat'})},
-        {key: 'photo_album', label: intl.formatMessage({id: 'file_picker.tab.photo_album', defaultMessage: 'Photos'})},
+        {key: 'photo_album', label: intl.formatMessage({id: 'file_picker.tab.photo_album', defaultMessage: 'Phone Album'})},
         {key: 'files', label: intl.formatMessage({id: 'file_picker.tab.phone_files', defaultMessage: 'Phone Files'})},
     ];
 
@@ -355,15 +402,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                             color={selectedCount > 0 ? theme.centerChannelColor : changeOpacity(theme.centerChannelColor, 0.3)}
                         />
                     </TouchableOpacity>
-                    <Text style={styles.selectedCount}>
-                        {intl.formatMessage(
-                            {
-                                id: 'file_picker.selected_count_center',
-                                defaultMessage: '{count} files selected',
-                            },
-                            {count: selectedCount},
-                        )}
-                    </Text>
+                    <SelectedCountDisplay/>
                     <TouchableOpacity
                         onPress={handleSend}
                         style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
