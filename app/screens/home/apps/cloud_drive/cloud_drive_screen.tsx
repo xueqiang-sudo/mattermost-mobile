@@ -760,6 +760,24 @@ const CloudDriveScreen = () => {
                     has_localPath: Boolean(file.localPath),
                 }));
 
+                // channel 文件：若本地缓存（localPath）仍有效（磁盘上文件存在），
+                // 直接复用，省掉一次服务器下载；否则才从服务器下载。
+                if ((file as any).source === 'channel' && file.id && !file.uri && file.localPath) {
+                    try {
+                        const {getInfoAsync} = await import('expo-file-system');
+                        const cachedUri = file.localPath.startsWith('file://') ? file.localPath : `file://${file.localPath}`;
+                        const cachedInfo = await getInfoAsync(cachedUri);
+                        if (cachedInfo.exists) {
+                            file.uri = cachedUri;
+                            debugLog('[Drive] Reusing valid local cache, skip download:', cachedUri);
+                        } else {
+                            debugLog('[Drive] localPath stale (file missing), will download:', file.localPath);
+                        }
+                    } catch (cacheErr) {
+                        debugLog('[Drive] localPath check failed, will download:', cacheErr instanceof Error ? cacheErr.message : String(cacheErr));
+                    }
+                }
+
                 // For server files (from channel tab), download them first
                 if ((file as any).source === 'channel' && file.id && !file.uri) {
                     debugLog('[Drive] Detected channel file, starting download process');
@@ -778,8 +796,13 @@ const CloudDriveScreen = () => {
                         debugLog('[Drive] Target local URI:', localUri);
                         debugLog('[Drive] Has auth header:', Boolean(authHeader));
 
+                        // 取不到鉴权头时直接报错，否则会把 401 错误页当文件存下来再上传。
+                        if (!authHeader) {
+                            throw new Error('Missing auth header for channel file download');
+                        }
+
                         const downloadResult = await downloadAsync(fileUrl, localUri, {
-                            headers: authHeader ? {'Authorization': authHeader} : {},
+                            headers: {'Authorization': authHeader},
                         });
 
                         debugLog('[Drive] Download completed:', JSON.stringify({
@@ -808,8 +831,13 @@ const CloudDriveScreen = () => {
                     from_uri: Boolean(file.uri),
                 }));
 
-                // Use localPath or uri (for newly selected album/device files or downloaded channel files)
-                let fileUri = file.localPath || file.uri || '';
+                // channel 文件：优先用刚下载到的 file.uri（新鲜、必然存在）。
+                // 不要优先用数据库里的 localPath —— 聊天缓存可能已被系统清理，
+                // 指向一个已不存在的文件，交给原生 upload 会硬崩。
+                // album/device 文件：保持 localPath 优先（本地待上传文件）。
+                let fileUri = ((file as any).source === 'channel'
+                    ? (file.uri || file.localPath)
+                    : (file.localPath || file.uri)) || '';
                 let fileName = file.name || 'unknown';
                 let fileMimeType = file.mime_type || 'application/octet-stream';
 
@@ -860,17 +888,26 @@ const CloudDriveScreen = () => {
                     continue;
                 }
 
-                // Decode URI if it contains URL-encoded characters
-                // React Native FormData needs proper file:// URIs
-                if (fileUri.includes('%')) {
-                    try {
-                        const decodedUri = decodeURIComponent(fileUri);
-                        debugLog('[Drive] Decoded URI:', decodedUri);
-                        fileUri = decodedUri;
-                    } catch (decodeErr) {
-                        const decodeErrorMsg = decodeErr instanceof Error ? decodeErr.message : String(decodeErr);
-                        debugLog('[Drive] Failed to decode URI, using original:', decodeErrorMsg);
+                // 不要 decodeURIComponent，也不要去掉 file:// 前缀。
+                // 聊天窗口上传（正常路径）是把原始 fileCopyUri（带 file://、URL 编码）
+                // 原样传给 apiClient.upload 的（见 client/rest/files.ts 的 uploadAttachment）。
+                // 云盘之前对 device 文件做了 decode + 去前缀，把合法的 file://...%20...
+                // 变成带真实空格/中文的裸路径，iOS 原生按 URL 解析失败后硬崩（JS 捕获不到）。
+
+                // 确认磁盘上文件确实存在，再交给原生 apiClient.upload。
+                // getInfoAsync 对带 file:// + URL 编码的 uri 可正常处理（同聊天路径 extractFileInfo）。
+                try {
+                    const {getInfoAsync} = await import('expo-file-system');
+                    const checkUri = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+                    const info = await getInfoAsync(checkUri);
+                    if (!info.exists) {
+                        debugLog('[Drive] File not found on disk, skipping:', checkUri);
+                        throw new Error(`File not found on disk: ${fileName}`);
                     }
+                } catch (existErr) {
+                    const existErrMsg = existErr instanceof Error ? existErr.message : String(existErr);
+                    debugLog('[Drive] Existence check failed:', existErrMsg);
+                    throw new Error(`Failed to read file: ${fileName}`);
                 }
 
                 try {

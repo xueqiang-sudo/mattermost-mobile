@@ -979,10 +979,24 @@ const KnowledgeBaseScreen = () => {
 
                 let fileUri = file.uri || file.localPath || '';
 
-                // If channel file with no URI, download from server first
-                if ((file as any).source === 'channel' && file.id && !fileUri) {
-                    debugLog('[KB] Detected channel file, starting download');
-                    debugLog('[KB] Channel file ID:', file.id);
+                // channel 文件：若本地缓存（localPath）仍有效（磁盘上文件存在），
+                // 直接复用，省掉一次服务器下载；否则清空 fileUri 走下载分支。
+                if ((file as any).source === 'channel' && file.id && file.localPath && !file.uri) {
+                    try {
+                        const {getInfoAsync} = await import('expo-file-system');
+                        const cachedUri = file.localPath.startsWith('file://') ? file.localPath : `file://${file.localPath}`;
+                        const cachedInfo = await getInfoAsync(cachedUri);
+                        if (cachedInfo.exists) {
+                            fileUri = cachedUri;
+                            debugLog('[KB] Reusing valid local cache, skip download:', cachedUri);
+                        } else {
+                            fileUri = '';
+                            debugLog('[KB] localPath stale (file missing), will download:', file.localPath);
+                        }
+                    } catch (cacheErr) {
+                        fileUri = '';
+                        debugLog('[KB] localPath check failed, will download:', cacheErr instanceof Error ? cacheErr.message : String(cacheErr));
+                    }
                 }
 
                 // If no local URI, download from server using file ID
@@ -1009,9 +1023,14 @@ const KnowledgeBaseScreen = () => {
                         cache_dir: cacheDirectory,
                     }));
 
+                    // 取不到鉴权头时直接报错，否则会把 401 错误页当文件存下来再上传。
+                    if (!authHeader) {
+                        throw new Error(`Missing auth header for file download: ${file.name}`);
+                    }
+
                     try {
                         const downloadResult = await downloadAsync(downloadUrl, localUri, {
-                            headers: authHeader ? {'Authorization': authHeader} : {},
+                            headers: {'Authorization': authHeader},
                         });
                         debugLog('[KB] Download result:', JSON.stringify({
                             returned_uri: downloadResult?.uri,
@@ -1032,17 +1051,23 @@ const KnowledgeBaseScreen = () => {
                     }
                 }
 
-                // Decode URI if it contains URL-encoded characters (like Chinese filenames)
-                // This is critical for files with non-ASCII names from device storage
-                if (fileUri.includes('%')) {
-                    try {
-                        const decodedUri = decodeURIComponent(fileUri);
-                        debugLog('[KB] Decoded URI:', decodedUri);
-                        fileUri = decodedUri;
-                    } catch (decodeErr) {
-                        const decodeErrorMsg = decodeErr instanceof Error ? decodeErr.message : String(decodeErr);
-                        debugLog('[KB] WARNING: Failed to decode URI, using original:', decodeErrorMsg);
+                // 不要 decodeURIComponent。保留原始 file://...%20... 形态原样传给上传，
+                // 对齐聊天窗口上传路径。decode 后会变成带真实空格/中文的裸路径，
+                // iOS 原生 upload 按 URL 解析失败后硬崩（JS 捕获不到）。
+
+                // 交给原生上传前，确认磁盘上文件确实存在；传不存在的路径给原生层会硬崩。
+                try {
+                    const {getInfoAsync} = await import('expo-file-system');
+                    const checkUri = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+                    const info = await getInfoAsync(checkUri);
+                    if (!info.exists) {
+                        debugLog('[KB] File not found on disk, skipping:', checkUri);
+                        throw new Error(`File not found on disk: ${file.name}`);
                     }
+                } catch (existErr) {
+                    const existErrMsg = existErr instanceof Error ? existErr.message : String(existErr);
+                    debugLog('[KB] Existence check failed:', existErrMsg);
+                    throw new Error(`Failed to read file: ${file.name}`);
                 }
 
                 try {

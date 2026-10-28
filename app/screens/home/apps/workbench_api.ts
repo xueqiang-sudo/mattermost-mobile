@@ -170,8 +170,11 @@ export async function uploadDriveFile(
         headers: client.getRequestHeaders('POST'),
     };
 
-    // Remove file:// prefix if present (apiClient.upload expects plain path)
-    const localPath = fileUri.replace('file://', '');
+    // 原样传 fileUri（保留 file:// 前缀和 URL 编码），对齐聊天窗口上传路径
+    // （client/rest/files.ts 的 uploadAttachment 直接传 file.localPath，不去前缀、不 decode）。
+    // 去掉前缀 / decode 会把合法的 file://...%20... 变成带真实空格的裸路径，
+    // iOS 原生 upload 按 URL 解析失败后硬崩。
+    const localPath = fileUri;
 
     debugLog('[uploadDriveFile] Using apiClient.upload with localPath:', localPath);
 
@@ -456,8 +459,10 @@ export async function uploadKBFile(
         headers: client.getRequestHeaders('POST'),
     };
 
-    // Remove file:// prefix if present (apiClient.upload expects plain path)
-    const localPath = fileUri.replace('file://', '');
+    // 原样传 fileUri（保留 file:// 前缀和 URL 编码），对齐聊天窗口上传路径。
+    // 去掉前缀 / decode 会把合法的 file://...%20... 变成带真实空格的裸路径，
+    // iOS 原生 upload 按 URL 解析失败后硬崩。
+    const localPath = fileUri;
 
     debugLog('[uploadKBFile] Using apiClient.upload with localPath:', localPath);
 

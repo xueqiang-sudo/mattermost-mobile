@@ -240,7 +240,10 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
             debugLog('filePicker', 'Executing onSend in background (fire and forget)');
             // 不await onSend - 让它在后台执行，不阻塞UI
             // 由于onUploadFiles中已经缓存了所有必需的refs，async操作是安全的
-            onSend(normalizedFiles).catch((sendError) => {
+            // onSend 的类型是 () => void，可能同步也可能返回 Promise。
+            // 用 Promise.resolve 包一层，避免对 undefined 调用 .catch 导致
+            // "Cannot read property 'catch' of undefined" 报错。
+            Promise.resolve(onSend(normalizedFiles)).catch((sendError) => {
                 debugLog('filePicker', `Background onSend error: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
                 debugLog('filePicker', `Error stack: ${sendError instanceof Error ? sendError.stack : 'N/A'}`);
             });

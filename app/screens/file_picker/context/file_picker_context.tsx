@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {createContext, useContext, useReducer, useEffect, type ReactNode} from 'react';
+import React, {createContext, useContext, useReducer, useEffect, useRef, type ReactNode} from 'react';
 import {deleteAsync} from 'expo-file-system';
 import {debugLog} from '@store/debug_log';
 
@@ -155,14 +155,23 @@ export function FilePickerProvider({children, maxSelection = 9}: FilePickerProvi
 
     // Cleanup cached files when component unmounts.
     // 已交付上传（handedOff）时不删：后台上传仍需读取这些缓存文件。
+    //
+    // 用 ref 持有最新 state，effect 依赖置空，确保 cleanup 只在「真正卸载」时
+    // 执行一次，且读到的是最新的 handedOff/selectedFiles。
+    // 若依赖里放 state.selectedFiles/state.handedOff，则每次选择变化或
+    // MARK_HANDED_OFF 都会先用「上一次渲染的过期闭包值」触发 cleanup，把相册
+    // 缓存文件在上传前误删，导致后台上传读不到文件而崩溃。
+    const stateRef = useRef(state);
+    stateRef.current = state;
     useEffect(() => {
         return () => {
-            if (state.handedOff) {
+            const latest = stateRef.current;
+            if (latest.handedOff) {
                 debugLog('FilePickerContext', 'Component unmounting, files handed off to upload - skip cleanup');
                 return;
             }
             debugLog('FilePickerContext', 'Component unmounting, cleaning up cached files');
-            state.selectedFiles.forEach((file) => {
+            latest.selectedFiles.forEach((file) => {
                 if (file.source === 'album' && file.uri?.includes('cache')) {
                     deleteAsync(file.uri).catch((err) => {
                         debugLog('FilePickerContext', `Failed to delete cached file on unmount: ${err instanceof Error ? err.message : String(err)}`);
@@ -170,7 +179,7 @@ export function FilePickerProvider({children, maxSelection = 9}: FilePickerProvi
                 }
             });
         };
-    }, [state.selectedFiles, state.handedOff]);
+    }, []);
 
     const isFileSelected = (fileId: string): boolean => {
         return state.selectedFiles.has(fileId);

@@ -19,6 +19,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {showFilePickerScreen} from '@screens/file_picker/show_modal';
 import {popTopScreen} from '@screens/navigation';
+import NetworkManager from '@managers/network_manager';
 import {debugLog} from '@store/debug_log';
 
 import type {FileInfo} from '@mattermost/types/files';
@@ -156,10 +157,54 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
             } else if (addType === 'url') {
                 result = await createKBDocURL(serverUrl, teamId, title.trim(), url.trim());
             } else if (addType === 'file' && file) {
-                // Use localPath (for channel files already downloaded) or uri (for newly selected files)
-                const fileUri = file.localPath || file.uri || '';
                 const fileName = file.name || 'unknown';
                 const fileType = file.mime_type || 'application/octet-stream';
+
+                // 本地待上传文件（相册/手机）有 uri；channel 文件只有 localPath 或都没有。
+                let fileUri = file.uri || file.localPath || '';
+
+                // channel 文件：localPath 有效则复用，否则清空走下载。
+                if (!file.uri && file.id && file.localPath) {
+                    try {
+                        const {getInfoAsync} = await import('expo-file-system');
+                        const cachedUri = file.localPath.startsWith('file://') ? file.localPath : `file://${file.localPath}`;
+                        const cachedInfo = await getInfoAsync(cachedUri);
+                        if (cachedInfo.exists) {
+                            fileUri = cachedUri;
+                            debugLog('[KBAdd] Reusing valid local cache, skip download:', cachedUri);
+                        } else {
+                            fileUri = '';
+                            debugLog('[KBAdd] localPath stale (file missing), will download:', file.localPath);
+                        }
+                    } catch (cacheErr) {
+                        fileUri = '';
+                        debugLog('[KBAdd] localPath check failed, will download:', cacheErr instanceof Error ? cacheErr.message : String(cacheErr));
+                    }
+                }
+
+                // 无本地文件但有 id：从服务器下载。
+                if (!fileUri && file.id) {
+                    const {downloadAsync, cacheDirectory} = await import('expo-file-system');
+                    const client = NetworkManager.getClient(serverUrl);
+                    const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
+                    const downloadUrl = `${serverUrl}/api/v4/files/${file.id}`;
+                    const localUri = `${cacheDirectory}kb_add_${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+
+                    // 取不到鉴权头时直接报错，否则会把 401 错误页当文件存下来再上传。
+                    if (!authHeader) {
+                        throw new Error(`Missing auth header for file download: ${fileName}`);
+                    }
+
+                    const downloadResult = await downloadAsync(downloadUrl, localUri, {
+                        headers: {'Authorization': authHeader},
+                    });
+                    if (downloadResult?.uri) {
+                        fileUri = downloadResult.uri;
+                        debugLog('[KBAdd] File downloaded:', fileUri);
+                    } else {
+                        throw new Error(`Download failed for ${fileName}`);
+                    }
+                }
 
                 debugLog('[KBAdd] File path resolution:', JSON.stringify({
                     localPath: file.localPath,
@@ -171,6 +216,22 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
 
                 if (!fileUri) {
                     throw new Error('File has no local path or URI');
+                }
+
+                // 交给原生上传前，确认磁盘上文件确实存在；传不存在的路径给原生层会硬崩。
+                // 不要 decode、不要去 file:// 前缀——原样传，对齐聊天窗口上传路径。
+                try {
+                    const {getInfoAsync} = await import('expo-file-system');
+                    const checkUri = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+                    const info = await getInfoAsync(checkUri);
+                    if (!info.exists) {
+                        debugLog('[KBAdd] File not found on disk:', checkUri);
+                        throw new Error(`File not found on disk: ${fileName}`);
+                    }
+                } catch (existErr) {
+                    const existErrMsg = existErr instanceof Error ? existErr.message : String(existErr);
+                    debugLog('[KBAdd] Existence check failed:', existErrMsg);
+                    throw new Error(`Failed to read file: ${fileName}`);
                 }
 
                 result = await createKBDocFile(serverUrl, teamId, fileUri, fileName, fileType);
