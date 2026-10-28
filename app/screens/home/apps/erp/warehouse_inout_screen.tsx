@@ -172,6 +172,7 @@ const WarehouseInoutScreen = () => {
 
         // 连续扫描时用传入的 session（state 更新是异步的，不能依赖 scanSession）
         const targetSession = sessionOverride || scanSession;
+        console.log('[DEBUG] handleScanResult:', {raw, targetSession, scanType, scanDate, parsed});
 
         const displayBarcode = formatDisplayBarcode({
             codeSheetNo: parsed.codeSheetNo,
@@ -182,11 +183,15 @@ const WarehouseInoutScreen = () => {
 
         // 检查本 session 是否已扫描过相同的条形码（从数据库查，避免闭包里 records 过期）
         const sessionRecords = await getScanRecords({scanType, scanDate, scanSession: targetSession});
+        console.log('[DEBUG] sessionRecords query:', {scanType, scanDate, targetSession, count: sessionRecords.length});
+        console.log('[DEBUG] sessionRecords:', sessionRecords.map(r => ({codeSheetNo: r.codeSheetNo, boxNo: r.boxNo, isMasterSheet: r.isMasterSheet})));
+
         const isDuplicate = sessionRecords.some((r) =>
             r.codeSheetNo === parsed.codeSheetNo &&
             r.boxNo === parsed.boxNo &&
             r.isMasterSheet === parsed.isMasterSheet,
         );
+        console.log('[DEBUG] isDuplicate:', {isDuplicate, parsed});
 
         if (isDuplicate) {
             // 重复扫描：振动反馈 + 红色警告提示
