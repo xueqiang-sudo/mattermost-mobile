@@ -5,12 +5,14 @@ import React, {useCallback, useState, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {getInfoAsync} from 'expo-file-system';
 
 import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity} from '@utils/theme';
 import {useTheme} from '@context/theme';
+import {compressChatImageAsset} from '@utils/file/compress_chat_image';
 
 import {FilePickerProvider, useFilePicker} from './context/file_picker_context';
 import GroupFilesTab from './tabs/group_files_tab';
@@ -19,6 +21,7 @@ import FilesTab from './tabs/files_tab';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {FileInfo} from '@mattermost/types/files';
+import type {Asset} from 'react-native-image-picker';
 
 type TabKey = 'chat' | 'photo_album' | 'files';
 
@@ -118,6 +121,32 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#FF4D4F',
     },
+    keepOriginalRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+    },
+    keepOriginalCheckbox: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        borderWidth: 2,
+        borderColor: '#07C160',
+        marginRight: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    keepOriginalCheckboxChecked: {
+        backgroundColor: '#07C160',
+    },
+    keepOriginalLabel: {
+        fontSize: 14,
+        color: '#333',
+        flex: 1,
+    },
 });
 
 type FilePickerContentProps = {
@@ -167,6 +196,37 @@ function SelectedCountDisplay() {
                 {count: selectedCount},
             )}
         </Text>
+    );
+}
+
+function KeepOriginalToggle() {
+    const intl = useIntl();
+    const {state, dispatch} = useFilePicker();
+
+    return (
+        <TouchableOpacity
+            onPress={() => dispatch({type: 'SET_KEEP_ORIGINAL', keepOriginal: !state.keepOriginal})}
+            style={styles.keepOriginalRow}
+        >
+            <View style={[
+                styles.keepOriginalCheckbox,
+                state.keepOriginal && styles.keepOriginalCheckboxChecked,
+            ]}>
+                {state.keepOriginal && (
+                    <CompassIcon
+                        name='check'
+                        size={14}
+                        color='#fff'
+                    />
+                )}
+            </View>
+            <Text style={styles.keepOriginalLabel}>
+                {intl.formatMessage({
+                    id: 'file_picker.keep_original',
+                    defaultMessage: 'Send Original Image',
+                })}
+            </Text>
+        </TouchableOpacity>
     );
 }
 
@@ -422,14 +482,17 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                 </View>
 
                 {expanded && selectedCount > 0 && (
-                    <FlatList
-                        data={selectedFilesList}
-                        renderItem={renderFileItem}
-                        keyExtractor={(item) => item.id || item.clientId || String(Math.random())}
-                        style={styles.fileList}
-                        contentContainerStyle={selectedFilesList.length === 0 ? styles.fileListEmpty : undefined}
-                        showsVerticalScrollIndicator={false}
-                    />
+                    <>
+                        <FlatList
+                            data={selectedFilesList}
+                            renderItem={renderFileItem}
+                            keyExtractor={(item) => item.id || item.clientId || String(Math.random())}
+                            style={styles.fileList}
+                            contentContainerStyle={selectedFilesList.length === 0 ? styles.fileListEmpty : undefined}
+                            showsVerticalScrollIndicator={false}
+                        />
+                        <KeepOriginalToggle/>
+                    </>
                 )}
             </View>
         </SafeAreaView>

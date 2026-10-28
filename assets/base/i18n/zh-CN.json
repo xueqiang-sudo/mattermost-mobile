@@ -2720,6 +2720,7 @@
   "file_picker.add_files_error": "添加文件失败，请重试。",
   "file_picker.unexpected_error": "发生意外错误，请重试。",
   "file_picker.max_selection": "已达到可选择的最大文件数量。",
+  "file_picker.keep_original": "发送原图",
 
   "workbench.kb.error": "错误",
   "workbench.kb.error_upload": "上传文件失败",

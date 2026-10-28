@@ -2721,6 +2721,7 @@
   "file_picker.add_files_error": "Failed to add files. Please try again.",
   "file_picker.unexpected_error": "An unexpected error occurred. Please try again.",
   "file_picker.max_selection": "You have reached the maximum number of files you can select.",
+  "file_picker.keep_original": "Send Original Image",
 
   "workbench.kb.error": "Error",
   "workbench.kb.error_upload": "Failed to upload file.",
