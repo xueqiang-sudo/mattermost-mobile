@@ -234,6 +234,13 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
             if (!exists) {
                 path = getLocalFilePathFromFile(serverUrl, fileToDownload);
+                // 关键修复：计算出 fallback 路径后必须重新检查文件是否已存在。
+                // KB/云盘走 useDownloadFileAndPreview hook，已把 PDF 下载到这个同样的
+                // getLocalFilePathFromFile 路径。原代码只对（为空的）localPath 查过 exists，
+                // 没有对这里的新路径复查，导致 exists 恒为 false、每次都重新下载。
+                // 重新下载走下面 fetch+writeAsStringAsync，又写到未创建的 documentDirectory
+                // 目录而失败，最终退回「下载/用其他应用打开」页面。
+                exists = await fileExists(path);
             }
 
             if (!exists) {
