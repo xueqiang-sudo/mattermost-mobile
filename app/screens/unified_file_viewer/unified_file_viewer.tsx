@@ -5,7 +5,7 @@ import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
 } from '@mattermost/secure-pdf-viewer';
-import {deleteAsync, getInfoAsync, makeDirectoryAsync, writeAsStringAsync} from 'expo-file-system';
+import {deleteAsync, getInfoAsync, makeDirectoryAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
@@ -238,16 +238,14 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 // KB/云盘走 useDownloadFileAndPreview hook，已把 PDF 下载到这个同样的
                 // getLocalFilePathFromFile 路径。原代码只对（为空的）localPath 查过 exists，
                 // 没有对这里的新路径复查，导致 exists 恒为 false、每次都重新下载。
-                // 重新下载走下面 fetch+writeAsStringAsync，又写到未创建的 documentDirectory
-                // 目录而失败，最终退回「下载/用其他应用打开」页面。
+                // 对齐 webapp：存在就直接预览，不存在才下载。
                 exists = await fileExists(path);
             }
 
             if (!exists) {
 
                 // 确保目标目录存在：文件本地路径已从 cacheDirectory 改为 documentDirectory，
-                // 而 documentDirectory/{server}/Files 目录此前无人创建。fetch+writeAsStringAsync
-                // 写入不存在的目录会抛错，导致所有文档预览失败、退回「下载/用其他应用打开」。
+                // 而 documentDirectory/{server}/Files 目录此前无人创建，直接写入会失败。
                 try {
                     const dir = path!.replace('file://', '').replace(/\/[^/]*$/, '');
                     await makeDirectoryAsync(dir, {intermediates: true});
@@ -257,69 +255,13 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
                 setProgress(0);
 
-                // Try to get authentication token
-                try {
-                    const client = NetworkManager.getClient(serverUrl);
-                    const fileUrl = `${serverUrl}/api/v4/files/${fileToDownload.id}`;
-
-                    // Get authentication header from client
-                    const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
-
-                    // Use fetch with proper authentication
-                    const response = await fetch(fileUrl, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': authHeader,
-                        },
-                    });
-
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`HTTP ${response.status}: ${errorText}`);
-                    }
-
-                    // Get the blob and save to file
-                    const blob = await response.blob();
-
-                    if (blob.size === 0) {
-                        throw new Error('Downloaded file is empty');
-                    }
-
-                    // Save blob to file using expo-file-system
-                    const reader = new FileReader();
-                    reader.onloadend = async () => {
-                        const base64Data = reader.result as string;
-                        const pathWithoutPrefix = path!.replace('file://', '');
-                        await writeAsStringAsync(pathWithoutPrefix, base64Data.split(',')[1], {
-                            encoding: 'base64',
-                        });
-                        setProgress(1);
-                    };
-                    reader.readAsDataURL(blob);
-
-                    // Wait for file to be saved
-                    await new Promise<void>((resolve) => {
-                        const checkFile = async () => {
-                            const fileInfo = await getInfoAsync(path!.replace('file://', ''));
-                            if (fileInfo.exists && fileInfo.size > 0) {
-                                resolve();
-                            } else {
-                                setTimeout(checkFile, 100);
-                            }
-                        };
-                        checkFile();
-                    });
-
-                } catch (downloadError) {
-
-                    // Fallback to original download method
-                    downloadTask.current = downloadFile(serverUrl, fileToDownload.id!, path!);
-                    downloadTask.current?.progress?.(setProgress);
-                    await downloadTask.current;
-                    setProgress(1);
-                }
-
+                // 用原生 downloadFile 作为主下载方式：它会自动创建目录、带进度、
+                // 流式写盘，不像 fetch+FileReader+writeAsStringAsync 那样把整个文件
+                // 读进内存，大文件也稳定。对齐 webapp「存在直接预览、不存在下载后预览」。
+                downloadTask.current = downloadFile(serverUrl, fileToDownload.id!, path!);
+                downloadTask.current?.progress?.(setProgress);
+                await downloadTask.current;
+                setProgress(1);
             }
 
             setFilePath(path!);
