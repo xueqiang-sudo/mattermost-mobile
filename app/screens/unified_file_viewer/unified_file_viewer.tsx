@@ -5,7 +5,7 @@ import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
 } from '@mattermost/secure-pdf-viewer';
-import {deleteAsync, getInfoAsync, writeAsStringAsync} from 'expo-file-system';
+import {deleteAsync, getInfoAsync, makeDirectoryAsync, writeAsStringAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
@@ -237,6 +237,16 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             }
 
             if (!exists) {
+
+                // 确保目标目录存在：文件本地路径已从 cacheDirectory 改为 documentDirectory，
+                // 而 documentDirectory/{server}/Files 目录此前无人创建。fetch+writeAsStringAsync
+                // 写入不存在的目录会抛错，导致所有文档预览失败、退回「下载/用其他应用打开」。
+                try {
+                    const dir = path!.replace('file://', '').replace(/\/[^/]*$/, '');
+                    await makeDirectoryAsync(dir, {intermediates: true});
+                } catch (dirError) {
+                    // 目录已存在时 makeDirectoryAsync 会抛错，忽略即可。
+                }
 
                 setProgress(0);
 
