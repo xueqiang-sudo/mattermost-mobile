@@ -65,16 +65,34 @@ function flushToFile() {
 // 启动时初始化
 initLogDir();
 
-export function debugLog(tag: string, message: string) {
+// 把任意值安全转成字符串，供日志展示/写盘。对象 → JSON，循环引用兜底为 String()。
+// 关键：entries[].message 必须永远是 string，否则 DebugScreen 的 <Text>{message}</Text>
+// 渲染到对象会直接崩溃（"Objects are not valid as a React child"）。
+function stringifyArg(value: unknown): string {
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (value instanceof Error) {
+        return value.message;
+    }
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+export function debugLog(tag: string, ...args: unknown[]) {
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
-    entries.push({time, tag, message});
+    const messageStr = args.map(stringifyArg).join(' ');
+    entries.push({time, tag, message: messageStr});
     if (entries.length > MAX_ENTRIES) {
         entries.shift();
     }
 
     // eslint-disable-next-line no-console
-    console.log(`[${time}] [${tag}] ${message}`);
+    console.log(`[${time}] [${tag}] ${messageStr}`);
 
     // 立即把当前全量日志排队写入文件（串行、不并发覆盖）。
     flushToFile();

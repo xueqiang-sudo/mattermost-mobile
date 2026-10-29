@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {deleteAsync} from 'expo-file-system';
+import {deleteAsync, makeDirectoryAsync} from 'expo-file-system';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Platform, StatusBar, type StatusBarStyle} from 'react-native';
@@ -23,6 +23,18 @@ import {debugLog} from '@store/debug_log';
 
 import type {ClientResponse, ProgressPromise} from '@mattermost/react-native-network-client';
 import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
+
+// 确保下载目标的父目录存在。文件本地路径已从 cacheDirectory 改为
+// documentDirectory/{server}/Files/，该子目录初次下载时并不存在，直接写入会失败，
+// 导致预览退回「下载/用其他应用打开」页。原生 download 不保证创建父目录，这里兜底。
+const ensureParentDir = async (path: string) => {
+    try {
+        const dir = path.replace('file://', '').replace(/\/[^/]*$/, '');
+        await makeDirectoryAsync(dir, {intermediates: true});
+    } catch {
+        // 目录已存在时会抛错，忽略即可。
+    }
+};
 
 const getFileInfo = async (serverUrl: string, bookmarks: ChannelBookmarkModel[], cb: (files: FileInfo[]) => void) => {
     const fileInfos: FileInfo[] = [];
@@ -163,6 +175,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             try {
                 if (!pdfExists) {
                     setDownloading(true);
+                    await ensureParentDir(pdfPath);
                     downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
                     downloadTask.current?.progress?.(setProgress);
                     await downloadTask.current;
@@ -206,6 +219,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             } else {
                 setDownloading(true);
                 debugLog('[Preview] downloading to', path);
+                await ensureParentDir(path!);
                 downloadTask.current = downloadFile(serverUrl, file.id!, path!);
                 downloadTask.current?.progress?.(setProgress);
 

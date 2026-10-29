@@ -99,7 +99,7 @@ const DebugScreen = ({componentId}: Props) => {
                         <Text style={styles.time}>{entry.time}</Text>
                         <Text style={styles.tag}>[{entry.tag}]</Text>
                         <Text style={entry.tag === 'ERROR' ? styles.errorMsg : styles.message}>
-                            {entry.message}
+                            {typeof entry.message === 'string' ? entry.message : String(entry.message)}
                         </Text>
                     </View>
                 ))}
