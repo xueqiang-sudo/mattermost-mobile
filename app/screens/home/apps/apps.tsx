@@ -115,6 +115,7 @@ const ICON_COLORS: Record<string, string> = {
     'folder-outline': '#2196F3',
     'book-outline': '#FF5722',
     'notebook-outline': '#607D8B',
+    'notebook-edit-outline': '#2196F3',
 };
 
 const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
@@ -233,6 +234,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 break;
             case 'notebook':
                 navigation.navigate(Screens.APPS_NOTEBOOK);
+                break;
+            case 'smart_notebook':
+                navigation.navigate(Screens.APPS_SMART_NOTEBOOK);
                 break;
             case 'conversations':
                 navigation.navigate(Screens.APPS_CONVERSATIONS);

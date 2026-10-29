@@ -106,6 +106,8 @@ export const APPS_PRICE_LIST = 'AppsPriceList';
 export const APPS_CLOUD_DRIVE = 'AppsCloudDrive';
 export const APPS_KNOWLEDGE_BASE = 'AppsKnowledgeBase';
 export const APPS_NOTEBOOK = 'AppsNotebook';
+export const APPS_SMART_NOTEBOOK = 'AppsSmartNotebook';
+export const SMART_NOTE_DETAIL = 'SmartNoteDetail';
 export const APPS_CONVERSATIONS = 'AppsConversations';
 export const APPS_HOT_PRODUCTS = 'AppsHotProducts';
 export const APPS_APPROVALS = 'AppsApprovals';
@@ -272,8 +274,10 @@ export default {
     KB_ADD,
     KB_EDIT,
     APPS_NOTEBOOK,
+    APPS_SMART_NOTEBOOK,
     NOTE_DETAIL,
     NOTE_ADD,
+    SMART_NOTE_DETAIL,
     APPS_CONVERSATIONS,
     APPS_HOT_PRODUCTS,
     APPS_APPROVALS,

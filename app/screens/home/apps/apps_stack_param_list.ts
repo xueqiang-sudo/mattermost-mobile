@@ -44,6 +44,11 @@ export type AppsStackParamList = {
         title: string;
         onNoteAdded?: () => void;
     };
+    [Screens.APPS_SMART_NOTEBOOK]: undefined;
+    [Screens.SMART_NOTE_DETAIL]: {
+        noteId: string;
+        noteTitle?: string;
+    };
     [Screens.APPS_CONVERSATIONS]: undefined;
     [Screens.APPS_APPROVALS]: undefined;
     [Screens.APPS_FINANCE]: undefined;

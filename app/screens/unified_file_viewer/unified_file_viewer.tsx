@@ -477,11 +477,13 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 );
             }
             // SecurePdfViewer 期望无 file:// 前缀的路径
-            // 使用 encodeURI 而非 encodeURIComponent：
-            // - encodeURI: 保留 =, :, @ 等 URI 合法字符（适合 base64 目录名）
-            // - encodeURIComponent: 会编码 = 为 %3D，破坏 base64 目录名
+            // 自定义编码：只编码非 ASCII 字符（如中文），保留 =, :, @, 空格等
+            // encodeURI 会编码空格为 %20，但原生 PDF 查看器需要原始空格
             const pathWithoutPrefix = filePath.replace(/^file:\/\//, '');
-            const pdfSource = encodeURI(pathWithoutPrefix);
+            const pdfSource = pathWithoutPrefix.replace(/[^\x00-\x7F]/g, (char) => {
+                // 只编码非 ASCII 字符（中文、emoji 等）
+                return encodeURIComponent(char);
+            });
 
             debugLog('[Viewer] PDF source', {original: filePath, encoded: pdfSource});
 
