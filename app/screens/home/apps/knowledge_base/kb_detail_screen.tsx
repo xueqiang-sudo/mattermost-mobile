@@ -26,6 +26,7 @@ import {useDownloadFileAndPreview} from '@hooks/files';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {isImage, isVideo, isAudio} from '@utils/file';
 import {showMediaViewer} from '@utils/gallery';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -268,20 +269,39 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
                 size: doc.fileSize || 0,
                 mime_type: '',
                 uri: previewUrl,
-                localPath: previewUrl,
+                // localPath 必须留空：本地还没有这个文件。原来错误地填成 previewUrl
+                // （一个 http download URL），导致 downloadAndPreviewFile 把 URL 当本地
+                // 路径去 fileExists/打开，预览失败。留空让下载逻辑自己算真实本地路径。
+                localPath: '',
                 link: downloadUrl,
                 has_preview_image: false,
                 archived: false,
             } as FileInfo;
 
+            debugLog('[KBDetail] openFile', JSON.stringify({
+                docId: doc.docId,
+                fileName,
+                extension,
+                isOffice,
+                mmFileId,
+                usingFullFileInfo: Boolean(fullFileInfo),
+                id: fileInfo.id,
+                pdf_preview_id: fileInfo.pdf_preview_id,
+                previewUrl,
+                downloadUrl,
+            }));
+
             if (isImage(fileInfo) || isVideo(fileInfo) || isAudio(fileInfo)) {
+                debugLog('[KBDetail] opening media via showMediaViewer');
                 showMediaViewer(fileInfo, serverUrl);
             } else {
                 // Use downloadAndPreviewFile for consistent behavior with chat window
                 // This handles PDF preview, downloading, and conversion automatically
+                debugLog('[KBDetail] opening document via downloadAndPreviewFile');
                 downloadAndPreviewFile(fileInfo);
             }
         } catch (err) {
+            debugLog('[KBDetail] openFile ERROR', String(err));
             Alert.alert(
                 intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
                 intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
