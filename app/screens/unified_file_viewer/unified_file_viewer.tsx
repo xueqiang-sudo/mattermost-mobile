@@ -476,15 +476,21 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     </View>
                 );
             }
-            // SecurePdfViewer: 与 pdf_viewer.tsx 保持一致，直接传递完整路径
-            // 原生模块会自行处理 file:// 协议和特殊字符
-            debugLog('[Viewer] PDF source', {filePath});
+            // SecurePdfViewer 期望无 file:// 前缀的路径，并对特殊字符进行 URL 编码
+            // 逐段编码路径以保留目录分隔符 '/'
+            const pathWithoutPrefix = filePath.replace(/^file:\/\//, '');
+            const pdfSource = pathWithoutPrefix
+                .split('/')
+                .map(segment => encodeURIComponent(segment))
+                .join('/');
+
+            debugLog('[Viewer] PDF source', {original: filePath, encoded: pdfSource});
 
             return (
                 <SecurePdfViewer
                     allowLinks={false}
                     onLoadError={onPdfLoadError}
-                    source={filePath}
+                    source={pdfSource}
                     style={styles.pdfView}
                 />
             );
