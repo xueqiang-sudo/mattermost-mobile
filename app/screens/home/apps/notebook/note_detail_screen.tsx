@@ -6,8 +6,10 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
+    Alert,
     ScrollView,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -19,7 +21,7 @@ import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import {getNoteEntry, type NoteDetail} from '../workbench_api';
+import {getNoteEntry, updateNoteEntry, type NoteDetail} from '../workbench_api';
 
 type NoteDetailParams = {
     noteId: string;
@@ -41,6 +43,9 @@ const NoteDetailScreen = () => {
     const [loading, setLoading] = useState(true);
     const [note, setNote] = useState<NoteDetail | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState('');
+    const [saving, setSaving] = useState(false);
 
     // 加载笔记详情
     const loadNoteDetail = useCallback(async () => {
@@ -72,6 +77,50 @@ const NoteDetailScreen = () => {
         loadNoteDetail();
     }, [loadNoteDetail]);
 
+    // 开始编辑
+    const handleStartEdit = useCallback(() => {
+        if (note) {
+            setEditContent(note.content || '');
+            setIsEditing(true);
+        }
+    }, [note]);
+
+    // 取消编辑
+    const handleCancelEdit = useCallback(() => {
+        setIsEditing(false);
+        setEditContent('');
+    }, []);
+
+    // 保存编辑
+    const handleSaveEdit = useCallback(async () => {
+        if (!noteId || !serverUrl || !teamId) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.notebook.error', defaultMessage: 'Error'}),
+                'Invalid parameters',
+            );
+            return;
+        }
+
+        try {
+            setSaving(true);
+            await updateNoteEntry(serverUrl, teamId, noteId, scope, {
+                content: editContent.trim(),
+            });
+
+            // 重新加载笔记
+            await loadNoteDetail();
+            setIsEditing(false);
+            setEditContent('');
+        } catch (err) {
+            Alert.alert(
+                intl.formatMessage({id: 'workbench.notebook.error', defaultMessage: 'Error'}),
+                String(err),
+            );
+        } finally {
+            setSaving(false);
+        }
+    }, [noteId, serverUrl, teamId, scope, editContent, loadNoteDetail, intl]);
+
     return (
         <SafeAreaView edges={['top', 'bottom']} style={style.container}>
             <View style={style.header}>
@@ -87,7 +136,48 @@ const NoteDetailScreen = () => {
                         defaultMessage: 'Note Detail',
                     })}
                 </Text>
-                <View style={style.backButton}/>
+                {isEditing ? (
+                    <View style={style.headerActions}>
+                        <TouchableOpacity
+                            onPress={handleCancelEdit}
+                            disabled={saving}
+                            style={style.headerActionButton}
+                        >
+                            <Text style={style.cancelButtonText}>
+                                {intl.formatMessage({
+                                    id: 'workbench.notebook.cancel',
+                                    defaultMessage: 'Cancel',
+                                })}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={handleSaveEdit}
+                            disabled={saving || !editContent.trim()}
+                            style={style.headerActionButton}
+                        >
+                            <Text style={[
+                                style.saveButtonText,
+                                (saving || !editContent.trim()) && style.saveButtonTextDisabled,
+                            ]}>
+                                {saving ? intl.formatMessage({
+                                    id: 'workbench.notebook.saving',
+                                    defaultMessage: 'Saving...',
+                                }) : intl.formatMessage({
+                                    id: 'workbench.notebook.save',
+                                    defaultMessage: 'Save',
+                                })}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <TouchableOpacity
+                        onPress={handleStartEdit}
+                        disabled={loading || error !== null}
+                        style={style.headerActionButton}
+                    >
+                        <CompassIcon name='pencil-outline' size={20} color={theme.sidebarText}/>
+                    </TouchableOpacity>
+                )}
             </View>
             <ScrollView
                 style={style.scrollView}
@@ -119,12 +209,30 @@ const NoteDetailScreen = () => {
                         </TouchableOpacity>
                     </View>
                 ) : note ? (
-                    <Text style={style.content} selectable={true}>
-                        {note.content || intl.formatMessage({
-                            id: 'workbench.notebook.empty_content',
-                            defaultMessage: '(No content)',
-                        })}
-                    </Text>
+                    isEditing ? (
+                        <TextInput
+                            style={style.editInput}
+                            value={editContent}
+                            onChangeText={setEditContent}
+                            multiline={true}
+                            textAlignVertical='top'
+                            autoFocus={true}
+                            autoCapitalize='sentences'
+                            scrollEnabled={true}
+                            placeholder={intl.formatMessage({
+                                id: 'workbench.notebook.edit_placeholder',
+                                defaultMessage: 'Edit your note...',
+                            })}
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.44)}
+                        />
+                    ) : (
+                        <Text style={style.content} selectable={true}>
+                            {note.content || intl.formatMessage({
+                                id: 'workbench.notebook.empty_content',
+                                defaultMessage: '(No content)',
+                            })}
+                        </Text>
+                    )
                 ) : (
                     <Text style={style.content}>
                         {intl.formatMessage({
@@ -204,6 +312,33 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 200, 'Regular'),
         color: theme.centerChannelColor,
         lineHeight: 24,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    headerActionButton: {
+        paddingHorizontal: 8,
+        paddingVertical: 8,
+    },
+    saveButtonText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.linkColor,
+    },
+    saveButtonTextDisabled: {
+        color: changeOpacity(theme.linkColor, 0.4),
+    },
+    cancelButtonText: {
+        ...typography('Body', 100, 'Regular'),
+        color: theme.centerChannelColor,
+    },
+    editInput: {
+        ...typography('Body', 200, 'Regular'),
+        color: theme.centerChannelColor,
+        lineHeight: 24,
+        flex: 1,
+        padding: 0,
     },
 }));
 

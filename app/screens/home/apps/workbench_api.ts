@@ -687,6 +687,14 @@ export async function deleteNoteEntry(serverUrl: string, teamId: string, entryId
     return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/entry/${entryId}?${params}`, {method: 'delete'});
 }
 
+export async function updateNoteEntry(serverUrl: string, teamId: string, entryId: string, scope: string, updates: {title?: string; content?: string; tags?: string}) {
+    const params = new URLSearchParams({team_id: teamId, scope});
+    return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/entry/${entryId}?${params}`, {
+        method: 'put',
+        body: {teamId, scope, noteId: entryId, ...updates},
+    });
+}
+
 export async function searchNoteEntries(serverUrl: string, teamId: string, scope: string, query: string, limit = 20) {
     const params = new URLSearchParams({team_id: teamId, scope, query, limit: String(limit)});
     return apiFetch(serverUrl, `${FACT_EXTRACTOR_BASE}/api/notebook/search?${params}`, {method: 'get'});

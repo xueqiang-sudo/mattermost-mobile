@@ -150,7 +150,10 @@ const SnackBar = ({
     const gestureRootStyle = useMemo(() => {
         if (isTopPosition) {
             return {
-                top: getTopSafeInset() + SNACK_BAR_TOP_OFFSET,
+                // 【改进】定位在返回按钮下方（header 高度约 56px + safe area）
+                top: getTopSafeInset() + 60,
+                left: 12, // 与返回按钮左对齐
+                right: 0,
             };
         }
         return {
@@ -162,17 +165,17 @@ const SnackBar = ({
         const diffWidth = windowWidth - TABLET_SIDEBAR_WIDTH;
         let tabletStyle: Partial<ViewStyle>;
 
-        // 【改进】顶部 toast 式显示：自适应宽度，不占满屏幕，避免遮挡关闭按钮
+        // 【改进】顶部 toast 式显示：全宽显示在返回按钮下方，文字居中
         if (isTopPosition) {
             return {
                 backgroundColor: theme.centerChannelColor,
-                maxWidth: '80%',
+                width: '100%', // 使用全宽（gestureRootStyle 已设置 left/right）
                 paddingHorizontal: 16,
                 paddingVertical: 10,
                 borderRadius: 9,
                 opacity: 1,
                 height: TOAST_HEIGHT,
-                alignSelf: 'center' as const,
+                alignSelf: 'stretch' as const, // 撑满父容器宽度
                 shadowColor: '#1F000000',
                 shadowOffset: {width: 0, height: 6},
                 shadowRadius: 4,

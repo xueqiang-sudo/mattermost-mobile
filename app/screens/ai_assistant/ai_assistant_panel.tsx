@@ -438,6 +438,10 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             );
         }
 
+        // 【修复】历史标签页空状态时也要显示日期选择器
+        const showDatePicker = activeTab === 'history';
+        const showGraduate = activeTab === 'history' || activeTab === 'active';
+
         if (results.length === 0) {
             const emptyMessages: Record<ActiveTab, {icon: string; text: string; id: string}> = {
                 latest: {
@@ -459,6 +463,18 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             const msg = emptyMessages[activeTab];
             return (
                 <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+                    {/* 【修复】历史标签页显示日期选择器 */}
+                    {showDatePicker && (
+                        <View style={styles.datePicker}>
+                            <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(-1)}>
+                                <CompassIcon name='chevron-left' size={20} color={theme.centerChannelColor}/>
+                            </TouchableOpacity>
+                            <Text style={styles.datePickerText}>{selectedDate}</Text>
+                            <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(1)}>
+                                <CompassIcon name='chevron-right' size={20} color={theme.centerChannelColor}/>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                     <View style={styles.emptyState}>
                         <CompassIcon name={msg.icon} size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
                         <Text style={styles.emptyText}>{msg.text}</Text>
@@ -597,8 +613,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
         }
 
         // History tab: date picker + list with graduate buttons
-        const showDatePicker = activeTab === 'history';
-        const showGraduate = activeTab === 'history' || activeTab === 'active';
+        // 【优化】变量已在上方定义，避免重复
 
         return (
             <FlatList

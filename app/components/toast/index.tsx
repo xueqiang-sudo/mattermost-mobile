@@ -49,6 +49,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     text: {
         color: theme.buttonColor,
         marginLeft: 10,
+        textAlign: 'center', // 【改进】文字居中显示
         ...typography('Body', 100, 'SemiBold'),
     },
 }));
