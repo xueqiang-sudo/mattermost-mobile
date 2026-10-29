@@ -162,6 +162,25 @@ const SnackBar = ({
         const diffWidth = windowWidth - TABLET_SIDEBAR_WIDTH;
         let tabletStyle: Partial<ViewStyle>;
 
+        // 【改进】顶部 toast 式显示：自适应宽度，不占满屏幕，避免遮挡关闭按钮
+        if (isTopPosition) {
+            return {
+                backgroundColor: theme.centerChannelColor,
+                maxWidth: '80%',
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 9,
+                opacity: 1,
+                height: TOAST_HEIGHT,
+                alignSelf: 'center' as const,
+                shadowColor: '#1F000000',
+                shadowOffset: {width: 0, height: 6},
+                shadowRadius: 4,
+                shadowOpacity: 0.12,
+                elevation: 2,
+            };
+        }
+
         switch (true) {
             case sourceScreen === Screens.CHANNEL_INFO:
                 tabletStyle = {
@@ -189,7 +208,7 @@ const SnackBar = ({
             styles.mobile,
             isTablet && tabletStyle,
         ] as StyleProp<ViewStyle>;
-    }, [windowWidth, styles.mobile, isTablet, sourceScreen]);
+    }, [windowWidth, styles.mobile, isTablet, sourceScreen, isTopPosition, theme.centerChannelColor]);
 
     const toastStyle = useMemo(() => {
         let backgroundColor: string;

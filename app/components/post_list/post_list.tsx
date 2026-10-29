@@ -174,6 +174,24 @@ const PostList = ({
             return;
         }
 
+        // 【性能优化】检测批次文件上传：多个新 post 共享 batch_id 时立刻显示
+        // 解决"先显示头像，后显示文件"的问题，对齐微信体验
+        if (lengthDiff > 1 && lengthDiff <= 5) {
+            const newPosts = posts.slice(0, lengthDiff);
+            const batchIds = new Set(newPosts.map(p => (p.props as Record<string, unknown>)?.batch_id).filter(Boolean));
+            // 所有新 post 属于同一批次（如多文件上传），立刻显示
+            if (batchIds.size === 1) {
+                if (batchTimerRef.current) {
+                    clearTimeout(batchTimerRef.current);
+                    batchTimerRef.current = null;
+                }
+                setBatchedPosts(posts);
+                lastAppliedLengthRef.current = posts.length;
+                pendingPostsRef.current = posts;
+                return;
+            }
+        }
+
         // 【性能优化】单条消息立刻显示，多条消息才批处理
         // 这样新消息延迟从500ms → 0ms，对比微信一致
         if (lengthDiff === 1) {
