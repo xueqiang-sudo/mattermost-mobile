@@ -23,6 +23,7 @@ import TextViewer from '@screens/text_viewer/text_viewer';
 import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAppleDocument, isAudio, isImage, isPdf, isTextFile, isVideo, pathWithPrefix} from '@utils/file';
 import {getFullErrorMessage, isErrorWithMessage} from '@utils/errors';
 import {logError} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 
 import ConvertingView from './converting_view';
 import ImagePreview from './image_preview';
@@ -258,10 +259,13 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 // 用原生 downloadFile 作为主下载方式：它会自动创建目录、带进度、
                 // 流式写盘，不像 fetch+FileReader+writeAsStringAsync 那样把整个文件
                 // 读进内存，大文件也稳定。对齐 webapp「存在直接预览、不存在下载后预览」。
+                debugLog('[Viewer] downloadAndShowFile downloading to', {path, id: fileToDownload.id});
                 downloadTask.current = downloadFile(serverUrl, fileToDownload.id!, path!);
                 downloadTask.current?.progress?.(setProgress);
                 await downloadTask.current;
                 setProgress(1);
+                const afterExists = await fileExists(path!);
+                debugLog('[Viewer] downloadAndShowFile download complete', {path, afterExists});
             }
 
             setFilePath(path!);
@@ -300,6 +304,7 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 // For now, just store the path
             }
         } catch (error) {
+            debugLog('[Viewer] downloadAndShowFile ERROR', {error: getFullErrorMessage(error)});
             if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
                 Alert.alert(
                     intl.formatMessage({id: 'file_viewer.error', defaultMessage: 'Error'}),
@@ -446,6 +451,16 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
 
         // Check if file should be rendered as PDF (either PDF file or Office file with PDF preview)
         const shouldRenderAsPdf = isPdf(currentFileInfo) || (hasPdfPreview(currentFileInfo) && currentFileInfo.pdf_preview_id);
+
+        debugLog('[Viewer] renderContent', {
+            fileState,
+            filePath,
+            shouldRenderAsPdf,
+            name: currentFileInfo.name,
+            extension: currentFileInfo.extension,
+            pdf_preview_id: currentFileInfo.pdf_preview_id,
+            pdfError,
+        });
 
 
         // Render PDF inline if ready (includes Office files converted to PDF)

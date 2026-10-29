@@ -19,6 +19,7 @@ import {fileExists, getLocalFilePathFromFile, hasPdfPreview, isAudio, isGif, isI
 import {getImageSize} from '@utils/gallery';
 import {logDebug} from '@utils/log';
 import {openUnifiedFileViewer, previewPdf, previewTextFile} from '@utils/navigation';
+import {debugLog} from '@store/debug_log';
 
 import type {ClientResponse, ProgressPromise} from '@mattermost/react-native-network-client';
 import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
@@ -197,16 +198,22 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 path = getLocalFilePathFromFile(serverUrl, file);
                 exists = await fileExists(path);
             }
+            debugLog('[Preview] downloadAndPreviewFile', {fileId: file.id, name: file.name, path, exists});
 
             if (exists) {
+                debugLog('[Preview] file exists, opening directly');
                 openDocument(file);
             } else {
                 setDownloading(true);
+                debugLog('[Preview] downloading to', path);
                 downloadTask.current = downloadFile(serverUrl, file.id!, path!);
                 downloadTask.current?.progress?.(setProgress);
 
                 await downloadTask.current;
                 setProgress(1);
+
+                const afterExists = await fileExists(path!);
+                debugLog('[Preview] download complete, file exists now?', {path, afterExists});
 
                 // Cache the local path in database (like WeChat - persist downloaded file paths)
                 if (file.id && path) {
@@ -216,6 +223,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 openDocument(file);
             }
         } catch (error) {
+            debugLog('[Preview] download/preview ERROR', {path, error: getFullErrorMessage(error)});
             if (path) {
                 deleteAsync(path, {idempotent: true});
             }
