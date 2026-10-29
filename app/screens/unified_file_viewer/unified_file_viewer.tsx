@@ -5,7 +5,7 @@ import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
 } from '@mattermost/secure-pdf-viewer';
-import {deleteAsync, getInfoAsync, makeDirectoryAsync} from 'expo-file-system';
+import {cacheDirectory, copyAsync, deleteAsync, getInfoAsync, makeDirectoryAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
@@ -79,10 +79,12 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const [progress, setProgress] = useState(0);
     const [currentFileInfo, setCurrentFileInfo] = useState<FileInfo>(fileInfo);
     const [pdfError, setPdfError] = useState<string | undefined>(undefined);
+    const [pdfTempPath, setPdfTempPath] = useState<string>('');
 
     const downloadTask = useRef<ProgressPromise<ClientResponse>>();
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const pollingCountRef = useRef(0);
+    const tempPdfPathRef = useRef<string>('');
 
     const handleClose = useCallback(() => {
         if (downloadTask.current?.cancel) {
@@ -90,6 +92,10 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         }
         if (pollingRef.current) {
             clearInterval(pollingRef.current);
+        }
+        // Clean up temp PDF file
+        if (tempPdfPathRef.current) {
+            deleteAsync(tempPdfPathRef.current, {idempotent: true}).catch(() => {});
         }
         return popTopScreen(componentId);
     }, [componentId]);
@@ -387,6 +393,41 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         };
     }, [determineFileState]);
 
+    // Copy PDF to temp location to avoid base64 `=` characters in directory path
+    useEffect(() => {
+        const copyPdfToTemp = async () => {
+            // Check if file should be rendered as PDF
+            const shouldRenderAsPdf = isPdf(currentFileInfo) || (hasPdfPreview(currentFileInfo) && currentFileInfo.pdf_preview_id);
+
+            if (fileState === 'viewable' && filePath && shouldRenderAsPdf && !pdfError) {
+                try {
+                    const pathWithoutPrefix = filePath.replace(/^file:\/\//, '');
+
+                    // Check if path contains `=` (base64 padding in directory name)
+                    if (pathWithoutPrefix.includes('=')) {
+                        // Create temp path using only fileId (no `=` characters)
+                        const tempDir = cacheDirectory + 'pdf_temp/';
+                        await makeDirectoryAsync(tempDir, {intermediates: true});
+
+                        const fileName = currentFileInfo.id || fileId;
+                        const tempPath = tempDir + fileName + '.pdf';
+
+                        // Copy file to temp location
+                        await copyAsync({from: pathWithoutPrefix, to: tempPath});
+
+                        tempPdfPathRef.current = tempPath;
+                        setPdfTempPath(tempPath);
+                        debugLog('[Viewer] PDF copied to temp', {original: pathWithoutPrefix, temp: tempPath});
+                    }
+                } catch (error) {
+                    debugLog('[Viewer] PDF copy to temp failed', {error: String(error)});
+                }
+            }
+        };
+
+        copyPdfToTemp();
+    }, [fileState, filePath, currentFileInfo, fileId, pdfError]);
+
     const handleDownload = useCallback(async () => {
         try {
             const path = getLocalFilePathFromFile(serverUrl, currentFileInfo);
@@ -476,13 +517,18 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     </View>
                 );
             }
-            // SecurePdfViewer 期望无 file:// 前缀的路径
-            // 文件名已使用纯 fileId（tyxjk5pcufbgdn9i9giojt5cgc.pdf），但目录名包含 base64 编码的 server URL
-            // 目录名末尾可能有 `=` 字符（base64 padding），需要编码为 %3D
-            const pathWithoutPrefix = filePath.replace(/^file:\/\//, '');
-            const pdfSource = pathWithoutPrefix.replace(/=/g, '%3D');
-
-            debugLog('[Viewer] PDF source', {original: filePath, encoded: pdfSource});
+            // SecurePdfViewer 不接受路径中的 `=` 字符（base64 padding 在目录名中）
+            // 如果路径包含 `=`，使用已复制到临时目录的文件
+            let pdfSource: string;
+            if (pdfTempPath) {
+                // 使用临时路径（无 `=` 字符）
+                pdfSource = pdfTempPath;
+                debugLog('[Viewer] PDF source (temp)', {original: filePath, temp: pdfTempPath});
+            } else {
+                // 路径不包含 `=`，直接使用
+                pdfSource = filePath.replace(/^file:\/\//, '');
+                debugLog('[Viewer] PDF source (direct)', {original: filePath, encoded: pdfSource});
+            }
 
             return (
                 <SecurePdfViewer
