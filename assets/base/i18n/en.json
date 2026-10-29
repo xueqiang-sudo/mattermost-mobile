@@ -2817,5 +2817,5 @@
 
   "warehouse_inout.duplicate_scan": "Already scanned",
   "warehouse_inout.duplicate_scan_msg": "This barcode has already been scanned in the current session",
-  "warehouse_inout.scan_success": "Scan successful",
+  "warehouse_inout.scan_success": "Scan successful"
 }

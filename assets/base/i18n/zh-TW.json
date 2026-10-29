@@ -2812,5 +2812,5 @@
 
   "warehouse_inout.duplicate_scan": "已掃描",
   "warehouse_inout.duplicate_scan_msg": "該條碼已在目前單號中掃描過",
-  "warehouse_inout.scan_success": "掃描成功",
+  "warehouse_inout.scan_success": "掃描成功"
 }
