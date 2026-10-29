@@ -521,28 +521,18 @@ export function getLocalFilePathFromFile(serverUrl: string, file: FileInfo | Fil
         const hasValidExtension = file?.extension && !file.extension.includes('/');
         if (hasValidFilename) {
             let extension: string | undefined = file.extension;
-            let filename = file.name;
 
             if (!hasValidExtension) {
                 const mimeType = (file instanceof Model) ? file.mimeType : file.mime_type;
                 extension = getExtensionFromMime(mimeType);
             }
 
-            if (extension && filename.includes(`.${extension}`)) {
-                filename = filename.replace(`.${extension}`, '');
-            } else {
-                const fileParts = file.name.split('.');
-
-                if (fileParts.length > 1) {
-                    extension = fileParts.pop();
-                    filename = fileParts.join('.');
-                }
-            }
-
+            // 【修复】使用纯 fileId 命名，避免中文、空格等字符导致的编码问题
+            // 原生 PDF 查看器对非 ASCII 字符的路径支持不完善，即使编码也可能报 Invalid file path
             // 持久化存储：落到 documentDirectory（iOS=沙盒 Documents，Android=app files），
             // 系统空间紧张时不会自动清理，实现微信式「下过一次长期保留」。
             // 不用 cacheDirectory（iOS Library/Caches、Android cache，均会被系统回收）。
-            return `${documentDirectory}${server}/Files/${filename}-${fileIdPath}.${extension}`;
+            return `${documentDirectory}${server}/Files/${fileIdPath}.${extension || 'bin'}`;
         } else if (file?.id && hasValidExtension) {
             return `${documentDirectory}${server}/Files/${fileIdPath}.${file.extension}`;
         } else if (file?.id) {
