@@ -476,14 +476,15 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     </View>
                 );
             }
-            // SecurePdfViewer expects path without file:// prefix
-            // This avoids URL parsing issues with special characters (Chinese, spaces, etc.)
-            const pdfSource = filePath.replace('file://', '');
+            // SecurePdfViewer: 与 pdf_viewer.tsx 保持一致，直接传递完整路径
+            // 原生模块会自行处理 file:// 协议和特殊字符
+            debugLog('[Viewer] PDF source', {filePath});
+
             return (
                 <SecurePdfViewer
                     allowLinks={false}
                     onLoadError={onPdfLoadError}
-                    source={pdfSource}
+                    source={filePath}
                     style={styles.pdfView}
                 />
             );
