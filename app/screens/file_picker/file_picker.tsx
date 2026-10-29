@@ -154,6 +154,7 @@ type FilePickerContentProps = {
     componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
+    photoMode?: boolean;
 };
 
 function getFileIcon(name: string): string {
@@ -200,15 +201,16 @@ function SelectedCountDisplay() {
     );
 }
 
-function KeepOriginalToggle() {
+function KeepOriginalToggle({photoMode}: {photoMode?: boolean}) {
     const intl = useIntl();
     const {state, dispatch} = useFilePicker();
 
-    // 只有全部文件都来自相册时，才显示原图复选框
+    // 只有「照片」入口（photoMode）才显示原图开关。
+    // 文件选择器的相册 tab 把照片当作文件发送，不显示原图开关。
     const allFilesAreAlbum = state.selectedFiles.size > 0 &&
         Array.from(state.selectedFiles.values()).every(f => f.source === 'album');
 
-    if (!allFilesAreAlbum) {
+    if (!photoMode || !allFilesAreAlbum) {
         return null;
     }
 
@@ -239,11 +241,11 @@ function KeepOriginalToggle() {
     );
 }
 
-function FilePickerContent({componentId, onSend, channelId}: FilePickerContentProps) {
+function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
     const {getSelectedFiles, getSelectedCount, state, dispatch} = useFilePicker();
-    const [activeTab, setActiveTab] = useState<TabKey>('chat');
+    const [activeTab, setActiveTab] = useState<TabKey>(photoMode ? 'photo_album' : 'chat');
     const [expanded, setExpanded] = useState(false);
     const [sending, setSending] = useState(false);
 
@@ -428,6 +430,7 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
 
     return (
         <SafeAreaView edges={['bottom']} style={styles.container}>
+            {!photoMode && (
             <View style={styles.tabBar}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.key;
@@ -453,9 +456,10 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                     );
                 })}
             </View>
+            )}
 
             <View style={styles.tabContent}>
-                {renderTabContent()}
+                {photoMode ? <PhotoAlbumTab/> : renderTabContent()}
             </View>
 
             <View style={styles.actionBar}>
@@ -490,8 +494,8 @@ function FilePickerContent({componentId, onSend, channelId}: FilePickerContentPr
                     </TouchableOpacity>
                 </View>
 
-                {/* 原图复选框 - 始终显示 */}
-                <KeepOriginalToggle/>
+                {/* 原图复选框 - 仅「照片」入口显示 */}
+                <KeepOriginalToggle photoMode={photoMode}/>
 
                 {/* 展开的文件列表 */}
                 {expanded && selectedCount > 0 && (
@@ -513,13 +517,14 @@ type FilePickerProps = {
     componentId: AvailableScreens;
     onSend: (files: FileInfo[]) => void;
     channelId: string;
+    photoMode?: boolean;
 };
 
-export default function FilePicker({componentId, onSend, channelId}: FilePickerProps) {
-    debugLog('filePicker', `FilePicker component rendering, channelId=${channelId}`);
+export default function FilePicker({componentId, onSend, channelId, photoMode}: FilePickerProps) {
+    debugLog('filePicker', `FilePicker component rendering, channelId=${channelId}, photoMode=${photoMode}`);
     return (
         <FilePickerProvider maxSelection={9}>
-            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId}/>
+            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId} photoMode={photoMode}/>
         </FilePickerProvider>
     );
 }

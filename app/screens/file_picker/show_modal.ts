@@ -23,3 +23,23 @@ export const showFilePickerScreen = (channelId: string, onSend: (files: FileInfo
         {useBackIcon: true},
     );
 };
+
+// 「照片」入口：复用 FilePicker，但只展示手机相册，当作图片发送，
+// 并提供「发送原图」开关（photoMode=true）。
+export const showPhotoAlbumScreen = (channelId: string, onSend: (files: FileInfo[]) => void, title = 'Photos') => {
+    debugLog('filePicker', `showPhotoAlbumScreen called, channelId=${channelId}`);
+    const closeButtonId = `close-${Screens.FILE_PICKER}`;
+    const passProps = {
+        onSend,
+        channelId,
+        photoMode: true,
+    };
+
+    showModalWithBackButton(
+        Screens.FILE_PICKER,
+        title,
+        closeButtonId,
+        passProps,
+        {useBackIcon: true},
+    );
+};

@@ -15,7 +15,7 @@ import PickerUtil from '@utils/file/file_picker';
 import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import {showFilePickerScreen} from '@screens/file_picker/show_modal';
+import {showFilePickerScreen, showPhotoAlbumScreen} from '@screens/file_picker/show_modal';
 import {showCloudDrivePickerModal} from '@screens/cloud_drive_picker/show_modal';
 import {useServerUrl} from '@context/server';
 import DatabaseManager from '@database/manager';
@@ -215,9 +215,23 @@ export default function QuickActionsSheet({
             );
             return;
         }
-        const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
-        picker.attachFileFromPhotoGallery(maxFileCount - fileCount);
-    }, [intl, addFiles, draftVideoProcessingBridge, fileCount, maxFileCount, maxFilesReached]);
+        // 「照片」入口：打开自定义手机相册（样式同文件选择器相册 tab），
+        // 当作图片发送，可选择发送原图。
+        const title = intl.formatMessage({id: 'post_draft.quick_action.gallery', defaultMessage: 'Photos'});
+        showPhotoAlbumScreen(channelId, (files) => {
+            try {
+                addFiles(files);
+            } catch (error) {
+                Alert.alert(
+                    intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
+                    intl.formatMessage({
+                        id: 'file_picker.add_files_error',
+                        defaultMessage: 'Failed to add files. Please try again.',
+                    }),
+                );
+            }
+        }, title);
+    }, [intl, addFiles, channelId, maxFileCount, maxFilesReached]);
 
     const handleCameraPress = useCallback((options: {type?: string}) => {
         if (maxFilesReached) {

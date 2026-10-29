@@ -2815,7 +2815,8 @@
   "workbench.drive.upload_title": "Upload Files",
   "workbench.drive.error_upload": "Failed to upload file.",
 
+  "warehouse_inout.scan": "Scan",
   "warehouse_inout.duplicate_scan": "Already scanned",
-  "warehouse_inout.duplicate_scan_msg": "This barcode has already been scanned in the current session",
+  "warehouse_inout.duplicate_scan_msg": "This barcode has already been scanned",
   "warehouse_inout.scan_success": "Scan successful"
 }

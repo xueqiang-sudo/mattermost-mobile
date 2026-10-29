@@ -182,9 +182,9 @@ const WarehouseInoutScreen = () => {
             isMasterSheet: parsed.isMasterSheet,
         } as ScanRecord);
 
-        // 检查本 session 是否已扫描过相同的条形码（从数据库查，避免闭包里 records 过期）
-        const sessionRecords = await getScanRecords({scanType, scanDate, scanSession: targetSession});
-        debugLog('WarehouseInout.sessionRecords', {scanType, scanDate, targetSession, count: sessionRecords.length});
+        // 检查全部历史记录是否已扫描过相同的条形码（跨日期/session，不只当前 session）
+        const sessionRecords = await getScanRecords({scanType});
+        debugLog('WarehouseInout.sessionRecords', {scanType, targetSession, count: sessionRecords.length});
         debugLog('WarehouseInout.sessionRecords detail', sessionRecords.map(r => ({codeSheetNo: r.codeSheetNo, boxNo: r.boxNo, isMasterSheet: r.isMasterSheet})));
 
         // 当前扫描的信息
@@ -227,9 +227,11 @@ const WarehouseInoutScreen = () => {
                 barType: SNACK_BAR_TYPE.DEFAULT,
                 customMessage: intl.formatMessage({
                     id: 'warehouse_inout.duplicate_scan_msg',
-                    defaultMessage: '该条形码已在当前单号中扫描过',
+                    defaultMessage: '该条形码已扫描过',
                 }),
                 type: MESSAGE_TYPE.ERROR,  // 改成 ERROR 显示红色
+                position: 'top',
+                ignoreNavigationEvents: true,
             });
             return;
         }
@@ -253,7 +255,7 @@ const WarehouseInoutScreen = () => {
         setRecords(updated);
         await loadDropdowns();
 
-        // 扫描成功：单次短振 + 成功提示
+        // 扫描成功：单次短振 + 成功提示（顶部居中显示，连续扫描时更醒目）
         Vibration.vibrate(50); // 单次短振
         showSnackBar({
             barType: SNACK_BAR_TYPE.DEFAULT,
@@ -262,6 +264,8 @@ const WarehouseInoutScreen = () => {
                 defaultMessage: '扫描成功',
             })}`,
             type: MESSAGE_TYPE.SUCCESS,
+            position: 'top',
+            ignoreNavigationEvents: true,
         });
     }, [scanType, scanDate, scanSession, loadDropdowns, intl]);
 
@@ -282,6 +286,25 @@ const WarehouseInoutScreen = () => {
             },
         });
     }, [intl, handleScanResult, scanDate, scanType]);
+
+    // 「扫描」：继续扫描进当前已选 session（不新建）。若当前无 session，则新建一个。
+    const openScannerCurrentSession = useCallback(async () => {
+        let targetSession = scanSession;
+        if (!targetSession) {
+            targetSession = await createCurrentSession(scanDate, scanType);
+            setScanSession(targetSession);
+            setAvailableSessions((prev) => (prev.includes(targetSession) ? prev : [targetSession, ...prev]));
+        }
+        setCurrentBarcode('');
+
+        showQrScannerModal(intl, {
+            continuousScan: true,
+            onScanResultCallback: (value: string) => {
+                handleScanResult(value, targetSession);
+                return true;
+            },
+        });
+    }, [intl, handleScanResult, scanDate, scanType, scanSession]);
 
     // ── Manual input ──
     const handleManualInput = useCallback(async () => {
@@ -325,8 +348,8 @@ const WarehouseInoutScreen = () => {
             isMasterSheet: isMaster,
         } as ScanRecord);
 
-        // 检查本次 session 是否已扫描过相同的条形码（从数据库查，避免状态过期）
-        const sessionRecords = await getScanRecords({scanType, scanDate, scanSession});
+        // 检查全部历史记录是否已扫描过相同的条形码（跨日期/session）
+        const sessionRecords = await getScanRecords({scanType});
         const isDuplicate = sessionRecords.some((r) =>
             r.codeSheetNo === codeSheetNo &&
             r.boxNo === boxNo &&
@@ -344,9 +367,11 @@ const WarehouseInoutScreen = () => {
                 barType: SNACK_BAR_TYPE.DEFAULT,
                 customMessage: intl.formatMessage({
                     id: 'warehouse_inout.duplicate_scan_msg',
-                    defaultMessage: '该条形码已在当前单号中扫描过',
+                    defaultMessage: '该条形码已扫描过',
                 }),
                 type: MESSAGE_TYPE.ERROR,  // 改成 ERROR 显示红色
+                position: 'top',
+                ignoreNavigationEvents: true,
             });
             return;
         }
@@ -370,7 +395,7 @@ const WarehouseInoutScreen = () => {
         setManualInputText('');
         setShowManualInput(false);
 
-        // 手工输入成功：单次短振 + 成功提示
+        // 手工输入成功：单次短振 + 成功提示（顶部居中显示）
         Vibration.vibrate(50); // 单次短振
         showSnackBar({
             barType: SNACK_BAR_TYPE.DEFAULT,
@@ -379,6 +404,8 @@ const WarehouseInoutScreen = () => {
                 defaultMessage: '扫描成功',
             })}`,
             type: MESSAGE_TYPE.SUCCESS,
+            position: 'top',
+            ignoreNavigationEvents: true,
         });
     }, [manualInputText, scanType, scanDate, scanSession, intl, loadRecords, loadDropdowns, records]);
 
@@ -686,6 +713,11 @@ const WarehouseInoutScreen = () => {
 
             {/* Action buttons */}
             <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.actionBtn} onPress={openScannerCurrentSession}>
+                    <Text style={styles.actionBtnText}>
+                        {intl.formatMessage({id: 'warehouse_inout.scan', defaultMessage: '扫描'})}
+                    </Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => setShowManualInput(true)}>
                     <Text style={styles.actionBtnText}>
                         {intl.formatMessage({id: 'warehouse_inout.manual_input', defaultMessage: '人工输入'})}
