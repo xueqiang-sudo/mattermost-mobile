@@ -477,9 +477,10 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 );
             }
             // SecurePdfViewer 期望无 file:// 前缀的路径
-            // 文件已使用纯 fileId 命名（tyxjk5pcufbgdn9i9giojt5cgc.pdf），路径无特殊字符
-            // 只需移除 file:// 前缀即可，无需额外编码
-            const pdfSource = filePath.replace(/^file:\/\//, '');
+            // 文件名已使用纯 fileId（tyxjk5pcufbgdn9i9giojt5cgc.pdf），但目录名包含 base64 编码的 server URL
+            // 目录名末尾可能有 `=` 字符（base64 padding），需要编码为 %3D
+            const pathWithoutPrefix = filePath.replace(/^file:\/\//, '');
+            const pdfSource = pathWithoutPrefix.replace(/=/g, '%3D');
 
             debugLog('[Viewer] PDF source', {original: filePath, encoded: pdfSource});
 
