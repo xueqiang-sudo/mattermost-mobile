@@ -557,8 +557,19 @@ export default function DraftHandler(props: Props) {
                                     fileExists: await fileExists(curPath),
                                 });
                                 if (srcWithScheme !== dstWithScheme && (await fileExists(curPath))) {
+                                    // Verify functions are available
+                                    if (typeof makeDirectoryAsync !== 'function' || typeof moveAsync !== 'function') {
+                                        debugLog('DRAFT', `addFiles: CRITICAL - expo-file-system functions not available`, {
+                                            makeDirectoryAsync: typeof makeDirectoryAsync,
+                                            moveAsync: typeof moveAsync,
+                                        });
+                                        throw new Error('expo-file-system functions not available');
+                                    }
+
                                     const dir = dstWithScheme.slice(0, dstWithScheme.lastIndexOf('/'));
+                                    debugLog('DRAFT', `addFiles: creating directory`, {dir});
                                     await makeDirectoryAsync(dir, {intermediates: true});
+                                    debugLog('DRAFT', `addFiles: moving file`, {from: srcWithScheme, to: dstWithScheme});
                                     await moveAsync({from: srcWithScheme, to: dstWithScheme});
                                     uploadedFile.localPath = persistentPath;
                                     debugLog('DRAFT', `addFiles: moved to persistent path ${persistentPath}`);
