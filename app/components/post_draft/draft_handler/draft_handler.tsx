@@ -547,9 +547,29 @@ export default function DraftHandler(props: Props) {
                                 fileId: uploadedFile.id,
                             });
                             if (curPath && uploadedFile.id) {
-                                debugLog('DRAFT', `addFiles: step 1 - getting persistent path`);
-                                const persistentPath = getLocalFilePathFromFile(serverUrl, uploadedFile);
-                                debugLog('DRAFT', `addFiles: step 2 - persistent path obtained`, {persistentPath});
+                                debugLog('DRAFT', `addFiles: step 1 - getting persistent path`, {
+                                    serverUrl,
+                                    fileId: uploadedFile.id,
+                                    fileName: uploadedFile.name,
+                                    fileExtension: uploadedFile.extension,
+                                    fileMimeType: uploadedFile.mime_type,
+                                    isServerUrlString: typeof serverUrl === 'string',
+                                    isFileIdString: typeof uploadedFile.id === 'string',
+                                });
+                                let persistentPath: string;
+                                try {
+                                    persistentPath = getLocalFilePathFromFile(serverUrl, uploadedFile);
+                                    debugLog('DRAFT', `addFiles: step 2 - persistent path obtained`, {persistentPath});
+                                } catch (pathErr) {
+                                    debugLog('DRAFT', `addFiles: getLocalFilePathFromFile failed`, {
+                                        error: pathErr instanceof Error ? pathErr.message : String(pathErr),
+                                        stack: pathErr instanceof Error ? pathErr.stack : undefined,
+                                        serverUrlType: typeof serverUrl,
+                                        fileType: typeof uploadedFile,
+                                        fileIdType: typeof uploadedFile.id,
+                                    });
+                                    throw pathErr;
+                                }
 
                                 const srcWithScheme = curPath.startsWith('file://') ? curPath : `file://${curPath}`;
                                 const dstWithScheme = persistentPath.startsWith('file://') ? persistentPath : `file://${persistentPath}`;
