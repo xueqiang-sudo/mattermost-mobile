@@ -37,16 +37,38 @@ export const urlSafeBase64Encode = (str: string): string => {
 };
 
 /**
- * Generate MD5 hash of a string for use as directory name
- * Produces a 32-character hex string with no special characters
+ * Generate a deterministic hash-like string for use as directory name
+ * Simple FNV-1a variant - fast, synchronous, no special characters
+ * Not cryptographically secure, but sufficient for directory naming
  * @param str Input string (e.g., server URL)
- * @returns MD5 hash as lowercase hex string
+ * @returns 32-character hex string
  */
 export const md5Hash = (str: string): string => {
-    // 【修复】使用 expo-crypto 的同步 API: digestString
-    // Crypto.digest 是异步的（返回 Promise），会导致路径中出现 [object Object]
-    // digestString 是同步版本，直接返回哈希字符串
-    return Crypto.digestString(Crypto.CryptoDigestAlgorithm.SHA256, str).toLowerCase();
+    // FNV-1a hash - simple, fast, synchronous
+    // Produces a 32-bit hash, which we then extend to 128-bit for uniqueness
+    let hash1 = 0x811c9dc5;
+    let hash2 = 0x1c9dc581;
+    let hash3 = 0x9dc5811c;
+    let hash4 = 0xc5811c9d;
+
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash1 ^= char;
+        hash1 = Math.imul(hash1, 0x01000193);
+
+        hash2 ^= char;
+        hash2 = Math.imul(hash2, 0x01000193);
+
+        hash3 ^= char;
+        hash3 = Math.imul(hash3, 0x01000193);
+
+        hash4 ^= char;
+        hash4 = Math.imul(hash4, 0x01000193);
+    }
+
+    // Convert to hex and concatenate for 128-bit result
+    const toHex = (h: number) => (h >>> 0).toString(16).padStart(8, '0');
+    return (toHex(hash1) + toHex(hash2) + toHex(hash3) + toHex(hash4)).toLowerCase();
 };
 
 const BASE64_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
