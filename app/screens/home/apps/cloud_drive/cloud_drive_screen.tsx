@@ -827,11 +827,14 @@ const CloudDriveScreen = () => {
                         const authHeader = (client as any).requestHeaders?.['Authorization'] || '';
                         // 服务器从上传文件路径的 basename 取文件名，所以 basename 必须是原始
                         // 文件名，否则云盘里会显示成 drive_时间戳_xxx。把唯一性放到目录层
-                        // （时间戳子目录），文件名层保留原始 file.name。
+                        // （时间戳+索引子目录），文件名层保留原始 file.name。
                         const {makeDirectoryAsync} = await import('expo-file-system');
-                        const downloadDir = `${cacheDirectory}drive_${Date.now()}/`;
+                        // 【修复】使用时间戳+索引确保目录唯一，避免重复文件冲突
+                        const downloadDir = `${cacheDirectory}drive_${Date.now()}_${i}/`;
                         await makeDirectoryAsync(downloadDir, {intermediates: true});
-                        const localUri = `${downloadDir}${file.name || 'file'}`;
+                        // 【修复】使用安全的文件名，避免特殊字符导致路径问题
+                        const safeFileName = (file.name || 'file').replace(/[<>:"/\\|?*]/g, '_');
+                        const localUri = `${downloadDir}${safeFileName}`;
 
                         debugLog('[Drive] Download URL:', fileUrl);
                         debugLog('[Drive] Target local URI:', localUri);
@@ -862,7 +865,9 @@ const CloudDriveScreen = () => {
                         const downloadErrorStack = downloadErr instanceof Error ? downloadErr.stack : 'No stack';
                         debugLog('[Drive] Download ERROR:', downloadErrorMsg);
                         debugLog('[Drive] Download ERROR stack:', downloadErrorStack);
-                        throw new Error(`Failed to download file from channel: ${file.name}`);
+                        // 【修复】不抛出异常，而是标记为失败并继续下一个文件
+                        updateFileStatus(progressFileId, 'failed', `Download failed: ${downloadErrorMsg}`);
+                        continue;
                     }
                 }
 
@@ -932,16 +937,20 @@ const CloudDriveScreen = () => {
                     continue;
                 }
 
-                // 【优化】相册照片的虚拟 URI（ph://, content://）转换为真实文件路径
+                // 【优化】虚拟 URI（ph://, content://）转换为真实文件路径
+                // 相册照片和手机文件（DocumentPicker）都可能返回虚拟 URI
                 // 避免在上传时才发现问题
                 if (
-                    (file as any).source === 'album' &&
-                    (fileUri.startsWith('ph://') || fileUri.startsWith('content://') || fileUri.startsWith('assets-library://'))
+                    fileUri.startsWith('ph://') ||
+                    fileUri.startsWith('content://') ||
+                    fileUri.startsWith('assets-library://')
                 ) {
                     try {
-                        debugLog('[Drive] Converting album URI to real path:', fileUri);
+                        debugLog('[Drive] Converting virtual URI to real path:', fileUri);
                         const {getRealPath} = await import('react-native-compressor');
-                        const realPath = await getRealPath(fileUri, 'image');
+                        // 根据 mime_type 判断是图片还是其他文件
+                        const fileType = fileMimeType.startsWith('image/') ? 'image' : 'video';
+                        const realPath = await getRealPath(fileUri, fileType);
                         if (realPath) {
                             fileUri = realPath.startsWith('file://') ? realPath : `file://${realPath}`;
                             debugLog('[Drive] Converted to real path:', fileUri);
@@ -950,8 +959,10 @@ const CloudDriveScreen = () => {
                         }
                     } catch (convertErr) {
                         const convertErrMsg = convertErr instanceof Error ? convertErr.message : String(convertErr);
-                        debugLog('[Drive] Failed to convert album URI:', convertErrMsg);
-                        throw new Error(`Failed to read photo: ${fileName}`);
+                        debugLog('[Drive] Failed to convert virtual URI:', convertErrMsg);
+                        // 【修复】转换失败时不抛出异常，而是标记为失败并继续下一个文件
+                        updateFileStatus(progressFileId, 'failed', `Path conversion failed: ${convertErrMsg}`);
+                        continue;
                     }
                 }
 
@@ -995,7 +1006,44 @@ const CloudDriveScreen = () => {
                 } catch (uploadErr) {
                     const uploadErrorMsg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
                     debugLog('[Drive] ERROR uploading file:', uploadErrorMsg);
-                    updateFileStatus(progressFileId, 'failed', uploadErrorMsg);
+
+                    // 【修复】检测重复文件错误，自动重命名后重试
+                    const isDuplicateError = uploadErrorMsg.toLowerCase().includes('already exists') ||
+                                             uploadErrorMsg.toLowerCase().includes('duplicate') ||
+                                             uploadErrorMsg.toLowerCase().includes('conflict');
+
+                    if (isDuplicateError) {
+                        debugLog('[Drive] Duplicate file detected, retrying with new name:', fileName);
+                        try {
+                            // 生成新文件名：在扩展名前添加时间戳
+                            const lastDotIndex = fileName.lastIndexOf('.');
+                            const nameWithoutExt = lastDotIndex > 0 ? fileName.substring(0, lastDotIndex) : fileName;
+                            const ext = lastDotIndex > 0 ? fileName.substring(lastDotIndex) : '';
+                            const newFileName = `${nameWithoutExt}_${Date.now()}${ext}`;
+
+                            debugLog('[Drive] Retrying upload with new name:', newFileName);
+                            await uploadDriveFile(
+                                cachedServerUrl,
+                                cachedTeamId,
+                                cachedParentId,
+                                cachedScope,
+                                fileUri,
+                                newFileName,
+                                fileMimeType,
+                                (progress: number) => {
+                                    updateFileProgress(progressFileId, progress);
+                                },
+                            );
+                            debugLog('[Drive] File uploaded successfully with new name:', newFileName);
+                            updateFileStatus(progressFileId, 'completed');
+                        } catch (retryErr) {
+                            const retryErrorMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+                            debugLog('[Drive] Retry also failed:', retryErrorMsg);
+                            updateFileStatus(progressFileId, 'failed', `Duplicate file and retry failed: ${retryErrorMsg}`);
+                        }
+                    } else {
+                        updateFileStatus(progressFileId, 'failed', uploadErrorMsg);
+                    }
                     // Continue with next file instead of throwing
                 }
             }
