@@ -417,8 +417,6 @@ const CloudDriveScreen = () => {
     const [showUploadProgress, setShowUploadProgress] = useState(false);
     const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
-    const theme = useTheme();
-
     // File preview hook (same as chat window)
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
 
