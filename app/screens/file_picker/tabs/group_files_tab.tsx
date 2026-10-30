@@ -281,7 +281,28 @@ export default function GroupFilesTab({channelId}: GroupFilesTabProps) {
 
         const now = Date.now();
 
+        // 【优化】只显示在聊天中渲染为"文件附件"的文件
+        // 过滤掉在聊天中直接渲染为图片或视频的文件（inline media）
+        // 只保留渲染为文件图标的文件（file attachments）
+        const INLINE_MEDIA_TYPES = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/bmp',
+            'video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mpeg',
+        ];
+
         const result: FileEntry[] = files
+            .filter(f => {
+                const mimeType = f.mimeType || '';
+                const fileName = f.name || '';
+
+                // 过滤掉在聊天中直接渲染的图片/视频（inline media）
+                // 只保留在聊天中渲染为文件图标的文件（file attachments）
+                if (INLINE_MEDIA_TYPES.includes(mimeType)) {
+                    debugLog('filePicker', `GroupFilesTab: filtering out inline media: ${fileName} (${mimeType})`);
+                    return false;
+                }
+
+                return true;
+            })
             .map(f => {
                 const post = postMap.get(f.postId)!;
                 return {

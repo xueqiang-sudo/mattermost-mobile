@@ -65,8 +65,9 @@ export default function FilesTab() {
             const options = {
                 type: [DocumentPicker.types.allFiles],
                 allowMultiSelection: true,
-                // On iOS, copyTo helps with file access, especially for iCloud and Files app
-                ...(Platform.OS === 'ios' ? {copyTo: 'cachesDirectory' as const} : {copyTo: 'cachesDirectory' as const}),
+                // 【优化】移除 copyTo，直接使用原始 URI，避免复制大文件导致长时间等待
+                // 文件会在上传时流式读取，不需要先复制到缓存
+                // 注意：某些 iCloud 文件可能需要网络下载，但这是系统行为，无法避免
             };
 
             debugLog('filePicker', `DocumentPicker options: ${JSON.stringify(options)}`);

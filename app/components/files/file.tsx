@@ -437,6 +437,7 @@ const File = ({
                         <View style={style.iconWrapperRight}>
                             {documentIcon}
                         </View>
+                        {isPendingUpload && <UploadProgressOverlay progressKey={file.id}/>}
                         <RNAnimated.View style={[style.pressOverlay, {opacity: pressOpacity}]} />
                     </View>
                 </TouchableWithFeedback>

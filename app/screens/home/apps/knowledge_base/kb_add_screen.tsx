@@ -15,6 +15,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
+import UploadProgressPanel from '@components/upload_progress_panel';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {showFilePickerScreen} from '@screens/file_picker/show_modal';
@@ -26,6 +27,7 @@ import type {FileInfo} from '@mattermost/types/files';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {UploadFileItem} from '@typings/components/upload_progress_panel';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 import {
@@ -55,6 +57,10 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
     const [url, setUrl] = useState('');
     const [file, setFile] = useState<FileInfo | null>(null);
     const [loading, setLoading] = useState(false);
+
+    // 上传进度跟踪
+    const [uploadProgressFiles, setUploadProgressFiles] = useState<UploadFileItem[]>([]);
+    const [showUploadProgress, setShowUploadProgress] = useState(false);
 
     // 检查是否可以保存
     const canSave = useCallback(() => {
@@ -159,6 +165,7 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
             } else if (addType === 'file' && file) {
                 const fileName = file.name || 'unknown';
                 const fileType = file.mime_type || 'application/octet-stream';
+                const fileId = file.id || `kb_${Date.now()}`;
 
                 // 本地待上传文件（相册/手机）有 uri；channel 文件只有 localPath 或都没有。
                 let fileUri = file.uri || file.localPath || '';
@@ -221,6 +228,29 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
                     throw new Error('File has no local path or URI');
                 }
 
+                // 【优化】相册照片的虚拟 URI（ph://, content://）转换为真实文件路径
+                // 避免在上传时才发现问题
+                if (
+                    (file as any).source === 'album' &&
+                    (fileUri.startsWith('ph://') || fileUri.startsWith('content://') || fileUri.startsWith('assets-library://'))
+                ) {
+                    try {
+                        debugLog('[KBAdd] Converting album URI to real path:', fileUri);
+                        const {getRealPath} = await import('react-native-compressor');
+                        const realPath = await getRealPath(fileUri, 'image');
+                        if (realPath) {
+                            fileUri = realPath.startsWith('file://') ? realPath : `file://${realPath}`;
+                            debugLog('[KBAdd] Converted to real path:', fileUri);
+                        } else {
+                            throw new Error('getRealPath returned empty');
+                        }
+                    } catch (convertErr) {
+                        const convertErrMsg = convertErr instanceof Error ? convertErr.message : String(convertErr);
+                        debugLog('[KBAdd] Failed to convert album URI:', convertErrMsg);
+                        throw new Error(`Failed to read photo: ${fileName}`);
+                    }
+                }
+
                 // 交给原生上传前，确认磁盘上文件确实存在；传不存在的路径给原生层会硬崩。
                 // 不要 decode、不要去 file:// 前缀——原样传，对齐聊天窗口上传路径。
                 try {
@@ -237,7 +267,39 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
                     throw new Error(`Failed to read file: ${fileName}`);
                 }
 
-                result = await createKBDocFile(serverUrl, teamId, fileUri, fileName, fileType);
+                // 初始化上传进度跟踪
+                const progressFile: UploadFileItem = {
+                    id: fileId,
+                    name: fileName,
+                    size: file.size || 0,
+                    progress: 0,
+                    status: 'uploading',
+                };
+                setUploadProgressFiles([progressFile]);
+                setShowUploadProgress(true);
+
+                // 定义进度回调
+                const onProgress = (progress: number) => {
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f) => (f.id === fileId ? {...f, progress, status: 'uploading' as const} : f)),
+                    );
+                };
+
+                try {
+                    result = await createKBDocFile(serverUrl, teamId, fileUri, fileName, fileType, onProgress);
+
+                    // 上传成功，更新状态
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f) => (f.id === fileId ? {...f, progress: 1, status: 'completed' as const} : f)),
+                    );
+                } catch (uploadErr) {
+                    // 上传失败，更新状态
+                    const errorMsg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f) => (f.id === fileId ? {...f, status: 'failed' as const, error: errorMsg} : f)),
+                    );
+                    throw uploadErr;
+                }
             }
 
             if (result?.error) {
@@ -480,6 +542,66 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
                     </View>
                 )}
             </View>
+
+            {/* Upload Progress Panel */}
+            <UploadProgressPanel
+                visible={showUploadProgress}
+                files={uploadProgressFiles}
+                onClose={() => {
+                    // Only allow closing if upload is complete or failed
+                    const allDone = uploadProgressFiles.every(
+                        (f) => f.status === 'completed' || f.status === 'failed'
+                    );
+                    if (allDone) {
+                        setShowUploadProgress(false);
+                    }
+                }}
+                onRetry={async (fileId: string) => {
+                    // For KB, we only upload one file at a time, so retry means re-uploading the same file
+                    if (!file || fileId !== uploadProgressFiles[0]?.id) return;
+
+                    // Reset status
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f) => (f.id === fileId ? {...f, progress: 0, status: 'uploading' as const} : f)),
+                    );
+
+                    try {
+                        const fileName = file.name || 'unknown';
+                        const fileType = file.mime_type || 'application/octet-stream';
+                        const fileUri = file.uri || file.localPath || '';
+
+                        if (!fileUri) {
+                            throw new Error('No file path available');
+                        }
+
+                        const onProgress = (progress: number) => {
+                            setUploadProgressFiles((prev) =>
+                                prev.map((f) => (f.id === fileId ? {...f, progress, status: 'uploading' as const} : f)),
+                            );
+                        };
+
+                        await createKBDocFile(serverUrl, teamId, fileUri, fileName, fileType, onProgress);
+
+                        // Success
+                        setUploadProgressFiles((prev) =>
+                            prev.map((f) => (f.id === fileId ? {...f, progress: 1, status: 'completed' as const} : f)),
+                        );
+
+                        // Call callback to refresh list
+                        onDocAdded?.();
+
+                        // Auto-navigate back after successful retry
+                        setTimeout(() => {
+                            popTopScreen();
+                        }, 500);
+                    } catch (retryErr) {
+                        const errorMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+                        setUploadProgressFiles((prev) =>
+                            prev.map((f) => (f.id === fileId ? {...f, status: 'failed' as const, error: errorMsg} : f)),
+                        );
+                    }
+                }}
+            />
         </SafeAreaView>
     );
 };

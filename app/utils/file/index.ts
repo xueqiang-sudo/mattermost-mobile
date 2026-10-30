@@ -16,7 +16,7 @@ import {generateId} from '@utils/general';
 import keyMirror from '@utils/key_mirror';
 import {logError} from '@utils/log';
 import {deleteEntitiesFile, getIOSAppGroupDetails} from '@utils/mattermost_managed';
-import {urlSafeBase64Encode} from '@utils/security';
+import {md5Hash, urlSafeBase64Encode} from '@utils/security';
 
 import type {PastedFile} from '@mattermost/react-native-paste-input';
 import type FileModel from '@typings/database/models/servers/file';
@@ -176,7 +176,7 @@ export async function deleteV1Data() {
 }
 
 export async function deleteFileCache(serverUrl: string) {
-    const serverDir = urlSafeBase64Encode(serverUrl);
+    const serverDir = md5Hash(serverUrl);
     return deleteFileCacheByDir(serverDir);
 }
 
@@ -516,7 +516,7 @@ export function getFileType(file: FileInfo | ExtractedFileInfo): string {
 export function getLocalFilePathFromFile(serverUrl: string, file: FileInfo | FileModel) {
     const fileIdPath = file.id?.replace(/[^0-9a-z]/g, '');
     if (serverUrl) {
-        const server = urlSafeBase64Encode(serverUrl);
+        const server = md5Hash(serverUrl);
         const hasValidFilename = file?.name && !file.name.includes('/');
         const hasValidExtension = file?.extension && !file.extension.includes('/');
         if (hasValidFilename) {
@@ -527,12 +527,13 @@ export function getLocalFilePathFromFile(serverUrl: string, file: FileInfo | Fil
                 extension = getExtensionFromMime(mimeType);
             }
 
-            // 【修复】使用纯 fileId 命名，避免中文、空格等字符导致的编码问题
-            // 原生 PDF 查看器对非 ASCII 字符的路径支持不完善，即使编码也可能报 Invalid file path
+            // 目录名使用 MD5 哈希（32位十六进制，无特殊字符），文件名保留原始名称
+            // 支持中文、空格等字符，原生组件可正常访问
             // 持久化存储：落到 documentDirectory（iOS=沙盒 Documents，Android=app files），
             // 系统空间紧张时不会自动清理，实现微信式「下过一次长期保留」。
             // 不用 cacheDirectory（iOS Library/Caches、Android cache，均会被系统回收）。
-            return `${documentDirectory}${server}/Files/${fileIdPath}.${extension || 'bin'}`;
+            const fileName = extension ? `${file.name.replace(/\.[^.]+$/, '')}.${extension}` : file.name;
+            return `${documentDirectory}${server}/Files/${fileName}`;
         } else if (file?.id && hasValidExtension) {
             return `${documentDirectory}${server}/Files/${fileIdPath}.${file.extension}`;
         } else if (file?.id) {
@@ -737,11 +738,11 @@ export const getAllFilesInCachesDirectory = async (serverUrl: string) => {
 
         // 聊天文件已落到 documentDirectory（持久化）；旧版本的 cacheDirectory 残留也一并统计。
         const promises = [
-            getInfoAsync(`${documentDirectory}/${urlSafeBase64Encode(serverUrl)}`, {size: true}),
-            getInfoAsync(`${cacheDirectory}/${urlSafeBase64Encode(serverUrl)}`, {size: true}),
+            getInfoAsync(`${documentDirectory}/${md5Hash(serverUrl)}`, {size: true}),
+            getInfoAsync(`${cacheDirectory}/${md5Hash(serverUrl)}`, {size: true}),
         ];
         if (Platform.OS === 'ios') {
-            const cacheDir = `${getIOSAppGroupDetails().appGroupSharedDirectory}/Library/Caches/${urlSafeBase64Encode(serverUrl)}`;
+            const cacheDir = `${getIOSAppGroupDetails().appGroupSharedDirectory}/Library/Caches/${md5Hash(serverUrl)}`;
             promises.push(getInfoAsync(cacheDir, {size: true}));
         }
 
@@ -777,17 +778,77 @@ export const deleteFile = async (path: string) => {
     await deleteAsync(pathWithPrefix('file://', path));
 };
 
-export const filesLocalPathValidation = async (files: FileModel[], authorId: string) => {
-    // 【性能优化】并行检查所有文件的存在性，避免串行 I/O 导致渲染延迟
-    // 5个文件：从 5×50ms=250ms → 并行 50ms，渲染速度提升 5x
+// 全局文件存在性检查并发限制器
+// 避免大量文件同时检查导致内存暴涨和 I/O 阻塞
+const FILE_CHECK_CONCURRENCY = 10; // 最多同时检查 10 个文件
+const fileCheckQueue: Array<() => Promise<void>> = [];
+let activeFileChecks = 0;
+
+const processFileCheckQueue = async () => {
+    if (activeFileChecks >= FILE_CHECK_CONCURRENCY || fileCheckQueue.length === 0) {
+        return;
+    }
+
+    const task = fileCheckQueue.shift();
+    if (task) {
+        activeFileChecks++;
+        try {
+            await task();
+        } finally {
+            activeFileChecks--;
+            processFileCheckQueue(); // 递归处理下一个
+        }
+    }
+};
+
+const enqueueFileCheck = (checkFn: () => Promise<void>): Promise<void> => {
+    return new Promise((resolve) => {
+        const wrappedTask = async () => {
+            await checkFn();
+            resolve();
+        };
+        fileCheckQueue.push(wrappedTask);
+        processFileCheckQueue();
+    });
+};
+
+export const filesLocalPathValidation = async (files: FileModel[], authorId: string, serverUrl?: string) => {
+    // 【性能优化】并行检查所有文件的存在性，但受全局并发限制
+    // 避免 50 个 post × 5 个文件 = 250 个并发检查导致卡死
     const filesInfo = await Promise.all(
         files.map(async (f) => {
             const info = f.toFileInfo(authorId);
+
+            // 【修复】如果 localPath 为空但文件已上传（有 id），尝试重新生成路径
+            // 这处理了以下情况：
+            // 1. 文件上传完成但 localPath 未写入数据库
+            // 2. 目录命名方案变更（base64 → MD5）导致旧路径失效
+            if (!info.localPath && info.id && serverUrl) {
+                // 文件已上传但没有 localPath，重新生成
+                const newPath = getLocalFilePathFromFile(serverUrl, info);
+                info.localPath = newPath;
+            }
+
             if (info.localPath) {
-                const exists = await fileExists(info.localPath);
-                if (!exists) {
-                    info.localPath = '';
-                }
+                // 使用队列限制并发
+                await enqueueFileCheck(async () => {
+                    const exists = await fileExists(info.localPath!);
+                    if (!exists) {
+                        // 【修复】文件不存在时，尝试用新路径（MD5 目录）重新检查
+                        // 如果找到，更新 localPath；否则清空
+                        if (serverUrl && info.id) {
+                            const newPath = getLocalFilePathFromFile(serverUrl, info);
+                            if (newPath !== info.localPath) {
+                                const newExists = await fileExists(newPath);
+                                if (newExists) {
+                                    info.localPath = newPath;
+                                    return;
+                                }
+                            }
+                        }
+                        info.localPath = '';
+                    }
+                });
             }
             return info;
         }),

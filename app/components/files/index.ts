@@ -17,18 +17,19 @@ import type PostModel from '@typings/database/models/servers/post';
 
 type EnhanceProps = WithDatabaseArgs & {
     post: PostModel;
+    serverUrl: string;
 }
 
-const enhance = withObservables(['post'], ({database, post}: EnhanceProps) => {
+const enhance = withObservables(['post'], ({database, post, serverUrl}: EnhanceProps) => {
     const publicLinkEnabled = observeConfigBooleanValue(database, 'EnablePublicLink');
 
     const filesInfo = queryFilesForPost(database, post.id).observeWithColumns(['local_path']).pipe(
-        switchMap((fs) => from$(filesLocalPathValidation(fs, post.userId))),
+        switchMap((fs) => from$(filesLocalPathValidation(fs, post.userId, serverUrl))),
     );
 
     const channelMediaFiles = queryMediaFilesForChannel(database, post.channelId).observeWithColumns(['local_path']).pipe(
         switchMap((fs) => from$(
-            filesLocalPathValidation(fs.filter((f) => isImage(f) || isVideo(f)), post.userId),
+            filesLocalPathValidation(fs.filter((f) => isImage(f) || isVideo(f)), post.userId, serverUrl),
         )),
     );
 

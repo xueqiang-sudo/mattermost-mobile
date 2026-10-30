@@ -19,6 +19,7 @@ import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useNavigation, useRoute} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
+import UploadProgressPanel from '@components/upload_progress_panel';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -53,6 +54,8 @@ import {
     type KBSearchResult,
     type KBAskSource,
 } from '../workbench_api';
+
+import type {UploadFileItem} from '@typings/components/upload_progress_panel';
 
 import KBAddTextURLModal from './kb_add_text_url_modal';
 
@@ -633,6 +636,10 @@ const KnowledgeBaseScreen = () => {
     const [deleteTarget, setDeleteTarget] = useState<DisplayItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Upload progress tracking
+    const [uploadProgressFiles, setUploadProgressFiles] = useState<UploadFileItem[]>([]);
+    const [showUploadProgress, setShowUploadProgress] = useState(false);
+
     // File preview hook (same as chat window)
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
 
@@ -960,6 +967,17 @@ const KnowledgeBaseScreen = () => {
         try {
             debugLog('[KB] Starting upload of ${files.length} file(s)');
 
+            // Initialize progress tracking for all files
+            const progressFiles: UploadFileItem[] = files.map((f, idx) => ({
+                id: f.id || `kb_upload_${idx}_${Date.now()}`,
+                name: f.name || 'unknown',
+                size: f.size || 0,
+                progress: 0,
+                status: 'pending' as const,
+            }));
+            setUploadProgressFiles(progressFiles);
+            setShowUploadProgress(true);
+
             // Upload each file sequentially
             for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
                 const file = files[fileIdx];
@@ -1054,6 +1072,29 @@ const KnowledgeBaseScreen = () => {
                     }
                 }
 
+                // 【优化】相册照片的虚拟 URI（ph://, content://）转换为真实文件路径
+                // 避免在上传时才发现问题
+                if (
+                    (file as any).source === 'album' &&
+                    (fileUri.startsWith('ph://') || fileUri.startsWith('content://') || fileUri.startsWith('assets-library://'))
+                ) {
+                    try {
+                        debugLog('[KB] Converting album URI to real path:', fileUri);
+                        const {getRealPath} = await import('react-native-compressor');
+                        const realPath = await getRealPath(fileUri, 'image');
+                        if (realPath) {
+                            fileUri = realPath.startsWith('file://') ? realPath : `file://${realPath}`;
+                            debugLog('[KB] Converted to real path:', fileUri);
+                        } else {
+                            throw new Error('getRealPath returned empty');
+                        }
+                    } catch (convertErr) {
+                        const convertErrMsg = convertErr instanceof Error ? convertErr.message : String(convertErr);
+                        debugLog('[KB] Failed to convert album URI:', convertErrMsg);
+                        throw new Error(`Failed to read photo: ${file.name}`);
+                    }
+                }
+
                 // 不要 decodeURIComponent。保留原始 file://...%20... 形态原样传给上传，
                 // 对齐聊天窗口上传路径。decode 后会变成带真实空格/中文的裸路径，
                 // iOS 原生 upload 按 URL 解析失败后硬崩（JS 捕获不到）。
@@ -1073,6 +1114,19 @@ const KnowledgeBaseScreen = () => {
                     throw new Error(`Failed to read file: ${file.name}`);
                 }
 
+                // Update status to uploading
+                const fileId = progressFiles[fileIdx].id;
+                setUploadProgressFiles((prev) =>
+                    prev.map((f, idx) => (idx === fileIdx ? {...f, status: 'uploading' as const} : f)),
+                );
+
+                // Progress callback
+                const onProgress = (progress: number) => {
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f, idx) => (idx === fileIdx ? {...f, progress, status: 'uploading' as const} : f)),
+                    );
+                };
+
                 try {
                     await createKBDocFile(
                         cachedServerUrl,
@@ -1080,11 +1134,23 @@ const KnowledgeBaseScreen = () => {
                         fileUri,
                         file.name || 'unknown',
                         file.mime_type || 'application/octet-stream',
+                        onProgress,
                     );
                     debugLog('[KB] File uploaded successfully:', file.name);
+
+                    // Update status to completed
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f, idx) => (idx === fileIdx ? {...f, progress: 1, status: 'completed' as const} : f)),
+                    );
                 } catch (uploadErr) {
                     const uploadErrorMsg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
                     debugLog('[KB] ERROR uploading file to KB:', uploadErrorMsg);
+
+                    // Update status to failed
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f, idx) => (idx === fileIdx ? {...f, status: 'failed' as const, error: uploadErrorMsg} : f)),
+                    );
+
                     throw uploadErr;
                 }
             }
@@ -1644,6 +1710,39 @@ const KnowledgeBaseScreen = () => {
                     teamId={teamId}
                 />
             )}
+
+            {/* Upload Progress Panel */}
+            <UploadProgressPanel
+                visible={showUploadProgress}
+                files={uploadProgressFiles}
+                onClose={() => {
+                    // Only allow closing if all uploads are complete or failed
+                    const allDone = uploadProgressFiles.every(
+                        (f) => f.status === 'completed' || f.status === 'failed'
+                    );
+                    if (allDone) {
+                        setShowUploadProgress(false);
+                        // Refresh document list when closing
+                        loadDocuments();
+                    }
+                }}
+                onRetry={async (fileId: string) => {
+                    // Find the file index
+                    const fileIndex = uploadProgressFiles.findIndex((f) => f.id === fileId);
+                    if (fileIndex === -1) return;
+
+                    // Reset status to pending
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f, idx) => (idx === fileIndex ? {...f, progress: 0, status: 'uploading' as const} : f)),
+                    );
+
+                    // Note: For simplicity, show that retry needs manual re-upload
+                    debugLog('[KB] Retry upload for file:', fileId);
+                    setUploadProgressFiles((prev) =>
+                        prev.map((f, idx) => (idx === fileIndex ? {...f, status: 'failed' as const, error: 'Please re-select and upload the file'} : f)),
+                    );
+                }}
+            />
         </SafeAreaView>
     );
 };

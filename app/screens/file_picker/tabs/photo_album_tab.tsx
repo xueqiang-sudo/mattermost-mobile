@@ -178,50 +178,30 @@ export default function PhotoAlbumTab() {
             return;
         }
 
-        // 【关键改进】文件 I/O 操作异步执行，不阻塞 UI
-        // setImmediate 会在当前帧渲染完成后执行，保证 UI 立刻响应
+        // 【优化】选择时不再复制，只获取文件元数据，发送时再处理
+        // 减少一次 I/O 操作，提升选择速度
         setImmediate(async () => {
             try {
                 const filename = photo.node.image.filename || photoUri.split('/').pop() || 'photo.jpg';
                 const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
 
-                let fileUri = photoUri;
+                // 只获取文件大小，不复制文件
                 let fileSize = 0;
-
-                // Copy photo to cache directory
-                if (cacheDirectory) {
-                    try {
-                        const cacheFileName = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
-                        const cacheUri = cacheDirectory + cacheFileName;
-
-                        debugLog('PhotoAlbumTab', `Copying photo to cache: ${cacheUri}`);
-                        const sourceInfo = await getInfoAsync(photoUri);
-                        if (!sourceInfo.exists) {
-                            throw new Error(`Source photo not found`);
-                        }
-
-                        await copyAsync({from: photoUri, to: cacheUri});
-                        const copiedInfo = await getInfoAsync(cacheUri, {size: true});
-                        if (copiedInfo.exists && 'size' in copiedInfo) {
-                            fileUri = cacheUri;
-                            fileSize = copiedInfo.size || 0;
-                        }
-                    } catch (e) {
-                        debugLog('PhotoAlbumTab', `Cache copy failed: ${e instanceof Error ? e.message : String(e)}, using original`);
-                        try {
-                            const fileInfo = await getInfoAsync(photoUri, {size: true});
-                            if (fileInfo.exists && 'size' in fileInfo) {
-                                fileSize = fileInfo.size || 0;
-                            }
-                        } catch {}
+                try {
+                    const fileInfo = await getInfoAsync(photoUri, {size: true});
+                    if (fileInfo.exists && 'size' in fileInfo) {
+                        fileSize = fileInfo.size || 0;
                     }
+                } catch (e) {
+                    debugLog('PhotoAlbumTab', `Failed to get file size: ${e instanceof Error ? e.message : String(e)}`);
                 }
 
+                // 直接使用原始 URI，不复制到缓存
                 const selectedFile: SelectedFile = {
-                    id: fileUri,
-                    clientId: fileUri,
+                    id: photoUri,  // 使用原始 URI 作为 ID
+                    clientId: photoUri,
                     name: filename,
-                    uri: fileUri,
+                    uri: photoUri,  // 直接使用原始 URI
                     mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
                     size: fileSize,
                     source: 'album',
@@ -231,7 +211,7 @@ export default function PhotoAlbumTab() {
                     height: photo.node.image.height,
                 };
 
-                debugLog('PhotoAlbumTab', 'Adding photo to selection:', {name: selectedFile.name, uri: selectedFile.uri});
+                debugLog('PhotoAlbumTab', 'Adding photo to selection (no copy):', {name: selectedFile.name, uri: selectedFile.uri});
                 dispatch({type: 'ADD_FILE', file: selectedFile});
             } catch (error) {
                 debugLog('PhotoAlbumTab', `Unexpected error: ${error instanceof Error ? error.message : String(error)}`);

@@ -3,6 +3,7 @@
 
 import CookieManager, {type Cookie} from '@react-native-cookies/cookies';
 import base64 from 'base-64';
+import * as Crypto from 'expo-crypto';
 import {Platform} from 'react-native';
 
 export async function getCSRFFromCookie(url: string) {
@@ -33,6 +34,16 @@ export async function clearCookiesForServer(serverUrl: string) {
 
 export const urlSafeBase64Encode = (str: string): string => {
     return base64.encode(str).replace(/\+/g, '-').replace(/\//g, '_');
+};
+
+/**
+ * Generate MD5 hash of a string for use as directory name
+ * Produces a 32-character hex string with no special characters
+ * @param str Input string (e.g., server URL)
+ * @returns MD5 hash as lowercase hex string
+ */
+export const md5Hash = (str: string): string => {
+    return Crypto.digest(Crypto.CryptoDigestAlgorithm.MD5, str);
 };
 
 const BASE64_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';

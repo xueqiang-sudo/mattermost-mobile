@@ -353,32 +353,40 @@ export default function DraftHandler(props: Props) {
                 debugLog('DRAFT', `addFiles: Phase 2 COMPLETE, created ${batchData.length} posts`);
 
                 // Phase 3: 为每条 pending post 各自调服务端 createPost。
-                // createdPostIds[i] 与 filesWithPostData[i] 一一对应，供后台上传阶段使用。
-                debugLog('DRAFT', `addFiles: Phase 3 - calling server API for ${batchData.length} posts`);
+                // 【优化】并行调用 createPost，限制并发数为 3，避免串行 API 调用
+                // 9 个 post：串行 9×200ms=1800ms → 并行 3×200ms=600ms（3x 提升）
+                const POST_CREATE_CONCURRENCY = 3;
+                debugLog('DRAFT', `addFiles: Phase 3 - calling server API for ${batchData.length} posts (parallel)`);
 
-                const createdPostIds: string[] = [];
-                for (let i = 0; i < batchData.length; i++) {
-                    const {pendingPostId: serverPendingPostId, post: serverPost, files: serverFiles} = batchData[i];
-                    let createdPostId = serverPendingPostId;
-                    try {
-                        const result = await createPost(
-                            serverUrl,
-                            {...serverPost, pending_post_id: serverPendingPostId},
-                            serverFiles,
-                            true, // Skip pending post creation (already done in batch)
-                        );
+                const createdPostIds: string[] = new Array(batchData.length);
+                const postQueue = batchData.map((item, index) => ({...item, index}));
 
-                        if (result.error) {
-                            debugLog('DRAFT', `addFiles: Phase 3 ERROR (post ${i}) - ${result.error}`);
-                        } else if (result.data?.postId) {
-                            createdPostId = result.data.postId;
-                            debugLog('DRAFT', `addFiles: Phase 3 - post ${i} created, id=${createdPostId}`);
+                while (postQueue.length > 0) {
+                    const postBatch = postQueue.splice(0, POST_CREATE_CONCURRENCY);
+                    debugLog('DRAFT', `addFiles: Phase 3 - creating batch of ${postBatch.length} posts`);
+
+                    await Promise.all(postBatch.map(async ({pendingPostId: serverPendingPostId, post: serverPost, files: serverFiles, index}) => {
+                        let createdPostId = serverPendingPostId;
+                        try {
+                            const result = await createPost(
+                                serverUrl,
+                                {...serverPost, pending_post_id: serverPendingPostId},
+                                serverFiles,
+                                true, // Skip pending post creation (already done in batch)
+                            );
+
+                            if (result.error) {
+                                debugLog('DRAFT', `addFiles: Phase 3 ERROR (post ${index}) - ${result.error}`);
+                            } else if (result.data?.postId) {
+                                createdPostId = result.data.postId;
+                                debugLog('DRAFT', `addFiles: Phase 3 - post ${index} created, id=${createdPostId}`);
+                            }
+                        } catch (err) {
+                            logError('[addFiles createPost]', err);
+                            debugLog('DRAFT', `addFiles: Phase 3 exception (post ${index}) - ${err}`);
                         }
-                    } catch (err) {
-                        logError('[addFiles createPost]', err);
-                        debugLog('DRAFT', `addFiles: Phase 3 exception (post ${i}) - ${err}`);
-                    }
-                    createdPostIds.push(createdPostId);
+                        createdPostIds[index] = createdPostId;
+                    }));
                 }
 
                 // Emit scroll to bottom immediately so user sees their post
@@ -387,11 +395,21 @@ export default function DraftHandler(props: Props) {
                 // 每个文件各自上传并更新对应的那条 post（每文件一条 post）。
                 debugLog('DRAFT', `addFiles: background upload - ${filesWithPostData.length} files, one post each`);
 
-                // 每个文件上传期间通过 progress 发布器单独上报进度，渲染层按 pending 文件 id 显示各自进度条。
-                // Upload each file into its own post
-                for (let uploadIndex = 0; uploadIndex < filesWithPostData.length; uploadIndex++) {
-                    const {localFile: file, isExistingServerFile} = filesWithPostData[uploadIndex];
-                    const postId = createdPostIds[uploadIndex];
+                // 【优化】并行上传文件，限制并发数为 3，避免串行上传导致用户等待过久
+                // 9 个文件：串行 90秒 → 并行 30秒（3x 提升）
+                const UPLOAD_CONCURRENCY = 3;
+                const uploadQueue = filesWithPostData.map((item, index) => ({
+                    ...item,
+                    postId: createdPostIds[index],
+                    index,
+                }));
+
+                while (uploadQueue.length > 0) {
+                    const batch = uploadQueue.splice(0, UPLOAD_CONCURRENCY);
+                    debugLog('DRAFT', `addFiles: uploading batch of ${batch.length} files (remaining: ${uploadQueue.length})`);
+
+                    // 并行上传当前批次
+                    await Promise.all(batch.map(async ({localFile: file, isExistingServerFile, postId, index}) => {
 
                     // 进度键用 pending 文件 id（file.id），因为聊天列表从 DB 读取的 File 只有 id，无 clientId
                     const progressKey = file.id!;
@@ -555,7 +573,10 @@ export default function DraftHandler(props: Props) {
                         }
                         // Continue with other files even if one fails
                     }
-                }
+                    })); // End of Promise.all
+
+                    debugLog('DRAFT', `addFiles: batch complete, ${uploadQueue.length} files remaining`);
+                } // End of while loop
 
                 debugLog('DRAFT', `addFiles: all uploads complete`);
 

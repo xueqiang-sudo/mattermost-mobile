@@ -203,6 +203,7 @@ export async function uploadDriveFile(
     fileUri: string,
     fileName: string,
     fileType: string,
+    onProgress?: (progress: number) => void,
 ): Promise<DriveFile> {
     // Debug: Log upload parameters
     debugLog('[uploadDriveFile] Parameters:', JSON.stringify({
@@ -242,6 +243,13 @@ export async function uploadDriveFile(
 
     return new Promise<DriveFile>((resolve, reject) => {
         const promise = client.apiClient.upload(url, localPath, options);
+
+        // Attach progress listener if provided
+        if (onProgress && promise.progress) {
+            promise.progress((fractionCompleted: number) => {
+                onProgress(fractionCompleted);
+            });
+        }
 
         promise.then((response: any) => {
             debugLog('[uploadDriveFile] Upload response:', JSON.stringify({
@@ -503,6 +511,7 @@ export async function uploadKBFile(
     fileUri: string,
     fileName: string,
     fileType: string,
+    onProgress?: (progress: number) => void,
 ): Promise<{file_uuid: string; filename: string}> {
     debugLog('[uploadKBFile] Starting upload:', JSON.stringify({
         teamId,
@@ -536,6 +545,13 @@ export async function uploadKBFile(
 
     return new Promise<{file_uuid: string; filename: string}>((resolve, reject) => {
         const promise = client.apiClient.upload(url, localPath, options);
+
+        // 绑定进度回调
+        if (onProgress && promise.progress) {
+            promise.progress((fractionCompleted: number) => {
+                onProgress(fractionCompleted);
+            });
+        }
 
         promise.then((response: any) => {
             debugLog('[uploadKBFile] Upload response:', JSON.stringify({
@@ -579,6 +595,7 @@ export async function createKBDocFile(
     fileUri: string,
     fileName: string,
     fileType: string,
+    onProgress?: (progress: number) => void,
 ): Promise<any> {
     debugLog('[createKBDocFile] Starting file upload process:', JSON.stringify({
         teamId,
@@ -590,7 +607,7 @@ export async function createKBDocFile(
     try {
         // Step 1: Upload file via multipart form (same as webapp)
         debugLog('[createKBDocFile] Step 1: Uploading file via multipart...');
-        const {file_uuid} = await uploadKBFile(serverUrl, teamId, fileUri, fileName, fileType);
+        const {file_uuid} = await uploadKBFile(serverUrl, teamId, fileUri, fileName, fileType, onProgress);
         debugLog('[createKBDocFile] File uploaded, file_uuid:', file_uuid);
 
         // Step 2: Create KB entry with fileId (same as webapp)

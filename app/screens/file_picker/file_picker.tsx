@@ -330,29 +330,44 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
 
             // 微信式压缩：发送时按「原图」开关处理相册图片。
             // 放在 dismiss 之后、后台执行，不阻塞 UI。keepOriginal=true 时跳过压缩发原图。
+            // 【修复】限制并发压缩数量为 2，避免 9 个文件同时压缩导致内存爆炸崩溃
             const keepOriginal = state.keepOriginal;
-            const prepareAndSend = async () => {
-                const prepared = await Promise.all(normalizedFiles.map(async (file) => {
-                    if (file.source !== 'album' || !file.uri) {
-                        return file;
-                    }
-                    try {
-                        const compressed = await compressChatImageAsset({
-                            uri: file.uri,
-                            type: file.mime_type,
-                            fileName: file.name,
-                        } as Asset, {keepOriginal});
+            const COMPRESS_CONCURRENCY = 2;
 
-                        if (compressed?.uri && compressed.uri !== file.uri) {
-                            const info = await getInfoAsync(compressed.uri, {size: true});
-                            const size = info.exists && 'size' in info ? (info.size || file.size) : file.size;
-                            return {...file, uri: compressed.uri, size};
+            const prepareAndSend = async () => {
+                const prepared: FileInfo[] = [];
+                const queue = [...normalizedFiles];
+
+                // 并发限制压缩
+                while (queue.length > 0) {
+                    const batch = queue.splice(0, COMPRESS_CONCURRENCY);
+                    const batchResults = await Promise.all(batch.map(async (file) => {
+                        if (file.source !== 'album' || !file.uri) {
+                            return file;
                         }
-                    } catch (e) {
-                        debugLog('filePicker', `compress on send failed, using original: ${e instanceof Error ? e.message : String(e)}`);
-                    }
-                    return file;
-                }));
+                        try {
+                            debugLog('filePicker', `Compressing: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                            const compressed = await compressChatImageAsset({
+                                uri: file.uri,
+                                type: file.mime_type,
+                                fileName: file.name,
+                            } as Asset, {keepOriginal});
+
+                            if (compressed?.uri && compressed.uri !== file.uri) {
+                                const info = await getInfoAsync(compressed.uri, {size: true});
+                                const size = info.exists && 'size' in info ? (info.size || file.size) : file.size;
+                                debugLog('filePicker', `Compressed: ${file.name} → ${(size / 1024 / 1024).toFixed(2)} MB`);
+                                return {...file, uri: compressed.uri, size};
+                            }
+                        } catch (e) {
+                            debugLog('filePicker', `compress on send failed, using original: ${e instanceof Error ? e.message : String(e)}`);
+                        }
+                        return file;
+                    }));
+                    prepared.push(...batchResults);
+                    debugLog('filePicker', `Compression progress: ${prepared.length}/${normalizedFiles.length} files`);
+                }
+
                 return onSend(prepared);
             };
 

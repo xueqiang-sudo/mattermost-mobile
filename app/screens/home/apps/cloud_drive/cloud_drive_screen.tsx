@@ -18,12 +18,14 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
+import UploadProgressPanel from '@components/upload_progress_panel';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {isImage, isVideo, isAudio, hasPdfPreview} from '@utils/file';
 import type {FileInfo} from '@mattermost/types/files';
+import type {UploadFileItem} from '@typings/components/upload_progress_panel';
 import {showMediaViewer} from '@utils/gallery';
 import {openUnifiedFileViewer} from '@utils/navigation';
 import {showFilePickerScreen} from '@screens/file_picker/show_modal';
@@ -409,6 +411,10 @@ const CloudDriveScreen = () => {
     const [renameName, setRenameName] = useState('');
     const [renaming, setRenaming] = useState(false);
 
+    // ── Upload progress state ──
+    const [uploadProgressFiles, setUploadProgressFiles] = useState<UploadFileItem[]>([]);
+    const [showUploadProgress, setShowUploadProgress] = useState(false);
+
     // File preview hook (same as chat window)
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
 
@@ -708,6 +714,19 @@ const CloudDriveScreen = () => {
         }
     }, [serverUrl, teamId, parentId, scope, newFolderName, intl, loadFiles]);
 
+    // ── Upload progress helpers ──
+    const updateFileProgress = useCallback((fileId: string, progress: number) => {
+        setUploadProgressFiles((prev) =>
+            prev.map((f) => (f.id === fileId ? {...f, progress, status: 'uploading' as const} : f)),
+        );
+    }, []);
+
+    const updateFileStatus = useCallback((fileId: string, status: UploadFileItem['status'], error?: string) => {
+        setUploadProgressFiles((prev) =>
+            prev.map((f) => (f.id === fileId ? {...f, status, error} : f)),
+        );
+    }, []);
+
     // ── Upload files ──
     const onUploadFiles = useCallback(async (files: FileInfo[]) => {
         debugLog('[Drive] === onUploadFiles START ===');
@@ -716,6 +735,17 @@ const CloudDriveScreen = () => {
             debugLog('[Drive] No files to upload');
             return;
         }
+
+        // Initialize upload progress
+        const progressFiles: UploadFileItem[] = files.map((f, idx) => ({
+            id: f.id || `upload_${idx}_${Date.now()}`,
+            name: f.name || 'unknown',
+            size: f.size || 0,
+            progress: 0,
+            status: 'pending' as const,
+        }));
+        setUploadProgressFiles(progressFiles);
+        setShowUploadProgress(true);
 
         // 【关键修复】缓存所有必需的值，避免async操作期间state变化
         const cachedServerUrl = serverUrl;
@@ -746,6 +776,11 @@ const CloudDriveScreen = () => {
             // Upload each file sequentially
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
+                const progressFileId = progressFiles[i].id;
+
+                // Mark file as uploading
+                updateFileStatus(progressFileId, 'uploading');
+
                 debugLog('[Drive] === File ${i + 1}/${supportedFiles.length} ===');
                 debugLog('[Drive] === File ${i + 1}/${files.length} ===');
                 debugLog('[Drive] File details:', JSON.stringify({
@@ -897,6 +932,29 @@ const CloudDriveScreen = () => {
                     continue;
                 }
 
+                // 【优化】相册照片的虚拟 URI（ph://, content://）转换为真实文件路径
+                // 避免在上传时才发现问题
+                if (
+                    (file as any).source === 'album' &&
+                    (fileUri.startsWith('ph://') || fileUri.startsWith('content://') || fileUri.startsWith('assets-library://'))
+                ) {
+                    try {
+                        debugLog('[Drive] Converting album URI to real path:', fileUri);
+                        const {getRealPath} = await import('react-native-compressor');
+                        const realPath = await getRealPath(fileUri, 'image');
+                        if (realPath) {
+                            fileUri = realPath.startsWith('file://') ? realPath : `file://${realPath}`;
+                            debugLog('[Drive] Converted to real path:', fileUri);
+                        } else {
+                            throw new Error('getRealPath returned empty');
+                        }
+                    } catch (convertErr) {
+                        const convertErrMsg = convertErr instanceof Error ? convertErr.message : String(convertErr);
+                        debugLog('[Drive] Failed to convert album URI:', convertErrMsg);
+                        throw new Error(`Failed to read photo: ${fileName}`);
+                    }
+                }
+
                 // 不要 decodeURIComponent，也不要去掉 file:// 前缀。
                 // 聊天窗口上传（正常路径）是把原始 fileCopyUri（带 file://、URL 编码）
                 // 原样传给 apiClient.upload 的（见 client/rest/files.ts 的 uploadAttachment）。
@@ -928,12 +986,17 @@ const CloudDriveScreen = () => {
                         fileUri,
                         fileName,
                         fileMimeType,
+                        (progress: number) => {
+                            updateFileProgress(progressFileId, progress);
+                        },
                     );
                     debugLog('[Drive] File uploaded successfully:', fileName);
+                    updateFileStatus(progressFileId, 'completed');
                 } catch (uploadErr) {
                     const uploadErrorMsg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
                     debugLog('[Drive] ERROR uploading file:', uploadErrorMsg);
-                    throw uploadErr;
+                    updateFileStatus(progressFileId, 'failed', uploadErrorMsg);
+                    // Continue with next file instead of throwing
                 }
             }
 
@@ -1300,6 +1363,37 @@ const CloudDriveScreen = () => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Upload Progress Panel */}
+            <UploadProgressPanel
+                visible={showUploadProgress}
+                files={uploadProgressFiles}
+                onClose={() => {
+                    // Only allow closing if all uploads are complete or failed
+                    const allDone = uploadProgressFiles.every(
+                        (f) => f.status === 'completed' || f.status === 'failed'
+                    );
+                    if (allDone) {
+                        setShowUploadProgress(false);
+                        // Refresh file list when closing
+                        loadFiles();
+                    }
+                }}
+                onRetry={async (fileId: string) => {
+                    // Find the original file and retry upload
+                    const fileIndex = uploadProgressFiles.findIndex((f) => f.id === fileId);
+                    if (fileIndex === -1) return;
+
+                    // Reset status to pending
+                    updateFileStatus(fileId, 'pending');
+                    updateFileProgress(fileId, 0);
+
+                    // Note: For simplicity, we'll show a message that retry is not yet implemented
+                    // In a full implementation, you'd need to store the original files and re-upload
+                    debugLog('[Drive] Retry upload for file:', fileId);
+                    updateFileStatus(fileId, 'failed', 'Retry not yet implemented');
+                }}
+            />
         </SafeAreaView>
     );
 };
