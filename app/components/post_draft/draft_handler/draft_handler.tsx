@@ -547,16 +547,24 @@ export default function DraftHandler(props: Props) {
                                 fileId: uploadedFile.id,
                             });
                             if (curPath && uploadedFile.id) {
+                                debugLog('DRAFT', `addFiles: step 1 - getting persistent path`);
                                 const persistentPath = getLocalFilePathFromFile(serverUrl, uploadedFile);
+                                debugLog('DRAFT', `addFiles: step 2 - persistent path obtained`, {persistentPath});
+
                                 const srcWithScheme = curPath.startsWith('file://') ? curPath : `file://${curPath}`;
                                 const dstWithScheme = persistentPath.startsWith('file://') ? persistentPath : `file://${persistentPath}`;
-                                debugLog('DRAFT', `addFiles: paths`, {
+                                debugLog('DRAFT', `addFiles: step 3 - paths prepared`, {
                                     srcWithScheme,
                                     dstWithScheme,
                                     pathsMatch: srcWithScheme === dstWithScheme,
-                                    fileExists: await fileExists(curPath),
                                 });
-                                if (srcWithScheme !== dstWithScheme && (await fileExists(curPath))) {
+
+                                debugLog('DRAFT', `addFiles: step 4 - checking if file exists`, {curPath});
+                                const exists = await fileExists(curPath);
+                                debugLog('DRAFT', `addFiles: step 5 - file exists check result`, {exists});
+
+                                if (srcWithScheme !== dstWithScheme && exists) {
+                                    debugLog('DRAFT', `addFiles: step 6 - verifying expo-file-system functions`);
                                     // Verify functions are available
                                     if (typeof makeDirectoryAsync !== 'function' || typeof moveAsync !== 'function') {
                                         debugLog('DRAFT', `addFiles: CRITICAL - expo-file-system functions not available`, {
@@ -567,14 +575,20 @@ export default function DraftHandler(props: Props) {
                                     }
 
                                     const dir = dstWithScheme.slice(0, dstWithScheme.lastIndexOf('/'));
-                                    debugLog('DRAFT', `addFiles: creating directory`, {dir});
+                                    debugLog('DRAFT', `addFiles: step 7 - creating directory`, {dir});
                                     await makeDirectoryAsync(dir, {intermediates: true});
-                                    debugLog('DRAFT', `addFiles: moving file`, {from: srcWithScheme, to: dstWithScheme});
+                                    debugLog('DRAFT', `addFiles: step 8 - directory created, moving file`, {from: srcWithScheme, to: dstWithScheme});
                                     await moveAsync({from: srcWithScheme, to: dstWithScheme});
+                                    debugLog('DRAFT', `addFiles: step 9 - file moved successfully`);
                                     uploadedFile.localPath = persistentPath;
                                     debugLog('DRAFT', `addFiles: moved to persistent path ${persistentPath}`);
                                 } else if (srcWithScheme === dstWithScheme) {
                                     debugLog('DRAFT', `addFiles: file already at persistent path, no move needed`);
+                                } else {
+                                    debugLog('DRAFT', `addFiles: skipping move`, {
+                                        pathsMatch: srcWithScheme === dstWithScheme,
+                                        fileExists: exists,
+                                    });
                                 }
                             }
                         } catch (moveErr) {
