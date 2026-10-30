@@ -4,7 +4,7 @@
 import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, Image} from 'react-native';
-import {moveAsync, makeDirectoryAsync} from 'expo-file-system';
+import {copyAsync, makeDirectoryAsync} from 'expo-file-system';
 
 import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
@@ -597,11 +597,11 @@ export default function DraftHandler(props: Props) {
                                     const dir = dstWithScheme.slice(0, dstWithScheme.lastIndexOf('/'));
                                     debugLog('DRAFT', `addFiles: step 7 - creating directory`, {dir});
                                     await makeDirectoryAsync(dir, {intermediates: true});
-                                    debugLog('DRAFT', `addFiles: step 8 - directory created, moving file`, {from: srcWithScheme, to: dstWithScheme});
-                                    await moveAsync({from: srcWithScheme, to: dstWithScheme});
-                                    debugLog('DRAFT', `addFiles: step 9 - file moved successfully`);
+                                    debugLog('DRAFT', `addFiles: step 8 - directory created, copying file`, {from: srcWithScheme, to: dstWithScheme});
+                                    await copyAsync({from: srcWithScheme, to: dstWithScheme});
+                                    debugLog('DRAFT', `addFiles: step 9 - file copied successfully`);
                                     uploadedFile.localPath = persistentPath;
-                                    debugLog('DRAFT', `addFiles: moved to persistent path ${persistentPath}`);
+                                    debugLog('DRAFT', `addFiles: copied to persistent path ${persistentPath}`);
                                 } else if (srcWithScheme === dstWithScheme) {
                                     debugLog('DRAFT', `addFiles: file already at persistent path, no move needed`);
                                 } else {
