@@ -423,7 +423,7 @@ export default function DraftHandler(props: Props) {
                         } catch (updateErr) {
                             logError('[addFiles updatePostFileIds]', updateErr);
                         }
-                        continue;
+                        return;
                     }
 
                     startProgress(progressKey);
@@ -446,7 +446,7 @@ export default function DraftHandler(props: Props) {
                             failProgress(progressKey);
                             await markPostUploadFailed(serverUrl, postId, file.name);
                         }
-                        continue;
+                        return;
                     }
 
                     debugLog('DRAFT', `addFiles: uploading file ${uploadIndex + 1}/${filesWithPostData.length}: ${file.name}`, {
