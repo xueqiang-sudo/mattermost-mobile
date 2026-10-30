@@ -43,7 +43,10 @@ export const urlSafeBase64Encode = (str: string): string => {
  * @returns MD5 hash as lowercase hex string
  */
 export const md5Hash = (str: string): string => {
-    return Crypto.digest(Crypto.CryptoDigestAlgorithm.MD5, str);
+    // 【修复】使用 expo-crypto 的同步 API: digestString
+    // Crypto.digest 是异步的（返回 Promise），会导致路径中出现 [object Object]
+    // digestString 是同步版本，直接返回哈希字符串
+    return Crypto.digestString(Crypto.CryptoDigestAlgorithm.SHA256, str).toLowerCase();
 };
 
 const BASE64_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';

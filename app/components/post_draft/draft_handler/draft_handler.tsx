@@ -449,7 +449,7 @@ export default function DraftHandler(props: Props) {
                         return;
                     }
 
-                    debugLog('DRAFT', `addFiles: uploading file ${uploadIndex + 1}/${filesWithPostData.length}: ${file.name}`, {
+                    debugLog('DRAFT', `addFiles: uploading file ${index + 1}/${filesWithPostData.length}: ${file.name}`, {
                         postId,
                         fileId: file.id,
                         localPath: file.localPath,
@@ -459,7 +459,7 @@ export default function DraftHandler(props: Props) {
                     });
 
                     try {
-                        debugLog('DRAFT', `addFiles: creating upload promise for file ${uploadIndex + 1}`);
+                        debugLog('DRAFT', `addFiles: creating upload promise for file ${index + 1}`);
                         const uploadedFile = await new Promise<FileInfo>((resolve, reject) => {
                             debugLog('DRAFT', `addFiles: calling uploadFile for ${file.name}`);
                             const {error} = uploadFile(
@@ -512,7 +512,7 @@ export default function DraftHandler(props: Props) {
                             }
                         });
 
-                        debugLog('DRAFT', `addFiles: upload complete for file ${uploadIndex + 1}`, {
+                        debugLog('DRAFT', `addFiles: upload complete for file ${index + 1}`, {
                             id: uploadedFile.id,
                             name: uploadedFile.name,
                             clientId: uploadedFile.clientId,
@@ -557,7 +557,7 @@ export default function DraftHandler(props: Props) {
                         }
                     } catch (uploadErr) {
                         logError('[addFiles background upload]', uploadErr);
-                        debugLog('DRAFT', `addFiles: upload ERROR for file ${uploadIndex + 1} (${file.name})`, {
+                        debugLog('DRAFT', `addFiles: upload ERROR for file ${index + 1} (${file.name})`, {
                             error: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
                             stack: uploadErr instanceof Error ? uploadErr.stack : 'N/A',
                             postId,
