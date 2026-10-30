@@ -208,10 +208,19 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             }
 
             if (!exists) {
+                debugLog('[Preview] localPath not found, checking generated path', {originalPath: path});
                 path = getLocalFilePathFromFile(serverUrl, file);
                 exists = await fileExists(path);
+                debugLog('[Preview] generated path check', {generatedPath: path, exists});
             }
-            debugLog('[Preview] downloadAndPreviewFile', {fileId: file.id, name: file.name, path, exists});
+            debugLog('[Preview] downloadAndPreviewFile', {
+                fileId: file.id,
+                name: file.name,
+                localPath: file.localPath,
+                finalPath: path,
+                exists,
+                source: file.localPath ? 'localPath' : 'generated',
+            });
 
             if (exists) {
                 debugLog('[Preview] file exists, opening directly');

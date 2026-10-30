@@ -1,12 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {copyAsync, makeDirectoryAsync} from 'expo-file-system';
 import {AppState, type AppStateStatus} from 'react-native';
 
+import {updateLocalFilePath} from '@actions/local/file';
 import {updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
 import {PROGRESS_TIME_TO_STORE} from '@constants/files';
 import {getFullErrorMessage} from '@utils/errors';
+import {getLocalFilePathFromFile} from '@utils/file';
+import {logDebug} from '@utils/log';
 
 import type {ClientResponse, ClientResponseError} from '@mattermost/react-native-network-client';
 
@@ -156,6 +160,38 @@ class DraftEditPostUploadManagerSingleton {
         const fileInfo = data[0];
         fileInfo.clientId = h.fileInfo.clientId;
         fileInfo.localPath = h.fileInfo.localPath;
+
+        // Copy uploaded file to permanent storage so it doesn't need to be re-downloaded
+        // when previewing. The original file might be in a temporary location (e.g., file picker cache)
+        // that could be cleaned up by the system.
+        if (fileInfo.id && fileInfo.localPath) {
+            try {
+                const permanentPath = getLocalFilePathFromFile(h.serverUrl, fileInfo);
+                if (permanentPath && permanentPath !== fileInfo.localPath) {
+                    // Ensure parent directory exists
+                    const dir = permanentPath.replace('file://', '').replace(/\/[^/]*$/, '');
+                    await makeDirectoryAsync(dir, {intermediates: true}).catch(() => {
+                        // Directory might already exist, ignore error
+                    });
+
+                    // Copy file to permanent location
+                    await copyAsync({
+                        from: fileInfo.localPath,
+                        to: permanentPath,
+                    });
+
+                    // Update localPath to point to permanent location
+                    fileInfo.localPath = permanentPath;
+
+                    // Persist the permanent path to database
+                    await updateLocalFilePath(h.serverUrl, fileInfo.id, permanentPath);
+                    logDebug('[Upload] File copied to permanent storage:', permanentPath);
+                }
+            } catch (error) {
+                // If copy fails, continue with original path - file will be downloaded on demand
+                logDebug('[Upload] Failed to copy file to permanent storage:', getFullErrorMessage(error));
+            }
+        }
 
         await this.handleUpdateDraftFile(h, fileInfo, h.isEditPost || false);
     };

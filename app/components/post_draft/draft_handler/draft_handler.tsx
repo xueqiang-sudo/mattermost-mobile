@@ -527,10 +527,20 @@ export default function DraftHandler(props: Props) {
                         // 与「别人发的文件下载到持久目录」保持一致。
                         try {
                             const curPath = uploadedFile.localPath;
+                            debugLog('DRAFT', `addFiles: checking persistent storage for ${uploadedFile.name}`, {
+                                curPath,
+                                fileId: uploadedFile.id,
+                            });
                             if (curPath && uploadedFile.id) {
                                 const persistentPath = getLocalFilePathFromFile(serverUrl, uploadedFile);
                                 const srcWithScheme = curPath.startsWith('file://') ? curPath : `file://${curPath}`;
                                 const dstWithScheme = persistentPath.startsWith('file://') ? persistentPath : `file://${persistentPath}`;
+                                debugLog('DRAFT', `addFiles: paths`, {
+                                    srcWithScheme,
+                                    dstWithScheme,
+                                    pathsMatch: srcWithScheme === dstWithScheme,
+                                    fileExists: await fileExists(curPath),
+                                });
                                 if (srcWithScheme !== dstWithScheme && (await fileExists(curPath))) {
                                     const {moveAsync, makeDirectoryAsync} = await import('expo-file-system');
                                     const dir = dstWithScheme.slice(0, dstWithScheme.lastIndexOf('/'));
@@ -538,6 +548,8 @@ export default function DraftHandler(props: Props) {
                                     await moveAsync({from: srcWithScheme, to: dstWithScheme});
                                     uploadedFile.localPath = persistentPath;
                                     debugLog('DRAFT', `addFiles: moved to persistent path ${persistentPath}`);
+                                } else if (srcWithScheme === dstWithScheme) {
+                                    debugLog('DRAFT', `addFiles: file already at persistent path, no move needed`);
                                 }
                             }
                         } catch (moveErr) {

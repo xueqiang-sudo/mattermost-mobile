@@ -1,11 +1,13 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
+import React, {forwardRef, useImperativeHandle} from 'react';
+import {useIntl} from 'react-intl';
 
 import Document, {type DocumentRef} from '@components/document';
 import {useDownloadFileAndPreview} from '@hooks/files';
-import {hasPdfPreview, isDocument, isPdf} from '@utils/file';
+import {alertDownloadDocumentDisabled, alertOnlyPDFSupported} from '@utils/document';
+import {hasPdfPreview, isPdf} from '@utils/file';
 
 import FileIcon from './file_icon';
 
@@ -23,14 +25,27 @@ type DocumentFileProps = {
 }
 
 const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColor, canDownloadFiles, disabled = false, enableSecureFilePreview, file}: DocumentFileProps, ref) => {
-    const document = useRef<DocumentRef>(null);
-    const {toggleDownloadAndPreview} = useDownloadFileAndPreview(enableSecureFilePreview);
+    const intl = useIntl();
+    const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
 
+    // Directly expose the download/preview function instead of going through Document's ref chain.
+    // This avoids the "undefined is not a function" error that occurred when the nested ref chain
+    // (file.tsx -> DocumentFile -> Document) had timing issues.
     useImperativeHandle(ref, () => ({
         handlePreviewPress: () => {
-            document.current?.handlePreviewPress();
+            if (!canDownloadFiles) {
+                alertDownloadDocumentDisabled(intl);
+                return;
+            }
+
+            if (enableSecureFilePreview && !isPdf(file) && !hasPdfPreview(file)) {
+                alertOnlyPDFSupported(intl);
+                return;
+            }
+
+            downloadAndPreviewFile(file);
         },
-    }), []);
+    }), [canDownloadFiles, enableSecureFilePreview, downloadAndPreviewFile, file, intl]);
 
     const icon = (
         <FileIcon
@@ -39,13 +54,13 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
         />
     );
 
+    // Document component is still rendered for consistency, but we no longer rely on its ref
     return (
         <Document
             canDownloadFiles={canDownloadFiles}
             enableSecureFilePreview={enableSecureFilePreview}
             file={file}
-            downloadAndPreviewFile={toggleDownloadAndPreview}
-            ref={document}
+            downloadAndPreviewFile={downloadAndPreviewFile}
         >
             {icon}
         </Document>

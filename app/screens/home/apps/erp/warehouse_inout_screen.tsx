@@ -146,6 +146,35 @@ const WarehouseInoutScreen = () => {
         init();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // 切换日期/session 下拉后，重新加载记录
+    const skipFirstRecordReload = React.useRef(true);
+    useEffect(() => {
+        if (skipFirstRecordReload.current) {
+            skipFirstRecordReload.current = false;
+            return;
+        }
+        debugLog('WarehouseInout', `session/date changed, reloading records`, {scanDate, scanSession});
+        loadRecords();
+    }, [scanDate, scanSession, loadRecords]);
+
+    // 切换日期后，刷新 session 下拉列表，若当前 session 不在新日期下则自动切到该日期第一个
+    const skipFirstSessionRefresh = React.useRef(true);
+    useEffect(() => {
+        if (skipFirstSessionRefresh.current) {
+            skipFirstSessionRefresh.current = false;
+            return;
+        }
+        const refreshSessions = async () => {
+            const sessions = await getDistinctScanSessions(scanDate, scanType);
+            setAvailableSessions(sessions);
+            if (sessions.length > 0 && !sessions.includes(scanSession)) {
+                debugLog('WarehouseInout', `date changed, auto-switching session`, {scanDate, oldSession: scanSession, newSession: sessions[0]});
+                setScanSession(sessions[0]);
+            }
+        };
+        refreshSessions();
+    }, [scanDate, scanType]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // ── Stats ──
     const stats = useMemo(() => {
         const totalBarcodes = records.length;
