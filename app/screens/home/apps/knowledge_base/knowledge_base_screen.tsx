@@ -639,6 +639,7 @@ const KnowledgeBaseScreen = () => {
     // Upload progress tracking
     const [uploadProgressFiles, setUploadProgressFiles] = useState<UploadFileItem[]>([]);
     const [showUploadProgress, setShowUploadProgress] = useState(false);
+    const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
 
     // File preview hook (same as chat window)
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
@@ -900,10 +901,67 @@ const KnowledgeBaseScreen = () => {
                 fileInfo.localPath = previewUrl;
                 showMediaViewer(fileInfo, serverUrl);
             } else {
-                debugLog('[KB] Opening document file with downloadAndPreviewFile');
-                // For other files (Office, PDF, etc.), use the same hook as chat window
-                // This handles PDF preview, downloading, and conversion automatically
-                downloadAndPreviewFile(fileInfo);
+                debugLog('[KB] Opening document file');
+
+                // Knowledge base files need special handling:
+                // - If mm_file_id exists, use Mattermost download API (downloadAndPreviewFile)
+                // - If no mm_file_id, download from KB API first, then open
+                if (mmFileId) {
+                    debugLog('[KB] Using Mattermost download API (mm_file_id exists)');
+                    // Use the same hook as chat window for consistent behavior
+                    // This handles PDF preview, downloading, and conversion automatically
+                    downloadAndPreviewFile(fileInfo);
+                } else {
+                    debugLog('[KB] No mm_file_id, downloading from KB API');
+                    // Download from KB API to temp location, then open
+                    try {
+                        setDownloadingDocId(item.docId);
+
+                        // Download to cache directory
+                        const {cacheDirectory, downloadAsync, makeDirectoryAsync} = await import('expo-file-system');
+                        const timestamp = Date.now();
+                        const safeName = (item.fileName || item.title || 'document').replace(/[^a-zA-Z0-9._-]/g, '_');
+                        const tempPath = `${cacheDirectory}kb_preview_${timestamp}/${safeName}`;
+
+                        // Create directory
+                        const dir = tempPath.substring(0, tempPath.lastIndexOf('/'));
+                        await makeDirectoryAsync(dir, {intermediates: true});
+
+                        debugLog('[KB] Downloading to:', tempPath);
+                        debugLog('[KB] Download URL:', downloadUrl);
+
+                        // Download with auth header
+                        const client = NetworkManager.getClient(serverUrl);
+                        const headers = client.getRequestHeaders('GET');
+
+                        const downloadResult = await downloadAsync(downloadUrl, tempPath, {
+                            headers,
+                        });
+
+                        if (!downloadResult.uri) {
+                            throw new Error('Download failed - no URI returned');
+                        }
+
+                        debugLog('[KB] Download complete:', downloadResult.uri);
+
+                        // Update fileInfo with local path
+                        const localFileInfo: FileInfo = {
+                            ...fileInfo,
+                            localPath: downloadResult.uri,
+                        };
+
+                        // Open the downloaded file
+                        openUnifiedFileViewer(localFileInfo, theme);
+                    } catch (downloadErr) {
+                        debugLog('[KB] Download error:', downloadErr instanceof Error ? downloadErr.message : String(downloadErr));
+                        Alert.alert(
+                            intl.formatMessage({id: 'workbench.kb.error', defaultMessage: 'Error'}),
+                            intl.formatMessage({id: 'workbench.kb.download_failed', defaultMessage: 'Failed to download file. Please try again.'}),
+                        );
+                    } finally {
+                        setDownloadingDocId(null);
+                    }
+                }
             }
         } catch (error) {
             debugLog('[KB] Preview error:', String(error));

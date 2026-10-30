@@ -275,10 +275,8 @@ export async function uploadDriveFile(
                 data: error?.data,
             }));
             reject(new Error(error?.data?.message || error?.message || 'Upload failed'));
-        }).finally(() => {
-            // 上传结束（成功或失败）清理中转副本，避免缓存堆积。
-            cleanupTransientUploadFile(localPath);
         });
+        // 注意：不再在这里清理临时文件，由调用方在所有重试完成后清理
     });
 }
 

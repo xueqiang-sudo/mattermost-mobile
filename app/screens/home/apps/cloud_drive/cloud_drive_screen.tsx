@@ -22,6 +22,7 @@ import UploadProgressPanel from '@components/upload_progress_panel';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
+import NetworkManager from '@managers/network_manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {isImage, isVideo, isAudio, hasPdfPreview} from '@utils/file';
 import type {FileInfo} from '@mattermost/types/files';
@@ -414,6 +415,9 @@ const CloudDriveScreen = () => {
     // ── Upload progress state ──
     const [uploadProgressFiles, setUploadProgressFiles] = useState<UploadFileItem[]>([]);
     const [showUploadProgress, setShowUploadProgress] = useState(false);
+    const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+
+    const theme = useTheme();
 
     // File preview hook (same as chat window)
     const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
@@ -593,10 +597,69 @@ const CloudDriveScreen = () => {
                 debugLog('[Drive] Opening media file');
                 showMediaViewer(fileInfo, serverUrl);
             } else {
-                debugLog('[Drive] Opening document file with downloadAndPreviewFile');
-                // Use the same hook as chat window for consistent behavior
-                // This handles PDF preview, downloading, and conversion automatically
-                downloadAndPreviewFile(fileInfo);
+                debugLog('[Drive] Opening document file');
+
+                // Cloud drive files need special handling:
+                // - If mm_file_id exists, use Mattermost download API (downloadAndPreviewFile)
+                // - If no mm_file_id, download from cloud drive API first, then open
+                if (file.mm_file_id) {
+                    debugLog('[Drive] Using Mattermost download API (mm_file_id exists)');
+                    // Use the same hook as chat window for consistent behavior
+                    // This handles PDF preview, downloading, and conversion automatically
+                    downloadAndPreviewFile(fileInfo);
+                } else {
+                    debugLog('[Drive] No mm_file_id, downloading from cloud drive API');
+                    // Download from cloud drive API to temp location, then open
+                    try {
+                        setDownloadingFileId(file.id);
+
+                        // Download to cache directory
+                        const {cacheDirectory, downloadAsync} = await import('expo-file-system');
+                        const timestamp = Date.now();
+                        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                        const tempPath = `${cacheDirectory}drive_preview_${timestamp}/${safeName}`;
+
+                        // Create directory
+                        const dir = tempPath.substring(0, tempPath.lastIndexOf('/'));
+                        const {makeDirectoryAsync} = await import('expo-file-system');
+                        await makeDirectoryAsync(dir, {intermediates: true});
+
+                        debugLog('[Drive] Downloading to:', tempPath);
+                        debugLog('[Drive] Download URL:', downloadUrl);
+
+                        // Download with auth header
+                        const client = NetworkManager.getClient(serverUrl);
+                        const headers = client.getRequestHeaders('GET');
+
+                        const {downloadAsync: downloadAsyncFunc} = await import('expo-file-system');
+                        const downloadResult = await downloadAsyncFunc(downloadUrl, tempPath, {
+                            headers,
+                        });
+
+                        if (!downloadResult.uri) {
+                            throw new Error('Download failed - no URI returned');
+                        }
+
+                        debugLog('[Drive] Download complete:', downloadResult.uri);
+
+                        // Update fileInfo with local path
+                        const localFileInfo: FileInfo = {
+                            ...fileInfo,
+                            localPath: downloadResult.uri,
+                        };
+
+                        // Open the downloaded file
+                        openUnifiedFileViewer(localFileInfo, theme);
+                    } catch (downloadErr) {
+                        debugLog('[Drive] Download error:', downloadErr instanceof Error ? downloadErr.message : String(downloadErr));
+                        Alert.alert(
+                            intl.formatMessage({id: 'workbench.drive.error_title', defaultMessage: 'Error'}),
+                            intl.formatMessage({id: 'workbench.drive.download_failed', defaultMessage: 'Failed to download file. Please try again.'}),
+                        );
+                    } finally {
+                        setDownloadingFileId(null);
+                    }
+                }
             }
         } catch (err) {
             debugLog('[Drive] Open file error:', String(err));
@@ -1045,6 +1108,27 @@ const CloudDriveScreen = () => {
                         updateFileStatus(progressFileId, 'failed', uploadErrorMsg);
                     }
                     // Continue with next file instead of throwing
+                } finally {
+                    // 所有上传尝试完成后（成功或最终失败），清理临时文件
+                    try {
+                        const {cacheDirectory, deleteAsync} = await import('expo-file-system');
+                        if (cacheDirectory && fileUri) {
+                            const withScheme = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+                            const cacheWithScheme = cacheDirectory.startsWith('file://') ? cacheDirectory : `file://${cacheDirectory}`;
+                            if (withScheme.startsWith(cacheWithScheme)) {
+                                const rel = withScheme.slice(cacheWithScheme.length);
+                                const firstSeg = rel.split('/')[0] || '';
+                                const isTransient = /^(upload_name_|drive_|drive_upload_|kb_upload_|kb_add_)/.test(firstSeg);
+                                if (isTransient) {
+                                    const dirToDelete = `${cacheWithScheme}${firstSeg}`;
+                                    await deleteAsync(dirToDelete, {idempotent: true});
+                                    debugLog('[Drive] Cleaned up transient upload file:', dirToDelete);
+                                }
+                            }
+                        }
+                    } catch (cleanupErr) {
+                        debugLog('[Drive] Cleanup failed (non-fatal):', cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
+                    }
                 }
             }
 

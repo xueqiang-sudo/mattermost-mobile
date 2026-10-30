@@ -4,6 +4,7 @@
 import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, Image} from 'react-native';
+import {moveAsync, makeDirectoryAsync} from 'expo-file-system';
 
 import {addFilesToDraft, removeDraft, removeDraftFile, updateDraftFile} from '@actions/local/draft';
 import {uploadFile} from '@actions/remote/file';
@@ -173,6 +174,8 @@ export default function DraftHandler(props: Props) {
                     Boolean(file.post_id) && Boolean(file.id) && !file.id.startsWith('pending_')
                 );
                 const oldToNewIdMap: Record<string, string> = {};
+                // Preserve localPath from original files so copied files can preview without re-download
+                const oldIdToLocalPath: Record<string, string> = {};
 
                 // Files marked with _skipPhase0 are already on the server and attached
                 // to the target channel (e.g., cloud drive picker pre-copied them via
@@ -186,6 +189,11 @@ export default function DraftHandler(props: Props) {
                 if (preCopiedFileIds.size > 0) {
                     preCopiedFileIds.forEach(id => {
                         oldToNewIdMap[id] = id;
+                        // Preserve localPath for pre-copied files too
+                        const file = filesToUpload.find(f => f.id === id);
+                        if (file?.localPath) {
+                            oldIdToLocalPath[id] = file.localPath;
+                        }
                     });
                     debugLog('DRAFT', `addFiles: Phase 0 - skipping copy for ${preCopiedFileIds.size} pre-copied cloud drive files`);
                 }
@@ -202,12 +210,17 @@ export default function DraftHandler(props: Props) {
                         debugLog('DRAFT', `addFiles: Phase 0 - copyFiles returned: ${JSON.stringify(copyResult)}`);
                         const newIds = copyResult.file_ids;
 
-                        // Map old IDs to new IDs
+                        // Map old IDs to new IDs and preserve localPath
                         originalFileIds.forEach((oldId, index) => {
                             const newId = newIds[index];
+                            const originalFile = filesToCopy[index];
                             if (newId) {
                                 oldToNewIdMap[oldId] = newId;
-                                debugLog('DRAFT', `addFiles: Phase 0 - mapped ${oldId} -> ${newId}`);
+                                // Store localPath from original file so copied file can preview without re-download
+                                if (originalFile.localPath) {
+                                    oldIdToLocalPath[oldId] = originalFile.localPath;
+                                }
+                                debugLog('DRAFT', `addFiles: Phase 0 - mapped ${oldId} -> ${newId}, localPath=${originalFile.localPath || 'none'}`);
                             }
                         });
                     } catch (copyError) {
@@ -294,7 +307,8 @@ export default function DraftHandler(props: Props) {
                             has_preview_image: hasPreviewImage,
                             height: fileHeight,
                             width: fileWidth,
-                            localPath: file.localPath || file.uri || '',
+                            // For copied server files, inherit localPath from original file to avoid re-download
+                            localPath: file.localPath || oldIdToLocalPath[file.id!] || file.uri || '',
                             uri: file.uri || '',
                             create_at: Date.now(),
                             update_at: Date.now(),
@@ -309,6 +323,7 @@ export default function DraftHandler(props: Props) {
                             mime_type: localFile.mime_type,
                             width: localFile.width,
                             height: localFile.height,
+                            inheritedLocalPath: oldIdToLocalPath[file.id!] ? 'yes' : 'no',
                         });
 
                         return {localFile, isExistingServerFile};
@@ -542,7 +557,6 @@ export default function DraftHandler(props: Props) {
                                     fileExists: await fileExists(curPath),
                                 });
                                 if (srcWithScheme !== dstWithScheme && (await fileExists(curPath))) {
-                                    const {moveAsync, makeDirectoryAsync} = await import('expo-file-system');
                                     const dir = dstWithScheme.slice(0, dstWithScheme.lastIndexOf('/'));
                                     await makeDirectoryAsync(dir, {intermediates: true});
                                     await moveAsync({from: srcWithScheme, to: dstWithScheme});
