@@ -107,6 +107,66 @@ export async function searchNotes(serverUrl: string, userId: string, query: stri
     return smartNotebookFetch(serverUrl, `/api/smart-notebook/search?${params}`, {method: 'get'});
 }
 
+// ── Graphiti Push ──
+
+export async function pushToGraphiti(
+    serverUrl: string,
+    userId: string,
+    noteId: string,
+): Promise<{ok: boolean; message: string; pushed: boolean; pushedAt?: number}> {
+    return smartNotebookFetch(serverUrl, '/api/smart-notebook/push-graphiti', {
+        method: 'post',
+        body: {userId, noteId},
+    });
+}
+
+// ── Knowledge Graph Query ──
+
+export type GraphEntity = {
+    name: string;
+    summary: string;
+    uuid: string;
+    attributes: Record<string, any>;
+};
+
+export type GraphRelation = {
+    source: string;
+    target: string;
+    relation_type: string;
+    summary: string;
+    uuid: string;
+};
+
+export async function queryGraph(
+    serverUrl: string,
+    userId: string,
+    query: string,
+    limit = 10,
+): Promise<{success: boolean; entities: GraphEntity[]; relations: GraphRelation[]; total: number}> {
+    return smartNotebookFetch(serverUrl, '/api/smart-notebook/query-graph', {
+        method: 'post',
+        body: {userId, query, limit},
+    });
+}
+
+export async function getGraphEntities(
+    serverUrl: string,
+    userId: string,
+    limit = 100,
+): Promise<{success: boolean; entities: GraphEntity[]; total: number}> {
+    const params = new URLSearchParams({user_id: userId, limit: String(limit)});
+    return smartNotebookFetch(serverUrl, `/api/smart-notebook/graph-entities?${params}`, {method: 'get'});
+}
+
+export async function getGraphRelations(
+    serverUrl: string,
+    userId: string,
+    limit = 100,
+): Promise<{success: boolean; relations: GraphRelation[]; total: number}> {
+    const params = new URLSearchParams({user_id: userId, limit: String(limit)});
+    return smartNotebookFetch(serverUrl, `/api/smart-notebook/graph-relations?${params}`, {method: 'get'});
+}
+
 // ── Media Upload ──
 
 export async function uploadMedia(

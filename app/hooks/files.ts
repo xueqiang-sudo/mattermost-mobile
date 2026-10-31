@@ -52,8 +52,8 @@ const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<s
 
         debugLog('[Preview] Checking for redirect', {fullUrl});
 
-        // 用 doFetch 尝试 GET，查看是否有重定向
-        const resp = await client.doFetch(fullUrl, {method: 'get'});
+        // 使用 HEAD 请求检查重定向（不下载响应体）
+        const resp = await client.doFetch(fullUrl, {method: 'head'});
         const headers = resp?.headers || {};
         const statusCode = resp?.status || resp?.statusCode || 'unknown';
 
@@ -67,10 +67,16 @@ const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<s
             contentLength: headers['Content-Length'] || headers['content-length'] || '(none)',
         });
 
-        // 如果有 307 重定向，返回重定向 URL
+        // 如果有 307/302/301 重定向，返回重定向 URL
         if (location && (statusCode === 307 || statusCode === 302 || statusCode === 301)) {
             debugLog('[Preview] Found redirect', {from: fullUrl, to: location});
-            return location;
+            // 确保重定向 URL 是完整的（有些服务器返回相对路径）
+            if (location.startsWith('http://') || location.startsWith('https://')) {
+                return location;
+            }
+            // 相对路径，拼接服务器地址
+            const baseUrl = new URL(fullUrl).origin;
+            return baseUrl + (location.startsWith('/') ? location : '/' + location);
         }
 
         // 没有重定向，返回原始 URL

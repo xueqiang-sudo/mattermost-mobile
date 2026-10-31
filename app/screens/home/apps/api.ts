@@ -63,7 +63,7 @@ export const APPS: AppDef[] = [
     {key: 'cloud_drive', labelId: 'workbench.tab.cloud_drive', defaultLabel: '云盘', iconName: 'folder-outline', erpOnly: false, noPermission: false},
     {key: 'knowledge_base', labelId: 'workbench.tab.knowledge_base', defaultLabel: '知识库', iconName: 'book-outline', erpOnly: false, noPermission: false},
     {key: 'notebook', labelId: 'workbench.tab.notebook', defaultLabel: '记事本', iconName: 'notebook-outline', erpOnly: false, noPermission: true},
-    {key: 'smart_notebook', labelId: 'workbench.tab.smart_notebook', defaultLabel: '智能笔记本', iconName: 'notebook-edit-outline', erpOnly: false, noPermission: true},
+    {key: 'smart_notebook', labelId: 'workbench.tab.smart_notebook', defaultLabel: '智能笔记本', iconName: 'notebook-outline', erpOnly: false, noPermission: true},
     // MES & Promotion
     {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: 'MES', iconName: 'monitor', erpOnly: false, noPermission: false},
     {key: 'promotion', labelId: 'sidebar.tab.promotion', defaultLabel: '推广', iconName: 'share-variant-outline', erpOnly: false, noPermission: true},

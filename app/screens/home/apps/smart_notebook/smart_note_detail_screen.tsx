@@ -14,6 +14,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
@@ -59,12 +60,10 @@ const SmartNoteDetailScreen = () => {
     const [userId, setUserId] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
     const [content, setContent] = useState('');
-    const [tags, setTags] = useState<string[]>([]);
-    const [tagInput, setTagInput] = useState('');
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(!isNew);
-    const [previewMode, setPreviewMode] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
 
     // ---- Init ----
     useEffect(() => {
@@ -79,7 +78,6 @@ const SmartNoteDetailScreen = () => {
                     if (note) {
                         setTitle(note.title);
                         setContent(blocksToMarkdown(note.blocks || []));
-                        setTags(note.tags || []);
                     }
                 }
             } catch (e) {
@@ -189,34 +187,53 @@ const SmartNoteDetailScreen = () => {
     // ---- Voice input (placeholder - requires @react-native-voice/voice) ----
     const startVoiceInput = useCallback(() => {
         Alert.alert(
-            '语音输入',
-            '语音输入功能需要安装 @react-native-voice/voice 库',
-            [{text: '确定'}],
+            intl.formatMessage({id: 'smart_notebook.voice_input', defaultMessage: '语音输入'}),
+            intl.formatMessage({id: 'smart_notebook.voice_input_unavailable', defaultMessage: '语音输入功能需要安装 @react-native-voice/voice 库'}),
+            [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
         );
-    }, []);
-
-    // ---- Add tag ----
-    const addTag = useCallback(() => {
-        const tag = tagInput.trim();
-        if (tag && !tags.includes(tag)) {
-            setTags(prev => [...prev, tag]);
-            setTagInput('');
-            setHasChanges(true);
-        }
-    }, [tagInput, tags]);
-
-    const removeTag = useCallback((tag: string) => {
-        setTags(prev => prev.filter(t => t !== tag));
-        setHasChanges(true);
-    }, []);
+    }, [intl]);
 
     // ---- Save ----
+    // Extract title from content (first non-empty line, stripped of markdown syntax)
+    const extractTitleFromContent = useCallback((text: string): string => {
+        if (!text || !text.trim()) {
+            return intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'});
+        }
+
+        const lines = text.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+
+            // Strip common markdown syntax
+            let cleanLine = trimmed
+                .replace(/^#{1,6}\s+/, '')           // Remove heading markers (# ## ###)
+                .replace(/^\*\*|\*\*$/g, '')          // Remove bold markers
+                .replace(/^\*|\*$/g, '')              // Remove italic markers
+                .replace(/^[-*+]\s+/, '')             // Remove list markers (- * +)
+                .replace(/^\d+\.\s+/, '')             // Remove numbered list markers (1. 2.)
+                .replace(/^>\s+/, '')                 // Remove quote markers
+                .replace(/`{1,3}[^`]*`{1,3}/g, '')    // Remove inline code
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Extract link text
+                .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Extract image alt text
+                .trim();
+
+            if (cleanLine) {
+                // Limit title length
+                return cleanLine.length > 50 ? cleanLine.substring(0, 50) + '...' : cleanLine;
+            }
+        }
+
+        return intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'});
+    }, [intl]);
+
     const handleSave = useCallback(async () => {
         if (!userId || saving) return;
 
         setSaving(true);
         try {
-            const noteTitle = title.trim() || '无标题';
+            // Use entered title, or extract from content, or default to "无标题"
+            const noteTitle = title.trim() || extractTitleFromContent(content);
             const blocks = markdownToBlocks(content);
 
             if (isNew) {
@@ -225,20 +242,18 @@ const SmartNoteDetailScreen = () => {
                     await updateNote(serverUrl, userId, createdNote.id, {
                         title: noteTitle,
                         blocks,
-                        tags,
                     });
                 }
             } else {
                 await updateNote(serverUrl, userId, noteId, {
                     title: noteTitle,
                     blocks,
-                    tags,
                 });
             }
 
             setHasChanges(false);
-            Alert.alert('保存成功');
-            navigation.goBack();
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 2000);
         } catch (e) {
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.save_failed', defaultMessage: '保存失败'}),
@@ -246,27 +261,27 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [userId, saving, title, content, tags, isNew, serverUrl, noteId, intl, navigation]);
+    }, [userId, saving, title, content, isNew, serverUrl, noteId, intl, extractTitleFromContent]);
 
     // ---- Go back with confirmation ----
     const handleGoBack = useCallback(() => {
         if (hasChanges) {
             Alert.alert(
-                '未保存的更改',
-                '是否保存更改？',
+                intl.formatMessage({id: 'smart_notebook.unsaved_changes', defaultMessage: '未保存的更改'}),
+                intl.formatMessage({id: 'smart_notebook.unsaved_changes_message', defaultMessage: '是否保存更改？'}),
                 [
                     {
-                        text: '取消',
+                        text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
                         style: 'cancel',
                         onPress: () => navigation.goBack(),
                     },
                     {
-                        text: '不保存',
+                        text: intl.formatMessage({id: 'smart_notebook.dont_save', defaultMessage: '不保存'}),
                         style: 'destructive',
                         onPress: () => navigation.goBack(),
                     },
                     {
-                        text: '保存',
+                        text: intl.formatMessage({id: 'smart_notebook.save', defaultMessage: '保存'}),
                         onPress: async () => {
                             await handleSave();
                         },
@@ -276,7 +291,7 @@ const SmartNoteDetailScreen = () => {
         } else {
             navigation.goBack();
         }
-    }, [hasChanges, handleSave, navigation]);
+    }, [hasChanges, handleSave, navigation, intl]);
 
     // ---- Render ----
     if (loading) {
@@ -309,81 +324,38 @@ const SmartNoteDetailScreen = () => {
                             setTitle(text);
                             setHasChanges(true);
                         }}
-                        placeholder='笔记标题'
+                        placeholder={intl.formatMessage({id: 'smart_notebook.title_placeholder', defaultMessage: '笔记标题'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                     />
-                    <TouchableOpacity onPress={handleSave} style={style.headerBtn} disabled={saving}>
-                        <CompassIcon
-                            name='check'
-                            size={24}
-                            color={saving ? changeOpacity(theme.buttonBg, 0.5) : theme.buttonBg}
-                        />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Tags */}
-                <View style={style.tagsContainer}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {tags.map((tag, idx) => (
-                            <View key={idx} style={style.tag}>
-                                <Text style={style.tagText}>#{tag}</Text>
-                                <TouchableOpacity onPress={() => removeTag(tag)} style={style.tagRemove}>
-                                    <CompassIcon name='close' size={12} color={theme.buttonBg}/>
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-                    </ScrollView>
-                    <TextInput
-                        style={style.tagInput}
-                        value={tagInput}
-                        onChangeText={setTagInput}
-                        onSubmitEditing={addTag}
-                        placeholder='添加标签...'
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                    />
-                </View>
-
-                {/* Preview toggle */}
-                <View style={style.previewToggle}>
-                    <TouchableOpacity
-                        style={[style.previewBtn, !previewMode && style.previewBtnActive]}
-                        onPress={() => setPreviewMode(false)}
-                    >
-                        <Text style={[style.previewText, !previewMode && style.previewTextActive]}>
-                            编辑
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[style.previewBtn, previewMode && style.previewBtnActive]}
-                        onPress={() => setPreviewMode(true)}
-                    >
-                        <Text style={[style.previewText, previewMode && style.previewTextActive]}>
-                            预览
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Editor / Preview */}
-                <ScrollView style={style.editorContainer} keyboardShouldPersistTaps='handled'>
-                    {previewMode ? (
-                        <View style={style.previewContainer}>
-                            {/* Simple markdown preview - in production use react-native-markdown-display */}
-                            <Text style={style.previewText}>{content || '无内容'}</Text>
+                    {saveSuccess ? (
+                        <View style={style.saveSuccessContainer}>
+                            <Text style={style.saveSuccessText}>
+                                {intl.formatMessage({id: 'smart_notebook.saved', defaultMessage: '已保存'})}
+                            </Text>
                         </View>
                     ) : (
-                        <TextInput
-                            ref={textInputRef}
-                            style={style.editor}
-                            value={content}
-                            onChangeText={handleContentChange}
-                            placeholder='输入 Markdown 内容...&#10;&#10;支持语法：&#10;# 标题&#10;- 列表&#10;> 引用&#10;```代码```'
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                            multiline
-                            textAlignVertical='top'
-                            autoCapitalize='none'
-                            autoCorrect={false}
-                        />
+                        <TouchableOpacity onPress={handleSave} style={style.saveBtn} disabled={saving}>
+                            <Text style={[style.saveBtnText, saving && style.saveBtnTextDisabled]}>
+                                {intl.formatMessage({id: 'smart_notebook.save', defaultMessage: '保存'})}
+                            </Text>
+                        </TouchableOpacity>
                     )}
+                </View>
+
+                {/* Editor */}
+                <ScrollView style={style.editorContainer} keyboardShouldPersistTaps='handled'>
+                    <TextInput
+                        ref={textInputRef}
+                        style={style.editor}
+                        value={content}
+                        onChangeText={handleContentChange}
+                        placeholder={intl.formatMessage({id: 'smart_notebook.content_placeholder', defaultMessage: '输入 Markdown 内容...'})}
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
+                        multiline
+                        textAlignVertical='top'
+                        autoCapitalize='none'
+                        autoCorrect={false}
+                    />
                 </ScrollView>
 
                 {/* Toolbar */}
@@ -440,65 +412,32 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         padding: 8,
         minWidth: 40,
     },
+    saveBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: theme.buttonBg,
+        borderRadius: 4,
+    },
+    saveBtnText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.buttonColor,
+    },
+    saveBtnTextDisabled: {
+        opacity: 0.5,
+    },
+    saveSuccessContainer: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    saveSuccessText: {
+        ...typography('Body', 100),
+        color: theme.onlineIndicator,
+    },
     headerTitle: {
         ...typography('Heading', 200, 'SemiBold'),
         color: theme.centerChannelColor,
         flex: 1,
         textAlign: 'center',
-    },
-    tagsContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    tag: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
-        borderRadius: 12,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        marginRight: 8,
-    },
-    tagText: {
-        ...typography('Body', 75),
-        color: theme.buttonBg,
-    },
-    tagRemove: {
-        marginLeft: 4,
-    },
-    tagInput: {
-        flex: 1,
-        ...typography('Body', 100),
-        color: theme.centerChannelColor,
-        padding: 0,
-    },
-    previewToggle: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    previewBtn: {
-        paddingHorizontal: 16,
-        paddingVertical: 6,
-        borderRadius: 16,
-        marginRight: 8,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-    },
-    previewBtnActive: {
-        backgroundColor: theme.buttonBg,
-    },
-    previewText: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.7),
-    },
-    previewTextActive: {
-        color: theme.buttonColor,
     },
     editorContainer: {
         flex: 1,
@@ -510,11 +449,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100),
         color: theme.centerChannelColor,
         minHeight: 200,
-    },
-    previewContainer: {
-        flex: 1,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
     },
     toolbar: {
         flexDirection: 'row',
