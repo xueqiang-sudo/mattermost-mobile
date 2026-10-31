@@ -32,21 +32,52 @@ const isOfficeFile = (ext?: string): boolean => {
     return OFFICE_EXTENSIONS.has(ext.toLowerCase().replace(/^\./, ''));
 };
 
-// 尝试获取 307 重定向地址（诊断用）
-const getRedirectUrl = async (serverUrl: string, fileId: string): Promise<string> => {
+// 构建完整下载 URL（确保包含 serverUrl）
+const buildFullUrl = (serverUrl: string, fileId: string): string => {
+    const client = NetworkManager.getClient(serverUrl);
+    const route = client.getFileRoute(fileId);
+    // 如果已经是完整 URL 则直接返回
+    if (route.startsWith('http://') || route.startsWith('https://')) {
+        return route;
+    }
+    // 拼接 serverUrl + 相对路径
+    return serverUrl.replace(/\/$/, '') + (route.startsWith('/') ? route : '/' + route);
+};
+
+// 获取最终下载 URL（处理 307 重定向）
+const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<string> => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        const url = client.getFileRoute(fileId);
-        const resp = await client.doFetch(url, {method: 'get', redirect: 'manual'} as any);
-        if (resp?.headers?.Location) {
-            return resp.headers.Location;
+        const fullUrl = buildFullUrl(serverUrl, fileId);
+
+        debugLog('[Preview] Checking for redirect', {fullUrl});
+
+        // 用 doFetch 尝试 GET，查看是否有重定向
+        const resp = await client.doFetch(fullUrl, {method: 'get'});
+        const headers = resp?.headers || {};
+        const statusCode = resp?.status || resp?.statusCode || 'unknown';
+
+        const location = headers.Location || headers.location;
+
+        debugLog('[Preview] Redirect check response', {
+            fullUrl,
+            statusCode,
+            location: location || '(none)',
+            contentType: headers['Content-Type'] || headers['content-type'] || '(none)',
+            contentLength: headers['Content-Length'] || headers['content-length'] || '(none)',
+        });
+
+        // 如果有 307 重定向，返回重定向 URL
+        if (location && (statusCode === 307 || statusCode === 302 || statusCode === 301)) {
+            debugLog('[Preview] Found redirect', {from: fullUrl, to: location});
+            return location;
         }
-        if (resp?.url && resp.url !== url) {
-            return resp.url;
-        }
-        return '(no redirect)';
-    } catch {
-        return '(redirect check failed)';
+
+        // 没有重定向，返回原始 URL
+        return fullUrl;
+    } catch (e) {
+        debugLog('[Preview] Redirect check failed, using original URL', {error: String(e)});
+        return buildFullUrl(serverUrl, fileId);
     }
 };
 
@@ -275,16 +306,16 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             }
 
             // 下载 PDF 预览版本
-            const client = NetworkManager.getClient(serverUrl);
-            const downloadUrl = client.getFileRoute(pdfPreviewId);
+            const originalUrl = buildFullUrl(serverUrl, pdfPreviewId);
 
-            // 获取 307 重定向地址（诊断用）
-            const redirectUrl = await getRedirectUrl(serverUrl, pdfPreviewId);
+            // 获取最终下载 URL（处理 307 重定向）
+            const finalDownloadUrl = await getFinalDownloadUrl(serverUrl, pdfPreviewId);
             debugLog('[Preview] Downloading PDF preview (Office)', {
                 originalFileId: file.id,
                 pdfPreviewId,
-                originalUrl: downloadUrl,
-                redirectUrl,
+                originalUrl,
+                finalDownloadUrl,
+                serverUrl,
             });
 
             const pdfFileInfo: FileInfo = {
@@ -304,14 +335,28 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                     await ensureParentDir(pdfPath);
 
                     debugLog('[Preview] Starting download', {
-                        url: downloadUrl,
+                        url: finalDownloadUrl,
                         destination: pdfPath,
                     });
 
-                    downloadTask.current = downloadFile(serverUrl, pdfPreviewId, pdfPath);
+                    // 使用最终 URL 下载（可能是 CDN 重定向地址）
+                    const client = NetworkManager.getClient(serverUrl);
+                    downloadTask.current = client.apiClient.download(
+                        finalDownloadUrl,
+                        pdfPath.replace('file://', ''),
+                        {timeoutInterval: 60000},
+                    );
                     downloadTask.current?.progress?.(setProgress);
-                    await downloadTask.current;
+                    const downloadResponse = await downloadTask.current;
                     setProgress(1);
+
+                    // 记录下载响应（诊断用）
+                    debugLog('[Preview] Download response', {
+                        status: downloadResponse?.status || downloadResponse?.statusCode || 'unknown',
+                        headers: downloadResponse?.headers || {},
+                        ok: downloadResponse?.ok,
+                        url: finalDownloadUrl,
+                    });
 
                     // Wait a bit for file system to flush
                     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -407,16 +452,16 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
         // ── 已有 PDF 预览版本（非 Office 但有 pdf_preview_id）──
         if (hasPdfPreview(file) && file.pdf_preview_id) {
 
-            const client = NetworkManager.getClient(serverUrl);
-            const downloadUrl = client.getFileRoute(file.pdf_preview_id);
+            const originalUrl = buildFullUrl(serverUrl, file.pdf_preview_id);
 
-            // 获取 307 重定向地址（诊断用）
-            const redirectUrl = await getRedirectUrl(serverUrl, file.pdf_preview_id);
+            // 获取最终下载 URL（处理 307 重定向）
+            const finalDownloadUrl = await getFinalDownloadUrl(serverUrl, file.pdf_preview_id);
             debugLog('[Preview] Downloading PDF preview', {
                 originalFileId: file.id,
                 pdfPreviewId: file.pdf_preview_id,
-                originalUrl: downloadUrl,
-                redirectUrl,
+                originalUrl,
+                finalDownloadUrl,
+                serverUrl,
             });
 
             const pdfFileInfo: FileInfo = {
@@ -434,7 +479,14 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 if (!pdfExists) {
                     setDownloading(true);
                     await ensureParentDir(pdfPath);
-                    downloadTask.current = downloadFile(serverUrl, file.pdf_preview_id, pdfPath);
+
+                    // 使用最终 URL 下载（可能是 CDN 重定向地址）
+                    const client = NetworkManager.getClient(serverUrl);
+                    downloadTask.current = client.apiClient.download(
+                        finalDownloadUrl,
+                        pdfPath.replace('file://', ''),
+                        {timeoutInterval: 60000},
+                    );
                     downloadTask.current?.progress?.(setProgress);
                     await downloadTask.current;
                     setProgress(1);
@@ -543,26 +595,41 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             } else {
                 setDownloading(true);
 
-                // Build download URL for logging
-                const client = NetworkManager.getClient(serverUrl);
-                const downloadUrl = client.getFileRoute(file.id!);
+                // Build download URL
+                const originalUrl = buildFullUrl(serverUrl, file.id!);
 
-                // 获取 307 重定向地址（诊断用）
-                const redirectUrl = await getRedirectUrl(serverUrl, file.id!);
+                // 获取最终下载 URL（处理 307 重定向）
+                const finalDownloadUrl = await getFinalDownloadUrl(serverUrl, file.id!);
                 debugLog('[Preview] downloading file', {
                     fileId: file.id,
                     name: file.name,
-                    originalUrl: downloadUrl,
-                    redirectUrl,
+                    originalUrl,
+                    finalDownloadUrl,
                     localPath: path,
+                    serverUrl,
                 });
 
                 await ensureParentDir(path!);
-                downloadTask.current = downloadFile(serverUrl, file.id!, path!);
+
+                // 使用最终 URL 下载（可能是 CDN 重定向地址）
+                const client = NetworkManager.getClient(serverUrl);
+                downloadTask.current = client.apiClient.download(
+                    finalDownloadUrl,
+                    path!.replace('file://', ''),
+                    {timeoutInterval: 60000},
+                );
                 downloadTask.current?.progress?.(setProgress);
 
-                await downloadTask.current;
+                const downloadResponse = await downloadTask.current;
                 setProgress(1);
+
+                // 记录下载响应（诊断用）
+                debugLog('[Preview] Download response', {
+                    status: downloadResponse?.status || downloadResponse?.statusCode || 'unknown',
+                    headers: downloadResponse?.headers || {},
+                    ok: downloadResponse?.ok,
+                    url: finalDownloadUrl,
+                });
 
                 const afterExists = await fileExists(path!);
                 debugLog('[Preview] download complete, file exists now?', {path, afterExists});
