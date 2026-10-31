@@ -29,16 +29,12 @@ import {
     listNotes,
     deleteNote,
     searchNotes,
-    getTimeline,
     type SmartNoteSummary,
-    type TimelineEntry,
 } from './smart_notebook_api';
 
 // ---- Constants ----
 
 const NOTE_LIMIT = 50;
-
-type Scope = 'private' | 'public';
 
 // ---- Helpers ----
 
@@ -66,15 +62,8 @@ const SmartNotebookScreen = () => {
     // User ID
     const [userId, setUserId] = useState('');
 
-    // Scope toggle
-    const [scope, setScope] = useState<Scope>('private');
-
-    // View mode toggle
-    const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
-
     // Data
     const [notes, setNotes] = useState<SmartNoteSummary[]>([]);
-    const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -102,25 +91,15 @@ const SmartNotebookScreen = () => {
         if (!userId) return;
         setLoading(true);
         try {
-            if (viewMode === 'timeline') {
-                const result = await getTimeline(serverUrl, userId, NOTE_LIMIT);
-                const entries = result?.entries || [];
-                setTimeline(entries);
-            } else {
-                const result = await listNotes(serverUrl, userId, scope);
-                const entries = result?.entries || [];
-                setNotes(entries);
-            }
+            const result = await listNotes(serverUrl, userId, 'private');
+            const entries = result?.entries || [];
+            setNotes(entries);
         } catch {
-            if (viewMode === 'timeline') {
-                setTimeline([]);
-            } else {
-                setNotes([]);
-            }
+            setNotes([]);
         } finally {
             setLoading(false);
         }
-    }, [serverUrl, userId, scope, viewMode]);
+    }, [serverUrl, userId]);
 
     useEffect(() => {
         loadNotes();
@@ -136,7 +115,7 @@ const SmartNotebookScreen = () => {
         }
         setSearching(true);
         try {
-            const result = await searchNotes(serverUrl, userId, query.trim(), NOTE_LIMIT, scope);
+            const result = await searchNotes(serverUrl, userId, query.trim(), NOTE_LIMIT, 'private');
             const entries = result?.entries || [];
             setNotes(entries);
         } catch {
@@ -144,7 +123,7 @@ const SmartNotebookScreen = () => {
         } finally {
             setSearching(false);
         }
-    }, [serverUrl, userId, scope, loadNotes]);
+    }, [serverUrl, userId, loadNotes]);
 
     const onSearchChange = useCallback((text: string) => {
         setSearchQuery(text);
@@ -207,6 +186,11 @@ const SmartNotebookScreen = () => {
         );
     }, [intl, serverUrl, userId, searchQuery, doSearch, loadNotes]);
 
+    // ---- Go back ----
+    const goBack = useCallback(() => {
+        navigation.goBack();
+    }, [navigation]);
+
     // ---- Create new note ----
     const onCreateNote = useCallback(() => {
         navigation.navigate(Screens.SMART_NOTE_DETAIL, {
@@ -252,61 +236,20 @@ const SmartNotebookScreen = () => {
         );
     }, [style, theme, openDetail, onDeleteNote]);
 
-    // ---- Render timeline item ----
-    const renderTimelineItem = useCallback(({item}: {item: TimelineEntry}) => {
-        const dateStr = formatDate(String(item.updatedAt));
-        const createdStr = formatDate(String(item.createdAt));
-        return (
-            <TouchableOpacity
-                style={style.timelineCard}
-                onPress={() => openDetail({
-                    id: item.id,
-                    title: item.title,
-                    preview: '',
-                    tags: item.tags,
-                    pinned: false,
-                    createdAt: String(item.createdAt),
-                    updatedAt: String(item.updatedAt),
-                })}
-                activeOpacity={0.7}
-            >
-                <View style={style.timelineDot}/>
-                <View style={style.timelineContent}>
-                    <Text style={style.timelineTitle} numberOfLines={1}>
-                        {item.title || '无标题'}
-                    </Text>
-                    <View style={style.timelineMeta}>
-                        <Text style={style.timelineDate}>{dateStr}</Text>
-                        {item.eventCount > 0 && (
-                            <Text style={style.timelineEvents}>
-                                {item.eventCount} 个事件
-                            </Text>
-                        )}
-                    </View>
-                    {item.tags.length > 0 && (
-                        <View style={style.tagContainer}>
-                            {item.tags.slice(0, 3).map((tag, idx) => (
-                                <View key={idx} style={style.tag}>
-                                    <Text style={style.tagText}>{tag}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    )}
-                </View>
-            </TouchableOpacity>
-        );
-    }, [style, openDetail]);
-
-    const keyExtractor = useCallback((item: SmartNoteSummary | TimelineEntry) => item.id, []);
+    const keyExtractor = useCallback((item: SmartNoteSummary) => item.id, []);
 
     // ---- Render ----
     if (loading) {
         return (
             <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
                 <View style={style.header}>
+                    <TouchableOpacity onPress={goBack} style={style.headerBtn}>
+                        <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
                     <Text style={style.headerTitle}>
                         {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
                     </Text>
+                    <View style={style.headerBtn}/>
                 </View>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
@@ -318,10 +261,13 @@ const SmartNotebookScreen = () => {
     return (
         <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
             <View style={style.header}>
+                <TouchableOpacity onPress={goBack} style={style.headerBtn}>
+                    <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
+                </TouchableOpacity>
                 <Text style={style.headerTitle}>
                     {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
                 </Text>
-                <TouchableOpacity onPress={onCreateNote} style={style.addButton}>
+                <TouchableOpacity onPress={onCreateNote} style={style.headerBtn}>
                     <CompassIcon name='plus' size={24} color={theme.buttonBg}/>
                 </TouchableOpacity>
             </View>
@@ -343,48 +289,9 @@ const SmartNotebookScreen = () => {
                 )}
             </View>
 
-            <View style={style.scopeToggle}>
-                <TouchableOpacity
-                    style={[style.scopeButton, viewMode === 'list' && style.scopeButtonActive]}
-                    onPress={() => setViewMode('list')}
-                >
-                    <Text style={[style.scopeText, viewMode === 'list' && style.scopeTextActive]}>
-                        {intl.formatMessage({id: 'smart_notebook.view_list', defaultMessage: '列表'})}
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[style.scopeButton, viewMode === 'timeline' && style.scopeButtonActive]}
-                    onPress={() => setViewMode('timeline')}
-                >
-                    <Text style={[style.scopeText, viewMode === 'timeline' && style.scopeTextActive]}>
-                        {intl.formatMessage({id: 'smart_notebook.view_timeline', defaultMessage: '时间线'})}
-                    </Text>
-                </TouchableOpacity>
-                {viewMode === 'list' && (
-                    <>
-                        <TouchableOpacity
-                            style={[style.scopeButton, scope === 'private' && style.scopeButtonActive]}
-                            onPress={() => setScope('private')}
-                        >
-                            <Text style={[style.scopeText, scope === 'private' && style.scopeTextActive]}>
-                                {intl.formatMessage({id: 'smart_notebook.scope_private', defaultMessage: '私有'})}
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[style.scopeButton, scope === 'public' && style.scopeButtonActive]}
-                            onPress={() => setScope('public')}
-                        >
-                            <Text style={[style.scopeText, scope === 'public' && style.scopeTextActive]}>
-                                {intl.formatMessage({id: 'smart_notebook.scope_public', defaultMessage: '公开'})}
-                            </Text>
-                        </TouchableOpacity>
-                    </>
-                )}
-            </View>
-
             <FlatList
-                data={viewMode === 'timeline' ? timeline : notes}
-                renderItem={viewMode === 'timeline' ? renderTimelineItem : renderItem}
+                data={notes}
+                renderItem={renderItem}
                 keyExtractor={keyExtractor}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
@@ -395,9 +302,7 @@ const SmartNotebookScreen = () => {
                         <Text style={style.emptyText}>
                             {searching
                                 ? intl.formatMessage({id: 'smart_notebook.no_results', defaultMessage: '没有找到匹配的笔记'})
-                                : viewMode === 'timeline'
-                                    ? intl.formatMessage({id: 'smart_notebook.empty_timeline', defaultMessage: '暂无时间线事件'})
-                                    : intl.formatMessage({id: 'smart_notebook.empty', defaultMessage: '暂无笔记'})}
+                                : intl.formatMessage({id: 'smart_notebook.empty', defaultMessage: '暂无笔记'})}
                         </Text>
                     </View>
                 }
@@ -421,12 +326,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
+    headerBtn: {
+        padding: 8,
+        minWidth: 40,
+    },
     headerTitle: {
         ...typography('Heading', 200, 'SemiBold'),
         color: theme.centerChannelColor,
-    },
-    addButton: {
-        padding: 8,
+        flex: 1,
+        textAlign: 'center',
     },
     searchContainer: {
         flexDirection: 'row',
@@ -442,28 +350,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 12,
         ...typography('Body', 100),
         color: theme.centerChannelColor,
-    },
-    scopeToggle: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        paddingBottom: 8,
-    },
-    scopeButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 6,
-        borderRadius: 16,
-        marginRight: 8,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-    },
-    scopeButtonActive: {
-        backgroundColor: theme.buttonBg,
-    },
-    scopeText: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.7),
-    },
-    scopeTextActive: {
-        color: theme.buttonColor,
     },
     listContent: {
         paddingHorizontal: 16,
@@ -514,45 +400,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginLeft: 4,
     },
     tagText: {
-        ...typography('Body', 50),
-        color: theme.buttonBg,
-    },
-    timelineCard: {
-        flexDirection: 'row',
-        backgroundColor: theme.centerChannelBg,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    timelineDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: theme.buttonBg,
-        marginTop: 4,
-        marginRight: 12,
-    },
-    timelineContent: {
-        flex: 1,
-    },
-    timelineTitle: {
-        ...typography('Heading', 100, 'SemiBold'),
-        color: theme.centerChannelColor,
-        marginBottom: 8,
-    },
-    timelineMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    timelineDate: {
-        ...typography('Body', 50),
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        marginRight: 12,
-    },
-    timelineEvents: {
         ...typography('Body', 50),
         color: theme.buttonBg,
     },

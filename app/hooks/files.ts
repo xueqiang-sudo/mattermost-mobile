@@ -181,20 +181,53 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                     await downloadTask.current;
                     setProgress(1);
 
+                    // Wait a bit for file system to flush
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
                     // Validate downloaded file is actually a PDF
                     const afterExists = await fileExists(pdfPath);
                     if (afterExists) {
                         try {
                             const {readAsStringAsync} = await import('expo-file-system');
-                            const header = await readAsStringAsync(pdfPath, {
-                                encoding: 'base64',
-                                length: 10,
-                            });
+
+                            // Strip file:// prefix
+                            const readPath = pdfPath.replace(/^file:\/\//, '');
+
+                            // Try reading with retry
+                            let content = '';
+                            let retryCount = 0;
+                            const maxRetries = 3;
+
+                            while (retryCount < maxRetries) {
+                                content = await readAsStringAsync(readPath, {
+                                    encoding: 'base64',
+                                });
+
+                                if (content.length > 0) {
+                                    break;
+                                }
+
+                                retryCount++;
+                                debugLog('[Preview] PDF preview read retry', {attempt: retryCount});
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                            }
+
+                            const header = content.substring(0, 20);
                             const isValidPdf = header.startsWith('JVBER');
-                            debugLog('[Preview] PDF preview validation', {path: pdfPath, header: header.substring(0, 20), isValidPdf});
+                            debugLog('[Preview] PDF preview validation', {
+                                path: pdfPath,
+                                header,
+                                isValidPdf,
+                                contentLength: content.length,
+                                retries: retryCount,
+                            });
 
                             if (!isValidPdf) {
-                                debugLog('[Preview] WARNING: Downloaded PDF preview is not valid', {path: pdfPath, header});
+                                debugLog('[Preview] ERROR: Downloaded PDF preview is not valid', {
+                                    path: pdfPath,
+                                    header,
+                                    contentLength: content.length,
+                                });
                                 // Delete invalid file so it can be re-downloaded
                                 await deleteAsync(pdfPath, {idempotent: true});
                                 throw new Error('Downloaded PDF preview is not a valid PDF document');
@@ -262,25 +295,76 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 const afterExists = await fileExists(path!);
                 debugLog('[Preview] download complete, file exists now?', {path, afterExists});
 
+                // Wait a bit for file system to flush
+                await new Promise(resolve => setTimeout(resolve, 200));
+
                 // Validate file is actually what it claims to be
                 if (afterExists && file.extension?.toLowerCase() === 'pdf') {
                     try {
-                        const {readAsStringAsync} = await import('expo-file-system');
-                        // Read first few bytes to check PDF signature
-                        const header = await readAsStringAsync(path!, {
-                            encoding: 'base64',
-                            length: 10,
+                        const expoFs = await import('expo-file-system');
+                        const {readAsStringAsync, getInfoAsync} = expoFs;
+
+                        // Get file info to check size
+                        let fileSize = -1;
+                        try {
+                            const fileInfo = await getInfoAsync(path!, {size: true});
+                            fileSize = fileInfo.size || -1;
+                            debugLog('[Preview] PDF file info', {path, size: fileSize, exists: fileInfo.exists});
+                        } catch (infoErr) {
+                            debugLog('[Preview] PDF file info failed', {error: String(infoErr)});
+                        }
+
+                        // Strip file:// prefix for readAsStringAsync (it expects plain path)
+                        const readPath = path!.replace(/^file:\/\//, '');
+
+                        // Try reading with retry (file might still be flushing)
+                        let fullContent = '';
+                        let retryCount = 0;
+                        const maxRetries = 3;
+
+                        while (retryCount < maxRetries) {
+                            fullContent = await readAsStringAsync(readPath, {
+                                encoding: 'base64',
+                            });
+
+                            if (fullContent.length > 0) {
+                                break;
+                            }
+
+                            retryCount++;
+                            debugLog('[Preview] PDF read retry', {attempt: retryCount, maxRetries});
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+
+                        const header = fullContent.substring(0, 20);
+                        debugLog('[Preview] PDF content read', {
+                            path,
+                            readPath,
+                            fullLength: fullContent.length,
+                            header,
+                            fileSize,
+                            retries: retryCount,
                         });
+
                         // PDF files start with %PDF (JVBER in base64)
                         const isValidPdf = header.startsWith('JVBER');
-                        debugLog('[Preview] PDF validation', {path, header: header.substring(0, 20), isValidPdf});
+                        debugLog('[Preview] PDF validation', {isValidPdf});
 
                         if (!isValidPdf) {
-                            debugLog('[Preview] WARNING: Downloaded file is not a valid PDF', {path, header});
-                            // Don't delete - let the viewer show the error
+                            debugLog('[Preview] ERROR: Downloaded file is not a valid PDF', {
+                                path,
+                                header,
+                                fileSize,
+                                fullContentLength: fullContent.length,
+                                first100chars: fullContent.substring(0, 100),
+                            });
+                            // Delete invalid file so it can be re-downloaded
+                            await deleteAsync(path!, {idempotent: true});
+                            throw new Error('Downloaded PDF file is not valid');
                         }
                     } catch (validationErr) {
-                        debugLog('[Preview] PDF validation failed', {error: String(validationErr)});
+                        debugLog('[Preview] PDF validation exception', {error: String(validationErr)});
+                        throw validationErr;
                     }
                 }
 

@@ -1,10 +1,12 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     Alert,
+    KeyboardAvoidingView,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -13,7 +15,6 @@ import {
     View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {launchImageLibrary} from 'react-native-image-picker';
 
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
@@ -29,11 +30,9 @@ import {
     createNote,
     updateNote,
     uploadMedia,
-    pushToGraphiti,
-    getRelatedNotes,
+    markdownToBlocks,
+    blocksToMarkdown,
     type SmartNote,
-    type SmartNoteBlock,
-    type RelatedNote,
 } from './smart_notebook_api';
 
 // ---- Types ----
@@ -56,15 +55,16 @@ const SmartNoteDetailScreen = () => {
     const {noteId, noteTitle} = route.params;
     const isNew = noteId === 'new';
 
+    const textInputRef = useRef<TextInput>(null);
     const [userId, setUserId] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
-    const [blocks, setBlocks] = useState<SmartNoteBlock[]>([]);
+    const [content, setContent] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(!isNew);
-    const [pushing, setPushing] = useState(false);
-    const [relatedNotes, setRelatedNotes] = useState<RelatedNote[]>([]);
+    const [previewMode, setPreviewMode] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
 
     // ---- Init ----
     useEffect(() => {
@@ -78,17 +78,9 @@ const SmartNoteDetailScreen = () => {
                     const note = await getNote(serverUrl, uid, noteId);
                     if (note) {
                         setTitle(note.title);
-                        setBlocks(note.blocks || []);
+                        setContent(blocksToMarkdown(note.blocks || []));
                         setTags(note.tags || []);
                     }
-                } else {
-                    // Start with one empty paragraph
-                    setBlocks([{
-                        id: 'blk_' + Date.now().toString(36),
-                        type: 'paragraph',
-                        content: '',
-                        order: 0,
-                    }]);
                 }
             } catch (e) {
                 console.error('[SmartNoteDetail] init error:', e);
@@ -97,68 +89,111 @@ const SmartNoteDetailScreen = () => {
             }
         };
         init();
-    }, [serverUrl, userId, noteId, isNew]);
+    }, [serverUrl, noteId, isNew]);
 
-    // ---- Update block content ----
-    const updateBlockContent = useCallback((blockId: string, content: string) => {
-        setBlocks(prev => prev.map(b =>
-            b.id === blockId ? {...b, content} : b,
-        ));
+    // ---- Content change handler ----
+    const handleContentChange = useCallback((text: string) => {
+        setContent(text);
+        setHasChanges(true);
     }, []);
 
-    // ---- Add new block ----
-    const addBlock = useCallback((type: SmartNoteBlock['type'] = 'paragraph') => {
-        const newBlock: SmartNoteBlock = {
-            id: 'blk_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8),
-            type,
-            content: '',
-            order: blocks.length,
-        };
-        setBlocks(prev => [...prev, newBlock]);
-    }, [blocks.length]);
+    // ---- Insert markdown at cursor ----
+    const insertAtCursor = useCallback((text: string) => {
+        const cursorPos = textInputRef.current?.selection?.start || content.length;
+        const before = content.substring(0, cursorPos);
+        const after = content.substring(cursorPos);
+        const newContent = before + text + after;
+        setContent(newContent);
+        setHasChanges(true);
+    }, [content]);
 
-    // ---- Delete block ----
-    const deleteBlock = useCallback((blockId: string) => {
-        setBlocks(prev => {
-            const filtered = prev.filter(b => b.id !== blockId);
-            return filtered.map((b, idx) => ({...b, order: idx}));
-        });
-    }, []);
+    // ---- Toolbar actions ----
+    const insertHeading = useCallback(() => {
+        insertAtCursor('# ');
+    }, [insertAtCursor]);
+
+    const insertBulletList = useCallback(() => {
+        insertAtCursor('- ');
+    }, [insertAtCursor]);
+
+    const insertNumberedList = useCallback(() => {
+        insertAtCursor('1. ');
+    }, [insertAtCursor]);
+
+    const insertQuote = useCallback(() => {
+        insertAtCursor('> ');
+    }, [insertAtCursor]);
+
+    const insertCode = useCallback(() => {
+        insertAtCursor('```\n\n```');
+    }, [insertAtCursor]);
+
+    const insertTable = useCallback(() => {
+        insertAtCursor('| 列1 | 列2 |\n|-----|-----|\n| 内容 | 内容 |');
+    }, [insertAtCursor]);
 
     // ---- Upload image ----
     const uploadImage = useCallback(async () => {
         if (!userId) return;
 
-        launchImageLibrary({mediaType: 'photo', quality: 0.8}, async (response) => {
-            if (response.didCancel || response.errorCode) return;
+        try {
+            const {launchImageLibrary} = await import('react-native-image-picker');
+            launchImageLibrary({mediaType: 'photo', quality: 0.8}, async (response) => {
+                if (response.didCancel || response.errorCode || !response.assets?.[0]) return;
 
-            const asset = response.assets?.[0];
-            if (!asset?.uri) return;
-
-            try {
-                const result = await uploadMedia(serverUrl, userId, {
-                    uri: asset.uri,
+                const asset = response.assets[0];
+                const uploadResult = await uploadMedia(serverUrl, userId, {
+                    uri: asset.uri!,
                     name: asset.fileName || 'image.jpg',
                     type: asset.type || 'image/jpeg',
                 });
 
-                if (result?.url) {
-                    const newBlock: SmartNoteBlock = {
-                        id: 'blk_' + Date.now().toString(36),
-                        type: 'image',
-                        content: result.url,
-                        order: blocks.length,
-                        meta: {fileId: result.fileId},
-                    };
-                    setBlocks(prev => [...prev, newBlock]);
+                if (uploadResult?.url) {
+                    insertAtCursor(`![${asset.fileName || '图片'}](${uploadResult.url})`);
                 }
-            } catch (e) {
-                Alert.alert(
-                    intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
-                );
-            }
-        });
-    }, [serverUrl, userId, blocks.length, intl]);
+            });
+        } catch (e) {
+            Alert.alert(
+                intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
+            );
+        }
+    }, [serverUrl, userId, insertAtCursor, intl]);
+
+    // ---- Upload video ----
+    const uploadVideo = useCallback(async () => {
+        if (!userId) return;
+
+        try {
+            const {launchImageLibrary} = await import('react-native-image-picker');
+            launchImageLibrary({mediaType: 'video', quality: 0.8}, async (response) => {
+                if (response.didCancel || response.errorCode || !response.assets?.[0]) return;
+
+                const asset = response.assets[0];
+                const uploadResult = await uploadMedia(serverUrl, userId, {
+                    uri: asset.uri!,
+                    name: asset.fileName || 'video.mp4',
+                    type: asset.type || 'video/mp4',
+                });
+
+                if (uploadResult?.url) {
+                    insertAtCursor(`[视频: ${asset.fileName || 'video'}](${uploadResult.url})`);
+                }
+            });
+        } catch (e) {
+            Alert.alert(
+                intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
+            );
+        }
+    }, [serverUrl, userId, insertAtCursor, intl]);
+
+    // ---- Voice input (placeholder - requires @react-native-voice/voice) ----
+    const startVoiceInput = useCallback(() => {
+        Alert.alert(
+            '语音输入',
+            '语音输入功能需要安装 @react-native-voice/voice 库',
+            [{text: '确定'}],
+        );
+    }, []);
 
     // ---- Add tag ----
     const addTag = useCallback(() => {
@@ -166,47 +201,14 @@ const SmartNoteDetailScreen = () => {
         if (tag && !tags.includes(tag)) {
             setTags(prev => [...prev, tag]);
             setTagInput('');
+            setHasChanges(true);
         }
     }, [tagInput, tags]);
 
     const removeTag = useCallback((tag: string) => {
         setTags(prev => prev.filter(t => t !== tag));
+        setHasChanges(true);
     }, []);
-
-    // ---- Load related notes ----
-    const loadRelated = useCallback(async () => {
-        if (!userId || isNew) return;
-        try {
-            const result = await getRelatedNotes(serverUrl, userId, noteId, 5);
-            setRelatedNotes(result?.entries || []);
-        } catch {
-            // ignore
-        }
-    }, [serverUrl, userId, noteId, isNew]);
-
-    useEffect(() => {
-        loadRelated();
-    }, [loadRelated]);
-
-    // ---- Push to Graphiti ----
-    const handlePushGraphiti = useCallback(async () => {
-        if (!userId || isNew || pushing) return;
-
-        setPushing(true);
-        try {
-            const result = await pushToGraphiti(serverUrl, userId, noteId);
-            Alert.alert(
-                result.pushed ? '已推送到知识图谱' : '无需推送',
-                result.message || '',
-            );
-        } catch (e) {
-            Alert.alert(
-                intl.formatMessage({id: 'smart_notebook.push_failed', defaultMessage: '推送失败'}),
-            );
-        } finally {
-            setPushing(false);
-        }
-    }, [userId, isNew, pushing, serverUrl, noteId, intl]);
 
     // ---- Save ----
     const handleSave = useCallback(async () => {
@@ -215,11 +217,17 @@ const SmartNoteDetailScreen = () => {
         setSaving(true);
         try {
             const noteTitle = title.trim() || '无标题';
+            const blocks = markdownToBlocks(content);
 
             if (isNew) {
-                await createNote(serverUrl, userId, noteTitle, 'private');
-                // For simplicity, we'll just create and navigate back
-                // In a real app, you'd get the created note ID and update it
+                const createdNote = await createNote(serverUrl, userId, noteTitle, 'private');
+                if (createdNote?.id) {
+                    await updateNote(serverUrl, userId, createdNote.id, {
+                        title: noteTitle,
+                        blocks,
+                        tags,
+                    });
+                }
             } else {
                 await updateNote(serverUrl, userId, noteId, {
                     title: noteTitle,
@@ -228,6 +236,8 @@ const SmartNoteDetailScreen = () => {
                 });
             }
 
+            setHasChanges(false);
+            Alert.alert('保存成功');
             navigation.goBack();
         } catch (e) {
             Alert.alert(
@@ -236,194 +246,177 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [userId, saving, title, blocks, tags, isNew, serverUrl, noteId, intl, navigation]);
+    }, [userId, saving, title, content, tags, isNew, serverUrl, noteId, intl, navigation]);
 
-    // ---- Render block ----
-    const renderBlock = useCallback((block: SmartNoteBlock) => {
-        switch (block.type) {
-            case 'heading':
-                return (
-                    <TextInput
-                        key={block.id}
-                        style={[style.blockInput, style.headingInput]}
-                        value={block.content}
-                        onChangeText={(text) => updateBlockContent(block.id, text)}
-                        placeholder='标题'
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                        multiline
-                    />
-                );
-            case 'blockquote':
-                return (
-                    <View key={block.id} style={style.quoteContainer}>
-                        <View style={style.quoteBar}/>
-                        <TextInput
-                            style={[style.blockInput, style.quoteInput]}
-                            value={block.content}
-                            onChangeText={(text) => updateBlockContent(block.id, text)}
-                            placeholder='引用'
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                            multiline
-                        />
-                    </View>
-                );
-            case 'code-block':
-                return (
-                    <View key={block.id} style={style.codeContainer}>
-                        <TextInput
-                            style={[style.blockInput, style.codeInput]}
-                            value={block.content}
-                            onChangeText={(text) => updateBlockContent(block.id, text)}
-                            placeholder='代码'
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                            multiline
-                        />
-                    </View>
-                );
-            case 'image':
-                return (
-                    <View key={block.id} style={style.imageContainer}>
-                        <Text style={style.imageText}>📷 [图片: {block.content}]</Text>
-                    </View>
-                );
-            default:
-                return (
-                    <TextInput
-                        key={block.id}
-                        style={style.blockInput}
-                        value={block.content}
-                        onChangeText={(text) => updateBlockContent(block.id, text)}
-                        placeholder='输入内容...'
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                        multiline
-                    />
-                );
+    // ---- Go back with confirmation ----
+    const handleGoBack = useCallback(() => {
+        if (hasChanges) {
+            Alert.alert(
+                '未保存的更改',
+                '是否保存更改？',
+                [
+                    {
+                        text: '取消',
+                        style: 'cancel',
+                        onPress: () => navigation.goBack(),
+                    },
+                    {
+                        text: '不保存',
+                        style: 'destructive',
+                        onPress: () => navigation.goBack(),
+                    },
+                    {
+                        text: '保存',
+                        onPress: async () => {
+                            await handleSave();
+                        },
+                    },
+                ],
+            );
+        } else {
+            navigation.goBack();
         }
-    }, [style, theme, updateBlockContent]);
+    }, [hasChanges, handleSave, navigation]);
 
+    // ---- Render ----
     if (loading) {
         return (
-            <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-                <View style={style.loadingContainer}>
-                    <Text style={style.loadingText}>加载中...</Text>
+            <SafeAreaView style={style.container}>
+                <View style={style.header}>
+                    <View style={style.headerBtn}/>
+                    <Text style={style.headerTitle}>加载中...</Text>
+                    <View style={style.headerBtn}/>
                 </View>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-            <View style={style.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={style.backButton}>
-                    <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {isNew ? '新建笔记' : title || '笔记详情'}
-                </Text>
-                <TouchableOpacity onPress={handleSave} style={style.saveButton} disabled={saving}>
-                    <Text style={[style.saveText, saving && style.saveTextDisabled]}>
-                        {saving ? '保存中...' : '保存'}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView style={style.scrollView} contentContainerStyle={style.scrollContent}>
-                <TextInput
-                    style={style.titleInput}
-                    value={title}
-                    onChangeText={setTitle}
-                    placeholder='标题'
-                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                />
-
-                <View style={style.blocksContainer}>
-                    {blocks.map(renderBlock)}
-                </View>
-
-                <View style={style.toolbar}>
-                    <TouchableOpacity onPress={() => addBlock('paragraph')} style={style.toolButton}>
-                        <CompassIcon name='text' size={20} color={theme.centerChannelColor}/>
+        <SafeAreaView style={style.container}>
+            <KeyboardAvoidingView
+                style={style.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                {/* Header */}
+                <View style={style.header}>
+                    <TouchableOpacity onPress={handleGoBack} style={style.headerBtn}>
+                        <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => addBlock('heading')} style={style.toolButton}>
-                        <CompassIcon name='format-header-1' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => addBlock('blockquote')} style={style.toolButton}>
-                        <CompassIcon name='format-quote-close' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => addBlock('code-block')} style={style.toolButton}>
-                        <CompassIcon name='code-tags' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={uploadImage} style={style.toolButton}>
-                        <CompassIcon name='image' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={style.tagsContainer}>
-                    <Text style={style.tagsLabel}>标签</Text>
-                    <View style={style.tagsList}>
-                        {tags.map((tag, idx) => (
-                            <TouchableOpacity
-                                key={idx}
-                                style={style.tag}
-                                onPress={() => removeTag(tag)}
-                            >
-                                <Text style={style.tagText}>{tag}</Text>
-                                <CompassIcon name='close' size={12} color={theme.buttonBg}/>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                    <View style={style.tagInputContainer}>
-                        <TextInput
-                            style={style.tagInput}
-                            value={tagInput}
-                            onChangeText={setTagInput}
-                            placeholder='添加标签'
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                            onSubmitEditing={addTag}
-                            returnKeyType='done'
+                    <TextInput
+                        style={style.headerTitle}
+                        value={title}
+                        onChangeText={(text) => {
+                            setTitle(text);
+                            setHasChanges(true);
+                        }}
+                        placeholder='笔记标题'
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                    />
+                    <TouchableOpacity onPress={handleSave} style={style.headerBtn} disabled={saving}>
+                        <CompassIcon
+                            name='check'
+                            size={24}
+                            color={saving ? changeOpacity(theme.buttonBg, 0.5) : theme.buttonBg}
                         />
-                        <TouchableOpacity onPress={addTag} style={style.addTagButton}>
-                            <CompassIcon name='plus' size={20} color={theme.buttonBg}/>
-                        </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
                 </View>
 
-                {!isNew && (
-                    <View style={style.graphitiContainer}>
-                        <TouchableOpacity
-                            style={[style.graphitiButton, pushing && style.graphitiButtonDisabled]}
-                            onPress={handlePushGraphiti}
-                            disabled={pushing}
-                        >
-                            <CompassIcon name='graph-outline' size={20} color={theme.buttonColor}/>
-                            <Text style={style.graphitiButtonText}>
-                                {pushing ? '推送中...' : '推送到知识图谱'}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {!isNew && relatedNotes.length > 0 && (
-                    <View style={style.relatedContainer}>
-                        <Text style={style.relatedLabel}>相关笔记</Text>
-                        {relatedNotes.map((note, idx) => (
-                            <TouchableOpacity
-                                key={idx}
-                                style={style.relatedItem}
-                                onPress={() => navigation.navigate(Screens.SMART_NOTE_DETAIL, {
-                                    noteId: note.id,
-                                    noteTitle: note.title,
-                                })}
-                            >
-                                <CompassIcon name='notebook-outline' size={16} color={theme.buttonBg}/>
-                                <Text style={style.relatedItemText} numberOfLines={1}>
-                                    {note.title}
-                                </Text>
-                            </TouchableOpacity>
+                {/* Tags */}
+                <View style={style.tagsContainer}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {tags.map((tag, idx) => (
+                            <View key={idx} style={style.tag}>
+                                <Text style={style.tagText}>#{tag}</Text>
+                                <TouchableOpacity onPress={() => removeTag(tag)} style={style.tagRemove}>
+                                    <CompassIcon name='close' size={12} color={theme.buttonBg}/>
+                                </TouchableOpacity>
+                            </View>
                         ))}
-                    </View>
-                )}
-            </ScrollView>
+                    </ScrollView>
+                    <TextInput
+                        style={style.tagInput}
+                        value={tagInput}
+                        onChangeText={setTagInput}
+                        onSubmitEditing={addTag}
+                        placeholder='添加标签...'
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                    />
+                </View>
+
+                {/* Preview toggle */}
+                <View style={style.previewToggle}>
+                    <TouchableOpacity
+                        style={[style.previewBtn, !previewMode && style.previewBtnActive]}
+                        onPress={() => setPreviewMode(false)}
+                    >
+                        <Text style={[style.previewText, !previewMode && style.previewTextActive]}>
+                            编辑
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[style.previewBtn, previewMode && style.previewBtnActive]}
+                        onPress={() => setPreviewMode(true)}
+                    >
+                        <Text style={[style.previewText, previewMode && style.previewTextActive]}>
+                            预览
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Editor / Preview */}
+                <ScrollView style={style.editorContainer} keyboardShouldPersistTaps='handled'>
+                    {previewMode ? (
+                        <View style={style.previewContainer}>
+                            {/* Simple markdown preview - in production use react-native-markdown-display */}
+                            <Text style={style.previewText}>{content || '无内容'}</Text>
+                        </View>
+                    ) : (
+                        <TextInput
+                            ref={textInputRef}
+                            style={style.editor}
+                            value={content}
+                            onChangeText={handleContentChange}
+                            placeholder='输入 Markdown 内容...&#10;&#10;支持语法：&#10;# 标题&#10;- 列表&#10;> 引用&#10;```代码```'
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
+                            multiline
+                            textAlignVertical='top'
+                            autoCapitalize='none'
+                            autoCorrect={false}
+                        />
+                    )}
+                </ScrollView>
+
+                {/* Toolbar */}
+                <View style={style.toolbar}>
+                    <TouchableOpacity onPress={insertHeading} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>H1</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertBulletList} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>•</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertNumberedList} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>1.</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertQuote} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>"</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertCode} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>&lt;/&gt;</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertTable} style={style.toolbarBtn}>
+                        <CompassIcon name='table' size={20} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={uploadImage} style={style.toolbarBtn}>
+                        <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={uploadVideo} style={style.toolbarBtn}>
+                        <CompassIcon name='video-outline' size={20} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={startVoiceInput} style={style.toolbarBtn}>
+                        <CompassIcon name='microphone-outline' size={20} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -433,204 +426,113 @@ const SmartNoteDetailScreen = () => {
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
+        backgroundColor: theme.centerChannelBg,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
-    backButton: {
+    headerBtn: {
         padding: 8,
+        minWidth: 40,
     },
     headerTitle: {
-        flex: 1,
-        ...typography('Heading', 100, 'SemiBold'),
+        ...typography('Heading', 200, 'SemiBold'),
         color: theme.centerChannelColor,
+        flex: 1,
         textAlign: 'center',
     },
-    saveButton: {
+    tagsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 8,
-    },
-    saveText: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.buttonBg,
-    },
-    saveTextDisabled: {
-        opacity: 0.5,
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 16,
-    },
-    titleInput: {
-        ...typography('Heading', 300, 'Bold'),
-        color: theme.centerChannelColor,
-        marginBottom: 24,
-    },
-    blocksContainer: {
-        marginBottom: 24,
-    },
-    blockInput: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-        marginBottom: 12,
-        minHeight: 40,
-        textAlignVertical: 'top',
-    },
-    headingInput: {
-        ...typography('Heading', 200, 'SemiBold'),
-        fontSize: 24,
-    },
-    quoteContainer: {
-        flexDirection: 'row',
-        marginBottom: 12,
-    },
-    quoteBar: {
-        width: 3,
-        backgroundColor: theme.buttonBg,
-        marginRight: 12,
-    },
-    quoteInput: {
-        flex: 1,
-        ...typography('Body', 200, 'Italic'),
-        color: changeOpacity(theme.centerChannelColor, 0.8),
-    },
-    codeContainer: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 12,
-    },
-    codeInput: {
-        fontFamily: 'monospace',
-        fontSize: 14,
-    },
-    imageContainer: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-        borderRadius: 8,
-        padding: 16,
-        marginBottom: 12,
-        alignItems: 'center',
-    },
-    imageText: {
-        ...typography('Body', 100),
-        color: changeOpacity(theme.centerChannelColor, 0.6),
-    },
-    toolbar: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
-        marginBottom: 24,
-    },
-    toolButton: {
-        padding: 8,
-    },
-    tagsContainer: {
-        marginTop: 16,
-    },
-    tagsLabel: {
-        ...typography('Heading', 75, 'SemiBold'),
-        color: theme.centerChannelColor,
-        marginBottom: 12,
-    },
-    tagsList: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginBottom: 12,
     },
     tag: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: changeOpacity(theme.buttonBg, 0.1),
-        borderRadius: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         marginRight: 8,
-        marginBottom: 8,
     },
     tagText: {
         ...typography('Body', 75),
         color: theme.buttonBg,
-        marginRight: 4,
     },
-    tagInputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    tagRemove: {
+        marginLeft: 4,
     },
     tagInput: {
         flex: 1,
-        height: 36,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-        borderRadius: 8,
-        paddingHorizontal: 12,
         ...typography('Body', 100),
         color: theme.centerChannelColor,
+        padding: 0,
     },
-    addTagButton: {
-        marginLeft: 8,
-        padding: 8,
-    },
-    graphitiContainer: {
-        marginTop: 24,
-    },
-    graphitiButton: {
+    previewToggle: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.buttonBg,
-        borderRadius: 8,
-        paddingVertical: 12,
         paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
-    graphitiButtonDisabled: {
-        opacity: 0.5,
+    previewBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        borderRadius: 16,
+        marginRight: 8,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
     },
-    graphitiButtonText: {
-        ...typography('Body', 100, 'SemiBold'),
+    previewBtnActive: {
+        backgroundColor: theme.buttonBg,
+    },
+    previewText: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.7),
+    },
+    previewTextActive: {
         color: theme.buttonColor,
-        marginLeft: 8,
     },
-    relatedContainer: {
-        marginTop: 24,
+    editorContainer: {
+        flex: 1,
     },
-    relatedLabel: {
-        ...typography('Heading', 75, 'SemiBold'),
-        color: theme.centerChannelColor,
-        marginBottom: 12,
-    },
-    relatedItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        borderRadius: 8,
-        marginBottom: 8,
-    },
-    relatedItemText: {
+    editor: {
+        flex: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         ...typography('Body', 100),
         color: theme.centerChannelColor,
-        marginLeft: 8,
-        flex: 1,
+        minHeight: 200,
     },
-    loadingContainer: {
+    previewContainer: {
         flex: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    toolbar: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-around',
+        paddingHorizontal: 8,
+        paddingVertical: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.02),
     },
-    loadingText: {
-        ...typography('Body', 200),
-        color: changeOpacity(theme.centerChannelColor, 0.5),
+    toolbarBtn: {
+        padding: 8,
+        borderRadius: 4,
+    },
+    toolbarText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.centerChannelColor,
     },
 }));
 

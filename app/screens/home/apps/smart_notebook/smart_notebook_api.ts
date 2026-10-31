@@ -132,54 +132,52 @@ export async function uploadMedia(
     return resp.data;
 }
 
-// ── Timeline ──
+// ── Markdown <-> Blocks Conversion Helpers ──
 
-export type TimelineEntry = {
-    id: string;
-    title: string;
-    createdAt: number;
-    updatedAt: number;
-    tags: string[];
-    eventCount: number;
-};
-
-export async function getTimeline(
-    serverUrl: string,
-    userId: string,
-    limit = 50,
-): Promise<{ok: boolean; entries: TimelineEntry[]; total: number}> {
-    const params = new URLSearchParams({user_id: userId, limit: String(limit)});
-    return smartNotebookFetch(serverUrl, `/api/smart-notebook/timeline?${params}`, {method: 'get'});
+export function markdownToBlocks(markdown: string): SmartNoteBlock[] {
+    // Store entire markdown as a single paragraph block
+    // This is the simplest approach that works with the backend
+    if (!markdown.trim()) {
+        return [];
+    }
+    return [{
+        id: 'blk_markdown',
+        type: 'paragraph',
+        content: markdown,
+        order: 0,
+        meta: {format: 'markdown'},
+    }];
 }
 
-// ── Related Notes ──
+export function blocksToMarkdown(blocks: SmartNoteBlock[]): string {
+    if (!blocks || blocks.length === 0) {
+        return '';
+    }
 
-export type RelatedNote = {
-    id: string;
-    title: string;
-    tags: string[];
-    updatedAt: number;
-};
+    // Check if it's a single markdown block (new format)
+    if (blocks.length === 1 && blocks[0].meta?.format === 'markdown') {
+        return blocks[0].content;
+    }
 
-export async function getRelatedNotes(
-    serverUrl: string,
-    userId: string,
-    noteId: string,
-    limit = 10,
-): Promise<{ok: boolean; entries: RelatedNote[]; total: number}> {
-    const params = new URLSearchParams({user_id: userId, note_id: noteId, limit: String(limit)});
-    return smartNotebookFetch(serverUrl, `/api/smart-notebook/related?${params}`, {method: 'get'});
-}
-
-// ── Graphiti Push ──
-
-export async function pushToGraphiti(
-    serverUrl: string,
-    userId: string,
-    noteId: string,
-): Promise<{ok: boolean; message: string; pushed: boolean; pushedAt?: number}> {
-    return smartNotebookFetch(serverUrl, `/api/smart-notebook/push-graphiti`, {
-        method: 'post',
-        body: {userId, noteId},
-    });
+    // Legacy: convert old blocks to markdown
+    return blocks.map(block => {
+        switch (block.type) {
+            case 'heading':
+                return `# ${block.content}`;
+            case 'blockquote':
+                return `> ${block.content}`;
+            case 'code-block':
+                return `\`\`\`\n${block.content}\n\`\`\``;
+            case 'bulleted-list':
+                return `- ${block.content}`;
+            case 'numbered-list':
+                return `1. ${block.content}`;
+            case 'image':
+                return `![image](${block.content})`;
+            case 'video':
+                return `[video](${block.content})`;
+            default:
+                return block.content;
+        }
+    }).join('\n\n');
 }
