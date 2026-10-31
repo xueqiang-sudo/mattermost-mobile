@@ -5,7 +5,7 @@ import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
 } from '@mattermost/secure-pdf-viewer';
-import {deleteAsync, getInfoAsync, makeDirectoryAsync} from 'expo-file-system';
+import {cacheDirectory, copyAsync, deleteAsync, getInfoAsync, makeDirectoryAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, View, StyleSheet} from 'react-native';
@@ -476,11 +476,37 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     </View>
                 );
             }
-            // SecurePdfViewer 期望无 file:// 前缀的路径
+            // SecurePdfViewer 期望无 file:// 前缀的路径（原生 iOS 使用 URL(fileURLWithPath:)）
             // 目录名和文件名都使用安全字符（MD5 哈希和 fileId），无特殊字符
-            const pdfSource = filePath.replace(/^file:\/\//, '');
+            // SecurePdfViewer 只允许从 Caches 目录读取，需要先从 Documents 复制到 Caches
+            const pdfCachePath = `${cacheDirectory}${filePath.slice(filePath.lastIndexOf('/'))}`;
 
-            debugLog('[Viewer] PDF source', {original: filePath, encoded: pdfSource});
+            try {
+                // 复制到 Caches 目录
+                await copyAsync({from: filePath, to: pdfCachePath});
+                debugLog('[Viewer] PDF copied to cache', {from: filePath, to: pdfCachePath});
+            } catch (copyErr) {
+                debugLog('[Viewer] PDF copy to cache failed', {error: String(copyErr)});
+            }
+
+            const pdfSource = pdfCachePath.replace(/^file:\/\//, '');
+
+            // 验证文件确实存在
+            const pdfExists = await fileExists(pdfCachePath);
+            debugLog('[Viewer] PDF source', {original: filePath, cachePath: pdfCachePath, encoded: pdfSource, exists: pdfExists});
+
+            if (!pdfExists) {
+                debugLog('[Viewer] PDF file does not exist at cache path', {pdfSource});
+                return (
+                    <View style={styles.content}>
+                        <UnsupportedView
+                            fileInfo={currentFileInfo}
+                            onDownload={handleDownload}
+                            onOpenWith={handleOpenWith}
+                        />
+                    </View>
+                );
+            }
 
             return (
                 <SecurePdfViewer
