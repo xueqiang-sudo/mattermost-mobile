@@ -24,6 +24,88 @@ import {debugLog} from '@store/debug_log';
 import type {ClientResponse, ProgressPromise} from '@mattermost/react-native-network-client';
 import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
 
+// Office 文件扩展名（对齐 webapp）
+const OFFICE_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'pages']);
+
+const isOfficeFile = (ext?: string): boolean => {
+    if (!ext) return false;
+    return OFFICE_EXTENSIONS.has(ext.toLowerCase().replace(/^\./, ''));
+};
+
+// 尝试获取 307 重定向地址（诊断用）
+const getRedirectUrl = async (serverUrl: string, fileId: string): Promise<string> => {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const url = client.getFileRoute(fileId);
+        const resp = await client.doFetch(url, {method: 'get', redirect: 'manual'} as any);
+        if (resp?.headers?.Location) {
+            return resp.headers.Location;
+        }
+        if (resp?.url && resp.url !== url) {
+            return resp.url;
+        }
+        return '(no redirect)';
+    } catch {
+        return '(redirect check failed)';
+    }
+};
+
+// 触发 Office → PDF 转换并轮询（对齐 webapp）
+const triggerConversionAndPoll = async (serverUrl: string, fileId: string): Promise<string | null> => {
+    const client = NetworkManager.getClient(serverUrl);
+
+    // Step 1: 触发转换 POST /api/v4/files/{id}/convert
+    try {
+        const convertUrl = client.getFileRoute(fileId) + '/convert';
+        debugLog('[Preview] Triggering conversion', {convertUrl, fileId});
+
+        const result = await client.doFetch(convertUrl, {method: 'post'});
+        debugLog('[Preview] Conversion trigger response', {result});
+
+        if (result?.status === 'complete' && result?.pdf_preview_id) {
+            debugLog('[Preview] Conversion complete immediately', {pdf_preview_id: result.pdf_preview_id});
+            return result.pdf_preview_id;
+        }
+    } catch (e) {
+        debugLog('[Preview] Conversion trigger failed, will poll', {error: String(e)});
+    }
+
+    // Step 2: 轮询 GET /api/v4/files/{id}/info（每2s，最多30次 = 60s）
+    for (let i = 0; i < 30; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        try {
+            const infoUrl = client.getFileRoute(fileId) + `/info?_t=${Date.now()}`;
+            debugLog('[Preview] Polling conversion status', {attempt: i + 1, maxAttempts: 30, infoUrl});
+
+            const info = await client.doFetch(infoUrl, {method: 'get'});
+            debugLog('[Preview] Poll response', {
+                attempt: i + 1,
+                pdf_preview_id: info?.pdf_preview_id,
+                pdf_conversion_status: info?.pdf_conversion_status,
+            });
+
+            if (info?.pdf_preview_id) {
+                debugLog('[Preview] Conversion complete after polling', {
+                    attempts: i + 1,
+                    pdf_preview_id: info.pdf_preview_id,
+                });
+                return info.pdf_preview_id;
+            }
+
+            if (info?.pdf_conversion_status === 'failed') {
+                debugLog('[Preview] Conversion failed', {error: info?.pdf_conversion_error});
+                return null;
+            }
+        } catch (e) {
+            debugLog('[Preview] Poll error', {attempt: i + 1, error: String(e)});
+        }
+    }
+
+    debugLog('[Preview] Conversion polling timeout after 30 attempts (60s)');
+    return null;
+};
+
 // 确保下载目标的父目录存在。文件本地路径已从 cacheDirectory 改为
 // documentDirectory/{server}/Files/，该子目录初次下载时并不存在，直接写入会失败，
 // 导致预览退回「下载/用其他应用打开」页。原生 download 不保证创建父目录，这里兜底。
@@ -155,24 +237,186 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
     const downloadAndPreviewFile = useCallback(async (file: FileInfo) => {
         setDidCancel(false);
 
+        const ext = (file.extension || '').toLowerCase().replace(/^\./, '');
+        const isOffice = isOfficeFile(ext);
+
         debugLog('[Preview] downloadAndPreviewFile called', {
             fileId: file.id,
             name: file.name,
-            extension: file.extension,
+            extension: ext,
+            isOffice,
             hasPdfPreview: hasPdfPreview(file),
             pdf_preview_id: file.pdf_preview_id,
         });
 
-        // Office 文件有 PDF 预览版本时，下载并打开 PDF 版本
+        // ── Office 文件：确保有 pdf_preview_id（没有则触发转换+轮询）──
+        if (isOffice && file.id) {
+            let pdfPreviewId = file.pdf_preview_id;
+
+            if (!pdfPreviewId) {
+                debugLog('[Preview] Office file without pdf_preview_id, triggering conversion', {
+                    fileId: file.id,
+                    name: file.name,
+                });
+
+                setDownloading(true);
+                pdfPreviewId = await triggerConversionAndPoll(serverUrl, file.id);
+                setDownloading(false);
+
+                if (pdfPreviewId) {
+                    // 更新 file 对象的 pdf_preview_id
+                    file.pdf_preview_id = pdfPreviewId;
+                    debugLog('[Preview] Got pdf_preview_id after conversion', {pdfPreviewId});
+                } else {
+                    debugLog('[Preview] Conversion failed or timeout', {fileId: file.id});
+                    alertDownloadFailed(intl);
+                    return;
+                }
+            }
+
+            // 下载 PDF 预览版本
+            const client = NetworkManager.getClient(serverUrl);
+            const downloadUrl = client.getFileRoute(pdfPreviewId);
+
+            // 获取 307 重定向地址（诊断用）
+            const redirectUrl = await getRedirectUrl(serverUrl, pdfPreviewId);
+            debugLog('[Preview] Downloading PDF preview (Office)', {
+                originalFileId: file.id,
+                pdfPreviewId,
+                originalUrl: downloadUrl,
+                redirectUrl,
+            });
+
+            const pdfFileInfo: FileInfo = {
+                ...file,
+                id: pdfPreviewId,
+                name: file.name.replace(/\.[^.]+$/, '.pdf'),
+                extension: 'pdf',
+                mime_type: 'application/pdf',
+            };
+
+            let pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
+            const pdfExists = await fileExists(pdfPath);
+
+            try {
+                if (!pdfExists) {
+                    setDownloading(true);
+                    await ensureParentDir(pdfPath);
+
+                    debugLog('[Preview] Starting download', {
+                        url: downloadUrl,
+                        destination: pdfPath,
+                    });
+
+                    downloadTask.current = downloadFile(serverUrl, pdfPreviewId, pdfPath);
+                    downloadTask.current?.progress?.(setProgress);
+                    await downloadTask.current;
+                    setProgress(1);
+
+                    // Wait a bit for file system to flush
+                    await new Promise((resolve) => setTimeout(resolve, 200));
+
+                    // Validate downloaded file is actually a PDF
+                    const afterExists = await fileExists(pdfPath);
+                    if (afterExists) {
+                        try {
+                            const expoFs = await import('expo-file-system');
+                            const {readAsStringAsync, getInfoAsync} = expoFs;
+
+                            // Check file size
+                            let fileSize = -1;
+                            try {
+                                const fileInfo = await getInfoAsync(pdfPath.replace(/^file:\/\//, ''), {size: true});
+                                fileSize = fileInfo.size || -1;
+                            } catch {}
+
+                            const readPath = pdfPath.replace(/^file:\/\//, '');
+
+                            // Try reading with retry
+                            let content = '';
+                            let retryCount = 0;
+                            const maxRetries = 3;
+
+                            while (retryCount < maxRetries) {
+                                content = await readAsStringAsync(readPath, {encoding: 'base64'});
+                                if (content.length > 0) break;
+                                retryCount++;
+                                debugLog('[Preview] PDF preview read retry', {attempt: retryCount});
+                                await new Promise((resolve) => setTimeout(resolve, 100));
+                            }
+
+                            const header = content.substring(0, 20);
+                            const isValidPdf = header.startsWith('JVBER');
+
+                            // 解码前100字符用于诊断
+                            let decodedContent = '';
+                            try {
+                                decodedContent = atob(content.substring(0, 200));
+                            } catch {}
+
+                            debugLog('[Preview] PDF preview validation result', {
+                                path: pdfPath,
+                                header,
+                                isValidPdf,
+                                contentLength: content.length,
+                                fileSize,
+                                retries: retryCount,
+                                originalUrl: downloadUrl,
+                                redirectUrl,
+                                decodedFirst100: decodedContent.substring(0, 100),
+                            });
+
+                            if (!isValidPdf) {
+                                debugLog('[Preview] ERROR: PDF preview is NOT valid - possible reasons:', {
+                                    reason: fileSize === 0 ? 'File is empty (0 bytes)' :
+                                        content.length === 0 ? 'Could not read file content' :
+                                        decodedContent.includes('<html') || decodedContent.includes('<HTML') ? 'Got HTML error page instead of PDF' :
+                                        decodedContent.includes('<?xml') ? 'Got XML response instead of PDF' :
+                                        decodedContent.includes('AccessDenied') ? 'CDN access denied' :
+                                        'Unknown content (not a PDF)',
+                                    decodedContent: decodedContent.substring(0, 200),
+                                    originalUrl: downloadUrl,
+                                    redirectUrl,
+                                });
+                                await deleteAsync(pdfPath, {idempotent: true});
+                                throw new Error('Downloaded PDF preview is not a valid PDF document');
+                            }
+                        } catch (validationErr) {
+                            debugLog('[Preview] PDF preview validation exception', {error: String(validationErr)});
+                            throw validationErr;
+                        }
+                    }
+                }
+
+                openDocument(pdfFileInfo);
+            } catch (error) {
+                if (pdfPath) {
+                    deleteAsync(pdfPath, {idempotent: true});
+                }
+                setDownloading(false);
+                setProgress(0);
+
+                if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
+                    logDebug('error downloading PDF preview', getFullErrorMessage(error));
+                    alertDownloadFailed(intl);
+                }
+            }
+            return;
+        }
+
+        // ── 已有 PDF 预览版本（非 Office 但有 pdf_preview_id）──
         if (hasPdfPreview(file) && file.pdf_preview_id) {
 
             const client = NetworkManager.getClient(serverUrl);
             const downloadUrl = client.getFileRoute(file.pdf_preview_id);
 
+            // 获取 307 重定向地址（诊断用）
+            const redirectUrl = await getRedirectUrl(serverUrl, file.pdf_preview_id);
             debugLog('[Preview] Downloading PDF preview', {
                 originalFileId: file.id,
                 pdfPreviewId: file.pdf_preview_id,
-                downloadUrl,
+                originalUrl: downloadUrl,
+                redirectUrl,
             });
 
             const pdfFileInfo: FileInfo = {
@@ -303,10 +547,13 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 const client = NetworkManager.getClient(serverUrl);
                 const downloadUrl = client.getFileRoute(file.id!);
 
+                // 获取 307 重定向地址（诊断用）
+                const redirectUrl = await getRedirectUrl(serverUrl, file.id!);
                 debugLog('[Preview] downloading file', {
                     fileId: file.id,
                     name: file.name,
-                    downloadUrl,
+                    originalUrl: downloadUrl,
+                    redirectUrl,
                     localPath: path,
                 });
 
@@ -324,7 +571,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 await new Promise(resolve => setTimeout(resolve, 200));
 
                 // Validate file is actually what it claims to be
-                if (afterExists && file.extension?.toLowerCase() === 'pdf') {
+                if (afterExists && ext === 'pdf') {
                     try {
                         const expoFs = await import('expo-file-system');
                         const {readAsStringAsync, getInfoAsync} = expoFs;
@@ -332,58 +579,58 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                         // Get file info to check size
                         let fileSize = -1;
                         try {
-                            const fileInfo = await getInfoAsync(path!, {size: true});
+                            const fileInfo = await getInfoAsync(path!.replace(/^file:\/\//, ''), {size: true});
                             fileSize = fileInfo.size || -1;
-                            debugLog('[Preview] PDF file info', {path, size: fileSize, exists: fileInfo.exists});
-                        } catch (infoErr) {
-                            debugLog('[Preview] PDF file info failed', {error: String(infoErr)});
-                        }
+                        } catch {}
 
-                        // Strip file:// prefix for readAsStringAsync (it expects plain path)
                         const readPath = path!.replace(/^file:\/\//, '');
 
-                        // Try reading with retry (file might still be flushing)
+                        // Try reading with retry
                         let fullContent = '';
                         let retryCount = 0;
                         const maxRetries = 3;
 
                         while (retryCount < maxRetries) {
-                            fullContent = await readAsStringAsync(readPath, {
-                                encoding: 'base64',
-                            });
-
-                            if (fullContent.length > 0) {
-                                break;
-                            }
-
+                            fullContent = await readAsStringAsync(readPath, {encoding: 'base64'});
+                            if (fullContent.length > 0) break;
                             retryCount++;
                             debugLog('[Preview] PDF read retry', {attempt: retryCount, maxRetries});
                             await new Promise(resolve => setTimeout(resolve, 100));
                         }
 
                         const header = fullContent.substring(0, 20);
-                        debugLog('[Preview] PDF content read', {
+                        const isValidPdf = header.startsWith('JVBER');
+
+                        // 解码前200字符用于诊断
+                        let decodedContent = '';
+                        try {
+                            decodedContent = atob(fullContent.substring(0, 200));
+                        } catch {}
+
+                        debugLog('[Preview] PDF validation result', {
                             path,
-                            readPath,
-                            fullLength: fullContent.length,
                             header,
+                            isValidPdf,
+                            contentLength: fullContent.length,
                             fileSize,
                             retries: retryCount,
+                            originalUrl: downloadUrl,
+                            redirectUrl,
+                            decodedFirst100: decodedContent.substring(0, 100),
                         });
 
-                        // PDF files start with %PDF (JVBER in base64)
-                        const isValidPdf = header.startsWith('JVBER');
-                        debugLog('[Preview] PDF validation', {isValidPdf});
-
                         if (!isValidPdf) {
-                            debugLog('[Preview] ERROR: Downloaded file is not a valid PDF', {
-                                path,
-                                header,
-                                fileSize,
-                                fullContentLength: fullContent.length,
-                                first100chars: fullContent.substring(0, 100),
+                            debugLog('[Preview] ERROR: Downloaded PDF is NOT valid - diagnosis:', {
+                                reason: fileSize === 0 ? 'File is empty (0 bytes)' :
+                                    fullContent.length === 0 ? 'Could not read file content' :
+                                    decodedContent.includes('<html') || decodedContent.includes('<HTML') ? 'Got HTML error page instead of PDF' :
+                                    decodedContent.includes('<?xml') ? 'Got XML response instead of PDF' :
+                                    decodedContent.includes('AccessDenied') ? 'CDN access denied' :
+                                    'Unknown content (not a PDF)',
+                                decodedContent: decodedContent.substring(0, 200),
+                                originalUrl: downloadUrl,
+                                redirectUrl,
                             });
-                            // Delete invalid file so it can be re-downloaded
                             await deleteAsync(path!, {idempotent: true});
                             throw new Error('Downloaded PDF file is not valid');
                         }
