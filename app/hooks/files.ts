@@ -180,6 +180,30 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                     downloadTask.current?.progress?.(setProgress);
                     await downloadTask.current;
                     setProgress(1);
+
+                    // Validate downloaded file is actually a PDF
+                    const afterExists = await fileExists(pdfPath);
+                    if (afterExists) {
+                        try {
+                            const {readAsStringAsync} = await import('expo-file-system');
+                            const header = await readAsStringAsync(pdfPath, {
+                                encoding: 'base64',
+                                length: 10,
+                            });
+                            const isValidPdf = header.startsWith('JVBER');
+                            debugLog('[Preview] PDF preview validation', {path: pdfPath, header: header.substring(0, 20), isValidPdf});
+
+                            if (!isValidPdf) {
+                                debugLog('[Preview] WARNING: Downloaded PDF preview is not valid', {path: pdfPath, header});
+                                // Delete invalid file so it can be re-downloaded
+                                await deleteAsync(pdfPath, {idempotent: true});
+                                throw new Error('Downloaded PDF preview is not a valid PDF document');
+                            }
+                        } catch (validationErr) {
+                            debugLog('[Preview] PDF preview validation failed', {error: String(validationErr)});
+                            throw validationErr;
+                        }
+                    }
                 }
 
                 openDocument(pdfFileInfo);
@@ -237,6 +261,28 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
                 const afterExists = await fileExists(path!);
                 debugLog('[Preview] download complete, file exists now?', {path, afterExists});
+
+                // Validate file is actually what it claims to be
+                if (afterExists && file.extension?.toLowerCase() === 'pdf') {
+                    try {
+                        const {readAsStringAsync} = await import('expo-file-system');
+                        // Read first few bytes to check PDF signature
+                        const header = await readAsStringAsync(path!, {
+                            encoding: 'base64',
+                            length: 10,
+                        });
+                        // PDF files start with %PDF (JVBER in base64)
+                        const isValidPdf = header.startsWith('JVBER');
+                        debugLog('[Preview] PDF validation', {path, header: header.substring(0, 20), isValidPdf});
+
+                        if (!isValidPdf) {
+                            debugLog('[Preview] WARNING: Downloaded file is not a valid PDF', {path, header});
+                            // Don't delete - let the viewer show the error
+                        }
+                    } catch (validationErr) {
+                        debugLog('[Preview] PDF validation failed', {error: String(validationErr)});
+                    }
+                }
 
                 // Cache the local path in database (like WeChat - persist downloaded file paths)
                 if (file.id && path) {
