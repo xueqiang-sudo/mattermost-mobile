@@ -240,7 +240,13 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
                 // Cache the local path in database (like WeChat - persist downloaded file paths)
                 if (file.id && path) {
-                    updateLocalFilePath(serverUrl, file.id, path);
+                    debugLog('[Preview] updating database localPath', {fileId: file.id, path});
+                    const result = await updateLocalFilePath(serverUrl, file.id, path);
+                    debugLog('[Preview] database update result', {error: result.error});
+
+                    // Also update the file object in memory
+                    file.localPath = path;
+                    debugLog('[Preview] file object updated in memory', {fileId: file.id, localPath: file.localPath});
                 }
 
                 openDocument(file);

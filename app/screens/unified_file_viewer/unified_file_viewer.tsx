@@ -86,7 +86,24 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
         const copyPdfToCache = async () => {
             const shouldRenderAsPdf = isPdf(currentFileInfo) || (hasPdfPreview(currentFileInfo) && currentFileInfo.pdf_preview_id);
             if (fileState === 'viewable' && filePath && shouldRenderAsPdf && !pdfError) {
-                const cachePath = `${cacheDirectory}${filePath.slice(filePath.lastIndexOf('/'))}`;
+                // Check if file is already in cache directory
+                if (filePath.includes('/Library/Caches/')) {
+                    debugLog('[Viewer] PDF already in cache, using directly', {filePath});
+                    setPdfCachePath(filePath);
+                    return;
+                }
+
+                // Copy to cache directory (handle trailing slash properly)
+                const fileName = filePath.slice(filePath.lastIndexOf('/') + 1);
+                const cacheDir = cacheDirectory.endsWith('/') ? cacheDirectory : `${cacheDirectory}/`;
+                const cachePath = `${cacheDir}${fileName}`;
+                debugLog('[Viewer] PDF cache path calculation', {
+                    cacheDirectory,
+                    cacheDir,
+                    fileName,
+                    cachePath,
+                    cacheDirEndsWithSlash: cacheDirectory.endsWith('/'),
+                });
                 try {
                     await copyAsync({from: filePath, to: cachePath});
                     debugLog('[Viewer] PDF copied to cache', {from: filePath, to: cachePath});
