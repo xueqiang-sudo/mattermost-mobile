@@ -477,17 +477,8 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 );
             }
             // SecurePdfViewer 期望无 file:// 前缀的路径
-            // 目录名已使用 MD5 哈希（32位十六进制），无特殊字符
-            // 文件名可能包含中文或空格，需要 URL 编码
-            let pdfSource = filePath.replace(/^file:\/\//, '');
-
-            // URL 编码文件名部分（保留目录结构）
-            const lastSlash = pdfSource.lastIndexOf('/');
-            if (lastSlash !== -1) {
-                const dir = pdfSource.slice(0, lastSlash + 1);
-                const filename = pdfSource.slice(lastSlash + 1);
-                pdfSource = dir + encodeURIComponent(filename);
-            }
+            // 目录名和文件名都使用安全字符（MD5 哈希和 fileId），无特殊字符
+            const pdfSource = filePath.replace(/^file:\/\//, '');
 
             debugLog('[Viewer] PDF source', {original: filePath, encoded: pdfSource});
 

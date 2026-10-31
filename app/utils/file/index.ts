@@ -527,12 +527,12 @@ export function getLocalFilePathFromFile(serverUrl: string, file: FileInfo | Fil
                 extension = getExtensionFromMime(mimeType);
             }
 
-            // 目录名使用 MD5 哈希（32位十六进制，无特殊字符），文件名保留原始名称
-            // 支持中文、空格等字符，原生组件可正常访问
+            // 目录名使用 MD5 哈希（32位十六进制，无特殊字符）
+            // 文件名使用 fileId 确保路径安全，兼容所有查看器（包括 PDF）
             // 持久化存储：落到 documentDirectory（iOS=沙盒 Documents，Android=app files），
             // 系统空间紧张时不会自动清理，实现微信式「下过一次长期保留」。
             // 不用 cacheDirectory（iOS Library/Caches、Android cache，均会被系统回收）。
-            const fileName = extension ? `${file.name.replace(/\.[^.]+$/, '')}.${extension}` : file.name;
+            const fileName = extension ? `${fileIdPath}.${extension}` : fileIdPath;
             return `${documentDirectory}${server}/Files/${fileName}`;
         } else if (file?.id && hasValidExtension) {
             return `${documentDirectory}${server}/Files/${fileIdPath}.${file.extension}`;
