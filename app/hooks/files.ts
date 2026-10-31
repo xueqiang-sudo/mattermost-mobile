@@ -155,11 +155,25 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
     const downloadAndPreviewFile = useCallback(async (file: FileInfo) => {
         setDidCancel(false);
 
+        debugLog('[Preview] downloadAndPreviewFile called', {
+            fileId: file.id,
+            name: file.name,
+            extension: file.extension,
+            hasPdfPreview: hasPdfPreview(file),
+            pdf_preview_id: file.pdf_preview_id,
+        });
+
         // Office 文件有 PDF 预览版本时，下载并打开 PDF 版本
         if (hasPdfPreview(file) && file.pdf_preview_id) {
 
             const client = NetworkManager.getClient(serverUrl);
             const downloadUrl = client.getFileRoute(file.pdf_preview_id);
+
+            debugLog('[Preview] Downloading PDF preview', {
+                originalFileId: file.id,
+                pdfPreviewId: file.pdf_preview_id,
+                downloadUrl,
+            });
 
             const pdfFileInfo: FileInfo = {
                 ...file,
@@ -280,11 +294,22 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             });
 
             if (exists) {
-                debugLog('[Preview] file exists, opening directly');
+                debugLog('[Preview] file exists, opening directly', {path});
                 openDocument(file);
             } else {
                 setDownloading(true);
-                debugLog('[Preview] downloading to', path);
+
+                // Build download URL for logging
+                const client = NetworkManager.getClient(serverUrl);
+                const downloadUrl = client.getFileRoute(file.id!);
+
+                debugLog('[Preview] downloading file', {
+                    fileId: file.id,
+                    name: file.name,
+                    downloadUrl,
+                    localPath: path,
+                });
+
                 await ensureParentDir(path!);
                 downloadTask.current = downloadFile(serverUrl, file.id!, path!);
                 downloadTask.current?.progress?.(setProgress);
