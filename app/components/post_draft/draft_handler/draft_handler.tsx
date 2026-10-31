@@ -586,10 +586,10 @@ export default function DraftHandler(props: Props) {
                                 if (srcWithScheme !== dstWithScheme && exists) {
                                     debugLog('DRAFT', `addFiles: step 6 - verifying expo-file-system functions`);
                                     // Verify functions are available
-                                    if (typeof makeDirectoryAsync !== 'function' || typeof moveAsync !== 'function') {
+                                    if (typeof makeDirectoryAsync !== 'function' || typeof copyAsync !== 'function') {
                                         debugLog('DRAFT', `addFiles: CRITICAL - expo-file-system functions not available`, {
                                             makeDirectoryAsync: typeof makeDirectoryAsync,
-                                            moveAsync: typeof moveAsync,
+                                            copyAsync: typeof copyAsync,
                                         });
                                         throw new Error('expo-file-system functions not available');
                                     }
