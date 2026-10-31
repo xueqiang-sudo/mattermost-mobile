@@ -79,6 +79,26 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const [progress, setProgress] = useState(0);
     const [currentFileInfo, setCurrentFileInfo] = useState<FileInfo>(fileInfo);
     const [pdfError, setPdfError] = useState<string | undefined>(undefined);
+    const [pdfCachePath, setPdfCachePath] = useState<string>('');
+
+    // Copy PDF to cache directory when filePath changes (for SecurePdfViewer)
+    useEffect(() => {
+        const copyPdfToCache = async () => {
+            const shouldRenderAsPdf = isPdf(currentFileInfo) || (hasPdfPreview(currentFileInfo) && currentFileInfo.pdf_preview_id);
+            if (fileState === 'viewable' && filePath && shouldRenderAsPdf && !pdfError) {
+                const cachePath = `${cacheDirectory}${filePath.slice(filePath.lastIndexOf('/'))}`;
+                try {
+                    await copyAsync({from: filePath, to: cachePath});
+                    debugLog('[Viewer] PDF copied to cache', {from: filePath, to: cachePath});
+                    setPdfCachePath(cachePath);
+                } catch (copyErr) {
+                    debugLog('[Viewer] PDF copy to cache failed', {error: String(copyErr)});
+                    setPdfCachePath('');
+                }
+            }
+        };
+        copyPdfToCache();
+    }, [filePath, fileState, currentFileInfo, pdfError]);
 
     const downloadTask = useRef<ProgressPromise<ClientResponse>>();
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -476,37 +496,18 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                     </View>
                 );
             }
+
+            // Wait for cache copy to complete
+            if (!pdfCachePath) {
+                return <LoadingView/>;
+            }
+
             // SecurePdfViewer 期望无 file:// 前缀的路径（原生 iOS 使用 URL(fileURLWithPath:)）
             // 目录名和文件名都使用安全字符（MD5 哈希和 fileId），无特殊字符
-            // SecurePdfViewer 只允许从 Caches 目录读取，需要先从 Documents 复制到 Caches
-            const pdfCachePath = `${cacheDirectory}${filePath.slice(filePath.lastIndexOf('/'))}`;
-
-            try {
-                // 复制到 Caches 目录
-                await copyAsync({from: filePath, to: pdfCachePath});
-                debugLog('[Viewer] PDF copied to cache', {from: filePath, to: pdfCachePath});
-            } catch (copyErr) {
-                debugLog('[Viewer] PDF copy to cache failed', {error: String(copyErr)});
-            }
-
+            // SecurePdfViewer 只允许从 Caches 目录读取，已通过 useEffect 复制到 Caches
             const pdfSource = pdfCachePath.replace(/^file:\/\//, '');
 
-            // 验证文件确实存在
-            const pdfExists = await fileExists(pdfCachePath);
-            debugLog('[Viewer] PDF source', {original: filePath, cachePath: pdfCachePath, encoded: pdfSource, exists: pdfExists});
-
-            if (!pdfExists) {
-                debugLog('[Viewer] PDF file does not exist at cache path', {pdfSource});
-                return (
-                    <View style={styles.content}>
-                        <UnsupportedView
-                            fileInfo={currentFileInfo}
-                            onDownload={handleDownload}
-                            onOpenWith={handleOpenWith}
-                        />
-                    </View>
-                );
-            }
+            debugLog('[Viewer] PDF source', {original: filePath, cachePath: pdfCachePath, encoded: pdfSource});
 
             return (
                 <SecurePdfViewer
