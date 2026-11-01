@@ -56,7 +56,7 @@ export function getReadableTimestamp(timestamp: number, timeZone: string, isMili
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
-        hour12: !isMilitaryTime,
+        hour12: false, // 强制24小时制
         timeZone: timeZone as string,
         ...(isCurrentYear ? {} : {year: 'numeric'}),
     };
@@ -99,7 +99,7 @@ export function getConversationTimestampFormat(timestamp: number, opts?: LocaleA
         const value = date.toLocaleTimeString(opts?.locale, {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: !isMilitaryTime,
+            hour12: false, // 强制24小时制
             ...fmtOpts,
         });
         return {type: 'time', value};

@@ -83,7 +83,7 @@ const BlockItem = ({
     }, [index, onFocus]);
 
     // Get appropriate style for block type
-    const getBlockStyle = () => {
+    const getBlockTextStyle = () => {
         switch (block.type) {
             case 'heading': {
                 const level = block.meta?.level || 1;
@@ -217,7 +217,7 @@ const BlockItem = ({
 
     // Render text-based blocks
     const prefix = getPrefix();
-    const blockStyle = getBlockStyle();
+    const blockStyle = getBlockTextStyle();
 
     return (
         <View style={style.blockContainer}>

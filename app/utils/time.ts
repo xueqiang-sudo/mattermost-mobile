@@ -28,7 +28,7 @@ export function getFormattedTime(
     const options: Intl.DateTimeFormatOptions = {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: !isMilitaryTime,
+        hour12: false, // 强制24小时制
     };
     if (timeZone) {
         options.timeZone = timeZone;
