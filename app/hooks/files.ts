@@ -44,78 +44,13 @@ const buildFullUrl = (serverUrl: string, fileId: string): string => {
     return serverUrl.replace(/\/$/, '') + (route.startsWith('/') ? route : '/' + route);
 };
 
-// 获取最终下载 URL（处理 307 重定向）
+// 获取下载 URL
+// 注意：React Native 的网络客户端（包括 apiClient.download）会自动跟随 307 重定向，
+// 因此不需要手动检测重定向。直接返回原始 URL，下载器会自动处理 CDN 重定向。
 const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<string> => {
-    try {
-        const client = NetworkManager.getClient(serverUrl);
-        const fullUrl = buildFullUrl(serverUrl, fileId);
-
-        debugLog('[Preview] Checking for redirect', {fullUrl});
-
-        // 使用原生 fetch API，设置 redirect: 'manual' 来捕获重定向
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-        try {
-            // 使用 GET 请求（服务器对 HEAD 请求不返回 307 重定向）
-            // redirect: 'manual' 确保不会自动跟随重定向，只获取 Location header
-            const headers = client.getRequestHeaders('get');
-            // 覆盖 Accept header 为 */*，与 webapp 浏览器行为一致
-            // 服务器可能根据 Accept header 决定是否返回 CDN 重定向
-            headers['Accept'] = '*/*';
-            const resp = await fetch(fullUrl, {
-                method: 'GET',
-                redirect: 'manual',
-                signal: controller.signal,
-                headers,
-            });
-
-            clearTimeout(timeoutId);
-
-            const statusCode = resp.status;
-            const location = resp.headers.get('Location') || resp.headers.get('location');
-
-            debugLog('[Preview] Redirect check response', {
-                fullUrl,
-                statusCode,
-                location: location || '(none)',
-                contentType: resp.headers.get('Content-Type') || '(none)',
-                contentLength: resp.headers.get('Content-Length') || '(none)',
-            });
-
-            // 检查文件是否存在（404 或其他错误状态）
-            if (statusCode === 404) {
-                debugLog('[Preview] File not found (404)', {fullUrl});
-                throw new Error('文件不存在或已被删除');
-            }
-            if (statusCode >= 400 && statusCode !== 307 && statusCode !== 302 && statusCode !== 301) {
-                debugLog('[Preview] Server error', {fullUrl, statusCode});
-                throw new Error(`服务器返回错误: ${statusCode}`);
-            }
-
-            // 如果有 307/302/301 重定向，返回重定向 URL
-            if (location && (statusCode === 307 || statusCode === 302 || statusCode === 301)) {
-                debugLog('[Preview] Found redirect', {from: fullUrl, to: location});
-                // 确保重定向 URL 是完整的（有些服务器返回相对路径）
-                if (location.startsWith('http://') || location.startsWith('https://')) {
-                    return location;
-                }
-                // 相对路径，拼接服务器地址
-                const baseUrl = new URL(fullUrl).origin;
-                return baseUrl + (location.startsWith('/') ? location : '/' + location);
-            }
-
-            // 没有重定向，返回原始 URL
-            return fullUrl;
-        } catch (fetchError: any) {
-            clearTimeout(timeoutId);
-            throw fetchError;
-        }
-    } catch (e: any) {
-        const errorMsg = e?.name === 'AbortError' ? 'Request timeout' : String(e);
-        debugLog('[Preview] Redirect check failed, using original URL', {error: errorMsg});
-        return buildFullUrl(serverUrl, fileId);
-    }
+    const fullUrl = buildFullUrl(serverUrl, fileId);
+    debugLog('[Preview] Using download URL', {fullUrl, note: 'Download client will auto-follow 307 redirects'});
+    return fullUrl;
 };
 
 // 触发 Office → PDF 转换并轮询（对齐 webapp）
