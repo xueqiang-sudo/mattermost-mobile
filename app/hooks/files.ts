@@ -44,53 +44,13 @@ const buildFullUrl = (serverUrl: string, fileId: string): string => {
     return serverUrl.replace(/\/$/, '') + (route.startsWith('/') ? route : '/' + route);
 };
 
-// 获取最终下载 URL（解析 307 重定向获取 CDN 地址）
-// 原因：apiClient.download() 原生下载器不支持自动跟随 307 重定向，
-// 所以需要先通过 fetch 跟随重定向获取最终 CDN URL，再用该 URL 下载。
-const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<string> => {
+// 获取下载 URL（返回完整 URL 用于 expo-file-system 下载）
+// expo-file-system.downloadAsync() 会自动跟随 307 重定向并直接写入磁盘
+const getDownloadUrl = (serverUrl: string, fileId: string): string => {
     const client = NetworkManager.getClient(serverUrl);
-    // 使用相对路径，因为 apiClient.download 会自动加上 base URL
     const relativePath = client.getFileRoute(fileId) + '?download=1';
-
-    debugLog('[Preview] Resolving download URL', {relativePath, serverUrl});
-
-    try {
-        const headers = client.getRequestHeaders('get');
-        // 构建完整 URL 用于 fetch 请求
-        const fullUrl = serverUrl.replace(/\/$/, '') + relativePath;
-
-        // 使用 GET 请求（HEAD 可能不被服务器支持）
-        // 设置 redirect: 'follow' 让 fetch 自动跟随重定向
-        const response = await fetch(fullUrl, {
-            method: 'GET',
-            headers,
-            redirect: 'follow',
-        });
-
-        // response.url 是跟随重定向后的最终 URL
-        const finalUrl = response.url;
-
-        debugLog('[Preview] Resolved download URL', {
-            original: fullUrl,
-            final: finalUrl,
-            redirected: finalUrl !== fullUrl,
-            status: response.status,
-        });
-
-        // 如果发生了重定向，返回最终的 CDN URL（完整 URL）
-        if (finalUrl !== fullUrl && response.ok) {
-            return finalUrl;
-        }
-
-        // 没有重定向或出错，返回相对路径让下载器处理
-        if (!response.ok) {
-            debugLog('[Preview] URL resolution returned error', {status: response.status});
-        }
-        return relativePath;
-    } catch (e: any) {
-        debugLog('[Preview] Failed to resolve URL, using relative path', {error: String(e)});
-        return relativePath;
-    }
+    // 返回完整 URL
+    return serverUrl.replace(/\/$/, '') + relativePath;
 };
 
 // 触发 Office → PDF 转换并轮询（对齐 webapp）
@@ -318,15 +278,11 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             }
 
             // 下载 PDF 预览版本
-            const originalUrl = buildFullUrl(serverUrl, pdfPreviewId);
-
-            // 获取最终下载 URL（处理 307 重定向）
-            const finalDownloadUrl = await getFinalDownloadUrl(serverUrl, pdfPreviewId);
+            const downloadUrl = getDownloadUrl(serverUrl, pdfPreviewId);
             debugLog('[Preview] Downloading PDF preview (Office)', {
                 originalFileId: file.id,
                 pdfPreviewId,
-                originalUrl,
-                finalDownloadUrl,
+                downloadUrl,
                 serverUrl,
             });
 
@@ -347,44 +303,29 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                     await ensureParentDir(pdfPath);
 
                     debugLog('[Preview] Starting download', {
-                        url: finalDownloadUrl,
+                        url: downloadUrl,
                         destination: pdfPath,
                     });
 
-                    // 使用最终 URL 下载
-                    // 如果是完整 URL（CDN 重定向），使用 expo-file-system 下载
-                    // 如果是相对路径，使用 apiClient.download
-                    if (finalDownloadUrl.startsWith('http')) {
-                        // CDN URL - 使用 expo-file-system 直接下载
-                        const expoFs = await import('expo-file-system');
-                        debugLog('[Preview] Downloading from CDN URL', {url: finalDownloadUrl});
-                        const downloadResult = expoFs.downloadAsync(
-                            finalDownloadUrl,
-                            pdfPath.replace('file://', ''),
-                        );
-                        downloadTask.current = downloadResult as any;
-                        await downloadResult;
-                    } else {
-                        // 相对路径 - 使用 apiClient.download
-                        const client = NetworkManager.getClient(serverUrl);
-                        downloadTask.current = client.apiClient.download(
-                            finalDownloadUrl,
-                            pdfPath.replace('file://', ''),
-                            {timeoutInterval: 60000},
-                        );
-                        downloadTask.current?.progress?.(setProgress);
-                        await downloadTask.current;
-                    }
-                    downloadTask.current?.progress?.(setProgress);
-                    const downloadResponse = await downloadTask.current;
+                    // 使用 expo-file-system 下载
+                    // 会自动跟随 307 重定向，直接写入磁盘（不进内存）
+                    const {downloadAsync} = await import('expo-file-system');
+                    const client = NetworkManager.getClient(serverUrl);
+                    const headers = client.getRequestHeaders('get');
+
+                    const downloadResult = await downloadAsync(
+                        downloadUrl,
+                        pdfPath.replace('file://', ''),
+                        {headers},
+                    );
                     setProgress(1);
 
-                    // 记录下载响应（诊断用）
+                    // 记录下载结果（诊断用）
                     debugLog('[Preview] Download response', {
-                        status: downloadResponse?.status || downloadResponse?.statusCode || 'unknown',
-                        headers: downloadResponse?.headers || {},
-                        ok: downloadResponse?.ok,
-                        url: finalDownloadUrl,
+                        uri: downloadResult?.uri,
+                        status: downloadResult?.status,
+                        headers: downloadResult?.headers,
+                        url: downloadUrl,
                     });
 
                     // Wait a bit for file system to flush
@@ -488,15 +429,11 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
         // ── 已有 PDF 预览版本（非 Office 但有 pdf_preview_id）──
         if (hasPdfPreview(file) && file.pdf_preview_id) {
 
-            const originalUrl = buildFullUrl(serverUrl, file.pdf_preview_id);
-
-            // 获取最终下载 URL（处理 307 重定向）
-            const finalDownloadUrl = await getFinalDownloadUrl(serverUrl, file.pdf_preview_id);
+            const downloadUrl = getDownloadUrl(serverUrl, file.pdf_preview_id);
             debugLog('[Preview] Downloading PDF preview', {
                 originalFileId: file.id,
                 pdfPreviewId: file.pdf_preview_id,
-                originalUrl,
-                finalDownloadUrl,
+                downloadUrl,
                 serverUrl,
             });
 
@@ -516,33 +453,29 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                     setDownloading(true);
                     await ensureParentDir(pdfPath);
 
-                    // 使用最终 URL 下载
-                    // 如果是完整 URL（CDN 重定向），使用 expo-file-system 下载
-                    // 如果是相对路径，使用 apiClient.download
-                    if (finalDownloadUrl.startsWith('http')) {
-                        // CDN URL - 使用 expo-file-system 直接下载
-                        const expoFs = await import('expo-file-system');
-                        debugLog('[Preview] Downloading from CDN URL', {url: finalDownloadUrl});
-                        const downloadResult = expoFs.downloadAsync(
-                            finalDownloadUrl,
-                            pdfPath.replace('file://', ''),
-                        );
-                        downloadTask.current = downloadResult as any;
-                        await downloadResult;
-                    } else {
-                        // 相对路径 - 使用 apiClient.download
-                        const client = NetworkManager.getClient(serverUrl);
-                        downloadTask.current = client.apiClient.download(
-                            finalDownloadUrl,
-                            pdfPath.replace('file://', ''),
-                            {timeoutInterval: 60000},
-                        );
-                        downloadTask.current?.progress?.(setProgress);
-                        await downloadTask.current;
-                    }
-                    downloadTask.current?.progress?.(setProgress);
-                    await downloadTask.current;
+                    debugLog('[Preview] Starting download', {
+                        url: downloadUrl,
+                        destination: pdfPath,
+                    });
+
+                    // 使用 expo-file-system 下载
+                    // 会自动跟随 307 重定向，直接写入磁盘（不进内存）
+                    const {downloadAsync} = await import('expo-file-system');
+                    const client = NetworkManager.getClient(serverUrl);
+                    const headers = client.getRequestHeaders('get');
+
+                    const downloadResult = await downloadAsync(
+                        downloadUrl,
+                        pdfPath.replace('file://', ''),
+                        {headers},
+                    );
                     setProgress(1);
+
+                    debugLog('[Preview] Download response', {
+                        uri: downloadResult?.uri,
+                        status: downloadResult?.status,
+                        url: downloadUrl,
+                    });
 
                     // Wait a bit for file system to flush
                     await new Promise(resolve => setTimeout(resolve, 200));
@@ -656,52 +589,40 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 setDownloading(true);
 
                 // Build download URL
-                const originalUrl = buildFullUrl(serverUrl, file.id!);
-
-                // 获取最终下载 URL（处理 307 重定向）
-                const finalDownloadUrl = await getFinalDownloadUrl(serverUrl, file.id!);
+                const downloadUrl = getDownloadUrl(serverUrl, file.id!);
                 debugLog('[Preview] downloading file', {
                     fileId: file.id,
                     name: file.name,
-                    originalUrl,
-                    finalDownloadUrl,
+                    downloadUrl,
                     localPath: path,
                     serverUrl,
                 });
 
                 await ensureParentDir(path!);
 
-                // 使用最终 URL 下载
-                // 如果是完整 URL（CDN 重定向），使用 expo-file-system 下载
-                // 如果是相对路径，使用 apiClient.download
-                let downloadResponse;
-                if (finalDownloadUrl.startsWith('http')) {
-                    // CDN URL - 使用 expo-file-system 直接下载
-                    const expoFs = await import('expo-file-system');
-                    debugLog('[Preview] Downloading from CDN URL', {url: finalDownloadUrl});
-                    downloadResponse = await expoFs.downloadAsync(
-                        finalDownloadUrl,
-                        path!.replace('file://', ''),
-                    );
-                } else {
-                    // 相对路径 - 使用 apiClient.download
-                    const client = NetworkManager.getClient(serverUrl);
-                    downloadTask.current = client.apiClient.download(
-                        finalDownloadUrl,
-                        path!.replace('file://', ''),
-                        {timeoutInterval: 60000},
-                    );
-                    downloadTask.current?.progress?.(setProgress);
-                    downloadResponse = await downloadTask.current;
-                }
+                debugLog('[Preview] Starting download', {
+                    url: downloadUrl,
+                    destination: path,
+                });
+
+                // 使用 expo-file-system 下载
+                // 会自动跟随 307 重定向，直接写入磁盘（不进内存）
+                const {downloadAsync} = await import('expo-file-system');
+                const client = NetworkManager.getClient(serverUrl);
+                const headers = client.getRequestHeaders('get');
+
+                const downloadResult = await downloadAsync(
+                    downloadUrl,
+                    path!.replace('file://', ''),
+                    {headers},
+                );
                 setProgress(1);
 
-                // 记录下载响应（诊断用）
+                // 记录下载结果（诊断用）
                 debugLog('[Preview] Download response', {
-                    status: downloadResponse?.status || downloadResponse?.statusCode || 'unknown',
-                    headers: downloadResponse?.headers || {},
-                    ok: downloadResponse?.ok || downloadResponse?.uri,
-                    url: finalDownloadUrl,
+                    uri: downloadResult?.uri,
+                    status: downloadResult?.status,
+                    url: downloadUrl,
                 });
 
                 const afterExists = await fileExists(path!);
