@@ -59,14 +59,12 @@ const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<s
         try {
             // 使用 GET 请求（服务器对 HEAD 请求不返回 307 重定向）
             // redirect: 'manual' 确保不会自动跟随重定向，只获取 Location header
+            const headers = client.getRequestHeaders('get');
             const resp = await fetch(fullUrl, {
                 method: 'GET',
                 redirect: 'manual',
                 signal: controller.signal,
-                headers: {
-                    // 添加认证 header（如果需要）
-                    'Authorization': `Bearer ${client.apiClient.apiToken || ''}`,
-                },
+                headers,
             });
 
             clearTimeout(timeoutId);
