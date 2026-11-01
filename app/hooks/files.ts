@@ -52,37 +52,55 @@ const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<s
 
         debugLog('[Preview] Checking for redirect', {fullUrl});
 
-        // 使用 HEAD 请求检查重定向（不下载响应体）
-        const resp = await client.doFetch(fullUrl, {method: 'head'});
-        const headers = resp?.headers || {};
-        const statusCode = resp?.status || resp?.statusCode || 'unknown';
+        // 使用原生 fetch API，设置 redirect: 'manual' 来捕获重定向
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        const location = headers.Location || headers.location;
+        try {
+            const resp = await fetch(fullUrl, {
+                method: 'HEAD',
+                redirect: 'manual',
+                signal: controller.signal,
+                headers: {
+                    // 添加认证 header（如果需要）
+                    'Authorization': `Bearer ${client.apiClient.apiToken || ''}`,
+                },
+            });
 
-        debugLog('[Preview] Redirect check response', {
-            fullUrl,
-            statusCode,
-            location: location || '(none)',
-            contentType: headers['Content-Type'] || headers['content-type'] || '(none)',
-            contentLength: headers['Content-Length'] || headers['content-length'] || '(none)',
-        });
+            clearTimeout(timeoutId);
 
-        // 如果有 307/302/301 重定向，返回重定向 URL
-        if (location && (statusCode === 307 || statusCode === 302 || statusCode === 301)) {
-            debugLog('[Preview] Found redirect', {from: fullUrl, to: location});
-            // 确保重定向 URL 是完整的（有些服务器返回相对路径）
-            if (location.startsWith('http://') || location.startsWith('https://')) {
-                return location;
+            const statusCode = resp.status;
+            const location = resp.headers.get('Location') || resp.headers.get('location');
+
+            debugLog('[Preview] Redirect check response', {
+                fullUrl,
+                statusCode,
+                location: location || '(none)',
+                contentType: resp.headers.get('Content-Type') || '(none)',
+                contentLength: resp.headers.get('Content-Length') || '(none)',
+            });
+
+            // 如果有 307/302/301 重定向，返回重定向 URL
+            if (location && (statusCode === 307 || statusCode === 302 || statusCode === 301)) {
+                debugLog('[Preview] Found redirect', {from: fullUrl, to: location});
+                // 确保重定向 URL 是完整的（有些服务器返回相对路径）
+                if (location.startsWith('http://') || location.startsWith('https://')) {
+                    return location;
+                }
+                // 相对路径，拼接服务器地址
+                const baseUrl = new URL(fullUrl).origin;
+                return baseUrl + (location.startsWith('/') ? location : '/' + location);
             }
-            // 相对路径，拼接服务器地址
-            const baseUrl = new URL(fullUrl).origin;
-            return baseUrl + (location.startsWith('/') ? location : '/' + location);
-        }
 
-        // 没有重定向，返回原始 URL
-        return fullUrl;
-    } catch (e) {
-        debugLog('[Preview] Redirect check failed, using original URL', {error: String(e)});
+            // 没有重定向，返回原始 URL
+            return fullUrl;
+        } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            throw fetchError;
+        }
+    } catch (e: any) {
+        const errorMsg = e?.name === 'AbortError' ? 'Request timeout' : String(e);
+        debugLog('[Preview] Redirect check failed, using original URL', {error: errorMsg});
         return buildFullUrl(serverUrl, fileId);
     }
 };
