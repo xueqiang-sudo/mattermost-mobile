@@ -40,6 +40,7 @@ import {
     type GraphEntity,
     type GraphRelation,
 } from './smart_notebook_api';
+import KnowledgeGraph from './knowledge_graph';
 
 // ---- Constants ----
 
@@ -127,6 +128,7 @@ const SmartNotebookScreen = () => {
     const [graphRelations, setGraphRelations] = useState<GraphRelation[]>([]);
     const [graphLoading, setGraphLoading] = useState(false);
     const [graphSearchQuery, setGraphSearchQuery] = useState('');
+    const [expandedEntity, setExpandedEntity] = useState<string | null>(null);
 
     // ---- Init: get userId ----
     useEffect(() => {
@@ -470,8 +472,10 @@ const SmartNotebookScreen = () => {
                             <CompassIcon name='close-circle' size={20} color={changeOpacity(theme.centerChannelColor, 0.5)}/>
                         </TouchableOpacity>
                     ) : (
-                        <TouchableOpacity onPress={onCreateNote} style={style.searchActionBtn}>
-                            <CompassIcon name='plus' size={20} color={theme.buttonBg}/>
+                        <TouchableOpacity onPress={onCreateNote} style={style.newNoteBtn}>
+                            <Text style={style.newNoteBtnText}>
+                                {intl.formatMessage({id: 'smart_notebook.new', defaultMessage: '新建'})}
+                            </Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -556,7 +560,7 @@ const SmartNotebookScreen = () => {
                 );
             })()}
 
-            {/* List Tab Content - Graph Entities */}
+            {/* List Tab Content - Graph Entities with Knowledge Graph */}
             {viewMode === 'list' && (
                 graphLoading ? (
                     <View style={style.loadingContainer}>
@@ -564,22 +568,55 @@ const SmartNotebookScreen = () => {
                     </View>
                 ) : (
                     <FlatList
-                        data={graphEntities.filter(e =>
-                            !graphSearchQuery ||
-                            e.name.toLowerCase().includes(graphSearchQuery.toLowerCase()) ||
-                            (e.summary || '').toLowerCase().includes(graphSearchQuery.toLowerCase())
-                        )}
+                        data={(() => {
+                            // Build relation count map
+                            const relCountMap = new Map<string, number>();
+                            graphEntities.forEach(e => relCountMap.set(e.uuid, 0));
+                            graphRelations.forEach(rel => {
+                                const src = graphEntities.find(e => e.uuid === rel.source || e.name === rel.source);
+                                const tgt = graphEntities.find(e => e.uuid === rel.target || e.name === rel.target);
+                                if (src) relCountMap.set(src.uuid, (relCountMap.get(src.uuid) || 0) + 1);
+                                if (tgt) relCountMap.set(tgt.uuid, (relCountMap.get(tgt.uuid) || 0) + 1);
+                            });
+
+                            // Filter and sort by relation count (descending)
+                            const filter = graphSearchQuery.toLowerCase();
+                            return [...graphEntities]
+                                .filter(e => {
+                                    if (!filter) return true;
+                                    return e.name.toLowerCase().includes(filter) ||
+                                           (e.summary || '').toLowerCase().includes(filter);
+                                })
+                                .sort((a, b) => (relCountMap.get(b.uuid) || 0) - (relCountMap.get(a.uuid) || 0));
+                        })()}
                         keyExtractor={(item) => item.uuid}
                         refreshing={false}
                         onRefresh={loadGraph}
                         contentContainerStyle={style.listContent}
+                        ListHeaderComponent={
+                            expandedEntity ? (
+                                <KnowledgeGraph
+                                    entities={graphEntities}
+                                    relations={graphRelations}
+                                    selectedUuid={expandedEntity}
+                                    onSelectEntity={setExpandedEntity}
+                                    theme={theme}
+                                />
+                            ) : null
+                        }
                         renderItem={({item}) => {
                             const relCount = graphRelations.filter(r =>
                                 r.source === item.uuid || r.source === item.name ||
                                 r.target === item.uuid || r.target === item.name
                             ).length;
+                            const isSelected = expandedEntity === item.uuid;
+
                             return (
-                                <View style={style.entityCard}>
+                                <TouchableOpacity
+                                    style={[style.entityCard, isSelected && style.entityCardExpanded]}
+                                    onPress={() => setExpandedEntity(isSelected ? null : item.uuid)}
+                                    activeOpacity={0.7}
+                                >
                                     <View style={style.entityHeader}>
                                         <Text style={style.entityName} numberOfLines={1}>
                                             {item.name}
@@ -593,7 +630,7 @@ const SmartNotebookScreen = () => {
                                             {item.summary}
                                         </Text>
                                     ) : null}
-                                </View>
+                                </TouchableOpacity>
                             );
                         }}
                         ListEmptyComponent={
@@ -677,6 +714,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     searchActionBtn: {
         padding: 8,
         marginLeft: 4,
+    },
+    newNoteBtn: {
+        backgroundColor: theme.buttonBg,
+        borderRadius: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        marginLeft: 8,
+    },
+    newNoteBtnText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.buttonColor,
     },
     swipeActionsContainer: {
         flexDirection: 'row',
@@ -796,6 +844,32 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     entitySummary: {
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.7),
+    },
+    entityCardExpanded: {
+        borderColor: theme.buttonBg,
+        borderWidth: 1.5,
+    },
+    entityRelations: {
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    relationItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+    },
+    relationType: {
+        ...typography('Body', 50),
+        color: theme.buttonBg,
+        marginRight: 8,
+        minWidth: 60,
+    },
+    relationName: {
+        ...typography('Body', 75),
+        color: theme.centerChannelColor,
+        flex: 1,
     },
 }));
 

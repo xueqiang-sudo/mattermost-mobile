@@ -209,12 +209,26 @@ export async function transcribeAudio(
 
     // Use voice-to-text-plugin's direct transcription API
     const VOICE_PLUGIN_BASE = '/plugins/com.superera.voice-recognition';
-    const resp = await client.doFetch(VOICE_PLUGIN_BASE + '/api/v1/transcribe', {
-        method: 'post',
-        body: formData,
-    });
+    const endpoint = VOICE_PLUGIN_BASE + '/api/v1/transcribe';
 
-    return resp;
+    try {
+        const resp = await client.doFetch(endpoint, {
+            method: 'post',
+            body: formData,
+        });
+
+        // doFetch returns {data: ...} or throws on error
+        return resp?.data || resp;
+    } catch (e: any) {
+        // Extract error details
+        const errorMessage = e?.message || String(e);
+        const serverMessage = e?.server_error?.message || e?.details?.error || '';
+        console.log('[transcribeAudio] Error:', errorMessage, serverMessage);
+        return {
+            success: false,
+            error: serverMessage || errorMessage || '语音转文字服务暂不可用',
+        };
+    }
 }
 
 // ── Markdown <-> Blocks Conversion Helpers ──
@@ -239,30 +253,63 @@ export function blocksToMarkdown(blocks: SmartNoteBlock[]): string {
         return '';
     }
 
-    // Check if it's a single markdown block (new format)
+    // Check if it's a single markdown block (mobile format)
     if (blocks.length === 1 && blocks[0].meta?.format === 'markdown') {
         return blocks[0].content;
     }
 
-    // Legacy: convert old blocks to markdown
+    // Convert Editor.js style blocks to markdown
+    // Handle HTML tags from webapp (like <br>, <b>, <i>, etc.)
+    const cleanHtml = (text: string): string => {
+        if (!text) return '';
+        return text
+            .replace(/<br\s*\/?>/gi, '\n')          // <br> → newline
+            .replace(/<\/?b>/gi, '**')               // <b> → **bold**
+            .replace(/<\/?strong>/gi, '**')          // <strong> → **bold**
+            .replace(/<\/?i>/gi, '*')                // <i> → *italic*
+            .replace(/<\/?em>/gi, '*')               // <em> → *italic*
+            .replace(/<\/?u>/gi, '')                 // <u> → remove
+            .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')  // <a> → markdown link
+            .replace(/<code>(.*?)<\/code>/gi, '`$1`')  // <code> → `code`
+            .replace(/<mark>(.*?)<\/mark>/gi, '==$1==')  // <mark> → ==highlight==
+            .replace(/<\/?[^>]+>/g, '');             // Remove remaining HTML tags
+    };
+
     return blocks.map(block => {
+        const content = cleanHtml(block.content || '');
+
         switch (block.type) {
-            case 'heading':
-                return `# ${block.content}`;
+            case 'heading': {
+                const level = block.meta?.level || 2;
+                const prefix = '#'.repeat(Math.min(level, 6));
+                return `${prefix} ${content}`;
+            }
             case 'blockquote':
-                return `> ${block.content}`;
+                return `> ${content}`;
             case 'code-block':
-                return `\`\`\`\n${block.content}\n\`\`\``;
-            case 'bulleted-list':
-                return `- ${block.content}`;
-            case 'numbered-list':
-                return `1. ${block.content}`;
+                return `\`\`\`\n${content}\n\`\`\``;
+            case 'bulleted-list': {
+                const items = block.meta?.items || [content];
+                return items.map((item: string) => `- ${cleanHtml(item)}`).join('\n');
+            }
+            case 'numbered-list': {
+                const items = block.meta?.items || [content];
+                return items.map((item: string, i: number) => `${i + 1}. ${cleanHtml(item)}`).join('\n');
+            }
             case 'image':
-                return `![image](${block.content})`;
+                return `![${block.meta?.caption || 'image'}](${content})`;
             case 'video':
-                return `[video](${block.content})`;
+                return `🎬 [video](${content})`;
+            case 'audio':
+                return `🎵 [audio](${content})`;
+            case 'divider':
+            case 'horizontal-rule':
+                return '---';
+            case 'table':
+                // Tables are complex, just show content for now
+                return content;
             default:
-                return block.content;
+                return content;
         }
     }).join('\n\n');
 }

@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
     Alert,
+    Clipboard,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -20,6 +21,8 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
+import Markdown from '@components/markdown';
+import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
@@ -59,13 +62,17 @@ const SmartNoteDetailScreen = () => {
     const {noteId, noteTitle} = route.params;
     const isNew = noteId === 'new';
 
+    // Mode: 'new' = creating new note, 'viewing' = read-only, 'editing' = edit mode
+    type NoteMode = 'new' | 'viewing' | 'editing';
+    const [mode, setMode] = useState<NoteMode>(isNew ? 'new' : 'viewing');
+
     const textInputRef = useRef<TextInput>(null);
     const [userId, setUserId] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
     const [content, setContent] = useState('');
+    const [originalContent, setOriginalContent] = useState(''); // For cancel comparison
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(!isNew);
-    const [hasChanges, setHasChanges] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
 
@@ -81,7 +88,9 @@ const SmartNoteDetailScreen = () => {
                     const note = await getNote(serverUrl, uid, noteId);
                     if (note) {
                         setTitle(note.title);
-                        setContent(blocksToMarkdown(note.blocks || []));
+                        const md = blocksToMarkdown(note.blocks || []);
+                        setContent(md);
+                        setOriginalContent(md);
                     }
                 }
             } catch (e) {
@@ -313,7 +322,13 @@ const SmartNoteDetailScreen = () => {
 
             setHasChanges(false);
             setSaveSuccess(true);
+            setOriginalContent(content); // Update original content after save
             setTimeout(() => setSaveSuccess(false), 2000);
+
+            // After saving, go back to viewing mode (for editing existing notes)
+            if (mode === 'editing') {
+                setMode('viewing');
+            }
         } catch (e) {
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.save_failed', defaultMessage: '保存失败'}),
@@ -321,7 +336,56 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [userId, saving, title, content, isNew, serverUrl, noteId, intl, extractTitleFromContent]);
+    }, [userId, saving, title, content, isNew, serverUrl, noteId, intl, extractTitleFromContent, mode]);
+
+    // ---- Enter edit mode ----
+    const handleEdit = useCallback(() => {
+        setMode('editing');
+        setOriginalContent(content); // Store current content for cancel comparison
+        // Focus the text input after a short delay
+        setTimeout(() => textInputRef.current?.focus(), 100);
+    }, [content]);
+
+    // ---- Cancel editing ----
+    const handleCancel = useCallback(() => {
+        if (content !== originalContent) {
+            Alert.alert(
+                intl.formatMessage({id: 'smart_notebook.unsaved_changes', defaultMessage: '未保存的更改'}),
+                intl.formatMessage({id: 'smart_notebook.discard_changes', defaultMessage: '是否放弃更改？'}),
+                [
+                    {
+                        text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                        style: 'cancel',
+                    },
+                    {
+                        text: intl.formatMessage({id: 'smart_notebook.discard', defaultMessage: '放弃'}),
+                        style: 'destructive',
+                        onPress: () => {
+                            setContent(originalContent);
+                            setHasChanges(false);
+                            setMode('viewing');
+                        },
+                    },
+                ],
+            );
+        } else {
+            setMode('viewing');
+        }
+    }, [content, originalContent, intl]);
+
+    // ---- Copy content (plain text, no formatting) ----
+    const handleCopy = useCallback(() => {
+        if (!content.trim()) {
+            Alert.alert(
+                intl.formatMessage({id: 'smart_notebook.copy_empty', defaultMessage: '没有可复制的内容'}),
+            );
+            return;
+        }
+        Clipboard.setString(content);
+        Alert.alert(
+            intl.formatMessage({id: 'smart_notebook.copy_success', defaultMessage: '已复制到剪贴板'}),
+        );
+    }, [content, intl]);
 
     // ---- Go back with confirmation ----
     const handleGoBack = useCallback(() => {
@@ -374,20 +438,34 @@ const SmartNoteDetailScreen = () => {
             >
                 {/* Header */}
                 <View style={style.header}>
-                    <TouchableOpacity onPress={handleGoBack} style={style.headerBtn}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                    <TouchableOpacity onPress={mode === 'editing' ? handleCancel : handleGoBack} style={style.headerBtn}>
+                        <CompassIcon
+                            name={mode === 'editing' ? 'close' : 'arrow-left'}
+                            size={20}
+                            color={theme.sidebarText}
+                        />
                     </TouchableOpacity>
-                    <TextInput
-                        style={style.headerTitle}
-                        value={title}
-                        onChangeText={(text) => {
-                            setTitle(text);
-                            setHasChanges(true);
-                        }}
-                        placeholder={intl.formatMessage({id: 'smart_notebook.title_placeholder', defaultMessage: '笔记标题（可留空，自动提取）'})}
-                        placeholderTextColor={changeOpacity(theme.sidebarText, 0.5)}
-                    />
-                    {saveSuccess ? (
+                    <View style={style.headerTitleContainer}>
+                        <Text style={style.headerLabel} numberOfLines={1}>
+                            {mode === 'new'
+                                ? intl.formatMessage({id: 'smart_notebook.new_note', defaultMessage: '新建笔记'})
+                                : mode === 'editing'
+                                    ? intl.formatMessage({id: 'smart_notebook.edit_note', defaultMessage: '编辑笔记'})
+                                    : title || intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'})}
+                        </Text>
+                    </View>
+                    {mode === 'viewing' ? (
+                        <View style={style.headerActions}>
+                            <TouchableOpacity onPress={handleCopy} style={style.headerActionBtn}>
+                                <CompassIcon name='content-copy' size={20} color={theme.sidebarText}/>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleEdit} style={style.saveBtn}>
+                                <Text style={style.saveBtnText}>
+                                    {intl.formatMessage({id: 'smart_notebook.edit', defaultMessage: '编辑'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : saveSuccess ? (
                         <View style={style.saveSuccessContainer}>
                             <Text style={style.saveSuccessText}>
                                 {intl.formatMessage({id: 'smart_notebook.saved', defaultMessage: '已保存'})}
@@ -402,20 +480,47 @@ const SmartNoteDetailScreen = () => {
                     )}
                 </View>
 
-                {/* Editor */}
+                {/* Content Area */}
                 <ScrollView style={style.editorContainer} keyboardShouldPersistTaps='handled'>
-                    <TextInput
-                        ref={textInputRef}
-                        style={style.editor}
-                        value={content}
-                        onChangeText={handleContentChange}
-                        placeholder={intl.formatMessage({id: 'smart_notebook.content_placeholder', defaultMessage: '输入 Markdown 内容...'})}
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                        multiline
-                        textAlignVertical='top'
-                        autoCapitalize='none'
-                        autoCorrect={false}
-                    />
+                    {mode === 'viewing' ? (
+                        // Read-only view with Markdown rendering
+                        <TouchableOpacity
+                            style={style.readOnlyContainer}
+                            onPress={handleEdit}
+                            activeOpacity={0.8}
+                        >
+                            {content ? (
+                                <Markdown
+                                    value={content}
+                                    baseTextStyle={style.readOnlyContent}
+                                    location={Screens.SMART_NOTE_DETAIL}
+                                    theme={theme}
+                                    disableAtMentions={true}
+                                    disableChannelLink={true}
+                                    disableGallery={true}
+                                />
+                            ) : (
+                                <Text style={style.readOnlyContent}>
+                                    {intl.formatMessage({id: 'smart_notebook.empty_content', defaultMessage: '暂无内容，点击编辑'})}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    ) : (
+                        // Editable view
+                        <TextInput
+                            ref={textInputRef}
+                            style={style.editor}
+                            value={content}
+                            onChangeText={handleContentChange}
+                            placeholder={intl.formatMessage({id: 'smart_notebook.content_placeholder', defaultMessage: '输入 Markdown 内容...'})}
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
+                            multiline
+                            textAlignVertical='top'
+                            autoCapitalize='none'
+                            autoCorrect={false}
+                            autoFocus={mode === 'new'}
+                        />
+                    )}
                 </ScrollView>
 
                 {/* Recording indicator */}
@@ -436,7 +541,8 @@ const SmartNoteDetailScreen = () => {
                     </View>
                 )}
 
-                {/* Toolbar */}
+                {/* Toolbar - only show in edit mode */}
+                {mode !== 'viewing' && (
                 <View style={style.toolbar}>
                     <TouchableOpacity onPress={insertHeading} style={style.toolbarBtn}>
                         <Text style={style.toolbarText}>H1</Text>
@@ -476,6 +582,7 @@ const SmartNoteDetailScreen = () => {
                         </TouchableOpacity>
                     )}
                 </View>
+                )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -497,6 +604,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     headerBtn: {
         padding: 8,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerActionBtn: {
+        padding: 8,
+        marginRight: 4,
     },
     saveBtn: {
         paddingHorizontal: 12,
@@ -524,6 +639,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.sidebarText,
         flex: 1,
     },
+    headerTitleContainer: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    headerLabel: {
+        ...typography('Heading', 300, 'SemiBold'),
+        color: theme.sidebarText,
+    },
     editorContainer: {
         flex: 1,
     },
@@ -534,6 +657,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 100),
         color: theme.centerChannelColor,
         minHeight: 200,
+    },
+    readOnlyContainer: {
+        flex: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        minHeight: 200,
+    },
+    readOnlyContent: {
+        ...typography('Body', 100),
+        color: theme.centerChannelColor,
+        lineHeight: 24,
     },
     toolbar: {
         flexDirection: 'row',

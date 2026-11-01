@@ -60,6 +60,9 @@ const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<s
             // 使用 GET 请求（服务器对 HEAD 请求不返回 307 重定向）
             // redirect: 'manual' 确保不会自动跟随重定向，只获取 Location header
             const headers = client.getRequestHeaders('get');
+            // 覆盖 Accept header 为 */*，与 webapp 浏览器行为一致
+            // 服务器可能根据 Accept header 决定是否返回 CDN 重定向
+            headers['Accept'] = '*/*';
             const resp = await fetch(fullUrl, {
                 method: 'GET',
                 redirect: 'manual',
