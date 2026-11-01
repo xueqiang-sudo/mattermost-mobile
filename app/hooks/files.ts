@@ -376,8 +376,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                                 contentLength: content.length,
                                 fileSize,
                                 retries: retryCount,
-                                originalUrl: downloadUrl,
-                                redirectUrl,
+                                downloadUrl,
                                 decodedFirst100: decodedContent.substring(0, 100),
                             });
 
@@ -390,8 +389,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                                         decodedContent.includes('AccessDenied') ? 'CDN access denied' :
                                         'Unknown content (not a PDF)',
                                     decodedContent: decodedContent.substring(0, 200),
-                                    originalUrl: downloadUrl,
-                                    redirectUrl,
+                                    downloadUrl,
                                 });
                                 await deleteAsync(pdfPath, {idempotent: true});
                                 throw new Error('Downloaded PDF preview is not a valid PDF document');
@@ -675,8 +673,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                             contentLength: fullContent.length,
                             fileSize,
                             retries: retryCount,
-                            originalUrl: downloadUrl,
-                            redirectUrl,
+                            downloadUrl,
                             decodedFirst100: decodedContent.substring(0, 100),
                         });
 
@@ -689,8 +686,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                                     decodedContent.includes('AccessDenied') ? 'CDN access denied' :
                                     'Unknown content (not a PDF)',
                                 decodedContent: decodedContent.substring(0, 200),
-                                originalUrl: downloadUrl,
-                                redirectUrl,
+                                downloadUrl,
                             });
                             await deleteAsync(path!, {idempotent: true});
                             throw new Error('Downloaded PDF file is not valid');
