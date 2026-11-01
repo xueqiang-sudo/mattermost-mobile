@@ -49,42 +49,47 @@ const buildFullUrl = (serverUrl: string, fileId: string): string => {
 // 所以需要先通过 fetch 跟随重定向获取最终 CDN URL，再用该 URL 下载。
 const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<string> => {
     const client = NetworkManager.getClient(serverUrl);
-    const fullUrl = buildFullUrl(serverUrl, fileId);
+    // 使用相对路径，因为 apiClient.download 会自动加上 base URL
+    const relativePath = client.getFileRoute(fileId) + '?download=1';
 
-    debugLog('[Preview] Resolving download URL', {fullUrl});
+    debugLog('[Preview] Resolving download URL', {relativePath, serverUrl});
 
     try {
         const headers = client.getRequestHeaders('get');
-        // 添加 download=1 参数，与 webapp 保持一致
-        const urlWithDownload = fullUrl.includes('?') ? fullUrl : fullUrl + '?download=1';
+        // 构建完整 URL 用于 fetch 请求
+        const fullUrl = serverUrl.replace(/\/$/, '') + relativePath;
 
-        // 使用 fetch 跟随重定向（默认行为），获取最终 URL
-        const response = await fetch(urlWithDownload, {
-            method: 'HEAD',  // 只获取 headers，不下载 body
+        // 使用 GET 请求（HEAD 可能不被服务器支持）
+        // 设置 redirect: 'follow' 让 fetch 自动跟随重定向
+        const response = await fetch(fullUrl, {
+            method: 'GET',
             headers,
+            redirect: 'follow',
         });
 
         // response.url 是跟随重定向后的最终 URL
         const finalUrl = response.url;
 
         debugLog('[Preview] Resolved download URL', {
-            original: urlWithDownload,
+            original: fullUrl,
             final: finalUrl,
-            redirected: finalUrl !== urlWithDownload,
+            redirected: finalUrl !== fullUrl,
             status: response.status,
         });
 
-        // 检查响应是否成功
-        if (!response.ok) {
-            debugLog('[Preview] URL resolution returned error', {status: response.status});
-            // 返回原始 URL，让下载器处理可能的错误
-            return urlWithDownload;
+        // 如果发生了重定向，返回最终的 CDN URL（完整 URL）
+        if (finalUrl !== fullUrl && response.ok) {
+            return finalUrl;
         }
 
-        return finalUrl;
+        // 没有重定向或出错，返回相对路径让下载器处理
+        if (!response.ok) {
+            debugLog('[Preview] URL resolution returned error', {status: response.status});
+        }
+        return relativePath;
     } catch (e: any) {
-        debugLog('[Preview] Failed to resolve URL, using original', {error: String(e)});
-        return fullUrl;
+        debugLog('[Preview] Failed to resolve URL, using relative path', {error: String(e)});
+        return relativePath;
     }
 };
 
@@ -346,13 +351,30 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                         destination: pdfPath,
                     });
 
-                    // 使用最终 URL 下载（可能是 CDN 重定向地址）
-                    const client = NetworkManager.getClient(serverUrl);
-                    downloadTask.current = client.apiClient.download(
-                        finalDownloadUrl,
-                        pdfPath.replace('file://', ''),
-                        {timeoutInterval: 60000},
-                    );
+                    // 使用最终 URL 下载
+                    // 如果是完整 URL（CDN 重定向），使用 expo-file-system 下载
+                    // 如果是相对路径，使用 apiClient.download
+                    if (finalDownloadUrl.startsWith('http')) {
+                        // CDN URL - 使用 expo-file-system 直接下载
+                        const expoFs = await import('expo-file-system');
+                        debugLog('[Preview] Downloading from CDN URL', {url: finalDownloadUrl});
+                        const downloadResult = expoFs.downloadAsync(
+                            finalDownloadUrl,
+                            pdfPath.replace('file://', ''),
+                        );
+                        downloadTask.current = downloadResult as any;
+                        await downloadResult;
+                    } else {
+                        // 相对路径 - 使用 apiClient.download
+                        const client = NetworkManager.getClient(serverUrl);
+                        downloadTask.current = client.apiClient.download(
+                            finalDownloadUrl,
+                            pdfPath.replace('file://', ''),
+                            {timeoutInterval: 60000},
+                        );
+                        downloadTask.current?.progress?.(setProgress);
+                        await downloadTask.current;
+                    }
                     downloadTask.current?.progress?.(setProgress);
                     const downloadResponse = await downloadTask.current;
                     setProgress(1);
@@ -494,13 +516,30 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                     setDownloading(true);
                     await ensureParentDir(pdfPath);
 
-                    // 使用最终 URL 下载（可能是 CDN 重定向地址）
-                    const client = NetworkManager.getClient(serverUrl);
-                    downloadTask.current = client.apiClient.download(
-                        finalDownloadUrl,
-                        pdfPath.replace('file://', ''),
-                        {timeoutInterval: 60000},
-                    );
+                    // 使用最终 URL 下载
+                    // 如果是完整 URL（CDN 重定向），使用 expo-file-system 下载
+                    // 如果是相对路径，使用 apiClient.download
+                    if (finalDownloadUrl.startsWith('http')) {
+                        // CDN URL - 使用 expo-file-system 直接下载
+                        const expoFs = await import('expo-file-system');
+                        debugLog('[Preview] Downloading from CDN URL', {url: finalDownloadUrl});
+                        const downloadResult = expoFs.downloadAsync(
+                            finalDownloadUrl,
+                            pdfPath.replace('file://', ''),
+                        );
+                        downloadTask.current = downloadResult as any;
+                        await downloadResult;
+                    } else {
+                        // 相对路径 - 使用 apiClient.download
+                        const client = NetworkManager.getClient(serverUrl);
+                        downloadTask.current = client.apiClient.download(
+                            finalDownloadUrl,
+                            pdfPath.replace('file://', ''),
+                            {timeoutInterval: 60000},
+                        );
+                        downloadTask.current?.progress?.(setProgress);
+                        await downloadTask.current;
+                    }
                     downloadTask.current?.progress?.(setProgress);
                     await downloadTask.current;
                     setProgress(1);
@@ -632,23 +671,36 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
                 await ensureParentDir(path!);
 
-                // 使用最终 URL 下载（可能是 CDN 重定向地址）
-                const client = NetworkManager.getClient(serverUrl);
-                downloadTask.current = client.apiClient.download(
-                    finalDownloadUrl,
-                    path!.replace('file://', ''),
-                    {timeoutInterval: 60000},
-                );
-                downloadTask.current?.progress?.(setProgress);
-
-                const downloadResponse = await downloadTask.current;
+                // 使用最终 URL 下载
+                // 如果是完整 URL（CDN 重定向），使用 expo-file-system 下载
+                // 如果是相对路径，使用 apiClient.download
+                let downloadResponse;
+                if (finalDownloadUrl.startsWith('http')) {
+                    // CDN URL - 使用 expo-file-system 直接下载
+                    const expoFs = await import('expo-file-system');
+                    debugLog('[Preview] Downloading from CDN URL', {url: finalDownloadUrl});
+                    downloadResponse = await expoFs.downloadAsync(
+                        finalDownloadUrl,
+                        path!.replace('file://', ''),
+                    );
+                } else {
+                    // 相对路径 - 使用 apiClient.download
+                    const client = NetworkManager.getClient(serverUrl);
+                    downloadTask.current = client.apiClient.download(
+                        finalDownloadUrl,
+                        path!.replace('file://', ''),
+                        {timeoutInterval: 60000},
+                    );
+                    downloadTask.current?.progress?.(setProgress);
+                    downloadResponse = await downloadTask.current;
+                }
                 setProgress(1);
 
                 // 记录下载响应（诊断用）
                 debugLog('[Preview] Download response', {
                     status: downloadResponse?.status || downloadResponse?.statusCode || 'unknown',
                     headers: downloadResponse?.headers || {},
-                    ok: downloadResponse?.ok,
+                    ok: downloadResponse?.ok || downloadResponse?.uri,
                     url: finalDownloadUrl,
                 });
 

@@ -21,8 +21,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
-import Markdown from '@components/markdown';
-import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
@@ -31,15 +29,15 @@ import {getCurrentUserId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import BlockEditor, {createBlock} from './block_editor';
 import {
     getNote,
     createNote,
     updateNote,
     uploadMedia,
     transcribeAudio,
-    markdownToBlocks,
-    blocksToMarkdown,
     type SmartNote,
+    type SmartNoteBlock,
 } from './smart_notebook_api';
 
 // ---- Types ----
@@ -69,12 +67,15 @@ const SmartNoteDetailScreen = () => {
     const textInputRef = useRef<TextInput>(null);
     const [userId, setUserId] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
-    const [content, setContent] = useState('');
-    const [originalContent, setOriginalContent] = useState(''); // For cancel comparison
+    const [blocks, setBlocks] = useState<SmartNoteBlock[]>([createBlock('paragraph', '')]);
+    const [originalBlocks, setOriginalBlocks] = useState<SmartNoteBlock[]>([]); // For cancel comparison
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(!isNew);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
+
+    // Check if content has changed
+    const hasChanges = JSON.stringify(blocks) !== JSON.stringify(originalBlocks) || title !== noteTitle;
 
     // ---- Init ----
     useEffect(() => {
@@ -88,9 +89,11 @@ const SmartNoteDetailScreen = () => {
                     const note = await getNote(serverUrl, uid, noteId);
                     if (note) {
                         setTitle(note.title);
-                        const md = blocksToMarkdown(note.blocks || []);
-                        setContent(md);
-                        setOriginalContent(md);
+                        const noteBlocks = note.blocks && note.blocks.length > 0
+                            ? note.blocks
+                            : [createBlock('paragraph', '')];
+                        setBlocks(noteBlocks);
+                        setOriginalBlocks(JSON.parse(JSON.stringify(noteBlocks)));
                     }
                 }
             } catch (e) {
@@ -118,8 +121,9 @@ const SmartNoteDetailScreen = () => {
             });
 
             if (result.success && result.text) {
-                // Insert transcription text into editor
-                insertAtCursor(result.text + '\n');
+                // Add transcription as a new paragraph block
+                const newBlock = createBlock('paragraph', result.text);
+                setBlocks(prev => [...prev, newBlock]);
             } else {
                 Alert.alert(
                     intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
@@ -136,7 +140,7 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setVoiceProcessing(false);
         }
-    }, [serverUrl, intl, insertAtCursor]);
+    }, [serverUrl, intl]);
 
     const handleVoiceError = useCallback((code: VoiceRecorderErrorCode) => {
         const messages: Record<VoiceRecorderErrorCode, string> = {
@@ -156,46 +160,45 @@ const SmartNoteDetailScreen = () => {
         cancelRecording,
     } = useVoiceRecorder(handleVoiceRecorded, handleVoiceError);
 
-    // ---- Content change handler ----
-    const handleContentChange = useCallback((text: string) => {
-        setContent(text);
-        setHasChanges(true);
+    // ---- Blocks change handler ----
+    const handleBlocksChange = useCallback((newBlocks: SmartNoteBlock[]) => {
+        setBlocks(newBlocks);
     }, []);
 
-    // ---- Insert markdown at cursor ----
-    const insertAtCursor = useCallback((text: string) => {
-        const cursorPos = textInputRef.current?.selection?.start || content.length;
-        const before = content.substring(0, cursorPos);
-        const after = content.substring(cursorPos);
-        const newContent = before + text + after;
-        setContent(newContent);
-        setHasChanges(true);
-    }, [content]);
+    // ---- Add block of specific type ----
+    const addBlock = useCallback((type: SmartNoteBlock['type'], meta?: Record<string, any>) => {
+        const newBlock = createBlock(type, '');
+        if (meta) {
+            newBlock.meta = meta;
+        }
+        setBlocks(prev => [...prev, newBlock]);
+    }, []);
 
     // ---- Toolbar actions ----
     const insertHeading = useCallback(() => {
-        insertAtCursor('# ');
-    }, [insertAtCursor]);
+        addBlock('heading', {level: 1});
+    }, [addBlock]);
 
     const insertBulletList = useCallback(() => {
-        insertAtCursor('- ');
-    }, [insertAtCursor]);
+        addBlock('bulleted-list');
+    }, [addBlock]);
 
     const insertNumberedList = useCallback(() => {
-        insertAtCursor('1. ');
-    }, [insertAtCursor]);
+        addBlock('numbered-list', {number: 1});
+    }, [addBlock]);
 
     const insertQuote = useCallback(() => {
-        insertAtCursor('> ');
-    }, [insertAtCursor]);
+        addBlock('blockquote');
+    }, [addBlock]);
 
     const insertCode = useCallback(() => {
-        insertAtCursor('```\n\n```');
-    }, [insertAtCursor]);
+        addBlock('code-block');
+    }, [addBlock]);
 
     const insertTable = useCallback(() => {
-        insertAtCursor('| 列1 | 列2 |\n|-----|-----|\n| 内容 | 内容 |');
-    }, [insertAtCursor]);
+        addBlock('paragraph', {});
+        // For now, just add a paragraph - tables are complex
+    }, [addBlock]);
 
     // ---- Upload image ----
     const uploadImage = useCallback(async () => {
@@ -214,7 +217,9 @@ const SmartNoteDetailScreen = () => {
                 });
 
                 if (uploadResult?.url) {
-                    insertAtCursor(`![${asset.fileName || '图片'}](${uploadResult.url})`);
+                    const newBlock = createBlock('image', uploadResult.url);
+                    newBlock.meta = {caption: asset.fileName || '图片'};
+                    setBlocks(prev => [...prev, newBlock]);
                 }
             });
         } catch (e) {
@@ -222,7 +227,7 @@ const SmartNoteDetailScreen = () => {
                 intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
             );
         }
-    }, [serverUrl, userId, insertAtCursor, intl]);
+    }, [serverUrl, userId, intl]);
 
     // ---- Upload video ----
     const uploadVideo = useCallback(async () => {
@@ -241,7 +246,9 @@ const SmartNoteDetailScreen = () => {
                 });
 
                 if (uploadResult?.url) {
-                    insertAtCursor(`[视频: ${asset.fileName || 'video'}](${uploadResult.url})`);
+                    const newBlock = createBlock('video', uploadResult.url);
+                    newBlock.meta = {caption: asset.fileName || '视频'};
+                    setBlocks(prev => [...prev, newBlock]);
                 }
             });
         } catch (e) {
@@ -249,47 +256,72 @@ const SmartNoteDetailScreen = () => {
                 intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
             );
         }
-    }, [serverUrl, userId, insertAtCursor, intl]);
+    }, [serverUrl, userId, intl]);
+
+    // ---- Upload file ----
+    const uploadFile = useCallback(async () => {
+        if (!userId) return;
+
+        try {
+            const DocumentPicker = (await import('react-native-document-picker')).default;
+            const fileType = Platform.select({ios: 'public.item', default: '*/*'});
+
+            const result = await DocumentPicker.pick({
+                type: [fileType],
+                copyTo: 'cachesDirectory',
+            });
+
+            if (!result || result.length === 0) return;
+
+            const file = result[0];
+            const fileName = file.name || 'file';
+            const mimeType = file.type || 'application/octet-stream';
+            const fileUri = file.fileCopyUri || file.uri;
+
+            const uploadResult = await uploadMedia(serverUrl, userId, {
+                uri: fileUri,
+                name: fileName,
+                type: mimeType,
+            });
+
+            if (uploadResult?.url) {
+                // Add as a paragraph block with file link
+                const newBlock = createBlock('paragraph', `[${fileName}](${uploadResult.url})`);
+                setBlocks(prev => [...prev, newBlock]);
+            }
+        } catch (e: any) {
+            // User cancelled - not an error
+            if (e?.code === 'DOCUMENT_PICKER_CANCELED') {
+                return;
+            }
+            Alert.alert(
+                intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
+                e?.message || String(e),
+            );
+        }
+    }, [serverUrl, userId, intl]);
 
     // ---- Save ----
-    // Extract title from content:
-    // Priority: H1 (# heading) > first non-empty line (stripped of markdown)
-    const extractTitleFromContent = useCallback((text: string): string => {
-        if (!text || !text.trim()) {
+    // Extract title from blocks:
+    // Priority: H1 heading block > first non-empty paragraph
+    const extractTitleFromBlocks = useCallback((blocksList: SmartNoteBlock[]): string => {
+        if (!blocksList || blocksList.length === 0) {
             return intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'});
         }
 
-        const lines = text.split('\n');
-
-        // First pass: look for H1 (# heading)
-        for (const line of lines) {
-            const h1Match = line.trim().match(/^#\s+(.+)$/);
-            if (h1Match && h1Match[1].trim()) {
-                const h1Title = h1Match[1].trim();
+        // First pass: look for H1 heading
+        for (const block of blocksList) {
+            if (block.type === 'heading' && block.meta?.level === 1 && block.content?.trim()) {
+                const h1Title = block.content.trim();
                 return h1Title.length > 50 ? h1Title.substring(0, 50) + '...' : h1Title;
             }
         }
 
-        // Second pass: use first non-empty line (stripped of markdown)
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-
-            // Strip common markdown syntax
-            let cleanLine = trimmed
-                .replace(/^#{2,6}\s+/, '')             // Remove H2-H6 markers (## ### etc)
-                .replace(/^\*\*|\*\*$/g, '')            // Remove bold markers
-                .replace(/^\*|\*$/g, '')                // Remove italic markers
-                .replace(/^[-*+]\s+/, '')               // Remove list markers (- * +)
-                .replace(/^\d+\.\s+/, '')               // Remove numbered list markers (1. 2.)
-                .replace(/^>\s+/, '')                   // Remove quote markers
-                .replace(/`{1,3}[^`]*`{1,3}/g, '')      // Remove inline code
-                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Extract link text
-                .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Extract image alt text
-                .trim();
-
-            if (cleanLine) {
-                return cleanLine.length > 50 ? cleanLine.substring(0, 50) + '...' : cleanLine;
+        // Second pass: use first non-empty paragraph
+        for (const block of blocksList) {
+            if (block.content?.trim()) {
+                const text = block.content.trim();
+                return text.length > 50 ? text.substring(0, 50) + '...' : text;
             }
         }
 
@@ -301,9 +333,8 @@ const SmartNoteDetailScreen = () => {
 
         setSaving(true);
         try {
-            // Use entered title, or extract from content, or default to "无标题"
-            const noteTitle = title.trim() || extractTitleFromContent(content);
-            const blocks = markdownToBlocks(content);
+            // Use entered title, or extract from blocks, or default to "无标题"
+            const noteTitle = title.trim() || extractTitleFromBlocks(blocks);
 
             if (isNew) {
                 const createdNote = await createNote(serverUrl, userId, noteTitle, 'private');
@@ -320,9 +351,8 @@ const SmartNoteDetailScreen = () => {
                 });
             }
 
-            setHasChanges(false);
             setSaveSuccess(true);
-            setOriginalContent(content); // Update original content after save
+            setOriginalBlocks(JSON.parse(JSON.stringify(blocks))); // Update original blocks after save
             setTimeout(() => setSaveSuccess(false), 2000);
 
             // After saving, go back to viewing mode (for editing existing notes)
@@ -336,19 +366,17 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [userId, saving, title, content, isNew, serverUrl, noteId, intl, extractTitleFromContent, mode]);
+    }, [userId, saving, title, blocks, isNew, serverUrl, noteId, intl, extractTitleFromBlocks, mode]);
 
     // ---- Enter edit mode ----
     const handleEdit = useCallback(() => {
         setMode('editing');
-        setOriginalContent(content); // Store current content for cancel comparison
-        // Focus the text input after a short delay
-        setTimeout(() => textInputRef.current?.focus(), 100);
-    }, [content]);
+        setOriginalBlocks(JSON.parse(JSON.stringify(blocks))); // Store current blocks for cancel comparison
+    }, [blocks]);
 
     // ---- Cancel editing ----
     const handleCancel = useCallback(() => {
-        if (content !== originalContent) {
+        if (hasChanges) {
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.unsaved_changes', defaultMessage: '未保存的更改'}),
                 intl.formatMessage({id: 'smart_notebook.discard_changes', defaultMessage: '是否放弃更改？'}),
@@ -361,8 +389,7 @@ const SmartNoteDetailScreen = () => {
                         text: intl.formatMessage({id: 'smart_notebook.discard', defaultMessage: '放弃'}),
                         style: 'destructive',
                         onPress: () => {
-                            setContent(originalContent);
-                            setHasChanges(false);
+                            setBlocks(JSON.parse(JSON.stringify(originalBlocks)));
                             setMode('viewing');
                         },
                     },
@@ -371,21 +398,72 @@ const SmartNoteDetailScreen = () => {
         } else {
             setMode('viewing');
         }
-    }, [content, originalContent, intl]);
+    }, [hasChanges, originalBlocks, intl]);
 
-    // ---- Copy content (plain text, no formatting) ----
+    // ---- Copy content (plain text, aligned with webapp) ----
     const handleCopy = useCallback(() => {
-        if (!content.trim()) {
+        // Convert blocks to plain text (like webapp)
+        const lines: string[] = [];
+        for (const block of blocks) {
+            switch (block.type) {
+                case 'heading':
+                case 'paragraph':
+                case 'blockquote':
+                    // Strip any HTML tags to get plain text
+                    lines.push((block.content || '').replace(/<[^>]*>/g, ''));
+                    break;
+                case 'code-block':
+                    lines.push(block.content || '');
+                    break;
+                case 'bulleted-list': {
+                    const items = block.meta?.items || (block.content ? [block.content] : []);
+                    items.forEach((item: string) => {
+                        const text = typeof item === 'string' ? item.replace(/<[^>]*>/g, '') : '';
+                        lines.push(`• ${text}`);
+                    });
+                    break;
+                }
+                case 'numbered-list': {
+                    const items = block.meta?.items || (block.content ? [block.content] : []);
+                    items.forEach((item: string, i: number) => {
+                        const text = typeof item === 'string' ? item.replace(/<[^>]*>/g, '') : '';
+                        lines.push(`${i + 1}. ${text}`);
+                    });
+                    break;
+                }
+                case 'divider':
+                case 'horizontal-rule':
+                    lines.push('---');
+                    break;
+                case 'image':
+                    lines.push(`[图片: ${block.meta?.caption || 'image'}]`);
+                    break;
+                case 'video':
+                    lines.push(`[视频: ${block.meta?.caption || 'video'}]`);
+                    break;
+                case 'audio':
+                    lines.push(`[音频: ${block.meta?.caption || 'audio'}]`);
+                    break;
+                default:
+                    if (block.content) {
+                        lines.push(block.content.replace(/<[^>]*>/g, ''));
+                    }
+                    break;
+            }
+        }
+        const plainText = lines.join('\n');
+
+        if (!plainText.trim()) {
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.copy_empty', defaultMessage: '没有可复制的内容'}),
             );
             return;
         }
-        Clipboard.setString(content);
+        Clipboard.setString(plainText);
         Alert.alert(
             intl.formatMessage({id: 'smart_notebook.copy_success', defaultMessage: '已复制到剪贴板'}),
         );
-    }, [content, intl]);
+    }, [blocks, intl]);
 
     // ---- Go back with confirmation ----
     const handleGoBack = useCallback(() => {
@@ -483,21 +561,18 @@ const SmartNoteDetailScreen = () => {
                 {/* Content Area */}
                 <ScrollView style={style.editorContainer} keyboardShouldPersistTaps='handled'>
                     {mode === 'viewing' ? (
-                        // Read-only view with Markdown rendering
+                        // Read-only view with Block Editor (non-editable)
                         <TouchableOpacity
                             style={style.readOnlyContainer}
                             onPress={handleEdit}
                             activeOpacity={0.8}
                         >
-                            {content ? (
-                                <Markdown
-                                    value={content}
-                                    baseTextStyle={style.readOnlyContent}
-                                    location={Screens.SMART_NOTE_DETAIL}
+                            {blocks.length > 0 && blocks.some(b => b.content?.trim()) ? (
+                                <BlockEditor
+                                    blocks={blocks}
+                                    onChange={() => {}} // No-op for read-only
                                     theme={theme}
-                                    disableAtMentions={true}
-                                    disableChannelLink={true}
-                                    disableGallery={true}
+                                    editable={false}
                                 />
                             ) : (
                                 <Text style={style.readOnlyContent}>
@@ -506,19 +581,12 @@ const SmartNoteDetailScreen = () => {
                             )}
                         </TouchableOpacity>
                     ) : (
-                        // Editable view
-                        <TextInput
-                            ref={textInputRef}
-                            style={style.editor}
-                            value={content}
-                            onChangeText={handleContentChange}
-                            placeholder={intl.formatMessage({id: 'smart_notebook.content_placeholder', defaultMessage: '输入 Markdown 内容...'})}
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                            multiline
-                            textAlignVertical='top'
-                            autoCapitalize='none'
-                            autoCorrect={false}
-                            autoFocus={mode === 'new'}
+                        // Editable view with Block Editor
+                        <BlockEditor
+                            blocks={blocks}
+                            onChange={handleBlocksChange}
+                            theme={theme}
+                            editable={true}
                         />
                     )}
                 </ScrollView>
@@ -561,6 +629,9 @@ const SmartNoteDetailScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity onPress={insertTable} style={style.toolbarBtn}>
                         <Text style={style.toolbarText}>⊞</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
+                        <CompassIcon name='file-outline' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={uploadImage} style={style.toolbarBtn}>
                         <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
