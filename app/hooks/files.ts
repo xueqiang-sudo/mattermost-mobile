@@ -44,13 +44,48 @@ const buildFullUrl = (serverUrl: string, fileId: string): string => {
     return serverUrl.replace(/\/$/, '') + (route.startsWith('/') ? route : '/' + route);
 };
 
-// 获取下载 URL
-// 注意：React Native 的网络客户端（包括 apiClient.download）会自动跟随 307 重定向，
-// 因此不需要手动检测重定向。直接返回原始 URL，下载器会自动处理 CDN 重定向。
+// 获取最终下载 URL（解析 307 重定向获取 CDN 地址）
+// 原因：apiClient.download() 原生下载器不支持自动跟随 307 重定向，
+// 所以需要先通过 fetch 跟随重定向获取最终 CDN URL，再用该 URL 下载。
 const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<string> => {
+    const client = NetworkManager.getClient(serverUrl);
     const fullUrl = buildFullUrl(serverUrl, fileId);
-    debugLog('[Preview] Using download URL', {fullUrl, note: 'Download client will auto-follow 307 redirects'});
-    return fullUrl;
+
+    debugLog('[Preview] Resolving download URL', {fullUrl});
+
+    try {
+        const headers = client.getRequestHeaders('get');
+        // 添加 download=1 参数，与 webapp 保持一致
+        const urlWithDownload = fullUrl.includes('?') ? fullUrl : fullUrl + '?download=1';
+
+        // 使用 fetch 跟随重定向（默认行为），获取最终 URL
+        const response = await fetch(urlWithDownload, {
+            method: 'HEAD',  // 只获取 headers，不下载 body
+            headers,
+        });
+
+        // response.url 是跟随重定向后的最终 URL
+        const finalUrl = response.url;
+
+        debugLog('[Preview] Resolved download URL', {
+            original: urlWithDownload,
+            final: finalUrl,
+            redirected: finalUrl !== urlWithDownload,
+            status: response.status,
+        });
+
+        // 检查响应是否成功
+        if (!response.ok) {
+            debugLog('[Preview] URL resolution returned error', {status: response.status});
+            // 返回原始 URL，让下载器处理可能的错误
+            return urlWithDownload;
+        }
+
+        return finalUrl;
+    } catch (e: any) {
+        debugLog('[Preview] Failed to resolve URL, using original', {error: String(e)});
+        return fullUrl;
+    }
 };
 
 // 触发 Office → PDF 转换并轮询（对齐 webapp）
@@ -414,7 +449,14 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 setProgress(0);
 
                 if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
-                    logDebug('error downloading PDF preview', getFullErrorMessage(error));
+                    const errorMsg = getFullErrorMessage(error);
+                    debugLog('[Preview] Download ERROR', {
+                        error: errorMsg,
+                        errorType: error?.constructor?.name,
+                        statusCode: (error as any)?.status_code || (error as any)?.statusCode,
+                        details: (error as any)?.details,
+                    });
+                    logDebug('error downloading PDF preview', errorMsg);
                     alertDownloadFailed(intl);
                 }
             }
@@ -530,7 +572,14 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 setProgress(0);
 
                 if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
-                    logDebug('error downloading PDF preview', getFullErrorMessage(error));
+                    const errorMsg = getFullErrorMessage(error);
+                    debugLog('[Preview] Download ERROR', {
+                        error: errorMsg,
+                        errorType: error?.constructor?.name,
+                        statusCode: (error as any)?.status_code || (error as any)?.statusCode,
+                        details: (error as any)?.details,
+                    });
+                    logDebug('error downloading PDF preview', errorMsg);
                     alertDownloadFailed(intl);
                 }
             }
@@ -693,7 +742,14 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 openDocument(file);
             }
         } catch (error) {
-            debugLog('[Preview] download/preview ERROR', {path, error: getFullErrorMessage(error)});
+            const errorMsg = getFullErrorMessage(error);
+            debugLog('[Preview] download/preview ERROR', {
+                path,
+                error: errorMsg,
+                errorType: error?.constructor?.name,
+                statusCode: (error as any)?.status_code || (error as any)?.statusCode,
+                details: (error as any)?.details,
+            });
             if (path) {
                 deleteAsync(path, {idempotent: true});
             }
@@ -701,7 +757,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             setProgress(0);
 
             if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
-                logDebug('error on downloadAndPreviewFile', getFullErrorMessage(error));
+                logDebug('error on downloadAndPreviewFile', errorMsg);
                 alertDownloadFailed(intl);
             }
         }
