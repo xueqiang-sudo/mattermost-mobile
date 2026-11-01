@@ -4,6 +4,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
+    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
     Platform,
@@ -22,6 +23,7 @@ import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
+import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
 import {getCurrentUserId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -31,6 +33,7 @@ import {
     createNote,
     updateNote,
     uploadMedia,
+    transcribeAudio,
     markdownToBlocks,
     blocksToMarkdown,
     type SmartNote,
@@ -64,6 +67,7 @@ const SmartNoteDetailScreen = () => {
     const [loading, setLoading] = useState(!isNew);
     const [hasChanges, setHasChanges] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [voiceProcessing, setVoiceProcessing] = useState(false);
 
     // ---- Init ----
     useEffect(() => {
@@ -88,6 +92,60 @@ const SmartNoteDetailScreen = () => {
         };
         init();
     }, [serverUrl, noteId, isNew]);
+
+    // ---- Voice recording (direct transcription API) ----
+    const handleVoiceRecorded = useCallback(async (files: FileInfo[]) => {
+        if (!files.length) return;
+        setVoiceProcessing(true);
+
+        try {
+            const file = files[0];
+
+            // Call direct transcription API (no channel needed)
+            const result = await transcribeAudio(serverUrl, {
+                uri: file.localPath!,
+                name: file.name,
+                type: file.mime_type || 'audio/mp4',
+            });
+
+            if (result.success && result.text) {
+                // Insert transcription text into editor
+                insertAtCursor(result.text + '\n');
+            } else {
+                Alert.alert(
+                    intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
+                    result.error || intl.formatMessage({id: 'smart_notebook.voice_empty', defaultMessage: '语音识别结果为空'}),
+                    [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
+                );
+            }
+        } catch (e) {
+            Alert.alert(
+                intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
+                String(e),
+                [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
+            );
+        } finally {
+            setVoiceProcessing(false);
+        }
+    }, [serverUrl, intl, insertAtCursor]);
+
+    const handleVoiceError = useCallback((code: VoiceRecorderErrorCode) => {
+        const messages: Record<VoiceRecorderErrorCode, string> = {
+            permission_denied: intl.formatMessage({id: 'smart_notebook.voice_permission_denied', defaultMessage: '麦克风权限被拒绝'}),
+            record_failed: intl.formatMessage({id: 'smart_notebook.voice_record_failed', defaultMessage: '录音失败'}),
+            process_failed: intl.formatMessage({id: 'smart_notebook.voice_process_failed', defaultMessage: '处理录音失败'}),
+            too_short: intl.formatMessage({id: 'smart_notebook.voice_too_short', defaultMessage: '录音时间太短'}),
+            upload_failed: intl.formatMessage({id: 'smart_notebook.voice_upload_failed', defaultMessage: '上传语音失败'}),
+        };
+        Alert.alert(intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}), messages[code]);
+    }, [intl]);
+
+    const {
+        state: voiceState,
+        startRecording,
+        stopRecordingAndSend,
+        cancelRecording,
+    } = useVoiceRecorder(handleVoiceRecorded, handleVoiceError);
 
     // ---- Content change handler ----
     const handleContentChange = useCallback((text: string) => {
@@ -184,42 +242,44 @@ const SmartNoteDetailScreen = () => {
         }
     }, [serverUrl, userId, insertAtCursor, intl]);
 
-    // ---- Voice input (placeholder - requires @react-native-voice/voice) ----
-    const startVoiceInput = useCallback(() => {
-        Alert.alert(
-            intl.formatMessage({id: 'smart_notebook.voice_input', defaultMessage: '语音输入'}),
-            intl.formatMessage({id: 'smart_notebook.voice_input_unavailable', defaultMessage: '语音输入功能需要安装 @react-native-voice/voice 库'}),
-            [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
-        );
-    }, [intl]);
-
     // ---- Save ----
-    // Extract title from content (first non-empty line, stripped of markdown syntax)
+    // Extract title from content:
+    // Priority: H1 (# heading) > first non-empty line (stripped of markdown)
     const extractTitleFromContent = useCallback((text: string): string => {
         if (!text || !text.trim()) {
             return intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'});
         }
 
         const lines = text.split('\n');
+
+        // First pass: look for H1 (# heading)
+        for (const line of lines) {
+            const h1Match = line.trim().match(/^#\s+(.+)$/);
+            if (h1Match && h1Match[1].trim()) {
+                const h1Title = h1Match[1].trim();
+                return h1Title.length > 50 ? h1Title.substring(0, 50) + '...' : h1Title;
+            }
+        }
+
+        // Second pass: use first non-empty line (stripped of markdown)
         for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed) continue;
 
             // Strip common markdown syntax
             let cleanLine = trimmed
-                .replace(/^#{1,6}\s+/, '')           // Remove heading markers (# ## ###)
-                .replace(/^\*\*|\*\*$/g, '')          // Remove bold markers
-                .replace(/^\*|\*$/g, '')              // Remove italic markers
-                .replace(/^[-*+]\s+/, '')             // Remove list markers (- * +)
-                .replace(/^\d+\.\s+/, '')             // Remove numbered list markers (1. 2.)
-                .replace(/^>\s+/, '')                 // Remove quote markers
-                .replace(/`{1,3}[^`]*`{1,3}/g, '')    // Remove inline code
+                .replace(/^#{2,6}\s+/, '')             // Remove H2-H6 markers (## ### etc)
+                .replace(/^\*\*|\*\*$/g, '')            // Remove bold markers
+                .replace(/^\*|\*$/g, '')                // Remove italic markers
+                .replace(/^[-*+]\s+/, '')               // Remove list markers (- * +)
+                .replace(/^\d+\.\s+/, '')               // Remove numbered list markers (1. 2.)
+                .replace(/^>\s+/, '')                   // Remove quote markers
+                .replace(/`{1,3}[^`]*`{1,3}/g, '')      // Remove inline code
                 .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Extract link text
                 .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Extract image alt text
                 .trim();
 
             if (cleanLine) {
-                // Limit title length
                 return cleanLine.length > 50 ? cleanLine.substring(0, 50) + '...' : cleanLine;
             }
         }
@@ -315,7 +375,7 @@ const SmartNoteDetailScreen = () => {
                 {/* Header */}
                 <View style={style.header}>
                     <TouchableOpacity onPress={handleGoBack} style={style.headerBtn}>
-                        <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                     </TouchableOpacity>
                     <TextInput
                         style={style.headerTitle}
@@ -324,8 +384,8 @@ const SmartNoteDetailScreen = () => {
                             setTitle(text);
                             setHasChanges(true);
                         }}
-                        placeholder={intl.formatMessage({id: 'smart_notebook.title_placeholder', defaultMessage: '笔记标题'})}
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                        placeholder={intl.formatMessage({id: 'smart_notebook.title_placeholder', defaultMessage: '笔记标题（可留空，自动提取）'})}
+                        placeholderTextColor={changeOpacity(theme.sidebarText, 0.5)}
                     />
                     {saveSuccess ? (
                         <View style={style.saveSuccessContainer}>
@@ -358,6 +418,24 @@ const SmartNoteDetailScreen = () => {
                     />
                 </ScrollView>
 
+                {/* Recording indicator */}
+                {voiceState === 'recording' && (
+                    <View style={style.recordingBanner}>
+                        <CompassIcon name='microphone' size={16} color={theme.dndIndicator}/>
+                        <Text style={style.recordingText}>
+                            {intl.formatMessage({id: 'smart_notebook.recording', defaultMessage: '录音中...点击麦克风结束'})}
+                        </Text>
+                    </View>
+                )}
+                {voiceProcessing && (
+                    <View style={style.recordingBanner}>
+                        <ActivityIndicator size='small' color={theme.buttonBg}/>
+                        <Text style={style.recordingText}>
+                            {intl.formatMessage({id: 'smart_notebook.processing_voice', defaultMessage: '语音转文字中...'})}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Toolbar */}
                 <View style={style.toolbar}>
                     <TouchableOpacity onPress={insertHeading} style={style.toolbarBtn}>
@@ -376,7 +454,7 @@ const SmartNoteDetailScreen = () => {
                         <Text style={style.toolbarText}>&lt;/&gt;</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={insertTable} style={style.toolbarBtn}>
-                        <CompassIcon name='table' size={20} color={theme.centerChannelColor}/>
+                        <Text style={style.toolbarText}>⊞</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={uploadImage} style={style.toolbarBtn}>
                         <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
@@ -384,9 +462,19 @@ const SmartNoteDetailScreen = () => {
                     <TouchableOpacity onPress={uploadVideo} style={style.toolbarBtn}>
                         <CompassIcon name='video-outline' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={startVoiceInput} style={style.toolbarBtn}>
-                        <CompassIcon name='microphone-outline' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
+                    {voiceProcessing ? (
+                        <View style={style.toolbarBtn}>
+                            <ActivityIndicator size='small' color={theme.buttonBg}/>
+                        </View>
+                    ) : voiceState === 'recording' ? (
+                        <TouchableOpacity onPress={stopRecordingAndSend} style={[style.toolbarBtn, style.toolbarBtnActive]}>
+                            <CompassIcon name='microphone' size={20} color={theme.dndIndicator}/>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity onPress={startRecording} style={style.toolbarBtn}>
+                            <CompassIcon name='microphone-outline' size={20} color={theme.centerChannelColor}/>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -405,12 +493,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: theme.sidebarBg,
     },
     headerBtn: {
         padding: 8,
-        minWidth: 40,
     },
     saveBtn: {
         paddingHorizontal: 12,
@@ -435,9 +521,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     headerTitle: {
         ...typography('Heading', 200, 'SemiBold'),
-        color: theme.centerChannelColor,
+        color: theme.sidebarText,
         flex: 1,
-        textAlign: 'center',
     },
     editorContainer: {
         flex: 1,
@@ -463,6 +548,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     toolbarBtn: {
         padding: 8,
         borderRadius: 4,
+    },
+    toolbarBtnActive: {
+        backgroundColor: changeOpacity(theme.dndIndicator, 0.15),
+    },
+    recordingBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        backgroundColor: changeOpacity(theme.dndIndicator, 0.08),
+        paddingHorizontal: 16,
+    },
+    recordingText: {
+        ...typography('Body', 75),
+        color: theme.dndIndicator,
+        marginLeft: 8,
     },
     toolbarText: {
         ...typography('Body', 100, 'SemiBold'),

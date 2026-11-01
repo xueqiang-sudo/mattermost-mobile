@@ -192,6 +192,31 @@ export async function uploadMedia(
     return resp.data;
 }
 
+// ── Voice Transcription (Direct API) ──
+
+export async function transcribeAudio(
+    serverUrl: string,
+    file: {uri: string; name: string; type: string},
+): Promise<{success: boolean; text?: string; error?: string}> {
+    const client = NetworkManager.getClient(serverUrl);
+
+    const formData = new FormData();
+    formData.append('audio', {
+        uri: file.uri,
+        name: file.name,
+        type: file.type,
+    } as any);
+
+    // Use voice-to-text-plugin's direct transcription API
+    const VOICE_PLUGIN_BASE = '/plugins/com.superera.voice-recognition';
+    const resp = await client.doFetch(VOICE_PLUGIN_BASE + '/api/v1/transcribe', {
+        method: 'post',
+        body: formData,
+    });
+
+    return resp;
+}
+
 // ── Markdown <-> Blocks Conversion Helpers ──
 
 export function markdownToBlocks(markdown: string): SmartNoteBlock[] {

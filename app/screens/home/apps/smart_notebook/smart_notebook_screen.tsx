@@ -322,7 +322,7 @@ const SmartNotebookScreen = () => {
     const onCreateNote = useCallback(() => {
         navigation.navigate(Screens.SMART_NOTE_DETAIL, {
             noteId: 'new',
-            noteTitle: '新建笔记',
+            noteTitle: '',
         });
     }, [navigation]);
 
@@ -386,15 +386,10 @@ const SmartNotebookScreen = () => {
                                 {item.title || intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'})}
                             </Text>
                             {item.pinned && (
-                                <CompassIcon name='pin' size={16} color={theme.buttonBg}/>
+                                <CompassIcon name='pin' size={14} color={theme.buttonBg}/>
                             )}
                         </View>
-                        <Text style={style.cardPreview} numberOfLines={2}>
-                            {item.preview || ''}
-                        </Text>
-                        <View style={style.cardFooter}>
-                            <Text style={style.cardDate}>{dateStr}</Text>
-                        </View>
+                        <Text style={style.cardDate}>{dateStr}</Text>
                     </TouchableOpacity>
                 </ReanimatedSwipeable>
             </GestureHandlerRootView>
@@ -409,7 +404,7 @@ const SmartNotebookScreen = () => {
             <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
                 <View style={style.header}>
                     <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                        <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                     </TouchableOpacity>
                     <Text style={style.headerTitle}>
                         {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
@@ -425,20 +420,17 @@ const SmartNotebookScreen = () => {
 
     return (
         <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
+            {/* Header - 对齐云盘样式 */}
             <View style={style.header}>
                 <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                    <CompassIcon name='arrow-left' size={24} color={theme.centerChannelColor}/>
+                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
                 </TouchableOpacity>
                 <Text style={style.headerTitle}>
                     {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
                 </Text>
-                {viewMode === 'notes' ? (
-                    <TouchableOpacity onPress={onCreateNote} style={style.headerBtn}>
-                        <CompassIcon name='plus' size={24} color={theme.buttonBg}/>
-                    </TouchableOpacity>
-                ) : (
-                    <View style={style.headerBtn}/>
-                )}
+                <TouchableOpacity onPress={loadNotes} style={style.headerBtn}>
+                    <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
+                </TouchableOpacity>
             </View>
 
             {/* Tabs */}
@@ -461,7 +453,7 @@ const SmartNotebookScreen = () => {
                 </TouchableOpacity>
             </View>
 
-            {/* Search - Notes Tab */}
+            {/* Search - Notes Tab (with New button) */}
             {viewMode === 'notes' && (
                 <View style={style.searchContainer}>
                     <TextInput
@@ -473,9 +465,13 @@ const SmartNotebookScreen = () => {
                         autoCapitalize='none'
                         autoCorrect={false}
                     />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => onSearchChange('')}>
+                    {searchQuery.length > 0 ? (
+                        <TouchableOpacity onPress={() => onSearchChange('')} style={style.searchActionBtn}>
                             <CompassIcon name='close-circle' size={20} color={changeOpacity(theme.centerChannelColor, 0.5)}/>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity onPress={onCreateNote} style={style.searchActionBtn}>
+                            <CompassIcon name='plus' size={20} color={theme.buttonBg}/>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -624,21 +620,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: theme.sidebarBg,
     },
     headerBtn: {
         padding: 8,
-        minWidth: 40,
     },
     headerTitle: {
         ...typography('Heading', 200, 'SemiBold'),
-        color: theme.centerChannelColor,
+        color: theme.sidebarText,
         flex: 1,
-        textAlign: 'center',
     },
     searchContainer: {
         flexDirection: 'row',
@@ -661,9 +653,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     card: {
         backgroundColor: theme.centerChannelBg,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 8,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
@@ -671,26 +663,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        marginBottom: 4,
     },
     cardTitle: {
-        ...typography('Heading', 100, 'SemiBold'),
+        ...typography('Body', 100, 'SemiBold'),
         color: theme.centerChannelColor,
         flex: 1,
-    },
-    cardPreview: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.7),
-        marginBottom: 12,
-    },
-    cardFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
     },
     cardDate: {
         ...typography('Body', 50),
         color: changeOpacity(theme.centerChannelColor, 0.5),
+    },
+    searchActionBtn: {
+        padding: 8,
+        marginLeft: 4,
     },
     swipeActionsContainer: {
         flexDirection: 'row',
