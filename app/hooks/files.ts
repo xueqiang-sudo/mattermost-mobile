@@ -57,8 +57,10 @@ const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<s
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
+            // 使用 GET 请求（服务器对 HEAD 请求不返回 307 重定向）
+            // redirect: 'manual' 确保不会自动跟随重定向，只获取 Location header
             const resp = await fetch(fullUrl, {
-                method: 'HEAD',
+                method: 'GET',
                 redirect: 'manual',
                 signal: controller.signal,
                 headers: {
@@ -79,6 +81,16 @@ const getFinalDownloadUrl = async (serverUrl: string, fileId: string): Promise<s
                 contentType: resp.headers.get('Content-Type') || '(none)',
                 contentLength: resp.headers.get('Content-Length') || '(none)',
             });
+
+            // 检查文件是否存在（404 或其他错误状态）
+            if (statusCode === 404) {
+                debugLog('[Preview] File not found (404)', {fullUrl});
+                throw new Error('文件不存在或已被删除');
+            }
+            if (statusCode >= 400 && statusCode !== 307 && statusCode !== 302 && statusCode !== 301) {
+                debugLog('[Preview] Server error', {fullUrl, statusCode});
+                throw new Error(`服务器返回错误: ${statusCode}`);
+            }
 
             // 如果有 307/302/301 重定向，返回重定向 URL
             if (location && (statusCode === 307 || statusCode === 302 || statusCode === 301)) {
