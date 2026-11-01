@@ -17,6 +17,7 @@ import {ActionType, Events, Screens} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {PostTypes} from '@constants/post';
 import DatabaseManager from '@database/manager';
+import NetworkManager from '@managers/network_manager';
 import {getChannelById, getMyChannel} from '@queries/servers/channel';
 import {getPostById, syncPermalinkPreviewsForEditedPost} from '@queries/servers/post';
 import {getCurrentChannelId, getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
@@ -32,7 +33,7 @@ import {Q} from '@nozbe/watermelondb';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
 import type PostsInChannelModel from '@typings/database/models/servers/posts_in_channel';
 
-const {POSTS_IN_CHANNEL} = MM_TABLES.SERVER;
+const {FILE, POSTS_IN_CHANNEL} = MM_TABLES.SERVER;
 
 function preparedMyChannelHack(myChannel: MyChannelModel) {
     if (!myChannel._preparedState) {
@@ -236,6 +237,39 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     models.push(...postModels);
 
     await operator.batchRecords(models, 'handleNewPostEvent');
+
+    // 服务端 WebSocket posted 事件在某些版本/场景下只给 file_ids 而不带
+    // metadata.files（FileInfo 详情）。Files 组件按 post_id 查 File 表渲染
+    // 附件，若 File 记录不存在则附件不显示，导致「webapp 发的文件在
+    // mobile 实时看不到，必须退出聊天窗口再进（走 HTTP 全量拉取）才行」。
+    // 这里兜底：若 post 含 file_ids 但 DB 里没对应 File 记录，主动拉一次
+    // 详情并写入，让 Files 组件的响应式查询能正常触发。
+    try {
+        const postFileIds = post.file_ids as string[] | undefined;
+        if (postFileIds && postFileIds.length > 0) {
+            const existingFiles = await database.get(FILE).query(
+                Q.where('post_id', post.id),
+            ).fetch();
+            if (existingFiles.length < postFileIds.length) {
+                const client = NetworkManager.getClient(serverUrl);
+                const fileInfos = await client.getFileInfosForPost(post.id);
+                if (fileInfos && fileInfos.length > 0) {
+                    const fileModels = await operator.handleFiles({
+                        files: fileInfos,
+                        prepareRecordsOnly: true,
+                    });
+                    if (fileModels.length > 0) {
+                        await operator.batchRecords(
+                            fileModels,
+                            'handleNewPostEvent_missingFiles',
+                        );
+                    }
+                }
+            }
+        }
+    } catch (fileErr) {
+        logWarning('handleNewPostEvent: failed to fetch missing files', fileErr);
+    }
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {

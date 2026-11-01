@@ -161,12 +161,16 @@ export default function DraftHandler(props: Props) {
 
                 // 微信式：每个文件一条 post，各自头像/时间戳，垂直排列，
                 // 通过同一个 batch_id 关联为一个批次（支持「撤回本条 / 撤回本次全部」）。
-                // 单文件时 batchId 仍生成但只有一条，长按走单条撤回分支。
+                // 单文件时不挂 batch_id/batch_total，作为普通单条 post 处理
+                // （长按走普通单条撤回分支，无「撤回本次全部」入口）。
                 // batch_id 格式对齐 webapp（use_submit.tsx）：batch_<ts>_<rand>。
                 // 注意：mobile 的 deletePostBatch 用 WatermelonDB Q.like 匹配 props，
                 // 其中 '_' 是 LIKE 单字符通配符——已在 deletePostBatch 内对 batchId 做转义。
-                const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                debugLog('DRAFT', `addFiles: batchId=${batchId}, fileCount pending`);
+                const isMultiFile = filesToUpload.length > 1;
+                const batchId = isMultiFile
+                    ? `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                    : undefined;
+                debugLog('DRAFT', `addFiles: batchId=${batchId ?? 'none (single file)'}, fileCount=${filesToUpload.length}`);
 
                 // Phase 0: Copy existing server files to get new file IDs (like webapp's forward)
                 debugLog('DRAFT', `addFiles: Phase 0 - detecting existing server files`);
@@ -332,32 +336,45 @@ export default function DraftHandler(props: Props) {
 
                 debugLog('DRAFT', `addFiles: Phase 1 COMPLETE, prepared ${filesWithPostData.length} files`);
 
-                // Phase 2: 每个文件一条 pending post（各自头像/时间戳），共享 batch_id。
-                // batch_order/batch_total 便于 UI 判断批次与排序。
+                // Phase 2: 每个文件一条 pending post（各自头像/时间戳），多文件时共享 batch_id。
+                // 单文件时不挂 batch_id/batch_order/batch_total，作为普通单条 post 处理；
+                // 多文件时 batch_order/batch_total 便于 UI 判断批次与排序。
                 // 【性能】所有 post 合并成一次 createBatchPendingPosts 写入：单次 DB 事务、
                 // 聊天列表只触发一次 observe() 重渲染。多文件时 N 条 post 同时出现，
                 // 避免逐条写库导致的 N 次重渲染卡顿。
-                debugLog('DRAFT', `addFiles: Phase 2 - create ${filesWithPostData.length} pending posts in one batch, batchId=${batchId}`);
+                debugLog('DRAFT', `addFiles: Phase 2 - create ${filesWithPostData.length} pending posts in one batch, batchId=${batchId ?? 'none'}`);
 
                 const batchTotal = filesWithPostData.length;
 
-                const postsToCreate = filesWithPostData.map(({localFile, isExistingServerFile}, orderIdx) => ({
-                    post: {
-                        pending_post_id: `${batchId}#${orderIdx}`,
-                        user_id: currentUserId,
-                        channel_id: channelId,
-                        root_id: rootId,
-                        message: '',
-                        file_ids: [localFile.id!],
-                        props: {
-                            upload_status: isExistingServerFile ? 'complete' : 'uploading',
-                            batch_id: batchId,
-                            batch_order: orderIdx,
-                            batch_total: batchTotal,
-                        },
-                    } as Post,
-                    files: [localFile],
-                }));
+                const postsToCreate = filesWithPostData.map(({localFile, isExistingServerFile}, orderIdx) => {
+                    // 单文件：pending_post_id 用 pending_<rand>，props 不含 batch 元数据。
+                    // 多文件：pending_post_id 用 <batchId>#<order>，props 含 batch 元数据。
+                    const pendingPostId = isMultiFile
+                        ? `${batchId}#${orderIdx}`
+                        : `pending_${generateId()}`;
+
+                    const props: Record<string, unknown> = {
+                        upload_status: isExistingServerFile ? 'complete' : 'uploading',
+                    };
+                    if (isMultiFile) {
+                        props.batch_id = batchId;
+                        props.batch_order = orderIdx;
+                        props.batch_total = batchTotal;
+                    }
+
+                    return {
+                        post: {
+                            pending_post_id: pendingPostId,
+                            user_id: currentUserId,
+                            channel_id: channelId,
+                            root_id: rootId,
+                            message: '',
+                            file_ids: [localFile.id!],
+                            props,
+                        } as Post,
+                        files: [localFile],
+                    };
+                });
 
                 const batchResult = await createBatchPendingPosts(serverUrl, postsToCreate);
                 if (batchResult.error) {

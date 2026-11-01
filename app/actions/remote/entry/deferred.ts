@@ -3,7 +3,7 @@
 
 import {fetchMissingDirectChannelsInfo, fetchMyChannelsForTeam, type MyChannelsRequest} from '@actions/remote/channel';
 import {fetchGroupsForMember} from '@actions/remote/groups';
-import {fetchPostsForUnreadChannels} from '@actions/remote/post';
+import {fetchLastPostForRecentChannels, fetchPostsForUnreadChannels} from '@actions/remote/post';
 import {fetchRoles} from '@actions/remote/role';
 import {fetchScheduledPosts} from '@actions/remote/scheduled_post';
 import {fetchTeamsThreads, fetchTeamMembersForClassification, type MyTeamsRequest, updateCanJoinTeams} from '@actions/remote/team';
@@ -165,6 +165,10 @@ export async function restDeferredAppEntryActions(
                     }
 
                     fetchPostsForUnreadChannels(serverUrl, mySortedTeams, uniqueChannelsData.channels, uniqueChannelsData.memberships, initialChannelId, isCRTEnabled, requestLabel);
+
+                    // 已读但最近活跃的频道：补齐最后一条 post 预览，避免首页列表
+                    // 条目没有最后一条消息（必须进入聊天窗口再退出才能看到）
+                    fetchLastPostForRecentChannels(serverUrl, uniqueChannelsData.channels, initialChannelId, requestLabel, isCRTEnabled);
                 }
 
                 if (myOtherSortedTeams.length) {

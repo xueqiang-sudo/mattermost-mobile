@@ -197,7 +197,7 @@ const ChannelPostList = ({
             posts={posts}
             shouldShowJoinLeaveMessages={shouldShowJoinLeaveMessages}
             showMoreMessages={true}
-            showNewMessageLine={true}
+            showNewMessageLine={false}
             testID='channel.post_list'
             unreadCount={unreadCount}
         />

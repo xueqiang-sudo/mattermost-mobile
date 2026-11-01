@@ -124,11 +124,9 @@ const styles = StyleSheet.create({
     keepOriginalRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#F0F0F0',
-        backgroundColor: '#fff',
+        paddingVertical: 0,
+        paddingHorizontal: 0,
+        backgroundColor: 'transparent',
     },
     keepOriginalCheckbox: {
         width: 20,
@@ -136,17 +134,25 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         borderWidth: 2,
         borderColor: '#07C160',
-        marginRight: 12,
+        marginRight: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
     keepOriginalCheckboxChecked: {
         backgroundColor: '#07C160',
     },
+    keepOriginalCheckboxDisabled: {
+        borderColor: '#C7C7C7',
+    },
+    keepOriginalCheckboxDisabledChecked: {
+        backgroundColor: '#C7C7C7',
+    },
     keepOriginalLabel: {
         fontSize: 14,
         color: '#333',
-        flex: 1,
+    },
+    keepOriginalLabelDisabled: {
+        color: '#999',
     },
 });
 
@@ -201,27 +207,34 @@ function SelectedCountDisplay() {
     );
 }
 
-function KeepOriginalToggle({photoMode}: {photoMode?: boolean}) {
+function KeepOriginalToggle({photoMode, hasSelection}: {photoMode?: boolean; hasSelection: boolean}) {
     const intl = useIntl();
     const {state, dispatch} = useFilePicker();
 
     // 只有「照片」入口（photoMode）才显示原图开关。
     // 文件选择器的相册 tab 把照片当作文件发送，不显示原图开关。
-    const allFilesAreAlbum = state.selectedFiles.size > 0 &&
-        Array.from(state.selectedFiles.values()).every(f => f.source === 'album');
-
-    if (!photoMode || !allFilesAreAlbum) {
+    if (!photoMode) {
         return null;
     }
 
+    // 未选择文件时展示为禁用态；已选文件后若含非相册来源也仍允许切换（用户要求）
+    const disabled = !hasSelection;
+
     return (
         <TouchableOpacity
-            onPress={() => dispatch({type: 'SET_KEEP_ORIGINAL', keepOriginal: !state.keepOriginal})}
+            onPress={() => {
+                if (disabled) return;
+                dispatch({type: 'SET_KEEP_ORIGINAL', keepOriginal: !state.keepOriginal});
+            }}
             style={styles.keepOriginalRow}
+            disabled={disabled}
+            activeOpacity={0.7}
         >
             <View style={[
                 styles.keepOriginalCheckbox,
                 state.keepOriginal && styles.keepOriginalCheckboxChecked,
+                disabled && styles.keepOriginalCheckboxDisabled,
+                disabled && state.keepOriginal && styles.keepOriginalCheckboxDisabledChecked,
             ]}>
                 {state.keepOriginal && (
                     <CompassIcon
@@ -231,7 +244,10 @@ function KeepOriginalToggle({photoMode}: {photoMode?: boolean}) {
                     />
                 )}
             </View>
-            <Text style={styles.keepOriginalLabel}>
+            <Text style={[
+                styles.keepOriginalLabel,
+                disabled && styles.keepOriginalLabelDisabled,
+            ]}>
                 {intl.formatMessage({
                     id: 'file_picker.keep_original',
                     defaultMessage: 'Send Original Image',
@@ -479,41 +495,58 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
 
             <View style={styles.actionBar}>
                 <View style={styles.actionBarRow}>
-                    <TouchableOpacity
-                        onPress={() => setExpanded(!expanded)}
-                        style={styles.foldButton}
-                        disabled={selectedCount === 0}
-                    >
-                        <CompassIcon
-                            name={expanded ? 'chevron-down' : 'chevron-up'}
-                            size={20}
-                            color={selectedCount > 0 ? theme.centerChannelColor : changeOpacity(theme.centerChannelColor, 0.3)}
-                        />
-                    </TouchableOpacity>
-                    <SelectedCountDisplay/>
-                    <TouchableOpacity
-                        onPress={handleSend}
-                        style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-                        disabled={!canSend}
-                    >
-                        {sending ? (
-                            <ActivityIndicator size='small' color={theme.buttonColor}/>
-                        ) : (
-                            <Text style={styles.sendButtonText}>
-                                {intl.formatMessage({
-                                    id: 'file_picker.send',
-                                    defaultMessage: 'Send',
-                                })}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
+                    {photoMode ? (
+                        <>
+                            {/* 照片模式：[复选框 原图] 左对齐 + 发送(N) 右对齐，单行居中 */}
+                            <KeepOriginalToggle photoMode={photoMode} hasSelection={selectedCount > 0}/>
+                            <TouchableOpacity
+                                onPress={handleSend}
+                                style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                                disabled={!canSend}
+                            >
+                                {sending ? (
+                                    <ActivityIndicator size='small' color={theme.buttonColor}/>
+                                ) : (
+                                    <Text style={styles.sendButtonText}>
+                                        {intl.formatMessage({id: 'file_picker.send', defaultMessage: 'Send'})}
+                                        {selectedCount > 0 && `(${selectedCount})`}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <TouchableOpacity
+                                onPress={() => setExpanded(!expanded)}
+                                style={styles.foldButton}
+                                disabled={selectedCount === 0}
+                            >
+                                <CompassIcon
+                                    name={expanded ? 'chevron-down' : 'chevron-up'}
+                                    size={20}
+                                    color={selectedCount > 0 ? theme.centerChannelColor : changeOpacity(theme.centerChannelColor, 0.3)}
+                                />
+                            </TouchableOpacity>
+                            <SelectedCountDisplay/>
+                            <TouchableOpacity
+                                onPress={handleSend}
+                                style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                                disabled={!canSend}
+                            >
+                                {sending ? (
+                                    <ActivityIndicator size='small' color={theme.buttonColor}/>
+                                ) : (
+                                    <Text style={styles.sendButtonText}>
+                                        {intl.formatMessage({id: 'file_picker.send', defaultMessage: 'Send'})}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
 
-                {/* 原图复选框 - 仅「照片」入口显示 */}
-                <KeepOriginalToggle photoMode={photoMode}/>
-
-                {/* 展开的文件列表 */}
-                {expanded && selectedCount > 0 && (
+                {/* 展开的文件列表（仅文件选择器模式；照片模式无折叠按钮，不展开） */}
+                {!photoMode && expanded && selectedCount > 0 && (
                     <FlatList
                         data={selectedFilesList}
                         renderItem={renderFileItem}

@@ -37,6 +37,8 @@ type FilePickerContextType = {
     state: SelectionState;
     dispatch: React.Dispatch<SelectionAction>;
     isFileSelected: (fileId: string) => boolean;
+    /** 返回已选文件的插入顺序索引（从 0 开始），未选中返回 -1。 */
+    getSelectionIndex: (fileId: string) => number;
     getSelectedCount: () => number;
     canSelectMore: () => boolean;
     getSelectedFiles: () => SelectedFile[];
@@ -192,6 +194,15 @@ export function FilePickerProvider({children, maxSelection = 9}: FilePickerProvi
         return state.selectedFiles.has(fileId);
     };
 
+    const getSelectionIndex = (fileId: string): number => {
+        let idx = 0;
+        for (const key of state.selectedFiles.keys()) {
+            if (key === fileId) return idx;
+            idx++;
+        }
+        return -1;
+    };
+
     const getSelectedCount = (): number => {
         return state.selectedFiles.size;
     };
@@ -222,6 +233,7 @@ export function FilePickerProvider({children, maxSelection = 9}: FilePickerProvi
                 state,
                 dispatch,
                 isFileSelected,
+                getSelectionIndex,
                 getSelectedCount,
                 canSelectMore,
                 getSelectedFiles,

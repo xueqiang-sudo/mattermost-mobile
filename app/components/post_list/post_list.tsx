@@ -76,7 +76,7 @@ const SCROLL_EVENT_THROTTLE = Platform.select({android: 17, default: 60});
 /** 与当前可视项 ±N 行的帖子一并标记可加载媒体，便于即将滚入时预加载 */
 const POST_MEDIA_NEAR_VIEWPORT_RANGE = 5;
 
-const keyExtractor = (item: PostListItem | PostListOtherItem) => (item.type === 'post' ? item.value.currentPost.id : item.value);
+const keyExtractor = (item: PostListItem | PostListOtherItem) => (item.type === 'post' ? (item.value.currentPost.pendingPostId || item.value.currentPost.id) : item.value);
 
 const styles = StyleSheet.create({
     flex: {
@@ -513,7 +513,7 @@ const PostList = ({
                     return (
                         <Post
                             {...postProps}
-                            key={post.id}
+                            key={post.pendingPostId || post.id}
                         />
                     );
                 } catch (error) {

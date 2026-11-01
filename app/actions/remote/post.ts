@@ -270,12 +270,13 @@ export async function createBatchPendingPosts(
         const {database} = operator;
 
         const currentUserId = await getCurrentUserId(database);
-        const allModels: Model[] = [];
         const results: Array<{
             pendingPostId: string;
             post: Post;
             files: FileInfo[];
         }> = [];
+        // 每条 post 单独一组 models，便于按组写入（微信式一组一组渲染）
+        const perPostModels: Model[][] = [];
 
         const baseTimestamp = Date.now();
 
@@ -284,75 +285,98 @@ export async function createBatchPendingPosts(
             const timestamp = baseTimestamp + i; // Ensure unique timestamps
             const pendingPostId = post.pending_post_id || `${currentUserId}:${timestamp}`;
 
-        // Check for existing post
-        const existing = await getPostById(database, pendingPostId);
-        if (existing && !existing.props?.failed) {
-            results.push({
-                pendingPostId: existing.id,
-                post: existing as unknown as Post,
-                files: [],
-            });
-            continue;
-        }
-
-        const newPost = {
-            ...post,
-            id: '',
-            pending_post_id: pendingPostId,
-            create_at: timestamp,
-            update_at: timestamp,
-            delete_at: 0,
-        } as Post;
-
-        const databasePost = {
-            ...newPost,
-            id: pendingPostId,
-        };
-
-        // Add file_ids to databasePost for local storage
-        if (files.length) {
-            const fileIds = files.map((file) => file.id);
-            databasePost.file_ids = fileIds;
-        }
-
-        // Prepare file models
-        if (files.length) {
-            for (const f of files) {
-                f.post_id = pendingPostId;
+            // Check for existing post
+            const existing = await getPostById(database, pendingPostId);
+            if (existing && !existing.props?.failed) {
+                results.push({
+                    pendingPostId: existing.id,
+                    post: existing as unknown as Post,
+                    files: [],
+                });
+                perPostModels.push([]);
+                continue;
             }
-            const filesModels = await operator.handleFiles({files, prepareRecordsOnly: true});
-            allModels.push(...filesModels);
+
+            const newPost = {
+                ...post,
+                id: '',
+                pending_post_id: pendingPostId,
+                create_at: timestamp,
+                update_at: timestamp,
+                delete_at: 0,
+            } as Post;
+
+            const databasePost = {
+                ...newPost,
+                id: pendingPostId,
+            };
+
+            // Add file_ids to databasePost for local storage
+            if (files.length) {
+                const fileIds = files.map((file) => file.id);
+                databasePost.file_ids = fileIds;
+            }
+
+            const groupModels: Model[] = [];
+
+            // Prepare file models
+            if (files.length) {
+                for (const f of files) {
+                    f.post_id = pendingPostId;
+                }
+                const filesModels = await operator.handleFiles({files, prepareRecordsOnly: true});
+                groupModels.push(...filesModels);
+            }
+
+            // Prepare post model
+            const postModels = await operator.handlePosts({
+                actionType: ActionType.POSTS.RECEIVED_NEW,
+                order: [databasePost.id],
+                posts: [databasePost],
+                prepareRecordsOnly: true,
+            });
+            groupModels.push(...postModels);
+
+            results.push({
+                pendingPostId,
+                post: newPost,
+                files,
+            });
+            perPostModels.push(groupModels);
         }
 
-        // Prepare post model
-        const postModels = await operator.handlePosts({
-            actionType: ActionType.POSTS.RECEIVED_NEW,
-            order: [databasePost.id],
-            posts: [databasePost],
-            prepareRecordsOnly: true,
-        });
-        allModels.push(...postModels);
-
-        results.push({
-            pendingPostId,
-            post: newPost,
-            files,
-        });
-    }
-
-        // Handle recent reactions once for the first post
+        // Handle recent reactions once for the first post (attach to first group)
         if (results.length > 0) {
             const firstPost = results[0].post;
             const customEmojis = await queryAllCustomEmojis(database).fetch();
             const emojisInMessage = matchEmoticons(firstPost.message);
             const reactionModels = await addRecentReaction(serverUrl, getValidEmojis(emojisInMessage, customEmojis), true);
-            if (!('error' in reactionModels) && reactionModels.length) {
-                allModels.push(...reactionModels);
+            if (!('error' in reactionModels) && reactionModels.length && perPostModels[0]) {
+                perPostModels[0].push(...reactionModels);
             }
         }
 
-        // Single batch write for ALL pending posts → triggers observe() only once
-        await operator.batchRecords(allModels, 'createBatchPendingPosts');
+        // 【微信式】一组一组写入 + 帧间隔让 React 一组一组渲染。
+        // 单条写入总时长比一次性写入仅多 ~几十 ms（DB 写本身很快），
+        // 但用户感知是「一组一组冒出来」而非「9 条同时闪出」。
+        const waitForFrame = () => new Promise<void>((r) => {
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => r());
+            } else {
+                setTimeout(r, 16);
+            }
+        });
+
+        for (let i = 0; i < perPostModels.length; i++) {
+            const models = perPostModels[i];
+            if (!models || models.length === 0) continue;
+            /* eslint-disable-next-line no-await-in-loop */
+            await operator.batchRecords(models, `createBatchPendingPosts_${i}`);
+            if (i < perPostModels.length - 1) {
+                /* eslint-disable-next-line no-await-in-loop */
+                await waitForFrame();
+            }
+        }
 
         return {data: results};
     } catch (error) {
@@ -667,6 +691,61 @@ export const fetchPostsForUnreadChannels = async (
     for (const channelIds of Object.values(sortedUnreadchannelIdsByTeam)) {
         /* eslint-disable-next-line no-await-in-loop */
         await processChannelPostsByTeam(serverUrl, channelIds, false, groupLabel, isCRTEnabled);
+    }
+};
+
+/**
+ * 冷启动时为首页聊天列表补全"最后一条消息预览"。
+ *
+ * 背景：`fetchPostsForUnreadChannels` 只为有未读消息的频道拉 posts。
+ * 对于用户已读完（无未读）但最近有活动的频道，本地 Post 表为空，
+ * 首页条目只能显示标题 + 时间，没有最后一条消息预览。必须进入
+ * 聊天窗口（`fetchPostsForChannel`）再退出，UI 响应式查询才能拿到数据。
+ *
+ * 本函数补齐：取按 last_post_at 倒序的前 N 个「无本地 post 记录」的
+ * 活跃频道，批量拉一次 posts，让 `observeLastPostInChannel` 在首页
+ * 就能渲染出预览。
+ */
+export const fetchLastPostForRecentChannels = async (
+    serverUrl: string,
+    channels: Channel[],
+    excludeChannelId?: string,
+    groupLabel?: RequestGroupLabel,
+    isCRTEnabled?: boolean,
+): Promise<void> => {
+    try {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+
+        // 一次性拿到本地已有 posts 的 channel_id 集合
+        const existingPostsInChannel = await database.get('PostsInChannel').query().fetch();
+        const hasPostsSet = new Set(existingPostsInChannel.map((c: any) => c.channelId));
+
+        const candidateChannels = channels
+            .filter((c) => c.id !== excludeChannelId && !c.delete_at && !hasPostsSet.has(c.id))
+            .sort((a, b) => (b.last_post_at ?? 0) - (a.last_post_at ?? 0));
+
+        // 取按 last_post_at 倒序的前 N 个，避免一次性拉太多
+        const limit = 20;
+        const topRecent = candidateChannels.slice(0, limit);
+        if (topRecent.length === 0) {
+            return;
+        }
+
+        const missingByTeam: Record<string, string[]> = {};
+        for (const channel of topRecent) {
+            const teamId = channel.team_id || '';
+            if (!missingByTeam[teamId]) {
+                missingByTeam[teamId] = [];
+            }
+            missingByTeam[teamId].push(channel.id);
+        }
+
+        for (const channelIds of Object.values(missingByTeam)) {
+            /* eslint-disable-next-line no-await-in-loop */
+            await processChannelPostsByTeam(serverUrl, channelIds, false, groupLabel, isCRTEnabled);
+        }
+    } catch (error) {
+        logDebug('fetchLastPostForRecentChannels failed', getFullErrorMessage(error));
     }
 };
 

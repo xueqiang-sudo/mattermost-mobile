@@ -323,9 +323,12 @@ const File = ({
             disabled={isPressDisabled}
             type={'opacity'}
         >
-            <FileIcon
-                file={file}
-            />
+            <View style={{position: 'relative'}}>
+                <FileIcon
+                    file={file}
+                />
+                {isPendingUpload && <UploadProgressOverlay progressKey={file.id}/>}
+            </View>
         </TouchableWithFeedback>
     );
 

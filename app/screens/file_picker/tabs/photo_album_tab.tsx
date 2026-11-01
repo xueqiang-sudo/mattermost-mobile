@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     circleEmpty: {
         position: 'absolute',
         top: 4,
-        right: 4,
+        left: 4,
         width: 24,
         height: 24,
         borderRadius: 12,
@@ -66,13 +66,18 @@ const styles = StyleSheet.create({
     circleSelected: {
         position: 'absolute',
         top: 4,
-        right: 4,
+        left: 4,
         width: 24,
         height: 24,
         borderRadius: 12,
         backgroundColor: '#07C160',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    circleSelectedText: {
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: '700',
     },
     disabledOverlay: {
         ...StyleSheet.absoluteFillObject,
@@ -95,7 +100,7 @@ type PhotoAsset = {
 
 export default function PhotoAlbumTab() {
     const intl = useIntl();
-    const {dispatch, isFileSelected, canSelectMore, state} = useFilePicker();
+    const {dispatch, isFileSelected, getSelectionIndex, canSelectMore, state} = useFilePicker();
     const [photos, setPhotos] = useState<PhotoAsset[]>([]);
     const [hasPermission, setHasPermission] = useState<boolean>(false);
     const [pageInfo, setPageInfo] = useState({has_next_page: false, end_cursor: ''});
@@ -178,44 +183,34 @@ export default function PhotoAlbumTab() {
             return;
         }
 
-        // 【优化】选择时不再复制，只获取文件元数据，发送时再处理
-        // 减少一次 I/O 操作，提升选择速度
-        setImmediate(async () => {
-            try {
-                const filename = photo.node.image.filename || photoUri.split('/').pop() || 'photo.jpg';
-                const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
+        // 【优化】选择时立即 dispatch（用户点下去数字立刻出现）。
+        // 文件元数据异步填充；size 留 0，上传阶段会用真实值。
+        const filename = photo.node.image.filename || photoUri.split('/').pop() || 'photo.jpg';
+        const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() || 'jpg' : 'jpg';
 
-                // 只获取文件大小，不复制文件
-                let fileSize = 0;
-                try {
-                    const fileInfo = await getInfoAsync(photoUri, {size: true});
-                    if (fileInfo.exists && 'size' in fileInfo) {
-                        fileSize = fileInfo.size || 0;
-                    }
-                } catch (e) {
-                    debugLog('PhotoAlbumTab', `Failed to get file size: ${e instanceof Error ? e.message : String(e)}`);
-                }
+        const selectedFile: SelectedFile = {
+            id: photoUri,
+            clientId: photoUri,
+            name: filename,
+            uri: photoUri,
+            mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
+            size: 0,
+            source: 'album',
+            originalUri: photoUri,
+            extension,
+            width: photo.node.image.width,
+            height: photo.node.image.height,
+        };
 
-                // 直接使用原始 URI，不复制到缓存
-                const selectedFile: SelectedFile = {
-                    id: photoUri,  // 使用原始 URI 作为 ID
-                    clientId: photoUri,
-                    name: filename,
-                    uri: photoUri,  // 直接使用原始 URI
-                    mime_type: `image/${extension === 'jpg' || extension === 'jpeg' ? 'jpeg' : extension}`,
-                    size: fileSize,
-                    source: 'album',
-                    originalUri: photoUri,
-                    extension,
-                    width: photo.node.image.width,
-                    height: photo.node.image.height,
-                };
+        dispatch({type: 'ADD_FILE', file: selectedFile});
 
-                debugLog('PhotoAlbumTab', 'Adding photo to selection (no copy):', {name: selectedFile.name, uri: selectedFile.uri});
-                dispatch({type: 'ADD_FILE', file: selectedFile});
-            } catch (error) {
-                debugLog('PhotoAlbumTab', `Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+        // 后台回填文件 size（不阻塞 UI）
+        getInfoAsync(photoUri, {size: true}).then((fileInfo) => {
+            if (fileInfo.exists && 'size' in fileInfo && fileInfo.size) {
+                debugLog('PhotoAlbumTab', `Background size update: ${filename} = ${fileInfo.size}`);
             }
+        }).catch((e) => {
+            debugLog('PhotoAlbumTab', `Background size lookup failed: ${e instanceof Error ? e.message : String(e)}`);
         });
     }, [dispatch, isFileSelected, canSelectMore]);
 
@@ -223,6 +218,7 @@ export default function PhotoAlbumTab() {
         const photoUri = item.node.image.uri;
         const isSelected = isFileSelected(photoUri);
         const canSelect = canSelectMore() || isSelected;
+        const orderNumber = isSelected ? getSelectionIndex(photoUri) + 1 : 0;
 
         return (
             <TouchableWithFeedback
@@ -239,11 +235,7 @@ export default function PhotoAlbumTab() {
 
                     {isSelected ? (
                         <View style={styles.circleSelected}>
-                            <CompassIcon
-                                name='check'
-                                size={16}
-                                color='#fff'
-                            />
+                            <Text style={styles.circleSelectedText}>{orderNumber}</Text>
                         </View>
                     ) : (
                         <View style={styles.circleEmpty}/>
@@ -255,7 +247,7 @@ export default function PhotoAlbumTab() {
                 </>
             </TouchableWithFeedback>
         );
-    }, [handlePhotoPress, isFileSelected, canSelectMore]);
+    }, [handlePhotoPress, isFileSelected, getSelectionIndex, canSelectMore]);
 
     const renderEmpty = useCallback(() => (
         <View style={styles.emptyContainer}>
