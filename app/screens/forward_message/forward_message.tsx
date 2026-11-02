@@ -16,6 +16,7 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type ChannelModel from '@typings/database/models/servers/channel';
+import type TeamModel from '@typings/database/models/servers/team';
 
 type ForwardMessageProps = {
     componentId: AvailableScreens;
@@ -25,6 +26,7 @@ type ForwardMessageProps = {
     fileIds?: string[];
     channels?: ChannelModel[];
     currentChannelId?: string;
+    team?: TeamModel | null;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -104,6 +106,7 @@ const ForwardMessage = ({
     fileIds,
     channels,
     currentChannelId,
+    team,
 }: ForwardMessageProps) => {
     const intl = useIntl();
     const theme = useTheme();
@@ -327,8 +330,9 @@ const ForwardMessage = ({
                         color={theme.centerChannelColor}
                     />
                 </Pressable>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'})}
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                    {team?.displayName ||
+                        intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'})}
                 </Text>
                 <Pressable
                     style={styles.headerButton}
