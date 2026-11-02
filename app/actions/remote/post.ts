@@ -356,16 +356,7 @@ export async function createBatchPendingPosts(
             }
         }
 
-        // 【帧让渡】让 React 渲染一次再跑下一段。
-        const waitForFrame = () => new Promise<void>((r) => {
-            if (typeof requestAnimationFrame === 'function') {
-                requestAnimationFrame(() => r());
-            } else {
-                setTimeout(r, 16);
-            }
-        });
-
-        // 【关键修复】分组写入顺序：先写 File，再帧让渡，再写 Post。
+        // 【两阶段写入】先批量写所有 File，再批量写所有 Post。
         //
         // 问题：原实现在同一次 batchRecords 里同时写 File+Post。WatermelonDB 对
         // Post 表的插入会立刻触发 PostList 的 withObservables 重新渲染 Post 行；
@@ -373,41 +364,34 @@ export async function createBatchPendingPosts(
         // 观察器触发时还没走完自己的 observe 管道，瞬间返回 0 条 → hasFiles=false，
         // 所以「头像/时间戳先出现，文件信息延迟出现」。
         //
-        // 方案：把每组的 models 拆成 filesModels 与 postModels，分两步写。
-        //   1) 先 batchRecords(filesModels)：此时 Post 行不存在，不会触发 PostList 渲染。
-        //   2) requestAnimationFrame 让 JS 事件循环消化 File 表的 change 事件，
-        //      让 queryFilesForPost 的内部 observer 注册好最新快照。
-        //   3) 再 batchRecords(postModels)：Post 行插入，触发 PostList → Post 行渲染；
+        // 方案：把所有 perPostModels 的 File 与 Post 分开写。
+        //   1) 先 batchRecords(所有 File)：此时 Post 行不存在，不会触发 PostList 渲染。
+        //   2) 等微任务队列让 WatermelonDB 消化 File 表的 change 事件。
+        //   3) 再 batchRecords(所有 Post)：Post 行插入，触发 PostList → Post 行渲染；
         //      此时 Files 子组件的 query 已经能看到先写入的 File 行，hasFiles=true，
-        //      头像与文件信息在同一帧一起出现，对齐微信体验。
-        // WatermelonDB 模型的 instance.table 返回该模型对应的表名（如 'File'、'Post'）。
-        // 用 'File' 字面量拆分本次 batch 中的文件记录与非文件记录。
-        for (let i = 0; i < perPostModels.length; i++) {
-            const models = perPostModels[i];
+        //      头像与文件信息同时出现，对齐微信体验。
+        const allFiles: Model[] = [];
+        const allOtherModels: Model[] = [];
+        for (const models of perPostModels) {
             if (!models || models.length === 0) continue;
-
-            const filesModels = models.filter((m) => (m as {table?: string})?.table === 'File');
-            const postModels = models.filter((m) => (m as {table?: string})?.table !== 'File');
-
-            // 1) 写 File 记录（Post 还不存在，不会触发聊天列表渲染）
-            if (filesModels.length > 0) {
-                /* eslint-disable-next-line no-await-in-loop */
-                await operator.batchRecords(filesModels, `createBatchPendingPosts_files_${i}`);
-                /* eslint-disable-next-line no-await-in-loop */
-                await waitForFrame();
+            for (const m of models) {
+                // WatermelonDB 模型通过 static table 属性暴露表名，JS 实例上可访问。
+                if ((m as {table?: string})?.table === 'File') {
+                    allFiles.push(m);
+                } else {
+                    allOtherModels.push(m);
+                }
             }
+        }
 
-            // 2) 写 Post 记录（File 已就位，Files 子组件首次 observe 即拿到文件）
-            if (postModels.length > 0) {
-                /* eslint-disable-next-line no-await-in-loop */
-                await operator.batchRecords(postModels, `createBatchPendingPosts_post_${i}`);
-            }
+        if (allFiles.length > 0) {
+            await operator.batchRecords(allFiles, 'createBatchPendingPosts_files');
+            // 让 WatermelonDB 内部通知队列走完，再写 Post 触发 UI 渲染。
+            await new Promise<void>((r) => setTimeout(r, 0));
+        }
 
-            // 3) 与下一组之间帧让渡，保持微信式「一组一组冒出来」
-            if (i < perPostModels.length - 1) {
-                /* eslint-disable-next-line no-await-in-loop */
-                await waitForFrame();
-            }
+        if (allOtherModels.length > 0) {
+            await operator.batchRecords(allOtherModels, 'createBatchPendingPosts_posts');
         }
 
         return {data: results};

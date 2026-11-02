@@ -97,6 +97,11 @@ const styles = StyleSheet.create({
         color: '#111',
         marginBottom: 14,
     },
+    passwordModalError: {
+        fontSize: 13,
+        color: '#E64340',
+        marginBottom: 10,
+    },
     passwordModalButtons: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
@@ -149,6 +154,8 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     // 密码输入弹窗：visible=true 时弹出 Modal，用户输入确认后 setPdfPassword 触发原生解密。
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [passwordDraft, setPasswordDraft] = useState('');
+    // 上一次输入的密码被原生判定为错误时置 true，Modal 内显示错误提示；每次重新打开时重置。
+    const [showWrongPasswordHint, setShowWrongPasswordHint] = useState(false);
     const passwordPromptCountRef = useRef(0);
     const MAX_PASSWORD_PROMPTS = 3;
 
@@ -211,8 +218,9 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     }, []);
 
     // 弹出密码输入 Modal。用户输入确认后 setPdfPassword，触发 SecurePdfViewer 重渲染、
-    // 原生用新密码再次尝试 unlock。
-    const promptForPassword = useCallback((_remainingAttempts: number) => {
+    // 原生用新密码再次尝试 unlock。showWrongHint=true 表示上一次输入的密码被原生判定为错误，
+    // 需要在弹窗内显示「密码错误」提示；首次弹出（onPasswordRequired）时为 false。
+    const promptForPassword = useCallback((_remainingAttempts: number, showWrongHint = false) => {
         passwordPromptCountRef.current += 1;
         if (passwordPromptCountRef.current > MAX_PASSWORD_PROMPTS) {
             setPdfError('Too many password attempts');
@@ -220,31 +228,35 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             return;
         }
         setPasswordDraft('');
+        setShowWrongPasswordHint(showWrongHint);
         setShowPasswordPrompt(true);
     }, []);
 
     const handlePasswordConfirm = useCallback(() => {
         setShowPasswordPrompt(false);
+        setShowWrongPasswordHint(false);
         // 强制触发 React 重渲染：即使输入和上次相同的密码也要让原生重试
         setPdfPassword((prev) => (prev === passwordDraft ? passwordDraft + '\u0000' : passwordDraft));
     }, [passwordDraft]);
 
     const handlePasswordCancel = useCallback(() => {
         setShowPasswordPrompt(false);
+        setShowWrongPasswordHint(false);
         setPdfError('Password required');
         setFileState('unsupported');
     }, []);
 
     // 原生提示「PDF 需要密码」：空密码已试（初值 ''），到这里说明 PDF 真有用户密码，弹 Modal 让用户输入。
+    // 首次弹出，无「密码错误」提示。
     const onPasswordRequired = useCallback((event: OnPasswordRequiredEvent) => {
         debugLog('[Viewer] onPasswordRequired', event.nativeEvent);
-        promptForPassword(event.nativeEvent.remainingAttempts);
+        promptForPassword(event.nativeEvent.remainingAttempts, false);
     }, [promptForPassword]);
 
-    // 上次输入的密码不正确：再次弹输入框让用户重试。
+    // 上次输入的密码不正确：再次弹输入框让用户重试，并显示「密码错误」提示。
     const onPasswordFailed = useCallback((event: OnPasswordFailedEvent) => {
         debugLog('[Viewer] onPasswordFailed', event.nativeEvent);
-        promptForPassword(event.nativeEvent.remainingAttempts);
+        promptForPassword(event.nativeEvent.remainingAttempts, true);
     }, [promptForPassword]);
 
     // 原生侧连续错误次数超限（10 次）：降级为「无法预览」。
@@ -774,6 +786,14 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                             placeholderTextColor='#999'
                             style={styles.passwordModalInput}
                         />
+                        {showWrongPasswordHint && (
+                            <Text style={styles.passwordModalError}>
+                                {intl.formatMessage({
+                                    id: 'file_viewer.pdf_password_wrong',
+                                    defaultMessage: 'Incorrect password. Please try again.',
+                                })}
+                            </Text>
+                        )}
                         <View style={styles.passwordModalButtons}>
                             <TouchableOpacity
                                 onPress={handlePasswordCancel}

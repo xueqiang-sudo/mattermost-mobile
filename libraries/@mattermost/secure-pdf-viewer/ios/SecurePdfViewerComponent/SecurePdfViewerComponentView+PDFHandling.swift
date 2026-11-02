@@ -26,18 +26,29 @@ extension SecurePdfViewerComponentView {
             pdfDocument = document
 
             if document.isEncrypted {
-                let passwordAttempts = attemptStore.getRemainingAttempts(for: fileKey)
-                onPasswordRequired!(["maxAttempts": attemptStore.maxAllowedAttempts, "remainingAttempts": passwordAttempts])
+                // 先用当前 password prop（可能是空串）尝试解锁。
+                // 对齐微信/Adobe Reader：空用户密码的 DRM PDF 直接打开，无弹框。
+                // attemptUnlockIfNeeded 内部处理三种分支：
+                //   - 解锁成功：直接渲染，不发任何事件；
+                //   - 解锁失败且仍有重试次数：发 onPasswordFailed，让 JS 弹输入框；
+                //   - 解锁失败且超限：发 onPasswordFailureLimitReached。
+                // 仅当 password prop 为 nil（JS 未传 password）时才走 onPasswordRequired 弹框。
+                if password != nil {
+                    attemptUnlockIfNeeded()
+                } else {
+                    let passwordAttempts = attemptStore.getRemainingAttempts(for: fileKey)
+                    onPasswordRequired?(["maxAttempts": attemptStore.maxAllowedAttempts, "remainingAttempts": passwordAttempts])
+                }
             } else {
                 pdfView.document = document
                 customThumbnailView.pdfView = pdfView
                 updatePageIndicator()
-                
+
                 if thumbnailLayoutMode == .panel {
                     customThumbnailView.isHidden = false
                     layoutIfNeeded()
                 }
-                
+
                 onLoad?([:])
             }
         } else {
