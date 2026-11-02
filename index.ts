@@ -61,36 +61,27 @@ if (Platform.OS === 'android') {
 
 // 注册启动错误页面：当 start() 崩溃时替代原生 splash 显示，
 // 避免用户在小米等特定设备上永远卡在白色启动页。
+// 注意：index.ts 是 .ts 文件，不能使用 JSX，必须用 React.createElement。
 Navigation.registerComponent('StartupError', () => {
     const React = require('react');
     const {View, Text, ScrollView, TouchableOpacity, BackHandler} = require('react-native');
+    const h = React.createElement;
 
-    const StartupError = ({error}: {error: string}) => (
-        <View style={{flex: 1, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 24}}>
-            <Text style={{fontSize: 22, fontWeight: '700', color: '#E64340', textAlign: 'center', marginBottom: 16}}>
-                应用启动失败
-            </Text>
-            <ScrollView style={{maxHeight: 300, backgroundColor: '#f5f5f5', borderRadius: 8, padding: 12}}>
-                <Text style={{fontSize: 13, color: '#333', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}}>
-                    {error || 'Unknown error'}
-                </Text>
-            </ScrollView>
-            <Text style={{fontSize: 14, color: '#666', textAlign: 'center', marginTop: 20, lineHeight: 20}}>
-                请尝试以下操作：{'\n'}
-                1. 完全关闭应用后重新打开{'\n'}
-                2. 检查网络连接{'\n'}
-                3. 在系统设置中清除应用缓存
-            </Text>
-            <TouchableOpacity
-                onPress={() => {
-                    BackHandler.exitApp();
-                }}
-                style={{marginTop: 24, backgroundColor: '#07C160', borderRadius: 8, paddingVertical: 12, alignItems: 'center'}}
-            >
-                <Text style={{color: '#fff', fontSize: 16, fontWeight: '600'}}>退出应用</Text>
-            </TouchableOpacity>
-        </View>
-    );
+    const StartupError = ({error}: {error: string}) =>
+        h(View, {style: {flex: 1, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 24}},
+            h(Text, {style: {fontSize: 22, fontWeight: '700', color: '#E64340', textAlign: 'center', marginBottom: 16}},
+                '应用启动失败'),
+            h(ScrollView, {style: {maxHeight: 300, backgroundColor: '#f5f5f5', borderRadius: 8, padding: 12}},
+                h(Text, {style: {fontSize: 13, color: '#333', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}},
+                    error || 'Unknown error')),
+            h(Text, {style: {fontSize: 14, color: '#666', textAlign: 'center', marginTop: 20, lineHeight: 20}},
+                '请尝试以下操作：\n1. 完全关闭应用后重新打开\n2. 检查网络连接\n3. 在系统设置中清除应用缓存'),
+            h(TouchableOpacity, {
+                onPress: () => BackHandler.exitApp(),
+                style: {marginTop: 24, backgroundColor: '#07C160', borderRadius: 8, paddingVertical: 12, alignItems: 'center'},
+            },
+                h(Text, {style: {color: '#fff', fontSize: 16, fontWeight: '600'}}, '退出应用')),
+        );
 
     return StartupError;
 });
