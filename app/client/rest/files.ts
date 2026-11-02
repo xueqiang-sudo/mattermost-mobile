@@ -21,6 +21,7 @@ export interface ClientFilesMix {
         onError: (response: ClientResponseError) => void,
         skipBytes?: number,
         isBookmark?: boolean,
+        fileId?: string,
     ) => () => void;
     searchFiles: (teamId: string, terms: string, isOrSearch: boolean) => Promise<FileSearchRequest>;
     searchFilesWithParams: (teamId: string, FileSearchParams: FileSearchParams) => Promise<FileSearchRequest>;
@@ -91,18 +92,25 @@ const ClientFiles = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
         onError: (response: ClientResponseError) => void,
         skipBytes = 0,
         isBookmark = false,
+        fileId?: string,
     ) => {
         let url = this.getFilesRoute();
         if (isBookmark) {
             url = `${url}?bookmark=true`;
         }
+        const multipartData: Record<string, string> = {
+            channel_id: channelId,
+        };
+        // If fileId is provided, include it for batch upload support
+        // This tells the server to fill an existing FileInfo record with content
+        if (fileId) {
+            multipartData.file_ids = fileId;
+        }
         const options: UploadRequestOptions = {
             skipBytes,
             method: 'POST',
             multipart: {
-                data: {
-                    channel_id: channelId,
-                },
+                data: multipartData,
             },
             timeoutInterval: toMilliseconds({minutes: 3}),
             headers: this.getRequestHeaders('POST'),

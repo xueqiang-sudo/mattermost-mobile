@@ -30,10 +30,11 @@ export const uploadFile = (
     onError: (response: ClientResponseError) => void = () => {/*Do Nothing*/},
     skipBytes = 0,
     isBookmark = false,
+    fileId?: string,
 ) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        return {cancel: client.uploadAttachment(file, channelId, onProgress, onComplete, onError, skipBytes, isBookmark)};
+        return {cancel: client.uploadAttachment(file, channelId, onProgress, onComplete, onError, skipBytes, isBookmark, fileId)};
     } catch (error) {
         logDebug('error on uploadFile', getFullErrorMessage(error));
         return {error};

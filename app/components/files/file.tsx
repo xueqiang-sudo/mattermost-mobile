@@ -27,6 +27,7 @@ import type {DocumentRef} from '@components/document';
 
 type FileProps = {
     canDownloadFiles: boolean;
+    currentUserId?: string;
     enableSecureFilePreview: boolean;
     file: FileInfo;
     galleryIdentifier: string;
@@ -100,6 +101,7 @@ const File = ({
     asCard = false,
     canDownloadFiles,
     channelName,
+    currentUserId,
     enableSecureFilePreview,
     file,
     galleryIdentifier,
@@ -266,6 +268,7 @@ const File = ({
         const fileInfo = (
             <FileInfo
                 channelName={channelName}
+                currentUserId={currentUserId}
                 disabled={isPressDisabled}
                 file={file}
                 fillRemainingRow={true}
@@ -404,6 +407,7 @@ const File = ({
         const fileInfo = (
             <FileInfo
                 channelName={channelName}
+                currentUserId={currentUserId}
                 disabled={isPressDisabled}
                 file={file}
                 fillRemainingRow={true}

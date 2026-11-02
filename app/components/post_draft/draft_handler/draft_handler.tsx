@@ -372,6 +372,23 @@ export default function DraftHandler(props: Props) {
                         props.batch_total = batchTotal;
                     }
 
+                    // 微信风格：非已有服务器文件时，在 props 中携带文件元信息
+                    // 这样接收端（webapp/mobile）收到 post 后能立刻渲染文件信息+上传中状态
+                    if (!isExistingServerFile) {
+                        props.pending_files = [{
+                            clientId: localFile.clientId || localFile.id,
+                            name: localFile.name,
+                            size: localFile.size || 0,
+                            type: localFile.mime_type || 'application/octet-stream',
+                        }];
+                        props.upload_progress = {
+                            [localFile.clientId || localFile.id!]: {
+                                progress: 0,
+                                status: 'uploading',
+                            },
+                        };
+                    }
+
                     return {
                         post: {
                             pending_post_id: pendingPostId,
@@ -401,6 +418,8 @@ export default function DraftHandler(props: Props) {
                 debugLog('DRAFT', `addFiles: Phase 3 - calling server API for ${batchData.length} posts (parallel)`);
 
                 const createdPostIds: string[] = new Array(batchData.length);
+                // Store server-generated file_ids for use during upload
+                const serverFileIds: Array<string | undefined> = new Array(batchData.length);
                 const postQueue = batchData.map((item, index) => ({...item, index}));
 
                 while (postQueue.length > 0) {
@@ -422,6 +441,11 @@ export default function DraftHandler(props: Props) {
                             } else if (result.data?.postId) {
                                 createdPostId = result.data.postId;
                                 debugLog('DRAFT', `addFiles: Phase 3 - post ${index} created, id=${createdPostId}`);
+                                // Capture server-generated file_id if available
+                                if (result.data.pendingFiles && result.data.pendingFiles.length > 0) {
+                                    serverFileIds[index] = result.data.pendingFiles[0].file_id;
+                                    debugLog('DRAFT', `addFiles: Phase 3 - server file_id for post ${index}: ${serverFileIds[index]}`);
+                                }
                             }
                         } catch (err) {
                             logError('[addFiles createPost]', err);
@@ -443,6 +467,7 @@ export default function DraftHandler(props: Props) {
                 const uploadQueue = filesWithPostData.map((item, index) => ({
                     ...item,
                     postId: createdPostIds[index],
+                    serverFileId: serverFileIds[index],
                     index,
                 }));
 
@@ -451,7 +476,7 @@ export default function DraftHandler(props: Props) {
                     debugLog('DRAFT', `addFiles: uploading batch of ${batch.length} files (remaining: ${uploadQueue.length})`);
 
                     // 并行上传当前批次
-                    await Promise.all(batch.map(async ({localFile: file, isExistingServerFile, postId, index}) => {
+                    await Promise.all(batch.map(async ({localFile: file, isExistingServerFile, postId, serverFileId, index}) => {
 
                     // 进度键用 pending 文件 id（file.id），因为聊天列表从 DB 读取的 File 只有 id，无 clientId
                     const progressKey = file.id!;
@@ -503,7 +528,9 @@ export default function DraftHandler(props: Props) {
                     try {
                         debugLog('DRAFT', `addFiles: creating upload promise for file ${index + 1}`);
                         const uploadedFile = await new Promise<FileInfo>((resolve, reject) => {
-                            debugLog('DRAFT', `addFiles: calling uploadFile for ${file.name}`);
+                            debugLog('DRAFT', `addFiles: calling uploadFile for ${file.name}`, {
+                                serverFileId,
+                            });
                             const {error} = uploadFile(
                                 serverUrl,
                                 file,
@@ -548,6 +575,9 @@ export default function DraftHandler(props: Props) {
                                     const errorMsg = err?.message || intl.formatMessage({id: 'mobile.post.upload_failed', defaultMessage: 'Failed to upload file'});
                                     reject(new Error(errorMsg));
                                 },
+                                0, // skipBytes
+                                false, // isBookmark
+                                serverFileId, // Pass server-generated file_id for batch upload
                             );
                             if (error) {
                                 reject(error);

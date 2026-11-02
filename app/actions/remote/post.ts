@@ -30,6 +30,7 @@ import {getValidEmojis, matchEmoticons} from '@utils/emoji/helpers';
 import {getFullErrorMessage, isServerError} from '@utils/errors';
 import {hasArrayChanged} from '@utils/helpers';
 import {logDebug, logError} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 import {processPostsFetched} from '@utils/post';
 import {getPostIdsForCombinedUserActivityPost} from '@utils/post_list';
 
@@ -66,7 +67,15 @@ type AuthorsRequest = {
     error?: unknown;
 }
 
-export async function createPost(serverUrl: string, post: Partial<Post>, files: FileInfo[] = [], skipPendingPostCreation = false): Promise<{data?: {postId?: string}; error?: unknown}> {
+export type BatchFileMeta = {
+    client_id: string;
+    name: string;
+    size: number;
+    mime_type: string;
+    file_id: string;
+};
+
+export async function createPost(serverUrl: string, post: Partial<Post>, files: FileInfo[] = [], skipPendingPostCreation = false): Promise<{data?: {postId?: string; pendingFiles?: BatchFileMeta[]}; error?: unknown}> {
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
         return {error: `${serverUrl} database not found`};
@@ -195,9 +204,24 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         return {data: {postId: pendingPostId}};
     }
 
-    // If we have pending files, set the post's file_ids to include them
-    // Server returns empty file_ids since it doesn't know about pending files
-    if (files.length > 0) {
+    // Extract pending_files from server response (contains server-generated file_ids)
+    // This is used for batch file uploads where FileInfo records are pre-created with metadata
+    let pendingFilesFromServer: BatchFileMeta[] | undefined;
+    if (created.props?.pending_files && Array.isArray(created.props.pending_files)) {
+        pendingFilesFromServer = created.props.pending_files as BatchFileMeta[];
+    }
+
+    // If we have pending files and server returned file_ids, use them
+    // Otherwise fall back to using local pending file ids
+    if (files.length > 0 && pendingFilesFromServer && pendingFilesFromServer.length > 0) {
+        // Use server-generated file_ids
+        const serverFileIds = pendingFilesFromServer.map(pf => pf.file_id);
+        created = {
+            ...created,
+            file_ids: serverFileIds,
+        };
+    } else if (files.length > 0) {
+        // Fall back to local pending file ids
         const pendingFileIds = files.map((file) => file.id);
         created = {
             ...created,
@@ -215,10 +239,16 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     // Create file records with the real post ID
     // Files are passed with post_id: '' (empty), so we set it to the real post ID
     if (files.length > 0) {
-        const filesWithPostId = files.map(f => ({
-            ...f,
-            post_id: created.id,
-        }));
+        // If server returned file_ids, use those for the local File records
+        const filesWithPostId = files.map((f, idx) => {
+            const serverFileId = pendingFilesFromServer?.[idx]?.file_id;
+            return {
+                ...f,
+                post_id: created.id,
+                // If server generated a file_id, use it; otherwise keep local id
+                id: serverFileId || f.id,
+            };
+        });
         const fileModels = await operator.handleFiles({files: filesWithPostId, prepareRecordsOnly: true});
         models.push(...fileModels);
     }
@@ -240,7 +270,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
 
     newPost = created;
 
-    return {data: {postId: created.id}};
+    return {data: {postId: created.id, pendingFiles: pendingFilesFromServer}};
 }
 
 /**
@@ -356,56 +386,33 @@ export async function createBatchPendingPosts(
             }
         }
 
-        // 【三阶段写入】先全量 File → 帧让渡 → 逐条 Post（帧间测量）。
+        // 【两阶段写入】先全量 File → 再全量 Post+其他。
         //
         // 阶段 1：全量写 File。此时 Post 不存在，PostList 不会渲染。
-        // 阶段 2：帧让渡（requestAnimationFrame），让 WatermelonDB observer 消化 File 事件。
-        // 阶段 3：逐条写 Post，每条之间用 requestAnimationFrame 让 FlashList
-        //         完成上一条的布局测量后再插入下一条。
-        //         这样 FlashList 能正确计算每条实际高度（带文件的 post 可能 200-300px），
-        //         避免批量插入时 estimatedItemSize=80 导致的位置重叠。
-        //
-        // post_list.tsx 的 batchedPosts 逻辑对 lengthDiff === 1 的新消息会立刻应用，
-        // 所以逐条写入不会引入额外延迟，用户仍然看到消息快速冒出。
-        const waitForFrame = () => new Promise<void>((r) => {
-            if (typeof requestAnimationFrame === 'function') {
-                requestAnimationFrame(() => r());
-            } else {
-                setTimeout(r, 16);
-            }
-        });
-
+        // 阶段 2：全量写 Post（含 reaction 等非 File 模型），一次 batch 完成。
+        //         FlashList 收到完整的 posts 列表后统一测量布局，
+        //         避免逐条写入导致的布局计算混乱和位置重叠。
         const allFiles: Model[] = [];
-        const perPostNonFiles: Model[][] = [];
+        const allNonFiles: Model[] = [];
         for (const models of perPostModels) {
             if (!models || models.length === 0) continue;
-            const nonFiles: Model[] = [];
             for (const m of models) {
                 if ((m as {table?: string})?.table === 'File') {
                     allFiles.push(m);
                 } else {
-                    nonFiles.push(m);
+                    allNonFiles.push(m);
                 }
-            }
-            if (nonFiles.length > 0) {
-                perPostNonFiles.push(nonFiles);
             }
         }
 
         // 阶段 1：全量写 File
         if (allFiles.length > 0) {
             await operator.batchRecords(allFiles, 'createBatchPendingPosts_files');
-            await waitForFrame();
         }
 
-        // 阶段 2+3：逐条写 Post（含 reaction 等非 File 模型）
-        for (let i = 0; i < perPostNonFiles.length; i++) {
-            /* eslint-disable-next-line no-await-in-loop */
-            await operator.batchRecords(perPostNonFiles[i], `createBatchPendingPosts_post_${i}`);
-            if (i < perPostNonFiles.length - 1) {
-                /* eslint-disable-next-line no-await-in-loop */
-                await waitForFrame();
-            }
+        // 阶段 2：全量写 Post（含 reaction 等非 File 模型）
+        if (allNonFiles.length > 0) {
+            await operator.batchRecords(allNonFiles, 'createBatchPendingPosts_posts');
         }
 
         return {data: results};
@@ -440,43 +447,90 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             return {error: 'Post not found'};
         }
 
-        // Query existing file records for this post
-        const oldFiles = await queryFilesForPost(database, postId).fetch();
-        const fileIds = files.map(f => f.id);
+        // 构建 pendingFileId → 上传后 FileInfo 的映射
+        const uploadedByOldId = new Map<string, FileInfo>();
+        for (const file of files) {
+            const oldId = file.clientId || file.id;
+            uploadedByOldId.set(oldId, file);
+        }
 
-        // Prepare updates
+        debugLog('POST', `updatePostFileIds: postId=${postId}, pendingPostId=${existingPost.pending_post_id}`, {
+            uploadedFiles: files.map(f => ({id: f.id, clientId: f.clientId, name: f.name})),
+            uploadedByOldIdKeys: Array.from(uploadedByOldId.keys()),
+        });
+
+        // 查询当前 post 关联的所有 File 记录（可能用 serverId 或 pending_post_id 查）
+        const existingFiles = await queryFilesForPost(database, postId).fetch();
+        let pendingFiles: typeof existingFiles = [];
+        if (existingPost.pending_post_id && existingPost.pending_post_id !== postId) {
+            pendingFiles = await queryFilesForPost(database, existingPost.pending_post_id).fetch();
+        }
+        const allFileRecords = [...existingFiles, ...pendingFiles];
+
+        debugLog('POST', `updatePostFileIds: found ${existingFiles.length} files by postId, ${pendingFiles.length} by pendingPostId`, {
+            existingFileIds: existingFiles.map(f => f.id),
+            pendingFileIds: pendingFiles.map(f => f.id),
+        });
+
         const models: Model[] = [];
+        const newFileIds: string[] = [];
 
-        // Update post's file_ids directly (avoid handlePosts which would delete files twice)
+        // 精确匹配：只删除已完成上传的 pending File，保留仍在上传中的
+        for (const fileRecord of allFileRecords) {
+            const uploaded = uploadedByOldId.get(fileRecord.id);
+            if (uploaded) {
+                // 这个 pending File 已上传完成，删除旧记录
+                models.push(fileRecord.prepareDestroyPermanently());
+                newFileIds.push(uploaded.id!);
+                uploadedByOldId.delete(fileRecord.id);
+                debugLog('POST', `updatePostFileIds: replacing ${fileRecord.id} → ${uploaded.id}`);
+            } else {
+                // 这个 File 还在上传中，保留不动
+                newFileIds.push(fileRecord.id);
+                debugLog('POST', `updatePostFileIds: keeping pending ${fileRecord.id}`);
+            }
+        }
+
+        // 为已上传完成的文件创建新的 File 记录（使用真实 server ID）
+        const newFiles: FileInfo[] = [];
+        for (const [, uploaded] of uploadedByOldId) {
+            uploaded.post_id = postId;
+            newFiles.push(uploaded);
+            newFileIds.push(uploaded.id!);
+            debugLog('POST', `updatePostFileIds: creating new file record ${uploaded.id} (no pending record found)`);
+        }
+        if (newFiles.length > 0) {
+            const fileModels = await operator.handleFiles({files: newFiles, prepareRecordsOnly: true});
+            models.push(...fileModels);
+        }
+
+        // 更新 post 的 file_ids（保留未完成的 pending ID + 已完成的 server ID）
+        // 清除 pending_files 和 upload_progress（上传完成，接收端不再需要显示"上传中"）
         const newProps = {
             ...existingPost.props,
             upload_status: 'completed',
+            pending_files: null,
+            upload_progress: null,
         };
         existingPost.prepareUpdate((p) => {
-            p.fileIds = fileIds;
+            p.fileIds = newFileIds;
             p.updateAt = Date.now();
             p.props = newProps;
         });
         models.push(existingPost);
 
-        // Delete old pending file records
-        for (const oldFile of oldFiles) {
-            models.push(oldFile.prepareDestroyPermanently());
-        }
-
-        // Create new file records with real server IDs
-        for (const file of files) {
-            file.post_id = postId;
-        }
-        const fileModels = await operator.handleFiles({files, prepareRecordsOnly: true});
-        models.push(...fileModels);
-
         await operator.batchRecords(models, 'updatePostFileIds');
 
-        // Update on server using patchPost
+        debugLog('POST', `updatePostFileIds: complete`, {
+            newFileIds,
+            serverFileIds: newFileIds.filter((id) => !id.startsWith('pending_')),
+        });
+
+        // Update on server using patchPost（只发 server IDs，不发 pending IDs）
+        // 清除 pending_files 和 upload_progress，让接收端切换到"未下载"状态
         await client.patchPost({
             id: postId,
-            file_ids: fileIds,
+            file_ids: newFileIds.filter((id) => !id.startsWith('pending_')),
             props: newProps,
         });
 

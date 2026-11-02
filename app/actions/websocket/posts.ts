@@ -24,6 +24,7 @@ import {getCurrentChannelId, getCurrentTeamId, getCurrentUserId} from '@queries/
 import {getIsCRTEnabled} from '@queries/servers/thread';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
+import {debugLog} from '@store/debug_log';
 import {hasArrayChanged, isTablet} from '@utils/helpers';
 import {logError, logWarning} from '@utils/log';
 import {isFromWebhook, isSystemMessage, shouldIgnorePost} from '@utils/post';
@@ -50,8 +51,10 @@ export async function handleNewPostEvent(serverUrl: string, msg: WebSocketMessag
 }
 
 async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage) {
+    debugLog('[WS:handleNewPostEvent] ===== 开始处理新 post 事件 =====');
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
+        debugLog('[WS:handleNewPostEvent] ❌ 未找到 operator');
         return;
     }
 
@@ -61,12 +64,29 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     try {
         post = JSON.parse(msg.data.post);
     } catch {
+        debugLog('[WS:handleNewPostEvent] ❌ 解析 post JSON 失败');
         return;
     }
+
+    debugLog('[WS:handleNewPostEvent] 📨 收到 post:', {
+        id: post.id,
+        pending_post_id: post.pending_post_id,
+        channel_id: post.channel_id,
+        user_id: post.user_id,
+        message: post.message?.substring(0, 50),
+        file_ids: post.file_ids,
+        has_metadata: !!post.metadata,
+        metadata_files: post.metadata?.files?.length || 0,
+    });
 
     const currentUserId = await getCurrentUserId(database);
 
     const existing = await getPostById(database, post.pending_post_id) || await getPostById(database, post.id);
+    debugLog('[WS:handleNewPostEvent] 🔍 查询 existing post:', {
+        found: !!existing,
+        searched_pending_id: post.pending_post_id,
+        searched_id: post.id,
+    });
 
     if (existing) {
         try {
@@ -264,38 +284,68 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     // 注意：某些 WebSocket 版本可能发送不完整的 metadata.files（字段缺失），
     // 因此始终拉取以确保数据完整性。
     const postFileIds = post.file_ids as string[] | undefined;
+    debugLog('[WS:handleNewPostEvent] 📎 检查文件信息:', {
+        has_file_ids: !!(postFileIds && postFileIds.length > 0),
+        file_ids_count: postFileIds?.length || 0,
+        file_ids: postFileIds,
+    });
+
     if (postFileIds && postFileIds.length > 0) {
         try {
             const existingFiles = await database.get(FILE).query(
                 Q.where('post_id', post.id),
             ).fetch();
+            debugLog('[WS:handleNewPostEvent] 💾 查询本地 File 记录:', {
+                post_id: post.id,
+                existing_count: existingFiles.length,
+                need_fetch: existingFiles.length < postFileIds.length,
+            });
+
             // 仅当本地尚无该 post 的 File 记录时拉取（新 post 场景）
             if (existingFiles.length < postFileIds.length) {
+                debugLog('[WS:handleNewPostEvent] 🌐 从服务端拉取 FileInfo...');
                 const client = NetworkManager.getClient(serverUrl);
                 const fileInfos = await client.getFileInfosForPost(post.id);
+                debugLog('[WS:handleNewPostEvent] ✅ 服务端返回 FileInfo:', {
+                    count: fileInfos?.length || 0,
+                    file_ids: fileInfos?.map((f) => f.id),
+                });
+
                 if (fileInfos && fileInfos.length > 0) {
                     // 注入到 metadata.files，handlePosts 内部会统一提取并创建 File 记录
                     if (!post.metadata) {
                         post.metadata = {} as any;
                     }
                     post.metadata.files = fileInfos;
+                    debugLog('[WS:handleNewPostEvent] 💉 已注入 metadata.files:', {
+                        count: fileInfos.length,
+                    });
                 }
+            } else {
+                debugLog('[WS:handleNewPostEvent] ⏭️ 本地已有 File 记录，跳过拉取');
             }
         } catch (fileErr) {
+            debugLog('[WS:handleNewPostEvent] ❌ 拉取 FileInfo 失败:', fileErr);
             logWarning('handleNewPostEvent: failed to fetch missing files', fileErr);
         }
     }
 
+    debugLog('[WS:handleNewPostEvent] 🔧 调用 handlePosts...');
     const postModels = await operator.handlePosts({
         actionType,
         order: [post.id],
         posts: [post],
         prepareRecordsOnly: true,
     });
+    debugLog('[WS:handleNewPostEvent] ✅ handlePosts 返回:', {
+        models_count: postModels.length,
+    });
 
     models.push(...postModels);
 
+    debugLog('[WS:handleNewPostEvent] 💾 调用 batchRecords, 总 models 数:', models.length);
     await operator.batchRecords(models, 'handleNewPostEvent');
+    debugLog('[WS:handleNewPostEvent] ✅ batchRecords 完成');
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {

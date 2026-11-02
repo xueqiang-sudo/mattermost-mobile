@@ -3,6 +3,7 @@
 
 import React from 'react';
 import {Text, TouchableOpacity, View} from 'react-native';
+import {useIntl} from 'react-intl';
 
 import {useTheme} from '@context/theme';
 import {getFormattedFileSize} from '@utils/file';
@@ -12,6 +13,7 @@ import {typography} from '@utils/typography';
 
 type FileInfoProps = {
     disabled?: boolean;
+    currentUserId?: string;
     file: FileInfo;
     showDate: boolean;
     channelName?: string;
@@ -62,15 +64,50 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             ...typography('Body', 50, 'SemiBold'),
             color: changeOpacity(theme.centerChannelColor, 0.72),
         },
+        statusText: {
+            ...typography('Body', 75, 'Regular'),
+            marginTop: 2,
+        },
+        uploadingText: {
+            color: changeOpacity(theme.centerChannelColor, 0.48),
+        },
+        notDownloadedText: {
+            color: '#E57373',
+        },
     };
 });
 
-const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDate, onPress, touchable = true}: FileInfoProps) => {
+const FileInfo = ({disabled, currentUserId, file, channelName, fillRemainingRow = true, showDate, onPress, touchable = true}: FileInfoProps) => {
     const theme = useTheme();
     const style = getStyleSheet(theme);
+    const intl = useIntl();
 
     // 智能截断文件名，保留扩展名（微信风格：中间省略，保留前后关键部分）
     const {name, ext} = truncateFileName(file.name.trim(), 30);
+
+    // 微信风格：文件状态指示
+    // 优先级：上传中 > 未下载 > 已下载（不显示）
+    const uploadStatus = (file as any)._uploadStatus as string | undefined;
+    const uploadProgress = (file as any)._uploadProgress as number | undefined;
+
+    // 判断是否同账号（post 作者是当前登录用户）
+    const isSameAccount = Boolean(currentUserId && file.user_id === currentUserId);
+
+    let statusText = '';
+    let statusStyle = style.uploadingText;
+    if (uploadStatus === 'uploading') {
+        // 上传中状态：同账号显示"上传中"，不同账号显示"对方上传中"
+        if (isSameAccount) {
+            statusText = intl.formatMessage({id: 'file.status.uploading', defaultMessage: '上传中'});
+        } else {
+            statusText = intl.formatMessage({id: 'file.status.peer_uploading', defaultMessage: '对方上传中'});
+        }
+        statusStyle = style.uploadingText;
+    } else if (!file.localPath && !file.id?.startsWith('pending_')) {
+        // 上传完成但未下载到本地
+        statusText = intl.formatMessage({id: 'file.status.not_downloaded', defaultMessage: '未下载'});
+        statusStyle = style.notDownloadedText;
+    }
 
     const content = (
         <>
@@ -96,6 +133,11 @@ const FileInfo = ({disabled, file, channelName, fillRemainingRow = true, showDat
                     {`${getFormattedFileSize(file.size)}`}
                 </Text>
             </View>
+            {statusText ? (
+                <Text style={[style.statusText, statusStyle]}>
+                    {statusText}
+                </Text>
+            ) : null}
         </>
     );
 

@@ -20,6 +20,7 @@ import File from './file';
 type FilesProps = {
     canDownloadFiles: boolean;
     enableSecureFilePreview: boolean;
+    currentUserId?: string;
     failed?: boolean;
     filesInfo: FileInfo[];
     channelMediaFiles?: FileInfo[];
@@ -116,6 +117,7 @@ const styles = StyleSheet.create({
 
 const Files = ({
     canDownloadFiles,
+    currentUserId,
     enableSecureFilePreview,
     failed,
     filesInfo,
@@ -246,6 +248,7 @@ const Files = ({
                         galleryIdentifier={galleryIdentifier}
                         key={file.id}
                         canDownloadFiles={canDownloadFiles}
+                        currentUserId={currentUserId}
                         enableSecureFilePreview={enableSecureFilePreview}
                         expandCardToParentWidth={expandCardToParentWidth}
                         file={file}
@@ -320,6 +323,7 @@ const Files = ({
                         <File
                             galleryIdentifier={galleryIdentifier}
                             canDownloadFiles={canDownloadFiles}
+                            currentUserId={currentUserId}
                             enableSecureFilePreview={enableSecureFilePreview}
                             expandCardToParentWidth={false}
                             file={file}
