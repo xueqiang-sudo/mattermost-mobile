@@ -11,6 +11,7 @@ import {Screens} from '@constants';
 import ContactsScreen from './contacts';
 import ContactsSearchScreen from './contacts_search';
 import {type ContactsStackParamList} from './contacts_stack_param_list';
+import ContactsDepartmentAddMembersScreen from './department_add_members';
 import ContactsDepartmentDetail from './department_detail';
 import ExternalContactsScreen from './external_contacts';
 import ContactsExternalAddScreen from './external_contacts_add';
@@ -82,10 +83,11 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
                 });
             }}
             onAddMember={() => {
-                navigation.navigate(Screens.INTERNAL_MEMBER_ADD, {
-                    ownerId: params.ownerId || '',
+                navigation.push(Screens.DEPARTMENT_ADD_MEMBERS, {
                     companyId: params.companyId,
                     companyName: params.companyName,
+                    targetDepartmentId: params.departmentId,
+                    targetDepartmentName: params.departmentName,
                 });
             }}
             onBreadcrumbPress={(toDismiss) => {
@@ -138,6 +140,25 @@ function InternalMemberAddWrapper() {
     );
 }
 
+function DepartmentAddMembersWrapper() {
+    const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.DEPARTMENT_ADD_MEMBERS>>();
+    const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.DEPARTMENT_ADD_MEMBERS>>();
+    const params = route.params;
+    if (!params) {
+        return null;
+    }
+    return (
+        <ContactsDepartmentAddMembersScreen
+            companyId={params.companyId}
+            companyName={params.companyName}
+            targetDepartmentId={params.targetDepartmentId}
+            targetDepartmentName={params.targetDepartmentName}
+            onBack={() => navigation.goBack()}
+            onSuccess={() => navigation.goBack()}
+        />
+    );
+}
+
 export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rnnHomeComponentId}: ContactsStackProps) {
     return (
         <ContactsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
@@ -172,6 +193,9 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
                 <Stack.Screen name={Screens.CONTACTS_EXTERNAL_ADD} component={ContactsExternalAddScreen}/>
                 <Stack.Screen name={Screens.INTERNAL_MEMBER_ADD}>
                     {() => <InternalMemberAddWrapper/>}
+                </Stack.Screen>
+                <Stack.Screen name={Screens.DEPARTMENT_ADD_MEMBERS}>
+                    {() => <DepartmentAddMembersWrapper/>}
                 </Stack.Screen>
             </Stack.Navigator>
         </ContactsRnnHomeComponentIdContext.Provider>

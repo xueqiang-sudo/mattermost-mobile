@@ -92,6 +92,29 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
                     await operator.batchRecords([chunk], 'handleNewPostEvent_existingPost_PIC');
                 }
             }
+
+            // 【关键修复】当 post.id 变化时（pendingPostId → serverPostId），
+            // 需要同步更新 File 记录的 post_id，否则 File 关联断裂。
+            // 场景：用户发送带文件的 post → 本地用 pendingPostId 创建 File →
+            // 服务端返回 serverPostId → 如果不更新 File.post_id，重新进入聊天时
+            // 查询 post.id 找不到对应的 File。
+            if (post.pending_post_id && post.id !== post.pending_post_id) {
+                const files = await database.get(FILE).query(
+                    Q.where('post_id', post.pending_post_id),
+                ).fetch();
+                if (files.length > 0) {
+                    const updates = files.map((f) => {
+                        if (f._preparedState === 'update') {
+                            f.cancelPrepareUpdate();
+                        }
+                        f.prepareUpdate((r) => {
+                            r.post_id = post.id;
+                        });
+                        return f;
+                    });
+                    await operator.batchRecords(updates, 'handleNewPostEvent_updateFilePostId');
+                }
+            }
         } catch (e) {
             logError('handleNewPostEvent: failed for existing post', e);
         }
@@ -234,31 +257,32 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     // observer 触发 → 但 FlashList 不重新测量已渲染的条目。导致 webapp 发送的
     // 文件/图片在 mobile 实时看不到，必须退出再进聊天窗口才行。
     //
-    // 方案：若 post 有 file_ids 但 metadata.files 缺失（某些 WebSocket 版本/场景），
-    // 在写 Post 之前先从服务端拉取 FileInfo 并注入到 metadata.files，
-    // 让 handlePosts 内部统一提取 File 记录，和 Post 一起写入同一个 batch。
+    // 方案：若 post 有 file_ids，在写 Post 之前先从服务端拉取完整 FileInfo，
+    // 并注入到 metadata.files，让 handlePosts 内部统一提取 File 记录，
+    // 和 Post 一起写入同一个 batch。
+    //
+    // 注意：某些 WebSocket 版本可能发送不完整的 metadata.files（字段缺失），
+    // 因此始终拉取以确保数据完整性。
     const postFileIds = post.file_ids as string[] | undefined;
     if (postFileIds && postFileIds.length > 0) {
-        const metaFiles = post.metadata?.files;
-        if (!metaFiles || metaFiles.length < postFileIds.length) {
-            try {
-                const existingFiles = await database.get(FILE).query(
-                    Q.where('post_id', post.id),
-                ).fetch();
-                if (existingFiles.length < postFileIds.length) {
-                    const client = NetworkManager.getClient(serverUrl);
-                    const fileInfos = await client.getFileInfosForPost(post.id);
-                    if (fileInfos && fileInfos.length > 0) {
-                        // 注入到 metadata.files，handlePosts 内部会统一提取并创建 File 记录
-                        if (!post.metadata) {
-                            post.metadata = {} as any;
-                        }
-                        post.metadata.files = fileInfos;
+        try {
+            const existingFiles = await database.get(FILE).query(
+                Q.where('post_id', post.id),
+            ).fetch();
+            // 仅当本地尚无该 post 的 File 记录时拉取（新 post 场景）
+            if (existingFiles.length < postFileIds.length) {
+                const client = NetworkManager.getClient(serverUrl);
+                const fileInfos = await client.getFileInfosForPost(post.id);
+                if (fileInfos && fileInfos.length > 0) {
+                    // 注入到 metadata.files，handlePosts 内部会统一提取并创建 File 记录
+                    if (!post.metadata) {
+                        post.metadata = {} as any;
                     }
+                    post.metadata.files = fileInfos;
                 }
-            } catch (fileErr) {
-                logWarning('handleNewPostEvent: failed to fetch missing files', fileErr);
             }
+        } catch (fileErr) {
+            logWarning('handleNewPostEvent: failed to fetch missing files', fileErr);
         }
     }
 

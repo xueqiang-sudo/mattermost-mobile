@@ -58,6 +58,13 @@ type Props = {
 
 const emptyFileList: FileInfo[] = [];
 
+/**
+ * UI 层文件数量硬限制：9 个。
+ * 服务端配置可能允许 10 个或更多，但多文件（9+）同时渲染会导致 FlashList
+ * 布局测量问题（文件信息重叠/不渲染），因此在 UI 层做更严格的限制。
+ */
+const UI_MAX_FILE_COUNT = 9;
+
 export default function DraftHandler(props: Props) {
     const {
         testID,
@@ -67,7 +74,7 @@ export default function DraftHandler(props: Props) {
         quotedPostId = '',
         canShowPostPriority,
         files,
-        maxFileCount,
+        maxFileCount: serverMaxFileCount,
         maxFileSize,
         canUploadFiles,
         currentUserId,
@@ -81,6 +88,9 @@ export default function DraftHandler(props: Props) {
 
     const serverUrl = useServerUrl();
     const intl = useIntl();
+
+    // UI 层限制：取服务端配置和 UI 硬限制的较小值
+    const maxFileCount = Math.min(serverMaxFileCount, UI_MAX_FILE_COUNT);
 
     const uploadErrorHandlers = useRef<ErrorHandlers>({});
     const {uploadError, newUploadError} = useFileUploadError();

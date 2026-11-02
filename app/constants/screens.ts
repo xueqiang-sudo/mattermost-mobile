@@ -41,6 +41,7 @@ export const CONTACTS_EMPLOYEE_PROFILE = 'ContactsEmployeeProfile';
 export const CONTACTS_MANAGE = 'ContactsManage';
 export const CONTACTS_SEARCH = 'ContactsSearch';
 export const CONTACTS_BATCH_MOVE_MEMBERS = 'ContactsBatchMoveMembers';
+export const DEPARTMENT_ADD_MEMBERS = 'DepartmentAddMembers';
 export const CONTACTS_EXTERNAL = 'ContactsExternal';
 export const CONTACTS_EXTERNAL_ADD = 'ContactsExternalAdd';
 export const INTERNAL_MEMBER_ADD = 'InternalMemberAdd';
@@ -206,6 +207,7 @@ export default {
     CONTACTS_MANAGE,
     CONTACTS_SEARCH,
     CONTACTS_BATCH_MOVE_MEMBERS,
+    DEPARTMENT_ADD_MEMBERS,
     CONTACTS_EXTERNAL,
     CONTACTS_EXTERNAL_ADD,
     INTERNAL_MEMBER_ADD,

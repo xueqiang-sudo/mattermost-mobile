@@ -44,4 +44,12 @@ export type ContactsStackParamList = {
         companyId: string;
         companyName?: string;
     };
+    [Screens.DEPARTMENT_ADD_MEMBERS]: {
+        companyId: string;
+        companyName?: string;
+
+        /** 目标部门 ID，null 表示根部门 */
+        targetDepartmentId: number | null;
+        targetDepartmentName: string;
+    };
 };

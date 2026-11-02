@@ -971,6 +971,104 @@ const ContactsBatchMoveMembers = ({
         selectedIds,
     ]);
 
+    /** 点击根部门列表项时直接执行移动到根部门 */
+    const handleMoveToRoot = usePreventDoubleTap(useCallback(async () => {
+        if (!serverUrl || !canMoveToRoot || moving) {
+            return;
+        }
+        const hasMembers = movableMemberIds.length > 0;
+        const hasDepartments = movableDepartmentIds.length > 0;
+        if (!hasMembers && !hasDepartments) {
+            return;
+        }
+
+        let resolvedTargetId = effectiveTargetDepartmentId;
+        if (resolvedTargetId == null) {
+            const defaultRes = await fetchDefaultDepartmentId(serverUrl, companyId);
+            if (defaultRes.error || defaultRes.data == null) {
+                Alert.alert(
+                    intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
+                    intl.formatMessage({id: 'contacts.move_to_root_fetch_failed', defaultMessage: 'Failed to load default department. Please try again.'}),
+                );
+                return;
+            }
+            resolvedTargetId = defaultRes.data;
+        }
+
+        const targetName = intl.formatMessage({id: 'contacts.root_department', defaultMessage: 'Root Department'});
+        const ok = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
+                intl.formatMessage(
+                    {id: 'contacts.move_confirm_simple', defaultMessage: 'Move {count} item(s) to {name}?'},
+                    {count: movableMemberIds.length + movableDepartmentIds.length, name: targetName},
+                ),
+                [
+                    {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), onPress: () => resolve(false)},
+                    {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
+                ],
+            );
+        });
+        if (!ok) {
+            return;
+        }
+
+        setMoving(true);
+        let deptFailed = 0;
+        for (const deptId of movableDepartmentIds) {
+            const name = selectedDepartmentNames[deptId] ?? '';
+            if (!name.trim()) {
+                deptFailed += 1;
+                continue;
+            }
+            const res = await updateContactDepartment(serverUrl, companyId, deptId, name, null);
+            if (res.error) {
+                deptFailed += 1;
+            }
+        }
+
+        let failed = 0;
+        const memberIdsBySourceDept = new Map<number, string[]>();
+        for (const employeeId of movableMemberIds) {
+            const srcDept = selectedMemberSourceDepts[employeeId] ?? defaultDepartmentId ?? effectiveSourceDepartmentId;
+            if (srcDept == null) {
+                failed += 1;
+                continue;
+            }
+            const ids = memberIdsBySourceDept.get(srcDept) ?? [];
+            ids.push(employeeId);
+            memberIdsBySourceDept.set(srcDept, ids);
+        }
+
+        for (const [sourceDeptId, memberIds] of memberIdsBySourceDept.entries()) {
+            const res = await batchMoveContactEmployeeToDepartment(
+                serverUrl,
+                companyId,
+                memberIds,
+                sourceDeptId,
+                resolvedTargetId,
+            );
+            if (res.error) {
+                failed += memberIds.length;
+            }
+        }
+        setMoving(false);
+
+        if (!mounted.current) {
+            return;
+        }
+        if (deptFailed > 0 || failed > 0) {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
+                intl.formatMessage(
+                    {id: 'contacts.move_partial_failed', defaultMessage: 'Some items failed to move.'},
+                ),
+            );
+        }
+        onSuccess?.();
+        handleClose();
+    }, [canMoveToRoot, companyId, defaultDepartmentId, effectiveSourceDepartmentId, effectiveTargetDepartmentId, handleClose, intl, movableDepartmentIds, movableMemberIds, onSuccess, selectedDepartmentNames, selectedMemberSourceDepts, serverUrl, moving]));
+
     const handleMoveHere = usePreventDoubleTap(useCallback(async () => {
         if (!serverUrl) {
             return;
@@ -1423,8 +1521,37 @@ const ContactsBatchMoveMembers = ({
                         contentContainerStyle={{paddingBottom: 24}}
                         showsVerticalScrollIndicator={false}
                     >
+                        {/* 根部门选项：始终显示在顶部（除非当前已在根部门且无其他部门可选） */}
+                        {targetDepartmentId == null && (
+                            <TouchableOpacity
+                                style={styles.deptRow}
+                                onPress={handleMoveToRoot}
+                                activeOpacity={0.7}
+                                disabled={!canMoveToRoot || moving}
+                                testID='contacts.batch_move.target_root'
+                            >
+                                <View style={styles.folderIcon}>
+                                    <CompassIcon
+                                        name='folder-outline'
+                                        size={24}
+                                        color={theme.linkColor}
+                                    />
+                                </View>
+                                <Text
+                                    style={styles.listItemName}
+                                    numberOfLines={1}
+                                >{intl.formatMessage({id: 'contacts.root_department', defaultMessage: 'Root Department'})}</Text>
+                                <CompassIcon
+                                    name='chevron-right'
+                                    size={24}
+                                    color={changeOpacity(theme.centerChannelColor, 0.5)}
+                                />
+                            </TouchableOpacity>
+                        )}
                         {targetDepartments.map((dept) => {
-                            const disabled = selectedDepartmentIds.has(dept.id);
+                            // 过滤掉源部门（不能移动到自身）和已选中的待移动部门
+                            const disabled = selectedDepartmentIds.has(dept.id) ||
+                                (sourceDepartmentId != null && dept.id === sourceDepartmentId);
                             return (
                                 <TouchableOpacity
                                     key={dept.id}
@@ -1527,10 +1654,7 @@ const ContactsBatchMoveMembers = ({
                             testID='contacts.batch_move.move_here'
                         >
                             <Text style={styles.bottomButtonText}>
-                                {isAtRootLevel? intl.formatMessage({id: 'contacts.move_to_root', defaultMessage: 'Move to root (default department)'}): intl.formatMessage(
-                                    {id: 'contacts.move_here', defaultMessage: 'Move here ({name})'},
-                                    {name: currentTarget?.departmentName ?? ''},
-                                )}
+                                {intl.formatMessage({id: 'contacts.move', defaultMessage: 'Move'})}
                             </Text>
                         </TouchableOpacity>
                     </View>
